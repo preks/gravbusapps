@@ -11,6 +11,7 @@ import { useInvestmentOpportunityFilters } from './hooks/useInvestmentOpportunit
 import { useInvestmentOpportunityStatistics } from '@/common/data/investment/hooks/useInvestmentOpportunityStatistics'
 import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/types/investmentOpportunityTypes'
 import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+import type { OpportunityStatisticsData } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
 import { OpportunityQuickFilters, type QuickFilterType } from './components'
 
 /**
@@ -84,6 +85,27 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
     [activeQuickFilter, handleQuickFilterChange]
   )
 
+  // State to trigger statistics refresh
+  const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0)
+
+  // Create a refetch callback for statistics
+  const refetchStatistics = useCallback(() => {
+    setStatisticsRefreshKey(prev => prev + 1)
+  }, [])
+
+  // Statistics data with refetch callback
+  const opportunityStatisticsData: OpportunityStatisticsData | undefined = useMemo(() => {
+    return {
+      recentOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      totalOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisQuarter: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisYear: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      isLoading: false,
+      error: null,
+      refetch: refetchStatistics
+    }
+  }, [refetchStatistics])
+
   const config = useMemo(
     () =>
       createOpportunityConfig<InvestmentOpportunity, InvestmentOpportunityQueryVariables>({
@@ -135,8 +157,13 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
         extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
+
+        // Provide statistics data for refetch in handleProcessComplete
+        opportunityStatistics: opportunityStatisticsData,
+
         renderStatistics: (selectedCurrency?: string, quickFilter?: string) => (
           <InvestmentOpportunityStatistics
+            key={statisticsRefreshKey}
             context={context}
             selectedCurrency={selectedCurrency}
             quickFilter={quickFilter}
@@ -147,7 +174,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           opportunityId: row.original.id
         })
       }),
-    [context, fetchInvestmentOpportunities]
+    [context, fetchInvestmentOpportunities, opportunityStatisticsData, statisticsRefreshKey]
   )
 
   return (

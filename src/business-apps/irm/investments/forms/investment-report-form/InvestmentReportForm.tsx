@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { InvestmentLayout, InvestmentFormValues } from '@/common/components/investment/form-layouts/investment-layout'
 import { useTranslation, Skeleton } from '@newwork/nw-design-system'
@@ -17,7 +17,6 @@ import translations from './_i18n'
 import { InvestmentReportSegment } from './components/InvestmentReportSegment'
 import { ErrorAlert } from '@/components/error-alert'
 import { createDynamicInvestmentSchema } from '@/common/components/investment/form-layouts/investment-layout/investmentSchema'
-import { mapInvestmentDataToFormFields } from '@/common/components/investment/form-layouts/investment-layout/utils/investmentFormMapper'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { transformInvestment } from './utils/transformInvestment'
 import { transformInvestmentReport } from './utils/transformInvestmentReport'
@@ -78,10 +77,12 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
     }
   }, [initialInvestmentId])
 
-  // Load investment data - automatically reloads when investmentId changes
+  // Load investment data - only when NOT editing a report (no investmentReportId)
+  // When editing a report, all data comes from the report, not the investment
+  const shouldFetchInvestment = !investmentReportId && investmentId
   const { investment: fetchedInvestment, loading: investmentLoading } = useInvestment(
     accessToken || '',
-    investmentId,
+    shouldFetchInvestment ? investmentId : undefined,
     'record'
   )
 
@@ -105,13 +106,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
     InvestmentFormValues & { investmentReportDate?: string; investmentReportScope?: string }
   > = useMemo(() => {
     if (investmentReportId && fetchedReport) {
-      return transformInvestmentReport(
-        fetchedReport,
-        investmentReportId,
-        investmentId,
-        getPathByType,
-        fetchedInvestment
-      )
+      return transformInvestmentReport(fetchedReport, investmentReportId, investmentId, getPathByType)
     } else if (investmentId && fetchedInvestment) {
       return transformInvestment(fetchedInvestment, investmentId, getPathByType)
     } else if (investmentId) {
@@ -159,9 +154,6 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   // Get investment type ID from current form values
   const investmentTypeId = useMemo(() => getInvestmentTypeId(formValues), [getInvestmentTypeId, formValues])
 
-  // Get complete path with ancestors and descendants
-  const typePath = useMemo(() => getPathByType(investmentTypeId), [getPathByType, investmentTypeId])
-
   // Calculate baseTypeId from investmentTypeId (root type at level 0)
   const baseTypeId = useMemo(() => {
     if (!investmentTypeId || !getPathByType) return null
@@ -171,8 +163,9 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   }, [investmentTypeId, getPathByType])
 
   // Get form fields definition using getInvestmentFieldsByType
+  // Pass 'report' scope to filter out fields with report: false
   const formFieldsDefinition = useMemo(() => {
-    return getInvestmentFieldsByType(investmentTypeId)
+    return getInvestmentFieldsByType(investmentTypeId, 'report')
   }, [getInvestmentFieldsByType, investmentTypeId])
 
   // Create dynamic schema based on formFieldsDefinition
@@ -208,106 +201,31 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   // Priority: 1) fetchedReport.investment, 2) fetchedInvestment (from investmentId)
   const currentFetchedInvestment = fetchedReport?.investment || fetchedInvestment
 
-  // Track if we've already mapped dynamic fields for this investment
-  const lastMappedInvestmentIdRef = useRef<string | null>(null)
-
-  // Map dynamic fields after catalog data is loaded (only in update mode or when investment is loaded)
-  useEffect(() => {
-    // Only map if we have investment data
-    if (!currentFetchedInvestment) {
-      return
-    }
-
-    const effectiveId = currentFetchedInvestment.id || investmentId
-    if (!effectiveId) {
-      return
-    }
-
-    // Wait for type path to be available (from getPathByType)
-    if (typePath.length === 0 && investmentTypesLoading) {
-      return
-    }
-
-    // Check if we've already mapped for this investment
-    if (lastMappedInvestmentIdRef.current === effectiveId) {
-      return
-    }
-
-    // Get form fields definition for dynamic mapping
-    const fieldsDef = getInvestmentFieldsByType(investmentTypeId)
-    if (!fieldsDef) {
-      return
-    }
-
-    // Map dynamic fields from raw investment data
-    const dynamicFields = mapInvestmentDataToFormFields(currentFetchedInvestment, fieldsDef)
-
-    // Merge dynamic fields with existing form values
-    if (Object.keys(dynamicFields).length > 0) {
-      // Get current form values
-      const currentValues = form.getValues()
-
-      // Merge dynamic fields with current values
-      const mergedValues = {
-        ...currentValues,
-        investment: {
-          ...currentValues.investment,
-          ...(dynamicFields.investment && Object.keys(dynamicFields.investment).length > 0
-            ? dynamicFields.investment
-            : {})
-        },
-        ...(dynamicFields.equityInvestment && {
-          equityInvestment: {
-            ...currentValues.equityInvestment,
-            ...dynamicFields.equityInvestment
-          }
-        }),
-        ...(dynamicFields.realEstateInvestment && {
-          realEstateInvestment: {
-            ...currentValues.realEstateInvestment,
-            ...dynamicFields.realEstateInvestment
-          }
-        }),
-        ...(dynamicFields.liquidFundInvestment && {
-          liquidFundInvestment: {
-            ...currentValues.liquidFundInvestment,
-            ...dynamicFields.liquidFundInvestment
-          }
-        })
-      }
-
-      // Update form with merged values in one call (avoids type instantiation issues)
-      form.reset(mergedValues as any)
-    }
-
-    // Mark this investment as mapped
-    lastMappedInvestmentIdRef.current = effectiveId
-  }, [
-    currentFetchedInvestment,
-    investmentId,
-    investmentTypeId,
-    getInvestmentFieldsByType,
-    investmentTypesLoading,
-    form,
-    formValues
-  ])
-
   // Load investments list for select
-  useEffect(() => {
-    const loadInvestments = async () => {
+  const loadInvestments = useCallback(
+    async (searchTerm?: string) => {
       if (!accessToken) return
       try {
         setIsLoadingInvestments(true)
-        const result = await fetchInvestments()
+        const result = await fetchInvestments({
+          search: searchTerm,
+          limit: 20,
+          offset: 0
+        })
         setInvestments(result?.Investment || [])
       } catch (error) {
         console.error('Error loading investments:', error)
       } finally {
         setIsLoadingInvestments(false)
       }
-    }
+    },
+    [accessToken, fetchInvestments]
+  )
+
+  // Initial load of investments
+  useEffect(() => {
     loadInvestments()
-  }, [accessToken, fetchInvestments])
+  }, [loadInvestments])
 
   // Show investment select only if no initialInvestmentId was provided
   const showInvestmentSelect = !initialInvestmentId
@@ -325,27 +243,10 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
       // Use transformInvestment to transform the investment
       const transformed = transformInvestment(currentFetchedInvestment, investmentId, getPathByType)
 
-      // Update form values
-      if (transformed.investment) {
-        Object.keys(transformed.investment).forEach(key => {
-          form.setValue(`investment.${key}` as any, (transformed.investment as any)[key])
-        })
-      }
-      if (transformed.liquidFundInvestment) {
-        form.setValue('liquidFundInvestment', transformed.liquidFundInvestment)
-      }
-      if (transformed.equityInvestment) {
-        form.setValue('equityInvestment', transformed.equityInvestment)
-      }
-      if (transformed.realEstateInvestment) {
-        form.setValue('realEstateInvestment', transformed.realEstateInvestment)
-      }
-      if (transformed.investmentReportDate) {
-        form.setValue('investmentReportDate', transformed.investmentReportDate)
-      }
-      if (transformed.investmentReportScope) {
-        form.setValue('investmentReportScope', transformed.investmentReportScope)
-      }
+      // Update form values using reset to avoid complex type issues
+      form.reset(
+        transformed as Partial<InvestmentFormValues & { investmentReportDate?: string; investmentReportScope?: string }>
+      )
     }
   }, [currentFetchedInvestment, investmentLoading, investmentId, form, investmentReportId, getPathByType])
 
@@ -355,7 +256,9 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   }, [])
 
   // Determine if this is an update
-  const isUpdate = Boolean(investmentReportId || formValues.investment.id)
+  // For reports: check investmentReportId OR investment.investmentId (reference to investment)
+  // For investment-form: would check investment.id (the investment entity ID)
+  const isUpdate = Boolean(investmentReportId || formValues.investment.id || formValues.investment.investmentId)
 
   // Translation hook
   const { t } = useTranslation(translations)
@@ -453,6 +356,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
           investments={investments}
           isLoadingInvestments={isLoadingInvestments}
           onInvestmentChange={handleInvestmentChange}
+          onInvestmentSearch={loadInvestments}
         />
 
         {/* Investment Information + Dynamic Segment */}

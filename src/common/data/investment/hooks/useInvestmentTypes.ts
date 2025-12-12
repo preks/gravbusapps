@@ -224,21 +224,31 @@ const sanitizeProperty = (property: string, fieldType: string): string => {
  */
 /**
  * Convert formFields to DynamicFormConfiguration
+ * @param formFields - Raw form fields from catalog
+ * @param scope - Optional scope to filter fields ('report' excludes fields with report: false)
  */
-const convertFormFieldsToConfig = (formFields: any[]): DynamicFormConfiguration => {
+const convertFormFieldsToConfig = (formFields: any[], scope?: 'investment' | 'report'): DynamicFormConfiguration => {
   const dynamicFormFields: DynamicFormFieldGroup[] = formFields.map((group: any) => ({
     groupId: group.groupId,
     groupLabel: group.groupLabel,
     displayOrder: group.displayOrder,
-    fields: group.fields.map(
-      (field: any): DynamicFormFieldDefinition => ({
-        type: field.type,
-        label: field.label,
-        property: sanitizeProperty(field.property, field.type),
-        required: field.required,
-        displayOrder: field.displayOrder
+    fields: group.fields
+      .filter((field: any) => {
+        // If scope is 'report', exclude fields with report: false
+        if (scope === 'report' && field.report === false) {
+          return false
+        }
+        return true
       })
-    )
+      .map(
+        (field: any): DynamicFormFieldDefinition => ({
+          type: field.type,
+          label: field.label,
+          property: sanitizeProperty(field.property, field.type),
+          required: field.required,
+          displayOrder: field.displayOrder
+        })
+      )
   }))
   return { formFields: dynamicFormFields }
 }
@@ -293,11 +303,16 @@ const getTypePath = (allTypes: InvestmentType[], typeId: string): InvestmentType
 
 /**
  * Extract form fields configuration from parsed object value
+ * @param parsedObjectValue - Parsed objectValue from catalog
+ * @param scope - Optional scope to filter fields ('report' excludes fields with report: false)
  */
-const extractFormFieldsConfig = (parsedObjectValue: any): DynamicFormConfiguration | null => {
+const extractFormFieldsConfig = (
+  parsedObjectValue: any,
+  scope?: 'investment' | 'report'
+): DynamicFormConfiguration | null => {
   const formFields = parsedObjectValue?.formFields
   if (formFields && Array.isArray(formFields) && formFields.length > 0) {
-    return convertFormFieldsToConfig(formFields)
+    return convertFormFieldsToConfig(formFields, scope)
   }
   return null
 }
@@ -316,7 +331,8 @@ const extractReferenceFieldsConfig = (parsedObjectValue: any): DynamicFormConfig
 const getInvestmentFieldsByType = (
   allTypes: InvestmentType[],
   typeId: string | null | undefined,
-  fieldType: 'investment' | 'prospect'
+  fieldType: 'investment' | 'prospect',
+  scope?: 'investment' | 'report'
 ): DynamicFormConfiguration | null => {
   if (!typeId) return null
 
@@ -330,7 +346,7 @@ const getInvestmentFieldsByType = (
     const parsedObjectValue = parseObjectValue(type.objectValue)
 
     if (fieldType === 'investment') {
-      const config = extractFormFieldsConfig(parsedObjectValue)
+      const config = extractFormFieldsConfig(parsedObjectValue, scope)
       if (config) return config
     } else if (fieldType === 'prospect') {
       const config = extractReferenceFieldsConfig(parsedObjectValue)
@@ -397,7 +413,11 @@ export interface UseInvestmentTypesReturn {
   getPathByType: (typeId: string | null | undefined) => InvestmentType[]
   // Get investment fields (formFields or referenceFields) by type, traversing hierarchy
   // Uses the default fieldType from hook initialization
-  getInvestmentFieldsByType: (typeId: string | null | undefined) => DynamicFormConfiguration | null
+  // scope: 'report' filters out fields with report: false
+  getInvestmentFieldsByType: (
+    typeId: string | null | undefined,
+    scope?: 'investment' | 'report'
+  ) => DynamicFormConfiguration | null
   refetch: () => Promise<void>
 }
 
@@ -413,6 +433,10 @@ export interface UseInvestmentTypesReturn {
  * // For investment forms (uses formFields)
  * const { getInvestmentFieldsByType } = useInvestmentTypes(businessAppContext)
  * const fields = getInvestmentFieldsByType(typeId)
+ *
+ * // For investment report forms (uses formFields, filters out report: false)
+ * const { getInvestmentFieldsByType } = useInvestmentTypes(businessAppContext)
+ * const fields = getInvestmentFieldsByType(typeId, 'report')
  *
  * // For lead/opportunity forms (uses referenceFields)
  * const { getInvestmentFieldsByType } = useInvestmentTypes(businessAppContext, 'prospect')
@@ -492,9 +516,9 @@ export const useInvestmentTypes = (
 
   // Helper function to get investment fields by type
   const getInvestmentFieldsByTypeHelper = useCallback(
-    (typeId: string | null | undefined): DynamicFormConfiguration | null => {
+    (typeId: string | null | undefined, scope?: 'investment' | 'report'): DynamicFormConfiguration | null => {
       // Always use defaultFieldType from hook initialization
-      return getInvestmentFieldsByType(types, typeId, defaultFieldType)
+      return getInvestmentFieldsByType(types, typeId, defaultFieldType, scope)
     },
     [types, defaultFieldType]
   )

@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon, UsersIcon } from 'lucide-react'
+import { UserIcon, UsersIcon, Sparkles } from 'lucide-react'
 import { SignOut } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -25,6 +25,7 @@ interface ConversationItemProps {
   currentUserId?: string | null
   compact?: boolean
   otherUserPresence?: UserPresence
+  activeExpertCount?: number
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -56,8 +57,8 @@ const getConversationName = (conversation: Conversation, currentUserId?: string 
   return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
 }
 
-// Presence status indicator component - only shows for online/away, not offline
-const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; className?: string }> = ({
+// Presence status indicator component - only shows for online, not offline
+const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; className?: string }> = ({
   status,
   className = ''
 }) => {
@@ -66,13 +67,11 @@ const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; class
 
   const statusColors = {
     online: 'gba:bg-success',
-    away: 'gba:bg-warning',
     offline: 'gba:bg-muted-foreground'
   }
 
   const statusTitles = {
     online: 'Online',
-    away: 'Away',
     offline: 'Offline'
   }
 
@@ -91,7 +90,8 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   isActive = false,
   currentUserId = null,
   compact = false,
-  otherUserPresence
+  otherUserPresence,
+  activeExpertCount = 0
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
@@ -150,6 +150,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   }
 
   const avatarSize = compact ? 'gba:w-9 gba:h-9' : 'gba:w-10 gba:h-10'
+  const hasActiveExperts = activeExpertCount > 0 && conversation.type === 'group'
 
   return (
     <>
@@ -159,7 +160,15 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         onMouseLeave={() => setIsHovered(false)}
         className={`gba:w-full gba:flex gba:items-center gba:text-left gba:transition-all gba:duration-150 gba:relative gba:group gba:cursor-pointer gba:mx-1 gba:rounded-lg ${
           compact ? 'gba:gap-2.5 gba:px-2.5 gba:py-2' : 'gba:gap-3 gba:px-3 gba:py-2.5'
-        } ${isActive ? 'gba:bg-primary/10 gba:text-primary' : 'gba:hover:bg-muted/80'}`}
+        } ${
+          isActive
+            ? hasActiveExperts
+              ? 'gba:bg-gradient-to-r gba:from-primary/10 gba:via-primary/10 gba:to-accent/10 gba:text-primary gba:border gba:border-primary/20'
+              : 'gba:bg-primary/10 gba:text-primary'
+            : hasActiveExperts
+              ? 'gba:bg-gradient-to-r gba:from-accent/5 gba:via-background gba:to-accent/5 gba:border gba:border-accent/20 hover:gba:border-accent/40'
+              : 'gba:hover:bg-muted/80'
+        }`}
         style={{ width: 'calc(100% - 8px)' }}
         data-testid={`conversation-item-${conversation.id}`}
         role="button"
@@ -174,7 +183,18 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         <div className="gba:relative gba:flex-shrink-0">
           {conversation.type === 'group' ? (
             // Group chat: always show group icon
-            <IconAvatar className={avatarSize} label={name} icon={UsersIcon} />
+            <div className="gba:relative">
+              <IconAvatar
+                className={`${avatarSize} ${hasActiveExperts ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''}`}
+                label={name}
+                icon={UsersIcon}
+              />
+              {hasActiveExperts && (
+                <div className="gba:absolute gba:-bottom-1 gba:-right-1 gba:w-4 gba:h-4 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:border-2 gba:border-background gba:shadow-md">
+                  <Sparkles className="gba:w-2.5 gba:h-2.5 gba:text-primary-foreground" />
+                </div>
+              )}
+            </div>
           ) : avatarUrl ? (
             // Direct chat with avatar
             <Avatar className={`${avatarSize} gba:ring-2 gba:ring-background`}>
@@ -212,6 +232,52 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           {hasActiveCall && participantsInCall.length > 0 && !compact ? (
             <p className="gba:text-xs gba:text-success gba:truncate gba:max-w-[180px]">
               {participantsInCall.join(', ')}
+            </p>
+          ) : showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' && !compact ? (
+            <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
+              {(() => {
+                try {
+                  const lastSeenDate = new Date(otherUserPresence.lastSeen)
+                  // Check if date is valid
+                  if (isNaN(lastSeenDate.getTime())) {
+                    return null
+                  }
+
+                  const now = new Date()
+                  const diffMs = now.getTime() - lastSeenDate.getTime()
+
+                  // Check for negative or invalid differences
+                  if (diffMs < 0 || isNaN(diffMs)) {
+                    return null
+                  }
+
+                  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+                  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+                  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+                  if (diffMinutes < 60) {
+                    return getTranslationFromI18nKeyAndLabel(
+                      'chat.lastSeenMinutes',
+                      `Last seen ${diffMinutes}m ago`
+                    ).replace('{minutes}', diffMinutes.toString())
+                  } else if (diffHours < 24) {
+                    return getTranslationFromI18nKeyAndLabel(
+                      'chat.lastSeenHours',
+                      `Last seen ${diffHours}h ago`
+                    ).replace('{hours}', diffHours.toString())
+                  } else if (diffDays < 7) {
+                    return getTranslationFromI18nKeyAndLabel('chat.lastSeenDays', `Last seen ${diffDays}d ago`).replace(
+                      '{days}',
+                      diffDays.toString()
+                    )
+                  } else {
+                    return getTranslationFromI18nKeyAndLabel('chat.lastSeenLongAgo', 'Last seen a while ago')
+                  }
+                } catch (error) {
+                  console.error('Error calculating last seen time:', error)
+                  return null
+                }
+              })()}
             </p>
           ) : conversation.lastMessage && !compact ? (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">

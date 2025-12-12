@@ -33,8 +33,17 @@ const ENTITY_URL_PATTERNS = [
   { pattern: /\/platform\/employee\/([^/?]+)/, entity_name: 'employee' },
   { pattern: /\/platform\/orgchart\/([^/?]+)/, entity_name: 'employee' },
 
-  // Content entities
+  // Content entities (Knowledge Articles, Documents)
   { pattern: /\/platform\/content\/intranet\/content-record\?[^#]*contentId=([^&]+)/, entity_name: 'content_entry' },
+  { pattern: /\/platform\/content\/knowledge\/content-record\?[^#]*contentId=([^&]+)/, entity_name: 'content_entry' },
+  { pattern: /content-record\?[^#]*contentId=([^&]+)/, entity_name: 'content_entry' },
+
+  // Content editor (creating/editing articles)
+  { pattern: /content-entry-window/, entity_name: 'content_editor' },
+
+  // Document creator (creating contracts, agreements)
+  { pattern: /document-creator/, entity_name: 'document_creator' },
+  { pattern: /content-portal.*view=documents/, entity_name: 'document_creator' },
 
   // Flow/Workflow entities
   { pattern: /\/platform\/apps\/flow\/apps\/creator\?[^#]*templateId=([^&#]+)/, entity_name: 'workflow_template' }

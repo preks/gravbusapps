@@ -70,7 +70,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
 
         {activeTab === MyTimeTabEnum.History && (
           <div data-testid="my-time-history-content" className="gba:mt-4">
-            <TimeHistory employeeId={employeeId} accessToken={accessToken} />
+            <TimeHistory employeeId={employeeId} accessToken={accessToken} userId={userInfo?.id || ''} />
           </div>
         )}
       </PageLayout>

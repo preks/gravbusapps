@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useTranslation, Button, Card, Skeleton } from '@newwork/nw-design-system'
-import { Folder, Home, FileText } from 'lucide-react'
+import { Folder, Home, FileText, Share2, FilePlus, ArrowLeft } from 'lucide-react'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import SearchInput from '../../components/shared/SearchInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -13,6 +13,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DocumentSection, type DocumentItem } from '@/components/document-section/DocumentSection'
 import { EmployeeHoverCard } from '@/common/components/employee'
+import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import DocumentCreator from '@/business-apps/core/documents/apps/document-creator'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -39,6 +41,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
   const { t } = useTranslation(translations)
   const navigation = useDocumentNavigation()
   const [searchQuery, setSearchQuery] = useState('')
+  const [showDocumentCreator, setShowDocumentCreator] = useState(false)
 
   // Fetch document areas (ContentEntries with DOCUMENT group)
   const {
@@ -121,6 +124,38 @@ const DocumentView: React.FC<DocumentViewProps> = ({
     })
   }, [allDocuments])
 
+  // If Document Creator is open, show it as a full view (not overlay)
+  if (showDocumentCreator) {
+    return (
+      <div
+        className="gba:relative gba:min-h-screen gba:flex gba:flex-col gba:w-full"
+        data-testid="document-creator-view"
+      >
+        {/* Back button header */}
+        <div className="gba:p-4 gba:border-b gba:border-border gba:bg-background">
+          <Button variant="ghost" onClick={() => setShowDocumentCreator(false)} className="gba:gap-2">
+            <ArrowLeft className="gba:w-4 gba:h-4" />
+            Back to Documents
+          </Button>
+        </div>
+
+        {/* Document Creator - Full height */}
+        <div className="gba:flex-1 gba:overflow-hidden">
+          <DocumentCreator
+            accessToken={accessToken}
+            userInfo={userInfo}
+            onClose={() => setShowDocumentCreator(false)}
+            onSave={doc => {
+              console.log('Document saved:', doc)
+              setShowDocumentCreator(false)
+              // TODO: Save document to backend
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="gba:relative gba:min-h-screen gba:flex gba:flex-col gba:w-full" data-testid="document-view">
       {/* Banner */}
@@ -194,6 +229,14 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                 </div>
                 <div className="gba:flex gba:gap-2 gba:items-center">
                   <SearchInput onSearch={handleSearch} placeholder={t('search_documents')} className="gba:w-[300px]" />
+                  <Button
+                    onClick={() => setShowDocumentCreator(true)}
+                    className="gba:gap-2"
+                    data-testid="create-document-button"
+                  >
+                    <FilePlus className="gba:w-4 gba:h-4" />
+                    Create Document
+                  </Button>
                   <AppAction
                     contexts={[
                       {
@@ -206,7 +249,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                     lazyLoad
                     data-testid="create-document-area-button"
                   >
-                    <Button>{t('create_area')}</Button>
+                    <Button variant="outline">{t('create_area')}</Button>
                   </AppAction>
                 </div>
               </div>
@@ -240,44 +283,69 @@ const DocumentView: React.FC<DocumentViewProps> = ({
 
             {!areasLoading && !areasError && areas.length > 0 && (
               <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-6">
-                {areas.map(area => (
-                  <Card
-                    key={area.id}
-                    className="gba:cursor-pointer gba:transition-all gba:hover:shadow-lg gba:hover:-translate-y-1"
-                    onClick={() => navigation.selectArea(area)}
-                    data-testid={`area-card-${area.id}`}
-                  >
-                    {area.picture && (
-                      <div
-                        className="gba:w-full gba:h-40 gba:bg-cover gba:bg-center gba:rounded-t-lg"
-                        style={{ backgroundImage: `url(${area.picture})` }}
-                      />
-                    )}
-                    <div className="gba:p-6">
-                      <h3 className="gba:text-xl gba:font-semibold gba:mb-2 gba:flex gba:items-center gba:gap-2">
-                        <Folder className="gba:w-5 gba:h-5 gba:text-primary" />
-                        {translatedItems?.[area.id || '']?.title || area.title}
-                      </h3>
-                      {(translatedItems?.[area.id || '']?.preview || area.preview) && (
-                        <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-3 gba:mb-3">
-                          {translatedItems?.[area.id || '']?.preview || area.preview}
-                        </p>
+                {areas.map(area => {
+                  const entityType = getEntityTypeFromContentGroup(area.contentGroupRef)
+                  return (
+                    <Card
+                      key={area.id}
+                      className="gba:cursor-pointer gba:transition-all gba:hover:shadow-lg gba:hover:-translate-y-1"
+                      onClick={() => navigation.selectArea(area)}
+                      data-testid={`area-card-${area.id}`}
+                    >
+                      {area.picture && (
+                        <div
+                          className="gba:w-full gba:h-40 gba:bg-cover gba:bg-center gba:rounded-t-lg"
+                          style={{ backgroundImage: `url(${area.picture})` }}
+                        />
                       )}
-                      {/* Responsible */}
-                      {area.creatorEmployee && (
-                        <div className="gba:flex gba:items-center gba:text-sm">
-                          <span className="gba:text-muted-foreground gba:mr-1">Responsible:</span>
-                          <EmployeeHoverCard employee={area.creatorEmployee}>
-                            <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:text-foreground">
-                              {area.creatorEmployee.displayName ||
-                                `${area.creatorEmployee.firstName || ''} ${area.creatorEmployee.lastName || ''}`.trim()}
-                            </span>
-                          </EmployeeHoverCard>
+                      <div className="gba:p-6">
+                        <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
+                          <h3 className="gba:text-xl gba:font-semibold gba:flex gba:items-center gba:gap-2">
+                            <Folder className="gba:w-5 gba:h-5 gba:text-primary" />
+                            {translatedItems?.[area.id || '']?.title || area.title}
+                          </h3>
+                          {entityType && (
+                            <AppAction
+                              variant="custom"
+                              mode="button"
+                              buttonSize="sm"
+                              buttonVariant="ghost"
+                              shareContext={{
+                                entityType,
+                                entityId: area.id || '',
+                                entityName: area.title || '',
+                                entityUrl: buildContentRecordUrl(area.id || '', 'documents')
+                              }}
+                              accessToken={accessToken}
+                              className="gba:p-1 gba:h-auto gba:flex-shrink-0"
+                              onClick={e => e.stopPropagation()}
+                              data-testid={`document-area-share-${area.id}`}
+                            >
+                              <Share2 className="gba:w-4 gba:h-4" />
+                            </AppAction>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </Card>
-                ))}
+                        {(translatedItems?.[area.id || '']?.preview || area.preview) && (
+                          <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-3 gba:mb-3">
+                            {translatedItems?.[area.id || '']?.preview || area.preview}
+                          </p>
+                        )}
+                        {/* Responsible */}
+                        {area.creatorEmployee && (
+                          <div className="gba:flex gba:items-center gba:text-sm">
+                            <span className="gba:text-muted-foreground gba:mr-1">Responsible:</span>
+                            <EmployeeHoverCard employee={area.creatorEmployee}>
+                              <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:text-foreground">
+                                {area.creatorEmployee.displayName ||
+                                  `${area.creatorEmployee.firstName || ''} ${area.creatorEmployee.lastName || ''}`.trim()}
+                              </span>
+                            </EmployeeHoverCard>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  )
+                })}
               </div>
             )}
           </div>

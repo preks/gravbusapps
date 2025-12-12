@@ -68,9 +68,8 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
 
   const formatTime = (value?: string) => {
     if (!value) return '-'
-    // Times are stored as UTC (created via Date.UTC in the creator form).
-    // Display them as-entered (no local timezone shift) by formatting in UTC.
-    return dayjs.utc(value).locale(locale).format('LT')
+    // Times are stored in UTC. Convert to LOCAL time and display using localized format.
+    return dayjs.utc(value).local().locale(locale).format('LT')
   }
 
   const attendanceDate = (correction?.attendanceDate as string) || undefined
@@ -83,6 +82,7 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
       onClose()
     } else {
       dispatchProcessContinueEvent('pse_abort', {
+        employeeAttendance: correction?.employeeAttendance,
         event: 'pse_abort'
       })
     }
@@ -92,6 +92,7 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
     setIsAcknowledging(true)
     try {
       dispatchProcessContinueEvent('pse_submit', {
+        employeeAttendance: correction?.employeeAttendance,
         event: 'pse_submit'
       })
     } catch (err) {
@@ -160,7 +161,7 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
         className="gba:bg-card gba:text-card-foreground gba:rounded-md gba:p-6"
         data-testid="attendance-correction-details"
       >
-        <div className="gba:text-lg gba:font-semibold gba:mb-4">{t('correction-request-details')}</div>
+        <div className="gba:text-lg gba:font-semibold gba:mb-4">{t('correction-review-details')}</div>
 
         <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-x-8 gba:gap-y-4">
           <div className="gba:flex gba:flex-col" data-testid="attendance-correction-date">

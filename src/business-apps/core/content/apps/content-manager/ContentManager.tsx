@@ -7,7 +7,8 @@ import { contentFilterConfigAll, contentFilterConfigSpecific } from './config/co
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PlusIcon } from '@phosphor-icons/react'
-import type { ContentEntry } from '@/common/data/content/types/contentTypes'
+import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 type ContentManagerProps = BusinessAppContextProps
 
@@ -24,6 +25,18 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
   const knowledgeContent = useContentData({ type: 'knowledge', accessToken: accessToken || '' })
   const documentContent = useContentData({ type: 'document', accessToken: accessToken || '' })
   const questionContent = useContentData({ type: 'question', accessToken: accessToken || '' })
+
+  // Listen for process completion and refresh all sections
+  useProcessCompletion({
+    onSuccess: () => {
+      // Refresh all sections when content is created/updated
+      allContent.refetch()
+      newsContent.refetch()
+      knowledgeContent.refetch()
+      documentContent.refetch()
+      questionContent.refetch()
+    }
+  })
 
   // Get current section data
   const getCurrentSectionData = () => {
@@ -219,8 +232,8 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
             {selectedContent ? (
               <div className="gba:space-y-4">
                 <div>
-                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Description</h3>
-                  <p className="gba:mt-1">{selectedContent.description || 'No description'}</p>
+                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Preview</h3>
+                  <p className="gba:mt-1">{selectedContent.preview || 'No preview'}</p>
                 </div>
                 <div>
                   <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Author</h3>
@@ -239,8 +252,11 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
                     <div>
                       <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Engagement</h3>
                       <p className="gba:mt-1">
-                        {selectedContent.contentEntryReactionCounts.reduce((sum, item) => sum + (item.count || 0), 0)}{' '}
-                        reactions, {selectedContent.commentCount || 0} comments
+                        {selectedContent.contentEntryReactionCounts.reduce(
+                          (sum: number, item) => sum + (item.count || 0),
+                          0
+                        )}{' '}
+                        reactions, {selectedContent.descendantContentEntriesAggregate?.aggregate?.count || 0} comments
                       </p>
                     </div>
                   )}

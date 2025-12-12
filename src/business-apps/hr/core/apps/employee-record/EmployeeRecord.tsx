@@ -461,7 +461,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                   employee={employee}
                   accessToken={accessToken}
                   employeeId={employeeIdToShow}
-                  userInfo={userInfo}
+                  userId={userInfo?.id || ''}
                   isSelfView={isSelfView}
                 />
               )

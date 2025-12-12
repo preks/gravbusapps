@@ -59,6 +59,7 @@ export interface Conversation {
   lastMessage?: Message
   unreadCount?: number
   activeCall?: ActiveCall | null
+  activeExperts?: string[] // Array of Every Expert prompt IDs
 }
 
 export interface ConversationParticipant {
@@ -122,8 +123,9 @@ export interface PresenceStatus {
 
 // Entity Reference Types for @ mentions
 export type EntityType =
-  // AI Assistant
+  // AI Assistants
   | 'ai_assistant'
+  | 'every_expert' // NEW: Specialized Every Experts
   // CRM entities
   | 'lead'
   | 'contact'

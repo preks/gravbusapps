@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   FormField,
   FormItem,
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
   DateInput,
+  Combobox,
   useTranslation
 } from '@newwork/nw-design-system'
 import { UseFormReturn } from 'react-hook-form'
@@ -28,6 +29,7 @@ interface InvestmentReportSegmentProps {
   investments?: Investment[]
   isLoadingInvestments?: boolean
   onInvestmentChange?: (investmentId: string) => void
+  onInvestmentSearch?: (searchTerm: string) => void
 }
 
 export const InvestmentReportSegment: React.FC<InvestmentReportSegmentProps> = ({
@@ -37,7 +39,8 @@ export const InvestmentReportSegment: React.FC<InvestmentReportSegmentProps> = (
   selectedInvestmentId,
   investments = [],
   isLoadingInvestments = false,
-  onInvestmentChange
+  onInvestmentChange,
+  onInvestmentSearch
 }) => {
   const { t } = useTranslation(translations)
 
@@ -50,6 +53,22 @@ export const InvestmentReportSegment: React.FC<InvestmentReportSegmentProps> = (
     { label: t('scope-yearly'), value: 'YEARLY' }
   ]
 
+  // Format investment options for Combobox
+  const investmentOptions = useMemo(() => {
+    return investments.map(investment => ({
+      value: investment.id || '',
+      label: (
+        <div className="gba:flex gba:flex-col gba:min-w-0 gba:w-full">
+          <div className="gba:text-sm gba:font-medium gba:truncate gba:text-left">{investment.name}</div>
+          {investment.code && (
+            <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:text-left">{investment.code}</div>
+          )}
+        </div>
+      ),
+      searchText: `${investment.name} ${investment.code || ''}`
+    }))
+  }, [investments])
+
   return (
     <div className="gba:space-y-4 gba:mb-6">
       {/* Investment Selection - only show if no investment provided */}
@@ -58,23 +77,21 @@ export const InvestmentReportSegment: React.FC<InvestmentReportSegmentProps> = (
           <label className="gba:text-sm gba:font-medium">
             {t('report-form-investment')} <span className="gba:text-destructive">*</span>
           </label>
-          <Select
-            onValueChange={onInvestmentChange}
+          <Combobox
+            options={investmentOptions as any}
             value={selectedInvestmentId || ''}
+            onValueChange={value => onInvestmentChange?.(value || '')}
+            onSearch={onInvestmentSearch}
+            placeholder={t('report-form-investment-placeholder')}
+            searchPlaceholder={t('report-form-investment-search-placeholder')}
+            emptyText={isLoadingInvestments ? 'Loading investments...' : 'No investments found'}
+            loading={isLoadingInvestments}
             disabled={isLoadingInvestments}
+            searchDebounce={300}
             data-testid={formatDataTestId(prefixDataTestId, 'InvestmentSelect')}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t('report-form-investment-placeholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              {investments.map(investment => (
-                <SelectItem key={investment.id} value={investment.id || ''}>
-                  {investment.name} {investment.code && `(${investment.code})`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            align="start"
+            className="gba:w-full"
+          />
         </div>
       )}
 

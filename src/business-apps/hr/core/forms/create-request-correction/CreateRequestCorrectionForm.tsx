@@ -39,7 +39,7 @@ query GetEmployeeHeaderInfo($id: uuid!) {
 import { EmployeeInfo } from '../components/FormHeader'
 
 interface RequestCorrectionFormProps extends BusinessAppContextProps {
-  employeeId: string
+  employeeId?: string
   onSubmitted?: () => void
   additionalData: any
 }
@@ -134,9 +134,23 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     string,
     string
   ]
+  // Convert HH:MM to total minutes for comparison
+  const hhmmToMinutes = (hhmm?: string): number | null => {
+    if (!hhmm || typeof hhmm !== 'string' || !hhmm.includes(':')) return null
+    const [hh, mm] = hhmm.split(':').map(v => parseInt(v, 10))
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return null
+    return hh * 60 + mm
+  }
   const isValid = useMemo(() => {
     const hasNotes = typeof notesVal === 'string' && notesVal.trim().length > 0
-    return Boolean(dateVal && clockInVal && clockOutVal && hasNotes)
+    const startMins = hhmmToMinutes(clockInVal)
+    const endMins = hhmmToMinutes(clockOutVal)
+    const timeOrderOk =
+      startMins === null ||
+      endMins === null ||
+      // Allow equal, only invalidate when start is strictly after end
+      startMins <= endMins
+    return Boolean(dateVal && clockInVal && clockOutVal && hasNotes && timeOrderOk)
   }, [dateVal, clockInVal, clockOutVal, notesVal])
 
   // Normalize any date (ISO with time or YYYY-MM-DD) to UTC midnight ISO
@@ -165,15 +179,20 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     }
   }
 
-  // Combine a base date (ISO) with HH:MM as UTC into full ISO
-  const combineDateAndTime = (baseDateIso: string, hhmm: string): string => {
+  // Combine a base date (ISO) with an HH:MM entered/viewed in LOCAL time
+  // and return the corresponding UTC ISO string.
+  // Example: baseDate "2025-12-08T00:00:00.000Z", hhmm "12:54", TZ=UTC+2
+  // -> result "2025-12-08T10:54:00.000Z"
+  const combineDateAndTimeLocalToUtc = (baseDateIso: string, hhmm: string): string => {
     if (!baseDateIso || !hhmm) return ''
     const base = new Date(baseDateIso)
     if (Number.isNaN(base.getTime())) return ''
     const [hh, mm] = hhmm.split(':').map(v => parseInt(v, 10))
     if (isNaN(hh) || isNaN(mm)) return ''
-    const utc = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hh, mm, 0, 0))
-    return utc.toISOString()
+    // Use UTC parts for the calendar date (to preserve the selected date),
+    // but construct a LOCAL date/time with the entered hours/minutes.
+    const local = new Date(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hh, mm, 0, 0)
+    return local.toISOString()
   }
 
   // Extract YYYY-MM-DD from an ISO string (or return the date if already in that format)
@@ -202,18 +221,14 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
       // Attendance date: prefer platform param if present (already ISO), else form value
       const attendanceDateISO = toUtcMidnightIso(platformParams.attendanceDateISO || date)
 
-      const startTimeISO = combineDateAndTime(attendanceDateISO, clockIn)
-      const endTimeISO = combineDateAndTime(attendanceDateISO, clockOut)
+      // Interpret HH:MM as LOCAL time and convert to UTC for payload
+      const startTimeISO = combineDateAndTimeLocalToUtc(attendanceDateISO, clockIn)
+      const endTimeISO = combineDateAndTimeLocalToUtc(attendanceDateISO, clockOut)
 
       const nowIso = new Date().toISOString()
 
-      const requestEmployeeId =
-        employeeId ||
-        additionalData?.employeeId ||
-        additionalData?.psi_taskPayload?.employeeId ||
-        additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
-
       const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
+      const requestEmployeeId = payloadObject?.employeeId
 
       const payload = {
         changeMode: 'INSERT',
@@ -234,6 +249,11 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           effectiveTime: payloadObject?.effectiveTime,
           plannedTime: payloadObject?.plannedTime,
           differenceTime: payloadObject?.differenceTime
+        },
+        employeeInfo: {
+          userId: payloadObject?.userId,
+          id: requestEmployeeId,
+          employeeUserId: payloadObject?.userId
         }
       }
 
@@ -328,7 +348,17 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
             <FormField
               control={form.control as any}
               name="clockIn"
-              rules={{ required: 'Clock In time is required' }}
+              rules={{
+                required: 'Clock In time is required',
+                validate: value => {
+                  const start = hhmmToMinutes(value)
+                  const end = hhmmToMinutes(form.getValues('clockOut'))
+                  if (start !== null && end !== null && start > end) {
+                    return 'Start time cannot be after end time'
+                  }
+                  return true
+                }
+              }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
@@ -353,7 +383,17 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
             <FormField
               control={form.control as any}
               name="clockOut"
-              rules={{ required: 'Clock Out time is required' }}
+              rules={{
+                required: 'Clock Out time is required',
+                validate: value => {
+                  const end = hhmmToMinutes(value)
+                  const start = hhmmToMinutes(form.getValues('clockIn'))
+                  if (start !== null && end !== null && start > end) {
+                    return 'Start time cannot be after end time'
+                  }
+                  return true
+                }
+              }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>

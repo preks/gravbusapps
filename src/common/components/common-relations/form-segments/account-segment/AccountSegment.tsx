@@ -260,23 +260,11 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
     const selectedAccount = accounts.find(a => a.id === accountId)
     if (!selectedAccount) return
 
-    // Create new account association with nested account object for display
-    // The nested object matches the structure from GraphQL fragments
-    const accountObject = {
-      id: selectedAccount.id,
-      name: selectedAccount.name,
-      displayName: selectedAccount.name,
-      pictureThumbnail: selectedAccount.pictureThumbnail,
-      website: selectedAccount.extraInfo?.website
-    }
-
+    // Create new account association - only store IDs, not nested objects
+    // Display data comes from accountContacts prop (from GraphQL) or accounts search results
     const newAccount: any = {
       [accountIdFieldName]: accountId,
-      [accountTypeFieldName]: null,
-      // Add nested account object for display (matches GraphQL structure)
-      ...(accountIdFieldName === 'investmentAccountId'
-        ? { investmentAccount: accountObject }
-        : { account: accountObject })
+      [accountTypeFieldName]: null
     }
 
     append(newAccount)

@@ -9,7 +9,7 @@ import {
   Skeleton,
   Card
 } from '@newwork/nw-design-system'
-import { MessageCircle, Folder, ChevronRight, HelpCircle, CheckCircle } from 'lucide-react'
+import { MessageCircle, Folder, ChevronRight, HelpCircle, CheckCircle, Share2 } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { useUserContentReactions } from '@/common/data/content/hooks/useUserContentReactions'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
@@ -26,6 +26,7 @@ import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import translations from '../../_i18n'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
+import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 
 // Local constants
 const PAGE_SIZE = 20
@@ -465,40 +466,65 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                           {translatedItems?.[question.id || '']?.preview || question.preview}
                         </p>
 
-                        <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
-                          <div className="gba:flex gba:items-center gba:gap-1">
-                            <MessageCircle className="gba:w-4 gba:h-4" />
-                            <span>
-                              {commentCount} {t('answers')}
-                            </span>
-                          </div>
-                          <span>•</span>
-                          <span>
-                            {t('asked_by')}{' '}
-                            {question.creatorEmployee ? (
-                              <EmployeeHoverCard employee={question.creatorEmployee}>
-                                <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline">
-                                  {question.creatorEmployee.displayName ||
-                                    question.creatorEmployee.fullName ||
-                                    'Unknown'}
-                                </span>
-                              </EmployeeHoverCard>
-                            ) : (
-                              <span>Unknown</span>
-                            )}
-                          </span>
-                          {question.createdAt && (
-                            <>
-                              <span>•</span>
+                        <div className="gba:flex gba:items-center gba:justify-between">
+                          <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
+                            <div className="gba:flex gba:items-center gba:gap-1">
+                              <MessageCircle className="gba:w-4 gba:h-4" />
                               <span>
-                                {new Date(question.createdAt).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}
+                                {commentCount} {t('answers')}
                               </span>
-                            </>
-                          )}
+                            </div>
+                            <span>•</span>
+                            <span>
+                              {t('asked_by')}{' '}
+                              {question.creatorEmployee ? (
+                                <EmployeeHoverCard employee={question.creatorEmployee}>
+                                  <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline">
+                                    {question.creatorEmployee.displayName ||
+                                      question.creatorEmployee.fullName ||
+                                      'Unknown'}
+                                  </span>
+                                </EmployeeHoverCard>
+                              ) : (
+                                <span>Unknown</span>
+                              )}
+                            </span>
+                            {question.createdAt && (
+                              <>
+                                <span>•</span>
+                                <span>
+                                  {new Date(question.createdAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          {(() => {
+                            const entityType = getEntityTypeFromContentGroup(question.contentGroupRef)
+                            return entityType ? (
+                              <AppAction
+                                variant="custom"
+                                mode="button"
+                                buttonSize="sm"
+                                buttonVariant="ghost"
+                                shareContext={{
+                                  entityType,
+                                  entityId: question.id || '',
+                                  entityName: question.title || '',
+                                  entityUrl: buildContentRecordUrl(question.id || '', currentTab)
+                                }}
+                                accessToken={accessToken}
+                                className="gba:ml-auto gba:p-1 gba:h-auto"
+                                onClick={e => e.stopPropagation()}
+                                data-testid={`question-share-${question.id}`}
+                              >
+                                <Share2 className="gba:w-4 gba:h-4" />
+                              </AppAction>
+                            ) : null
+                          })()}
                         </div>
                       </div>
                     </div>

@@ -144,7 +144,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     opportunitiesKpiCurrency
   )
-  const { data: oppLifecycleData } = useOpportunitiesOverTime(
+  const { data: oppLifecycleData, isLoading: oppLifecycleLoading } = useOpportunitiesOverTime(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     oppTimeFilter,
     selectedPipelineId
@@ -155,11 +155,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     undefined,
     opportunitiesKpiCurrency
   )
-  const { data: oppVelocityData } = useOpportunityVelocityData(
+  const { data: oppVelocityData, isLoading: oppVelocityLoading } = useOpportunityVelocityData(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
   )
-  const { data: oppHealthData } = useDealHealthData(activeAnalyticsTab === 'opportunities' ? context.accessToken : '')
-  const { data: oppStageData } = useOpportunitiesByStage(
+  const { data: oppHealthData, isLoading: oppHealthLoading } = useDealHealthData(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
+  )
+  const { data: oppStageData, isLoading: oppStageLoading } = useOpportunitiesByStage(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     selectedStagePipelineId
   )
@@ -174,10 +176,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     timeFilter: contactsTimeFilter
   })
 
-  const { data: contactInsights } = useInvestmentContactInsights(
+  const { data: contactInsights, isLoading: contactInsightsLoading } = useInvestmentContactInsights(
     activeAnalyticsTab === 'contacts' ? context.accessToken : ''
   )
-  const { data: contactQuality } = useInvestmentContactQualityData(
+  const { data: contactQuality, isLoading: contactQualityLoading } = useInvestmentContactQualityData(
     activeAnalyticsTab === 'contacts' ? context.accessToken : ''
   )
 
@@ -299,17 +301,21 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       opportunitiesStaticLoading,
       oppTrendData, // IRM uses dedicated trend hook
       oppLifecycleData: oppLifecycleData || [],
+      oppLifecycleLoading,
       oppTimeFilter,
       onOppTimeFilterChange: setOppTimeFilter,
       pipelines,
       selectedPipelineId,
       onPipelineChange: (id: string) => setSelectedPipelineId(id === 'all' ? undefined : id),
       oppStageData: oppStageData || [],
+      oppStageLoading,
       selectedStagePipelineId,
       onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
       topDeals: [],
       velocityData: oppVelocityData || null,
+      velocityLoading: oppVelocityLoading,
       dealHealthData: oppHealthData || null,
+      dealHealthLoading: oppHealthLoading,
       kpiCurrency: opportunitiesKpiCurrency,
       onKpiCurrencyChange: setOpportunitiesKpiCurrency,
       topDealsCurrency,
@@ -333,7 +339,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       contactsTimeFilter,
       onContactsTimeFilterChange: setContactsTimeFilter,
       contactInsights,
-      contactQuality
+      contactInsightsLoading,
+      contactQuality,
+      contactQualityLoading
     },
     {
       title: 'Contacts Analytics'

@@ -28,8 +28,7 @@ export const createInvestmentReportColumns = (
   liquidFundTypeCode: string | undefined,
   catalogData: any,
   accessToken?: string,
-  mainInvestment?: any,
-  mainTypeSpecificData?: any
+  mainInvestment?: any
 ): ColumnDefinition[] => {
   const columns: ColumnDefinition[] = []
 
@@ -108,6 +107,11 @@ export const createInvestmentReportColumns = (
 
     // Transform each field to a table column
     allFields.forEach(field => {
+      // Filter out fields with report: false (not for report tables)
+      if (field.report === false) {
+        return
+      }
+
       columns.push({
         key: field.property.replace(/\./g, '_'),
         title: field.label,
@@ -120,64 +124,42 @@ export const createInvestmentReportColumns = (
           let value
 
           if (field.property.startsWith('investment.')) {
-            // INVESTMENT FIELDS: First try the nested investment object path from GraphQL
-            value = getValueByPath(record, field.property)
-
-            // If not found, try without the investment prefix (for fields moved to report level)
-            if (value === undefined) {
-              const fieldName = field.property.replace('investment.', '')
-              value = getValueByPath(record, fieldName)
-            }
-
-            // If still not found, fallback to main investment data source (for individual reports context)
-            if (value === undefined && mainInvestment) {
-              const fieldName = field.property.replace('investment.', '')
-              value = getValueByPath(mainInvestment, fieldName)
-
-              if (value === undefined && mainTypeSpecificData) {
-                value = getValueByPath(mainTypeSpecificData, fieldName)
-              }
-            }
+            // INVESTMENT FIELDS: For reports, these are report-level snapshots, not current investment values
+            // Strip the 'investment.' prefix and look ONLY at report root level (no fallback to nested investment)
+            const fieldName = field.property.replace('investment.', '')
+            value = getValueByPath(record, fieldName)
           } else if (field.property.startsWith('equityInvestment.')) {
             // EQUITY INVESTMENT FIELDS: Map to correct paths in equityInvestmentReport
             const fieldName = field.property.replace('equityInvestment.', '')
 
             // First try direct equityInvestmentReport fields (marketValue, ebitdaAmount, etc.)
-            value = getValueByPath(record.equityInvestmentReport, fieldName)
+            // Note: equityInvestmentReport is an array, access first element
+            value = getValueByPath(record.equityInvestmentReport?.[0], fieldName)
 
             // If not found, try nested equityInvestment fields (foundationDate, etc.)
             if (value === undefined) {
-              value = getValueByPath(record.equityInvestmentReport?.equityInvestment, fieldName)
-            }
-
-            // Fallback to mainTypeSpecificData for individual reports context
-            if (value === undefined && mainTypeSpecificData) {
-              value = getValueByPath(mainTypeSpecificData, fieldName)
+              value = getValueByPath(record.equityInvestmentReport?.[0]?.equityInvestment, fieldName)
             }
           } else if (field.property.startsWith('liquidFundInvestment.')) {
             // LIQUID FUND INVESTMENT FIELDS: Map to correct paths in liquidFundInvestmentReport
             const fieldName = field.property.replace('liquidFundInvestment.', '')
 
             // First try direct liquidFundInvestmentReport fields
-            value = getValueByPath(record.liquidFundInvestmentReport, fieldName)
+            // Note: liquidFundInvestmentReport is an array, access first element
+            value = getValueByPath(record.liquidFundInvestmentReport?.[0], fieldName)
 
             // If not found, try nested liquidFundInvestment fields
             if (value === undefined) {
-              value = getValueByPath(record.liquidFundInvestmentReport?.liquidFundInvestment, fieldName)
-            }
-
-            // Fallback to mainTypeSpecificData for individual reports context
-            if (value === undefined && mainTypeSpecificData) {
-              value = getValueByPath(mainTypeSpecificData, fieldName)
+              value = getValueByPath(record.liquidFundInvestmentReport?.[0]?.liquidFundInvestment, fieldName)
             }
           } else {
-            // For other paths, try multiple locations
+            // For other paths, try report-level fields only (no fallback to nested investment)
+            // Note: Report type fields are arrays, access first element
             value =
               getValueByPath(record, field.property) ||
-              getValueByPath(record.investment, field.property) ||
-              getValueByPath(record.realEstateInvestmentReport, field.property) ||
-              getValueByPath(record.liquidFundInvestmentReport, field.property) ||
-              getValueByPath(record.equityInvestmentReport, field.property)
+              getValueByPath(record.realEstateInvestmentReport?.[0], field.property) ||
+              getValueByPath(record.liquidFundInvestmentReport?.[0], field.property) ||
+              getValueByPath(record.equityInvestmentReport?.[0], field.property)
           }
 
           const currencyCode =
