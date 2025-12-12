@@ -111,13 +111,13 @@ export const shouldSkipField = (fieldName: string, schema: any, isSearchableUuid
     'activeTo',
     'recordState',
     'approverId',
-    'substituteEmployee',
     'employeeDocument',
     'workingHours',
     'workingDays',
     'calendarDays',
     'effectiveDays',
-    'balance'
+    'balance',
+    'status'
   ]
 
   return (

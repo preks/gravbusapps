@@ -2,7 +2,7 @@
 
 ## Features
 
-- **Agent Types**: FLOW (process automation) | EveryAI (chat experts)
+- **Agent Types**: FLOW (process automation) | EveryAI (chat experts) | General (standalone agents)
 - **EveryAI Experts**: Specialized AI assistants with domain expertise
 - **Knowledge Sources**: Upload documents or add URLs to enhance expert knowledge
 - **Chat Integration**: Add experts to conversations, mention with @ExpertName

@@ -224,6 +224,15 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
       setUserContent(typeof userTemplate === 'string' ? userTemplate : '')
       setSystemContent(typeof systemTemplate === 'string' ? systemTemplate : '')
 
+      // Initialize response schema and type from prompt
+      if (prompt.response_schema) {
+        setResponseType('json')
+        setResponseSchema(JSON.stringify(prompt.response_schema, null, 2))
+      } else {
+        setResponseType('text')
+        setResponseSchema('')
+      }
+
       // Initialize parameter rows from prompt parameters
       const userParamsFromPrompt = Array.isArray(prompt.user_content?.parameters) ? prompt.user_content.parameters : []
       const systemParamsFromPrompt = Array.isArray(prompt.system_content?.parameters)
@@ -339,6 +348,12 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           return tool.code
         })
 
+      // Build model settings - enforce JSON response when a schema is provided
+      const modelSettings: Record<string, unknown> = {}
+      if (responseType === 'json' && responseSchema && responseSchema.trim()) {
+        modelSettings.response_format = { type: 'json_object' }
+      }
+
       // For create mode, filter out document sources (will be uploaded after)
       // Keep content_entry and url sources (they don't need file upload)
       const sourcesForCreate =
@@ -353,7 +368,7 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           modelId,
           userContent,
           systemContent,
-          modelSettings: {},
+          modelSettings,
           responseSchema: responseSchema ? JSON.parse(responseSchema) : null,
           tools: toolCodes,
           // Every Expert fields
@@ -379,7 +394,7 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           userContent,
           systemContent,
           modelId,
-          modelSettings: {},
+          modelSettings,
           responseSchema: responseSchema ? JSON.parse(responseSchema) : null,
           tools: toolCodes,
           revisionMessage: '',
@@ -561,6 +576,14 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
                     <div className="gba:font-medium">EveryAI Expert</div>
                     <div className="gba:text-xs gba:text-muted-foreground">
                       Specialized AI assistant for chat conversations
+                    </div>
+                  </div>
+                </SelectItem>
+                <SelectItem value="general">
+                  <div className="gba:space-y-0.5">
+                    <div className="gba:font-medium">General Agent</div>
+                    <div className="gba:text-xs gba:text-muted-foreground">
+                      General purpose agent for standalone use
                     </div>
                   </div>
                 </SelectItem>

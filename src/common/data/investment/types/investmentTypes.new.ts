@@ -622,8 +622,15 @@ export const buildInvestmentPayload = (investment: Partial<Investment>) => {
   // Build base payload using InvestmentFormFields for field mapping
   const basePayload = buildPayload(investment, InvestmentFormFields)
 
+  // Determine if this is a create or update based on presence of id
+  const isCreate = !investment.id
+
   const result: any = {
-    investment: basePayload
+    investment: {
+      ...basePayload,
+      // Always set status to ACTIVE for new investments (only during creation)
+      ...(isCreate && { investmentStatusRef: 'InvestmentStatus:v1:ACTIVE' })
+    }
   }
 
   // Handle investment roles separately - investmentRole (form) → investmentRoles (API)

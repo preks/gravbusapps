@@ -1,51 +1,13 @@
 /**
  * Task Formatting Utilities
- * Date, status, and priority formatters
+ * Status and priority formatters for tasks and flows
  */
 
 import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
 import { TaskStatus, FlowStatus } from '../types'
 
-dayjs.extend(relativeTime)
-
-/**
- * Format date to relative time (e.g., "2 hours ago", "in 3 days")
- */
-export const formatRelativeTime = (date: string | Date): string => {
-  return dayjs(date).fromNow()
-}
-
-/**
- * Format date to readable format
- */
-export const formatDate = (date: string | Date): string => {
-  return dayjs(date).format('MMM D, YYYY')
-}
-
-/**
- * Format date with time
- * Shows "Today" or "Yesterday" for recent dates, full date for older ones
- */
-export const formatDateTime = (date: string | Date): string => {
-  const dateObj = dayjs(date)
-  const now = dayjs()
-  const today = now.startOf('day')
-  const yesterday = today.subtract(1, 'day')
-
-  // Check if date is today
-  if (dateObj.isSame(today, 'day')) {
-    return `Today ${dateObj.format('h:mm A')}`
-  }
-
-  // Check if date is yesterday
-  if (dateObj.isSame(yesterday, 'day')) {
-    return `Yesterday ${dateObj.format('h:mm A')}`
-  }
-
-  // For older dates, show full date
-  return dateObj.format('MMM D, YYYY h:mm A')
-}
+/** Translation function type for formatters */
+export type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 
 /**
  * Check if date is overdue
@@ -116,17 +78,19 @@ export const getFlowStatusBadgeVariant = (status: FlowStatus): 'success' | 'info
 
 /**
  * Get human-readable status text
+ * @param status - Task status
+ * @param t - Optional translation function. If not provided, returns English fallback.
  */
-export const formatTaskStatus = (status: TaskStatus): string => {
+export const formatTaskStatus = (status: TaskStatus, t?: TranslationFn): string => {
   switch (status) {
     case 'SCHEDULED':
-      return 'Scheduled'
+      return t ? t('formatter-status-scheduled') : 'Scheduled'
     case 'IN_PROGRESS':
-      return 'In Progress'
+      return t ? t('formatter-status-in-progress') : 'In Progress'
     case 'COMPLETED':
-      return 'Completed'
+      return t ? t('formatter-status-completed') : 'Completed'
     case 'FAILED':
-      return 'Failed'
+      return t ? t('formatter-status-failed') : 'Failed'
     default:
       return status
   }
@@ -134,17 +98,19 @@ export const formatTaskStatus = (status: TaskStatus): string => {
 
 /**
  * Get human-readable flow status text
+ * @param status - Flow status
+ * @param t - Optional translation function. If not provided, returns English fallback.
  */
-export const formatFlowStatus = (status: FlowStatus): string => {
+export const formatFlowStatus = (status: FlowStatus, t?: TranslationFn): string => {
   switch (status) {
     case 'RUNNING':
-      return 'Running'
+      return t ? t('formatter-flow-running') : 'Running'
     case 'COMPLETED':
-      return 'Completed'
+      return t ? t('formatter-flow-completed') : 'Completed'
     case 'FAILED':
-      return 'Failed'
+      return t ? t('formatter-flow-failed') : 'Failed'
     case 'TERMINATED':
-      return 'Terminated'
+      return t ? t('formatter-flow-terminated') : 'Terminated'
     default:
       return status
   }
@@ -153,12 +119,16 @@ export const formatFlowStatus = (status: FlowStatus): string => {
 /**
  * Get priority display text
  * Priority in Kogito: 0 = highest priority, higher numbers = lower priority
+ * @param priority - Priority number (0 = highest)
+ * @param t - Optional translation function. If not provided, returns English fallback.
  */
-export const formatPriority = (priority?: number): string => {
-  if (priority === undefined || priority === null) return 'Normal'
+export const formatPriority = (priority?: number, t?: TranslationFn): string => {
+  if (priority === undefined || priority === null) {
+    return t ? t('formatter-priority-normal') : 'Normal'
+  }
 
   // Kogito uses 0-based priority where 0 is highest
-  if (priority <= 1) return 'High'
-  if (priority <= 5) return 'Medium'
-  return 'Low'
+  if (priority <= 1) return t ? t('formatter-priority-high') : 'High'
+  if (priority <= 5) return t ? t('formatter-priority-medium') : 'Medium'
+  return t ? t('formatter-priority-low') : 'Low'
 }

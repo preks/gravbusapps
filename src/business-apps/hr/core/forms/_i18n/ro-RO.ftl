@@ -141,6 +141,44 @@ grant-bonus-review-notes = Note
 grant-bonus-review-acknowledge = Confirmă
 grant-bonus-review-reject = Respinge
 
+# ============================================
+# Common Review Form Translations
+# ============================================
+
+# Common Card Titles
+card-title-unchanged = Toate celelalte câmpuri
+
+# Common Badges
+badge-new = Nou
+badge-changed = Modificat
+badge-unchanged = Neschimbat
+badge-not-set = Nesetat
+badge-changes = { $count } { $count ->
+    [one] Modificare
+   *[other] Modificări
+}
+
+# Common Field Values
+value-not-set = Nesetat
+value-na = N/A
+
+# Common Actions
+action-acknowledge = Confirmă
+action-retry = Reîncearcă
+
+# Common States
+loading = Se încarcă...
+
+# Common Field Labels
+label-first-name = Prenume
+label-last-name = Nume
+label-email = E-mail
+label-notes = Note
+label-birth-date = Data nașterii
+label-country = Țară
+label-city = Oraș
+label-currency = Monedă
+
 # Deactivate Employee Benefit Review Form
 deactivate-benefit-review-title = Cerere dezactivare beneficiu
 deactivate-benefit-review-requested-by = Solicitat de { $initiatorName }
