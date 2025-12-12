@@ -5,3 +5,4 @@
 # - main branch: Keeps its production hashes
 # - develop branch: Keeps its empty state {}
 component-hashes-prod.json merge=ours
+
