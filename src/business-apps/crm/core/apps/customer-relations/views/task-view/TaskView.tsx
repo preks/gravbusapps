@@ -161,19 +161,6 @@ export const TaskView: React.FC<TaskViewProps> = context => {
 
       taskStatistics,
 
-      processCompletionEvents: [
-        'com.newwork.process.taskCompletion',
-        'com.newwork.process.completion',
-        'com.newwork.process.continue',
-        'com.newwork.process.processCompletion',
-        'processCompletion',
-        'taskCompletion',
-        'taskCompleted',
-        'processCompleted',
-        'task-completion',
-        'process-completion'
-      ],
-
       rowActionsContextArray: [FlowContextName.customerTaskEntity],
       buildRowActionsExternalContextData: (row: { original: CustomerTask }) => {
         const externalContextData: Record<string, string> = { taskId: row.original.id }

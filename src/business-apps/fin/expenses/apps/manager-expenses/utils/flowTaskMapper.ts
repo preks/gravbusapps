@@ -11,12 +11,23 @@ const getTaskGroup = (taskName: string = ''): string => {
   return 'Request'
 }
 
+const isAdvancePaymentTask = (taskName?: string): boolean => {
+  if (!taskName) return false
+  return taskName.includes('AdvancePayment') || taskName.includes('Transfer') || taskName.includes('Handout')
+}
+
 const pickAmountFromInputs = (task: FlowExecutionTask): number => {
   const i = task.inputs as any
   if (!i) return 0
+
+  // For advance payment related tasks, prioritize advancePayment.amount
+  if (isAdvancePaymentTask(task.name) && i.advancePayment?.amount) {
+    return i.advancePayment.amount
+  }
+
   if (i.expenseRequest?.totalAmount) return i.expenseRequest.totalAmount
   if (i.expensePlan?.totalAmount) return i.expensePlan.totalAmount
-  if (i.advancePayment?.amount) return i.advancePayment.amount // advance, handout, transfer
+  if (i.advancePayment?.amount) return i.advancePayment.amount
   return 0
 }
 
