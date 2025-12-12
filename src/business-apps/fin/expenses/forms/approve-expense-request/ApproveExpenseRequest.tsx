@@ -571,8 +571,6 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
             {/* Trip Table/Timeline */}
             <EnhancedTripSection
               expenseRequestTrip={expenseRequest.expenseRequestTrip}
-              startDate={expenseRequest.expensePlan?.startDate}
-              endDate={expenseRequest.expensePlan?.endDate}
               prefixDataTestId="approve-expense-request"
               t={t}
             />

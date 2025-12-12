@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Label, Separator } from '@newwork/nw-design-system'
 import { PiWallet } from 'react-icons/pi'
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
 
 interface ExpenseRequestTotalsSectionProps {
   totalAmount: number
@@ -13,6 +13,7 @@ interface ExpenseRequestTotalsSectionProps {
   isExpensePlan: boolean
   remainingAmount: number
   reimbursableAmount?: number
+  t: (key: string, params?: Record<string, unknown>) => string
 }
 
 const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = ({
@@ -24,7 +25,8 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
   expensePlanTotalAmount,
   isExpensePlan,
   remainingAmount,
-  reimbursableAmount
+  reimbursableAmount,
+  t
 }) => {
   // Calculate plan comparison if plan data is available
   const getPlanComparison = () => {
@@ -35,20 +37,17 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
 
     if (difference === 0) {
       return {
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:approve_expense_request.comparison_with_plan_equal',
-          'Equals planned amount'
-        ),
+        description: t('plan-comparison-equal'),
         isPositive: true
       }
     } else if (difference < 0) {
       return {
-        description: `${absDifference} ${currencyCode} ${getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_less', 'less than planned')}`,
+        description: `${absDifference} ${currencyCode} ${t('plan-comparison-less')}`,
         isPositive: true
       }
     } else if (difference > 0) {
       return {
-        description: `${absDifference} ${currencyCode} ${getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_more', 'more than planned')}`,
+        description: `${absDifference} ${currencyCode} ${t('plan-comparison-more')}`,
         isPositive: false
       }
     }
@@ -64,18 +63,13 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <PiWallet className="gba:h-5 gba:w-5" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.financial_overview', 'Financial Overview')}
+          {t('section-financial-overview')}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:space-y-3">
         {/* Total Amount */}
         <div className="gba:flex gba:justify-between gba:items-center">
-          <Label className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.total_amount',
-              'Total Amount'
-            )}
-          </Label>
+          <Label className="gba:text-sm gba:text-muted-foreground">{t('label-total-amount')}</Label>
           <div className="gba:text-right">
             <p className="gba:text-lg gba:font-bold">{formatCurrency(totalAmount, currencyCode)}</p>
             {/* Plan comparison if available */}
@@ -95,17 +89,13 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
         {/* Reimbursable and Non-Reimbursable */}
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable')}
-            </Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-reimbursable')}</Label>
             <p className="gba:text-sm gba:font-medium gba:text-success">
               {formatCurrency(calculatedReimbursable, currencyCode)}
             </p>
           </div>
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.non-reimbursable', 'Non-Reimbursable')}
-            </Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-non-reimbursable')}</Label>
             <p className="gba:text-sm gba:font-medium gba:text-destructive">
               {formatCurrency(nonReimbursableAmount, currencyCode)}
             </p>
@@ -119,20 +109,13 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               {advancePaymentAmount > 0 && (
                 <div>
-                  <Label className="gba:text-sm gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:approve_expense_request.advance_payment',
-                      'Advance Payment'
-                    )}
-                  </Label>
+                  <Label className="gba:text-sm gba:text-muted-foreground">{t('label-advance-payment')}</Label>
                   <p className="gba:text-sm gba:font-medium">{formatCurrency(advancePaymentAmount, currencyCode)}</p>
                 </div>
               )}
               {remainingAmount !== totalAmount && (
                 <div>
-                  <Label className="gba:text-sm gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining')}
-                  </Label>
+                  <Label className="gba:text-sm gba:text-muted-foreground">{t('label-remaining-amount')}</Label>
                   <p className="gba:text-sm gba:font-medium gba:text-success">
                     {formatCurrency(remainingAmount, currencyCode)}
                   </p>
@@ -147,9 +130,7 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
           <>
             <Separator />
             <div className="gba:flex gba:justify-between gba:items-center">
-              <Label className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.planned_amount', 'Planned Amount')}
-              </Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-expense-plan-total')}</Label>
               <p className="gba:text-sm gba:font-medium">{formatCurrency(expensePlanTotalAmount, currencyCode)}</p>
             </div>
           </>

@@ -11,34 +11,7 @@ interface ApprovalDetailsSectionProps {
   isLoadingApprover?: boolean
   isLoading?: boolean
   prefixDataTestId?: string
-}
-
-// Helper function to get status class
-const getStatusClass = (isApproved: boolean, isRejected: boolean): string => {
-  if (isApproved) return 'gba:text-success'
-  if (isRejected) return 'gba:text-destructive'
-  return ''
-}
-
-// Helper function to render status display
-const renderStatusDisplay = (isApproved: boolean, isRejected: boolean, approvalStatus: string): React.ReactNode => {
-  if (isApproved) {
-    return (
-      <>
-        <CheckCircle className="gba:h-4 gba:w-4" />
-        Approved
-      </>
-    )
-  }
-  if (isRejected) {
-    return (
-      <>
-        <AlertCircle className="gba:h-4 gba:w-4" />
-        Rejected
-      </>
-    )
-  }
-  return approvalStatus
+  t: (key: string) => string
 }
 
 const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
@@ -48,8 +21,36 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
   approverName,
   isLoadingApprover = false,
   isLoading = false,
-  prefixDataTestId = 'approve-expense-request-v2'
+  prefixDataTestId = 'approve-expense-request-v2',
+  t
 }) => {
+  // Helper function to get status class
+  const getStatusClass = (isApproved: boolean, isRejected: boolean): string => {
+    if (isApproved) return 'gba:text-success'
+    if (isRejected) return 'gba:text-destructive'
+    return ''
+  }
+
+  // Helper function to render status display
+  const renderStatusDisplay = (isApproved: boolean, isRejected: boolean, approvalStatus: string): React.ReactNode => {
+    if (isApproved) {
+      return (
+        <>
+          <CheckCircle className="gba:h-4 gba:w-4" />
+          {t('status-approved')}
+        </>
+      )
+    }
+    if (isRejected) {
+      return (
+        <>
+          <AlertCircle className="gba:h-4 gba:w-4" />
+          {t('status-rejected')}
+        </>
+      )
+    }
+    return approvalStatus
+  }
   // Determine if approved or rejected
   const isApproved = useMemo(() => {
     if (!approvalStatus) return false
@@ -71,7 +72,7 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
     return (
       <Card data-testid={`${prefixDataTestId}-approval-details-section`}>
         <CardHeader>
-          <CardTitle>Approval Details</CardTitle>
+          <CardTitle>{t('section-approval-details')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:justify-center gba:p-6">
@@ -85,12 +86,12 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
   return (
     <Card data-testid={`${prefixDataTestId}-approval-details-section`}>
       <CardHeader>
-        <CardTitle>Approval Details</CardTitle>
+        <CardTitle>{t('section-approval-details')}</CardTitle>
       </CardHeader>
       <CardContent className="gba:space-y-3">
         {/* Status */}
         <div>
-          <Label className="gba:text-sm gba:text-muted-foreground">Status</Label>
+          <Label className="gba:text-sm gba:text-muted-foreground">{t('label-status')}</Label>
           <div
             className={`gba:text-sm gba:font-medium gba:mt-1 gba:flex gba:items-center gba:gap-2 ${getStatusClass(isApproved, isRejected)}`}
           >
@@ -103,7 +104,7 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
           <>
             <Separator />
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">Approved By</Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-approved-by')}</Label>
               <p className="gba:text-sm gba:mt-1">{isLoadingApprover ? <Spinner size="sm" /> : approverName}</p>
             </div>
           </>
@@ -114,7 +115,7 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
           <>
             <Separator />
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">Date</Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-date')}</Label>
               <p className="gba:text-sm gba:mt-1">{formatDateTime(approvalDate)}</p>
             </div>
           </>
@@ -125,7 +126,7 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
           <>
             {approvalDate && <Separator />}
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">Comment</Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-comment')}</Label>
               <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:whitespace-pre-wrap">
                 {approvalComment.trim()}
               </p>

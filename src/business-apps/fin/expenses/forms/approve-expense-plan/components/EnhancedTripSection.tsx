@@ -114,7 +114,7 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
           <TableBody>
             {sortedTrips.map((trip, index) => (
               <TableRow
-                key={trip.id || `trip-${trip.tripOrder ?? index}`}
+                key={`trip-${trip.tripOrder ?? index}`}
                 data-testid={`${prefixDataTestId}-trip-table-row-${index}`}
               >
                 <TableCell className="gba:text-center">{trip.tripOrder ?? index + 1}</TableCell>
@@ -172,7 +172,7 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
 
           return (
             <div
-              key={trip.id || `trip-${trip.tripOrder ?? index}`}
+              key={`trip-${trip.tripOrder ?? index}`}
               className={`gba:relative gba:pl-8 gba:pb-4 ${
                 index < sortedTrips.length - 1 ? 'gba:border-l-2 gba:border-border' : ''
               }`}
