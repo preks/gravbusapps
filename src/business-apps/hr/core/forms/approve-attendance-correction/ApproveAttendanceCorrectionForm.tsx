@@ -88,6 +88,16 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
     return dayjs.utc(value).local().locale(locale).format('LT')
   }
 
+  // Normalize to local HH:mm for equality comparison (prevents false positives due to seconds/ms)
+  const normalizeTimeForCompare = (value?: string) => {
+    if (!value) return ''
+    try {
+      return dayjs.utc(value).local().format('HH:mm')
+    } catch {
+      return ''
+    }
+  }
+
   const attendanceDate = (correction?.attendanceDate as string) || undefined
   const startTime = (correction?.startTime as string) || undefined
   const endTime = (correction?.endTime as string) || undefined
@@ -120,13 +130,15 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
   }, [attendanceId, graphqlClient])
 
   const hasStartChange = useMemo(() => {
-    return Boolean((original?.startTime || '') !== (startTime || ''))
+    return normalizeTimeForCompare(original?.startTime) !== normalizeTimeForCompare(startTime)
   }, [original?.startTime, startTime])
   const hasEndChange = useMemo(() => {
-    return Boolean((original?.endTime || '') !== (endTime || ''))
+    return normalizeTimeForCompare(original?.endTime) !== normalizeTimeForCompare(endTime)
   }, [original?.endTime, endTime])
   const hasNotesChange = useMemo(() => {
-    return Boolean((original?.notes || '') !== (notes || ''))
+    const a = String(original?.notes ?? '').trim()
+    const b = String(notes ?? '').trim()
+    return a !== b
   }, [original?.notes, notes])
 
   const handleClose = () => {
