@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react'
+import React, { useMemo, useCallback, useState, useRef } from 'react'
 import { Control } from 'react-hook-form'
 import {
   FormControl,
@@ -17,34 +17,11 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { ImageIcon, CaretLeftIcon, CaretRightIcon, Folder, Link } from '@phosphor-icons/react'
-import ReactQuill, { Quill } from 'react-quill'
+import ReactQuill from 'react-quill'
 import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { ContentAiTextGenerator } from '../components/ContentAiTextGenerator'
-import { DocumentReviewPanel } from '../components/DocumentReviewPanel'
 import translations from '../_i18n'
-
-// Register custom Quill format for review highlights
-const Inline = Quill.import('blots/inline') as any
-
-class ReviewHighlightBlot extends Inline {
-  static blotName = 'review-highlight'
-  static tagName = 'span'
-  static className = 'review-highlight'
-
-  static create(value: string) {
-    const node = super.create() as HTMLElement
-    node.setAttribute('data-severity', value || 'info')
-    node.classList.add(`review-highlight-${value || 'info'}`)
-    return node
-  }
-
-  static formats(node: HTMLElement) {
-    return node.getAttribute('data-severity') || 'info'
-  }
-}
-
-Quill.register(ReviewHighlightBlot, true)
 
 // Check if running in local development environment
 const isLocalEnvironment = (): boolean => {
@@ -105,85 +82,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
   const [urlInput, setUrlInput] = useState('')
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const quillRef = useRef<ReactQuill>(null)
-
-  // Function to apply highlights to Quill editor for AI review annotations
-  const applyHighlights = useCallback(
-    (annotations: any[]) => {
-      const editor = quillRef.current?.getEditor()
-      if (!editor || !watchContent) return
-
-      // Clear any existing review highlights first
-      const length = editor.getLength()
-      editor.formatText(0, length, 'review-highlight', false)
-
-      // Apply new highlights for each annotation
-      annotations.forEach(annotation => {
-        // Handle different property name formats (originalText vs original_text)
-        const originalText = annotation.originalText || annotation.original_text
-        const isResolved = annotation.resolved
-
-        if (originalText && !isResolved) {
-          const quillText = editor.getText()
-
-          // Find the text in the editor (case-insensitive search)
-          const searchText = originalText.toLowerCase()
-          const lowerQuillText = quillText.toLowerCase()
-          let index = lowerQuillText.indexOf(searchText)
-
-          while (index !== -1) {
-            // Apply the highlight format with severity level
-            editor.formatText(index, originalText.length, 'review-highlight', annotation.severity || 'info')
-
-            // Look for more occurrences
-            index = lowerQuillText.indexOf(searchText, index + originalText.length)
-          }
-        }
-      })
-
-      console.log(
-        '[ArticleSegment] Applied highlights for',
-        annotations.filter((a: any) => !a.resolved).length,
-        'annotations'
-      )
-    },
-    [watchContent]
-  )
-
-  // Function to clear all highlights
-  const clearHighlights = useCallback(() => {
-    const editor = quillRef.current?.getEditor()
-    if (!editor) return
-
-    const length = editor.getLength()
-    editor.formatText(0, length, 'review-highlight', false)
-    console.log('[ArticleSegment] Cleared all review highlights')
-  }, [])
-
-  // Listen for document review annotations from DocumentReviewPanel and apply highlights
-  useEffect(() => {
-    const handleAnnotations = (event: CustomEvent) => {
-      const { documentId, annotations } = event.detail
-
-      console.log('[ArticleSegment] Received annotations event:', { documentId, count: annotations?.length })
-
-      if (documentId !== 'content-editor') return
-
-      if (annotations && annotations.length > 0) {
-        // Small delay to ensure Quill is ready
-        setTimeout(() => {
-          applyHighlights(annotations)
-        }, 100)
-      } else {
-        clearHighlights()
-      }
-    }
-
-    window.addEventListener('document-review-annotations', handleAnnotations as EventListener)
-    return () => {
-      window.removeEventListener('document-review-annotations', handleAnnotations as EventListener)
-    }
-  }, [applyHighlights, clearHighlights])
 
   // Process file (used by both file upload and drag & drop)
   const processFile = useCallback(
@@ -312,20 +210,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
   )
 
   const quillFormats = useMemo(
-    () => [
-      'header',
-      'bold',
-      'italic',
-      'underline',
-      'strike',
-      'list',
-      'bullet',
-      'indent',
-      'link',
-      'image',
-      'video',
-      'review-highlight'
-    ],
+    () => ['header', 'bold', 'italic', 'underline', 'strike', 'list', 'bullet', 'indent', 'link', 'image', 'video'],
     []
   )
 
@@ -467,14 +352,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             />
           </div>
         )}
-
-        {/* AI Document Review Panel - Shows suggestions from chat */}
-        <DocumentReviewPanel
-          content={watchContent || ''}
-          title={watchTitle || ''}
-          onContentChange={value => setValue('content', value)}
-          accessToken={context.accessToken || ''}
-        />
 
         {/* Content Group and Content Type - Above Image Upload */}
         <FormFieldGroup>
@@ -712,24 +589,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             .ql-editor {
               min-height: 50px;
             }
-            /* Review highlight styles */
-            .review-highlight {
-              border-radius: 2px;
-              padding: 0 2px;
-              margin: 0 -2px;
-            }
-            .review-highlight-critical {
-              background-color: rgba(239, 68, 68, 0.3);
-              border-bottom: 2px solid rgb(239, 68, 68);
-            }
-            .review-highlight-warning {
-              background-color: rgba(245, 158, 11, 0.3);
-              border-bottom: 2px solid rgb(245, 158, 11);
-            }
-            .review-highlight-info {
-              background-color: rgba(59, 130, 246, 0.3);
-              border-bottom: 2px solid rgb(59, 130, 246);
-            }
           `}</style>
           <FormField
             control={control as any}
@@ -740,7 +599,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                 <FormLabel>{t('content') || 'Content'}</FormLabel>
                 <FormControl className="gba:h-full gba:max-h-full gba:flex gba:flex-col gba:min-h-0">
                   <ReactQuill
-                    ref={quillRef}
                     theme="snow"
                     value={field.value || ''}
                     onChange={field.onChange}
