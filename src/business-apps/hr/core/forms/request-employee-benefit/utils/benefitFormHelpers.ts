@@ -189,6 +189,8 @@ export const buildBenefitSubmitPayload = ({
 
   // Use country currency or null if not available
   const currencyRef = countryCurrencyRef || null
+  const periodLower = resolvedPeriodDisplay?.toLowerCase() || ''
+
   if (periodLower === 'monthly' || periodLower === 'month') {
     // Value is monthly, calculate yearly
     monthlyAmountValue = derivedAmountNumber || 0
@@ -215,8 +217,6 @@ export const buildBenefitSubmitPayload = ({
 
   // Use raw period from catalog, never the translated version
   const periodValue = resolvedPeriodDisplay || null
-  // Use country currency (with employee bank account fallback) or null if neither available
-  const currencyRef = countryCurrencyRef || null
 
   const payload: any = {
     employeeBenefit: {
