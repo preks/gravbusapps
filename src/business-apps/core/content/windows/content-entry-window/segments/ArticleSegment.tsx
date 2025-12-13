@@ -34,6 +34,9 @@ interface ArticleSegmentProps {
   watchPreviewText: string
   watchContent: string
   watchSchedulePublication: boolean
+  watchContentTypeRef?: string
+  watchCategories?: string[]
+  watchTags?: string[]
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
   extractedContentGroupRef?: string
@@ -41,6 +44,11 @@ interface ArticleSegmentProps {
   onCreateTag?: (label: string) => Promise<string>
   onCategoriesChange?: (categories: string[]) => void
   onTagsChange?: (tags: string[]) => void
+  onContentTypeRefChange?: (value: string | undefined) => void
+  onContentCategoryRefsChange?: (value: string[]) => void
+  onContentCategoryNamesChange?: (value: string[]) => void
+  onContentTagRefsChange?: (value: string[]) => void
+  onContentTagNamesChange?: (value: string[]) => void
 }
 
 const MAX_IMAGE_SIZE_MB = 5
@@ -60,13 +68,21 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
   watchPreviewText,
   watchContent,
   watchSchedulePublication,
+  watchContentTypeRef,
+  watchCategories,
+  watchTags,
   setValue,
   context,
   extractedContentGroupRef,
   onCreateCategory,
   onCreateTag,
   onCategoriesChange,
-  onTagsChange
+  onTagsChange,
+  onContentTypeRefChange,
+  onContentCategoryRefsChange,
+  onContentCategoryNamesChange,
+  onContentTagRefsChange,
+  onContentTagNamesChange
 }) => {
   const { t } = useTranslation(translations)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -356,6 +372,41 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             onPictureChange={handlePictureUrl}
             accessToken={context.accessToken || ''}
             context={context}
+            contentGroupRef={extractedContentGroupRef}
+            contentTypeRef={watchContentTypeRef}
+            contentCategoryRefs={
+              watchCategories?.filter(cat => {
+                // Catalog Entry IDs have format: <identifier>:<version>:<code> (at least 2 colons)
+                const parts = cat.split(':')
+                return parts.length >= 2
+              }) || []
+            }
+            contentCategoryNames={
+              watchCategories?.filter(cat => {
+                // Names are strings that don't have the catalog entry ID format
+                const parts = cat.split(':')
+                return parts.length < 2
+              }) || []
+            }
+            contentTagRefs={
+              watchTags?.filter(tag => {
+                // Catalog Entry IDs have format: <identifier>:<version>:<code> (at least 2 colons)
+                const parts = tag.split(':')
+                return parts.length >= 2
+              }) || []
+            }
+            contentTagNames={
+              watchTags?.filter(tag => {
+                // Names are strings that don't have the catalog entry ID format
+                const parts = tag.split(':')
+                return parts.length < 2
+              }) || []
+            }
+            onContentTypeRefChange={onContentTypeRefChange}
+            onContentCategoryRefsChange={onContentCategoryRefsChange}
+            onContentCategoryNamesChange={onContentCategoryNamesChange}
+            onContentTagRefsChange={onContentTagRefsChange}
+            onContentTagNamesChange={onContentTagNamesChange}
           />
         </div>
 

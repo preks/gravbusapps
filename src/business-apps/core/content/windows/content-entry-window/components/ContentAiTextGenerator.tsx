@@ -27,7 +27,7 @@ import {
   ArrowClockwiseIcon
 } from '@phosphor-icons/react'
 import type { ContentAiTextGeneratorProps, AiActionType, AiResponse } from './aiTextGeneratorTypes'
-import { ContentEntryAIService } from '../services/ContentEntryAIService'
+import { ContentEntryAIService, ContentEntryInput } from '../services/ContentEntryAIService'
 
 export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   title,
@@ -37,7 +37,18 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   onPreviewTextChange,
   onContentChange,
   onPictureChange,
-  context
+  context,
+  contentGroupRef,
+  contentTypeRef,
+  contentCategoryRefs,
+  contentCategoryNames,
+  contentTagRefs,
+  contentTagNames,
+  onContentTypeRefChange,
+  onContentCategoryRefsChange,
+  onContentCategoryNamesChange,
+  onContentTagRefsChange,
+  onContentTagNamesChange
 }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [view, setView] = useState<
@@ -133,24 +144,42 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
 
       try {
         const operation = actionType === 'generate' ? 'generate' : 'refine'
-        const existingContent =
+        const existingContent: ContentEntryInput =
           actionType === 'generate'
-            ? undefined
+            ? {
+                contentGroupRef,
+                contentTypeRef,
+                contentCategoryRefs,
+                contentCategoryNames,
+                contentTagRefs,
+                contentTagNames
+              }
             : {
                 title: inputTitle,
                 preview: inputPreviewText,
                 content: inputContent,
-                picture: null
+                picture: null,
+                contentGroupRef,
+                contentTypeRef,
+                contentCategoryRefs,
+                contentCategoryNames,
+                contentTagRefs,
+                contentTagNames
               }
 
         const result = await aiServiceRef.current.executeContentEntryOperation(operation, userPrompt, existingContent)
 
-        // Map response to AiResponse format
+        // Map response to AiResponse format (including new catalog fields)
         const aiResponse: AiResponse = {
           title: result.title || '',
           previewText: result.preview || '',
           content: result.content || '',
-          picture: result.picture || null
+          picture: result.picture || null,
+          contentTypeRef: result.contentTypeRef,
+          contentCategoryRefs: result.contentCategoryRefs,
+          contentCategoryNames: result.contentCategoryNames,
+          contentTagRefs: result.contentTagRefs,
+          contentTagNames: result.contentTagNames
         }
 
         setResponse(aiResponse)
@@ -163,7 +192,18 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
         setIsLoading(false)
       }
     },
-    [title, previewText, content, response]
+    [
+      title,
+      previewText,
+      content,
+      response,
+      contentGroupRef,
+      contentTypeRef,
+      contentCategoryRefs,
+      contentCategoryNames,
+      contentTagRefs,
+      contentTagNames
+    ]
   )
 
   const handleGenerate = useCallback(
@@ -264,9 +304,47 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
         }
       }
 
+      // Handle catalog fields from AI response
+      // AI returns complete lists, so we replace (not append)
+      if (response.contentTypeRef !== undefined && onContentTypeRefChange) {
+        onContentTypeRefChange(response.contentTypeRef)
+      }
+
+      // Combine refs and names for categories (AI returns complete list)
+      const allCategoryRefs = response.contentCategoryRefs || []
+      const allCategoryNames = response.contentCategoryNames || []
+      if (onContentCategoryRefsChange) {
+        onContentCategoryRefsChange(allCategoryRefs)
+      }
+      if (onContentCategoryNamesChange) {
+        onContentCategoryNamesChange(allCategoryNames)
+      }
+
+      // Combine refs and names for tags (AI returns complete list)
+      const allTagRefs = response.contentTagRefs || []
+      const allTagNames = response.contentTagNames || []
+      if (onContentTagRefsChange) {
+        onContentTagRefsChange(allTagRefs)
+      }
+      if (onContentTagNamesChange) {
+        onContentTagNamesChange(allTagNames)
+      }
+
       handleDiscard()
     }
-  }, [response, onTitleChange, onPreviewTextChange, onContentChange, onPictureChange, handleDiscard])
+  }, [
+    response,
+    onTitleChange,
+    onPreviewTextChange,
+    onContentChange,
+    onPictureChange,
+    onContentTypeRefChange,
+    onContentCategoryRefsChange,
+    onContentCategoryNamesChange,
+    onContentTagRefsChange,
+    onContentTagNamesChange,
+    handleDiscard
+  ])
 
   const tones = ['Professional', 'Empathetic', 'Casual', 'Neutral', 'Educational', 'Formal', 'Creative', 'Technical']
 
