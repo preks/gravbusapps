@@ -1,6 +1,6 @@
 {
   "ai/apps/document-reviewer": "6f1f3c3514fc87fe8f34ef6f3b4751eb",
-  "ai/apps/task-expert-studio": "7b97b702d4827090bfa71f6e8ccbf5e2",
+  "ai/apps/task-expert-studio": "3f62eefd501bf9fc6e34d575721f7deb",
   "core/content/apps/content-hub": "09d9960ad94ce914a5ec850f00c5ddaf",
   "core/content/apps/content-management": "8abba99a2c3d1c18d554cd3a134b82f2",
   "core/content/apps/content-manager": "40583b1a0a4ac04454482cc22a5a2c28",
@@ -235,7 +235,7 @@
   "platform/examples/apps/tiles-dashboard-example": "590bd9f076c49999dd31c9fd4165e347",
   "platform/examples/forms/form-example": "366a850a898b15adcc1e7e3f8ddf6604",
   "platform/examples/forms/wizard-form-example": "3d93a20c23d399d7a392529af062ee69",
-  "platform/functions/apps/functions-manager": "44e81375d3882260bd9a6fab86c5f143",
+  "platform/functions/apps/functions-manager": "9787f346d5c68e74fcb528ecf6444bdd",
   "sales-demo/bom/apps/bom-detail-view": "7bfe6b46933a3516facf96c984737c73",
   "sales-demo/bom/apps/bom-management-overview": "2640aba8fd90c70e78eeecc286b0a2ca",
   "sales-demo/core/apps/sales-launcher": "5ab0d50fa130374124914e16c25e4368",
@@ -247,6 +247,6 @@
   "sales-demo/sales-order/apps/sales-order-overview": "5ad3191b73c9cdb18370ae971b666bb5",
   "sales-demo/sales-order/apps/sales-performance-report": "48f8b8d1b0cc5d321f2d8b83cd7647c4",
   "sales-demo/sales-order/forms/sales-order-creation-form": "b43f3c81bf1893cbfe307afc2946602b",
-  "ser/apps/service-desk": "2e7b504b5512671eb44af36278d8e6a4",
+  "ser/apps/service-desk": "3c1dd1b9bbe11967e4fc5a7ed91f803f",
   "ser/apps/service-portal": "e05e873edcc010ec27fb94abc0dc7b08"
 }
