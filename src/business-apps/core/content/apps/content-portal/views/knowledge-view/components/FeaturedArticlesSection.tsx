@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Card } from '@newwork/nw-design-system'
 import { Eye } from 'lucide-react'
 import { extractTextFromHTML } from '../../../../../utils/translationUtils'
@@ -10,13 +10,92 @@ interface FeaturedArticlesSectionProps {
   onArticleClick: (entryId: string) => void
   truncateText: (text: string, maxLength: number) => string
   t: (key: string) => string
+  accessToken?: string
+}
+
+// Helper component to handle async blob URL for article images
+const ArticleImage: React.FC<{ picture: any; accessToken?: string; alt: string }> = ({ picture, accessToken, alt }) => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const blobUrlRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    // Clean up previous blob URL if it exists
+    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(blobUrlRef.current)
+      blobUrlRef.current = null
+    }
+
+    if (!picture) {
+      setImageUrl(null)
+      return
+    }
+
+    let fileInfo: any = null
+    try {
+      fileInfo = typeof picture === 'string' ? JSON.parse(picture) : picture
+    } catch {
+      if (typeof picture === 'string' && picture.startsWith('data:')) {
+        setImageUrl(picture)
+        return
+      }
+      setImageUrl(picture)
+      return
+    }
+
+    if (!fileInfo?.path) {
+      setImageUrl(null)
+      return
+    }
+
+    if (accessToken) {
+      let isCancelled = false
+
+      const fetchImage = async () => {
+        try {
+          const blobUrl = await buildFileUrl(fileInfo, accessToken)
+          if (!isCancelled) {
+            blobUrlRef.current = blobUrl
+            setImageUrl(blobUrl)
+          } else {
+            URL.revokeObjectURL(blobUrl)
+          }
+        } catch (error) {
+          if (!isCancelled) {
+            console.error('[FeaturedArticlesSection] Error fetching image:', error)
+            setImageUrl(null)
+          }
+        }
+      }
+
+      fetchImage()
+
+      return () => {
+        isCancelled = true
+        if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+          URL.revokeObjectURL(blobUrlRef.current)
+          blobUrlRef.current = null
+        }
+      }
+    } else {
+      setImageUrl(buildFileUrl(fileInfo))
+    }
+  }, [picture, accessToken])
+
+  if (!imageUrl) return null
+
+  return (
+    <div className="gba:w-48 gba:h-32 gba:rounded-lg gba:overflow-hidden gba:shrink-0">
+      <img src={imageUrl} alt={alt} className="gba:w-full gba:h-full gba:object-cover" />
+    </div>
+  )
 }
 
 const FeaturedArticlesSection: React.FC<FeaturedArticlesSectionProps> = ({
   articles,
   onArticleClick,
   truncateText,
-  t
+  t,
+  accessToken
 }) => {
   if (articles.length === 0) {
     return null
@@ -34,24 +113,7 @@ const FeaturedArticlesSection: React.FC<FeaturedArticlesSectionProps> = ({
             data-testid={`featured-article-${entry.id}`}
           >
             <div className="gba:flex gba:gap-6">
-              {(() => {
-                let imageUrl: string | null = null
-                if (entry.picture) {
-                  try {
-                    const fileInfo = typeof entry.picture === 'string' ? JSON.parse(entry.picture) : entry.picture
-                    if (fileInfo?.path) {
-                      imageUrl = buildFileUrl(fileInfo)
-                    }
-                  } catch {
-                    imageUrl = entry.picture // Old format: direct URL or base64
-                  }
-                }
-                return imageUrl ? (
-                  <div className="gba:w-48 gba:h-32 gba:rounded-lg gba:overflow-hidden gba:shrink-0">
-                    <img src={imageUrl} alt={entry.title || ''} className="gba:w-full gba:h-full gba:object-cover" />
-                  </div>
-                ) : null
-              })()}
+              <ArticleImage picture={entry.picture} accessToken={accessToken} alt={entry.title || ''} />
               <div className="gba:flex-1">
                 <h3 className="gba:text-2xl gba:font-bold gba:mb-2 gba:text-foreground gba:hover:text-primary gba:transition-colors">
                   {entry.title}
