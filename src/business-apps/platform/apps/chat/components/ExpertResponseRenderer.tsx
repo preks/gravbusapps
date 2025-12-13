@@ -9,6 +9,7 @@ import React, { useState } from 'react'
 import { Card, CardContent, Button } from '@newwork/nw-design-system'
 import { ChevronDown, ChevronUp, BookOpen, ExternalLink, FileText } from 'lucide-react'
 import { AIResponseRenderer } from './AIResponseRenderer'
+import { getExpertColorStyles } from '../utils/expertColorUtils'
 
 export interface Citation {
   source: string
@@ -65,7 +66,7 @@ export const ExpertResponseRenderer: React.FC<ExpertResponseRendererProps> = ({
 
       {/* Citations */}
       {hasCitations && (
-        <Card className="gba:border-l-4" style={{ borderLeftColor: expertColor || '#1890ff' }}>
+        <Card className="gba:border-l-4" style={getExpertColorStyles(expertColor).border}>
           <CardContent className="gba:p-3">
             <Button
               variant="ghost"
@@ -75,7 +76,7 @@ export const ExpertResponseRenderer: React.FC<ExpertResponseRendererProps> = ({
               data-testid={`${testId}-toggle-citations`}
             >
               <div className="gba:flex gba:items-center gba:gap-2">
-                <BookOpen className="gba:w-4 gba:h-4" style={{ color: expertColor || '#1890ff' }} />
+                <BookOpen className="gba:w-4 gba:h-4" style={getExpertColorStyles(expertColor).text} />
                 <span className="gba:text-xs gba:font-medium">
                   {citations.length} source{citations.length !== 1 ? 's' : ''} referenced
                 </span>
@@ -96,12 +97,12 @@ export const ExpertResponseRenderer: React.FC<ExpertResponseRendererProps> = ({
                         {citation.sourceType === 'document' ? (
                           <FileText
                             className="gba:w-3 gba:h-3 gba:flex-shrink-0"
-                            style={{ color: expertColor || '#1890ff' }}
+                            style={getExpertColorStyles(expertColor).text}
                           />
                         ) : (
                           <ExternalLink
                             className="gba:w-3 gba:h-3 gba:flex-shrink-0"
-                            style={{ color: expertColor || '#1890ff' }}
+                            style={getExpertColorStyles(expertColor).text}
                           />
                         )}
                         <span className="gba:font-semibold gba:truncate">{citation.source}</span>
