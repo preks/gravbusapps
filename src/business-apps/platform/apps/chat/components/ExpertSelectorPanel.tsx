@@ -8,6 +8,7 @@ import React, { useState, useMemo } from 'react'
 import { Button, Input, Card, CardContent, Spinner } from '@newwork/nw-design-system'
 import { X, Search, Sparkles, BookOpen, Plus, Check } from 'lucide-react'
 import type { AvailableExpert } from '../hooks/useEveryExperts'
+import { getExpertColorStyles } from '../utils/expertColorUtils'
 
 interface ExpertSelectorPanelProps {
   isOpen: boolean
@@ -116,9 +117,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
                         {/* Avatar */}
                         <div
                           className="gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:font-bold gba:text-sm gba:text-primary-foreground"
-                          style={{
-                            backgroundColor: expert.color || '#1890ff'
-                          }}
+                          style={getExpertColorStyles(expert.color).avatar}
                         >
                           {expert.avatar || expert.name.charAt(0).toUpperCase()}
                         </div>

@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { getExpertColor } from '../utils/expertColorUtils'
 
 export interface AvailableExpert {
   id: string
@@ -42,7 +43,7 @@ export const useEveryExperts = (accessToken: string) => {
         specialty: prompt.specialty || 'General AI Assistant',
         description: prompt.description,
         avatar: prompt.avatar,
-        color: prompt.color || '#1890ff',
+        color: getExpertColor(prompt.color),
         knowledgeSourceCount: prompt.knowledge_sources?.length || 0,
         tags: prompt.tags || [],
         isPublic: prompt.is_public || false
