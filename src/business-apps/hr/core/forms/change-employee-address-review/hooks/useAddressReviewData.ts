@@ -36,6 +36,7 @@ interface CatalogEntry {
 interface UseAddressReviewDataProps {
   accessToken: string
   employeeId?: string
+  creatorUserId?: string // Optional: user ID to lookup employee if employeeId is not available
   newAddress: AddressData
   oldAddress: AddressData
 }
@@ -52,6 +53,22 @@ interface UseAddressReviewDataResult {
 const GET_EMPLOYEE_DATA = `
   query GetEmployeeById($employeeId: uuid!) {
     employee: EmployeeByPk(id: $employeeId) {
+      id
+      firstName
+      lastName
+      pictureThumbnail
+      employeePosition {
+        jobPosition {
+          name
+        }
+      }
+    }
+  }
+`
+
+const GET_EMPLOYEE_BY_USER_ID = `
+  query GetEmployeeByUserId($userId: String!) {
+    employee: Employee(where: {userId: {_eq: $userId}}, limit: 1) {
       id
       firstName
       lastName
@@ -104,6 +121,7 @@ const buildCatalogMap = (entries: CatalogEntry[] | undefined): Record<string, Ca
 export const useAddressReviewData = ({
   accessToken,
   employeeId,
+  creatorUserId,
   newAddress,
   oldAddress
 }: UseAddressReviewDataProps): UseAddressReviewDataResult => {
@@ -124,14 +142,31 @@ export const useAddressReviewData = ({
   const oldEmployeeDocument = oldAddress?.employeeDocument
 
   const fetchEmployeeData = useCallback(async () => {
-    if (!employeeId) return
-    try {
-      const result = await graphqlClient.request<{ employee: EmployeeData }>(GET_EMPLOYEE_DATA, { employeeId })
-      setEmployeeData(result.employee)
-    } catch (err) {
-      console.error('Error fetching employee:', err)
+    // If we have an employee ID, fetch directly
+    if (employeeId) {
+      try {
+        const result = await graphqlClient.request<{ employee: EmployeeData }>(GET_EMPLOYEE_DATA, { employeeId })
+        setEmployeeData(result.employee)
+      } catch (err) {
+        console.error('Error fetching employee by ID:', err)
+      }
+      return
     }
-  }, [employeeId, graphqlClient])
+
+    // If no employee ID but we have creator user ID, lookup employee by user ID
+    if (creatorUserId) {
+      try {
+        const result = await graphqlClient.request<{ employee: EmployeeData[] }>(GET_EMPLOYEE_BY_USER_ID, {
+          userId: creatorUserId
+        })
+        if (result.employee && result.employee.length > 0) {
+          setEmployeeData(result.employee[0])
+        }
+      } catch (err) {
+        console.error('Error fetching employee by user ID:', err)
+      }
+    }
+  }, [employeeId, creatorUserId, graphqlClient])
 
   const fetchCatalogData = useCallback(async () => {
     const catalogIds = Array.from(

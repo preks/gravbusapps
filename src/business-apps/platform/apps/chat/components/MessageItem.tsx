@@ -20,6 +20,7 @@ import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
 import { ExpertResponseRenderer } from './ExpertResponseRenderer'
 import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
+import { getExpertColorStyles } from '../utils/expertColorUtils'
 
 const getInitials = (name: string): string => {
   if (!name) return '?'
@@ -173,7 +174,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
         {isExpertResponse && (
           <div
             className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-[10px]"
-            style={{ backgroundColor: message.metadata?.expertColor || '#1890ff' }}
+            style={getExpertColorStyles(message.metadata?.expertColor).avatar}
           >
             {message.metadata?.expertAvatar || message.metadata?.expertName?.charAt(0).toUpperCase() || 'E'}
           </div>
@@ -228,15 +229,12 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
             <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:flex gba:items-center gba:justify-between">
               <div className="gba:flex gba:items-center gba:gap-1.5">
                 <span className="gba:text-xs">🎓</span>
-                <span style={{ color: message.metadata?.expertColor || '#1890ff' }}>
+                <span style={getExpertColorStyles(message.metadata?.expertColor).text}>
                   {message.metadata?.expertName || 'Expert'}
                 </span>
                 <div
                   className="gba:inline-flex gba:items-center gba:justify-center gba:rounded-full gba:text-[9px] gba:px-1.5 gba:py-0.5 gba:font-medium"
-                  style={{
-                    backgroundColor: message.metadata?.expertColor ? `${message.metadata.expertColor}20` : '#f0f0f0',
-                    color: message.metadata?.expertColor || '#666'
-                  }}
+                  style={getExpertColorStyles(message.metadata?.expertColor).badge}
                 >
                   Expert
                 </div>
