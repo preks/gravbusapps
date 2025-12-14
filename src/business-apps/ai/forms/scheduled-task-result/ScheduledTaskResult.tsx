@@ -98,7 +98,7 @@ function parseTableDataFromMessage(
 }
 
 /**
- * Render TableData as a beautiful table component
+ * Render TableData as a beautiful table component with proper handling of long content
  */
 function renderTableData(tableData: {
   columnsTitles: string[]
@@ -107,15 +107,22 @@ function renderTableData(tableData: {
   description?: string
 }) {
   return (
-    <div className="gba:space-y-2">
-      {tableData.title && <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{tableData.title}</h3>}
-      {tableData.description && <p className="gba:text-sm gba:text-muted-foreground">{tableData.description}</p>}
-      <div className="gba:overflow-x-auto gba:rounded-lg gba:border gba:border-border">
+    <div className="gba:space-y-3">
+      {tableData.title && (
+        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">{tableData.title}</h3>
+      )}
+      {tableData.description && (
+        <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">{tableData.description}</p>
+      )}
+      <div className="gba:overflow-x-auto gba:rounded-lg gba:border gba:border-border gba:shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
               {tableData.columnsTitles.map((column, idx) => (
-                <TableHead key={idx} className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground">
+                <TableHead
+                  key={idx}
+                  className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground gba:py-3 gba:px-4 gba:whitespace-nowrap"
+                >
                   {column}
                 </TableHead>
               ))}
@@ -123,12 +130,30 @@ function renderTableData(tableData: {
           </TableHeader>
           <TableBody>
             {tableData.rowsContents.map((row, rowIdx) => (
-              <TableRow key={rowIdx}>
-                {row.map((cell, cellIdx) => (
-                  <TableCell key={cellIdx} className="gba:py-3">
-                    {cell}
-                  </TableCell>
-                ))}
+              <TableRow key={rowIdx} className="gba:hover:bg-muted/30">
+                {row.map((cell, cellIdx) => {
+                  const cellContent = String(cell || '').trim()
+                  const isEmpty = !cellContent || cellContent === ''
+                  const isLong = cellContent.length > 200
+
+                  return (
+                    <TableCell
+                      key={cellIdx}
+                      className={`gba:py-3 gba:px-4 gba:max-w-xs gba:break-words ${
+                        isEmpty ? 'gba:text-muted-foreground/50 gba:italic' : 'gba:text-foreground'
+                      }`}
+                      title={isLong ? cellContent : undefined}
+                    >
+                      {isEmpty ? (
+                        <span className="gba:text-xs">—</span>
+                      ) : isLong ? (
+                        <div className="gba:max-h-32 gba:overflow-y-auto">{cellContent}</div>
+                      ) : (
+                        cellContent
+                      )}
+                    </TableCell>
+                  )
+                })}
               </TableRow>
             ))}
           </TableBody>
@@ -272,22 +297,42 @@ const ScheduledTaskResultContent: React.FC<ScheduledTaskResultProps> = ({
         </Card>
 
         {/* Results Card */}
-        <Card>
+        <Card className="gba:overflow-hidden">
           <CardHeader className="gba:pb-3">
             <CardTitle className="gba:text-lg">Results</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="gba:p-6">
             {message ? (
               (() => {
-                // Try to parse TableData from the message
+                // Try to parse TableData from the message (for Python repr format)
                 const tableData = parseTableDataFromMessage(message)
 
                 if (tableData && tableData.columnsTitles.length > 0 && tableData.rowsContents.length > 0) {
                   // Render as a beautiful table
                   return renderTableData(tableData)
                 } else {
-                  // Fall back to markdown rendering
-                  return <MarkdownRenderer content={message} accessToken={accessToken} />
+                  // Check if message is already a markdown table or contains markdown
+                  // Clean up any JSON wrapping if present
+                  let cleanMessage = message.trim()
+
+                  // If message looks like JSON with a "message" field, extract it
+                  if (cleanMessage.startsWith('{') && cleanMessage.includes('"message"')) {
+                    try {
+                      const parsed = JSON.parse(cleanMessage)
+                      if (parsed.message && typeof parsed.message === 'string') {
+                        cleanMessage = parsed.message
+                      }
+                    } catch {
+                      // Not valid JSON, use as-is
+                    }
+                  }
+
+                  // Fall back to markdown rendering (handles markdown tables beautifully)
+                  return (
+                    <div className="gba:w-full">
+                      <MarkdownRenderer content={cleanMessage} accessToken={accessToken} />
+                    </div>
+                  )
                 }
               })()
             ) : (

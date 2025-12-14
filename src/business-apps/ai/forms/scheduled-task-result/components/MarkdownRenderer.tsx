@@ -29,19 +29,35 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, acc
             </EntityLink>
           ),
 
-          // Tables using design system
+          // Tables using design system with better styling for scheduled tasks
           table: ({ children }) => (
-            <div className="gba:overflow-x-auto gba:my-4 gba:rounded-lg gba:border gba:border-border">
+            <div className="gba:overflow-x-auto gba:my-4 gba:rounded-lg gba:border gba:border-border gba:shadow-sm">
               <Table>{children}</Table>
             </div>
           ),
           thead: ({ children }) => <TableHeader>{children}</TableHeader>,
           tbody: ({ children }) => <TableBody>{children}</TableBody>,
-          tr: ({ children }) => <TableRow>{children}</TableRow>,
+          tr: ({ children }) => <TableRow className="gba:hover:bg-muted/30">{children}</TableRow>,
           th: ({ children }) => (
-            <TableHead className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground">{children}</TableHead>
+            <TableHead className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground gba:py-3 gba:px-4 gba:whitespace-nowrap">
+              {children}
+            </TableHead>
           ),
-          td: ({ children }) => <TableCell className="gba:py-3">{children}</TableCell>,
+          td: ({ children }) => {
+            const cellContent = String(children || '').trim()
+            const isEmpty = !cellContent || cellContent === ''
+
+            return (
+              <TableCell
+                className={`gba:py-3 gba:px-4 gba:max-w-xs gba:break-words ${
+                  isEmpty ? 'gba:text-muted-foreground/50 gba:italic' : 'gba:text-foreground'
+                }`}
+                title={cellContent.length > 100 ? cellContent : undefined}
+              >
+                {isEmpty ? <span className="gba:text-xs">—</span> : children}
+              </TableCell>
+            )
+          },
 
           // Text formatting
           strong: ({ children }) => <strong className="gba:font-semibold gba:text-foreground">{children}</strong>,
