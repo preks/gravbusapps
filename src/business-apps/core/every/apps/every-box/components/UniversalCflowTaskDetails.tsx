@@ -43,6 +43,7 @@ import { TaskDetailFooter } from './TaskDetailFooter'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { InputRenderer } from '@/business-apps/flow/apps/creator/components/shared/InputRenderer'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { MarkdownRenderer } from '@/business-apps/ai/forms/scheduled-task-result/components/MarkdownRenderer'
 import translations from '../_i18n'
 
 dayjs.extend(localizedFormat)
@@ -716,12 +717,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </div>
           )}
 
-          {/* Brief description if available */}
-          {(task.message || task.description) && (
-            <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-              {task.message || task.description}
-            </p>
-          )}
+          {/* Brief description if available - use markdown for scheduled tasks */}
+          {(task.message || task.description) &&
+            (task.tags?.app === 'scheduled_task' ? (
+              <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+            ) : (
+              <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+                {task.message || task.description}
+              </p>
+            ))}
 
           {/* Info Alert for Blink tasks - only show when not completed */}
           {!isCompleted && (
@@ -932,12 +936,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           </div>
         )}
 
-        {/* Description - Simple paragraph for all cFlow tasks */}
-        {(task.message || task.description) && (
-          <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-            {task.message || task.description}
-          </p>
-        )}
+        {/* Description - use markdown for scheduled tasks */}
+        {(task.message || task.description) &&
+          (task.tags?.app === 'scheduled_task' ? (
+            <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+          ) : (
+            <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+              {task.message || task.description}
+            </p>
+          ))}
 
         {/* Form Section - Editable for active tasks, read-only for completed */}
         {task.form && Array.isArray(task.form) && task.form.length > 0 && (
