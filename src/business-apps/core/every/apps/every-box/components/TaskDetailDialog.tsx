@@ -381,6 +381,13 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           accessToken={accessToken}
           userInfo={userInfo}
           additionalData={{
+            // Task-level data for forms like ScheduledTaskResult
+            message: task.message,
+            title: task.title || task.name,
+            tags: task.tags,
+            scheduledAt: task.scheduledAt,
+            dueDate: task.dueDate,
+            // Workflow metadata
             psi_taskPayload: taskInputs,
             psi_processMetadata: task.sourceMetadata,
             psi_taskStatus: task.status,

@@ -1,5 +1,19 @@
 import React, { useState, useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Spinner } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Badge,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@newwork/nw-design-system'
 import { Calendar, Clock, RefreshCw, CheckCircle, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -7,6 +21,122 @@ import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { MarkdownRenderer } from './components/MarkdownRenderer'
+
+/**
+ * Parse TableData from Python repr string format
+ * Example: "displayData=[TableData(type='table', columnsTitles=['Name', 'Value'], rowsContents=[['A', '1'], ['B', '2']])]"
+ */
+function parseTableDataFromMessage(
+  message: string
+): { columnsTitles: string[]; rowsContents: string[][]; title?: string; description?: string } | null {
+  try {
+    // Try to extract TableData from the message string
+    // Match the entire TableData(...) structure
+    const tableDataMatch = message.match(/TableData\([^)]+\)/)
+    if (!tableDataMatch) return null
+
+    const tableDataStr = tableDataMatch[0]
+
+    // Extract columnsTitles - match array of strings
+    const columnsMatch = tableDataStr.match(/columnsTitles=\[([^\]]+)\]/)
+    if (!columnsMatch) return null
+
+    // Parse columns - extract quoted strings
+    const columnsStr = columnsMatch[1]
+    const columnsTitles: string[] = []
+    const columnRegex = /['"]([^'"]+)['"]/g
+    let columnMatch
+    while ((columnMatch = columnRegex.exec(columnsStr)) !== null) {
+      columnsTitles.push(columnMatch[1])
+    }
+
+    if (columnsTitles.length === 0) return null
+
+    // Extract rowsContents - match nested array structure
+    // This regex finds the rowsContents array content
+    const rowsMatch = tableDataStr.match(/rowsContents=\[(.*?)\]/s)
+    if (!rowsMatch) return null
+
+    const rowsStr = rowsMatch[1]
+    const rowsContents: string[][] = []
+
+    // Find all row arrays [['cell1', 'cell2'], ['cell3', 'cell4']]
+    const rowArrayRegex = /\[(.*?)\]/gs
+    let rowMatch
+    while ((rowMatch = rowArrayRegex.exec(rowsStr)) !== null) {
+      const rowStr = rowMatch[1]
+      const row: string[] = []
+
+      // Extract cells from this row
+      const cellRegex = /['"]([^'"]+)['"]/g
+      let cellMatch
+      while ((cellMatch = cellRegex.exec(rowStr)) !== null) {
+        row.push(cellMatch[1])
+      }
+
+      if (row.length > 0) {
+        rowsContents.push(row)
+      }
+    }
+
+    if (rowsContents.length === 0) return null
+
+    // Extract title and description if present
+    const titleMatch = tableDataStr.match(/title=['"]([^'"]+)['"]/)
+    const descriptionMatch = tableDataStr.match(/description=['"]([^'"]+)['"]/)
+
+    return {
+      columnsTitles,
+      rowsContents,
+      title: titleMatch ? titleMatch[1] : undefined,
+      description: descriptionMatch ? descriptionMatch[1] : undefined
+    }
+  } catch (error) {
+    console.error('Failed to parse TableData from message:', error)
+    return null
+  }
+}
+
+/**
+ * Render TableData as a beautiful table component
+ */
+function renderTableData(tableData: {
+  columnsTitles: string[]
+  rowsContents: string[][]
+  title?: string
+  description?: string
+}) {
+  return (
+    <div className="gba:space-y-2">
+      {tableData.title && <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{tableData.title}</h3>}
+      {tableData.description && <p className="gba:text-sm gba:text-muted-foreground">{tableData.description}</p>}
+      <div className="gba:overflow-x-auto gba:rounded-lg gba:border gba:border-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {tableData.columnsTitles.map((column, idx) => (
+                <TableHead key={idx} className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground">
+                  {column}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tableData.rowsContents.map((row, rowIdx) => (
+              <TableRow key={rowIdx}>
+                {row.map((cell, cellIdx) => (
+                  <TableCell key={cellIdx} className="gba:py-3">
+                    {cell}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  )
+}
 
 /**
  * Props for the scheduled task result form
@@ -148,7 +278,18 @@ const ScheduledTaskResultContent: React.FC<ScheduledTaskResultProps> = ({
           </CardHeader>
           <CardContent>
             {message ? (
-              <MarkdownRenderer content={message} accessToken={accessToken} />
+              (() => {
+                // Try to parse TableData from the message
+                const tableData = parseTableDataFromMessage(message)
+
+                if (tableData && tableData.columnsTitles.length > 0 && tableData.rowsContents.length > 0) {
+                  // Render as a beautiful table
+                  return renderTableData(tableData)
+                } else {
+                  // Fall back to markdown rendering
+                  return <MarkdownRenderer content={message} accessToken={accessToken} />
+                }
+              })()
             ) : (
               <p className="gba:text-muted-foreground gba:italic">No results available for this scheduled task.</p>
             )}
