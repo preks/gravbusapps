@@ -115,13 +115,13 @@ function renderTableData(tableData: {
         <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">{tableData.description}</p>
       )}
       <div className="gba:overflow-x-auto gba:rounded-lg gba:border gba:border-border gba:shadow-sm">
-        <Table>
+        <Table className="gba:w-full">
           <TableHeader>
             <TableRow>
               {tableData.columnsTitles.map((column, idx) => (
                 <TableHead
                   key={idx}
-                  className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground gba:py-3 gba:px-4 gba:whitespace-nowrap"
+                  className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground gba:py-3 gba:px-4 gba:whitespace-nowrap gba:align-top gba:min-w-[120px]"
                 >
                   {column}
                 </TableHead>
@@ -139,17 +139,32 @@ function renderTableData(tableData: {
                   return (
                     <TableCell
                       key={cellIdx}
-                      className={`gba:py-3 gba:px-4 gba:max-w-xs gba:break-words ${
+                      className={`gba:py-3 gba:px-4 gba:align-top gba:min-w-[120px] ${
                         isEmpty ? 'gba:text-muted-foreground/50 gba:italic' : 'gba:text-foreground'
                       }`}
+                      style={{
+                        wordBreak: 'break-word',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'normal',
+                        maxWidth: '400px'
+                      }}
                       title={isLong ? cellContent : undefined}
                     >
                       {isEmpty ? (
                         <span className="gba:text-xs">—</span>
                       ) : isLong ? (
-                        <div className="gba:max-h-32 gba:overflow-y-auto">{cellContent}</div>
+                        <div
+                          style={{
+                            wordBreak: 'break-word',
+                            overflowWrap: 'break-word',
+                            maxHeight: '128px',
+                            overflowY: 'auto'
+                          }}
+                        >
+                          {cellContent}
+                        </div>
                       ) : (
-                        cellContent
+                        <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{cellContent}</div>
                       )}
                     </TableCell>
                   )
