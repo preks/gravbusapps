@@ -5,6 +5,7 @@ import { Card, Button } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
+import { BenefitStatus } from '../../types/compensationEnums'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../../utils/benefitTranslationUtils'
@@ -110,6 +111,12 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
 
   const valueDisplay = benefit.isActive ? getBenefitValueDisplay() : null
   const startDateInFuture = isStartDateInFuture(benefit.startDate)
+
+  // Check if benefit is already deactivated but still showing as active due to date range
+  // This happens when backend sets INACTIVE_BENEFIT with a future endDate
+  // Show badge and hide deactivate button in this case (can't deactivate what's already deactivated)
+  const isAlreadyDeactivated =
+    benefit.isActive && Boolean(benefit.endDate) && benefit.benefitStatus === BenefitStatus.INACTIVE
 
   return (
     <Card
@@ -240,27 +247,44 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
                 {t('benefit-view-details')}
               </Button>
             )}
-            <AppAction
-              variant="custom"
-              mode="button"
-              buttonSize="sm"
-              buttonVariant="outline"
-              emptyState="enable"
-              disabled={benefit.isPending}
-              data-testid={`benefit-catalog-deactivate-button-${benefit.code}`}
-              contexts={[
-                {
-                  context: FlowContextName.employeeBenefitDeactivate,
-                  contextData: { employeeId: employeeId, benefit: benefit }
-                }
-              ]}
-              prefixDataTestId={`benefit-deactivate-${benefit.code}`}
-              autoExecute={true}
-              accessToken={accessToken}
-              className="gba:w-full gba:text-destructive hover:gba:bg-destructive hover:gba:text-destructive-foreground"
-            >
-              {t('benefit-deactivate-button')}
-            </AppAction>
+            {/* Show deactivate button OR "Ends" badge */}
+            {isAlreadyDeactivated ? (
+              /* Show badge when benefit is already deactivated (has endDate + INACTIVE_BENEFIT status) */
+              <div
+                className="gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-warning-foreground gba:bg-warning-secondary gba:px-3 gba:py-2 gba:rounded-md gba:w-full gba:text-center"
+                data-testid={`benefit-scheduled-deactivation-${benefit.code}`}
+              >
+                {t('benefit-ends')}{' '}
+                {new Date(benefit.endDate!).toLocaleDateString(locale ?? 'en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })}
+              </div>
+            ) : (
+              /* Show deactivate button when benefit can still be deactivated */
+              <AppAction
+                variant="custom"
+                mode="button"
+                buttonSize="sm"
+                buttonVariant="outline"
+                emptyState="enable"
+                disabled={benefit.isPending}
+                data-testid={`benefit-catalog-deactivate-button-${benefit.code}`}
+                contexts={[
+                  {
+                    context: FlowContextName.employeeBenefitDeactivate,
+                    contextData: { employeeId: employeeId, benefit: benefit }
+                  }
+                ]}
+                prefixDataTestId={`benefit-deactivate-${benefit.code}`}
+                autoExecute={true}
+                accessToken={accessToken}
+                className="gba:w-full gba:text-destructive hover:gba:bg-destructive hover:gba:text-destructive-foreground"
+              >
+                {t('benefit-deactivate-button')}
+              </AppAction>
+            )}
           </div>
         </div>
       )}

@@ -84,7 +84,7 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
         className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none [&>button[data-slot='sheet-close']]:gba:hidden"
         data-testid="benefit-details-modal"
       >
-        <BenefitHeader title={title} benefit={benefit} t={t} />
+        <BenefitHeader title={title} benefit={benefit} t={t} locale={locale} />
 
         <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
           <div className="gba:space-y-6">
