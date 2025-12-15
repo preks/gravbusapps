@@ -4,7 +4,6 @@ import { useJobRequests } from '@/common/data/recruiting/hooks/useJobRequests'
 import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { JobRequest } from '@/common/data/recruiting/types/jobRequestTypes'
 
@@ -39,7 +38,7 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
         <AppActionButton
           data-testid={`job-requisition-update-button-${row.original.id}`}
           size="icon"
-          contextsArray={[FlowContextName.jobRequisitionEntity]}
+          contextsArray={[]}
           externalContextData={{ jobRequisitionId: row.original.id }}
           prefixDataTestId="job-requisition-update"
           accessToken={context.accessToken}

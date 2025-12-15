@@ -26,10 +26,13 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'id',
     'applicationDate',
     'currentStage',
+    'currentStage',
     'jobCandidate',
     'jobCandidateId',
     'jobPosting',
     'jobPostingId',
+    'applicationChannelId',
+    'referralId',
     'applicationChannelId',
     'referralId',
     'updatedAt',
@@ -83,6 +86,8 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
+    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName')}
+    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      jobTitle')}
     ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName')}
     ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      jobTitle')}
   `

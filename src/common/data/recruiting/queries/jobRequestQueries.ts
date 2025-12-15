@@ -47,6 +47,18 @@ export const JOB_REQUEST_QUERY_CONFIGS: Record<string, string[]> = {
     'jobProfileId',
     'organizationalUnitId',
     'replacedPositionId',
+    'name',
+    'note',
+    'headcount',
+    'endDate',
+    'contractType',
+    'contractTypeRef',
+    'experienceLevel',
+    'experienceLevelRef',
+    'costCenterId',
+    'jobProfileId',
+    'organizationalUnitId',
+    'replacedPositionId',
     'updatedAt',
     'updatedBy',
     'version',
@@ -62,6 +74,14 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'id', value: 'id' },
     { key: 'version', value: 'version' },
     { key: 'code', value: JobRequestFields.code },
+    { key: 'name', value: JobRequestFields.name },
+    { key: 'note', value: JobRequestFields.note },
+    { key: 'headcount', value: JobRequestFields.headcount },
+    { key: 'endDate', value: JobRequestFields.endDate },
+    { key: 'costCenterId', value: JobRequestFields.costCenterId },
+    { key: 'jobProfileId', value: JobRequestFields.jobProfileId },
+    { key: 'organizationalUnitId', value: JobRequestFields.organizationalUnitId },
+    { key: 'replacedPositionId', value: JobRequestFields.replacedPositionId },
     { key: 'name', value: JobRequestFields.name },
     { key: 'note', value: JobRequestFields.note },
     { key: 'headcount', value: JobRequestFields.headcount },
@@ -117,7 +137,9 @@ export const buildJobRequestFragment = (fields: string[]): string => {
     ${buildScalarFields(fieldSet)}
     
     ${buildCatalogReferenceField(fieldSet, 'contractType', 'contractTypeRef', JobRequestFields.contractType)}
+    ${buildCatalogReferenceField(fieldSet, 'contractType', 'contractTypeRef', JobRequestFields.contractType)}
     
+    ${buildCatalogReferenceField(fieldSet, 'experienceLevel', 'experienceLevelRef', JobRequestFields.experienceLevel)}
     ${buildCatalogReferenceField(fieldSet, 'experienceLevel', 'experienceLevelRef', JobRequestFields.experienceLevel)}
   `
 }
