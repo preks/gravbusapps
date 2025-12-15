@@ -162,17 +162,28 @@ export const isCompensationStatusActive = (status: CompensationStatus | string):
 }
 
 /**
+ * Parse and validate a date string
+ * @param value - Date string to parse
+ * @returns Valid Date object or null if invalid/missing
+ */
+const parseDate = (value?: string | null): Date | null => {
+  if (!value) return null
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/**
  * Check if a benefit is active based on date range and status
  *
  * Strategy: Prioritize dates as the source of truth for temporal validity.
  *
  * A benefit is considered active if:
- * 1. EITHER: Has dates that indicate it's currently active (within startDate and endDate range)
- * 2. OR: Has ACTIVE_BENEFIT status (when no dates are provided)
+ * 1. EITHER: Has valid dates that indicate it's currently active (within startDate and endDate range)
+ * 2. OR: Has ACTIVE_BENEFIT status (when no valid dates are provided)
  *
  * This approach protects against premature backend status changes where
  * benefitStatus is set to INACTIVE_BENEFIT before the endDate is actually reached,
- * while still respecting status when dates aren't specified.
+ * while still respecting status when dates aren't specified or are invalid.
  *
  * @param benefit - The employee benefit object with status and date fields
  * @returns true if the benefit is currently active, false otherwise
@@ -183,35 +194,36 @@ export const isBenefitActive = (benefit: {
   endDate?: string | null
 }): boolean => {
   const now = new Date()
-  const hasStartDate = Boolean(benefit.startDate)
-  const hasEndDate = Boolean(benefit.endDate)
 
-  // Scenario 1: Dates are provided - dates are authoritative
-  if (hasStartDate || hasEndDate) {
-    // Check if benefit has started (if startDate is provided)
-    if (hasStartDate) {
-      const start = new Date(benefit.startDate!)
-      if (now < start) {
-        return false // Not started yet
-      }
+  // Parse and validate dates
+  const start = parseDate(benefit.startDate)
+  const end = parseDate(benefit.endDate)
+  const hasValidStartDate = start !== null
+  const hasValidEndDate = end !== null
+
+  // Scenario 1: Valid dates are provided - dates are authoritative
+  if (hasValidStartDate || hasValidEndDate) {
+    // Check if benefit has started (if valid startDate is provided)
+    if (hasValidStartDate && now < start!) {
+      return false // Not started yet
     }
 
-    // Check if benefit has ended (if endDate is provided)
-    if (hasEndDate) {
-      const end = new Date(benefit.endDate!)
+    // Check if benefit has ended (if valid endDate is provided)
+    if (hasValidEndDate) {
       // Set end date to end of day for comparison
-      end.setHours(23, 59, 59, 999)
-      if (now > end) {
+      const endOfDay = new Date(end!)
+      endOfDay.setHours(23, 59, 59, 999)
+      if (now > endOfDay) {
         return false // Already ended
       }
     }
 
-    // Dates indicate benefit is currently active (within valid range)
+    // Valid dates indicate benefit is currently active (within valid range)
     // Override any premature INACTIVE_BENEFIT status from backend
     return true
   }
 
-  // Scenario 2: No dates provided - rely on status field
+  // Scenario 2: No valid dates provided - rely on status field
   return benefit.benefitStatus === BenefitStatus.ACTIVE
 }
 
