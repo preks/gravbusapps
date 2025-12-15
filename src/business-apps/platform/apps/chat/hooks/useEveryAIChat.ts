@@ -8,6 +8,7 @@ import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 
 const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
 const LLM_MODEL = 'gpt-4.1'
+const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
 
 function resolveFlowbotBaseUrl(): string {
   return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
@@ -485,7 +486,8 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         data?: any
         start?: number
         end?: number
-      }>
+      }>,
+      files?: File[]
     ): Promise<EveryAIResponse> => {
       if (inFlightRef.current) {
         return { text: '', error: true }
@@ -583,6 +585,12 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
               typeof m.start === 'number' && typeof m.end === 'number' ? { start: m.start, end: m.end } : undefined
           }))
           form.append('mentions', JSON.stringify(enrichedMentions))
+        }
+
+        // FIX 3: Send file attachments to FlowBot (like standalone EveryAI does)
+        // This allows the AI to read and analyze uploaded documents/files
+        if (files && files.length > 0) {
+          files.forEach(file => form.append('files', file))
         }
 
         const res = await fetch(url, {
@@ -858,7 +866,8 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
     async (
       content: string,
       entityReferences?: MessageEntityReference[],
-      conversationContext?: ConversationContext
+      conversationContext?: ConversationContext,
+      files?: File[]
     ): Promise<EveryAIResponse | null> => {
       // Check if this is a form submission (which doesn't have @Every mention)
       const isFormSubmission = content.includes('"action": "form_submission"')
@@ -871,23 +880,39 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
       // Extract mentions from entity references (excluding @Every AI itself)
       const mentions = entityReferences
         ?.filter(ref => (ref.type as string) !== 'ai_assistant')
-        .map(ref => ({
-          id: ref.id,
-          type: ref.type as string,
-          display: ref.name,
-          data: {
+        .map(ref => {
+          const isDocument = ['document_article', 'knowledge_article', 'intranet_article', 'news_article'].includes(
+            ref.type as string
+          )
+
+          // Build data object with document content if available
+          const data: any = {
             id: ref.id,
             name: ref.name,
             type: ref.type,
             subtitle: ref.subtitle,
             userId: 'userId' in ref ? (ref as any).userId : undefined, // For employees (Open Directory ID)
             pictureThumbnail: ref.pictureThumbnail
-          },
-          start: ref.startIndex,
-          end: ref.endIndex
-        }))
+          }
 
-      return sendToEveryAI(content, conversationContext, mentions)
+          // Add document content for AI processing
+          if (isDocument && ref.contentPreview) {
+            data.contentPreview = ref.contentPreview
+            data.contentData = ref.contentData
+            data.preview_excerpt = ref.contentPreview.substring(0, DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH)
+          }
+
+          return {
+            id: ref.id,
+            type: ref.type as string,
+            display: ref.name,
+            data,
+            start: ref.startIndex,
+            end: ref.endIndex
+          }
+        })
+
+      return sendToEveryAI(content, conversationContext, mentions, files)
     },
     [hasEveryMention, sendToEveryAI]
   )
