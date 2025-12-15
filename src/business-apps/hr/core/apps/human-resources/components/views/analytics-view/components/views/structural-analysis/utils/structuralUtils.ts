@@ -6,11 +6,8 @@ import {
   ReportingChainData,
   ReportingChainSummary,
   SunburstNode,
-  StructuralStatistics,
-  Employee,
-  CostCenter
+  StructuralStatistics
 } from '../types/structuralTypes'
-import { StructuralAnalysisData } from '../../../../queries/StructuralAnalysisQueries'
 
 // Color schemes for visualizations
 export const chartColors = {
@@ -39,105 +36,7 @@ export const chartColors = {
   }
 }
 
-// Process organizational relationships to build hierarchical structure
-export const processOrganizationalData = (data: StructuralAnalysisData): OrganizationalNode[] => {
-  const { organizationalUnitRelationships, costCenters } = data
-
-  // Create maps for quick lookup
-  const unitMap = new Map<string, OrganizationalNode>()
-  const costCenterMap = new Map<string, CostCenter>(costCenters.map(cc => [cc.id, cc]))
-
-  // Process all organizational units
-  const allUnits = new Set<string>()
-
-  organizationalUnitRelationships.forEach(rel => {
-    if (rel.parent?.id) {
-      allUnits.add(rel.parent.id)
-    }
-    if (rel.child?.id) {
-      allUnits.add(rel.child.id)
-    }
-  })
-
-  // Initialize all units
-  allUnits.forEach(unitId => {
-    const relationship = organizationalUnitRelationships.find(
-      rel => rel.parent?.id === unitId || rel.child?.id === unitId
-    )
-
-    if (!relationship) return
-
-    const unit = relationship.parent?.id === unitId ? relationship.parent : relationship.child
-    if (!unit) return
-
-    const employees: Employee[] = (unit.organizationalUnitEmployee || [])
-      .filter(emp => emp.employee !== null && emp.employee !== undefined)
-      .map(emp => ({
-        id: emp.employee.id,
-        firstName: emp.employee.firstName,
-        lastName: emp.employee.lastName,
-        fullName: `${emp.employee.firstName || ''} ${emp.employee.lastName || ''}`.trim()
-      }))
-
-    const node: OrganizationalNode = {
-      id: unit.id,
-      name: unit.name,
-      description: unit.description,
-      parentId: null, // Will be set below
-      level: 0, // Will be calculated below
-      employees,
-      employeeCount: employees.length,
-      directReports: 0, // Will be calculated below
-      spanOfControl: 0, // Will be calculated below
-      company: unit.company || undefined,
-      costCenter: unit.costCenterId ? costCenterMap.get(unit.costCenterId) : undefined
-    }
-
-    unitMap.set(unitId, node)
-  })
-
-  // Set parent relationships
-  organizationalUnitRelationships.forEach(rel => {
-    if (rel.parent?.id && rel.child?.id) {
-      const childNode = unitMap.get(rel.child.id)
-      if (childNode) {
-        childNode.parentId = rel.parent.id
-      }
-    }
-  })
-
-  // Calculate levels using BFS
-  const nodes = Array.from(unitMap.values())
-  const rootNodes = nodes.filter(node => !node.parentId)
-
-  // Set root level
-  rootNodes.forEach(node => {
-    node.level = 0
-  })
-
-  // Calculate levels for all nodes
-  const queue = [...rootNodes]
-  const visited = new Set<string>()
-
-  while (queue.length > 0) {
-    const currentNode = queue.shift()!
-    if (visited.has(currentNode.id)) continue
-    visited.add(currentNode.id)
-
-    // Find children and set their levels
-    const children = nodes.filter(node => node.parentId === currentNode.id)
-    children.forEach(child => {
-      child.level = currentNode.level + 1
-      queue.push(child)
-    })
-
-    // Calculate direct reports and span of control
-    currentNode.directReports = children.length
-    currentNode.spanOfControl = children.reduce((sum, child) => sum + child.employeeCount, 0)
-  }
-
-  return nodes
-}
+// (processOrganizationalData removed; hierarchy is now built from dataset/edges elsewhere)
 
 // Generate span of control analysis data
 export const generateSpanOfControlAnalysis = (nodes: OrganizationalNode[]): SpanOfControlData[] => {
@@ -404,7 +303,11 @@ export const generateSunburstData = (nodes: OrganizationalNode[]): SunburstNode 
         nodeColor = chartColors.depth[level % chartColors.depth.length]
       }
 
-      const children = level < maxLevel ? buildSunburstNode(level + 1, node.id, nodeColor, colorDepth + 1) : []
+      const rawChildren = level < maxLevel ? buildSunburstNode(level + 1, node.id, nodeColor, colorDepth + 1) : []
+      // Hide zero-value branches at the visualization layer without affecting totals:
+      // keep only children whose subtree total (child.value) is > 0. This preserves
+      // ancestors needed for non-zero descendants while removing pure-zero leaves.
+      const children = Array.isArray(rawChildren) ? rawChildren.filter(c => (c?.value ?? 0) > 0) : []
 
       // Calculate total employees in this node's subtree (including all descendants)
       const totalSubtreeEmployees = getTotalEmployeesFromNode(node, nodes)
