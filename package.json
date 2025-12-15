@@ -22,7 +22,6 @@
     "commit": "dotenvx run -- czg ai"
   },
   "dependencies": {
-    "blob-stream": "^0.1.3",
     "@ant-design/icons": "^5.0.0",
     "@codemirror/lang-javascript": "^6.2.4",
     "@codemirror/lang-json": "^6.0.2",

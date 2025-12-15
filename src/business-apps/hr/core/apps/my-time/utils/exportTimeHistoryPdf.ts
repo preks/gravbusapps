@@ -193,7 +193,8 @@ export const exportTimeHistoryPdf = async (params: {
     document.body.appendChild(a)
     a.click()
     a.remove()
-    URL.revokeObjectURL(url)
+    // Defer revocation slightly to avoid race condition with the download trigger
+    setTimeout(() => URL.revokeObjectURL(url), 100)
   })
   doc.end()
 }
