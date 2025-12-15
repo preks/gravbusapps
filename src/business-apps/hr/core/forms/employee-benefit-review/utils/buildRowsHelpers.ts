@@ -180,7 +180,7 @@ export function buildBenefitDisplayItems(params: {
     const numericValue = parseLocalizedNumber(catalogValue.value)
     valueAmount = Number.isNaN(numericValue) ? 0 : numericValue
   } else {
-    valueAmount = benefitData.yearlyAmount || benefitData.monthlyAmount || 0
+    valueAmount = benefitData.yearlyAmount ?? benefitData.monthlyAmount ?? 0
   }
 
   // Extract period - prioritize catalog value, then fallback to benefitData

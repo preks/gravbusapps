@@ -61,7 +61,7 @@ export function buildBenefitDetails(params: {
   const catalogValue = extractBenefitValueFromCatalog(benefitTypeEntry, locale)
 
   // Start with fallback amount from backend
-  let valueAmount = benefitData.yearlyAmount || benefitData.monthlyAmount || 0
+  let valueAmount = benefitData.yearlyAmount ?? benefitData.monthlyAmount ?? 0
 
   // Try to parse catalog value if present
   if (catalogValue && catalogValue.value != null) {
