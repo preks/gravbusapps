@@ -879,41 +879,36 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
       // Extract mentions from entity references (excluding @Every AI itself)
       const mentions = entityReferences
         ?.filter(ref => (ref.type as string) !== 'ai_assistant')
-        .map(ref => ({
-          id: ref.id,
-          type: ref.type as string,
-          display: ref.name,
-          data: {
+        .map(ref => {
+          const isDocument = ['document_article', 'knowledge_article', 'intranet_article', 'news_article'].includes(
+            ref.type as string
+          )
+
+          // Build data object with document content if available
+          const data: any = {
             id: ref.id,
             name: ref.name,
             type: ref.type,
             subtitle: ref.subtitle,
             userId: 'userId' in ref ? (ref as any).userId : undefined, // For employees (Open Directory ID)
-            pictureThumbnail: ref.pictureThumbnail,
-            // Include document content for AI processing
-            contentPreview: ref.contentPreview,
-            contentData: ref.contentData
-          },
-          start: ref.startIndex,
-          end: ref.endIndex
-        }))
-        .map(mention => {
-          // Add content preview to display text for document types
-          const isDocument = ['document_article', 'knowledge_article', 'intranet_article', 'news_article'].includes(
-            mention.type
-          )
-          if (isDocument && mention.data.contentPreview) {
-            // Enrich the mention with preview text to help AI understand the content
-            return {
-              ...mention,
-              // Include a truncated preview in the data for context
-              data: {
-                ...mention.data,
-                preview_excerpt: mention.data.contentPreview.substring(0, 500) // Limit to 500 chars
-              }
-            }
+            pictureThumbnail: ref.pictureThumbnail
           }
-          return mention
+
+          // Add document content for AI processing
+          if (isDocument && ref.contentPreview) {
+            data.contentPreview = ref.contentPreview
+            data.contentData = ref.contentData
+            data.preview_excerpt = ref.contentPreview.substring(0, 500) // Limit to 500 chars for context
+          }
+
+          return {
+            id: ref.id,
+            type: ref.type as string,
+            display: ref.name,
+            data,
+            start: ref.startIndex,
+            end: ref.endIndex
+          }
         })
 
       return sendToEveryAI(content, conversationContext, mentions, files)
