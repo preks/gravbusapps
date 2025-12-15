@@ -107,7 +107,7 @@ export const useBenefitsCatalog = (
         const matchingBenefits = employeeBenefits.filter(eb => eb.benefitTypeRef === catalogEntry.id)
 
         // Prioritize active benefits, then sort by creation date (most recent first)
-        const sortedBenefits = matchingBenefits.sort((a, b) => {
+        const sortedBenefits = [...matchingBenefits].sort((a, b) => {
           // Active benefits come first
           const aActive = isBenefitActive(a.benefitStatus)
           const bActive = isBenefitActive(b.benefitStatus)
