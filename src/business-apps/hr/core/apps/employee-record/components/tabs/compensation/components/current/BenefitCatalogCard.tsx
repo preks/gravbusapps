@@ -70,8 +70,8 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
         period: parsed?.period,
         currency: parsed?.currency
       }
-    } catch (error) {
-      console.error('Error parsing benefit objectValue:', error)
+    } catch {
+      // Silently handle parsing errors and return empty object
       return {}
     }
   }
@@ -88,17 +88,13 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
       const amount = parseFloat(catalogDetails.value)
 
       // Validate that the parsed amount is a valid number
-      if (!Number.isFinite(amount)) {
-        console.warn(
-          `Invalid benefit amount value: "${catalogDetails.value}" for benefit code: ${benefit.code}. Skipping catalog value.`
-        )
-        // Fall through to employee benefit data fallback
-      } else {
+      if (Number.isFinite(amount)) {
         const period = catalogDetails.period || 'yearly'
         const periodKey = period === 'monthly' ? 'benefit-per-month' : 'benefit-per-year'
 
         return { amount, periodKey }
       }
+      // Silently fall through to employee benefit data fallback if amount is invalid
     }
 
     // Fallback to employee benefit data if catalog value not available
