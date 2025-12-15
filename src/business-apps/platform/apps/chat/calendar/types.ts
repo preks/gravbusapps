@@ -204,16 +204,8 @@ export const getDayRange = (date: Date): DateRange => {
 }
 
 // Color presets for meetings
-export const MEETING_COLORS = [
-  { name: 'Blue', value: '#3B82F6' },
-  { name: 'Green', value: '#10B981' },
-  { name: 'Purple', value: '#8B5CF6' },
-  { name: 'Orange', value: '#F97316' },
-  { name: 'Pink', value: '#EC4899' },
-  { name: 'Teal', value: '#14B8A6' },
-  { name: 'Red', value: '#EF4444' },
-  { name: 'Yellow', value: '#F59E0B' }
-]
+// Now using design system aligned colors from calendarColors utility
+export { CALENDAR_COLORS as MEETING_COLORS, getCalendarColors, getDefaultCalendarColor } from './utils/calendarColors'
 
 // Time slot intervals (in minutes)
 export const TIME_SLOT_INTERVALS = [15, 30, 60]

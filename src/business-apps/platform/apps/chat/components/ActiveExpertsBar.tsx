@@ -9,6 +9,7 @@ import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
+import { getExpertColorStyles } from '../utils/expertColorUtils'
 
 interface ActiveExpertsBarProps {
   experts: ActiveExpert[]
@@ -36,16 +37,14 @@ export const ActiveExpertsBar: React.FC<ActiveExpertsBarProps> = ({
             <div
               className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-2 gba:py-1 gba:pr-1 gba:rounded-full gba:text-xs gba:font-medium gba:border gba:bg-background gba:transition-all group-hover:gba:border-primary/50"
               style={{
-                borderColor: expert.color || '#1890ff',
-                color: expert.color || '#1890ff'
+                ...getExpertColorStyles(expert.color).border,
+                ...getExpertColorStyles(expert.color).text
               }}
             >
               {/* Avatar */}
               <div
                 className="gba:w-4 gba:h-4 gba:rounded gba:flex gba:items-center gba:justify-center gba:text-[10px] gba:font-bold gba:text-primary-foreground"
-                style={{
-                  backgroundColor: expert.color || '#1890ff'
-                }}
+                style={getExpertColorStyles(expert.color).avatar}
               >
                 {expert.avatar || expert.expertName.charAt(0).toUpperCase()}
               </div>

@@ -185,6 +185,7 @@ export interface EmployeeAbsence {
   status: string
   type: {
     value: string
+    parentEntryId?: string // e.g., 'AbsenceGroup:v1:HEALTH' for sick leave, 'AbsenceGroup:v1:VACATION' for vacation
   }
 }
 

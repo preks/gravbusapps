@@ -3,6 +3,7 @@ import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { CommentSection } from '@/business-apps/core/content/records/content-record/components/interactions'
 import ContentInfoSection from './ContentInfoSection'
+import { ContentHtmlRenderer } from './ContentHtmlRenderer'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import type { TranslatedTexts } from '@/common/components/content'
 import translations from '../_i18n'
@@ -155,15 +156,12 @@ const ArticleView: React.FC<ArticleViewProps> = ({
         )}
 
         {/* Content */}
-        {displayContent && (
-          <div
-            className="gba:text-lg gba:leading-8 gba:mt-10 gba:px-4 gba:text-foreground 
-                       [&>h1]:gba:text-4xl [&>h1]:gba:font-bold 
-                       [&>h2]:gba:text-3xl [&>h2]:gba:font-bold 
-                       [&>h3]:gba:text-2xl [&>h3]:gba:font-bold"
-            dangerouslySetInnerHTML={{ __html: displayContent }}
-          />
-        )}
+        <ContentHtmlRenderer
+          content={displayContent || ''}
+          variant="large"
+          className="gba:mt-10 gba:px-4"
+          data-testid="article-view-content"
+        />
 
         {/* Article Info Section */}
         <ContentInfoSection

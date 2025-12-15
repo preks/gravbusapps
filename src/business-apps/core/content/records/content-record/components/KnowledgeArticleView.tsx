@@ -3,6 +3,7 @@ import { Badge } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
 import { CommentSection } from '@/business-apps/core/content/records/content-record/components/interactions'
 import ContentInfoSection from './ContentInfoSection'
+import { ContentHtmlRenderer } from './ContentHtmlRenderer'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import type { TranslatedTexts } from '@/common/components/content'
 
@@ -166,24 +167,12 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
         />
 
         {/* Content */}
-        {displayContent && (
-          <div
-            className="gba:prose gba:prose-lg gba:max-w-none gba:mb-10
-                       [&>h1]:gba:text-3xl [&>h1]:gba:font-bold [&>h1]:gba:mt-8 [&>h1]:gba:mb-4 [&>h1]:gba:text-foreground
-                       [&>h2]:gba:text-2xl [&>h2]:gba:font-semibold [&>h2]:gba:mt-6 [&>h2]:gba:mb-3 [&>h2]:gba:text-foreground
-                       [&>h3]:gba:text-xl [&>h3]:gba:font-semibold [&>h3]:gba:mt-5 [&>h3]:gba:mb-2 [&>h3]:gba:text-foreground
-                       [&>p]:gba:text-base [&>p]:gba:leading-7 [&>p]:gba:mb-4 [&>p]:gba:text-foreground
-                       [&>ul]:gba:list-disc [&>ul]:gba:ml-6 [&>ul]:gba:mb-4 [&>ul]:gba:text-foreground
-                       [&>ol]:gba:list-decimal [&>ol]:gba:ml-6 [&>ol]:gba:mb-4 [&>ol]:gba:text-foreground
-                       [&>li]:gba:mb-2
-                       [&>code]:gba:bg-muted [&>code]:gba:px-2 [&>code]:gba:py-1 [&>code]:gba:rounded [&>code]:gba:text-sm [&>code]:gba:font-mono
-                       [&>pre]:gba:bg-muted [&>pre]:gba:p-4 [&>pre]:gba:rounded-lg [&>pre]:gba:mb-4 [&>pre]:gba:overflow-x-auto
-                       [&>blockquote]:gba:border-l-4 [&>blockquote]:gba:border-primary [&>blockquote]:gba:pl-4 [&>blockquote]:gba:italic [&>blockquote]:gba:my-4 [&>blockquote]:gba:text-muted-foreground
-                       [&>a]:gba:text-primary [&>a]:gba:underline [&>a]:hover:gba:text-primary/80"
-            dangerouslySetInnerHTML={{ __html: displayContent }}
-            data-testid="knowledge-article-content"
-          />
-        )}
+        <ContentHtmlRenderer
+          content={displayContent || ''}
+          variant="default"
+          className="gba:mb-10"
+          data-testid="knowledge-article-content"
+        />
 
         {/* Comment Section */}
         {item.allowComment && (
