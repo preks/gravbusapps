@@ -19,7 +19,7 @@ interface InvestmentDocumentFileInfo {
 }
 
 interface GetInvestmentDocumentFileResponse {
-  investmentDocuments_by_pk: InvestmentDocumentFileInfo | null
+  InvestmentDocumentByPk: InvestmentDocumentFileInfo | null
 }
 
 const IrmDocumentLinkChip: React.FC<IrmDocumentLinkChipProps> = ({ documentId, token, children, fallbackHref }) => {
@@ -38,7 +38,7 @@ const IrmDocumentLinkChip: React.FC<IrmDocumentLinkChipProps> = ({ documentId, t
         // Load file info for the IRM investment document so we can build a direct download URL
         const query = `
           query GetInvestmentDocumentFile($id: uuid!) {
-            investmentDocuments_by_pk(id: $id) {
+            InvestmentDocumentByPk(id: $id) {
               id
               fileInfo
             }
@@ -46,7 +46,7 @@ const IrmDocumentLinkChip: React.FC<IrmDocumentLinkChipProps> = ({ documentId, t
         `
 
         const result = await graphqlClient.request<GetInvestmentDocumentFileResponse>(query, { id: documentId })
-        const doc = result?.investmentDocuments_by_pk
+        const doc = result?.InvestmentDocumentByPk
 
         if (!doc || !doc.fileInfo) {
           console.warn('[EveryAI][IrmDocumentLinkChip] Missing investment document fileInfo', {
