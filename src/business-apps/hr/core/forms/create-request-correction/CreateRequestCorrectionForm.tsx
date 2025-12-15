@@ -239,6 +239,49 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return `${sign}${h}h ${m}m`
   }
 
+  // Render the calendar with a preselected date, constrained behavior, and selection handling
+  const renderCalendar = useCallback(
+    (field: any) => {
+      const preselectedDate: Date | undefined = platformParams.attendanceDateISO
+        ? new Date(platformParams.attendanceDateISO)
+        : field.value
+          ? new Date(field.value)
+          : undefined
+
+      return (
+        <Calendar
+          type="date"
+          mode="single"
+          selected={preselectedDate}
+          {...(preselectedDate && { month: preselectedDate })}
+          {...(!platformParams.attendanceDateISO && {
+            onSelect: (date: Date | undefined) => field.onChange(date ? date.toISOString() : '')
+          })}
+          disabled={(() => {
+            const start = new Date()
+            start.setDate(1)
+            start.setHours(0, 0, 0, 0)
+            const end = new Date(start)
+            end.setMonth(end.getMonth() + 1)
+            end.setDate(0)
+            end.setHours(23, 59, 59, 999)
+
+            if (platformParams.attendanceDateISO) {
+              const d = new Date(platformParams.attendanceDateISO)
+              return [{ before: d }, { after: d }]
+            }
+            return [{ before: start }, { after: end }]
+          })()}
+          {...(platformParams.attendanceDateISO && {
+            fromMonth: new Date(platformParams.attendanceDateISO),
+            toMonth: new Date(platformParams.attendanceDateISO)
+          })}
+        />
+      )
+    },
+    [platformParams]
+  )
+
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
@@ -345,48 +388,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
                     <div data-testid="rcf-date">
                       {/** Ensure the preselected date from props is visually selected */}
                       {/** Prefer platform-provided attendance date; fallback to field value */}
-                      {(() => {
-                        const preselectedDate = platformParams.attendanceDateISO
-                          ? new Date(platformParams.attendanceDateISO)
-                          : field.value
-                            ? new Date(field.value)
-                            : undefined
-
-                        return (
-                          <Calendar
-                            type="date"
-                            mode="single"
-                            selected={preselectedDate}
-                            {...(preselectedDate && { month: preselectedDate })}
-                            // If attendanceDateISO exists, disable changing the date by omitting onSelect
-                            {...(!platformParams.attendanceDateISO && {
-                              onSelect: (date: Date | undefined) => field.onChange(date ? date.toISOString() : '')
-                            })}
-                            // Disable dates outside current month; if attendanceDateISO exists, constrain to that exact day
-                            disabled={(() => {
-                              const start = new Date()
-                              start.setDate(1)
-                              start.setHours(0, 0, 0, 0)
-                              const end = new Date(start)
-                              end.setMonth(end.getMonth() + 1)
-                              end.setDate(0)
-                              end.setHours(23, 59, 59, 999)
-
-                              if (platformParams.attendanceDateISO) {
-                                const d = new Date(platformParams.attendanceDateISO)
-                                // Only the attendance date remains enabled
-                                return [{ before: d }, { after: d }]
-                              }
-                              return [{ before: start }, { after: end }]
-                            })()}
-                            // Prevent navigating away from the month if attendanceDateISO is provided
-                            {...(platformParams.attendanceDateISO && {
-                              fromMonth: new Date(platformParams.attendanceDateISO),
-                              toMonth: new Date(platformParams.attendanceDateISO)
-                            })}
-                          />
-                        )
-                      })()}
+                      {renderCalendar(field)}
                     </div>
                   </FormControl>
                   <FormMessage />
