@@ -229,15 +229,17 @@ export const isBenefitActive = (benefit: {
 
 /**
  * Check if a benefit is scheduled for deactivation
- * (has an endDate in the future while having ACTIVE_BENEFIT status)
+ * (has a valid endDate in the future while having ACTIVE_BENEFIT status)
  *
- * Note: This function only checks the benefitStatus field and endDate,
- * without full date validation. For accurate active status, use isBenefitActive() instead.
+ * This is a utility function for displaying "scheduled deactivation" badges.
+ * For determining if a benefit is currently active, use isBenefitActive() instead.
+ *
+ * Note: In most cases, you can use inline checks like:
+ * `benefit.isActive && Boolean(benefit.endDate) && benefit.benefitStatus === BenefitStatus.INACTIVE`
+ * when benefit.isActive is already validated via isBenefitActive()
  *
  * @param benefit - The employee benefit object with status and endDate
- * @returns true if benefit has ACTIVE_BENEFIT status and a future end date, false otherwise
- * @deprecated Consider using inline checks: `benefit.isActive && Boolean(benefit.endDate)`
- *             when benefit.isActive is already validated via isBenefitActive()
+ * @returns true if benefit has ACTIVE_BENEFIT status and a valid future end date, false otherwise
  */
 export const isBenefitScheduledForDeactivation = (benefit: {
   benefitStatus: BenefitStatus | string
@@ -248,13 +250,13 @@ export const isBenefitScheduledForDeactivation = (benefit: {
     return false
   }
 
-  if (!benefit.endDate) {
+  // Parse and validate endDate
+  const end = parseDate(benefit.endDate)
+  if (!end) {
     return false
   }
 
   const now = new Date()
-  const end = new Date(benefit.endDate)
-
   return end > now
 }
 
