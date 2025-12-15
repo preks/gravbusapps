@@ -298,7 +298,7 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
   // IRM investment document: resolve to actual file download URL and show it to the user
   if (protocol === 'investment_document' && url) {
     return (
-      <IrmDocumentLinkChip documentId={url} token={accessToken}>
+      <IrmDocumentLinkChip documentId={url} token={accessToken} fallbackHref={href}>
         {children}
       </IrmDocumentLinkChip>
     )

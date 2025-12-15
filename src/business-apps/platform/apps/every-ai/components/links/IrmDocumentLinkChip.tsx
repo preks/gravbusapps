@@ -6,6 +6,11 @@ interface IrmDocumentLinkChipProps {
   documentId: string
   token: string
   children: React.ReactNode
+  /**
+   * Original href from markdown (e.g. "investment_document://<uuid>")
+   * Used as a graceful fallback when file resolution fails
+   */
+  fallbackHref?: string
 }
 
 interface InvestmentDocumentFileInfo {
@@ -17,9 +22,8 @@ interface GetInvestmentDocumentFileResponse {
   investmentDocuments_by_pk: InvestmentDocumentFileInfo | null
 }
 
-const IrmDocumentLinkChip: React.FC<IrmDocumentLinkChipProps> = ({ documentId, token, children }) => {
+const IrmDocumentLinkChip: React.FC<IrmDocumentLinkChipProps> = ({ documentId, token, children, fallbackHref }) => {
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null)
-  const [hasError, setHasError] = useState(false)
   const graphqlClient = useGraphQLClient(token)
 
   useEffect(() => {
@@ -45,13 +49,10 @@ const IrmDocumentLinkChip: React.FC<IrmDocumentLinkChipProps> = ({ documentId, t
         const doc = result?.investmentDocuments_by_pk
 
         if (!doc || !doc.fileInfo) {
-          if (!isCancelled) {
-            console.warn('[EveryAI][IrmDocumentLinkChip] Missing investment document fileInfo', {
-              documentId,
-              hasDoc: !!doc
-            })
-            setHasError(true)
-          }
+          console.warn('[EveryAI][IrmDocumentLinkChip] Missing investment document fileInfo', {
+            documentId,
+            hasDoc: !!doc
+          })
           return
         }
 
@@ -62,15 +63,9 @@ const IrmDocumentLinkChip: React.FC<IrmDocumentLinkChipProps> = ({ documentId, t
           }
         } catch (err) {
           console.error('[EveryAI][IrmDocumentLinkChip] Failed to build file URL', err)
-          if (!isCancelled) {
-            setHasError(true)
-          }
         }
       } catch (error) {
         console.error('[EveryAI][IrmDocumentLinkChip] Failed to load investment document fileInfo', error)
-        if (!isCancelled) {
-          setHasError(true)
-        }
       }
     }
 
@@ -81,21 +76,36 @@ const IrmDocumentLinkChip: React.FC<IrmDocumentLinkChipProps> = ({ documentId, t
     }
   }, [documentId, token, graphqlClient])
 
-  if (!resolvedUrl || hasError) {
-    // Fallback: show the original markdown text without a clickable link
-    return <span>{children}</span>
+  // If we have a resolved URL, always use it
+  if (resolvedUrl) {
+    return (
+      <a
+        href={resolvedUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="gba:text-primary gba:underline hover:gba:opacity-80"
+      >
+        {children}
+      </a>
+    )
   }
 
-  return (
-    <a
-      href={resolvedUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="gba:text-primary gba:underline hover:gba:opacity-80"
-    >
-      {children}
-    </a>
-  )
+  // Graceful fallback: keep link clickable using the original custom protocol
+  if (fallbackHref) {
+    return (
+      <a
+        href={fallbackHref}
+        className="gba:text-primary gba:underline hover:gba:opacity-80"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    )
+  }
+
+  // Last resort: show plain text (should be rare)
+  return <span>{children}</span>
 }
 
 export default IrmDocumentLinkChip
