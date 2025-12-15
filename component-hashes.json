@@ -1,7 +1,7 @@
 {
   "ai/apps/document-reviewer": "6f1f3c3514fc87fe8f34ef6f3b4751eb",
   "ai/apps/scheduled-tasks": "eec4590e5f0e9d4ef98b47cef531a0cf",
-  "ai/apps/task-expert-studio": "be011ca6c95bc307b3ca433688fd96a8",
+  "ai/apps/task-expert-studio": "7482ce5abc5725304bbe2a5ffacb2b8c",
   "ai/forms/scheduled-task-result": "a67560a18e0a2997e76cf491f455b66c",
   "core/content/apps/content-hub": "09d9960ad94ce914a5ec850f00c5ddaf",
   "core/content/apps/content-management": "8abba99a2c3d1c18d554cd3a134b82f2",
@@ -220,7 +220,7 @@
   "mdm/forms/team-form": "fa60bfaaa11ffa3d65e430aa8211a628",
   "mdm/records/company-record": "5bd31385f3b17a20419b056b201651b8",
   "platform/apps/catalog-manager": "314b8ca939f97a7f5147f09b94affb3c",
-  "platform/apps/chat": "cc78a31ee40e7191a24b83c0b5b2d11c",
+  "platform/apps/chat": "029eb4a3fd857186efe27a8593975be9",
   "platform/apps/data-seeder": "1efabe2c7b4c6e9603742805cc722a9f",
   "platform/apps/every-ai": "91452b30abf000a0e98f072837f89e17",
   "platform/apps/launcher-manager": "7e3ed6106445dd9139d0bbff2de22040",
