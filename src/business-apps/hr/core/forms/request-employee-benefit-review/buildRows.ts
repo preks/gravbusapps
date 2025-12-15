@@ -1,4 +1,4 @@
-import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import { formatCurrencyString, parseLocalizedNumber } from '@/common/utils/numberFormatter'
 import type { EmployeeBenefitData, BenefitDisplayItem } from './types'
 import {
   buildBenefitDisplayItems as sharedBuildBenefitDisplayItems,
@@ -59,13 +59,18 @@ export function buildBenefitDetails(params: {
 
   // Extract value and period from catalog entry objectValue
   const catalogValue = extractBenefitValueFromCatalog(benefitTypeEntry, locale)
-  const valueAmount = catalogValue?.value
-    ? Number.parseFloat(
-        String(catalogValue.value)
-          .replace(/[^\d.,-]/g, '')
-          .replace(',', '.')
-      )
-    : benefitData.yearlyAmount || benefitData.monthlyAmount || 0
+
+  // Start with fallback amount from backend
+  let valueAmount = benefitData.yearlyAmount || benefitData.monthlyAmount || 0
+
+  // Try to parse catalog value if present
+  if (catalogValue && catalogValue.value != null) {
+    const parsed = parseLocalizedNumber(catalogValue.value)
+    if (Number.isFinite(parsed)) {
+      valueAmount = parsed
+    }
+    // If parsing fails (NaN), we keep the fallback amount
+  }
 
   const rawPeriod =
     catalogValue?.period && catalogValue.period !== '-' ? catalogValue.period : benefitData.period || null
