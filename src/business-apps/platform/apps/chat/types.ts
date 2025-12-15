@@ -154,6 +154,9 @@ export interface EntityReference {
   name: string
   subtitle?: string
   pictureThumbnail?: string
+  // Document/content data (for sending full content to AI)
+  contentPreview?: string // Preview/excerpt of document content
+  contentData?: any // Full content data if available
 }
 
 export interface MessageEntityReference extends EntityReference {
@@ -165,6 +168,7 @@ export interface MessageEntityReference extends EntityReference {
 export const ENTITY_NAVIGATION_PATHS: Record<EntityType, string> = {
   // AI Assistant - opens Every AI
   ai_assistant: '/platform/every-ai',
+  every_expert: '/platform/every-ai', // Experts also open Every AI
   // CRM
   lead: '/platform/crm/lead-record',
   contact: '/platform/crm/contact-record',
@@ -190,6 +194,7 @@ export const ENTITY_NAVIGATION_PATHS: Record<EntityType, string> = {
 export const ENTITY_QUERY_PARAMS: Record<EntityType, string> = {
   // AI Assistant - no specific query param needed
   ai_assistant: '',
+  every_expert: '', // Experts also don't need query params
   // CRM
   lead: 'leadId',
   contact: 'contactId',

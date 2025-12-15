@@ -485,7 +485,8 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         data?: any
         start?: number
         end?: number
-      }>
+      }>,
+      files?: File[]
     ): Promise<EveryAIResponse> => {
       if (inFlightRef.current) {
         return { text: '', error: true }
@@ -583,6 +584,12 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
               typeof m.start === 'number' && typeof m.end === 'number' ? { start: m.start, end: m.end } : undefined
           }))
           form.append('mentions', JSON.stringify(enrichedMentions))
+        }
+
+        // FIX 3: Send file attachments to FlowBot (like standalone EveryAI does)
+        // This allows the AI to read and analyze uploaded documents/files
+        if (files && files.length > 0) {
+          files.forEach(file => form.append('files', file))
         }
 
         const res = await fetch(url, {
@@ -858,7 +865,8 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
     async (
       content: string,
       entityReferences?: MessageEntityReference[],
-      conversationContext?: ConversationContext
+      conversationContext?: ConversationContext,
+      files?: File[]
     ): Promise<EveryAIResponse | null> => {
       // Check if this is a form submission (which doesn't have @Every mention)
       const isFormSubmission = content.includes('"action": "form_submission"')
@@ -881,13 +889,34 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
             type: ref.type,
             subtitle: ref.subtitle,
             userId: 'userId' in ref ? (ref as any).userId : undefined, // For employees (Open Directory ID)
-            pictureThumbnail: ref.pictureThumbnail
+            pictureThumbnail: ref.pictureThumbnail,
+            // Include document content for AI processing
+            contentPreview: ref.contentPreview,
+            contentData: ref.contentData
           },
           start: ref.startIndex,
           end: ref.endIndex
         }))
+        .map(mention => {
+          // Add content preview to display text for document types
+          const isDocument = ['document_article', 'knowledge_article', 'intranet_article', 'news_article'].includes(
+            mention.type
+          )
+          if (isDocument && mention.data.contentPreview) {
+            // Enrich the mention with preview text to help AI understand the content
+            return {
+              ...mention,
+              // Include a truncated preview in the data for context
+              data: {
+                ...mention.data,
+                preview_excerpt: mention.data.contentPreview.substring(0, 500) // Limit to 500 chars
+              }
+            }
+          }
+          return mention
+        })
 
-      return sendToEveryAI(content, conversationContext, mentions)
+      return sendToEveryAI(content, conversationContext, mentions, files)
     },
     [hasEveryMention, sendToEveryAI]
   )
