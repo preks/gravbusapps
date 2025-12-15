@@ -78,7 +78,7 @@ export const isSearchableUuidField = (fieldName: string, schema: any): boolean =
   const employeeTimeFields = ['substituteEmployee', 'approverId']
   const crmFields = ['ownerEmployee', 'account', 'contact', 'lead', 'opportunity', 'assignedEmployee']
   const irmFields = ['ownerEmployee', 'investmentAccount', 'contact']
-  const feedbackFields = ['employeeId']
+  const feedbackFields = ['employeeId', 'senderEmployeeId']
   const searchableUuidFields = [...employeeTimeFields, ...crmFields, ...irmFields, ...feedbackFields]
 
   return (
