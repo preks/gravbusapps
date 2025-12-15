@@ -2,6 +2,9 @@ import { io, Socket } from 'socket.io-client'
 import type { Message, TypingIndicator, PresenceStatus, ActiveCall } from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
 
+// Client version for tracking
+const CLIENT_VERSION = '2'
+
 export type ChatEventHandler = (data: any) => void
 
 export interface ChatWebSocketOptions {
@@ -39,6 +42,7 @@ export class ChatWebSocketClient {
     console.debug('======================================')
     console.debug('[ChatWebSocketClient] INITIATING CONNECTION')
     console.debug('======================================')
+    console.debug('Client Version:', CLIENT_VERSION)
     console.debug('URL:', this.url)
     console.debug('Path:', this.options.path)
     console.debug('Transports:', transports)
@@ -53,7 +57,8 @@ export class ChatWebSocketClient {
 
     this.socket = io(this.url, {
       auth: {
-        token
+        token,
+        clientVersion: CLIENT_VERSION
       },
       transports,
       path: this.options.path,
@@ -70,6 +75,7 @@ export class ChatWebSocketClient {
       // Add query parameters for load balancer sticky sessions
       query: {
         clientType: 'web',
+        clientVersion: CLIENT_VERSION,
         timestamp: Date.now().toString()
       },
       // Enable ping/pong for connection health monitoring
