@@ -1,5 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { TimeEntry } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
+import PDFKitModule from 'pdfkit/js/pdfkit.standalone.js'
 
 /**
  * Generates a monthly time history report.
@@ -78,7 +79,6 @@ export const exportTimeHistoryPdf = async (params: {
     globalShim.global = globalShim
   }
 
-  const PDFKitModule: any = await import('pdfkit/js/pdfkit.standalone.js')
   const PDFDocument = PDFKitModule.default || PDFKitModule
 
   const doc = new PDFDocument({ size: 'A4', margin: 40 })
