@@ -21,8 +21,8 @@ import {
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { useProjects } from '../hooks'
-import { Project } from '../types'
+import { useProjects, useCreateTeam, useTeamAssignments } from '../hooks'
+import { Project, ProjectManager, ProjectStatusBE, ProjectStatusUI } from '../types'
 import {
   DataTable,
   Button,
@@ -53,7 +53,10 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem
+  DropdownMenuItem,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@newwork/nw-design-system'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -64,6 +67,7 @@ import { NavigationLinkCards, NavigationLinkCardsProps } from '../../generic-com
 import { VerticalTable, VerticalTableProps } from '../../generic-components/table/VerticalTable'
 import CardTabHeaderComponent from '../../generic-components/card'
 import { DeleteButton } from '../../generic-components/delete-button/DeleteButton'
+import { formatDateToISO, getClosureDate } from '@/business-apps/mdm/forms/project-form/ProjectForm'
 
 export interface ProjectSetupProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -76,7 +80,7 @@ const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v
 const getProjectTimeStatus = (project: Project) => {
   const status = project.status
 
-  if (status === 'Planned' && project.daysUntilStart !== undefined) {
+  if (status === ProjectStatusUI.Planned && project.daysUntilStart !== undefined) {
     return {
       title: 'Time Until Start',
       daysText: `${project.daysUntilStart} days until start`,
@@ -86,7 +90,7 @@ const getProjectTimeStatus = (project: Project) => {
     }
   }
 
-  if (status === 'Delayed' && project.daysDelayed !== undefined) {
+  if (status === ProjectStatusUI.Canceled && project.daysDelayed !== undefined) {
     return {
       title: 'Delay Status',
       daysText: `Delayed with ${project.daysDelayed} days`,
@@ -95,7 +99,7 @@ const getProjectTimeStatus = (project: Project) => {
     }
   }
 
-  if (status === 'Active' && project.daysUntilExpiry !== undefined) {
+  if (status === ProjectStatusUI.InProgress && project.daysUntilExpiry !== undefined) {
     return {
       title: 'Time Remaining',
       daysText:
@@ -116,7 +120,7 @@ const getProjectTimeStatus = (project: Project) => {
     }
   }
 
-  if (status === 'Closed') {
+  if (status === ProjectStatusUI.Completed || status === ProjectStatusUI.Canceled) {
     return null
   }
 
@@ -129,8 +133,21 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
   const restClient = useRestClient(ORGCHART_BASE_URL)
 
   // Data integration
-  const { projects, accounts, isLoading, error, refetch, totalProjects, filterProjects, structureId } =
-    useProjects(context)
+  const {
+    projects,
+    accounts,
+    isLoading,
+    error,
+    refetch,
+    totalProjects,
+    totalCount,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize,
+    handleSearch,
+    structureId
+  } = useProjects(context)
   // Local state
   const [searchInput, setSearchInput] = useState('')
 
@@ -141,12 +158,43 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false)
   const [isCloseProjectOpen, setIsCloseProjectOpen] = useState(false)
   const [isRemoveProjectOpen, setIsRemoveProjectOpen] = useState(false)
-  const [isCreatingTeam, setIsCreatingTeam] = useState(false)
+
+  // Hook for creating team
+  const { isCreatingTeam, createTeamForProject } = useCreateTeam({
+    accessToken: context.accessToken,
+    structureId,
+    onSuccess: () => {
+      refetch()
+      setIsCreateTeamOpen(false)
+      setSelectedProject(null)
+    }
+  })
+
+  // Hook for team assignments (used when closing/deleting project)
+  const { resetTeamAllocations } = useTeamAssignments(context.accessToken)
+
+  // Callback for ProjectForm when status changes to CANCELLED/COMPLETED
+  const handleProjectClosed = useCallback(
+    async (matrixUnitId: string) => {
+      // Reset employee allocations (subtract project %)
+      await resetTeamAllocations(matrixUnitId)
+      // Delete the matrix team (BE auto-deletes assignments)
+      await restClient.delete(`/matrix-units/${matrixUnitId}`, {
+        headers: { Authorization: `Bearer ${context.accessToken}` }
+      })
+    },
+    [resetTeamAllocations, restClient, context.accessToken]
+  )
 
   const showNavigationItems = false
 
   // Debounce search input
   const debouncedSearchTerm = useDebounce(searchInput, 300)
+
+  // Trigger BE search when debounced search term changes
+  useEffect(() => {
+    handleSearch(debouncedSearchTerm)
+  }, [debouncedSearchTerm, handleSearch])
 
   useEffect(() => {
     if (selectedProject) {
@@ -158,26 +206,23 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
     }
   }, [projects])
 
-  // Filter projects based on search and filters
-  const filteredProjects = useMemo(() => {
-    return filterProjects(debouncedSearchTerm)
-  }, [filterProjects, debouncedSearchTerm])
-
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchInput(e.target.value)
   }, [])
 
-  const inactiveStatusIcon = useCallback((status: string) => {
-    if (status === 'Delayed') return <WarningIcon />
-    if (status === 'Planned') return <ClockIcon />
-    if (status === 'Closed') return <XCircleIcon />
+  const inactiveStatusIcon = useCallback((status: ProjectStatusUI) => {
+    if (status === ProjectStatusUI.Canceled) return <WarningIcon />
+    if (status === ProjectStatusUI.Planned) return <ClockIcon />
+    if (status === ProjectStatusUI.Completed) return <XCircleIcon />
+    if (status === ProjectStatusUI.OnHold) return <ClockIcon />
     return <ClockIcon />
   }, [])
 
-  const inactiveStatusColor = useCallback((status: string) => {
-    if (status === 'Delayed') return 'gba:text-[#f5222d]'
-    if (status === 'Planned') return 'gba:text-[#1890ff]'
-    if (status === 'Closed') return 'gba:text-muted-foreground'
+  const inactiveStatusColor = useCallback((status: ProjectStatusUI) => {
+    if (status === ProjectStatusUI.Canceled) return 'gba:text-[#f5222d]'
+    if (status === ProjectStatusUI.Planned) return 'gba:text-[#1890ff]'
+    if (status === ProjectStatusUI.Completed) return 'gba:text-muted-foreground'
+    if (status === ProjectStatusUI.OnHold) return 'gba:text-[#fa8c16]'
     return 'gba:text-[#fa8c16]'
   }, [])
 
@@ -193,6 +238,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         id: 'edit',
         label: 'Edit Project',
         icon: PencilSimpleLineIcon,
+        // disabled: (targetProject: Project) =>
+        //   targetProject.status === ProjectStatusUI.Canceled || targetProject.status === ProjectStatusUI.Completed,
         onClick: (targetProject: Project) => {
           setSelectedProject(targetProject)
           setIsEditProjectOpen(true)
@@ -202,7 +249,10 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         id: 'addTeam',
         label: 'Add Team',
         icon: PlusIcon,
-        disabled: (targetProject: Project) => !!targetProject.matrixTeam?.matrixId,
+        disabled: (targetProject: Project) =>
+          !!targetProject.matrixTeam?.matrixId ||
+          targetProject.status === ProjectStatusUI.Canceled ||
+          targetProject.status === ProjectStatusUI.Completed,
         onClick: (targetProject: Project) => {
           setSelectedProject(targetProject)
           setIsCreateTeamOpen(true)
@@ -212,6 +262,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         id: 'close',
         label: 'Close Project',
         icon: XCircleIcon,
+        disabled: (targetProject: Project) => targetProject.status === ProjectStatusUI.Canceled,
         onClick: (targetProject: Project) => {
           setSelectedProject(targetProject)
           setIsCloseProjectOpen(true)
@@ -231,20 +282,27 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
   const dataTable = useMemo(
     () =>
-      filteredProjects.map(project => {
+      projects.map(project => {
         const account = accounts.find(account => account.id === project.customerId)
         const projectManagerName =
-          project.manager?.firstName || project.manager?.lastName
+          project.manager?.displayName || project.manager?.firstName || project.manager?.lastName
             ? `${project.manager.firstName || ''} ${project.manager.lastName || ''}`.trim()
             : undefined
+
+        // Get team members count or undefined if no matrix team assigned
+        const teamMembersCount = project.matrixTeam?.matrixId ? project.matrixTeam.teamMembersCount : undefined
+        const hasMatrixTeam = Boolean(project.matrixTeam?.matrixId)
 
         return {
           ...project,
           accountName: account?.name,
-          projectManagerName
+          projectManagerName,
+          managerPicture: project.manager?.pictureThumbnail,
+          teamMembersCount,
+          hasMatrixTeam
         }
       }),
-    [filteredProjects, accounts]
+    [projects, accounts]
   )
 
   const renderProjectsTable = () => {
@@ -284,10 +342,65 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         header: 'Project Manager',
         enableSorting: true,
         cell: ({ row }) => {
+          const manager = row.original.manager as ProjectManager
           const projectManagerName = (row.original as any).projectManagerName
+          const managerPicture = (row.original as any).managerPicture
           return (
-            <div className="gba:font-semibold">
-              {projectManagerName || <span className="gba:text-muted-foreground">-</span>}
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {managerPicture ? (
+                <Avatar
+                  size="default"
+                  className="gba:h-10 gba:w-10"
+                  data-testid={`manager-dashboard-direct-report-avatar-${projectManagerName}`}
+                >
+                  <AvatarImage
+                    src={
+                      managerPicture && !managerPicture.startsWith('{')
+                        ? `data:image/jpeg;base64,${managerPicture}`
+                        : undefined
+                    }
+                    alt={projectManagerName}
+                  />
+                  <AvatarFallback>
+                    {`${manager.firstName?.[0] || ''}${manager.lastName?.[0] || ''}`.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              ) : projectManagerName ? (
+                <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
+                  {projectManagerName
+                    .split(' ')
+                    .map((n: string) => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </div>
+              ) : null}
+              <span className="gba:font-semibold">
+                {projectManagerName || <span className="gba:text-muted-foreground">-</span>}
+              </span>
+            </div>
+          )
+        }
+      },
+      {
+        accessorKey: 'teamMembersCount',
+        header: 'Team Members',
+        enableSorting: true,
+        cell: ({ row }) => {
+          const hasMatrixTeam = (row.original as any).hasMatrixTeam
+          const teamMembersCount = (row.original as any).teamMembersCount
+
+          if (!hasMatrixTeam) {
+            return <span className="gba:text-muted-foreground gba:italic">No team assigned</span>
+          }
+
+          const count = teamMembersCount ?? 0
+          return (
+            <div className="gba:flex gba:items-center gba:gap-1">
+              <UsersIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+              <span>
+                {count} {count === 1 ? 'member' : 'members'}
+              </span>
             </div>
           )
         }
@@ -310,20 +423,23 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         header: 'Status',
         enableSorting: true,
         cell: ({ getValue, row }) => {
-          const status = getValue() as string
+          const status = getValue() as ProjectStatusUI
           const project = row.original
           let daysText: string | undefined
 
-          if (status === 'Delayed' && project.daysDelayed !== undefined) {
+          if (status === ProjectStatusUI.Canceled && project.daysDelayed !== undefined) {
             daysText = `Delayed with ${project.daysDelayed} days`
-          } else if (status === 'Planned' && project.daysUntilStart !== undefined) {
-            daysText = `${project.daysUntilStart} days until start`
-          } else if (status === 'Active' && project.daysUntilExpiry !== undefined) {
+          } else if (status === ProjectStatusUI.Planned && project.daysUntilStart !== undefined) {
+            daysText =
+              project.daysUntilStart >= 0
+                ? `${project.daysUntilStart} days until start`
+                : `${Math.abs(project.daysUntilStart)} days ago`
+          } else if (status === ProjectStatusUI.InProgress && project.daysUntilExpiry !== undefined) {
             daysText =
               project.daysUntilExpiry > 0
                 ? `${project.daysUntilExpiry} days left`
                 : `${Math.abs(project.daysUntilExpiry)} days ago`
-          } else if (status === 'Closed') {
+          } else if (status === ProjectStatusUI.Completed || status === ProjectStatusUI.Canceled) {
             daysText = undefined
           }
 
@@ -441,6 +557,13 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         enablePagination
         sorting={sorting}
         onSortingChange={setSorting}
+        totalCount={totalCount}
+        pagination={{ pageIndex: currentPage - 1, pageSize }}
+        onPaginationChange={({ pageIndex, pageSize: newPageSize }) => {
+          setCurrentPage(pageIndex + 1)
+          setPageSize(newPageSize)
+        }}
+        rowsPerPageOptions={[10, 20, 50]}
       />
     )
   }
@@ -469,12 +592,26 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
       })
     }
 
+    if (selectedProject.validFrom) {
+      items[0].items.push({
+        label: 'Valid From',
+        value: selectedProject.formattedValidFrom || new Date(selectedProject.validFrom).toLocaleDateString()
+      })
+    }
+
     if (selectedProject.validTo) {
       items[0].items.push({
         label: 'Valid Until',
         value: selectedProject.formattedValidTo || new Date(selectedProject.validTo).toLocaleDateString()
       })
     }
+
+    items[0].items.push({
+      label: 'Team Members',
+      value: selectedProject.matrixTeam?.teamMembersCount
+        ? `${selectedProject.matrixTeam.teamMembersCount} ${selectedProject.matrixTeam.teamMembersCount === 1 ? 'member' : 'members'}`
+        : 'No team assigned'
+    })
 
     if (selectedProject.description) {
       items[0].items.push({
@@ -531,51 +668,92 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
   const handleCreateTeam = useCallback(async () => {
     if (!selectedProject) return
-
-    try {
-      setIsCreatingTeam(true)
-
-      const teamData = {
-        name: selectedProject.name,
-        description: selectedProject.description || '',
-        rank: 0,
-        structureId: structureId
-      }
-
-      await restClient.post('/matrix-units', teamData, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      })
-
-      refetch()
-      setIsCreateTeamOpen(false)
-      setSelectedProject(null)
-    } catch (error) {
-      console.error('Error creating team:', error)
-    } finally {
-      setIsCreatingTeam(false)
-    }
-  }, [selectedProject, structureId, restClient, context.accessToken, refetch])
+    await createTeamForProject(selectedProject)
+  }, [selectedProject, createTeamForProject])
 
   const handleDelete = async (project: Project | undefined) => {
     if (!project) return
 
-    await restClient.delete(`/projects/${project.id}`, {
-      headers: { Authorization: `Bearer ${context.accessToken}` }
-    })
+    try {
+      const team = project.matrixTeam
 
-    refetch()
+      // Reset employee allocations and delete team if exists
+      if (team?.matrixId) {
+        await resetTeamAllocations(team.matrixId)
+        await restClient.delete(`/matrix-units/${team.matrixId}`, {
+          headers: { Authorization: `Bearer ${context.accessToken}` }
+        })
+      }
+
+      await restClient.delete(`/projects/${project.id}`, {
+        headers: { Authorization: `Bearer ${context.accessToken}` }
+      })
+
+      refetch()
+    } catch (error) {
+      console.error('Error deleting project:', error)
+    }
   }
 
-  const getStatusColor = (status: string) => {
+  const handleCloseProject = async (project: Project | undefined) => {
+    if (!project) return
+
+    try {
+      const teamId = project.matrixTeam?.matrixId
+
+      // Reset employee allocations (subtract project %), then delete the team
+      // Note: BE auto-deletes assignments when team is deleted
+      if (teamId) {
+        await resetTeamAllocations(teamId)
+        await restClient.delete(`/matrix-units/${teamId}`, {
+          headers: { Authorization: `Bearer ${context.accessToken}` }
+        })
+      }
+
+      const formattedValidFrom = formatDateToISO(project.validFrom)
+      const formattedValidTo = formatDateToISO(project.validTo)
+
+      const closureDate = getClosureDate(ProjectStatusBE.CANCELLED)
+
+      const projectData = {
+        id: project.id,
+        status: ProjectStatusBE.CANCELLED,
+        closureDate: closureDate,
+        validFrom: formattedValidFrom,
+        validTo: formattedValidTo,
+        projectType: project.projectType,
+        customerId: project.customerId,
+        projectManagerId: project.projectManagerId,
+        hoursBudget: project.hoursBudget,
+        description: project.description,
+        name: project.name,
+        matrixUnitId: null // Remove team reference from project
+      }
+
+      await restClient.put(`/projects/${project.id}`, projectData, {
+        headers: { Authorization: `Bearer ${context.accessToken}` }
+      })
+
+      setIsCloseProjectOpen(false)
+      setSelectedProject(null)
+      refetch()
+    } catch (error) {
+      console.error('Error closing project:', error)
+    }
+  }
+
+  const getStatusColor = (status: ProjectStatusUI) => {
     switch (status) {
-      case 'Active':
+      case ProjectStatusUI.InProgress:
         return 'success'
-      case 'Planned':
+      case ProjectStatusUI.Planned:
         return 'info'
-      case 'Delayed':
+      case ProjectStatusUI.Canceled:
         return 'destructive'
-      case 'Closed':
+      case ProjectStatusUI.Completed:
         return 'secondary'
+      case ProjectStatusUI.OnHold:
+        return 'warning'
       default:
         return 'secondary'
     }
@@ -583,17 +761,6 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
   const getProjectTypeColor = (type: string) => {
     return type === 'INTERNAL' ? 'info' : 'ext1'
-  }
-
-  if (isLoading) {
-    return (
-      <div
-        data-testid={`${prefixDataTestId || ''}-ProjectSetup`}
-        className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center"
-      >
-        <Spinner size="lg" />
-      </div>
-    )
   }
 
   if (error) {
@@ -616,29 +783,28 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
   return (
     <Card data-testid={`${prefixDataTestId || ''}-ProjectSetup`} className="gba:overflow-hidden">
-      {!isLoading && (
-        <CardTabHeaderComponent
-          addButton={
-            <ProjectForm
-              childAddButton={
-                <Button
-                  variant="default"
-                  onClick={event => event.stopPropagation()}
-                  data-testid={`${prefixDataTestId || ''}-ProjectSetup-AddButton`}
-                >
-                  <PlusIcon /> Add Project
-                </Button>
-              }
-              refetch={refetch}
-              accessToken={context.accessToken}
-              structureId={structureId}
-              accounts={accounts}
-            />
-          }
-          cardTitle={`${t('hr.project_setup', 'Project Setup')} (${totalProjects})`}
-          cardDescription="Manage projects and their details"
-        />
-      )}
+      <CardTabHeaderComponent
+        addButton={
+          <ProjectForm
+            childAddButton={
+              <Button
+                variant="default"
+                onClick={event => event.stopPropagation()}
+                data-testid={`${prefixDataTestId || ''}-ProjectSetup-AddButton`}
+              >
+                <PlusIcon /> Add Project
+              </Button>
+            }
+            refetch={refetch}
+            accessToken={context.accessToken}
+            structureId={structureId}
+            accounts={accounts}
+          />
+        }
+        cardTitle={`${t('hr.project_setup', 'Project Setup')} (${totalProjects})`}
+        cardDescription="Manage projects and their details"
+      />
+
       <CardContent>
         {/* Filters */}
         <div className="gba:mb-6 gba:relative gba:max-w-sm">
@@ -651,7 +817,16 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
           />
         </div>
 
-        {renderProjectsTable()}
+        {isLoading ? (
+          <div
+            data-testid={`${prefixDataTestId || ''}-ProjectSetup`}
+            className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center"
+          >
+            <Spinner size="lg" />
+          </div>
+        ) : (
+          renderProjectsTable()
+        )}
 
         {selectedProject && isEditProjectOpen && (
           <ProjectForm
@@ -662,6 +837,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
             accounts={accounts}
             open={isEditProjectOpen}
             setOpen={setIsEditProjectOpen}
+            onProjectClosed={handleProjectClosed}
           />
         )}
 
@@ -723,13 +899,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                     Cancel
                   </Button>
                 </DialogClose>
-                <Button
-                  onClick={() => {
-                    setIsCloseProjectOpen(false)
-                  }}
-                >
-                  Close Project
-                </Button>
+                <Button onClick={() => handleCloseProject(selectedProject)}>Close Project</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -801,9 +971,9 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                     <Card className="gba:!gap-2 gba:text-lg">
                       <CardHeader className="gba:text-sm gba:text-gray-400">Status</CardHeader>
                       <CardContent
-                        className={`${selectedProject.status === 'Active' ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
+                        className={`${selectedProject.status === ProjectStatusUI.InProgress ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
                       >
-                        {selectedProject.status === 'Active' ? (
+                        {selectedProject.status === ProjectStatusUI.InProgress ? (
                           <CheckCircleIcon />
                         ) : (
                           inactiveStatusIcon(selectedProject.status)
@@ -860,7 +1030,12 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                 <div className="gba:flex gba:justify-end gba:gap-2">
                   <ProjectForm
                     childAddButton={
-                      <Button>
+                      <Button
+                        disabled={
+                          selectedProject.status === ProjectStatusUI.Canceled ||
+                          selectedProject.status === ProjectStatusUI.Completed
+                        }
+                      >
                         <PencilSimpleLineIcon /> Edit
                       </Button>
                     }
@@ -870,6 +1045,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                     project={selectedProject}
                     isDrawerActive={true}
                     accounts={accounts}
+                    onProjectClosed={handleProjectClosed}
                   />
 
                   <SheetClose asChild>

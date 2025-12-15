@@ -3,23 +3,89 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { env } from '@/common/env/EnvUtils'
-import { Project, ProjectData } from '../types'
-
-// Interface for API response with paging
-export interface PaginatedProjectRecords {
-  data: ProjectData[]
-  paging: {
-    offset: number
-    totalRecords: number
-    hasMore: boolean
-  }
-}
+import { Project, ProjectData, ProjectStatusBE, ProjectStatusUI, ProjectTypeBE } from '../types'
 
 // Default pagination values
-const DEFAULT_PAGE_SIZE = 20
+const DEFAULT_PAGE_SIZE = 10
 const DEFAULT_CURRENT_PAGE = 1
 
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+// GraphQL query for projects with pagination
+export const GET_PROJECTS_DATA = (
+  structureId: string,
+  limit: number,
+  offset: number,
+  search?: string,
+  onlyActiveProjects: boolean = false
+): string => {
+  const searchCondition = search
+    ? `, _or: [
+        { name: { _ilike: "%${search}%" } },
+        { description: { _ilike: "%${search}%" } },
+      ]`
+    : ''
+
+  const activeProjectsCondition = onlyActiveProjects ? `, status: { _in: ["IN_PROGRESS", "ON_HOLD", "PLANNED"] }` : ''
+
+  return `query getProjects {
+    Project(
+      where: {
+        isDeleted: { _eq: false }
+        structureId: { _eq: "${structureId}" }
+        ${searchCondition}
+        ${activeProjectsCondition}
+      }
+      limit: ${limit}
+      offset: ${offset}
+      orderBy: { name: ASC }
+    ) {
+      id
+      name
+      description
+      hoursBudget
+      projectType
+      status
+      customerId
+      projectManagerId
+      matrixUnitId
+      validFrom
+      validTo
+    }
+    ProjectAggregate(
+      where: {
+        isDeleted: { _eq: false }
+        structureId: { _eq: "${structureId}" }
+        ${searchCondition}
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+  }`
+}
+
+// GraphQL response type for projects
+export interface ProjectsGraphQLResponse {
+  Project?: Array<{
+    id: string
+    name: string
+    description?: string
+    hoursBudget?: number | null
+    projectType: ProjectTypeBE
+    status?: ProjectStatusBE | null
+    customerId?: string
+    projectManagerId?: string
+    matrixUnitId?: string
+    validFrom?: string
+    validTo?: string
+  }>
+  ProjectAggregate?: {
+    aggregate: {
+      count: number
+    }
+  }
+}
 
 // GraphQL query for accounts
 export const GET_ACCOUNTS_DATA = (): string => {
@@ -27,6 +93,30 @@ export const GET_ACCOUNTS_DATA = (): string => {
     Account(where: {isDeleted: {_eq: false}}, orderBy: {name: ASC}) {
       id
       name
+    }
+  }`
+}
+
+// GraphQL query for employees (project managers) by IDs - batch query
+export const GET_EMPLOYEES_BY_IDS = (employeeIds: string[]): string => {
+  const idsString = employeeIds.map(id => `"${id}"`).join(', ')
+  return `query getEmployeesByIds {
+    Employee(where: { id: { _in: [${idsString}] } }) {
+      id
+      firstName
+      lastName
+      displayName
+      pictureThumbnail
+    }
+  }`
+}
+
+// GraphQL query for matrix unit member counts - fetches assignments to count per matrix
+export const GET_MATRIX_MEMBER_COUNTS = (matrixUnitIds: string[]): string => {
+  const idsString = matrixUnitIds.map(id => `"${id}"`).join(', ')
+  return `query getMatrixMemberCounts {
+    EmployeeMatrixUnit(where: { matrixUnitId: { _in: [${idsString}] } }) {
+      matrixUnitId
     }
   }`
 }
@@ -47,10 +137,52 @@ export type Account = {
   name: string
 }
 
+// Employee type for project managers
+export interface EmployeeData {
+  id: string
+  firstName?: string
+  lastName?: string
+  displayName?: string
+  pictureThumbnail?: string
+}
+
+export interface EmployeesGraphQLResponse {
+  Employee?: EmployeeData[]
+}
+
+// Matrix unit member assignment
+export interface MatrixMemberCountsResponse {
+  EmployeeMatrixUnit?: Array<{
+    matrixUnitId: string
+  }>
+}
+
+// Helper function to transform BE status format to UI format
+const transformStatus = (beStatus?: ProjectStatusBE): ProjectStatusUI => {
+  if (!beStatus) {
+    return ProjectStatusUI.InProgress
+  }
+
+  switch (beStatus) {
+    case ProjectStatusBE.PLANNED:
+      return ProjectStatusUI.Planned
+    case ProjectStatusBE.IN_PROGRESS:
+      return ProjectStatusUI.InProgress
+    case ProjectStatusBE.ON_HOLD:
+      return ProjectStatusUI.OnHold
+    case ProjectStatusBE.CANCELLED:
+      return ProjectStatusUI.Canceled
+    case ProjectStatusBE.COMPLETED:
+      return ProjectStatusUI.Completed
+    default:
+      return ProjectStatusUI.InProgress
+  }
+}
+
 // Transform API project data to UI-friendly Project interface
 const transformProject = (projectData: ProjectData): Project => {
   const now = new Date()
-  let status: 'Active' | 'Planned' | 'Delayed' | 'Closed' = 'Active'
+  let status: ProjectStatusUI = ProjectStatusUI.InProgress
   let isActive = true
   let daysUntilExpiry: number | undefined
   let daysUntilStart: number | undefined
@@ -82,51 +214,14 @@ const transformProject = (projectData: ProjectData): Project => {
     daysUntilExpiry = Math.ceil(timeDiffTo / (1000 * 3600 * 24))
   }
 
-  // Calculate status based on new rules
-  // Priority 1: Closed status (overrides everything)
-  if (projectData.projectStatus === 'Closed') {
-    status = 'Closed'
-    isActive = false
-  } else if (projectData.validFrom) {
-    const validFromDate = new Date(projectData.validFrom)
-    const timeDiffFrom = validFromDate.getTime() - now.getTime()
-    // Priority 2: Planned (validFrom is in the future)
-    if (timeDiffFrom > 0) {
-      status = 'Planned'
-      isActive = false
-    } else if (projectData.validTo) {
-      const validToDate = new Date(projectData.validTo)
-      const timeDiffTo = validToDate.getTime() - now.getTime()
-      // Priority 3: Delayed (validTo has passed but not closed)
-      if (timeDiffTo < 0) {
-        status = 'Delayed'
-        isActive = false
-        daysDelayed = Math.abs(Math.ceil(timeDiffTo / (1000 * 3600 * 24)))
-      } else {
-        // Priority 4: Active (between validFrom and validTo)
-        status = 'Active'
-        isActive = true
-      }
-    } else {
-      // No validTo, but validFrom has passed
-      status = 'Active'
-      isActive = true
-    }
-  } else if (projectData.validTo) {
-    const validToDate = new Date(projectData.validTo)
-    const timeDiffTo = validToDate.getTime() - now.getTime()
-    // No validFrom, check validTo
-    if (timeDiffTo < 0) {
-      status = 'Delayed'
-      isActive = false
-      daysDelayed = Math.abs(Math.ceil(timeDiffTo / (1000 * 3600 * 24)))
-    } else {
-      status = 'Active'
-      isActive = true
-    }
+  // Calculate status: Priority 1 - Use status from BE if available
+  if (projectData.status) {
+    status = transformStatus(projectData.status)
+    isActive =
+      status === ProjectStatusUI.InProgress || status === ProjectStatusUI.OnHold || status === ProjectStatusUI.Planned
   } else {
-    // No dates, default to Active
-    status = 'Active'
+    // Default to In Progress if no status from BE
+    status = ProjectStatusUI.InProgress
     isActive = true
   }
 
@@ -140,25 +235,26 @@ const transformProject = (projectData: ProjectData): Project => {
     projectType: projectData.projectType,
     customerId: projectData.customerId,
     projectManagerId: projectData.projectManagerId,
-    projectStatus: projectData.projectStatus,
-    manager: projectData.manager,
-    matrixTeam: projectData.matrixTeam,
+    manager: undefined,
+    matrixTeam: projectData.matrixUnitId ? { matrixId: projectData.matrixUnitId } : undefined,
     status,
     isActive,
     daysUntilExpiry,
     daysUntilStart,
     daysDelayed,
     formattedValidTo,
-    formattedValidFrom
+    formattedValidFrom,
+    hoursBudget: projectData.hoursBudget
   }
 }
 
-export const useProjects = (context: BusinessAppContextProps) => {
+export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects: boolean = false) => {
   const [projects, setProjects] = useState<Project[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const structureId = useRef<string>(context.additionalData?.structureId || 'active')
+  const [searchTerm, setSearchTerm] = useState<string>('')
 
   // Pagination state
   const [totalCount, setTotalCount] = useState<number>(0)
@@ -168,9 +264,9 @@ export const useProjects = (context: BusinessAppContextProps) => {
   const restClient = useRestClient(ORGCHART_BASE_URL)
   const graphqlClient = useGraphqlClient(context.accessToken)
 
-  // Fetch projects from orgchart API
+  // Fetch projects using GraphQL with pagination
   const fetchProjects = useCallback(
-    async (validTo?: string, offset?: number): Promise<{ projects: Project[]; totalCount: number }> => {
+    async (limit: number, offset: number, search?: string): Promise<{ projects: Project[]; totalCount: number }> => {
       try {
         if (!structureId.current) {
           throw new Error('Structure ID is required to fetch projects')
@@ -178,39 +274,39 @@ export const useProjects = (context: BusinessAppContextProps) => {
 
         const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
           params: {
-            nodeType: 'cost_center'
+            isPlanningMode: false
           },
           headers: {
             Authorization: `Bearer ${context.accessToken}`
           }
         })
         structureId.current = getStructureResponse.structure.structureId
+        // structureId.current = '4ff76a51-551d-4d5a-8e50-28ef08c6ab67'
 
-        const params: Record<string, string | number> = {
-          structureId: structureId.current
-        }
-        if (validTo) {
-          params.valid_to = validTo
-        }
+        const query = GET_PROJECTS_DATA(structureId.current, limit, offset, search, onlyActiveProjects)
+        const result = await graphqlClient.request<ProjectsGraphQLResponse>(query)
 
-        if (offset !== undefined) {
-          params.offset = offset
-        }
+        if (result.Project) {
+          const transformedProjects = result.Project.map(project => {
+            // Convert GraphQL response to ProjectData format for transformProject
+            const projectData: ProjectData = {
+              id: project.id,
+              name: project.name,
+              description: project.description,
+              validFrom: project.validFrom,
+              validTo: project.validTo,
+              structureId: structureId.current,
+              projectType: project.projectType,
+              customerId: project.customerId,
+              projectManagerId: project.projectManagerId,
+              status: project.status,
+              matrixUnitId: project.matrixUnitId,
+              hoursBudget: project.hoursBudget
+            }
+            return transformProject(projectData)
+          })
 
-        const response = await restClient.get<PaginatedProjectRecords>('/projects', {
-          params,
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`
-          }
-        })
-
-        // Extract projects and total count from the paginated response
-        const projectResponse = response
-
-        // Handle the response format with data and paging properties
-        if (projectResponse && projectResponse.data && projectResponse.paging) {
-          const transformedProjects = projectResponse.data.map(transformProject)
-          const totalCount = projectResponse.paging.totalRecords
+          const totalCount = result.ProjectAggregate?.aggregate?.count || 0
 
           return {
             projects: transformedProjects,
@@ -218,19 +314,16 @@ export const useProjects = (context: BusinessAppContextProps) => {
           }
         }
 
-        // Fallback for backward compatibility or unexpected response format
-        const projects = Array.isArray(projectResponse) ? projectResponse.map(transformProject) : []
-
         return {
-          projects,
-          totalCount: projects.length
+          projects: [],
+          totalCount: 0
         }
       } catch (error) {
         console.error('Error fetching projects:', error)
-        throw new Error('Failed to fetch projects from orgchart API')
+        throw new Error('Failed to fetch projects')
       }
     },
-    [context.accessToken, restClient]
+    [graphqlClient]
   )
 
   // Fetch accounts using GraphQL
@@ -250,9 +343,63 @@ export const useProjects = (context: BusinessAppContextProps) => {
     }
   }, [graphqlClient])
 
+  // Fetch employees (project managers) by IDs - batch query
+  const fetchEmployeesByIds = useCallback(
+    async (employeeIds: string[]): Promise<Map<string, EmployeeData>> => {
+      if (employeeIds.length === 0) {
+        return new Map()
+      }
+
+      try {
+        const query = GET_EMPLOYEES_BY_IDS(employeeIds)
+        const result = await graphqlClient.request<EmployeesGraphQLResponse>(query)
+
+        const employeeMap = new Map<string, EmployeeData>()
+        if (result.Employee) {
+          result.Employee.forEach(emp => {
+            employeeMap.set(emp.id, emp)
+          })
+        }
+        return employeeMap
+      } catch (error) {
+        console.error('Error fetching employees:', error)
+        return new Map()
+      }
+    },
+    [graphqlClient]
+  )
+
+  // Fetch matrix unit member counts - batch query
+  const fetchMatrixMemberCounts = useCallback(
+    async (matrixUnitIds: string[]): Promise<Map<string, number>> => {
+      if (matrixUnitIds.length === 0) {
+        return new Map()
+      }
+
+      try {
+        const query = GET_MATRIX_MEMBER_COUNTS(matrixUnitIds)
+        const result = await graphqlClient.request<MatrixMemberCountsResponse>(query)
+
+        // Count members per matrix unit
+        const countMap = new Map<string, number>()
+        if (result.EmployeeMatrixUnit) {
+          result.EmployeeMatrixUnit.forEach(assignment => {
+            const currentCount = countMap.get(assignment.matrixUnitId) || 0
+            countMap.set(assignment.matrixUnitId, currentCount + 1)
+          })
+        }
+        return countMap
+      } catch (error) {
+        console.error('Error fetching matrix member counts:', error)
+        return new Map()
+      }
+    },
+    [graphqlClient]
+  )
+
   // Load initial data
   const loadData = useCallback(
-    async (validTo?: string) => {
+    async (search?: string) => {
       setIsLoading(true)
       setError(null)
 
@@ -260,10 +407,53 @@ export const useProjects = (context: BusinessAppContextProps) => {
         // Calculate offset based on current page and page size
         const offset = (currentPage - 1) * pageSize
 
-        // Fetch projects and accounts in parallel
-        const [projectsResult, accountsResult] = await Promise.all([fetchProjects(validTo, offset), fetchAccounts()])
+        // Step 1: Fetch projects and accounts in parallel
+        const [projectsResult, accountsResult] = await Promise.all([
+          fetchProjects(pageSize, offset, search),
+          fetchAccounts()
+        ])
 
-        setProjects(projectsResult.projects)
+        // Step 2: Extract unique IDs for batch queries
+        const managerIds = [
+          ...new Set(projectsResult.projects.map(p => p.projectManagerId).filter((id): id is string => Boolean(id)))
+        ]
+        const matrixUnitIds = [
+          ...new Set(projectsResult.projects.map(p => p.matrixTeam?.matrixId).filter((id): id is string => Boolean(id)))
+        ]
+
+        // Step 3: Batch fetch employees and matrix member counts in parallel
+        const [employeesMap, matrixCountsMap] = await Promise.all([
+          fetchEmployeesByIds(managerIds),
+          fetchMatrixMemberCounts(matrixUnitIds)
+        ])
+
+        // Step 4: Enrich projects with manager and team member data
+        const enrichedProjects = projectsResult.projects.map(project => {
+          const manager = project.projectManagerId ? employeesMap.get(project.projectManagerId) : undefined
+          const teamMembersCount = project.matrixTeam?.matrixId
+            ? matrixCountsMap.get(project.matrixTeam.matrixId)
+            : undefined
+
+          return {
+            ...project,
+            manager: manager
+              ? {
+                  firstName: manager.firstName,
+                  lastName: manager.lastName,
+                  displayName: manager.displayName,
+                  pictureThumbnail: manager.pictureThumbnail
+                }
+              : undefined,
+            matrixTeam: project.matrixTeam?.matrixId
+              ? {
+                  matrixId: project.matrixTeam.matrixId,
+                  teamMembersCount
+                }
+              : undefined
+          }
+        })
+
+        setProjects(enrichedProjects)
         setTotalCount(projectsResult.totalCount)
         setAccounts(accountsResult)
       } catch (err) {
@@ -274,28 +464,34 @@ export const useProjects = (context: BusinessAppContextProps) => {
         setIsLoading(false)
       }
     },
-    [fetchProjects, fetchAccounts, currentPage, pageSize]
+    [fetchProjects, fetchAccounts, fetchEmployeesByIds, fetchMatrixMemberCounts, currentPage, pageSize]
   )
 
-  // Filter projects by various criteria
+  // Search projects - triggers BE query
+  const handleSearch = useCallback((search: string) => {
+    setSearchTerm(search)
+    setCurrentPage(DEFAULT_CURRENT_PAGE) // Reset to first page on search
+  }, [])
+
+  // Filter projects locally (for additional client-side filtering if needed)
   const filterProjects = useCallback(
-    (searchTerm: string = ''): Project[] => {
+    (localSearchTerm: string = ''): Project[] => {
+      if (!localSearchTerm) return projects
+
       const filteredAccounts = accounts.filter(account =>
-        account.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        account.name?.toLowerCase().includes(localSearchTerm.toLowerCase())
       )
 
       return projects.filter(project => {
-        // Search filter
         const matchesSearch =
-          !searchTerm ||
-          project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          project.name.toLowerCase().includes(localSearchTerm.toLowerCase()) ||
+          (project.description && project.description.toLowerCase().includes(localSearchTerm.toLowerCase())) ||
           filteredAccounts.some(account => account.id === project.customerId)
 
         return matchesSearch
       })
     },
-    [projects]
+    [projects, accounts]
   )
 
   // Get projects by type
@@ -311,14 +507,14 @@ export const useProjects = (context: BusinessAppContextProps) => {
     return projects.filter(project => project.isActive)
   }, [projects])
 
-  // Get delayed projects
+  // Get delayed projects (legacy - no longer used with new statuses)
   const getDelayedProjects = useCallback((): Project[] => {
-    return projects.filter(project => project.status === 'Delayed')
+    return projects.filter(project => project.status === ProjectStatusUI.Canceled)
   }, [projects])
 
   // Get planned projects
   const getPlannedProjects = useCallback((): Project[] => {
-    return projects.filter(project => project.status === 'Planned')
+    return projects.filter(project => project.status === ProjectStatusUI.Planned)
   }, [projects])
 
   // Search projects by name or description
@@ -343,7 +539,7 @@ export const useProjects = (context: BusinessAppContextProps) => {
   )
 
   const refetch = useCallback(
-    (validTo?: string, newPage?: number, newPageSize?: number) => {
+    (search?: string, newPage?: number, newPageSize?: number) => {
       // Update pagination state if provided
       if (newPage !== undefined) {
         setCurrentPage(newPage)
@@ -351,17 +547,17 @@ export const useProjects = (context: BusinessAppContextProps) => {
       if (newPageSize !== undefined) {
         setPageSize(newPageSize)
       }
-      return loadData(validTo)
+      return loadData(search ?? searchTerm)
     },
-    [loadData]
+    [loadData, searchTerm]
   )
 
-  // Load data on mount and when access token or pagination changes
+  // Load data on mount and when access token, pagination, or search changes
   useEffect(() => {
     if (context.accessToken) {
-      loadData()
+      loadData(searchTerm)
     }
-  }, [context.accessToken, currentPage, pageSize, loadData])
+  }, [context.accessToken, currentPage, pageSize, searchTerm, loadData])
 
   return {
     // Data
@@ -377,6 +573,10 @@ export const useProjects = (context: BusinessAppContextProps) => {
     totalCount,
     currentPage,
     pageSize,
+
+    // Search
+    searchTerm,
+    handleSearch,
 
     // Change pagination
     setCurrentPage,

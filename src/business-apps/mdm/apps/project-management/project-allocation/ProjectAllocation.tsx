@@ -44,14 +44,13 @@ import {
   InfoIcon,
   CheckCircleIcon,
   ClockIcon,
-  WallIcon
+  WallIcon,
+  UsersIcon
 } from '@phosphor-icons/react'
 import { EmployeeAllocationForm } from '@/business-apps/mdm/forms/employee-allocation-form'
 import { AssignEmployeesDialog } from './components/AssignEmployeesDialog'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
-import { useProjects, useTeamAssignments, TeamEmployee } from '../hooks'
-import { Project } from '../types'
+import { useProjects, useTeamAssignments, useCreateTeam, TeamEmployee } from '../hooks'
+import { Project, ProjectStatusUI } from '../types'
 import { VerticalTable, VerticalTableProps } from '../../generic-components/table/VerticalTable'
 import CardTabHeaderComponent from '../../generic-components/card'
 import { useTeams } from '../../organizational-data/hooks'
@@ -62,44 +61,44 @@ export interface ProjectAllocationProps extends BusinessAppContextProps {
 }
 
 const DATA_TEST_ID_PREFIX = 'ProjectAllocation'
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 // Helper function to get time status information for a project
 const getProjectTimeStatus = (project: Project) => {
   const status = project.status
 
-  if (status === 'Planned' && project.daysUntilStart !== undefined) {
-    const daysUntilStartPattern = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:smart_project.time_status.days_until_start',
-      `${project.daysUntilStart} days until start`,
-      { days: project.daysUntilStart }
-    )
+  if (status === ProjectStatusUI.Planned && project.daysUntilStart !== undefined) {
+    const isOverdue = project.daysUntilStart < 0
+    const daysText = isOverdue
+      ? getTranslationFromI18nKeyAndLabel(
+          'lowcoder:smart_project.time_status.days_ago',
+          `${Math.abs(project.daysUntilStart)} days ago`,
+          { days: Math.abs(project.daysUntilStart) }
+        )
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:smart_project.time_status.days_until_start',
+          `${project.daysUntilStart} days until start`,
+          { days: project.daysUntilStart }
+        )
     return {
       title: getTranslationFromI18nKeyAndLabel(
         'lowcoder:smart_project.time_status.time_until_start',
         'Time Until Start'
       ),
-      daysText: daysUntilStartPattern,
-      textColor: 'gba:text-[#1890ff]',
-      progressValue:
-        project.daysUntilStart > 90 ? 10 : project.daysUntilStart > 30 ? 30 : project.daysUntilStart > 7 ? 50 : 70
+      daysText: daysText,
+      textColor: isOverdue ? 'gba:text-red-500' : 'gba:text-[#1890ff]',
+      progressValue: isOverdue
+        ? 100
+        : project.daysUntilStart > 90
+          ? 10
+          : project.daysUntilStart > 30
+            ? 30
+            : project.daysUntilStart > 7
+              ? 50
+              : 70
     }
   }
 
-  if (status === 'Delayed' && project.daysDelayed !== undefined) {
-    return {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.time_status.delay_status', 'Delay Status'),
-      daysText: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:smart_project.time_status.delayed_with_days',
-        `Delayed with ${project.daysDelayed} days`,
-        { days: project.daysDelayed }
-      ),
-      textColor: 'gba:text-red-500',
-      progressValue: 100
-    }
-  }
-
-  if (status === 'Active' && project.daysUntilExpiry !== undefined) {
+  if (status === ProjectStatusUI.InProgress && project.daysUntilExpiry !== undefined) {
     const daysRemainingPattern = getTranslationFromI18nKeyAndLabel(
       'lowcoder:smart_project.time_status.days_remaining',
       `${project.daysUntilExpiry} days remaining`,
@@ -127,7 +126,7 @@ const getProjectTimeStatus = (project: Project) => {
     }
   }
 
-  if (status === 'Closed') {
+  if (status === ProjectStatusUI.Completed || status === ProjectStatusUI.Canceled) {
     return null
   }
 
@@ -233,7 +232,10 @@ const EmployeesTable: React.FC<EmployeesTableProps> = ({
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const totalAllocation = getValue()
+          const totalAllocationObject = getValue() as {
+            totalAllocationPercent: number | null
+          } | null
+          const totalAllocation = totalAllocationObject?.totalAllocationPercent
           return totalAllocation !== undefined && totalAllocation !== null ? `${totalAllocation}%` : '-'
         }
       },
@@ -316,10 +318,9 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
   const { t } = useTranslation()
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
 
-  const { projects, accounts, isLoading, error, refetch, totalProjects, structureId } = useProjects(context)
-  const { teams } = useTeams(context)
+  const { projects, accounts, isLoading, error, refetch, totalProjects, structureId } = useProjects(context, true)
+  const { teams, refetch: refretchTeams } = useTeams(context)
   const { getTeamEmployees, removeEmployeeFromTeam } = useTeamAssignments(context.accessToken)
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -340,6 +341,11 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     employee: TeamEmployee
     projectId: string
     teamId: string
+    totalAllocationPercent: {
+      id: string
+      version: number
+      totalAllocationPercent: number | null
+    } | null
   } | null>(null)
   const [isAssignEmployeesOpen, setIsAssignEmployeesOpen] = useState(false)
   const [selectedProjectForAssign, setSelectedProjectForAssign] = useState<{
@@ -347,8 +353,19 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     teamId: string
   } | null>(null)
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false)
-  const [isCreatingTeam, setIsCreatingTeam] = useState(false)
   const [selectedProjectForCreateTeam, setSelectedProjectForCreateTeam] = useState<Project | null>(null)
+
+  // Hook for creating team
+  const { isCreatingTeam, createTeamForProject } = useCreateTeam({
+    accessToken: context.accessToken,
+    structureId,
+    onSuccess: () => {
+      refetch()
+      refretchTeams()
+      setIsCreateTeamOpen(false)
+      setSelectedProjectForCreateTeam(null)
+    }
+  })
 
   // Filter projects based on search
   const filteredProjects = useMemo(() => {
@@ -381,11 +398,8 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         return
       }
 
-      // TODO: When BE implements matrixTeam, use this instead:
-      // const project = projects.find(p => p.id === projectId)
-      // const teamId = project?.matrixTeam?.matrixId
-      // Get the team ID for this project (mocked for now)
-      const teamId = '8bfafbcf-0c03-4b69-84c2-ce3d28e23abb'
+      const project = projects.find(p => p.id === projectId)
+      const teamId = project?.matrixTeam?.matrixId
 
       if (!teamId) {
         return
@@ -407,7 +421,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         })
       }
     },
-    [getTeamEmployees, teamEmployees, loadingEmployees]
+    [getTeamEmployees, teamEmployees, loadingEmployees, projects]
   )
 
   // Fetch team employees when accordion item is expanded
@@ -425,41 +439,50 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
   }
 
   const handleRemoveClick = useCallback((employee: TeamEmployee, projectId: string, teamName: string) => {
-    setSelectedEmployeeForRemove({ employee, projectId, teamName })
+    setSelectedEmployeeForRemove({
+      employee,
+      projectId,
+      teamName
+    })
     setIsRemoveEmployeeOpen(true)
   }, [])
 
-  const handleEditAllocationClick = useCallback((employee: TeamEmployee, projectId: string) => {
-    // TODO: When BE implements matrixTeam, use this instead:
-    // const project = projects.find(p => p.id === projectId)
-    // const teamId = project?.matrixTeam?.matrixId
-    // Get the team ID for this project (mocked for now)
-    const teamId = '8bfafbcf-0c03-4b69-84c2-ce3d28e23abb'
+  const handleEditAllocationClick = useCallback(
+    (employee: TeamEmployee, projectId: string) => {
+      const project = projects.find(p => p.id === projectId)
+      const teamId = project?.matrixTeam?.matrixId
 
-    if (!teamId) {
-      console.error('No team ID found for project:', projectId)
-      return
-    }
+      if (!teamId) {
+        console.error('No team ID found for project:', projectId)
+        return
+      }
 
-    setSelectedEmployeeForEdit({ employee, projectId, teamId })
-    setIsEditAllocationOpen(true)
-  }, [])
+      setSelectedEmployeeForEdit({
+        employee,
+        projectId,
+        teamId,
+        totalAllocationPercent: employee.totalAllocationPercent ?? null
+      })
+      setIsEditAllocationOpen(true)
+    },
+    [projects]
+  )
 
-  const handleAssignEmployeesClick = useCallback((projectId: string) => {
-    // TODO: When BE implements matrixTeam, use this instead:
-    // const project = projects.find(p => p.id === projectId)
-    // const teamId = project?.matrixTeam?.matrixId
-    // Get the team ID for this project (mocked for now)
-    const teamId = '8bfafbcf-0c03-4b69-84c2-ce3d28e23abb'
+  const handleAssignEmployeesClick = useCallback(
+    (projectId: string) => {
+      const project = projects.find(p => p.id === projectId)
+      const teamId = project?.matrixTeam?.matrixId
 
-    if (!teamId) {
-      console.error('No team ID found for project:', projectId)
-      return
-    }
+      if (!teamId) {
+        console.error('No team ID found for project:', projectId)
+        return
+      }
 
-    setSelectedProjectForAssign({ projectId, teamId })
-    setIsAssignEmployeesOpen(true)
-  }, [])
+      setSelectedProjectForAssign({ projectId, teamId })
+      setIsAssignEmployeesOpen(true)
+    },
+    [projects]
+  )
 
   const handleCreateTeamClick = useCallback((project: Project) => {
     setSelectedProjectForCreateTeam(project)
@@ -468,35 +491,54 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
 
   const handleCreateTeam = useCallback(async () => {
     if (!selectedProjectForCreateTeam) return
+    await createTeamForProject(selectedProjectForCreateTeam)
+  }, [selectedProjectForCreateTeam, createTeamForProject])
 
-    try {
-      setIsCreatingTeam(true)
+  const refreshAllExpandedProjects = useCallback(async () => {
+    const expandedIds = Array.isArray(accordionValue) ? accordionValue : [accordionValue].filter(Boolean)
 
-      const teamData = {
-        name: selectedProjectForCreateTeam.name,
-        description: selectedProjectForCreateTeam.description || '',
-        rank: 0,
-        structureId: structureId
-      }
-
-      await restClient.post('/matrix-units', teamData, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      })
-
-      await refetch()
-      setIsCreateTeamOpen(false)
-      setSelectedProjectForCreateTeam(null)
-    } catch (error) {
-      console.error('Error creating team:', error)
-    } finally {
-      setIsCreatingTeam(false)
+    // If no projects are expanded, just clear all cache
+    if (expandedIds.length === 0) {
+      setTeamEmployees({})
+      return
     }
-  }, [selectedProjectForCreateTeam, restClient, context.accessToken, structureId, refetch])
+
+    // Get all teamIds for expanded projects
+    const projectTeamPairs = expandedIds
+      .map(projectId => {
+        const project = projects.find(p => p.id === projectId)
+        const teamId = project?.matrixTeam?.matrixId
+        return teamId ? { projectId, teamId } : null
+      })
+      .filter((pair): pair is { projectId: string; teamId: string } => pair !== null)
+
+    // Fetch employees for all expanded projects in parallel
+    try {
+      const results = await Promise.all(
+        projectTeamPairs.map(async ({ projectId, teamId }) => {
+          const employees = await getTeamEmployees(teamId)
+          return { projectId, employees }
+        })
+      )
+
+      // Clear ALL cache and set only expanded projects with fresh data
+      // Collapsed projects will re-fetch when expanded again
+      setTeamEmployees(() => {
+        const freshCache: Record<string, TeamEmployee[]> = {}
+        results.forEach(({ projectId, employees }) => {
+          freshCache[projectId] = employees
+        })
+        return freshCache
+      })
+    } catch (error) {
+      console.error('Error refreshing expanded projects:', error)
+    }
+  }, [accordionValue, projects, getTeamEmployees])
 
   const handleConfirmRemoveEmployee = useCallback(async () => {
     if (!selectedEmployeeForRemove) return
 
-    const { employee, projectId } = selectedEmployeeForRemove
+    const { employee } = selectedEmployeeForRemove
 
     if (!employee.teamAssignmentId) {
       console.error('No team assignment ID found for employee:', employee.id)
@@ -506,65 +548,52 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     }
 
     try {
-      await removeEmployeeFromTeam(employee.teamAssignmentId)
-      // Refresh employees for this project
-      setTeamEmployees(prev => ({
-        ...prev,
-        [projectId]: (prev[projectId] || []).filter(emp => emp.id !== employee.id)
-      }))
+      await removeEmployeeFromTeam(employee)
+
+      // Refresh all expanded projects to sync totalAllocationPercent
+      await refreshAllExpandedProjects()
     } catch (error) {
       console.error('Error removing employee from team:', error)
     } finally {
       setIsRemoveEmployeeOpen(false)
       setSelectedEmployeeForRemove(null)
     }
-  }, [selectedEmployeeForRemove, removeEmployeeFromTeam])
+  }, [selectedEmployeeForRemove, removeEmployeeFromTeam, refreshAllExpandedProjects])
 
   const handleAllocationUpdated = useCallback(async () => {
     if (!selectedEmployeeForEdit) return
 
-    const { projectId, teamId } = selectedEmployeeForEdit
-
     try {
-      // Refresh employees for this project
-      const employees = await getTeamEmployees(teamId)
-      setTeamEmployees(prev => ({
-        ...prev,
-        [projectId]: employees
-      }))
+      // Refresh all expanded projects to sync totalAllocationPercent
+      await refreshAllExpandedProjects()
     } catch (error) {
       console.error('Error refreshing employees after allocation update:', error)
     }
-  }, [selectedEmployeeForEdit, getTeamEmployees])
+  }, [selectedEmployeeForEdit, refreshAllExpandedProjects])
 
   const handleAssignComplete = useCallback(async () => {
     if (!selectedProjectForAssign) return
 
-    const { projectId, teamId } = selectedProjectForAssign
     try {
-      // Refresh employees for this project after assignment
-      const employees = await getTeamEmployees(teamId)
-      setTeamEmployees(prev => ({
-        ...prev,
-        [projectId]: employees
-      }))
+      // Refresh all expanded projects to sync totalAllocationPercent
+      await refreshAllExpandedProjects()
     } catch (error) {
       console.error('Error refreshing employees after assignment:', error)
     }
     setSelectedProjectForAssign(null)
-  }, [selectedProjectForAssign, getTeamEmployees])
+  }, [selectedProjectForAssign, refreshAllExpandedProjects])
 
-  const inactiveStatusIcon = useCallback((status: string) => {
-    if (status === 'Delayed') return <WarningIcon />
-    if (status === 'Planned') return <ClockIcon />
-    if (status === 'Closed') return <XCircleIcon />
+  const inactiveStatusIcon = useCallback((status: ProjectStatusUI) => {
+    if (status === ProjectStatusUI.OnHold) return <WarningIcon />
+    if (status === ProjectStatusUI.Planned) return <ClockIcon />
+    if (status === ProjectStatusUI.Completed || status === ProjectStatusUI.Canceled) return <XCircleIcon />
     return <ClockIcon />
   }, [])
 
-  const inactiveStatusColor = useCallback((status: string) => {
-    if (status === 'Delayed') return 'gba:text-[#f5222d]'
-    if (status === 'Planned') return 'gba:text-[#1890ff]'
-    if (status === 'Closed') return 'gba:text-muted-foreground'
+  const inactiveStatusColor = useCallback((status: ProjectStatusUI) => {
+    if (status === ProjectStatusUI.OnHold) return 'gba:text-[#f5222d]'
+    if (status === ProjectStatusUI.Planned) return 'gba:text-[#1890ff]'
+    if (status === ProjectStatusUI.Completed || status === ProjectStatusUI.Canceled) return 'gba:text-muted-foreground'
     return 'gba:text-[#fa8c16]'
   }, [])
 
@@ -590,8 +619,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
             },
             {
               icon: () => {
-                // const hasTeam = !!project.matrixTeam?.matrixId
-                const hasTeam = true
+                const hasTeam = !!project.matrixTeam?.matrixId
                 return (
                   <Button
                     variant="ghost"
@@ -605,7 +633,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                     }}
                     data-testid={`${prefixDataTestId}-${hasTeam ? 'assign-employees' : 'add-team'}-${project.id}`}
                   >
-                    <UserPlusIcon />
+                    {hasTeam ? <UserPlusIcon /> : <UsersIcon />}
                   </Button>
                 )
               },
@@ -619,12 +647,9 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                   {getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.team_name', 'Team Name: ')}
                 </h1>
                 <h2 className="gba:text-sm gba:font-semibold">
-                  {/* TODO: When BE implements matrixTeam, use this instead:
                   {project.matrixTeam?.matrixName ??
                     teams.find(team => team.id === project.matrixTeam?.matrixId)?.name ??
                     '-'}
-                  */}
-                  {teams.find(team => team.id === '8bfafbcf-0c03-4b69-84c2-ce3d28e23abb')?.name ?? '-'}
                 </h2>
               </div>
 
@@ -651,11 +676,8 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                     employees={teamEmployees[project.id]}
                     projectId={project.id}
                     teamName={
-                      // TODO: When BE implements matrixTeam, use this instead:
-                      // project.matrixTeam?.matrixName ??
-                      // teams.find(team => team.id === project.matrixTeam?.matrixId)?.name ??
-                      // 'Unknown Team'
-                      teams.find(team => team.id === '8bfafbcf-0c03-4b69-84c2-ce3d28e23abb')?.name ??
+                      project.matrixTeam?.matrixName ??
+                      teams.find(team => team.id === project.matrixTeam?.matrixId)?.name ??
                       getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.unknown_team', 'Unknown Team')
                     }
                     onRemoveClick={handleRemoveClick}
@@ -716,6 +738,13 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
       items[0].items.push({
         label: getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.label.account', 'Account'),
         value: account.name
+      })
+    }
+
+    if (selectedProject.validFrom) {
+      items[0].items.push({
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.label.valid_from', 'Valid From'),
+        value: selectedProject.formattedValidFrom || new Date(selectedProject.validFrom).toLocaleDateString()
       })
     }
 
@@ -855,9 +884,9 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                         {getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.status', 'Status')}
                       </CardHeader>
                       <CardContent
-                        className={`${selectedProject.status === 'Active' ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
+                        className={`${selectedProject.status === ProjectStatusUI.InProgress ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
                       >
-                        {selectedProject.status === 'Active' ? (
+                        {selectedProject.status === ProjectStatusUI.InProgress ? (
                           <CheckCircleIcon />
                         ) : (
                           inactiveStatusIcon(selectedProject.status)
@@ -915,40 +944,36 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                   {selectedEmployeeForRemove.employee.percentage !== undefined &&
                   selectedEmployeeForRemove.employee.percentage !== null ? (
                     <>
-                      {
-                        (getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:smart_project.dialog.remove_employee_with_allocation',
-                          `Are you sure you want to remove ${
-                            selectedEmployeeForRemove.employee.fullName ||
-                            `${selectedEmployeeForRemove.employee.firstName || ''} ${selectedEmployeeForRemove.employee.lastName || ''}`.trim()
-                          } from ${selectedEmployeeForRemove.teamName}? The allocated percentage (${selectedEmployeeForRemove.employee.percentage}%) will also be removed.`
-                        ),
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:smart_project.dialog.remove_employee_with_allocation',
+                        `Are you sure you want to remove ${
+                          selectedEmployeeForRemove.employee.fullName ||
+                          `${selectedEmployeeForRemove.employee.firstName || ''} ${selectedEmployeeForRemove.employee.lastName || ''}`.trim()
+                        } from ${selectedEmployeeForRemove.teamName}? The allocated percentage (${selectedEmployeeForRemove.employee.percentage}%) will also be removed.`,
                         {
                           employee:
                             selectedEmployeeForRemove.employee.fullName ||
                             `${selectedEmployeeForRemove.employee.firstName || ''} ${selectedEmployeeForRemove.employee.lastName || ''}`.trim(),
                           team: selectedEmployeeForRemove.teamName,
                           percentage: selectedEmployeeForRemove.employee.percentage
-                        })
-                      }
+                        }
+                      )}
                     </>
                   ) : (
                     <>
-                      {
-                        (getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:smart_project.dialog.remove_employee',
-                          `Are you sure you want to remove ${
-                            selectedEmployeeForRemove.employee.fullName ||
-                            `${selectedEmployeeForRemove.employee.firstName || ''} ${selectedEmployeeForRemove.employee.lastName || ''}`.trim()
-                          } from ${selectedEmployeeForRemove.teamName}?`
-                        ),
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:smart_project.dialog.remove_employee',
+                        `Are you sure you want to remove ${
+                          selectedEmployeeForRemove.employee.fullName ||
+                          `${selectedEmployeeForRemove.employee.firstName || ''} ${selectedEmployeeForRemove.employee.lastName || ''}`.trim()
+                        } from ${selectedEmployeeForRemove.teamName}?`,
                         {
                           employee:
                             selectedEmployeeForRemove.employee.fullName ||
                             `${selectedEmployeeForRemove.employee.firstName || ''} ${selectedEmployeeForRemove.employee.lastName || ''}`.trim(),
                           team: selectedEmployeeForRemove.teamName
-                        })
-                      }
+                        }
+                      )}
                     </>
                   )}
                 </DialogDescription>
@@ -972,6 +997,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
 
         {selectedEmployeeForEdit && isEditAllocationOpen && (
           <EmployeeAllocationForm
+            totalAllocationPercent={selectedEmployeeForEdit.totalAllocationPercent}
             employee={selectedEmployeeForEdit.employee}
             teamId={selectedEmployeeForEdit.teamId}
             structureId={structureId}

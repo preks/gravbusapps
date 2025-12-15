@@ -4,6 +4,7 @@ import { env } from '@/common/env/EnvUtils'
 import { useCallback } from 'react'
 
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+const EMPLOYEES_BASE_URL = `${env('NEXT_PUBLIC_BASE_URL')}/processes/employee`
 
 export interface TeamEmployee {
   id: string
@@ -15,7 +16,11 @@ export interface TeamEmployee {
   jobPosition?: string
   percentage?: number
   teamAssignmentId?: string
-  totalAllocationPercent?: number | null
+  totalAllocationPercent?: {
+    id: string
+    version: number
+    totalAllocationPercent: number | null
+  } | null
   matrixUnit?: {
     matrixUnitAssignmentId?: string
   }
@@ -33,6 +38,11 @@ export interface AvailableEmployee {
     jobPositionName?: string
     id?: string
   }
+  totalAllocationPercent?: {
+    id: string
+    version: number
+    totalAllocationPercent: number | null
+  } | null
   [key: string]: any
 }
 
@@ -50,13 +60,19 @@ export interface AssignEmployeePayload {
   structureId: string
   matrixUnitId: string
   percentage: number
+  totalAllocationPercent?: {
+    id: string
+    version: number
+    totalAllocationPercent: number | null
+  } | null
 }
 
 /**
  * Hook for managing team employee assignments
  */
 export const useTeamAssignments = (accessToken: string) => {
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const restClientOrgchart = useRestClient(ORGCHART_BASE_URL)
+  const restClientEmployees = useRestClient(EMPLOYEES_BASE_URL)
   const graphqlClient = useGraphqlClient(accessToken)
 
   /**
@@ -68,28 +84,26 @@ export const useTeamAssignments = (accessToken: string) => {
     try {
       const query = `
         query GetTeamEmployees($teamId: uuid!) {
-          MatrixUnit(where: {isDeleted: {_eq: false}, id: {_eq: $teamId}}) {
+          Employee(where: {employeePosition: {matrixUnitEmployees: {matrixUnitId: {_eq: $teamId}}}}) {
             id
-            name
-            employeePositions {
-              employee {
-                displayName
-                id
-                workingHours {
-                  totalAllocationPercent
-                }
-              }
+            displayName
+            workingHours {
+              totalAllocationPercent
+              id
+              version
+            }
+            employeePosition {
               matrixUnitEmployees(where: {matrixUnitId: {_eq: $teamId}}) {
                 id
                 percentage
                 matrixUnit {
-                  name
                   id
+                  name
                 }
               }
               jobPosition {
-                name
                 id
+                name
               }
             }
           }
@@ -97,44 +111,41 @@ export const useTeamAssignments = (accessToken: string) => {
       `
 
       const graphqlResponse = await graphqlClient.request<{
-        MatrixUnit: Array<{
+        Employee: Array<{
           id: string
-          name: string
-          employeePositions: Array<{
-            employee: {
-              displayName: string
-              id: string
-              workingHours: Array<{
-                totalAllocationPercent: number | null
-              }>
-            }
+          displayName: string
+          workingHours: Array<{
+            totalAllocationPercent: number | null
+            id: string
+            version: number
+          }>
+          employeePosition: {
             matrixUnitEmployees: Array<{
               id: string
               percentage: number
               matrixUnit: {
-                name: string
                 id: string
+                name: string
               }
             }>
             jobPosition: {
-              name: string
               id: string
+              name: string
             } | null
-          }>
+          } | null
         }>
       }>(query, { teamId })
 
-      const matrixUnit = graphqlResponse?.MatrixUnit?.[0]
+      const employees = graphqlResponse?.Employee
 
-      if (!matrixUnit?.employeePositions || matrixUnit.employeePositions.length === 0) {
+      if (!employees || employees.length === 0) {
         return []
       }
 
       // Transform GraphQL response to TeamEmployee format
-      const enrichedEmployees: TeamEmployee[] = matrixUnit.employeePositions.map(employeePosition => {
-        const employee = employeePosition.employee
-        const matrixUnitEmployee = employeePosition.matrixUnitEmployees?.[0]
-        const jobPosition = employeePosition.jobPosition
+      const enrichedEmployees: TeamEmployee[] = employees.map(employee => {
+        const matrixUnitEmployee = employee.employeePosition?.matrixUnitEmployees?.[0]
+        const jobPosition = employee.employeePosition?.jobPosition
         const workingHours = employee.workingHours?.[0]
 
         return {
@@ -145,7 +156,13 @@ export const useTeamAssignments = (accessToken: string) => {
           percentage: matrixUnitEmployee?.percentage,
           teamAssignmentId: matrixUnitEmployee?.id,
           jobPosition: jobPosition?.name,
-          totalAllocationPercent: workingHours?.totalAllocationPercent ?? null
+          totalAllocationPercent: workingHours
+            ? {
+                id: workingHours.id,
+                version: workingHours.version,
+                totalAllocationPercent: workingHours.totalAllocationPercent
+              }
+            : null
         }
       })
 
@@ -159,19 +176,58 @@ export const useTeamAssignments = (accessToken: string) => {
   const assignEmployeeToTeam = useCallback(
     async (payload: AssignEmployeePayload[]): Promise<any> => {
       try {
-        const response = await restClient.post(`/employee-assignments/matrix-unit`, payload, {
+        const formattedPayload = payload.map(employee => ({
+          employeeId: employee.employeeId,
+          structureId: employee.structureId,
+          matrixUnitId: employee.matrixUnitId,
+          percentage: employee.percentage
+        }))
+
+        const response = await restClientOrgchart.post(`/employee-assignments/matrix-unit`, formattedPayload, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           }
         })
+
+        // Wait for all working hours updates to complete before returning
+        await Promise.all(
+          payload.map(async employee => {
+            const totalAllocationPercent = employee.totalAllocationPercent
+
+            const workingHoursPayload = {
+              changeMode: 'INSERT',
+              employeeWorkingHours: {
+                employeeId: employee.employeeId,
+                totalAllocationPercent: totalAllocationPercent
+                  ? (totalAllocationPercent.totalAllocationPercent ?? 0) + employee.percentage
+                  : employee.percentage,
+                ...(totalAllocationPercent && {
+                  id: totalAllocationPercent.id,
+                  version: totalAllocationPercent.version
+                })
+              }
+            }
+            await restClientEmployees.post(
+              `/${totalAllocationPercent ? 'updateEmployeeWorkingHours' : 'createEmployeeWorkingHours'}`,
+              workingHoursPayload,
+              {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            )
+          })
+        )
+
         return response
       } catch (error) {
         console.error('Error assigning employees to team:', error)
         throw error
       }
     },
-    [restClient, accessToken]
+    [restClientOrgchart, restClientEmployees, accessToken]
   )
 
   /**
@@ -191,35 +247,22 @@ export const useTeamAssignments = (accessToken: string) => {
         const { searchCriteria = '', page = 0, size = 10, matrixUnitId, structureId } = params
         const offset = page * size
 
-        // Build where condition
+        // Build where condition - exclude employees already in this team, include only from this structure
         const whereCondition: any = {
           employeePosition: {
-            matrixUnitId: { _neq: matrixUnitId },
-            structureId: { _eq: structureId }
+            structureId: { _eq: structureId },
+            _not: {
+              matrixUnitEmployees: {
+                matrixUnitId: { _eq: matrixUnitId }
+              }
+            }
           }
         }
 
         // Add search condition if provided
         if (searchCriteria.trim()) {
           const searchPattern = { _ilike: `%${searchCriteria.trim()}%` }
-          // Combine conditions: matrixUnitId != X AND structureId = Y AND (firstName ILIKE search OR lastName ILIKE search)
-          whereCondition._and = [
-            {
-              employeePosition: {
-                matrixUnitEmployees: {
-                  matrixUnitId: { _neq: matrixUnitId },
-                  structureId: { _eq: structureId }
-                }
-              }
-            },
-            {
-              _or: [
-                { employeePosition: { firstName: searchPattern } },
-                { employeePosition: { lastName: searchPattern } }
-              ]
-            }
-          ]
-          delete whereCondition.employeePosition
+          whereCondition.employeePosition._or = [{ firstName: searchPattern }, { lastName: searchPattern }]
         }
 
         const query = `
@@ -247,6 +290,8 @@ export const useTeamAssignments = (accessToken: string) => {
                 }
               }
               workingHours {
+                id
+                version
                 totalAllocationPercent
               }
             }
@@ -278,6 +323,8 @@ export const useTeamAssignments = (accessToken: string) => {
             } | null
             workingHours: Array<{
               totalAllocationPercent: number | null
+              id: string
+              version: number
             }>
           }>
         }>(query, {
@@ -306,7 +353,8 @@ export const useTeamAssignments = (accessToken: string) => {
                     jobPositionName: employeePosition.jobPosition.name,
                     id: employeePosition.jobPosition.id
                   }
-                : undefined
+                : undefined,
+              totalAllocationPercent: emp.workingHours?.[0]
             }
           })
 
@@ -320,18 +368,75 @@ export const useTeamAssignments = (accessToken: string) => {
   )
 
   /**
+   * Update total allocation percent for an employee (subtract project allocation)
+   * @param employee - The employee with their current allocation data
+   * @returns Promise resolving when the update is complete
+   */
+  const updateEmployeeTotalAllocation = async (employee: TeamEmployee): Promise<void> => {
+    const totalAllocationPercent = employee.totalAllocationPercent
+    const workingHoursPayload = {
+      changeMode: 'UPDATE',
+      employeeWorkingHours: {
+        employeeId: employee?.id ?? '',
+        totalAllocationPercent: totalAllocationPercent
+          ? (totalAllocationPercent.totalAllocationPercent ?? 0) - (employee.percentage ?? 0)
+          : employee.percentage,
+        ...(totalAllocationPercent && {
+          id: totalAllocationPercent.id,
+          version: totalAllocationPercent.version
+        })
+      }
+    }
+
+    await restClientEmployees.post(`/updateEmployeeWorkingHours`, workingHoursPayload, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    })
+  }
+
+  /**
    * Remove an employee from a team
-   * @param employeeAssignmentId - The employee assignment ID (from employee.matrixUnit.matrixUnitAssignmentId)
+   * Updates totalAllocationPercent and deletes the assignment
+   * @param employee - The employee to remove
    * @returns Promise resolving to the deletion response
    */
-  const removeEmployeeFromTeam = async (employeeAssignmentId: string): Promise<any> => {
+  const removeEmployeeFromTeam = async (employee: TeamEmployee): Promise<any> => {
     try {
-      const response = await restClient.delete(`/employee-assignments/matrix-unit/${employeeAssignmentId}`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      })
+      // Update total allocation
+      await updateEmployeeTotalAllocation(employee)
+
+      // Delete the assignment
+      const response = await restClientOrgchart.delete(
+        `/employee-assignments/matrix-unit/${employee.teamAssignmentId}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      )
       return response
     } catch (error) {
       console.error('Error removing employee from team:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Reset total allocation for all employees in a team
+   * Use this when deleting a team (BE auto-deletes assignments, we just need to update totals)
+   * @param teamId - The team (matrix unit) ID
+   * @returns Promise resolving when all allocations have been updated
+   */
+  const resetTeamAllocations = async (teamId: string): Promise<void> => {
+    try {
+      // Get all employees assigned to this team
+      const employees = await getTeamEmployees(teamId)
+
+      if (employees.length === 0) {
+        return
+      }
+
+      // Update total allocation for each employee in parallel (subtract their project percentage)
+      await Promise.all(employees.map(employee => updateEmployeeTotalAllocation(employee)))
+    } catch (error) {
+      console.error('Error resetting team allocations:', error)
       throw error
     }
   }
@@ -340,6 +445,7 @@ export const useTeamAssignments = (accessToken: string) => {
     getTeamEmployees,
     assignEmployeeToTeam,
     getAvailableEmployees,
-    removeEmployeeFromTeam
+    removeEmployeeFromTeam,
+    resetTeamAllocations
   }
 }

@@ -82,6 +82,7 @@ export const useTeams = (context: BusinessAppContextProps) => {
         }
       })
       structureId.current = getStructureResponse.structure.structureId
+      // structureId.current = '4ff76a51-551d-4d5a-8e50-28ef08c6ab67'
 
       const response = await restClient.get<MatrixTeamApiResponse[]>('/matrix-units', {
         params: { structureId: structureId.current },

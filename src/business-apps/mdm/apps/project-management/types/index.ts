@@ -1,7 +1,30 @@
 import { Icon as PhosphorIcon } from '@phosphor-icons/react'
 
+// Project status enums
+export enum ProjectStatusBE {
+  PLANNED = 'PLANNED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  ON_HOLD = 'ON_HOLD',
+  CANCELLED = 'CANCELLED',
+  COMPLETED = 'COMPLETED'
+}
+
+export enum ProjectTypeBE {
+  INTERNAL = 'INTERNAL',
+  EXTERNAL = 'EXTERNAL'
+}
+
+export enum ProjectStatusUI {
+  Planned = 'Planned',
+  InProgress = 'In Progress',
+  OnHold = 'On Hold',
+  Canceled = 'Canceled',
+  Completed = 'Completed'
+}
+
 // Project data types
 export interface ProjectManager {
+  displayName?: string
   firstName?: string
   lastName?: string
   pictureThumbnail?: string
@@ -10,6 +33,7 @@ export interface ProjectManager {
 export interface MatrixTeam {
   matrixId?: string
   matrixName?: string
+  teamMembersCount?: number
 }
 
 export interface ProjectData {
@@ -18,13 +42,14 @@ export interface ProjectData {
   description?: string
   validFrom?: string
   validTo?: string
+  closureDate?: string
   structureId: string
-  projectType: string
+  projectType: ProjectTypeBE
   customerId?: string
   projectManagerId?: string
-  projectStatus?: string
-  manager?: ProjectManager
-  matrixTeam?: MatrixTeam
+  status?: ProjectStatusBE | null
+  matrixUnitId?: string
+  hoursBudget?: number | null
 }
 
 export interface Project {
@@ -37,10 +62,10 @@ export interface Project {
   projectType: string
   customerId?: string
   projectManagerId?: string
-  projectStatus?: string
+  hoursBudget?: number | null
   manager?: ProjectManager
   matrixTeam?: MatrixTeam
-  status: 'Active' | 'Planned' | 'Delayed' | 'Closed'
+  status: ProjectStatusUI
   isActive: boolean
   daysUntilExpiry?: number
   daysUntilStart?: number

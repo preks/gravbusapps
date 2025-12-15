@@ -78,14 +78,14 @@ const FormWrapperModal = ({
   dataTestId = 'form-wrapper-modal',
   open,
   setOpen,
-  isValid = true,
+  // isValid = true,
   setCodeError,
 
   // Form handling
   form: externalForm,
   resolver,
   validateForm,
-  isSubmitDisabled = false,
+  // isSubmitDisabled = false,
   preventDuplicateSubmission = true,
   updateValues,
   resetFields,
@@ -117,9 +117,9 @@ const FormWrapperModal = ({
   // Create internal form if no external form provided
   const internalForm = useForm<FieldValues>({ defaultValues, resolver, mode: 'onChange' })
   const form = externalForm || internalForm
-  const isFormValid = useMemo(() => {
-    return form.formState.isValid && form.formState.isDirty
-  }, [form.formState.isValid, form.formState.isDirty])
+  // const isFormValid = useMemo(() => {
+  //   return form.formState.isValid && form.formState.isDirty
+  // }, [form.formState.isValid, form.formState.isDirty])
 
   useEffect(() => {
     form.reset(defaultValues)
@@ -279,7 +279,7 @@ const FormWrapperModal = ({
                 )}
                 <Button
                   type="submit"
-                  disabled={loading || isSubmitting || isSubmitDisabled || !isValid || !isFormValid}
+                  // disabled={loading || isSubmitting || isSubmitDisabled || !isValid || !isFormValid}
                   variant={submitButtonVariant}
                   data-testid={submitButtonTestId || `${dataTestId}-submit-button`}
                 >

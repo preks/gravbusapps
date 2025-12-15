@@ -12,6 +12,7 @@ import * as z from 'zod'
 
 const DATA_TEST_ID_PREFIX = 'EmployeeAllocationForm'
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+const EMPLOYEES_BASE_URL = `${env('NEXT_PUBLIC_BASE_URL')}/processes/employee`
 
 // Create dynamic schema based on employee data
 const createEmployeeAllocationFormSchema = (
@@ -71,10 +72,16 @@ export interface EmployeeAllocationFormProps extends BusinessAppContextProps {
   open?: boolean
   setOpen?: Dispatch<SetStateAction<boolean>>
   onSubmit?: () => void
+  totalAllocationPercent: {
+    id: string
+    version: number
+    totalAllocationPercent: number | null
+  } | null
 }
 
 const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
   employee,
+  totalAllocationPercent,
   teamId,
   structureId,
   onCancel,
@@ -88,12 +95,14 @@ const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
   onSubmit
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const restClientOrgchart = useRestClient(ORGCHART_BASE_URL)
+  const restClientEmployees = useRestClient(EMPLOYEES_BASE_URL)
   const { t } = useTranslation('master-data')
 
   const [loading, setLoading] = useState(false)
   const employeeName =
     employee.fullName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Employee'
+  const employeePercentage = employee.percentage ?? 0
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
@@ -105,14 +114,39 @@ const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
         matrixUnitId: teamId,
         percentage: values.percentage === '' ? 0 : Number(values.percentage)
       }
+      const percentageDifference = (values.percentage as number) - employeePercentage
 
       // Use PUT to update the allocation
-      await restClient.put(`/employee-assignments/matrix-unit/${employee.teamAssignmentId}`, payload, {
+      await restClientOrgchart.put(`/employee-assignments/matrix-unit/${employee.teamAssignmentId}`, payload, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       })
+
+      const workingHoursPayload = {
+        changeMode: 'INSERT',
+        employeeWorkingHours: {
+          employeeId: employee.employeeId || employee.id,
+          totalAllocationPercent: totalAllocationPercent
+            ? (totalAllocationPercent.totalAllocationPercent ?? 0) + percentageDifference
+            : values.percentage,
+          ...(totalAllocationPercent && {
+            id: totalAllocationPercent.id,
+            version: totalAllocationPercent.version
+          })
+        }
+      }
+      await restClientEmployees.post(
+        `/${totalAllocationPercent ? 'updateEmployeeWorkingHours' : 'createEmployeeWorkingHours'}`,
+        workingHoursPayload,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
 
       refetch?.()
       onSubmit?.()
@@ -132,7 +166,10 @@ const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
 
   // Create dynamic Zod resolver based on employee data
   const resolver = useMemo(() => {
-    const schema = createEmployeeAllocationFormSchema(employee.percentage ?? 0, employee.totalAllocationPercent)
+    const schema = createEmployeeAllocationFormSchema(
+      employee.percentage ?? 0,
+      employee.totalAllocationPercent?.totalAllocationPercent ?? 0
+    )
     return zodResolver(schema) as any
   }, [employee.percentage, employee.totalAllocationPercent])
 

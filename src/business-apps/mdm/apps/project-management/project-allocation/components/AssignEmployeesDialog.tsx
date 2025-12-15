@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useDebounce } from '@/common/hooks/useDebounce'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   Dialog,
@@ -50,7 +51,8 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { getAvailableEmployees, assignEmployeeToTeam } = useTeamAssignments(accessToken)
 
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const debouncedSearch = useDebounce(searchInput, 300)
   const [currentPage, setCurrentPage] = useState(0)
   const [pageSize] = useState(10)
   const [employees, setEmployees] = useState<AvailableEmployee[]>([])
@@ -59,7 +61,6 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
   const [isAssigning, setIsAssigning] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  console.log('employees', employees)
 
   // Load employees
   const loadEmployees = useCallback(
@@ -93,7 +94,7 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
   // Initial load when dialog opens
   const initializeDialog = useCallback(async () => {
     setCurrentPage(0)
-    setSearchTerm('')
+    setSearchInput('')
     setSelectedEmployees(new Map())
     setEmployees([])
     setHasMore(false)
@@ -106,16 +107,16 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
     }
   }, [open, initializeDialog])
 
-  // Handle search change
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const searchValue = e.target.value
-      setSearchTerm(searchValue)
-      setCurrentPage(0)
-      loadEmployees(0, searchValue)
-    },
-    [loadEmployees]
-  )
+  // Handle search input change (instant update)
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value)
+  }, [])
+
+  // Trigger search when debounced value changes
+  useEffect(() => {
+    setCurrentPage(0)
+    loadEmployees(0, debouncedSearch, false)
+  }, [debouncedSearch, loadEmployees])
 
   // Handle infinite scroll
   const handleScroll = useCallback(() => {
@@ -125,9 +126,9 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
     if (scrollTop + clientHeight >= scrollHeight - 100) {
       const nextPage = currentPage + 1
       setCurrentPage(nextPage)
-      loadEmployees(nextPage, searchTerm, true)
+      loadEmployees(nextPage, debouncedSearch, true)
     }
-  }, [isLoading, hasMore, currentPage, searchTerm, loadEmployees])
+  }, [isLoading, hasMore, currentPage, debouncedSearch, loadEmployees])
 
   // Handle checkbox change
   const handleCheckboxChange = useCallback((employee: AvailableEmployee, checked: boolean) => {
@@ -145,13 +146,15 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
     })
   }, [])
 
-  // Handle allocation percentage change
-  const handleAllocationChange = useCallback((employeeId: string, value: string) => {
+  // Handle allocation percentage change with available allocation limit
+  const handleAllocationChange = useCallback((employeeId: string, value: string, availableAllocation: number) => {
     setSelectedEmployees(prev => {
       const newMap = new Map(prev)
       const employee = newMap.get(employeeId)
       if (employee) {
-        const numValue = value === '' ? 0 : Math.max(0, Math.min(100, Number(value)))
+        // Limit to available allocation (can't exceed 100% total)
+        const maxAllowed = Math.max(0, availableAllocation)
+        const numValue = value === '' ? 0 : Math.max(0, Math.min(maxAllowed, Number(value)))
         newMap.set(employeeId, {
           ...employee,
           allocationPercentage: numValue
@@ -167,11 +170,13 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
 
     try {
       setIsAssigning(true)
+
       const payload = Array.from(selectedEmployees.values()).map(employee => ({
         employeeId: employee.id,
         structureId,
         matrixUnitId: teamId,
-        percentage: employee.allocationPercentage
+        percentage: employee.allocationPercentage,
+        totalAllocationPercent: employee.totalAllocationPercent
       }))
 
       await assignEmployeeToTeam(payload)
@@ -223,7 +228,7 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
           <div className="gba:mb-4 gba:relative">
             <Input
               placeholder={t('actions.search', { defaultValue: 'Search employees...' })}
-              value={searchTerm}
+              value={searchInput}
               onChange={handleSearchChange}
               className="gba:pl-10"
               data-testid={`${dataTestId}-search-input`}
@@ -241,18 +246,26 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
             {employees.map(employee => {
               const isSelected = isEmployeeSelected(employee.id)
               const allocation = getEmployeeAllocation(employee.id)
+              const totalAllocationPercent = employee.totalAllocationPercent?.totalAllocationPercent ?? 0
+              const availableAllocation = 100 - totalAllocationPercent
               const employeeFullName =
                 employee.fullName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+
+              const isFullyAllocated = availableAllocation === 0
 
               return (
                 <div
                   key={employee.id}
                   role="button"
-                  tabIndex={0}
-                  className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:border-border gba:rounded-lg gba:hover:bg-accent/50 gba:transition-colors gba:cursor-pointer"
-                  onClick={() => handleCheckboxChange(employee, !isSelected)}
+                  tabIndex={isFullyAllocated ? -1 : 0}
+                  className={`gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:border-border gba:rounded-lg gba:transition-colors ${
+                    isFullyAllocated
+                      ? 'gba:opacity-60 gba:cursor-not-allowed'
+                      : 'gba:hover:bg-accent/50 gba:cursor-pointer'
+                  }`}
+                  onClick={() => !isFullyAllocated && handleCheckboxChange(employee, !isSelected)}
                   onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    if (!isFullyAllocated && (e.key === 'Enter' || e.key === ' ')) {
                       e.preventDefault()
                       handleCheckboxChange(employee, !isSelected)
                     }
@@ -282,31 +295,54 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
                     )}
                   </div>
 
-                  {/* Allocation Input (only shown when selected) */}
-                  {isSelected && (
-                    <div
-                      className="gba:flex gba:items-center gba:gap-2"
-                      onClick={e => e.stopPropagation()}
-                      onKeyDown={e => e.stopPropagation()}
+                  {/* Allocation Info & Input */}
+                  <div
+                    className="gba:flex gba:items-center gba:gap-3"
+                    onClick={e => e.stopPropagation()}
+                    onKeyDown={e => e.stopPropagation()}
+                  >
+                    {/* Available allocation badge */}
+                    <span
+                      className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded ${
+                        availableAllocation > 0
+                          ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
+                          : 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground'
+                      }`}
                     >
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={allocation === 0 ? '' : allocation}
-                        onChange={e => handleAllocationChange(employee.id, e.target.value)}
-                        placeholder="0"
-                        className="gba:w-20"
-                        data-testid={`${dataTestId}-allocation-input-${employee.id}`}
-                      />
-                      <span className="gba:text-sm gba:text-muted-foreground">%</span>
-                    </div>
-                  )}
+                      {availableAllocation > 0
+                        ? `${availableAllocation}% ${getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:smart_project.available',
+                            'available'
+                          )}`
+                        : getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:smart_project.fully_allocated',
+                            'Fully allocated'
+                          )}
+                    </span>
 
-                  {/* Checkbox */}
+                    {/* Allocation Input (only shown when selected and has available allocation) */}
+                    {isSelected && availableAllocation > 0 && (
+                      <div className="gba:flex gba:items-center gba:gap-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          max={availableAllocation}
+                          value={allocation === 0 ? '' : allocation}
+                          onChange={e => handleAllocationChange(employee.id, e.target.value, availableAllocation)}
+                          placeholder="0"
+                          className="gba:w-16"
+                          data-testid={`${dataTestId}-allocation-input-${employee.id}`}
+                        />
+                        <span className="gba:text-sm gba:text-muted-foreground">%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Checkbox - disabled if fully allocated */}
                   <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
                     <Checkbox
                       checked={isSelected}
+                      disabled={availableAllocation === 0}
                       onCheckedChange={checked => handleCheckboxChange(employee, checked === true)}
                       data-testid={`${dataTestId}-checkbox-${employee.id}`}
                     />
