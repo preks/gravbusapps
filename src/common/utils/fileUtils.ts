@@ -50,6 +50,7 @@ export function buildFileUrl(fileInfo: FileInfo, accessToken?: string): string |
 
   // If no access token, return URL string (backwards compatible)
   if (!accessToken) {
+    console.log('No access token provided, returning URL string')
     return url
   }
 

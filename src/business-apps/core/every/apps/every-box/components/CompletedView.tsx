@@ -6,12 +6,21 @@
 import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { UnifiedTask } from '@/business-apps/core/every/apps/every-api/types'
-import { Input, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import {
+  Input,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  useTranslation,
+  useLocale
+} from '@newwork/nw-design-system'
 import { Search, RefreshCw } from 'lucide-react'
 import { TaskCard } from './TaskCard'
 import { TaskDetailDialog } from './TaskDetailDialog'
 import { EmptyState } from './EmptyState'
 import { useEmployeeAvatarsBatch } from '../hooks/useEmployeeAvatarsBatch'
+import translations from '../_i18n'
 
 interface CompletedViewProps extends BusinessAppContextProps {
   tasks: UnifiedTask[]
@@ -33,6 +42,8 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
   hasMore,
   ...context
 }) => {
+  const { t } = useTranslation(translations)
+  const { locale } = useLocale()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null)
 
@@ -84,7 +95,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
         <div className="gba:relative gba:flex-1">
           <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
           <Input
-            placeholder="Search completed tasks..."
+            placeholder={t('completed-search-placeholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="gba:pl-11"
@@ -106,7 +117,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
       {/* Error Alert */}
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Error Loading Completed Tasks</AlertTitle>
+          <AlertTitle>{t('completed-error-title')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -115,13 +126,22 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
       {filteredTasks.length === 0 ? (
         <EmptyState
           type="completed"
-          message={searchQuery.trim() ? `No completed tasks found matching "${searchQuery}"` : 'No completed tasks yet'}
+          message={
+            searchQuery.trim() ? t('completed-empty-search', { query: searchQuery }) : t('completed-empty-default')
+          }
         />
       ) : (
         <>
           <div className="gba:space-y-1.5" data-testid="completed-task-list">
             {filteredTasks.map(task => (
-              <TaskCard key={task.id} task={task} onView={setSelectedTask} employeeMap={employeeMap} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                onView={setSelectedTask}
+                employeeMap={employeeMap}
+                t={t}
+                locale={locale}
+              />
             ))}
           </div>
 
@@ -129,7 +149,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
           {!searchQuery.trim() && (
             <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t">
               <p className="gba:text-sm gba:text-muted-foreground">
-                Showing {filteredTasks.length} of {totalCount} completed tasks
+                {t('completed-showing', { current: filteredTasks.length, total: totalCount })}
               </p>
               {hasMore && (
                 <Button
@@ -138,7 +158,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
                   disabled={isLoading}
                   data-testid="completed-load-more-button"
                 >
-                  Load More
+                  {t('completed-load-more')}
                 </Button>
               )}
             </div>

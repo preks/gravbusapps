@@ -63,6 +63,10 @@ export interface InvestmentReport extends BaseEntity {
   fundManagerName?: string
   identification?: any // Jsonb
 
+  // Financial metrics
+  irr?: number // Internal Rate of Return
+  moic?: number // Multiple on Invested Capital
+
   // Additional metadata fields
   businessKey?: string // Business identifier for external integrations
   processInstanceId?: string // Kogito process tracking
@@ -216,6 +220,10 @@ export const InvestmentReportFields = {
   fundManagerName: 'fundManagerName',
   identification: 'identification',
 
+  // Financial metrics
+  irr: 'irr',
+  moic: 'moic',
+
   // Additional metadata fields
   businessKey: 'businessKey',
   processInstanceId: 'processInstanceId',
@@ -275,7 +283,11 @@ export const InvestmentReportFormFields = {
   totalCommitmentAmount: 'totalCommitmentAmount',
   totalDistributionAmount: 'totalDistributionAmount',
   fundManagerName: 'fundManagerName',
-  identification: 'identification'
+  identification: 'identification',
+
+  // Financial metrics
+  irr: 'irr',
+  moic: 'moic'
 } as const
 
 /**
@@ -285,6 +297,9 @@ export const EquityInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
   additionalProperties: 'additionalProperties',
+  // Report Core Fields
+  date: 'date',
+  scope: 'scope',
   // Equity Investment Report Fields
   marketValue: 'marketValue',
   turnoverAmount: 'turnoverAmount',
@@ -299,6 +314,9 @@ export const LiquidFundInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
   additionalProperties: 'additionalProperties',
+  // Report Core Fields
+  date: 'date',
+  scope: 'scope',
   // Liquid Fund Investment Report Fields
   proprietorName: 'proprietorName',
   bankName: 'bankName',
@@ -318,6 +336,9 @@ export const RealEstateInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
   additionalProperties: 'additionalProperties',
+  // Report Core Fields
+  date: 'date',
+  scope: 'scope',
   // Real Estate Investment Report Fields
   size: 'size',
   numberOfUnits: 'numberOfUnits',
@@ -434,6 +455,20 @@ export const createInvestmentReportDescriptors = (
     searchPaths: [fields.fundManagerName],
     sortPath: fields.fundManagerName,
     type: 'text'
+  },
+
+  // Financial Metrics
+  {
+    key: 'irr',
+    searchPaths: [fields.irr],
+    sortPath: fields.irr,
+    type: 'number'
+  },
+  {
+    key: 'moic',
+    searchPaths: [fields.moic],
+    sortPath: fields.moic,
+    type: 'number'
   },
 
   // Catalog References

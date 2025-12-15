@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import {
-  Button,
-  Spinner,
-  RecordLayout,
-  Badge,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@newwork/nw-design-system'
+import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
 import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -17,7 +8,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { getContactTypeDisplayValue, getContactFullName } from './utils'
+import { getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { Bot } from 'lucide-react'
 import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
@@ -430,29 +421,8 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }
 
-  // Create header title with contact type badge
-  const contactType = contactData?.type
-  const contactTypeLabel = getContactTypeDisplayValue(contactData, null)
-
-  const headerTitle = (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <span>{fullName}</span>
-      {contactType && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge data-testid="contact-type-badge" variant="outline" className="gba:text-sm">
-                {contactTypeLabel}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent data-testid="contact-type-tooltip">
-              {getTranslationFromI18nKeyAndLabel('crm.common.contactType', 'Contact Type')}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-    </div>
-  )
+  // Header title without contact type badge (contact type shown in Account Section)
+  const headerTitle = fullName
 
   return (
     <div data-testid="investment-contact-detail">

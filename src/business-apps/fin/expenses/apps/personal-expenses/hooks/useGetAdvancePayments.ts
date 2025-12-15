@@ -170,7 +170,8 @@ export interface AdvancePaymentsDataView {
     advanceRange?: { min?: number; max?: number } | null,
     sortField?: string | null,
     sortOrder?: 'ascend' | 'descend' | null,
-    currencyRef?: string | null
+    currencyRef?: string | null,
+    options?: { force?: boolean }
   ) => Promise<void>
 }
 
@@ -193,7 +194,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       advanceRange: { min?: number; max?: number } | null = null,
       sortField?: string | null,
       sortOrder?: 'ascend' | 'descend' | null,
-      currencyRef?: string | null
+      currencyRef?: string | null,
+      options?: { force?: boolean }
     ) => {
       const employeeId = context?.userInfo?.employeeDetails?.employeeId
       const accessToken = context?.accessToken
@@ -215,8 +217,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         currencyRef,
         employeeId
       })
-      if (callSignature === lastCallSignatureRef.current) {
-        // Skip duplicate identical request
+      if (!options?.force && callSignature === lastCallSignatureRef.current) {
+        // Skip duplicate identical request unless force-refresh is requested
         return
       }
       lastCallSignatureRef.current = callSignature

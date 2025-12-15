@@ -15,7 +15,7 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import dayjs from 'dayjs'
@@ -79,9 +79,6 @@ const FeedbackApproval: React.FC<FeedbackApprovalProps> = ({ accessToken, additi
 
   // NOTE: No need to manually fetch employee data anymore!
   // TaskDetailHeader will auto-fetch using employeeId prop + accessToken
-
-  // Get task source from process metadata (fallback to 'kogito' if not available)
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
 
   // Use generic hooks for entity dates (request created)
   const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
@@ -244,14 +241,7 @@ const FeedbackApproval: React.FC<FeedbackApprovalProps> = ({ accessToken, additi
     return (
       <TaskFormLayout
         data-testid="feedback-approval"
-        header={
-          <TaskDetailHeader
-            title={taskTitle}
-            status={taskStatus}
-            source={taskSource}
-            onClose={isEveryBoxContext ? handleCancel : undefined}
-          />
-        }
+        header={<TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleCancel : undefined} />}
       >
         <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
           <Alert variant="destructive" data-testid="error-message">
@@ -268,8 +258,6 @@ const FeedbackApproval: React.FC<FeedbackApprovalProps> = ({ accessToken, additi
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeId={feedbackData.senderEmployeeId}
           accessToken={accessToken}

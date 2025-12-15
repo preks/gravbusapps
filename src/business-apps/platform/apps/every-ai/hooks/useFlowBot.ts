@@ -318,9 +318,16 @@ export function useFlowBot(accessToken: string) {
 
     if (analyticsEntity?.id && analyticsEntity.type !== 'unknown') {
       try {
-        return await getPageAnalyticsContext(baseCurrentPage)
+        // Add timeout to prevent blocking (2 seconds max)
+        const analyticsPromise = getPageAnalyticsContext(baseCurrentPage)
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Analytics timeout')), 2000)
+        )
+
+        return await Promise.race([analyticsPromise, timeoutPromise])
       } catch (error) {
-        console.error('Failed to enrich page context with analytics:', error)
+        console.warn('⚠️ [EveryAI] Analytics enrichment failed or timed out, using basic context:', error)
+        // Fall through to basic context
       }
     }
 
@@ -480,9 +487,7 @@ export function useFlowBot(accessToken: string) {
 
         // Use local FlowBot in development
         const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        const baseUrl = isLocalDev
-          ? 'http://localhost:8000'
-          : FLOWBOT_BASE_URL
+        const baseUrl = isLocalDev ? 'http://localhost:8000' : FLOWBOT_BASE_URL
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
 
         // Debug log only in development

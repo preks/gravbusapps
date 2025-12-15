@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { MessageSquare, TrendingUp } from 'lucide-react'
@@ -11,9 +11,89 @@ interface TrendingNowProps {
   entries: ContentEntry[]
   className?: string
   currentTab?: string
+  accessToken?: string
 }
 
-const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', currentTab }) => {
+// Helper component to handle async blob URL for trending images
+const TrendingImage: React.FC<{ picture: any; accessToken?: string; alt: string }> = ({
+  picture,
+  accessToken,
+  alt
+}) => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const blobUrlRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    // Clean up previous blob URL if it exists
+    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(blobUrlRef.current)
+      blobUrlRef.current = null
+    }
+
+    if (!picture) {
+      setImageUrl(null)
+      return
+    }
+
+    let fileInfo: any = null
+    try {
+      fileInfo = typeof picture === 'string' ? JSON.parse(picture) : picture
+    } catch {
+      if (typeof picture === 'string' && picture.startsWith('data:')) {
+        setImageUrl(picture)
+        return
+      }
+      setImageUrl(picture)
+      return
+    }
+
+    if (!fileInfo?.path) {
+      setImageUrl(null)
+      return
+    }
+
+    if (accessToken) {
+      let isCancelled = false
+
+      const fetchImage = async () => {
+        try {
+          const blobUrl = await buildFileUrl(fileInfo, accessToken)
+          if (!isCancelled) {
+            blobUrlRef.current = blobUrl
+            setImageUrl(blobUrl)
+          } else {
+            URL.revokeObjectURL(blobUrl)
+          }
+        } catch (error) {
+          if (!isCancelled) {
+            console.error('[TrendingNow] Error fetching image:', error)
+            setImageUrl(null)
+          }
+        }
+      }
+
+      fetchImage()
+
+      return () => {
+        isCancelled = true
+        if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+          URL.revokeObjectURL(blobUrlRef.current)
+          blobUrlRef.current = null
+        }
+      }
+    } else {
+      setImageUrl(buildFileUrl(fileInfo))
+    }
+  }, [picture, accessToken])
+
+  if (imageUrl) {
+    return <img src={imageUrl} alt={alt} className="gba:w-full gba:h-full gba:object-cover" />
+  }
+
+  return null
+}
+
+const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', currentTab, accessToken }) => {
   const { t } = useTranslation(translations)
 
   // Use smart trending algorithm
@@ -53,26 +133,13 @@ const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', curr
           data-testid={`trending-article-${entry.id}`}
         >
           <div className="gba:w-16 gba:h-16 gba:rounded-md gba:overflow-hidden gba:shrink-0">
-            {(() => {
-              let imageUrl: string | null = null
-              if (entry.picture) {
-                try {
-                  const fileInfo = typeof entry.picture === 'string' ? JSON.parse(entry.picture) : entry.picture
-                  if (fileInfo?.path) {
-                    imageUrl = buildFileUrl(fileInfo)
-                  }
-                } catch {
-                  imageUrl = entry.picture // Old format: direct URL or base64
-                }
-              }
-              return imageUrl ? (
-                <img src={imageUrl} alt={entry.title || ''} className="gba:w-full gba:h-full gba:object-cover" />
-              ) : (
-                <div className="gba:w-full gba:h-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground">
-                  {t('no_image')}
-                </div>
-              )
-            })()}
+            {entry.picture ? (
+              <TrendingImage picture={entry.picture} accessToken={accessToken} alt={entry.title || ''} />
+            ) : (
+              <div className="gba:w-full gba:h-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground">
+                {t('no_image')}
+              </div>
+            )}
           </div>
 
           <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0">

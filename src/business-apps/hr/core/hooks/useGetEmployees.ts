@@ -20,6 +20,15 @@ export interface Employee {
   employmentType?: string
   contractType?: string
   matrixTeams?: string[]
+  // Availability/status fields
+  status?: 'Available' | 'On Leave'
+  currentAbsence?: {
+    type: string
+    parentEntryId?: string // e.g., 'AbsenceGroup:v1:HEALTH' for sick leave
+    startDate: string
+    endDate: string
+    status: string
+  }
 }
 
 /**
