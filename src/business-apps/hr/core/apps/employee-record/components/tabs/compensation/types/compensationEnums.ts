@@ -198,20 +198,18 @@ export const isBenefitActive = (benefit: {
   // Parse and validate dates
   const start = parseDate(benefit.startDate)
   const end = parseDate(benefit.endDate)
-  const hasValidStartDate = start !== null
-  const hasValidEndDate = end !== null
 
   // Scenario 1: Valid dates are provided - dates are authoritative
-  if (hasValidStartDate || hasValidEndDate) {
+  if (start !== null || end !== null) {
     // Check if benefit has started (if valid startDate is provided)
-    if (hasValidStartDate && now < start!) {
+    if (start !== null && now < start) {
       return false // Not started yet
     }
 
     // Check if benefit has ended (if valid endDate is provided)
-    if (hasValidEndDate) {
+    if (end !== null) {
       // Set end date to end of day for comparison
-      const endOfDay = new Date(end!)
+      const endOfDay = new Date(end)
       endOfDay.setHours(23, 59, 59, 999)
       if (now > endOfDay) {
         return false // Already ended
