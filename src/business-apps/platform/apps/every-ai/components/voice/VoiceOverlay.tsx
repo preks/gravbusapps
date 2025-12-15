@@ -10,6 +10,7 @@
 
 import React, { useEffect, useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
+import { getVoiceStateColor, rgbaString } from '../../utils/voiceColors'
 
 interface FormFieldSummary {
   name: string
@@ -92,25 +93,23 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
         const radius = baseRadius * (1 + layerVolume * 0.5) * (1 + layer * 0.3)
         const alpha = (1 - layer / layers) * 0.6
 
-        // Create gradient
+        // Create gradient with design system colors
         const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius)
 
+        // Get the appropriate color from design tokens
+        let stateColor: { r: number; g: number; b: number }
         if (isListening) {
-          // Green gradient for listening
-          gradient.addColorStop(0, `rgba(34, 197, 94, ${alpha})`)
-          gradient.addColorStop(0.5, `rgba(22, 163, 74, ${alpha * 0.7})`)
-          gradient.addColorStop(1, `rgba(21, 128, 61, 0)`)
+          stateColor = getVoiceStateColor('listening') // Green from design system
         } else if (isSpeaking) {
-          // Blue gradient for speaking
-          gradient.addColorStop(0, `rgba(59, 130, 246, ${alpha})`)
-          gradient.addColorStop(0.5, `rgba(37, 99, 235, ${alpha * 0.7})`)
-          gradient.addColorStop(1, `rgba(29, 78, 216, 0)`)
+          stateColor = getVoiceStateColor('speaking') // Blue from design system
         } else {
-          // Purple gradient for idle
-          gradient.addColorStop(0, `rgba(139, 92, 246, ${alpha})`)
-          gradient.addColorStop(0.5, `rgba(124, 58, 237, ${alpha * 0.7})`)
-          gradient.addColorStop(1, `rgba(109, 40, 217, 0)`)
+          stateColor = getVoiceStateColor('idle') // Purple from design system
         }
+
+        // Create gradient layers with varying opacity
+        gradient.addColorStop(0, rgbaString(stateColor, alpha))
+        gradient.addColorStop(0.5, rgbaString(stateColor, alpha * 0.7))
+        gradient.addColorStop(1, rgbaString(stateColor, 0))
 
         // Draw organic blob shape
         ctx.beginPath()
@@ -136,10 +135,11 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
       }
 
       // Inner glow core
+      const coreColor = getVoiceStateColor('core')
       const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, baseRadius * 0.5)
-      coreGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)')
-      coreGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)')
-      coreGradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+      coreGradient.addColorStop(0, rgbaString(coreColor, 0.9))
+      coreGradient.addColorStop(0.5, rgbaString(coreColor, 0.3))
+      coreGradient.addColorStop(1, rgbaString(coreColor, 0))
 
       ctx.beginPath()
       ctx.arc(centerX, centerY, baseRadius * 0.5, 0, Math.PI * 2)

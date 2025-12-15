@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, Share2 } from 'lucide-react'
@@ -41,19 +41,76 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
   const entityType = getEntityTypeFromTab(currentTab)
   const entityDisplayUrl = buildContentRecordUrl(item.id || '', currentTab)
 
-  // Parse picture JSON and build URL, with fallback for old format
-  const imageUrl = useMemo(() => {
-    if (!item.picture) return null
-    try {
-      const fileInfo = typeof item.picture === 'string' ? JSON.parse(item.picture) : item.picture
-      if (fileInfo?.path) {
-        return buildFileUrl(fileInfo)
-      }
-    } catch {
-      // Not JSON, fall through
+  // Handle image URL with async blob URL support
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const blobUrlRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    // Clean up previous blob URL if it exists
+    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(blobUrlRef.current)
+      blobUrlRef.current = null
     }
-    return item.picture // Old format: direct URL or base64
-  }, [item.picture])
+
+    if (!item.picture) {
+      setImageUrl(null)
+      return
+    }
+
+    let fileInfo: any = null
+    try {
+      fileInfo = typeof item.picture === 'string' ? JSON.parse(item.picture) : item.picture
+    } catch {
+      // If it's not JSON, check if it's a data URL (base64) - use directly
+      if (typeof item.picture === 'string' && item.picture.startsWith('data:')) {
+        setImageUrl(item.picture)
+        return
+      }
+      // Otherwise try to use as direct URL (old format)
+      setImageUrl(item.picture)
+      return
+    }
+
+    if (!fileInfo?.path) {
+      setImageUrl(null)
+      return
+    }
+
+    // If accessToken is provided, fetch as blob URL (async)
+    if (accessToken) {
+      let isCancelled = false
+
+      const fetchImage = async () => {
+        try {
+          const blobUrl = await buildFileUrl(fileInfo, accessToken)
+          if (!isCancelled) {
+            blobUrlRef.current = blobUrl
+            setImageUrl(blobUrl)
+          } else {
+            URL.revokeObjectURL(blobUrl)
+          }
+        } catch (error) {
+          if (!isCancelled) {
+            console.error('[MainFeaturedArticle] Error fetching image:', error)
+            setImageUrl(null)
+          }
+        }
+      }
+
+      fetchImage()
+
+      return () => {
+        isCancelled = true
+        if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+          URL.revokeObjectURL(blobUrlRef.current)
+          blobUrlRef.current = null
+        }
+      }
+    } else {
+      // No accessToken, use plain URL (synchronous)
+      setImageUrl(buildFileUrl(fileInfo))
+    }
+  }, [item.picture, accessToken])
 
   const handleClick = () => {
     if (onClick) {

@@ -75,8 +75,9 @@ const checkIfTaskCompleted = (taskStatus: string, taskCompletedAt: any): boolean
 }
 
 // Helper: Extract employee ID from various sources
+// Priority: 1) top-level employeeId, 2) nested in bankAccount object, 3) current user (fallback)
 const extractEmployeeId = (taskPayload: any, userInfo: any): string | undefined => {
-  return taskPayload?.bankAccount?.employeeId || userInfo?.employeeDetails?.employeeId
+  return taskPayload?.employeeId || taskPayload?.bankAccount?.employeeId || userInfo?.employeeDetails?.employeeId
 }
 
 // Helper: Create catalog value formatter

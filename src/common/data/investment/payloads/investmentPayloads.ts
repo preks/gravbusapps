@@ -65,6 +65,8 @@ export interface InvestmentData {
   moic?: number | string // Multiple on Invested Capital
   investmentOpportunity?: string // uuid
   loanRecipientInvestmentAccount?: InvestmentAccount // uuid
+  company?: any // Company object or uuid
+  companyId?: string // Company uuid (alternative field name)
   additionalProperties?: any // JSON object
 
   // Investment Roles (array) - GraphQL schema name is singular
@@ -289,6 +291,13 @@ export const buildInvestmentPayload = (
     ...(investment.loanRecipientInvestmentAccount?.id && {
       loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount.id
     }),
+    // Send company as string UUID (backend expects "company" field name with UUID string value)
+    // Form uses companyId field, extract from either companyId (string) or company.id (object)
+    ...((investment as any).companyId
+      ? { company: (investment as any).companyId }
+      : investment.company?.id
+        ? { company: investment.company.id }
+        : {}),
 
     // Investment additionalProperties as JSON string
     ...(investmentAdditionalProperties && { additionalProperties: investmentAdditionalProperties })

@@ -95,8 +95,9 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   // Extract personal information data from payload
   const newPersonalInformation: PersonalInformationData = taskPayload?.personalInformation || {}
   const oldPersonalInformation: PersonalInformationData = taskPayload?.oldPersonalInformation || {}
+  // Priority: 1) top-level employeeId, 2) nested in personalInformation object, 3) current user (fallback)
   const employeeIdFromPayload: string | undefined =
-    taskPayload?.personalInformation?.id || userInfo?.employeeDetails?.employeeId
+    taskPayload?.employeeId || taskPayload?.personalInformation?.id || userInfo?.employeeDetails?.employeeId
 
   // Fetch employee and catalog data
   const { employeeData, catalogMap, loading, error, refetch } = usePersonalDataReviewData({
