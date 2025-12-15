@@ -1,103 +1,135 @@
 import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobCandidates } from '@/common/data/recruiting/hooks/useJobCandidates'
-import { Spinner, Alert, Button } from '@newwork/nw-design-system'
-import { DataDisplay, DataTable } from '@newwork/nw-design-system'
+import { DataDisplay, DataTable, Avatar, AvatarFallback } from '@newwork/nw-design-system'
+import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { JobCandidate } from '@/common/data/recruiting/types/jobCandidateTypes'
 
 export type JobCandidateViewProps = BusinessAppContextProps
 
 export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [limit, setLimit] = useState(20)
-  const [offset, setOffset] = useState(0)
-
-  const { jobCandidates, total, loading, error, refetch } = useJobCandidates(context.accessToken, {
-    search: searchTerm,
-    limit,
-    offset
+  const [search, setSearch] = useState('')
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }])
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 20
   })
 
-  const columns = useMemo(
-    () => [
-      {
-        title: getTranslationFromI18nKeyAndLabel('code', 'Code'),
-        key: 'code',
-        dataIndex: 'code'
-      },
-      {
-        title: getTranslationFromI18nKeyAndLabel('firstName', 'First Name'),
-        key: 'firstName',
-        dataIndex: 'firstName'
-      },
-      {
-        title: getTranslationFromI18nKeyAndLabel('lastName', 'Last Name'),
-        key: 'lastName',
-        dataIndex: 'lastName'
-      },
-      {
-        title: getTranslationFromI18nKeyAndLabel('email', 'Email'),
-        key: 'email',
-        dataIndex: 'email'
-      },
-      {
-        title: getTranslationFromI18nKeyAndLabel('status', 'Status'),
-        key: 'status',
-        dataIndex: 'candidateStatus',
-        render: (status: any) => status?.value || '-'
-      },
-      {
-        title: '',
-        key: 'actions',
-        width: '60px',
-        render: (_: any, record: any) => (
-          <div className="gba:flex gba:justify-start gba:gap-2">
-            <AppActionButton
-              data-testid={`job-candidate-update-button-${record.id}`}
-              size="icon"
-              contextsArray={[]}
-              externalContextData={{ jobCandidateId: record.id }}
-              prefixDataTestId="job-candidate-update"
-              accessToken={context.accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
-              onClick={e => e.stopPropagation()}
-            />
-          </div>
-        )
-      }
-    ],
+  const { jobCandidates, total, loading, error } = useJobCandidates(
+    context.accessToken,
+    {
+      search,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy: sorting.map(s => ({
+        field: s.id,
+        direction: s.desc ? ('DESC_NULLS_LAST' as const) : ('ASC_NULLS_LAST' as const)
+      }))
+    },
+    'list'
+  )
+
+  // Helper to get initials
+  const getInitials = (firstName: string, lastName: string): string => {
+    const first = firstName?.charAt(0) || ''
+    const last = lastName?.charAt(0) || ''
+    return (first + last).toUpperCase() || 'C'
+  }
+
+  // Row actions
+  const rowActions = useMemo(
+    () => (row: any) => (
+      <div className="gba:flex gba:justify-start gba:gap-2">
+        <AppActionButton
+          data-testid={`job-candidate-update-button-${row.original.id}`}
+          size="icon"
+          contextsArray={[]}
+          externalContextData={{ jobCandidateId: row.original.id }}
+          prefixDataTestId="job-candidate-update"
+          accessToken={context.accessToken}
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick
+          onClick={e => e.stopPropagation()}
+        />
+      </div>
+    ),
     [context.accessToken]
   )
 
-  if (loading && jobCandidates.length === 0) {
-    return <Spinner size="large" />
-  }
-
-  if (error) {
-    return (
-      <Alert
-        message={getTranslationFromI18nKeyAndLabel('errorLoadingData', 'Error Loading Data')}
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={() => refetch()}>
-            Retry
-          </Button>
-        }
-      />
-    )
-  }
+  // Columns
+  const columns = useMemo<ColumnDef<JobCandidate>[]>(
+    () => [
+      {
+        id: 'code',
+        accessorKey: 'code',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.code', 'Code'),
+        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
+        meta: { type: 'text' as const }
+      },
+      {
+        id: 'candidate',
+        accessorFn: row => `${row.firstName} ${row.lastName}`,
+        header: getTranslationFromI18nKeyAndLabel('recruiting.candidate', 'Candidate'),
+        cell: info => {
+          const candidate = info.row.original
+          return (
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Avatar className="gba:h-8 gba:w-8">
+                <AvatarFallback className="gba:text-xs">
+                  {getInitials(candidate.firstName, candidate.lastName)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="gba:flex gba:flex-col">
+                <span className="gba:text-sm gba:font-medium">
+                  {candidate.firstName} {candidate.lastName}
+                </span>
+              </div>
+            </div>
+          )
+        },
+        meta: { type: 'text' as const }
+      },
+      {
+        id: 'firstName',
+        accessorKey: 'firstName',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.firstName', 'First Name'),
+        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
+        meta: { type: 'text' as const }
+      },
+      {
+        id: 'lastName',
+        accessorKey: 'lastName',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.lastName', 'Last Name'),
+        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
+        meta: { type: 'text' as const }
+      },
+      {
+        id: 'createdAt',
+        accessorKey: 'createdAt',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.createdAt', 'Created'),
+        cell: info => {
+          const value = info.getValue() as string
+          return value ? (
+            <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
+          ) : (
+            <span className="gba:text-sm gba:text-muted-foreground">-</span>
+          )
+        },
+        meta: { type: 'date' as const }
+      }
+    ],
+    []
+  )
 
   return (
-    <div data-testid="job-candidate-view" className="gba:h-full gba:overflow-auto">
+    <div data-testid="job-candidate-view" className="gba:h-full">
       <DataDisplay
         titleSections={[
           {
             id: 'all',
-            label: getTranslationFromI18nKeyAndLabel('allJobCandidates', 'All Job Candidates'),
+            label: getTranslationFromI18nKeyAndLabel('recruiting.allJobCandidates', 'All Job Candidates'),
             metadata: {
               count: total,
               isLoading: loading
@@ -105,23 +137,36 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
           }
         ]}
         currentSection="all"
-        searchValue={searchTerm}
-        searchPlaceholder={getTranslationFromI18nKeyAndLabel('searchJobCandidates', 'Search job candidates...')}
-        onSearchChange={setSearchTerm}
+        searchValue={search}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+          'recruiting.searchJobCandidates',
+          'Search job candidates...'
+        )}
+        onSearchChange={setSearch}
+        toolbarDensity="default"
       >
-        <DataTable
-          columns={columns}
+        <DataTable<JobCandidate>
           data={jobCandidates}
+          columns={columns}
           loading={loading}
-          pagination={{
-            total,
-            pageSize: limit,
-            current: Math.floor(offset / limit) + 1,
-            onChange: (page, pageSize) => {
-              setOffset((page - 1) * pageSize)
-              setLimit(pageSize)
-            }
-          }}
+          error={error || undefined}
+          totalCount={total}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          tableLayout="fixed"
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage={getTranslationFromI18nKeyAndLabel('recruiting.noJobCandidatesFound', 'No job candidates found')}
+          actions={rowActions}
+          data-testid="job-candidate-list"
         />
       </DataDisplay>
     </div>

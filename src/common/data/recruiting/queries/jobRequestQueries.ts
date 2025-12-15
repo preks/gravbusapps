@@ -4,43 +4,30 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { JobRequestFields } from '../types/jobRequestTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
 /**
  * JobRequest Query Variables
  */
-export interface JobRequestQueryVariables extends BaseQueryVariables {
-  jobRequestStatusRef?: string
-  jobRequestTypeRef?: string
-  priorityRef?: string
-  departmentRef?: string
-  requestedByEmployeeId?: string
-  jobPositionId?: string
-  approvedByEmployeeId?: string
-}
+export type JobRequestQueryVariables = BaseQueryVariables
 
 /**
  * Pre-defined Query Configurations
  */
 export const JOB_REQUEST_QUERY_CONFIGS: Record<string, string[]> = {
-  minimal: ['code', 'createdAt', 'id', 'title'],
+  minimal: ['code', 'createdAt', 'id', 'name'],
   list: [
     'code',
     'createdAt',
     'id',
-    'title',
-    'requestDate',
-    'requiredStartDate',
-    'jobRequestStatus',
-    'jobRequestStatusRef',
-    'priority',
-    'priorityRef',
-    'requestedByEmployee',
-    'requestedByEmployeeId',
-    'jobPosition',
-    'jobPositionId',
+    'name',
+    'headcount',
+    'endDate',
+    'contractType',
+    'contractTypeRef',
+    'experienceLevel',
+    'experienceLevelRef',
     'updatedAt'
   ],
   record: [
@@ -48,25 +35,18 @@ export const JOB_REQUEST_QUERY_CONFIGS: Record<string, string[]> = {
     'createdAt',
     'createdBy',
     'id',
-    'title',
-    'description',
-    'requestDate',
-    'requiredStartDate',
-    'status',
-    'jobRequestStatus',
-    'jobRequestStatusRef',
-    'jobRequestType',
-    'jobRequestTypeRef',
-    'priority',
-    'priorityRef',
-    'department',
-    'departmentRef',
-    'requestedByEmployee',
-    'requestedByEmployeeId',
-    'jobPosition',
-    'jobPositionId',
-    'approvedByEmployee',
-    'approvedByEmployeeId',
+    'name',
+    'note',
+    'headcount',
+    'endDate',
+    'contractType',
+    'contractTypeRef',
+    'experienceLevel',
+    'experienceLevelRef',
+    'costCenterId',
+    'jobProfileId',
+    'organizationalUnitId',
+    'replacedPositionId',
     'updatedAt',
     'updatedBy',
     'version',
@@ -82,11 +62,14 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'id', value: 'id' },
     { key: 'version', value: 'version' },
     { key: 'code', value: JobRequestFields.code },
-    { key: 'title', value: JobRequestFields.title },
-    { key: 'description', value: JobRequestFields.description },
-    { key: 'requestDate', value: JobRequestFields.requestDate },
-    { key: 'requiredStartDate', value: JobRequestFields.requiredStartDate },
-    { key: 'status', value: JobRequestFields.status },
+    { key: 'name', value: JobRequestFields.name },
+    { key: 'note', value: JobRequestFields.note },
+    { key: 'headcount', value: JobRequestFields.headcount },
+    { key: 'endDate', value: JobRequestFields.endDate },
+    { key: 'costCenterId', value: JobRequestFields.costCenterId },
+    { key: 'jobProfileId', value: JobRequestFields.jobProfileId },
+    { key: 'organizationalUnitId', value: JobRequestFields.organizationalUnitId },
+    { key: 'replacedPositionId', value: JobRequestFields.replacedPositionId },
     { key: 'createdAt', value: 'createdAt' },
     { key: 'createdBy', value: 'createdBy' },
     { key: 'updatedAt', value: 'updatedAt' },
@@ -124,26 +107,6 @@ const buildCatalogReferenceField = (
 }
 
 /**
- * Build entity reference field fragment
- */
-const buildEntityReferenceField = (
-  fieldSet: Set<string>,
-  fieldName: string,
-  fieldRefName: string,
-  fieldKey: string,
-  refFragment: string
-): string => {
-  if (!fieldSet.has(fieldName) && !fieldSet.has(fieldRefName)) {
-    return ''
-  }
-  const hasObject = fieldSet.has(fieldName)
-  return `
-      ${hasObject ? `${fieldKey} { ${refFragment} }` : ''}
-      ${JobRequestFields[fieldRefName as keyof typeof JobRequestFields]}
-    `
-}
-
-/**
  * Build JobRequest Query Fragment from field array
  */
 export const buildJobRequestFragment = (fields: string[]): string => {
@@ -153,18 +116,8 @@ export const buildJobRequestFragment = (fields: string[]): string => {
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
     
-    ${buildCatalogReferenceField(fieldSet, 'jobRequestStatus', 'jobRequestStatusRef', JobRequestFields.jobRequestStatus)}
+    ${buildCatalogReferenceField(fieldSet, 'contractType', 'contractTypeRef', JobRequestFields.contractType)}
     
-    ${buildCatalogReferenceField(fieldSet, 'jobRequestType', 'jobRequestTypeRef', JobRequestFields.jobRequestType)}
-    
-    ${buildCatalogReferenceField(fieldSet, 'priority', 'priorityRef', JobRequestFields.priority)}
-    
-    ${buildCatalogReferenceField(fieldSet, 'department', 'departmentRef', JobRequestFields.department)}
-    
-    ${buildEntityReferenceField(fieldSet, 'requestedByEmployee', 'requestedByEmployeeId', JobRequestFields.requestedByEmployee, EMPLOYEE_REF)}
-    
-    ${buildEntityReferenceField(fieldSet, 'jobPosition', 'jobPositionId', JobRequestFields.jobPosition, 'id\n      name')}
-    
-    ${buildEntityReferenceField(fieldSet, 'approvedByEmployee', 'approvedByEmployeeId', JobRequestFields.approvedByEmployee, EMPLOYEE_REF)}
+    ${buildCatalogReferenceField(fieldSet, 'experienceLevel', 'experienceLevelRef', JobRequestFields.experienceLevel)}
   `
 }
