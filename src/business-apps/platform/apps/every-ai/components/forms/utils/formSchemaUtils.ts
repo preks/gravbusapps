@@ -78,7 +78,8 @@ export const isSearchableUuidField = (fieldName: string, schema: any): boolean =
   const employeeTimeFields = ['substituteEmployee', 'approverId']
   const crmFields = ['ownerEmployee', 'account', 'contact', 'lead', 'opportunity', 'assignedEmployee']
   const irmFields = ['ownerEmployee', 'investmentAccount', 'contact']
-  const searchableUuidFields = [...employeeTimeFields, ...crmFields, ...irmFields]
+  const feedbackFields = ['employeeId']
+  const searchableUuidFields = [...employeeTimeFields, ...crmFields, ...irmFields, ...feedbackFields]
 
   return (
     searchableUuidFields.includes(fieldName) ||
@@ -87,6 +88,7 @@ export const isSearchableUuidField = (fieldName: string, schema: any): boolean =
         (fieldName.toLowerCase().includes('substitute') ||
           fieldName.toLowerCase().includes('owner') ||
           fieldName.toLowerCase().includes('assigned'))) ||
+        fieldName.toLowerCase() === 'employeeid' ||
         fieldName.toLowerCase().includes('approver') ||
         fieldName.toLowerCase().includes('account') ||
         fieldName.toLowerCase().includes('contact') ||
