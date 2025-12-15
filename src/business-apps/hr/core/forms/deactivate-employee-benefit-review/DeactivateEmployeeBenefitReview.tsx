@@ -21,7 +21,7 @@ export const DeactivateEmployeeBenefitReview: React.FC<BusinessAppContextProps> 
     mode: 'onChange'
   })
 
-  const { employeeName, initiatorName, displayItems, deactivationDetails, employee, isLoading, error } =
+  const { initiatorName, displayItems, deactivationDetails, employee, isLoading, error } =
     useDeactivateBenefitReviewData({
       accessToken,
       additionalData,
@@ -60,10 +60,9 @@ export const DeactivateEmployeeBenefitReview: React.FC<BusinessAppContextProps> 
     )
   }
 
-  // Build title with employee name
+  // Build title (employee info is shown in FormHeader)
   const titleText = t('deactivate-benefit-review-title', {
-    employeeName: employeeName || '',
-    defaultValue: 'Benefit Deactivation Request for {employeeName}'
+    defaultValue: 'Benefit Deactivation Request'
   })
 
   // Build initiator subtitle

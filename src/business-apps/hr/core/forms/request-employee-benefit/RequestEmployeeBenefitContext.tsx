@@ -2,9 +2,14 @@ import React, { createContext, useContext, useEffect, useMemo, useState, useCall
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { EMPLOYEE_DATA_QUERY, GET_COUNTRY_CURRENCY_QUERY } from './RequestEmployeeBenefitQueries'
+import {
+  EMPLOYEE_DATA_QUERY,
+  GET_COUNTRY_CURRENCY_QUERY,
+  GET_EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY
+} from './RequestEmployeeBenefitQueries'
 import { fetchBenefitProvidersForBenefit } from './utils/fetchBenefitProviders'
 import { fetchCountryCurrency } from './utils/fetchCountryCurrency'
+import { fetchEmployeeBankAccountCurrency } from './utils/fetchEmployeeBankAccountCurrency'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 import { extractSelectedBenefit } from '@/business-apps/hr/core/utils/benefitExtractionUtils'
 import type { RequestEmployeeBenefitContextData, EmployeeDataResponse } from './types'
@@ -29,7 +34,7 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
   userInfo
 }) => {
   const graphqlClient = useGraphQLClient(accessToken)
-  const catalogClient = useCatalogManagerClient(accessToken || '')
+  const catalogClient = useCatalogManagerClient(accessToken)
   const [data, setData] = useState<RequestEmployeeBenefitContextData | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +56,9 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
     setError(null)
 
     try {
+      // Ensure catalogClient has the latest token before making requests
+      catalogClient.setAccessToken(accessToken)
+
       // Fetch employee data
       const empVariables = { idEmployee: employeeId }
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
@@ -67,17 +75,21 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
       if (selectedBenefit) {
         try {
           const countryId = selectedBenefit?.catalogEntry?.parentEntryId
-          const [providers, currency] = await Promise.all([
+          const [providers, countryCurrency, employeeBankAccountCurrency] = await Promise.all([
             fetchBenefitProvidersForBenefit(catalogClient, selectedBenefit),
             countryId
               ? fetchCountryCurrency(graphqlClient, countryId, GET_COUNTRY_CURRENCY_QUERY)
-              : Promise.resolve({ currencyRef: null, currencyCode: '' })
+              : Promise.resolve({ currencyRef: null, currencyCode: '' }),
+            fetchEmployeeBankAccountCurrency(graphqlClient, employeeId, GET_EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY)
           ])
+
+          // Use country currency if available, otherwise fall back to employee bank account currency
+          const finalCurrency = countryCurrency.currencyRef ? countryCurrency : employeeBankAccountCurrency
 
           setData(prev => ({
             ...prev!,
             benefitProviders: providers,
-            countryCurrency: currency
+            countryCurrency: finalCurrency
           }))
         } catch (error_: any) {
           setError(error_?.message || 'Data load failed')

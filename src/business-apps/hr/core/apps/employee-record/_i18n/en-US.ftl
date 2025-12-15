@@ -126,6 +126,7 @@ payslip-download-failed = Failed to download payslip. Please try again.
 
 # Request Benefit Modal
 modal-request-title = Request Benefit
+modal-request-loading = Loading benefit information...
 modal-request-description = Complete the form below to request this benefit
 modal-request-provider-label = Benefit Provider
 modal-request-provider-placeholder = Select a provider
@@ -258,6 +259,11 @@ payslip-download-tooltip = Download Payslip
 modal-request-benefit-type-label = Benefit Type
 modal-character-count = {$current} / {$max} characters
 modal-character-minimum = (minimum {$min} characters)
+
+# Period translations
+period-monthly = Monthly
+period-yearly = Yearly
+period-daily = Daily
 
 # Form Validation Errors
 error-end-date-required = End date is required
