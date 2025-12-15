@@ -707,8 +707,18 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
               mentionedUsers
             }
 
+            // Extract file attachments to send to Every AI
+            // Note: File size limits and security validations are handled by the backend
+            // when files are uploaded via apiClient.uploadFiles() above
+            const fileAttachments = attachments?.map(a => a.file) || []
+
             // Process the message with Every AI
-            const aiResponse = await processEveryAIMessage(content, entityReferences, conversationContext)
+            const aiResponse = await processEveryAIMessage(
+              content,
+              entityReferences,
+              conversationContext,
+              fileAttachments
+            )
 
             if (aiResponse && aiResponse.text && !aiResponse.error) {
               // Keep the original text with entity links intact (don't sanitize them)
@@ -805,8 +815,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
               : ''
           }
 
-          // Process through EveryAI
-          const aiResponse = await processEveryAIMessage(content, [], conversationContext)
+          // Process through EveryAI (no file attachments for form submissions)
+          const aiResponse = await processEveryAIMessage(content, [], conversationContext, [])
 
           if (aiResponse && !aiResponse.error) {
             // Check if we have any content to display (text OR outputs)
