@@ -145,9 +145,10 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
 
       const uniqueActiveBenefits = Object.values(benefitsByType).map(typeBenefits => {
         // Sort by: active first, then by creation date (newest first)
-        const sorted = typeBenefits.sort((a, b) => {
-          const aActive = isBenefitActive(a.benefitStatus)
-          const bActive = isBenefitActive(b.benefitStatus)
+        // Creating a copy with spread operator before sorting to avoid mutating typeBenefits
+        const sorted = [...typeBenefits].sort((a, b) => {
+          const aActive = isBenefitActive(a)
+          const bActive = isBenefitActive(b)
           if (aActive && !bActive) return -1
           if (!aActive && bActive) return 1
 
@@ -159,7 +160,7 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       })
 
       const activeBenefitsCount = uniqueActiveBenefits.filter((benefit: EmployeeBenefit) =>
-        isBenefitActive(benefit.benefitStatus)
+        isBenefitActive(benefit)
       ).length
 
       // Set the data

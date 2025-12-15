@@ -109,8 +109,8 @@ export const useBenefitsCatalog = (
         // Prioritize active benefits, then sort by creation date (most recent first)
         const sortedBenefits = [...matchingBenefits].sort((a, b) => {
           // Active benefits come first
-          const aActive = isBenefitActive(a.benefitStatus)
-          const bActive = isBenefitActive(b.benefitStatus)
+          const aActive = isBenefitActive(a)
+          const bActive = isBenefitActive(b)
           if (aActive && !bActive) return -1
           if (!aActive && bActive) return 1
 
@@ -123,8 +123,8 @@ export const useBenefitsCatalog = (
         // Use the first one from sorted list (most recent active, or most recent if none active)
         const employeeBenefit = sortedBenefits[0]
 
-        // Check if benefit is active
-        const isActive = employeeBenefit ? isBenefitActive(employeeBenefit.benefitStatus) : false
+        // Check if benefit is active (includes date validation)
+        const isActive = employeeBenefit ? isBenefitActive(employeeBenefit) : false
 
         // Determine action capabilities
         const canRequest = !isActive // Can request if not currently active
