@@ -81,6 +81,7 @@ benefit-status-active = Activ
 benefit-status-pending = În așteptare
 benefit-status-available = Disponibil
 benefit-request-button = Solicită
+benefit-request-employee-id-missing = ID-ul angajatului nu este disponibil. Nu se poate iniția solicitarea de beneficiu.
 benefit-deactivate-button = Dezactivează
 benefit-view-details = Vezi detalii
 benefit-provider = Furnizor
