@@ -1,11 +1,16 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import '@newwork/nw-design-system/style'
-import { PageLayout } from '@newwork/nw-design-system'
-import { Bot } from 'lucide-react'
+import { PageLayout, Button } from '@newwork/nw-design-system'
+import { Bot, FlaskConicalIcon, WrenchIcon } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TaskExpertsSpace } from './components/TaskExpertsSpace'
+import { RuntimeTestPanel } from './components/RuntimeTestPanel'
+import { InternalToolsPanel } from './components/InternalToolsPanel'
 
 const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
+  const [showRuntimeTest, setShowRuntimeTest] = useState(false)
+  const [showInternalTools, setShowInternalTools] = useState(false)
+
   // Legacy tab param cleanup
   // no tabs anymore
 
@@ -30,8 +35,39 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
         variant="default"
         className="gba:min-h-screen"
       >
-        <TaskExpertsSpace {...context} />
+        <div className="gba:flex gba:flex-col gba:gap-4">
+          {/* Developer Tools Bar */}
+          <div className="gba:flex gba:justify-end gba:gap-2 gba:px-6 gba:pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowInternalTools(true)}
+              data-testid="task-expert-studio-internal-tools-button"
+            >
+              <WrenchIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+              Internal Tools
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRuntimeTest(true)}
+              data-testid="task-expert-studio-runtime-test-button"
+            >
+              <FlaskConicalIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+              Test Runtime
+            </Button>
+          </div>
+
+          <TaskExpertsSpace {...context} />
+        </div>
       </PageLayout>
+
+      <InternalToolsPanel
+        open={showInternalTools}
+        onClose={() => setShowInternalTools(false)}
+        accessToken={context.accessToken}
+      />
+      <RuntimeTestPanel open={showRuntimeTest} onClose={() => setShowRuntimeTest(false)} {...context} />
     </div>
   )
 }
