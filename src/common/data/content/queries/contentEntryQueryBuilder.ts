@@ -261,6 +261,7 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         preview
         content
         role
+        accepted
         creatorEmployeeId
         creatorEmployee {
           ${EMPLOYEE_REF}

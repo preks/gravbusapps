@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton, Card } from '@newwork/nw-design-system'
 import { Home as HomeIcon } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
@@ -40,10 +40,11 @@ const HomeView: React.FC<HomeViewProps> = ({
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Featured content (independent of search) - always shows latest
+  // Featured content (independent of search) - filter by NEWS and KNOWLEDGE
   const featuredQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
+      contentGroupRefs: [ContentGroup.NEWS, ContentGroup.KNOWLEDGE],
       limit: 12,
       offset: 0,
       sortBy: 'createdAt' as const,
@@ -52,10 +53,11 @@ const HomeView: React.FC<HomeViewProps> = ({
     []
   )
 
-  // Search/browsing content
+  // Search/browsing content - filter by NEWS and KNOWLEDGE
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
+      contentGroupRefs: [ContentGroup.NEWS, ContentGroup.KNOWLEDGE],
       search: searchQuery,
       limit: loadedCount,
       offset: 0,
@@ -65,17 +67,54 @@ const HomeView: React.FC<HomeViewProps> = ({
     [searchQuery, loadedCount]
   )
 
+  // Query for open questions (questions without accepted answers)
+  const openQuestionsQueryParams = useMemo(
+    () => ({
+      role: ContentRole.ROOT,
+      contentGroupRef: ContentGroup.QUESTION,
+      limit: 1000,
+      offset: 0,
+      sortBy: 'createdAt' as const,
+      sortOrder: 'DESC' as const
+    }),
+    []
+  )
+
+  const openQuestionsQueryOptions = useMemo(
+    () => ({
+      config: 'list' as const,
+      fields: ['id', 'childContentEntries'] as const
+    }),
+    []
+  )
+
   // Featured entries (carousel + trending) - not affected by search
   const { entries: featuredEntries, refetch: refetchFeatured } = useContentEntries(featuredQueryParams, accessToken)
 
   // Main content entries - affected by search
   const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
 
+  // Open questions query
+  const { entries: allQuestions, refetch: refetchOpenQuestions } = useContentEntries(
+    openQuestionsQueryParams,
+    accessToken,
+    openQuestionsQueryOptions
+  )
+
+  // Calculate open questions count (questions without accepted answers)
+  const openQuestionsCount = useMemo(() => {
+    return allQuestions.filter(question => {
+      const hasAcceptedAnswer = question.childContentEntries?.some(answer => answer.accepted) || false
+      return !hasAcceptedAnswer
+    }).length
+  }, [allQuestions])
+
   // Listen for process completion to refresh data
   useProcessCompletion({
     onSuccess: () => {
       refetchFeatured()
       refetch()
+      refetchOpenQuestions()
     }
   })
 
@@ -184,6 +223,24 @@ const HomeView: React.FC<HomeViewProps> = ({
       )}
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
+        {/* Open Questions Card */}
+        {openQuestionsCount > 0 && (
+          <div className="gba:mb-6" data-testid="open-questions-card-container">
+            <Card className="gba:p-6" data-testid="open-questions-card">
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <div>
+                  <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-1">
+                    {openQuestionsCount} {t('open_questions') || 'Open Questions'}
+                  </h3>
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {t('open_questions_description') || 'Questions waiting for answers'}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* Header with Search */}
         {isLoading ? (
           <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
