@@ -8,6 +8,7 @@ import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../../utils/benefitTranslationUtils'
+import { parseBenefitObjectValue } from '../../utils/benefitDetailsUtils'
 import dayjs from 'dayjs'
 
 interface BenefitCatalogCardProps extends BusinessAppContextProps {
@@ -55,27 +56,6 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
   onViewDetails,
   accessToken
 }) => {
-  // Request and Deactivate handled via AppAction
-
-  /**
-   * Parse catalog objectValue to get benefit value and period
-   */
-  const parseBenefitObjectValue = (objectValue: unknown): { value?: string; period?: string; currency?: string } => {
-    if (!objectValue) return {}
-
-    try {
-      const parsed = typeof objectValue === 'string' ? JSON.parse(objectValue) : objectValue
-      return {
-        value: parsed?.value,
-        period: parsed?.period,
-        currency: parsed?.currency
-      }
-    } catch {
-      // Silently handle parsing errors and return empty object
-      return {}
-    }
-  }
-
   /**
    * Get benefit value display from catalog objectValue
    * Returns the catalog's defined value with proper period suffix
