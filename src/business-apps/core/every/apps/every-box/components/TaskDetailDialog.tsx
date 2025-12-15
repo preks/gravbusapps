@@ -139,8 +139,24 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   // Check if this is a blink (quick-task) - MUST be before early return
   const isBlinkTask = task?.source === 'cflow' && task?.tags?.app === 'quick-task'
 
+  // Map of CFlow task app tags to screen keys
+  const CFLOW_APP_SCREEN_KEYS: Record<string, string> = {
+    scheduled_task: 'frm_scheduledTaskResult'
+    // Add more app tag -> screen key mappings here as needed
+  }
+
   // Generate screen key identical to Cockpit inbox approach - MUST be before early return
   const generateScreenKey = React.useCallback((taskParam: UnifiedTask): string | null => {
+    // For CFlow tasks, check if there's a screen key mapping based on tags.app
+    if (taskParam.source === 'cflow' && taskParam.tags?.app) {
+      const appTag = taskParam.tags.app as string
+      const mappedScreenKey = CFLOW_APP_SCREEN_KEYS[appTag]
+      if (mappedScreenKey) {
+        return mappedScreenKey
+      }
+    }
+
+    // For Kogito tasks, generate screen key from endpoint
     if (taskParam.source !== 'kogito' || !taskParam.sourceMetadata?.endpoint) {
       return null
     }
@@ -365,6 +381,13 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           accessToken={accessToken}
           userInfo={userInfo}
           additionalData={{
+            // Task-level data for forms like ScheduledTaskResult
+            message: task.message,
+            title: task.title || task.name,
+            tags: task.tags,
+            scheduledAt: task.scheduledAt,
+            dueDate: task.dueDate,
+            // Workflow metadata
             psi_taskPayload: taskInputs,
             psi_processMetadata: task.sourceMetadata,
             psi_taskStatus: task.status,

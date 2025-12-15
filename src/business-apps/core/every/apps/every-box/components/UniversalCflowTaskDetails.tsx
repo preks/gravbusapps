@@ -43,11 +43,13 @@ import { TaskDetailFooter } from './TaskDetailFooter'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { InputRenderer } from '@/business-apps/flow/apps/creator/components/shared/InputRenderer'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { MarkdownRenderer } from '@/business-apps/ai/forms/scheduled-task-result/components/MarkdownRenderer'
 import translations from '../_i18n'
 
 dayjs.extend(localizedFormat)
 dayjs.extend(isToday)
 dayjs.extend(isYesterday)
+import GlossaryEntryTaskForm from '@/business-apps/core/content/forms/glossary-entry-task-form'
 
 /**
  * Converts a picture thumbnail to a data URL format
@@ -220,6 +222,25 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   ])
 
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
+  // Check both task.tags and sourceMetadata.tags for glossary request detection
+  const isGlossaryRequestTask =
+    task.source === 'cflow' &&
+    (task.tags?.app === 'glossary-entry-request' || task.sourceMetadata?.tags?.app === 'glossary-entry-request')
+
+  // Debug logging to diagnose tag location
+  if (task.source === 'cflow' && task.title?.includes('Glossary Term Request')) {
+    console.log('[Glossary Request Detection]', {
+      source: task.source,
+      title: task.title,
+      tags: task.tags,
+      sourceMetadata: task.sourceMetadata,
+      sourceMetadataTags: task.sourceMetadata?.tags,
+      workflowMeta: task.workflowMeta,
+      allKeys: Object.keys(task),
+      isGlossaryRequestTask
+    })
+  }
+
   const taskTitle = task.title || task.name || task.referenceTaskName || t('task-details-untitled')
 
   // Fetch employee data for creator if userId is available
@@ -477,6 +498,64 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const entityName = entityLink?.name
   const entityDisplayUrl = entityLink?.url
 
+  // For Glossary Request tasks, load the static task form
+  // Also check workflowMeta and other possible locations for tags
+  const hasGlossaryTag =
+    task.tags?.app === 'glossary-entry-request' ||
+    task.sourceMetadata?.tags?.app === 'glossary-entry-request' ||
+    task.workflowMeta?.tags?.app === 'glossary-entry-request' ||
+    (task.sourceMetadata as any)?.app === 'glossary-entry-request'
+
+  if (isGlossaryRequestTask || (task.source === 'cflow' && hasGlossaryTag)) {
+    // Extract term and context from task tags, sourceMetadata tags, workflowMeta, or initial parameters
+    const allTags = {
+      ...task.tags,
+      ...task.sourceMetadata?.tags,
+      ...task.workflowMeta?.tags,
+      ...((task.sourceMetadata as any)?.tags || {})
+    }
+    const term =
+      allTags?.term || task.sourceMetadata?.initialParameters?.term || (task.sourceMetadata as any)?.term || ''
+    const context =
+      allTags?.context || task.sourceMetadata?.initialParameters?.context || (task.sourceMetadata as any)?.context || ''
+
+    console.log('[Glossary Request Form] Loading form with data:', {
+      term,
+      context,
+      allTags,
+      sourceMetadata: task.sourceMetadata
+    })
+
+    // Get userInfo from task if available
+    const userInfo = userId
+      ? {
+          id: userId,
+          userName: task.sourceMetadata?.flowInitiatedByName || '',
+          givenName: task.sourceMetadata?.flowInitiatedByName?.split(' ')[0] || '',
+          familyName: task.sourceMetadata?.flowInitiatedByName?.split(' ').slice(1).join(' ') || ''
+        }
+      : undefined
+
+    return (
+      <GlossaryEntryTaskForm
+        accessToken={accessToken}
+        userInfo={userInfo}
+        additionalData={{
+          psi_taskPayload: {
+            term,
+            context,
+            requesterUserId: task.sourceMetadata?.flowInitiatedBy
+          },
+          psi_processMetadata: task.sourceMetadata,
+          psi_taskStatus: task.status,
+          psi_availableActions: task.availableActions,
+          psi_taskId: task.id,
+          taskId: task.id
+        }}
+      />
+    )
+  }
+
   // For Blink tasks, use the simple view from every-box
   if (isBlinkTask) {
     return (
@@ -638,12 +717,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </div>
           )}
 
-          {/* Brief description if available */}
-          {(task.message || task.description) && (
-            <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-              {task.message || task.description}
-            </p>
-          )}
+          {/* Brief description if available - use markdown for scheduled tasks */}
+          {(task.message || task.description) &&
+            (task.tags?.app === 'scheduled_task' ? (
+              <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+            ) : (
+              <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+                {task.message || task.description}
+              </p>
+            ))}
 
           {/* Info Alert for Blink tasks - only show when not completed */}
           {!isCompleted && (
@@ -854,12 +936,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           </div>
         )}
 
-        {/* Description - Simple paragraph for all cFlow tasks */}
-        {(task.message || task.description) && (
-          <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-            {task.message || task.description}
-          </p>
-        )}
+        {/* Description - use markdown for scheduled tasks */}
+        {(task.message || task.description) &&
+          (task.tags?.app === 'scheduled_task' ? (
+            <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+          ) : (
+            <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+              {task.message || task.description}
+            </p>
+          ))}
 
         {/* Form Section - Editable for active tasks, read-only for completed */}
         {task.form && Array.isArray(task.form) && task.form.length > 0 && (
