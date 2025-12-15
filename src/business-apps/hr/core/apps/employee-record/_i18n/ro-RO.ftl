@@ -126,6 +126,7 @@ payslip-download-failed = Descărcarea fluturului de salariu a eșuat. Vă rugă
 
 # Request Benefit Modal
 modal-request-title = Solicită beneficiu
+modal-request-loading = Se încarcă informațiile despre beneficii...
 modal-request-description = Completați formularul de mai jos pentru a solicita acest beneficiu
 modal-request-provider-label = Furnizor beneficiu
 modal-request-provider-placeholder = Selectați un furnizor
@@ -258,6 +259,11 @@ payslip-download-tooltip = Descarcă fluturaș salarial
 modal-request-benefit-type-label = Tipul Beneficiului
 modal-character-count = {$current} / {$max} caractere
 modal-character-minimum = (minim {$min} caractere)
+
+# Period translations
+period-monthly = Lunar
+period-yearly = Anual
+period-daily = Zilnic
 
 # Form Validation Errors
 error-end-date-required = Data de încheiere este obligatorie

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useMemo } from 'react'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
-import { Form, Row, Col } from 'antd'
+import { Form, Row, Col, Alert } from 'antd'
 import { Badge } from '@newwork/nw-design-system'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
 import UploadComponent from '../UploadComponent'
@@ -8,7 +8,6 @@ import SinglePositionComponent from './SinglePositionComponent'
 import MultiPositionComponent from './MultiPositionComponent'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 
-import { Alert } from 'antd'
 import {
   getCurrentActiveUserLocale,
   getDateFormat,
@@ -68,8 +67,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   isEmbeddedInRequestWizard = false
 }) => {
   const t = getTranslationFromI18nKeyAndLabel
-  const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode, additionalData } =
-    useExpenseItem()
+  const {
+    isProcessingFiles,
+    isFormDisabled,
+    expenseRuleError,
+    receiptCurrencyError,
+    handleCurrencyChange,
+    isEditMode,
+    additionalData
+  } = useExpenseItem()
 
   const selectedExpenseRequestId = Form.useWatch('expenseRequestId', form)
   const hadBackendRequestRef = useRef(false)
@@ -153,25 +159,25 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       e.stopPropagation()
       e.preventDefault()
 
-      setTimeout(async () => {
-        try {
-          await form.validateFields()
+      try {
+        await form.validateFields()
 
-          if (expenseRuleError) {
-            return
-          }
+        if (expenseRuleError) {
+          return
+        }
 
-          handleSubmit()
-        } catch (errorInfo) {
-          const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
-          if (firstErrorField) {
-            const element = document.querySelector(`[name="${firstErrorField}"]`)
-            if (element) {
-              element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }
+        await handleSubmit()
+      } catch (errorInfo: any) {
+        // Handle form validation errors - scroll to first invalid field
+        const firstErrorField = errorInfo?.errorFields?.[0]?.name?.[0]
+        if (firstErrorField) {
+          const element = document.querySelector(`[name="${firstErrorField}"]`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
           }
         }
-      }, 0)
+        // Currency/submission errors are already handled by context with toast
+      }
     },
     [form, expenseRuleError, handleSubmit]
   )
@@ -191,6 +197,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       <div className="gba:m-0 gba:mb-[30px]" data-testid="form-upload-container">
         <UploadComponent fileList={fileList} setFileList={setFileList} />
       </div>
+
+      {receiptCurrencyError && fileList && fileList.length > 0 && (
+        <div
+          className="gba:mb-4 gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:px-4 gba:py-3"
+          data-testid="receipt-currency-error-container"
+        >
+          {receiptCurrencyError}
+        </div>
+      )}
 
       <div className="gba:mb-4" data-testid="title-field-container">
         <div className="gba:relative">
@@ -485,7 +500,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button
           variant="primary"
           onClick={handleCreateClick}
-          disabled={isProcessingFiles || (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId)}
+          disabled={
+            isProcessingFiles ||
+            (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId) ||
+            !!receiptCurrencyError
+          }
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"

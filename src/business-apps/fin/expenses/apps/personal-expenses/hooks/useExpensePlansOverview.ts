@@ -34,7 +34,8 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       pageSize: number,
       sortField: string | null,
       sortOrder: 'ascend' | 'descend' | null,
-      currencyRef: string
+      currencyRef: string,
+      options?: { force?: boolean }
     ) => {
       const employeeId = context.userInfo?.employeeDetails?.employeeId
       const accessToken = context.accessToken
@@ -86,7 +87,8 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
         return val
       }
       const key = JSON.stringify(normalize(variables))
-      if (lastKeyRef.current === key) return
+      // Skip duplicate fetches only when force is not requested
+      if (!options?.force && lastKeyRef.current === key) return
       lastKeyRef.current = key
 
       if (inflightRef.current.has(key)) {

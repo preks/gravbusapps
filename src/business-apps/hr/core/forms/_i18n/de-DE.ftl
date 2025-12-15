@@ -180,7 +180,7 @@ label-city = Stadt
 label-currency = Währung
 
 # Deactivate Employee Benefit Review Form
-deactivate-benefit-review-title = Deaktivierungsanfrage für Zusatzleistung von { $employeeName }
+deactivate-benefit-review-title = Deaktivierungsanfrage für Zusatzleistung
 deactivate-benefit-review-requested-by = Angefordert von { $initiatorName }
 deactivate-benefit-review-loading = Lade Deaktivierungsanfrage für Zusatzleistung...
 deactivate-benefit-review-error-title = Daten können nicht geladen werden
@@ -190,6 +190,7 @@ deactivate-benefit-review-deactivation-details = Deaktivierungsanfrage
 deactivate-benefit-review-submit = Zusatzleistung deaktivieren
 deactivate-benefit-review-benefit-type = Art der Zusatzleistung
 deactivate-benefit-review-provider = Anbieter
+deactivate-benefit-review-value = Wert
 deactivate-benefit-review-yearly-value = Jahreswert
 deactivate-benefit-review-monthly-value = Monatswert
 deactivate-benefit-review-period = Zeitraum
@@ -201,14 +202,18 @@ deactivate-benefit-review-end-date = Angefordertes Enddatum
 deactivate-benefit-review-reason = Grund für Deaktivierung
 
 # Request Employee Benefit Review Form
-request-benefit-review-title = Überprüfung der Zusatzleistung für { $employeeName }
+request-benefit-review-title = Zusatzleistungsanfrage überprüfen
 request-benefit-review-initiated-by = Initiiert von { $initiatorName }
 request-benefit-review-benefit-details = Details zur Zusatzleistung
 request-benefit-review-benefit-type = Art der Zusatzleistung
 request-benefit-review-provider = Anbieter
-request-benefit-review-yearly-value = Jährlicher Wert
-request-benefit-review-monthly-value = Monatlicher Wert
+request-benefit-review-value = Wert
 request-benefit-review-period = Zeitraum
+
+# Period translations
+period-monthly = Monatlich
+period-yearly = Jährlich
+period-daily = Täglich
 request-benefit-review-start-date = Gewünschtes Startdatum
 request-benefit-review-employee-yearly-contribution = Jährlicher Beitrag des Mitarbeiters
 request-benefit-review-employee-monthly-contribution = Monatlicher Beitrag des Mitarbeiters

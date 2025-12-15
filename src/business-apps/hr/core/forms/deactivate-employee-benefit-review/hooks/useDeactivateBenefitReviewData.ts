@@ -15,9 +15,11 @@ interface CatalogEntry {
   code: string
   value: string
   displayOrder?: number | null
+  objectValue?: unknown
   translations?: Array<{
     localeCode: string
     value: string
+    objectValue?: unknown
   }>
   catalog?: {
     identifier: string
