@@ -98,6 +98,7 @@ export const JOB_REQUEST_DESCRIPTORS: Descriptor[] = [
   { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
   { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
   { key: 'note', searchPaths: ['note'], sortPath: 'note', type: 'text' },
+  { key: 'headcount', searchPaths: ['headcount'], sortPath: 'headcount', type: 'number' },
   { key: 'startDate', searchPaths: ['startDate'], sortPath: 'startDate', type: 'date' },
   { key: 'endDate', searchPaths: ['endDate'], sortPath: 'endDate', type: 'date' },
   { key: 'requisitionStatus', searchPaths: ['requisitionStatus'], sortPath: 'requisitionStatus', type: 'text' },

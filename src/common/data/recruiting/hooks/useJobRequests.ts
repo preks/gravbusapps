@@ -73,7 +73,7 @@ export function useJobRequests(
         const offset = vars.offset || 0
 
         const query = `
-          query GetJobRequests(
+          query GetJobRequisitions(
             $limit: Int
             $offset: Int
             $where: JobRequisitionBoolExp

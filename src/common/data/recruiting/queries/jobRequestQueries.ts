@@ -12,11 +12,13 @@ import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
  * JobRequest Query Variables
  */
 export interface JobRequestQueryVariables extends BaseQueryVariables {
-  requisitionStatus?: string
-  reasonRef?: string
   contractTypeRef?: string
   experienceLevelRef?: string
+  costCenterId?: string
+  jobProfileId?: string
   organizationalUnitId?: string
+  requisitionStatus?: string
+  reasonRef?: string
   jobPositionId?: string
   requesterId?: string
 }

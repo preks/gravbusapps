@@ -1,124 +1,67 @@
-import React, { useState, useMemo } from 'react'
+import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobPostings } from '@/common/data/recruiting/hooks/useJobPostings'
-import { Spinner, Alert, Button } from '@newwork/nw-design-system'
-import { DataDisplay, DataTable } from '@newwork/nw-design-system'
+import { Card } from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export type JobPostingViewProps = BusinessAppContextProps
 
 export const JobPostingView: React.FC<JobPostingViewProps> = context => {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [limit, setLimit] = useState(20)
-  const [offset, setOffset] = useState(0)
-
-  const { jobPostings, total, loading, error, refetch } = useJobPostings(context.accessToken, {
-    search: searchTerm,
-    limit,
-    offset
-  })
-
-  const columns = useMemo(
-    () => [
-      {
-        title: getTranslationFromI18nKeyAndLabel('code', 'Code'),
-        key: 'code',
-        dataIndex: 'code'
-      },
-      {
-        title: getTranslationFromI18nKeyAndLabel('title', 'Title'),
-        key: 'title',
-        dataIndex: 'title'
-      },
-      {
-        title: getTranslationFromI18nKeyAndLabel('publishedDate', 'Published Date'),
-        key: 'publishedDate',
-        dataIndex: 'publishedDate'
-      },
-      {
-        title: getTranslationFromI18nKeyAndLabel('status', 'Status'),
-        key: 'status',
-        dataIndex: 'jobPostingStatus',
-        render: (status: any) => status?.value || '-'
-      },
-      {
-        title: '',
-        key: 'actions',
-        width: '60px',
-        render: (_: any, record: any) => (
-          <div className="gba:flex gba:justify-start gba:gap-2">
-            <AppActionButton
-              data-testid={`job-posting-update-button-${record.id}`}
-              size="icon"
-              contextsArray={[]}
-              externalContextData={{ jobPostingId: record.id }}
-              prefixDataTestId="job-posting-update"
-              accessToken={context.accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
-              onClick={e => e.stopPropagation()}
-            />
-          </div>
-        )
-      }
-    ],
-    [context.accessToken]
-  )
+  const { jobPostings, total, loading, error, refetch } = useJobPostings(context.accessToken, {})
 
   if (loading && jobPostings.length === 0) {
-    return <Spinner size="large" />
+    return <div className="gba:flex gba:items-center gba:justify-center gba:h-full">Loading...</div>
   }
 
   if (error) {
     return (
-      <Alert
-        message={getTranslationFromI18nKeyAndLabel('errorLoadingData', 'Error Loading Data')}
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={() => refetch()}>
-            Retry
-          </Button>
-        }
-      />
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:flex-col gba:gap-4">
+        <p className="gba:text-destructive">Error: {error}</p>
+        <button
+          onClick={() => refetch()}
+          className="gba:px-4 gba:py-2 gba:bg-primary gba:text-primary-foreground gba:rounded"
+        >
+          Retry
+        </button>
+      </div>
     )
   }
 
   return (
-    <div data-testid="job-posting-view" className="gba:h-full gba:overflow-auto">
-      <DataDisplay
-        titleSections={[
-          {
-            id: 'all',
-            label: getTranslationFromI18nKeyAndLabel('allJobPostings', 'All Job Postings'),
-            metadata: {
-              count: total,
-              isLoading: loading
-            }
-          }
-        ]}
-        currentSection="all"
-        searchValue={searchTerm}
-        searchPlaceholder={getTranslationFromI18nKeyAndLabel('searchJobPostings', 'Search job postings...')}
-        onSearchChange={setSearchTerm}
-      >
-        <DataTable
-          columns={columns}
-          data={jobPostings}
-          loading={loading}
-          pagination={{
-            total,
-            pageSize: limit,
-            current: Math.floor(offset / limit) + 1,
-            onChange: (page, pageSize) => {
-              setOffset((page - 1) * pageSize)
-              setLimit(pageSize)
-            }
-          }}
-        />
-      </DataDisplay>
+    <div data-testid="job-posting-view" className="gba:h-full gba:overflow-auto gba:p-6">
+      <div className="gba:mb-4">
+        <h2 className="gba:text-2xl gba:font-bold">
+          {getTranslationFromI18nKeyAndLabel('allJobPostings', 'All Job Postings')}
+        </h2>
+        <p className="gba:text-muted-foreground">Total: {total}</p>
+      </div>
+
+      <div className="gba:grid gba:gap-4">
+        {jobPostings.map(posting => (
+          <Card key={posting.id} className="gba:p-4">
+            <div className="gba:flex gba:justify-between gba:items-start">
+              <div>
+                <h3 className="gba:text-lg gba:font-semibold">{posting.jobTitle || '-'}</h3>
+                {posting.department && <p className="gba:text-sm">Department: {posting.department}</p>}
+                {posting.location && <p className="gba:text-sm">Location: {posting.location}</p>}
+                {posting.contractType && <p className="gba:text-sm">Contract Type: {posting.contractType}</p>}
+                {posting.remote && <p className="gba:text-sm">Remote: {posting.remote}</p>}
+              </div>
+              <AppActionButton
+                data-testid={`job-posting-update-button-${posting.id}`}
+                size="icon"
+                contextsArray={[]}
+                externalContextData={{ jobPostingId: posting.id }}
+                prefixDataTestId="job-posting-update"
+                accessToken={context.accessToken}
+                emptyStateBehavior="enable"
+                deferMainContextRequestsUntilClick
+              />
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   )
 }
