@@ -23,9 +23,13 @@ import {
 } from '@newwork/nw-design-system'
 import { EmployeeSelect } from '@/components/employee-select'
 import { JobPositionSelect } from '@/components/job-position-select'
+import { JobProfileSelect } from '@/components/job-profile-select'
 import { OrganizationalUnitSelect } from '@/components/organizational-unit-select'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system'
-import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
+import {
+  RECRUITING_CATALOGS,
+  JOB_REQUISITION_REASON_VALUES
+} from '@/common/data/recruiting/constants/recruitingConstants'
 import { RequisitionStatus, REQUISITION_STATUS_OPTIONS } from '@/common/data/recruiting/constants/requisitionStatus'
 
 const jobRequestSchema = z.object({
@@ -104,6 +108,35 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
 
   const processType = jobRequest?.id ? 'update' : 'create'
 
+  // Watch reasonRef to determine which fields to show
+  const reasonRef = form.watch('reasonRef')
+
+  // Extract the code part from catalog entry format: "CatalogName:Version:Code" -> "Code"
+  // This ensures it works even if the catalog name format varies slightly
+  const getReasonCode = (ref?: string | null): string | null => {
+    if (!ref) return null
+    const parts = ref.split(':')
+    return parts.length >= 3 ? parts[parts.length - 1] : null
+  }
+
+  const reasonCode = getReasonCode(reasonRef)
+
+  // Check reason using constants (exact match) or code extraction (fallback)
+  const isReplacement = reasonRef === JOB_REQUISITION_REASON_VALUES.REPLACEMENT || reasonCode === '1'
+  const isNew = reasonRef === JOB_REQUISITION_REASON_VALUES.NEW || reasonCode === '2'
+
+  // Clear fields when reason changes
+  useEffect(() => {
+    if (isReplacement) {
+      // Clear job profile and headcount when switching to REPLACEMENT
+      form.setValue('jobProfileId', undefined)
+      form.setValue('headcount', 1)
+    } else if (isNew) {
+      // Clear job position when switching to NEW
+      form.setValue('jobPositionId', undefined)
+    }
+  }, [reasonRef, isReplacement, isNew, form])
+
   return (
     <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
       <AppActionForm
@@ -119,20 +152,64 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
       >
         <Form {...form}>
           <div className="gba:space-y-4">
+            {/* First line: Organizational Unit and Requester */}
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="organizationalUnitId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organizational Unit</FormLabel>
+                    <FormControl>
+                      <OrganizationalUnitSelect
+                        value={field.value || null}
+                        onValueChange={v => field.onChange(v || '')}
+                        businessAppContext={{ accessToken, userInfo, additionalData }}
+                        placeholder="Select organizational unit..."
+                        autoSelect="current-user"
+                        data-testid={formatDataTestId('job-request-form', 'organizational-unit-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="requesterId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Requester</FormLabel>
+                    <FormControl>
+                      <EmployeeSelect
+                        value={field.value || null}
+                        onValueChange={v => field.onChange(v || '')}
+                        businessAppContext={{ accessToken, userInfo, additionalData }}
+                        placeholder="Select requester..."
+                        autoSelect="current-user"
+                        data-testid={formatDataTestId('job-request-form', 'requester-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Second line: Reason */}
             <FormField
               control={form.control}
-              name="organizationalUnitId"
+              name="reasonRef"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Organizational Unit</FormLabel>
+                  <FormLabel>Reason</FormLabel>
                   <FormControl>
-                    <OrganizationalUnitSelect
+                    <CatalogSelect
+                      catalogIdentifier={RECRUITING_CATALOGS.JOB_REQUISITION_REASON}
                       value={field.value || null}
-                      onValueChange={v => field.onChange(v || '')}
-                      businessAppContext={{ accessToken, userInfo, additionalData }}
-                      placeholder="Select organizational unit..."
-                      autoSelect="current-user"
-                      data-testid={formatDataTestId('job-request-form', 'organizational-unit-select')}
+                      onValueChange={(v: string | string[]) => field.onChange(Array.isArray(v) ? v[0] || '' : v || '')}
+                      data-testid={formatDataTestId('job-request-form', 'reason-select')}
                     />
                   </FormControl>
                   <FormMessage />
@@ -140,6 +217,120 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
               )}
             />
 
+            {/* Third line: Job Position (REPLACEMENT) OR Job Profile and Headcount (NEW) */}
+            {isReplacement && (
+              <FormField
+                control={form.control}
+                name="jobPositionId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Job Position</FormLabel>
+                    <FormControl>
+                      <JobPositionSelect
+                        value={field.value || null}
+                        onValueChange={v => field.onChange(v || '')}
+                        businessAppContext={{ accessToken, userInfo, additionalData }}
+                        placeholder="Select job position..."
+                        data-testid={formatDataTestId('job-request-form', 'job-position-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {isNew && (
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                <FormField
+                  control={form.control}
+                  name="jobProfileId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Profile</FormLabel>
+                      <FormControl>
+                        <JobProfileSelect
+                          value={field.value || null}
+                          onValueChange={v => field.onChange(v || '')}
+                          businessAppContext={{ accessToken, userInfo, additionalData }}
+                          placeholder="Select job profile..."
+                          data-testid={formatDataTestId('job-request-form', 'job-profile-select')}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="headcount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Headcount</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          {...field}
+                          value={field.value || 1}
+                          onChange={e => field.onChange(Number.parseInt(e.target.value, 10) || 1)}
+                          data-testid={formatDataTestId('job-request-form', 'headcount-input')}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            {/* Fourth line: Contract Type and Experience Level */}
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="contractTypeRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contract Type</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.CONTRACT_TYPE}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-request-form', 'contract-type-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="experienceLevelRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Experience Level</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.EXPERIENCE_LEVEL}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-request-form', 'experience-level-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Additional fields */}
             <FormField
               control={form.control}
               name="code"
@@ -228,154 +419,28 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
               />
             </div>
 
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <FormField
-                control={form.control}
-                name="requisitionStatus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <FormControl>
-                      <Select
-                        value={field.value || ''}
-                        onValueChange={value => field.onChange(typeof value === 'string' ? value : value[0] || '')}
-                      >
-                        <SelectTrigger data-testid={formatDataTestId('job-request-form', 'status-select')}>
-                          <SelectValue placeholder="Select status..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {REQUISITION_STATUS_OPTIONS.map(option => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="headcount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Headcount</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        {...field}
-                        value={field.value || 1}
-                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10) || 1)}
-                        data-testid={formatDataTestId('job-request-form', 'headcount-input')}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <FormField
-                control={form.control}
-                name="reasonRef"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Reason</FormLabel>
-                    <FormControl>
-                      <CatalogSelect
-                        catalogIdentifier={RECRUITING_CATALOGS.JOB_REQUISITION_REASON}
-                        value={field.value || null}
-                        onValueChange={(v: string | string[]) =>
-                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
-                        }
-                        data-testid={formatDataTestId('job-request-form', 'reason-select')}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="contractTypeRef"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contract Type</FormLabel>
-                    <FormControl>
-                      <CatalogSelect
-                        catalogIdentifier={RECRUITING_CATALOGS.CONTRACT_TYPE}
-                        value={field.value || null}
-                        onValueChange={(v: string | string[]) =>
-                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
-                        }
-                        data-testid={formatDataTestId('job-request-form', 'contract-type-select')}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
-              name="experienceLevelRef"
+              name="requisitionStatus"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Experience Level</FormLabel>
+                  <FormLabel>Status</FormLabel>
                   <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier={RECRUITING_CATALOGS.EXPERIENCE_LEVEL}
-                      value={field.value || null}
-                      onValueChange={(v: string | string[]) => field.onChange(Array.isArray(v) ? v[0] || '' : v || '')}
-                      data-testid={formatDataTestId('job-request-form', 'experience-level-select')}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="jobPositionId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Job Position</FormLabel>
-                  <FormControl>
-                    <JobPositionSelect
-                      value={field.value || null}
-                      onValueChange={v => field.onChange(v || '')}
-                      businessAppContext={{ accessToken, userInfo, additionalData }}
-                      placeholder="Select job position..."
-                      data-testid={formatDataTestId('job-request-form', 'job-position-select')}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="requesterId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Requester</FormLabel>
-                  <FormControl>
-                    <EmployeeSelect
-                      value={field.value || null}
-                      onValueChange={v => field.onChange(v || '')}
-                      businessAppContext={{ accessToken, userInfo, additionalData }}
-                      placeholder="Select requester..."
-                      data-testid={formatDataTestId('job-request-form', 'requester-select')}
-                    />
+                    <Select
+                      value={field.value || ''}
+                      onValueChange={value => field.onChange(typeof value === 'string' ? value : value[0] || '')}
+                    >
+                      <SelectTrigger data-testid={formatDataTestId('job-request-form', 'status-select')}>
+                        <SelectValue placeholder="Select status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REQUISITION_STATUS_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
