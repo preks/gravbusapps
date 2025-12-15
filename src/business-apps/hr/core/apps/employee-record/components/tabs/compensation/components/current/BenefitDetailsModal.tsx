@@ -66,8 +66,8 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
   const employeeId = userInfo?.employeeDetails?.employeeId
   const title = getTranslatedBenefitType(benefit, locale)
 
-  // Parse benefit details from catalog objectValue
-  const benefitDetails = parseBenefitObjectValue(benefit.catalogEntry.objectValue)
+  // Parse benefit details from catalog objectValue (guard against missing catalogEntry)
+  const benefitDetails = parseBenefitObjectValue(benefit.catalogEntry?.objectValue)
 
   // Get catalog value for active benefits
   const catalogValue = benefit.isActive ? getCatalogValueDisplay(benefit, benefitDetails, t) : null

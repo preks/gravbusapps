@@ -284,7 +284,15 @@ export const useBenefitsCatalog = (
     } finally {
       setLoading(false)
     }
-  }, [employeeId, accessToken, graphqlClient, mergeBenefitData, transformEmployeeBenefit])
+  }, [
+    employeeId,
+    accessToken,
+    graphqlClient,
+    mergeBenefitData,
+    transformEmployeeBenefit,
+    getEmployeeCountryId,
+    options?.excludeHrBackoffice
+  ])
 
   useEffect(() => {
     fetchBenefitsCatalog()
