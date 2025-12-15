@@ -81,16 +81,20 @@ benefit-status-active = Active
 benefit-status-pending = Pending
 benefit-status-available = Available
 benefit-request-button = Request
+benefit-request-employee-id-missing = Employee ID not available. Cannot initiate benefit request.
 benefit-deactivate-button = Deactivate
 benefit-view-details = View Details
 benefit-provider = Provider
 benefit-value-yearly = Yearly Value
 benefit-no-provider = No provider specified
 benefit-since = Since
+benefit-starts-in = Starts in
 
 # Benefit Details Modal
 benefit-details-type-info = Benefit Type Information
+benefit-details-benefit-information = Benefit Information
 benefit-details-code = Code
+benefit-details-type = Type
 benefit-details-category = Category
 benefit-details-provider-info = Provider Information
 benefit-details-provider = Provider
@@ -102,6 +106,9 @@ benefit-details-start-date = Start Date
 benefit-details-end-date = End Date
 benefit-details-notes = Notes
 benefit-details-available-providers = Available Providers
+benefit-details-additional-info = Additional Information
+benefit-details-value = Value
+benefit-details-no-value-info = Detailed value information will be determined after requesting this benefit.
 benefit-details-description = Benefit details
 common-close = Close
 
@@ -238,6 +245,7 @@ action-enter-placeholder = Please Enter
 
 # Benefits Catalog Section
 benefit-per-year = /yr
+benefit-per-month = /mo
 benefits-catalog-summary = {$active} active · {$available} available · {$total} total
 benefits-catalog-search-placeholder = Search benefits...
 benefits-catalog-loading = Loading benefits catalog...
