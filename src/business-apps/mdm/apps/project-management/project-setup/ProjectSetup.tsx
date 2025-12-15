@@ -805,7 +805,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         cardDescription="Manage projects and their details"
       />
 
-      <CardContent>
+      <CardContent className="gba:overflow-auto">
         {/* Filters */}
         <div className="gba:mb-6 gba:relative gba:max-w-sm">
           <Input

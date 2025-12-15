@@ -806,7 +806,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         />
       )}
 
-      <CardContent>
+      <CardContent className="gba:overflow-auto">
         <div className="gba:mb-6 gba:relative gba:max-w-sm">
           <Input
             placeholder={getTranslationFromI18nKeyAndLabel(
