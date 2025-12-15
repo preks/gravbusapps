@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import '@newwork/nw-design-system/style'
 import { PageLayout, Button } from '@newwork/nw-design-system'
-import { Bot, FlaskConicalIcon, WrenchIcon } from 'lucide-react'
+import { Bot, WrenchIcon } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TaskExpertsSpace } from './components/TaskExpertsSpace'
-import { RuntimeTestPanel } from './components/RuntimeTestPanel'
 import { InternalToolsPanel } from './components/InternalToolsPanel'
 
 const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
-  const [showRuntimeTest, setShowRuntimeTest] = useState(false)
   const [showInternalTools, setShowInternalTools] = useState(false)
 
   // Legacy tab param cleanup
@@ -47,15 +45,6 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
               <WrenchIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               Internal Tools
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowRuntimeTest(true)}
-              data-testid="task-expert-studio-runtime-test-button"
-            >
-              <FlaskConicalIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-              Test Runtime
-            </Button>
           </div>
 
           <TaskExpertsSpace {...context} />
@@ -67,7 +56,6 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
         onClose={() => setShowInternalTools(false)}
         accessToken={context.accessToken}
       />
-      <RuntimeTestPanel open={showRuntimeTest} onClose={() => setShowRuntimeTest(false)} {...context} />
     </div>
   )
 }
