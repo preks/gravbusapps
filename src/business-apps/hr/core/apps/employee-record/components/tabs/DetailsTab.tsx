@@ -188,12 +188,12 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
   // Prepare emergency contact data
 
   const getEmergencyContact = () => {
-    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact)
+    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact) || []
 
     return emergencyContacts.map(contact => [
       {
         label: 'Contact Name',
-        value: emergencyContacts ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '' : ''
+        value: `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || ''
       },
       {
         label: 'Phone Number',
@@ -372,15 +372,31 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-emergency"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Emergency Contact</h3>
+            <AppAction
+              variant="update-secondary"
+              data-testid="emergency-contact-action-button"
+              contexts={[
+                { context: FlowContextName.updateEmployeeRelationship, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="emergency-contact-action"
+              accessToken={accessToken}
+              autoExecute={true}
+            />
           </div>
           <div className="gba:flex gba:flex-col gba:gap-2">
-            {emergencyContactData.map((items, idx) => (
-              <div key={`emergency-contact-${idx}`}>
-                {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+            {emergencyContactData && emergencyContactData.length > 0 ? (
+              emergencyContactData.map((items, idx) => (
+                <div key={`emergency-contact-${idx}`}>
+                  {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+                </div>
+              ))
+            ) : (
+              <div className="gba:text-muted-foreground gba:text-sm gba:py-4">
+                No emergency contact information available
               </div>
-            ))}
+            )}
           </div>
         </Card>
 
