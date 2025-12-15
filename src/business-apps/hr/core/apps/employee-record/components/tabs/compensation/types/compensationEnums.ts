@@ -234,6 +234,9 @@ export const isBenefitActive = (benefit: {
  * This is a utility function for displaying "scheduled deactivation" badges.
  * For determining if a benefit is currently active, use isBenefitActive() instead.
  *
+ * Uses end-of-day semantics consistent with isBenefitActive: a benefit scheduled
+ * to end on date X is considered "scheduled for deactivation" through 23:59:59.999 of that day.
+ *
  * Note: In most cases, you can use inline checks like:
  * `benefit.isActive && Boolean(benefit.endDate) && benefit.benefitStatus === BenefitStatus.INACTIVE`
  * when benefit.isActive is already validated via isBenefitActive()
@@ -256,8 +259,11 @@ export const isBenefitScheduledForDeactivation = (benefit: {
     return false
   }
 
+  // Use end-of-day comparison to match isBenefitActive semantics
   const now = new Date()
-  return end > now
+  const endOfDay = new Date(end)
+  endOfDay.setHours(23, 59, 59, 999)
+  return endOfDay > now
 }
 
 /**
