@@ -117,8 +117,8 @@ export function useJobRequests(
           error: null
         })
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch job requests'
-        console.error('Error fetching job requests:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch job requisitions'
+        console.error('Error fetching job requisitions:', error)
         setState({
           jobRequests: [],
           total: 0,

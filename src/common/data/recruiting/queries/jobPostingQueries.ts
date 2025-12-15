@@ -5,12 +5,7 @@ import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { JobPostingFields } from '../types/jobPostingTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
-export interface JobPostingQueryVariables extends BaseQueryVariables {
-  department?: string
-  location?: string
-  contractType?: string
-  remote?: string
-}
+export type JobPostingQueryVariables = BaseQueryVariables
 
 export const JOB_POSTING_QUERY_CONFIGS: Record<string, string[]> = {
   minimal: ['createdAt', 'id', 'jobTitle'],
@@ -35,6 +30,11 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
   const scalarFields = [
     { key: 'id', value: 'id' },
     { key: 'version', value: 'version' },
+    { key: 'jobTitle', value: JobPostingFields.jobTitle },
+    { key: 'department', value: JobPostingFields.department },
+    { key: 'location', value: JobPostingFields.location },
+    { key: 'contractType', value: JobPostingFields.contractType },
+    { key: 'remote', value: JobPostingFields.remote },
     { key: 'jobTitle', value: JobPostingFields.jobTitle },
     { key: 'department', value: JobPostingFields.department },
     { key: 'location', value: JobPostingFields.location },

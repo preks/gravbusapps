@@ -1,67 +1,174 @@
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobCandidates } from '@/common/data/recruiting/hooks/useJobCandidates'
-import { Card } from '@newwork/nw-design-system'
+import { DataDisplay, DataTable, Avatar, AvatarFallback } from '@newwork/nw-design-system'
+import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { JobCandidate } from '@/common/data/recruiting/types/jobCandidateTypes'
 
 export type JobCandidateViewProps = BusinessAppContextProps
 
 export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
-  const { jobCandidates, total, loading, error, refetch } = useJobCandidates(context.accessToken, {})
+  const [search, setSearch] = useState('')
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }])
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 20
+  })
 
-  if (loading && jobCandidates.length === 0) {
-    return <div className="gba:flex gba:items-center gba:justify-center gba:h-full">Loading...</div>
+  const { jobCandidates, total, loading, error } = useJobCandidates(
+    context.accessToken,
+    {
+      search,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy: sorting.map(s => ({
+        field: s.id,
+        direction: s.desc ? ('DESC_NULLS_LAST' as const) : ('ASC_NULLS_LAST' as const)
+      }))
+    },
+    'list'
+  )
+
+  // Helper to get initials
+  const getInitials = (firstName: string, lastName: string): string => {
+    const first = firstName?.charAt(0) || ''
+    const last = lastName?.charAt(0) || ''
+    return (first + last).toUpperCase() || 'C'
   }
 
-  if (error) {
-    return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:flex-col gba:gap-4">
-        <p className="gba:text-destructive">Error: {error}</p>
-        <button
-          onClick={() => refetch()}
-          className="gba:px-4 gba:py-2 gba:bg-primary gba:text-primary-foreground gba:rounded"
-        >
-          Retry
-        </button>
+  // Row actions
+  const rowActions = useMemo(
+    () => (row: any) => (
+      <div className="gba:flex gba:justify-start gba:gap-2">
+        <AppActionButton
+          data-testid={`job-candidate-update-button-${row.original.id}`}
+          size="icon"
+          contextsArray={[]}
+          externalContextData={{ jobCandidateId: row.original.id }}
+          prefixDataTestId="job-candidate-update"
+          accessToken={context.accessToken}
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick
+          onClick={e => e.stopPropagation()}
+        />
       </div>
-    )
-  }
+    ),
+    [context.accessToken]
+  )
+
+  // Columns
+  const columns = useMemo<ColumnDef<JobCandidate>[]>(
+    () => [
+      {
+        id: 'code',
+        accessorKey: 'code',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.code', 'Code'),
+        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
+        meta: { type: 'text' as const }
+      },
+      {
+        id: 'candidate',
+        accessorFn: row => `${row.firstName} ${row.lastName}`,
+        header: getTranslationFromI18nKeyAndLabel('recruiting.candidate', 'Candidate'),
+        cell: info => {
+          const candidate = info.row.original
+          return (
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Avatar className="gba:h-8 gba:w-8">
+                <AvatarFallback className="gba:text-xs">
+                  {getInitials(candidate.firstName, candidate.lastName)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="gba:flex gba:flex-col">
+                <span className="gba:text-sm gba:font-medium">
+                  {candidate.firstName} {candidate.lastName}
+                </span>
+              </div>
+            </div>
+          )
+        },
+        meta: { type: 'text' as const }
+      },
+      {
+        id: 'firstName',
+        accessorKey: 'firstName',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.firstName', 'First Name'),
+        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
+        meta: { type: 'text' as const }
+      },
+      {
+        id: 'lastName',
+        accessorKey: 'lastName',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.lastName', 'Last Name'),
+        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
+        meta: { type: 'text' as const }
+      },
+      {
+        id: 'createdAt',
+        accessorKey: 'createdAt',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.createdAt', 'Created'),
+        cell: info => {
+          const value = info.getValue() as string
+          return value ? (
+            <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
+          ) : (
+            <span className="gba:text-sm gba:text-muted-foreground">-</span>
+          )
+        },
+        meta: { type: 'date' as const }
+      }
+    ],
+    []
+  )
 
   return (
-    <div data-testid="job-candidate-view" className="gba:h-full gba:overflow-auto gba:p-6">
-      <div className="gba:mb-4">
-        <h2 className="gba:text-2xl gba:font-bold">
-          {getTranslationFromI18nKeyAndLabel('allJobCandidates', 'All Job Candidates')}
-        </h2>
-        <p className="gba:text-muted-foreground">Total: {total}</p>
-      </div>
-
-      <div className="gba:grid gba:gap-4">
-        {jobCandidates.map(candidate => (
-          <Card key={candidate.id} className="gba:p-4">
-            <div className="gba:flex gba:justify-between gba:items-start">
-              <div>
-                <h3 className="gba:text-lg gba:font-semibold">
-                  {candidate.firstName} {candidate.lastName}
-                </h3>
-                <p className="gba:text-sm gba:text-muted-foreground">Code: {candidate.code || '-'}</p>
-                {candidate.createdAt && <p className="gba:text-sm">Created: {candidate.createdAt}</p>}
-              </div>
-              <AppActionButton
-                data-testid={`job-candidate-update-button-${candidate.id}`}
-                size="icon"
-                contextsArray={[]}
-                externalContextData={{ jobCandidateId: candidate.id }}
-                prefixDataTestId="job-candidate-update"
-                accessToken={context.accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
-              />
-            </div>
-          </Card>
-        ))}
-      </div>
+    <div data-testid="job-candidate-view" className="gba:h-full">
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'all',
+            label: getTranslationFromI18nKeyAndLabel('recruiting.allJobCandidates', 'All Job Candidates'),
+            metadata: {
+              count: total,
+              isLoading: loading
+            }
+          }
+        ]}
+        currentSection="all"
+        searchValue={search}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+          'recruiting.searchJobCandidates',
+          'Search job candidates...'
+        )}
+        onSearchChange={setSearch}
+        toolbarDensity="default"
+      >
+        <DataTable<JobCandidate>
+          data={jobCandidates}
+          columns={columns}
+          loading={loading}
+          error={error || undefined}
+          totalCount={total}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          tableLayout="fixed"
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage={getTranslationFromI18nKeyAndLabel('recruiting.noJobCandidatesFound', 'No job candidates found')}
+          actions={rowActions}
+          data-testid="job-candidate-list"
+        />
+      </DataDisplay>
     </div>
   )
 }
