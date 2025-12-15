@@ -73,13 +73,13 @@ export function useJobRequests(
         const offset = vars.offset || 0
 
         const query = `
-          query GetJobRequests(
+          query GetJobRequisitions(
             $limit: Int
             $offset: Int
-            $where: JobRequestBoolExp
-            $orderBy: [JobRequestOrderBy!]
+            $where: JobRequisitionBoolExp
+            $orderBy: [JobRequisitionOrderBy!]
           ) {
-            JobRequest(
+            JobRequisition(
               limit: $limit
               offset: $offset
               orderBy: $orderBy
@@ -88,7 +88,7 @@ export function useJobRequests(
               ${fragment}
             }
             
-            JobRequestAggregate(where: $where) {
+            JobRequisitionAggregate(where: $where) {
               aggregate {
                 count
               }
@@ -97,8 +97,8 @@ export function useJobRequests(
         `
 
         const result = await graphqlClient.request<{
-          JobRequest: any[]
-          JobRequestAggregate: {
+          JobRequisition: any[]
+          JobRequisitionAggregate: {
             aggregate: {
               count: number
             }
@@ -111,8 +111,8 @@ export function useJobRequests(
         })
 
         setState({
-          jobRequests: (result.JobRequest || []) as JobRequest[],
-          total: result.JobRequestAggregate?.aggregate?.count || 0,
+          jobRequests: (result.JobRequisition || []) as JobRequest[],
+          total: result.JobRequisitionAggregate?.aggregate?.count || 0,
           loading: false,
           error: null
         })
