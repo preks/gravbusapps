@@ -237,6 +237,5 @@
   "sales-demo/sales-order/apps/sales-performance-report": "6925a3347e2b2ebe727867d936453e85",
   "sales-demo/sales-order/forms/sales-order-creation-form": "3ff58127087793e0391956c038923671",
   "ser/apps/service-desk": "d09727761751753c4244f6a5993518b9",
-  "ser/apps/service-portal": "dd21367dbaf01e6bdeb9e1320f4e8e9e",
-  "ser/apps/service-portal2": "dd21367dbaf01e6bdeb9e1320f4e8e9e"
+  "ser/apps/service-portal": "dd21367dbaf01e6bdeb9e1320f4e8e9e"
 }

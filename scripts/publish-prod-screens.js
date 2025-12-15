@@ -1854,6 +1854,7 @@ async function main() {
         const developBranch = 'develop'
         try {
           // Capture the final state (may include conflict-resolution merges)
+          execSync(`git pull origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
           const finalHashFileContent = fs.readFileSync(prodHashFile, 'utf8')
 
           console.log(`\n   🔁 Also syncing ${hashFileName} back to ${developBranch} (overwrite) ...`)
