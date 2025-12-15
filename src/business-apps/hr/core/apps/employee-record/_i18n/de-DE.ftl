@@ -89,6 +89,7 @@ benefit-value-yearly = Jahreswert
 benefit-no-provider = Kein Anbieter angegeben
 benefit-since = Seit
 benefit-starts-in = Beginnt im
+benefit-ends = Endet
 
 # Benefit Details Modal
 benefit-details-type-info = Informationen zum Leistungstyp

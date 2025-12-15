@@ -89,6 +89,7 @@ benefit-value-yearly = Yearly Value
 benefit-no-provider = No provider specified
 benefit-since = Since
 benefit-starts-in = Starts in
+benefit-ends = Ends
 
 # Benefit Details Modal
 benefit-details-type-info = Benefit Type Information

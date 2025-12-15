@@ -89,6 +89,7 @@ benefit-value-yearly = Valoare anuală
 benefit-no-provider = Niciun furnizor specificat
 benefit-since = Din
 benefit-starts-in = Începe în
+benefit-ends = Se încheie
 
 # Benefit Details Modal
 benefit-details-type-info = Informații despre tipul de beneficiu
