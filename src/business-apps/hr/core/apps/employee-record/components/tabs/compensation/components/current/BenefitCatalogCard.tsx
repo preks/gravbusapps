@@ -85,16 +85,18 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
     const catalogDetails = parseBenefitObjectValue(benefit.catalogEntry?.objectValue)
 
     if (catalogDetails.value && catalogDetails.value !== 'none') {
-      const amount = parseFloat(catalogDetails.value)
+      const amount = Number.parseFloat(catalogDetails.value)
 
       // Validate that the parsed amount is a valid number
-      if (Number.isFinite(amount)) {
-        const period = catalogDetails.period || 'yearly'
-        const periodKey = period === 'monthly' ? 'benefit-per-month' : 'benefit-per-year'
-
-        return { amount, periodKey }
+      if (!Number.isFinite(amount)) {
+        // Silently fall through to employee benefit data fallback if amount is invalid
+        return null
       }
-      // Silently fall through to employee benefit data fallback if amount is invalid
+
+      const period = catalogDetails.period || 'yearly'
+      const periodKey = period === 'monthly' ? 'benefit-per-month' : 'benefit-per-year'
+
+      return { amount, periodKey }
     }
 
     // Fallback to employee benefit data if catalog value not available

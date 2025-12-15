@@ -55,14 +55,14 @@ const AvailableBenefitContent: React.FC<AvailableBenefitContentProps> = ({
       )}
 
       {/* Benefit Value Information from objectValue JSON */}
-      {benefitDetails.value && !isNaN(parseFloat(benefitDetails.value)) && (
+      {benefitDetails.value && !Number.isNaN(Number.parseFloat(benefitDetails.value)) && (
         <div className="gba:space-y-3 gba:pt-4 gba:border-t">
           <h3 className="gba:text-sm gba:font-semibold gba:text-foreground gba:uppercase gba:tracking-wide">
             {t('benefit-details-value')}
           </h3>
           <div>
             <div className="gba:text-lg gba:font-bold gba:text-foreground">
-              {formatCurrencyString(parseFloat(benefitDetails.value), {
+              {formatCurrencyString(Number.parseFloat(benefitDetails.value), {
                 currency: benefitDetails.currency || currencyCode,
                 locale: locale,
                 minimumFractionDigits: 0,
@@ -75,7 +75,7 @@ const AvailableBenefitContent: React.FC<AvailableBenefitContentProps> = ({
       )}
 
       {/* Show message if no value data available */}
-      {(!benefitDetails.value || isNaN(parseFloat(benefitDetails.value))) && (
+      {(!benefitDetails.value || Number.isNaN(Number.parseFloat(benefitDetails.value))) && (
         <div className="gba:space-y-3 gba:pt-4 gba:border-t">
           <div className="gba:text-sm gba:text-muted-foreground gba:italic">{t('benefit-details-no-value-info')}</div>
         </div>

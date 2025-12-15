@@ -52,7 +52,7 @@ export const getCatalogValueDisplay = (
 ): { amount: number; periodLabel: string } | null => {
   // Use catalog value as source of truth
   if (benefitDetails.value && benefitDetails.value !== 'none') {
-    const amount = parseFloat(benefitDetails.value)
+    const amount = Number.parseFloat(benefitDetails.value)
     const period = benefitDetails.period || 'yearly'
     const periodLabel = period === 'monthly' ? t('benefit-details-monthly-value') : t('benefit-details-yearly-value')
 
