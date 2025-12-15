@@ -162,10 +162,88 @@ export const isCompensationStatusActive = (status: CompensationStatus | string):
 }
 
 /**
- * Check if a benefit is active
+ * Check if a benefit is active based on date range and status
+ *
+ * Strategy: Prioritize dates as the source of truth for temporal validity.
+ *
+ * A benefit is considered active if:
+ * 1. EITHER: Has dates that indicate it's currently active (within startDate and endDate range)
+ * 2. OR: Has ACTIVE_BENEFIT status (when no dates are provided)
+ *
+ * This approach protects against premature backend status changes where
+ * benefitStatus is set to INACTIVE_BENEFIT before the endDate is actually reached,
+ * while still respecting status when dates aren't specified.
+ *
+ * @param benefit - The employee benefit object with status and date fields
+ * @returns true if the benefit is currently active, false otherwise
  */
-export const isBenefitActive = (status: BenefitStatus | string): boolean => {
-  return status === BenefitStatus.ACTIVE
+export const isBenefitActive = (benefit: {
+  benefitStatus: BenefitStatus | string
+  startDate?: string | null
+  endDate?: string | null
+}): boolean => {
+  const now = new Date()
+  const hasStartDate = Boolean(benefit.startDate)
+  const hasEndDate = Boolean(benefit.endDate)
+
+  // Scenario 1: Dates are provided - dates are authoritative
+  if (hasStartDate || hasEndDate) {
+    // Check if benefit has started (if startDate is provided)
+    if (hasStartDate) {
+      const start = new Date(benefit.startDate!)
+      if (now < start) {
+        return false // Not started yet
+      }
+    }
+
+    // Check if benefit has ended (if endDate is provided)
+    if (hasEndDate) {
+      const end = new Date(benefit.endDate!)
+      // Set end date to end of day for comparison
+      end.setHours(23, 59, 59, 999)
+      if (now > end) {
+        return false // Already ended
+      }
+    }
+
+    // Dates indicate benefit is currently active (within valid range)
+    // Override any premature INACTIVE_BENEFIT status from backend
+    return true
+  }
+
+  // Scenario 2: No dates provided - rely on status field
+  return benefit.benefitStatus === BenefitStatus.ACTIVE
+}
+
+/**
+ * Check if a benefit is scheduled for deactivation
+ * (has an endDate in the future while having ACTIVE_BENEFIT status)
+ *
+ * Note: This function only checks the benefitStatus field and endDate,
+ * without full date validation. For accurate active status, use isBenefitActive() instead.
+ *
+ * @param benefit - The employee benefit object with status and endDate
+ * @returns true if benefit has ACTIVE_BENEFIT status and a future end date, false otherwise
+ * @deprecated Consider using inline checks: `benefit.isActive && Boolean(benefit.endDate)`
+ *             when benefit.isActive is already validated via isBenefitActive()
+ */
+export const isBenefitScheduledForDeactivation = (benefit: {
+  benefitStatus: BenefitStatus | string
+  endDate?: string | null
+}): boolean => {
+  // Must have ACTIVE_BENEFIT status
+  if (benefit.benefitStatus !== BenefitStatus.ACTIVE) {
+    return false
+  }
+
+  if (!benefit.endDate) {
+    return false
+  }
+
+  const now = new Date()
+  const end = new Date(benefit.endDate)
+
+  return end > now
 }
 
 /**
