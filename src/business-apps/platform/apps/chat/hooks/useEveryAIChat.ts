@@ -8,6 +8,7 @@ import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 
 const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
 const LLM_MODEL = 'gpt-4.1'
+const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
 
 function resolveFlowbotBaseUrl(): string {
   return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
@@ -898,7 +899,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           if (isDocument && ref.contentPreview) {
             data.contentPreview = ref.contentPreview
             data.contentData = ref.contentData
-            data.preview_excerpt = ref.contentPreview.substring(0, 500) // Limit to 500 chars for context
+            data.preview_excerpt = ref.contentPreview.substring(0, DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH)
           }
 
           return {

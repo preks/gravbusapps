@@ -699,6 +699,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
             }
 
             // Extract file attachments to send to Every AI
+            // Note: File size limits and security validations are handled by the backend
+            // when files are uploaded via apiClient.uploadFiles() above
             const fileAttachments = attachments?.map(a => a.file) || []
 
             // Process the message with Every AI
