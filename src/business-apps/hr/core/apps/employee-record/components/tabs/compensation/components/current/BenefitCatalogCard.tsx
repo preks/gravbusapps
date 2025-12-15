@@ -1,14 +1,14 @@
 'use client'
 
 import React from 'react'
-import { Card, Button, Icon } from '@newwork/nw-design-system'
-import { Plus as PlusIcon } from 'lucide-react'
+import { Card, Button } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../../utils/benefitTranslationUtils'
+import dayjs from 'dayjs'
 
 interface BenefitCatalogCardProps extends BusinessAppContextProps {
   /**
@@ -58,6 +58,70 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
   // Request and Deactivate handled via AppAction
 
   /**
+   * Parse catalog objectValue to get benefit value and period
+   */
+  const parseBenefitObjectValue = (objectValue: unknown): { value?: string; period?: string; currency?: string } => {
+    if (!objectValue) return {}
+
+    try {
+      const parsed = typeof objectValue === 'string' ? JSON.parse(objectValue) : objectValue
+      return {
+        value: parsed?.value,
+        period: parsed?.period,
+        currency: parsed?.currency
+      }
+    } catch (error) {
+      console.error('Error parsing benefit objectValue:', error)
+      return {}
+    }
+  }
+
+  /**
+   * Get benefit value display from catalog objectValue
+   * Returns the catalog's defined value with proper period suffix
+   */
+  const getBenefitValueDisplay = (): { amount: number; periodKey: string } | null => {
+    // For active benefits, prefer catalog value over employee value
+    const catalogDetails = parseBenefitObjectValue(benefit.catalogEntry?.objectValue)
+
+    if (catalogDetails.value && catalogDetails.value !== 'none') {
+      const amount = parseFloat(catalogDetails.value)
+
+      // Validate that the parsed amount is a valid number
+      if (!Number.isFinite(amount)) {
+        console.warn(
+          `Invalid benefit amount value: "${catalogDetails.value}" for benefit code: ${benefit.code}. Skipping catalog value.`
+        )
+        // Fall through to employee benefit data fallback
+      } else {
+        const period = catalogDetails.period || 'yearly'
+        const periodKey = period === 'monthly' ? 'benefit-per-month' : 'benefit-per-year'
+
+        return { amount, periodKey }
+      }
+    }
+
+    // Fallback to employee benefit data if catalog value not available
+    if (benefit.yearlyAmount) {
+      return { amount: benefit.yearlyAmount, periodKey: 'benefit-per-year' }
+    }
+
+    if (benefit.monthlyAmount) {
+      return { amount: benefit.monthlyAmount, periodKey: 'benefit-per-month' }
+    }
+
+    return null
+  }
+
+  /**
+   * Check if start date is in the future
+   */
+  const isStartDateInFuture = (startDate?: string): boolean => {
+    if (!startDate) return false
+    return dayjs(startDate).isAfter(dayjs())
+  }
+
+  /**
    * Handle view details action
    */
   const handleViewDetails = () => {
@@ -65,6 +129,9 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
       onViewDetails(benefit)
     }
   }
+
+  const valueDisplay = benefit.isActive ? getBenefitValueDisplay() : null
+  const startDateInFuture = isStartDateInFuture(benefit.startDate)
 
   return (
     <Card
@@ -77,7 +144,7 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
     >
       {/* Available Benefits Layout */}
       {!benefit.isActive && (
-        <div className="gba:flex gba:justify-between gba:items-start gba:gap-2">
+        <div className="gba:flex gba:justify-between gba:items-start gba:gap-3">
           <div className="gba:flex-1">
             <h3
               className="gba:text-base gba:font-semibold gba:text-foreground gba:leading-tight"
@@ -95,27 +162,41 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
             )}
           </div>
 
-          <AppAction
-            variant="custom"
-            mode="button"
-            buttonSize="sm"
-            buttonVariant="secondary"
-            emptyState="enable"
-            data-testid={`benefit-catalog-request-button-${benefit.code}`}
-            contexts={[
-              {
-                context: FlowContextName.employeeBenefitRequest,
-                contextData: { employeeId: employeeId, benefit: benefit }
-              }
-            ]}
-            prefixDataTestId={`benefit-request-${benefit.code}`}
-            autoExecute={true}
-            accessToken={accessToken}
-            className="gba:w-32 gba:font-semibold"
-          >
-            <Icon icon={PlusIcon} size="sm" data-testid={`benefit-request-icon-${benefit.code}`} />
-            {benefit.isPending ? t('benefit-status-pending') : t('benefit-request-button')}
-          </AppAction>
+          {/* Right side: Action buttons stacked */}
+          <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-32" data-testid={`benefit-actions-${benefit.code}`}>
+            {onViewDetails && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleViewDetails}
+                className="gba:w-full"
+                data-testid={`benefit-catalog-details-button-${benefit.code}`}
+              >
+                {t('benefit-view-details')}
+              </Button>
+            )}
+            <AppAction
+              variant="custom"
+              mode="button"
+              buttonSize="sm"
+              buttonVariant="secondary"
+              emptyState="enable"
+              disabled={benefit.isPending}
+              data-testid={`benefit-catalog-request-button-${benefit.code}`}
+              contexts={[
+                {
+                  context: FlowContextName.employeeBenefitRequest,
+                  contextData: { employeeId: employeeId, benefit: benefit }
+                }
+              ]}
+              prefixDataTestId={`benefit-request-${benefit.code}`}
+              autoExecute={true}
+              accessToken={accessToken}
+              className="gba:w-full gba:font-semibold"
+            >
+              {benefit.isPending ? t('benefit-status-pending') : t('benefit-request-button')}
+            </AppAction>
+          </div>
         </div>
       )}
 
@@ -132,22 +213,22 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
             </h3>
 
             {/* Provider and Amount */}
-            {(benefit.provider || benefit.yearlyAmount) && (
+            {(benefit.provider || valueDisplay) && (
               <div
                 className="gba:text-xs gba:text-muted-foreground gba:leading-tight"
                 data-testid={`benefit-provider-amount-${benefit.code}`}
               >
                 {benefit.provider && <span>{getTranslatedCatalogEntryValue(benefit.provider, locale)}</span>}
-                {benefit.provider && benefit.yearlyAmount && <span> • </span>}
-                {benefit.yearlyAmount && (
+                {benefit.provider && valueDisplay && <span> • </span>}
+                {valueDisplay && (
                   <span className="gba:font-medium gba:text-foreground">
-                    {formatCurrencyString(benefit.yearlyAmount, {
+                    {formatCurrencyString(valueDisplay.amount, {
                       currency: benefit.currency?.code || currencyCode,
                       locale: locale,
                       minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
+                      maximumFractionDigits: 2
                     })}
-                    {t('benefit-per-year')}
+                    {t(valueDisplay.periodKey)}
                   </span>
                 )}
               </div>
@@ -159,7 +240,7 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
                 className="gba:text-xs gba:text-muted-foreground gba:leading-tight"
                 data-testid={`benefit-start-date-${benefit.code}`}
               >
-                {t('benefit-since')}{' '}
+                {startDateInFuture ? t('benefit-starts-in') : t('benefit-since')}{' '}
                 {new Date(benefit.startDate).toLocaleDateString(locale ?? 'en-US', {
                   month: 'short',
                   year: 'numeric'
@@ -169,7 +250,7 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
           </div>
 
           {/* Right side: Action buttons stacked */}
-          <div className="gba:flex gba:flex-col gba:gap-1 gba:w-32" data-testid={`benefit-actions-${benefit.code}`}>
+          <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-32" data-testid={`benefit-actions-${benefit.code}`}>
             {onViewDetails && (
               <Button
                 variant="outline"
