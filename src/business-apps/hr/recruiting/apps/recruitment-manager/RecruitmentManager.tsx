@@ -1,13 +1,12 @@
 import React, { useState } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
-import { Briefcase, FileText, Users, ClipboardList } from 'lucide-react'
+import { Briefcase, FileText, Users } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { JobRequestView } from './views/job-request-view/JobRequestView'
 import { JobPostingView } from './views/job-posting-view/JobPostingView'
 import { JobCandidateView } from './views/job-candidate-view/JobCandidateView'
-import { JobApplicationView } from './views/job-application-view/JobApplicationView'
 
 export type RecruitmentManagerProps = BusinessAppContextProps
 
@@ -29,11 +28,6 @@ export const RecruitmentManager: React.FC<RecruitmentManagerProps> = context => 
       key: 'job-candidates',
       icon: <Users />,
       label: getTranslationFromI18nKeyAndLabel('jobCandidates', 'Job Candidates')
-    },
-    {
-      key: 'job-applications',
-      icon: <ClipboardList />,
-      label: getTranslationFromI18nKeyAndLabel('jobApplications', 'Job Applications')
     }
   ]
 
@@ -63,8 +57,6 @@ export const RecruitmentManager: React.FC<RecruitmentManagerProps> = context => 
         return <JobPostingView {...context} />
       case 'job-candidates':
         return <JobCandidateView {...context} />
-      case 'job-applications':
-        return <JobApplicationView {...context} />
       default:
         return null
     }

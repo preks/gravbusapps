@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobPostings } from '@/common/data/recruiting/hooks/useJobPostings'
 import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { JobPosting } from '@/common/data/recruiting/types/jobPostingTypes'
 
 export type JobPostingViewProps = BusinessAppContextProps
@@ -30,6 +31,15 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
     },
     'list'
   )
+
+  // Handle row click to navigate to job posting record
+  const handleRowClick = useCallback((row: JobPosting) => {
+    if (!row.id) return
+    const url = buildPlatformUrl('/platform/hr/recruiting/job-posting-record', {
+      jobPostingId: row.id
+    })
+    navigateTo(url)
+  }, [])
 
   // Row actions
   const rowActions = useMemo(
@@ -151,6 +161,7 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
           maxVisiblePages={7}
           emptyMessage={getTranslationFromI18nKeyAndLabel('recruiting.noJobPostingsFound', 'No job postings found')}
           actions={rowActions}
+          onRowClick={handleRowClick}
           data-testid="job-posting-list"
         />
       </DataDisplay>
