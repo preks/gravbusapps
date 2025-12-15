@@ -90,7 +90,9 @@ export const useBenefitsCatalog = (
       endDate: graphqlBenefit.endDate ?? null,
       status: graphqlBenefit.status ?? '',
       benefitStatus: graphqlBenefit.benefitStatus ?? '',
-      notes: graphqlBenefit.notes ?? ''
+      notes: graphqlBenefit.notes ?? '',
+      createdAt: graphqlBenefit.createdAt,
+      updatedAt: graphqlBenefit.updatedAt
     }
   }, [])
 
@@ -101,8 +103,25 @@ export const useBenefitsCatalog = (
   const mergeBenefitData = useCallback(
     (catalogEntries: CatalogBenefitEntry[], employeeBenefits: EmployeeBenefit[]): BenefitCatalogItem[] => {
       return catalogEntries.map(catalogEntry => {
-        // Find if employee has this benefit (check by benefitTypeRef matching catalog ID)
-        const employeeBenefit = employeeBenefits.find(eb => eb.benefitTypeRef === catalogEntry.id)
+        // Find ALL employee benefits for this benefit type (there can be multiple due to history)
+        const matchingBenefits = employeeBenefits.filter(eb => eb.benefitTypeRef === catalogEntry.id)
+
+        // Prioritize active benefits, then sort by creation date (most recent first)
+        const sortedBenefits = matchingBenefits.sort((a, b) => {
+          // Active benefits come first
+          const aActive = isBenefitActive(a.benefitStatus)
+          const bActive = isBenefitActive(b.benefitStatus)
+          if (aActive && !bActive) return -1
+          if (!aActive && bActive) return 1
+
+          // If both have same active status, sort by creation date (newest first)
+          const aDate = new Date(a.createdAt || 0).getTime()
+          const bDate = new Date(b.createdAt || 0).getTime()
+          return bDate - aDate
+        })
+
+        // Use the first one from sorted list (most recent active, or most recent if none active)
+        const employeeBenefit = sortedBenefits[0]
 
         // Check if benefit is active
         const isActive = employeeBenefit ? isBenefitActive(employeeBenefit.benefitStatus) : false
