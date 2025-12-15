@@ -238,10 +238,10 @@ export const isBenefitActive = (benefit: {
  * to end on date X is considered "scheduled for deactivation" through 23:59:59.999 of that day.
  *
  * Note: In most cases, you can use inline checks like:
- * `benefit.isActive && Boolean(benefit.endDate) && benefit.benefitStatus === BenefitStatus.INACTIVE`
+ * `benefit.isActive && Boolean(benefit.endDate) && benefit.benefitStatus === BenefitStatus.ACTIVE`
  * when benefit.isActive is already validated via isBenefitActive()
  *
- * @param benefit - The employee benefit object with status and endDate
+ * @param benefit - The employee benefit object with ACTIVE_BENEFIT status and endDate
  * @returns true if benefit has ACTIVE_BENEFIT status and a valid future end date, false otherwise
  */
 export const isBenefitScheduledForDeactivation = (benefit: {
