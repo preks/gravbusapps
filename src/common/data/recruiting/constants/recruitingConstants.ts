@@ -17,5 +17,7 @@ export const RECRUITING_CATALOGS = {
   SOURCE: 'Source',
   ACADEMIC_TITLE: 'AcademicTitle',
   APPLICATION_STATUS: 'ApplicationStatus',
-  APPLICATION_STAGE: 'ApplicationStage'
+  APPLICATION_STAGE: 'ApplicationStage',
+  JOB_REQUISITION_REASON: 'JobRequisitionReason',
+  EXPERIENCE_LEVEL: 'ExperienceLevelCatalog'
 } as const

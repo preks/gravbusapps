@@ -18,26 +18,35 @@ import {
   FormControl,
   FormMessage,
   Input,
-  Textarea
+  Textarea,
+  DateInput
 } from '@newwork/nw-design-system'
+import { EmployeeSelect } from '@/components/employee-select'
+import { JobPositionSelect } from '@/components/job-position-select'
+import { OrganizationalUnitSelect } from '@/components/organizational-unit-select'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system'
 import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
+import { RequisitionStatus, REQUISITION_STATUS_OPTIONS } from '@/common/data/recruiting/constants/requisitionStatus'
 
 const jobRequestSchema = z.object({
   id: z.string().optional(),
   version: z.number().optional(),
   code: z.string().optional(),
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
-  requestDate: z.string().optional(),
-  requiredStartDate: z.string().optional(),
-  status: z.string().optional(),
-  jobRequestStatusRef: z.string().optional(),
-  jobRequestTypeRef: z.string().optional(),
-  priorityRef: z.string().optional(),
-  departmentRef: z.string().optional(),
-  requestedByEmployeeId: z.string().optional(),
+  name: z.string().min(1, 'Name is required'),
+  note: z.string().optional(),
+  headcount: z.number().min(1, 'Headcount must be at least 1').default(1),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  requisitionStatus: z.nativeEnum(RequisitionStatus).optional(),
+  reasonRef: z.string().optional(),
+  contractTypeRef: z.string().optional(),
+  experienceLevelRef: z.string().optional(),
+  organizationalUnitId: z.string().optional(),
   jobPositionId: z.string().optional(),
-  approvedByEmployeeId: z.string().optional(),
+  requesterId: z.string().optional(),
+  jobProfileId: z.string().optional(),
+  costCenterId: z.string().optional(),
+  replacedPositionId: z.string().optional(),
   additionalProperties: z.any().optional()
 })
 
@@ -112,46 +121,18 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
           <div className="gba:space-y-4">
             <FormField
               control={form.control}
-              name="title"
+              name="organizationalUnitId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel>Organizational Unit</FormLabel>
                   <FormControl>
-                    <Input {...field} data-testid={formatDataTestId('job-request-form', 'title-input')} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} data-testid={formatDataTestId('job-request-form', 'description-input')} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="jobRequestStatusRef"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier={RECRUITING_CATALOGS.JOB_REQUEST_STATUS}
+                    <OrganizationalUnitSelect
                       value={field.value || null}
-                      onValueChange={(v: string | null) => field.onChange(v || '')}
+                      onValueChange={v => field.onChange(v || '')}
                       businessAppContext={{ accessToken, userInfo, additionalData }}
-                      placeholder="Select status..."
-                      data-testid={formatDataTestId('job-request-form', 'status-select')}
+                      placeholder="Select organizational unit..."
+                      autoSelect="current-user"
+                      data-testid={formatDataTestId('job-request-form', 'organizational-unit-select')}
                     />
                   </FormControl>
                   <FormMessage />
@@ -161,18 +142,239 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
 
             <FormField
               control={form.control}
-              name="priorityRef"
+              name="code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Priority</FormLabel>
+                  <FormLabel>Code</FormLabel>
+                  <FormControl>
+                    <Input {...field} data-testid={formatDataTestId('job-request-form', 'code-input')} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} data-testid={formatDataTestId('job-request-form', 'name-input')} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="note"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Note</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} data-testid={formatDataTestId('job-request-form', 'note-input')} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl>
+                      <DateInput
+                        type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(value || '')}
+                        placeholder="Select start date..."
+                        data-testid={formatDataTestId('job-request-form', 'start-date-input')}
+                        captionLayout="dropdown"
+                        outputFormat="iso"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Date</FormLabel>
+                    <FormControl>
+                      <DateInput
+                        type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(value || '')}
+                        placeholder="Select end date..."
+                        data-testid={formatDataTestId('job-request-form', 'end-date-input')}
+                        captionLayout="dropdown"
+                        outputFormat="iso"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="requisitionStatus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value || ''}
+                        onValueChange={value => field.onChange(typeof value === 'string' ? value : value[0] || '')}
+                      >
+                        <SelectTrigger data-testid={formatDataTestId('job-request-form', 'status-select')}>
+                          <SelectValue placeholder="Select status..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REQUISITION_STATUS_OPTIONS.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="headcount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Headcount</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        {...field}
+                        value={field.value || 1}
+                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10) || 1)}
+                        data-testid={formatDataTestId('job-request-form', 'headcount-input')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="reasonRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reason</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.JOB_REQUISITION_REASON}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-request-form', 'reason-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="contractTypeRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contract Type</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.CONTRACT_TYPE}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-request-form', 'contract-type-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="experienceLevelRef"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Experience Level</FormLabel>
                   <FormControl>
                     <CatalogSelect
-                      catalogIdentifier={RECRUITING_CATALOGS.PRIORITY}
+                      catalogIdentifier={RECRUITING_CATALOGS.EXPERIENCE_LEVEL}
                       value={field.value || null}
-                      onValueChange={(v: string | null) => field.onChange(v || '')}
+                      onValueChange={(v: string | string[]) => field.onChange(Array.isArray(v) ? v[0] || '' : v || '')}
+                      data-testid={formatDataTestId('job-request-form', 'experience-level-select')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="jobPositionId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Job Position</FormLabel>
+                  <FormControl>
+                    <JobPositionSelect
+                      value={field.value || null}
+                      onValueChange={v => field.onChange(v || '')}
                       businessAppContext={{ accessToken, userInfo, additionalData }}
-                      placeholder="Select priority..."
-                      data-testid={formatDataTestId('job-request-form', 'priority-select')}
+                      placeholder="Select job position..."
+                      data-testid={formatDataTestId('job-request-form', 'job-position-select')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="requesterId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Requester</FormLabel>
+                  <FormControl>
+                    <EmployeeSelect
+                      value={field.value || null}
+                      onValueChange={v => field.onChange(v || '')}
+                      businessAppContext={{ accessToken, userInfo, additionalData }}
+                      placeholder="Select requester..."
+                      data-testid={formatDataTestId('job-request-form', 'requester-select')}
                     />
                   </FormControl>
                   <FormMessage />

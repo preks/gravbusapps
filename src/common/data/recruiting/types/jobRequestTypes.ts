@@ -11,39 +11,44 @@ export interface JobPosition {
 }
 
 /**
- * JobRequest Type
+ * JobRequest Type (JobRequisition)
  * Represents the actual data model from GraphQL
  */
 export interface JobRequest extends BaseEntity {
   id?: string
   code?: string
-  title: string
-  description?: string
-  requestDate?: string
-  requiredStartDate?: string
-  status?: string
+  name: string
+  note?: string
+  headcount: number
+  startDate?: string
+  endDate?: string
+  requisitionStatus?: string
 
   // Catalog References (objects)
-  jobRequestStatus?: CatalogEntry
-  jobRequestType?: CatalogEntry
-  priority?: CatalogEntry
-  department?: CatalogEntry
+  reason?: CatalogEntry
+  contractType?: CatalogEntry
+  experienceLevel?: CatalogEntry
 
   // Catalog Reference IDs (Ref fields)
-  jobRequestStatusRef?: string
-  jobRequestTypeRef?: string
-  priorityRef?: string
-  departmentRef?: string
+  reasonRef?: string
+  contractTypeRef?: string
+  experienceLevelRef?: string
 
   // Entity References (objects)
-  requestedByEmployee?: Employee
+  organizationalUnit?: {
+    id: string
+    name: string
+  }
   jobPosition?: JobPosition
-  approvedByEmployee?: Employee
+  requester?: Employee
 
   // Entity Reference IDs (Id fields)
-  requestedByEmployeeId?: string
+  organizationalUnitId?: string
   jobPositionId?: string
-  approvedByEmployeeId?: string
+  requesterId?: string
+  jobProfileId?: string
+  costCenterId?: string
+  replacedPositionId?: string
 }
 
 /**
@@ -53,33 +58,35 @@ export interface JobRequest extends BaseEntity {
 export const JobRequestFields = {
   id: 'id',
   code: 'code',
-  title: 'title',
-  description: 'description',
-  requestDate: 'requestDate',
-  requiredStartDate: 'requiredStartDate',
-  status: 'status',
+  name: 'name',
+  note: 'note',
+  headcount: 'headcount',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  requisitionStatus: 'requisitionStatus',
 
   // Catalog References (objects)
-  jobRequestStatus: 'jobRequestStatus',
-  jobRequestType: 'jobRequestType',
-  priority: 'priority',
-  department: 'department',
+  reason: 'reason',
+  contractType: 'contractType',
+  experienceLevel: 'experienceLevel',
 
   // Catalog Reference IDs (Ref fields)
-  jobRequestStatusRef: 'jobRequestStatusRef',
-  jobRequestTypeRef: 'jobRequestTypeRef',
-  priorityRef: 'priorityRef',
-  departmentRef: 'departmentRef',
+  reasonRef: 'reasonRef',
+  contractTypeRef: 'contractTypeRef',
+  experienceLevelRef: 'experienceLevelRef',
 
   // Entity References (objects)
-  requestedByEmployee: 'requestedByEmployee',
+  organizationalUnit: 'organizationalUnit',
   jobPosition: 'jobPosition',
-  approvedByEmployee: 'approvedByEmployee',
+  requester: 'requester',
 
   // Entity Reference IDs (Id fields)
-  requestedByEmployeeId: 'requestedByEmployeeId',
+  organizationalUnitId: 'organizationalUnitId',
   jobPositionId: 'jobPositionId',
-  approvedByEmployeeId: 'approvedByEmployeeId'
+  requesterId: 'requesterId',
+  jobProfileId: 'jobProfileId',
+  costCenterId: 'costCenterId',
+  replacedPositionId: 'replacedPositionId'
 } as const
 
 /**
@@ -89,39 +96,33 @@ export const JobRequestFields = {
 export const JOB_REQUEST_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
   { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
-  { key: 'title', searchPaths: ['title'], sortPath: 'title', type: 'text' },
-  { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
-  { key: 'requestDate', searchPaths: ['requestDate'], sortPath: 'requestDate', type: 'date' },
-  { key: 'requiredStartDate', searchPaths: ['requiredStartDate'], sortPath: 'requiredStartDate', type: 'date' },
-  { key: 'status', searchPaths: ['status'], sortPath: 'status', type: 'text' },
+  { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
+  { key: 'note', searchPaths: ['note'], sortPath: 'note', type: 'text' },
+  { key: 'startDate', searchPaths: ['startDate'], sortPath: 'startDate', type: 'date' },
+  { key: 'endDate', searchPaths: ['endDate'], sortPath: 'endDate', type: 'date' },
+  { key: 'requisitionStatus', searchPaths: ['requisitionStatus'], sortPath: 'requisitionStatus', type: 'text' },
   {
-    key: 'jobRequestStatus',
-    searchPaths: ['jobRequestStatus.value'],
-    sortPath: 'jobRequestStatus.value',
+    key: 'reason',
+    searchPaths: ['reason.value'],
+    sortPath: 'reason.value',
     type: 'text'
   },
   {
-    key: 'jobRequestType',
-    searchPaths: ['jobRequestType.value'],
-    sortPath: 'jobRequestType.value',
+    key: 'contractType',
+    searchPaths: ['contractType.value'],
+    sortPath: 'contractType.value',
     type: 'text'
   },
   {
-    key: 'priority',
-    searchPaths: ['priority.value'],
-    sortPath: 'priority.value',
+    key: 'experienceLevel',
+    searchPaths: ['experienceLevel.value'],
+    sortPath: 'experienceLevel.value',
     type: 'text'
   },
   {
-    key: 'department',
-    searchPaths: ['department.value'],
-    sortPath: 'department.value',
-    type: 'text'
-  },
-  {
-    key: 'requestedByEmployee',
-    searchPaths: ['requestedByEmployee.firstName', 'requestedByEmployee.lastName', 'requestedByEmployee.displayName'],
-    sortPath: 'requestedByEmployee.displayName',
+    key: 'organizationalUnit',
+    searchPaths: ['organizationalUnit.name'],
+    sortPath: 'organizationalUnit.name',
     type: 'text'
   },
   {
@@ -131,9 +132,9 @@ export const JOB_REQUEST_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
-    key: 'approvedByEmployee',
-    searchPaths: ['approvedByEmployee.firstName', 'approvedByEmployee.lastName', 'approvedByEmployee.displayName'],
-    sortPath: 'approvedByEmployee.displayName',
+    key: 'requester',
+    searchPaths: ['requester.firstName', 'requester.lastName', 'requester.displayName'],
+    sortPath: 'requester.displayName',
     type: 'text'
   }
 ]

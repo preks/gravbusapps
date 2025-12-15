@@ -8,18 +8,21 @@ export interface JobRequestPayload {
   id?: string
   version?: number
   code?: string
-  title: string
-  description?: string
-  requestDate?: string
-  requiredStartDate?: string
-  status?: string
-  jobRequestStatusRef?: string
-  jobRequestTypeRef?: string
-  priorityRef?: string
-  departmentRef?: string
-  requestedByEmployeeId?: string
+  name: string
+  note?: string
+  headcount: number
+  startDate?: string
+  endDate?: string
+  requisitionStatus?: string
+  reasonRef?: string
+  contractTypeRef?: string
+  experienceLevelRef?: string
+  organizationalUnitId?: string
   jobPositionId?: string
-  approvedByEmployeeId?: string
+  requesterId?: string
+  jobProfileId?: string
+  costCenterId?: string
+  replacedPositionId?: string
   additionalProperties?: any
 }
 
@@ -28,18 +31,21 @@ export const buildJobRequestPayload = (data: Partial<JobRequest>): JobRequestPay
     id: data.id,
     version: data.version,
     code: data.code,
-    title: data.title || '',
-    description: data.description,
-    requestDate: data.requestDate,
-    requiredStartDate: data.requiredStartDate,
-    status: data.status,
-    jobRequestStatusRef: data.jobRequestStatusRef,
-    jobRequestTypeRef: data.jobRequestTypeRef,
-    priorityRef: data.priorityRef,
-    departmentRef: data.departmentRef,
-    requestedByEmployeeId: data.requestedByEmployeeId,
+    name: data.name || '',
+    note: data.note,
+    headcount: data.headcount || 1,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    requisitionStatus: data.requisitionStatus,
+    reasonRef: data.reasonRef,
+    contractTypeRef: data.contractTypeRef,
+    experienceLevelRef: data.experienceLevelRef,
+    organizationalUnitId: data.organizationalUnitId,
     jobPositionId: data.jobPositionId,
-    approvedByEmployeeId: data.approvedByEmployeeId,
+    requesterId: data.requesterId,
+    jobProfileId: data.jobProfileId,
+    costCenterId: data.costCenterId,
+    replacedPositionId: data.replacedPositionId,
     additionalProperties: data.additionalProperties
   })
 }
