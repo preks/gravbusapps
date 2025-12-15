@@ -126,6 +126,7 @@ payslip-download-failed = Fehler beim Herunterladen der Gehaltsabrechnung. Bitte
 
 # Request Benefit Modal
 modal-request-title = Zusatzleistung anfordern
+modal-request-loading = Lade Zusatzleistungsinformationen...
 modal-request-description = Füllen Sie das untenstehende Formular aus, um diese Zusatzleistung anzufordern
 modal-request-provider-label = Zusatzleistungsanbieter
 modal-request-provider-placeholder = Anbieter auswählen
@@ -258,6 +259,11 @@ payslip-download-tooltip = Gehaltsabrechnung herunterladen
 modal-request-benefit-type-label = Leistungsart
 modal-character-count = {$current} / {$max} Zeichen
 modal-character-minimum = (mindestens {$min} Zeichen)
+
+# Period translations
+period-monthly = Monatlich
+period-yearly = Jährlich
+period-daily = Täglich
 
 # Form Validation Errors
 error-end-date-required = Enddatum ist erforderlich
