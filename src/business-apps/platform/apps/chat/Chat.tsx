@@ -539,11 +539,19 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         }
 
         // Upload attachments to backend and get URLs
+        let uploadedAttachments: Array<{
+          id: string
+          name: string
+          url: string
+          type?: string
+          mimeType?: string
+          size?: number
+        }> = []
         if (attachments?.length && apiClient) {
           try {
             const files = attachments.map(a => a.file)
-            const uploadedFiles = await apiClient.uploadFiles(activeConversationId, files)
-            metadata.attachments = uploadedFiles
+            uploadedAttachments = await apiClient.uploadFiles(activeConversationId, files)
+            metadata.attachments = uploadedAttachments
           } catch (uploadErr) {
             console.error('Error uploading attachments:', uploadErr)
             // Continue sending message without attachments if upload fails
@@ -555,7 +563,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         setDraftMessage('') // clear draft after successful send
 
         // Check for expert mention FIRST (before @Every)
-        const expertResult = await processExpertMention(content, entityReferences)
+        // Pass uploaded attachments so the expert can access them
+        const expertResult = await processExpertMention(content, entityReferences, uploadedAttachments)
 
         if (expertResult.isExpertMention && expertResult.expertResponse) {
           // Expert handled the message, send expert's response
