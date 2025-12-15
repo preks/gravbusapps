@@ -257,6 +257,7 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         orderBy: { createdAt: DESC }
       ) {
         id
+        version
         title
         preview
         content
