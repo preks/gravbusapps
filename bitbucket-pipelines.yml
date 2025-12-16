@@ -234,6 +234,14 @@ definitions:
         services:
           - docker-large
         script:
+          # Clean temp dirs from cached .scannerwork to allow SonarQube to create them fresh
+          - |
+            if [ -d ".scannerwork" ]; then
+              # Remove temp directories that might cause permission issues when restored from cache
+              rm -rf .scannerwork/.sonartmp || true
+              # Ensure directory is writable
+              chmod -R 755 .scannerwork || true
+            fi
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_SCANNER_OPTS: -Xmx10240m
@@ -255,6 +263,14 @@ definitions:
         services:
           - docker-large
         script:
+          # Clean temp dirs from cached .scannerwork to allow SonarQube to create them fresh
+          - |
+            if [ -d ".scannerwork" ]; then
+              # Remove temp directories that might cause permission issues when restored from cache
+              rm -rf .scannerwork/.sonartmp || true
+              # Ensure directory is writable
+              chmod -R 755 .scannerwork || true
+            fi
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_SCANNER_OPTS: -Xmx14336m
