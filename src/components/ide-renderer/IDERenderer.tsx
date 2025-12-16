@@ -8,6 +8,10 @@ import { BusinessAppInfo } from '@/components/ide-main-menu'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
+// Process event constants
+const PSE_ABORT_EVENT = 'pse_abort'
+const ABORT_EXIT_STRATEGY = 'abort'
+
 // Dynamic component wrapper that loads components on demand
 const DynamicComponentWrapper: React.FC<{
   app: BusinessAppInfo
@@ -105,12 +109,13 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
     // This defensive approach prevents orphaned tasks at the cost of redundant events
     if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup' || selectedApp.type === 'window')) {
       try {
-        dispatchProcessContinueEvent('pse_abort', {
-          event: 'pse_abort',
-          pso_exitStrategy: 'abort'
+        dispatchProcessContinueEvent(PSE_ABORT_EVENT, {
+          event: PSE_ABORT_EVENT,
+          pso_exitStrategy: ABORT_EXIT_STRATEGY
         })
-      } catch {
-        // Silently handle any event dispatch errors to prevent dialog close interruption
+      } catch (error) {
+        // Log error for observability while still allowing dialog close to proceed
+        console.error('Failed to dispatch pse_abort event on dialog close:', error)
       }
     }
 
