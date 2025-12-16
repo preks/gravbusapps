@@ -11,10 +11,13 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Input,
   Button,
-  Badge,
   Alert,
   AlertTitle,
   AlertDescription,
+  TabSwitch,
+  TabSwitchList,
+  TabSwitchTrigger,
+  TabSwitchBadge,
   useTranslation,
   useLocale
 } from '@newwork/nw-design-system'
@@ -298,42 +301,40 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         </div>
 
         {/* Flow Type Filters */}
-        <div className="gba:flex gba:gap-2 gba:flex-wrap" data-testid="outbox-filters">
-          <Button
-            variant={filterType === 'all' ? 'default' : 'outline'}
-            onClick={() => setFilterType('all')}
-            data-testid="outbox-filter-all"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            {t('outbox-filter-all')}
-            <Badge variant="secondary" className="gba:ml-1">
-              {flowCounts.all}
-            </Badge>
-          </Button>
-          <Button
-            variant={filterType === 'blinks' ? 'default' : 'outline'}
-            onClick={() => setFilterType('blinks')}
-            data-testid="outbox-filter-blinks"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <Zap className="gba:h-4 gba:w-4" />
-            {t('outbox-filter-blinks')}
-            <Badge variant="secondary" className="gba:ml-1">
-              {flowCounts.blinks}
-            </Badge>
-          </Button>
-          <Button
-            variant={filterType === 'requests' ? 'default' : 'outline'}
-            onClick={() => setFilterType('requests')}
-            data-testid="outbox-filter-requests"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <FileText className="gba:h-4 gba:w-4" />
-            {t('outbox-filter-requests')}
-            <Badge variant="secondary" className="gba:ml-1">
-              {flowCounts.requests}
-            </Badge>
-          </Button>
+        <div
+          className="gba:overflow-x-auto gba:overflow-y-hidden gba:-mx-3 gba:px-3"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--nw-border) transparent'
+          }}
+        >
+          <TabSwitch value={filterType} onValueChange={value => setFilterType(value as FlowFilterType)}>
+            <TabSwitchList data-testid="outbox-filters">
+              <TabSwitchTrigger
+                value="all"
+                data-testid="outbox-filter-all"
+                endAdornment={<TabSwitchBadge>{flowCounts.all}</TabSwitchBadge>}
+              >
+                {t('outbox-filter-all')}
+              </TabSwitchTrigger>
+              <TabSwitchTrigger
+                value="blinks"
+                data-testid="outbox-filter-blinks"
+                startIcon={<Zap className="gba:h-4 gba:w-4" />}
+                endAdornment={<TabSwitchBadge>{flowCounts.blinks}</TabSwitchBadge>}
+              >
+                {t('outbox-filter-blinks')}
+              </TabSwitchTrigger>
+              <TabSwitchTrigger
+                value="requests"
+                data-testid="outbox-filter-requests"
+                startIcon={<FileText className="gba:h-4 gba:w-4" />}
+                endAdornment={<TabSwitchBadge>{flowCounts.requests}</TabSwitchBadge>}
+              >
+                {t('outbox-filter-requests')}
+              </TabSwitchTrigger>
+            </TabSwitchList>
+          </TabSwitch>
         </div>
 
         {/* Error Alert */}
