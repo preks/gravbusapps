@@ -54,6 +54,7 @@ export interface BenefitCatalogItem {
   // Optional: benefit entry type (from GraphQL source) can be accessed via catalogEntry.type
   availableProviders?: ProviderEntry[]
   isActive: boolean
+  isScheduled: boolean // NEW: Approved benefit scheduled to start in the future
   employeeBenefitId?: string
   provider?: CatalogEntry
   providerRef?: string
