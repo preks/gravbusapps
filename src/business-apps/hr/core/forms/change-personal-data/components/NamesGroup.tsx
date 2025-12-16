@@ -55,18 +55,10 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs, setValue }) 
 
   const validateNameFunction = (name: string): boolean => {
     const trimmed = (name || '').trim()
+    const nameRegex =
+      /^[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,}(?:(?:\s*-\s*|\s)[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,})*(?:\s*\([A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]+\))?$/
 
-    // Existing validation (kept as-is)
-    const baseRegex =
-      /^(?:[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:-[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,})?)(?: [a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:-[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,})?)*(?: \([a-zA-ZÀ-ÿ\u00f1\u00d1]+\))?$/
-
-    if (baseRegex.test(trimmed)) return true
-
-    // Enhancement: allow Croatian letters (Latin Extended-A: Ć Č Š Ž Đ and lowercase)
-    const croatianExtendedRegex =
-      /^(?:[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,}(?:-[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,})?)(?: [A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,}(?:-[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,})?)*(?: \([A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]+\))?$/
-
-    return croatianExtendedRegex.test(trimmed)
+    return nameRegex.test(trimmed)
   }
 
   return (

@@ -134,7 +134,10 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   }
 
   const validateNameFunction = (name: string, which: 'first' | 'last'): string => {
-    const nameRegex = /^[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:[-\s]?[a-zA-ZÀ-ÿ\u00f1\u00d1]+)*$/
+    // Allow letters (including accented and Croatian: Ć Č Š Ž Đ), spaces, hyphens (with or without spaces)
+    // Supports: "Sergiu", "Sergiu Gheorghe", "Sergiu-Gheorghe", "Sergiu - Gheorghe", "Jean-Pierre", "Čović"
+    const nameRegex =
+      /^[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,}(?:(?:\s*-\s*|\s)[A-Za-zÀ-ÿ\u00f1\u00d1\u0100-\u017F]{2,})*$/
     const trimmed = (name || '').trim()
     if (trimmed.length === 0) {
       return which === 'first'
