@@ -256,4 +256,43 @@ export const AIThinkingIndicator: React.FC = () => {
   )
 }
 
+/**
+ * Expert Thinking indicator component - shows when an AI expert is processing
+ */
+export interface ExpertThinkingIndicatorProps {
+  expertName: string
+  expertColor?: string
+}
+
+export const ExpertThinkingIndicator: React.FC<ExpertThinkingIndicatorProps> = ({ expertName, expertColor }) => {
+  const color = expertColor || 'var(--nw-primary)'
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-3 gba:text-sm gba:py-3">
+      {/* Animated dots with expert color */}
+      <div className="gba:flex gba:gap-1.5">
+        <span
+          className="gba:w-2.5 gba:h-2.5 gba:rounded-full gba:animate-bounce"
+          style={{ backgroundColor: color, animationDelay: '0ms' }}
+        />
+        <span
+          className="gba:w-2.5 gba:h-2.5 gba:rounded-full gba:animate-bounce"
+          style={{ backgroundColor: color, animationDelay: '150ms' }}
+        />
+        <span
+          className="gba:w-2.5 gba:h-2.5 gba:rounded-full gba:animate-bounce"
+          style={{ backgroundColor: color, animationDelay: '300ms' }}
+        />
+      </div>
+      {/* Expert name and status */}
+      <div className="gba:flex gba:flex-col gba:gap-0.5">
+        <span className="gba:font-medium" style={{ color }}>
+          {expertName}
+        </span>
+        <span className="gba:text-xs gba:text-muted-foreground">is analyzing your request...</span>
+      </div>
+    </div>
+  )
+}
+
 export { parseEntityLinks, type EntityLink }
