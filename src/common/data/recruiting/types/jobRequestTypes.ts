@@ -39,16 +39,15 @@ export interface JobRequest extends BaseEntity {
     id: string
     name: string
   }
-  jobPosition?: JobPosition
+  replacedPosition?: JobPosition
   requester?: Employee
 
   // Entity Reference IDs (Id fields)
   organizationalUnitId?: string
-  jobPositionId?: string
+  replacedPositionId?: string
   requesterId?: string
   jobProfileId?: string
   costCenterId?: string
-  replacedPositionId?: string
 }
 
 /**
@@ -77,16 +76,15 @@ export const JobRequestFields = {
 
   // Entity References (objects)
   organizationalUnit: 'organizationalUnit',
-  jobPosition: 'jobPosition',
+  replacedPosition: 'replacedPosition',
   requester: 'requester',
 
   // Entity Reference IDs (Id fields)
   organizationalUnitId: 'organizationalUnitId',
-  jobPositionId: 'jobPositionId',
+  replacedPositionId: 'replacedPositionId',
   requesterId: 'requesterId',
   jobProfileId: 'jobProfileId',
-  costCenterId: 'costCenterId',
-  replacedPositionId: 'replacedPositionId'
+  costCenterId: 'costCenterId'
 } as const
 
 /**
@@ -127,9 +125,9 @@ export const JOB_REQUEST_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
-    key: 'jobPosition',
-    searchPaths: ['jobPosition.name'],
-    sortPath: 'jobPosition.name',
+    key: 'replacedPosition',
+    searchPaths: ['replacedPosition.name'],
+    sortPath: 'replacedPosition.name',
     type: 'text'
   },
   {

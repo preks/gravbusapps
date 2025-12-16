@@ -4,7 +4,6 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { JobRequestFields } from '../types/jobRequestTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
@@ -19,7 +18,7 @@ export interface JobRequestQueryVariables extends BaseQueryVariables {
   organizationalUnitId?: string
   requisitionStatus?: string
   reasonRef?: string
-  jobPositionId?: string
+  replacedPositionId?: string
   requesterId?: string
 }
 
@@ -38,9 +37,8 @@ export const JOB_REQUEST_QUERY_CONFIGS: Record<string, string[]> = {
     'requisitionStatus',
     'organizationalUnit',
     'organizationalUnitId',
-    'jobPosition',
-    'jobPositionId',
-    'requester',
+    'replacedPosition',
+    'replacedPositionId',
     'requesterId',
     'updatedAt'
   ],
@@ -63,13 +61,11 @@ export const JOB_REQUEST_QUERY_CONFIGS: Record<string, string[]> = {
     'experienceLevelRef',
     'organizationalUnit',
     'organizationalUnitId',
-    'jobPosition',
-    'jobPositionId',
-    'requester',
+    'replacedPosition',
+    'replacedPositionId',
     'requesterId',
     'jobProfileId',
     'costCenterId',
-    'replacedPositionId',
     'updatedAt',
     'updatedBy',
     'version',
@@ -79,8 +75,23 @@ export const JOB_REQUEST_QUERY_CONFIGS: Record<string, string[]> = {
 
 /**
  * Build scalar fields fragment
+ * Note: Audit fields (createdAt, createdBy, updatedAt, updatedBy, isDeleted, recordState, activeFrom, activeTo, version)
+ * are excluded here since they're already included in AUDIT_FIELDS to avoid duplicates
  */
 const buildScalarFields = (fieldSet: Set<string>): string => {
+  // Audit fields that are already included in AUDIT_FIELDS
+  const auditFields = new Set([
+    'createdAt',
+    'createdBy',
+    'updatedAt',
+    'updatedBy',
+    'isDeleted',
+    'recordState',
+    'activeFrom',
+    'activeTo',
+    'version'
+  ])
+
   const scalarFields = [
     { key: 'id', value: 'id' },
     { key: 'version', value: 'version' },
@@ -106,7 +117,7 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
   ]
 
   return scalarFields
-    .filter(field => fieldSet.has(field.key))
+    .filter(field => fieldSet.has(field.key) && !auditFields.has(field.key))
     .map(field => field.value)
     .join('\n    ')
 }
@@ -168,8 +179,8 @@ export const buildJobRequestFragment = (fields: string[]): string => {
     
     ${buildEntityReferenceField(fieldSet, 'organizationalUnit', 'organizationalUnitId', JobRequestFields.organizationalUnit, 'id\n      name')}
     
-    ${buildEntityReferenceField(fieldSet, 'jobPosition', 'jobPositionId', JobRequestFields.jobPosition, 'id\n      name')}
+    ${buildEntityReferenceField(fieldSet, 'replacedPosition', 'replacedPositionId', JobRequestFields.replacedPosition, 'id\n      name')}
     
-    ${buildEntityReferenceField(fieldSet, 'requester', 'requesterId', JobRequestFields.requester, EMPLOYEE_REF)}
+    ${fieldSet.has('requesterId') ? `${JobRequestFields.requesterId}` : ''}
   `
 }

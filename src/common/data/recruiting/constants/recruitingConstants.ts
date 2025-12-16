@@ -18,7 +18,7 @@ export const RECRUITING_CATALOGS = {
   ACADEMIC_TITLE: 'AcademicTitle',
   APPLICATION_STATUS: 'ApplicationStatus',
   APPLICATION_STAGE: 'ApplicationStage',
-  JOB_REQUISITION_REASON: 'JobRequisitionReasonCatalog',
+  JOB_REQUISITION_REASON: 'JobRequisitionReason',
   EXPERIENCE_LEVEL: 'ExperienceLevelCatalog'
 } as const
 
@@ -26,10 +26,10 @@ export const RECRUITING_CATALOGS = {
  * Job Requisition Reason Catalog Values
  * Full catalog entry identifiers in format: CatalogName:Version:Code
  *
- * Catalog: JobRequisitionReasonCatalog
+ * Catalog: JobRequisitionReason
  * Version: v1
  */
 export const JOB_REQUISITION_REASON_VALUES = {
-  REPLACEMENT: 'JobRequisitionReasonCatalog:v1:1',
-  NEW: 'JobRequisitionReasonCatalog:v1:2'
+  REPLACEMENT: 'JobRequisitionReason:v1:1',
+  NEW: 'JobRequisitionReason:v1:2'
 } as const

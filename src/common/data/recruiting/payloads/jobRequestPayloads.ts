@@ -18,11 +18,10 @@ export interface JobRequestPayload {
   contractTypeRef?: string
   experienceLevelRef?: string
   organizationalUnitId?: string
-  jobPositionId?: string
+  replacedPositionId?: string
   requesterId?: string
   jobProfileId?: string
   costCenterId?: string
-  replacedPositionId?: string
   additionalProperties?: any
 }
 
@@ -41,11 +40,10 @@ export const buildJobRequestPayload = (data: Partial<JobRequest>): JobRequestPay
     contractTypeRef: data.contractTypeRef,
     experienceLevelRef: data.experienceLevelRef,
     organizationalUnitId: data.organizationalUnitId,
-    jobPositionId: data.jobPositionId,
+    replacedPositionId: data.replacedPositionId,
     requesterId: data.requesterId,
     jobProfileId: data.jobProfileId,
     costCenterId: data.costCenterId,
-    replacedPositionId: data.replacedPositionId,
     additionalProperties: data.additionalProperties
   })
 }

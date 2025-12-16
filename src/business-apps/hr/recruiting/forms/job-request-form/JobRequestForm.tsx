@@ -46,11 +46,10 @@ const jobRequestSchema = z.object({
   contractTypeRef: z.string().optional(),
   experienceLevelRef: z.string().optional(),
   organizationalUnitId: z.string().optional(),
-  jobPositionId: z.string().optional(),
+  replacedPositionId: z.string().optional(),
   requesterId: z.string().optional(),
   jobProfileId: z.string().optional(),
   costCenterId: z.string().optional(),
-  replacedPositionId: z.string().optional(),
   additionalProperties: z.any().optional()
 })
 
@@ -132,8 +131,8 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
       form.setValue('jobProfileId', undefined)
       form.setValue('headcount', 1)
     } else if (isNew) {
-      // Clear job position when switching to NEW
-      form.setValue('jobPositionId', undefined)
+      // Clear replaced position when switching to NEW
+      form.setValue('replacedPositionId', undefined)
     }
   }, [reasonRef, isReplacement, isNew, form])
 
@@ -221,7 +220,7 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
             {isReplacement && (
               <FormField
                 control={form.control}
-                name="jobPositionId"
+                name="replacedPositionId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Job Position</FormLabel>
