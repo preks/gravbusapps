@@ -28,6 +28,11 @@ interface ChatInputProps {
   voiceVolume?: number
   onToggleVoiceMode?: () => void
   onStopSpeaking?: () => void
+  /**
+   * Optional callback fired as soon as the user attaches files.
+   * Used for "upload early" behaviour where files are pre-uploaded before pressing Send.
+   */
+  onFilesAttached?: (files: File[]) => void
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -45,7 +50,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isVoiceLoading = false,
   voiceVolume = 0,
   onToggleVoiceMode,
-  onStopSpeaking
+  onStopSpeaking,
+  onFilesAttached
 }) => {
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -73,9 +79,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const pickFiles = useCallback(
     (list: FileList | null) => {
       if (!list) return
+      const attachedFiles: File[] = []
       Array.from(list).forEach(file => {
         try {
           uploadFile(file)
+          attachedFiles.push(file)
         } catch (err) {
           if (err instanceof MaxNumberOfFilesError) {
             alert('You can only upload up to 5 files.')
@@ -86,8 +94,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }
         }
       })
+      // Notify parent that new files were attached so they can be pre-uploaded if desired.
+      if (attachedFiles.length > 0) {
+        onFilesAttached?.(attachedFiles)
+      }
     },
-    [uploadFile]
+    [uploadFile, onFilesAttached]
   )
 
   const focusTextarea = useCallback(() => {
