@@ -176,7 +176,7 @@ export const useAbsenceData = ({ accessToken, employeeId, filters }: UseAbsenceD
               : absence.type?.value || 'Unknown Group',
           typeName: absence.type ? getCatalogValue(absence.type) || 'Unknown Type' : 'Unknown Type',
           color: extractColorFromObjectValue(absence.type?.objectValue),
-          effectiveDays: absence.effectiveDays || absence.workingDays || 0
+          effectiveDays: absence.workingDays || absence.effectiveDays || 0
         }
       })
 
