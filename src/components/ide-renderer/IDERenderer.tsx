@@ -6,6 +6,7 @@ import { Button } from '@newwork/nw-design-system'
 import { useDynamicScreen } from '@/common/hooks/useDynamicScreen'
 import { BusinessAppInfo } from '@/components/ide-main-menu'
 import { UserInfoProps } from '@/common/BusinessAppContext'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
 // Dynamic component wrapper that loads components on demand
 const DynamicComponentWrapper: React.FC<{
@@ -96,6 +97,23 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
   }, [selectedApp])
 
   const handleDialogClose = () => {
+    // Dispatch abort event to clean up Kogito tasks when dialog closes via X button or ESC
+    // NOTE: This runs on ANY close (X button, ESC, or programmatic)
+    // - If form already handled cleanup (via Cancel/Submit), Kogito ignores duplicate events
+    // - If task is completed, abort events are safely ignored by the platform
+    // - If user closed via X/ESC without cleanup, this ensures task cleanup
+    // This defensive approach prevents orphaned tasks at the cost of redundant events
+    if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup' || selectedApp.type === 'window')) {
+      try {
+        dispatchProcessContinueEvent('pse_abort', {
+          event: 'pse_abort',
+          pso_exitStrategy: 'abort'
+        })
+      } catch {
+        // Silently handle any event dispatch errors to prevent dialog close interruption
+      }
+    }
+
     setDialogVisible(false)
     onAppSelect(null) // Clear the selected app when dialog closes
   }
