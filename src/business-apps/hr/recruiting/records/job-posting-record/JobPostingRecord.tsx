@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { Spinner, RecordLayout } from '@newwork/nw-design-system'
 import { Briefcase, MapPin, FileText, Home as HomeIcon, Users } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -7,7 +7,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useJobPosting } from '@/common/data/recruiting/hooks/useJobPosting'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
-import { HomeView } from './views/home-view'
 import { ApplicationsView } from './views/applications-view'
 
 interface JobPostingRecordContentProps extends BusinessAppContextProps {
@@ -16,12 +15,6 @@ interface JobPostingRecordContentProps extends BusinessAppContextProps {
 }
 
 const JobPostingRecordContent: React.FC<JobPostingRecordContentProps> = ({ jobPostingId, onBack, ...props }) => {
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof window === 'undefined') return 'overview'
-    const params = new URLSearchParams(window.location.search)
-    return params.get('tab') || 'overview'
-  })
-
   // Fetch job posting data
   const { jobPosting, loading, error, refetch } = useJobPosting(props.accessToken, jobPostingId, 'record')
 
@@ -29,30 +22,6 @@ const JobPostingRecordContent: React.FC<JobPostingRecordContentProps> = ({ jobPo
   const fetchJobPostingData = useCallback(async () => {
     await refetch()
   }, [refetch])
-
-  const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value)
-    if (typeof window === 'undefined') return
-    const url = new URL(window.location.href)
-    url.searchParams.set('tab', value)
-    window.history.replaceState(null, '', url.toString())
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    if (!params.get('tab')) {
-      const url = new URL(window.location.href)
-      url.searchParams.set('tab', activeTab)
-      window.history.replaceState(null, '', url.toString())
-    }
-    const onPop = () => {
-      const next = new URLSearchParams(window.location.search).get('tab') || 'overview'
-      setActiveTab(next)
-    }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [activeTab])
 
   // Memoized callback for process completion
   const handleProcessSuccess = useCallback(() => {
@@ -123,26 +92,21 @@ const JobPostingRecordContent: React.FC<JobPostingRecordContentProps> = ({ jobPo
     )
   }, [jobPostingId, jobPostingName, props.accessToken])
 
+  // Single tab configuration for Applications (must be before early returns to satisfy Rules of Hooks)
   const subViewsConfig = useMemo(
     () => ({
-      defaultValue: activeTab,
-      onValueChange: handleTabChange,
+      defaultValue: 'applications',
+      onValueChange: () => {}, // No-op since we only have one tab
       items: [
         {
-          value: 'overview',
-          label: getTranslationFromI18nKeyAndLabel('recruiting.overview', 'Overview'),
-          icon: <HomeIcon className="gba:mr-2" />,
-          content: <HomeView jobPostingId={jobPostingId} jobPosting={jobPosting} {...props} />
-        },
-        {
           value: 'applications',
-          label: getTranslationFromI18nKeyAndLabel('recruiting.applications', 'Applications'),
+          label: getTranslationFromI18nKeyAndLabel('recruiting.jobPosting.applications', 'Applications'),
           icon: <Users className="gba:mr-2" />,
           content: <ApplicationsView jobPostingId={jobPostingId} {...props} />
         }
       ]
     }),
-    [activeTab, handleTabChange, jobPostingId, jobPosting, props]
+    [jobPostingId, props]
   )
 
   if (loading) {

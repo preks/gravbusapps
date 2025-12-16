@@ -84,4 +84,86 @@ export class FunctionsServiceClient {
   async getVersions(functionId: string): Promise<FunctionVersionsResponse> {
     return await this.get<FunctionVersionsResponse>(`/functions/${functionId}/versions`)
   }
+
+  // Authenticated methods for creating/updating functions
+  async createFunctionWithVersion(
+    accessToken: string,
+    data: {
+      name: string
+      description?: string
+      agentEnabled?: boolean
+      workflowEnabled?: boolean
+      config?: Record<string, string>
+      firstVersion: {
+        source: string
+        inputSchema?: Record<string, unknown>
+        outputSchema?: Record<string, unknown>
+        settings?: Record<string, unknown>
+      }
+    }
+  ): Promise<{ id: string }> {
+    const res = await fetch(this.baseUrl + '/functions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(data)
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Create function failed: ${res.status} - ${text}`)
+    }
+    return (await res.json()) as { id: string }
+  }
+
+  async createVersion(
+    accessToken: string,
+    functionId: string,
+    version: number,
+    data: {
+      source: string
+      inputSchema?: Record<string, unknown>
+      outputSchema?: Record<string, unknown>
+      settings?: Record<string, unknown>
+    }
+  ): Promise<{ id: string; version: number }> {
+    const res = await fetch(this.baseUrl + `/functions/${functionId}/versions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ version, ...data })
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Create version failed: ${res.status} - ${text}`)
+    }
+    return (await res.json()) as { id: string; version: number }
+  }
+
+  async findFunctionByName(name: string): Promise<FunctionMetadata | null> {
+    const all = await this.list()
+    return all.find(f => f.name === name) || null
+  }
+
+  async getLatestVersion(functionId: string): Promise<number> {
+    const data = await this.getVersions(functionId)
+    if (data.versions.length === 0) return 0
+    return Math.max(...data.versions.map(v => v.version))
+  }
+
+  async deleteFunction(accessToken: string, functionId: string): Promise<void> {
+    const res = await fetch(this.baseUrl + `/functions/${functionId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Delete function failed: ${res.status} - ${text}`)
+    }
+  }
 }

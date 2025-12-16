@@ -129,9 +129,38 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       const totalBonusesYTD = activeBonuses.reduce((sum: number, bonus: EmployeeBonus) => sum + bonus.amount, 0)
       const activeBonusesCount = activeBonuses.length
 
-      // Count active benefits
-      const activeBenefitsCount = benefits.filter((benefit: EmployeeBenefit) =>
-        isBenefitActive(benefit.benefitStatus)
+      // Count active benefits - deduplicate by benefitTypeRef to match catalog display
+      // Group benefits by type and keep only the most recent active one per type
+      const benefitsByType = benefits.reduce(
+        (acc, benefit) => {
+          const typeRef = benefit.benefitTypeRef
+          if (!acc[typeRef]) {
+            acc[typeRef] = []
+          }
+          acc[typeRef].push(benefit)
+          return acc
+        },
+        {} as Record<string, EmployeeBenefit[]>
+      )
+
+      const uniqueActiveBenefits = Object.values(benefitsByType).map(typeBenefits => {
+        // Sort by: active first, then by creation date (newest first)
+        // Creating a copy with spread operator before sorting to avoid mutating typeBenefits
+        const sorted = [...typeBenefits].sort((a, b) => {
+          const aActive = isBenefitActive(a)
+          const bActive = isBenefitActive(b)
+          if (aActive && !bActive) return -1
+          if (!aActive && bActive) return 1
+
+          const aDate = new Date(a.createdAt || 0).getTime()
+          const bDate = new Date(b.createdAt || 0).getTime()
+          return bDate - aDate
+        })
+        return sorted[0]
+      })
+
+      const activeBenefitsCount = uniqueActiveBenefits.filter((benefit: EmployeeBenefit) =>
+        isBenefitActive(benefit)
       ).length
 
       // Set the data

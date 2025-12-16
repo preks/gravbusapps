@@ -58,6 +58,15 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   '/platform/employee-record': 'hr/core/apps/employee-record',
+
+  /// Recruiting: Apps
+  '/platform/hr/recruiting/recruitment-manager': 'hr/recruiting/apps/recruitment-manager',
+  '/platform/hr/recruiting/recruiting-portal': 'hr/recruiting/apps/recruiting-portal',
+
+  /// Recruiting: Records
+  '/platform/hr/recruiting/job-posting-record': 'hr/recruiting/records/job-posting-record',
+  '/platform/hr/recruiting/job-candidate-record': 'hr/recruiting/records/job-candidate-record',
+
   '/platform/sales-demo/service-desk': 'ser/apps/service-desk',
   '/platform/sales-demo/service-launcher': 'ser/apps/service-portal',
   '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',

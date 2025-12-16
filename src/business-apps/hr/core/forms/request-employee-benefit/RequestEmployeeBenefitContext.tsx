@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import {
   EMPLOYEE_DATA_QUERY,
   GET_COUNTRY_CURRENCY_QUERY,
@@ -34,7 +33,6 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
   userInfo
 }) => {
   const graphqlClient = useGraphQLClient(accessToken)
-  const catalogClient = useCatalogManagerClient(accessToken)
   const [data, setData] = useState<RequestEmployeeBenefitContextData | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,9 +54,6 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
     setError(null)
 
     try {
-      // Ensure catalogClient has the latest token before making requests
-      catalogClient.setAccessToken(accessToken)
-
       // Fetch employee data
       const empVariables = { idEmployee: employeeId }
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
@@ -76,7 +71,7 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
         try {
           const countryId = selectedBenefit?.catalogEntry?.parentEntryId
           const [providers, countryCurrency, employeeBankAccountCurrency] = await Promise.all([
-            fetchBenefitProvidersForBenefit(catalogClient, selectedBenefit),
+            fetchBenefitProvidersForBenefit(selectedBenefit),
             countryId
               ? fetchCountryCurrency(graphqlClient, countryId, GET_COUNTRY_CURRENCY_QUERY)
               : Promise.resolve({ currencyRef: null, currencyCode: '' }),
@@ -101,7 +96,7 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
       setError(e?.message || 'Unknown error')
       setIsLoading(false)
     }
-  }, [accessToken, employeeId, selectedBenefit, graphqlClient, catalogClient])
+  }, [accessToken, employeeId, selectedBenefit, graphqlClient])
 
   useEffect(() => {
     fetchData()

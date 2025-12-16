@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FunctionsServiceClient, LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
+import { INTERNAL_TOOLS, type InternalToolDefinition } from '../definitions/internal-tools'
 
 export interface UnifiedTool {
   id: string
-  code: string // Used for tool assignment (function.<name>)
+  code: string // Used for tool assignment (function.<name> or internal.<name>)
   name: string
   description?: string | null
-  type: 'function'
+  type: 'function' | 'internal'
+  category?: string // For internal tools: lead, opportunity, contact, account
   version?: number
-  source: 'functions-service'
+  source: 'functions-service' | 'internal'
   functionTool?: LatestFunctionItem
+  internalTool?: InternalToolDefinition
 }
 
 export interface UseAvailableToolsResult {
@@ -53,8 +56,20 @@ export const useAvailableTools = (context: BusinessAppContextProps): UseAvailabl
         functionTool: func
       }))
 
-      // Sort by name
-      const allTools = functionTools.sort((a, b) => a.name.localeCompare(b.name))
+      // Add internal tools
+      const internalToolsList: UnifiedTool[] = INTERNAL_TOOLS.map(tool => ({
+        id: `internal-${tool.id}`,
+        code: `internal.${tool.id}`, // Use internal.<name> format for internal tools
+        name: tool.name,
+        description: tool.description,
+        type: 'internal' as const,
+        category: tool.category,
+        source: 'internal' as const,
+        internalTool: tool
+      }))
+
+      // Combine and sort by name
+      const allTools = [...internalToolsList, ...functionTools].sort((a, b) => a.name.localeCompare(b.name))
 
       setTools(allTools)
       hasLoadedRef.current = context.accessToken // Mark as loaded for this accessToken
