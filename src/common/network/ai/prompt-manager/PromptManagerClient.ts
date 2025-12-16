@@ -162,6 +162,28 @@ export interface PromptExecuteResponse<T = unknown> {
   content: T | string | null
 }
 
+/** Attachment to pass to prompt execution */
+export interface PromptAttachment {
+  id: string
+  name: string
+  url: string
+  type?: string
+  mimeType?: string
+  size?: number
+}
+
+/** Options for executing a prompt with additional context */
+export interface PromptExecuteOptions {
+  /** User parameters for the prompt template */
+  userParams?: Record<string, any>
+  /** System parameters for the prompt template */
+  systemParams?: Record<string, any>
+  /** Attachments (files) to include with the execution */
+  attachments?: PromptAttachment[]
+  /** Additional context to pass to the LLM */
+  context?: Record<string, any>
+}
+
 export interface AIServiceODM {
   _id?: string
   name: string
@@ -388,6 +410,72 @@ export class PromptManagerClient extends RestClient {
 
   async executePromptById(id: string, formData: FormData): Promise<PromptExecuteResponse> {
     return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+  }
+
+  /**
+   * Execute a prompt with structured options including attachments
+   * This is a convenience method that builds the FormData with proper structure
+   *
+   * @param id - The prompt ID to execute
+   * @param options - Execution options including params and attachments
+   *
+   * The backend receives:
+   * - user_params: JSON string of user parameters
+   * - system_params: JSON string of system parameters
+   * - attachments: JSON string of attachment metadata with URLs
+   * - context: JSON string of additional context
+   *
+   * Backend is expected to:
+   * 1. Parse attachments JSON to get file URLs
+   * 2. Optionally fetch file contents from URLs for analysis
+   * 3. Include attachment context in the LLM call
+   */
+  async executePromptWithOptions(id: string, options: PromptExecuteOptions): Promise<PromptExecuteResponse> {
+    const formData = new FormData()
+
+    if (options.userParams && Object.keys(options.userParams).length > 0) {
+      formData.append('user_params', JSON.stringify(options.userParams))
+    }
+
+    if (options.systemParams && Object.keys(options.systemParams).length > 0) {
+      formData.append('system_params', JSON.stringify(options.systemParams))
+    }
+
+    if (options.attachments && options.attachments.length > 0) {
+      formData.append('attachments', JSON.stringify(options.attachments))
+    }
+
+    if (options.context && Object.keys(options.context).length > 0) {
+      formData.append('context', JSON.stringify(options.context))
+    }
+
+    return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+  }
+
+  /**
+   * Build FormData for prompt execution with attachments
+   * Utility method for custom execution flows
+   */
+  buildExecuteFormData(options: PromptExecuteOptions): FormData {
+    const formData = new FormData()
+
+    if (options.userParams && Object.keys(options.userParams).length > 0) {
+      formData.append('user_params', JSON.stringify(options.userParams))
+    }
+
+    if (options.systemParams && Object.keys(options.systemParams).length > 0) {
+      formData.append('system_params', JSON.stringify(options.systemParams))
+    }
+
+    if (options.attachments && options.attachments.length > 0) {
+      formData.append('attachments', JSON.stringify(options.attachments))
+    }
+
+    if (options.context && Object.keys(options.context).length > 0) {
+      formData.append('context', JSON.stringify(options.context))
+    }
+
+    return formData
   }
 
   // --- AI Services / Models ---
