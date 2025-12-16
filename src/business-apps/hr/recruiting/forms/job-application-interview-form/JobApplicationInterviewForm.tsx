@@ -17,7 +17,6 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  FormDescription,
   Input,
   Textarea,
   DateInput
@@ -39,7 +38,7 @@ const jobApplicationInterviewSchema = z.object({
   duration: z.number().min(1, 'Duration must be at least 1 minute').optional(),
   participants: z.any().optional(),
   meetingPlace: z.string().optional(),
-  meetingLink: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  meetingLink: z.union([z.string().url({ message: 'Must be a valid URL' }), z.literal('')]).optional(),
 
   // Catalog Reference
   typeRef: z.string().optional(),
@@ -173,7 +172,6 @@ const JobApplicationInterviewForm: React.FC<JobApplicationInterviewFormProps> = 
                       data-testid={formatDataTestId('interview-form', 'interviewer-select')}
                     />
                   </FormControl>
-                  <FormDescription>The employee conducting the interview</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -243,7 +241,6 @@ const JobApplicationInterviewForm: React.FC<JobApplicationInterviewFormProps> = 
                         outputFormat="iso"
                       />
                     </FormControl>
-                    <FormDescription>When the interview was confirmed</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -266,7 +263,6 @@ const JobApplicationInterviewForm: React.FC<JobApplicationInterviewFormProps> = 
                         outputFormat="iso"
                       />
                     </FormControl>
-                    <FormDescription>When the interview was cancelled</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -287,7 +283,6 @@ const JobApplicationInterviewForm: React.FC<JobApplicationInterviewFormProps> = 
                       data-testid={formatDataTestId('interview-form', 'meeting-place-input')}
                     />
                   </FormControl>
-                  <FormDescription>Physical location for in-person interviews</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -307,7 +302,6 @@ const JobApplicationInterviewForm: React.FC<JobApplicationInterviewFormProps> = 
                       data-testid={formatDataTestId('interview-form', 'meeting-link-input')}
                     />
                   </FormControl>
-                  <FormDescription>Video conference link for remote interviews</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -337,7 +331,6 @@ const JobApplicationInterviewForm: React.FC<JobApplicationInterviewFormProps> = 
                       data-testid={formatDataTestId('interview-form', 'participants-input')}
                     />
                   </FormControl>
-                  <FormDescription>Additional participants in JSON format</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

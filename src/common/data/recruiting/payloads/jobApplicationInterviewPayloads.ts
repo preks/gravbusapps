@@ -2,7 +2,6 @@
  * JobApplicationInterview Payload Builders
  */
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-import type { JobApplicationInterview } from '../types/jobApplicationInterviewTypes'
 
 export interface JobApplicationInterviewPayload {
   id?: string
@@ -38,9 +37,7 @@ export const JobApplicationInterviewFormFields = {
   additionalProperties: 'additionalProperties'
 } as const
 
-export const buildJobApplicationInterviewPayload = (
-  data: Partial<JobApplicationInterview> & any
-): JobApplicationInterviewPayload => {
+export const buildJobApplicationInterviewPayload = (data: any): JobApplicationInterviewPayload => {
   const payload = buildPayload(data, JobApplicationInterviewFormFields)
   return {
     ...payload,

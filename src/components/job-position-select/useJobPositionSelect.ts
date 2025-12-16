@@ -217,7 +217,7 @@ export const useJobPositionSelect = ({
         const position = jobPositions.find(p => p.id === newValue)
         if (position) {
           onJobPositionChange(position)
-        } else if (initialJobPosition && initialJobPosition.id === newValue) {
+        } else if (initialJobPosition?.id === newValue) {
           onJobPositionChange(initialJobPosition)
         } else {
           onJobPositionChange(null)

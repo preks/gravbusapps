@@ -2,7 +2,6 @@
  * JobRequest Payload Builders
  */
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-import type { JobRequest } from '../types/jobRequestTypes'
 
 export interface JobRequestPayload {
   id?: string
@@ -46,7 +45,7 @@ export const JobRequestFormFields = {
   additionalProperties: 'additionalProperties'
 } as const
 
-export const buildJobRequestPayload = (data: Partial<JobRequest> & any): JobRequestPayload => {
+export const buildJobRequestPayload = (data: any): JobRequestPayload => {
   const payload = buildPayload(data, JobRequestFormFields)
   return {
     ...payload,

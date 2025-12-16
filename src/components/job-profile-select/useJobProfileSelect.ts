@@ -184,7 +184,7 @@ export const useJobProfileSelect = ({
         const profile = jobProfiles.find(p => p.id === newValue)
         if (profile) {
           onJobProfileChange(profile)
-        } else if (initialJobProfile && initialJobProfile.id === newValue) {
+        } else if (initialJobProfile?.id === newValue) {
           onJobProfileChange(initialJobProfile)
         } else {
           onJobProfileChange(null)

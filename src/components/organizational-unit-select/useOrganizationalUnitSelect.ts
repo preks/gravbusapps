@@ -214,9 +214,9 @@ export const useOrganizationalUnitSelect = ({
         const unit = organizationalUnits.find(u => u.id === newValue)
         if (unit) {
           onOrganizationalUnitChange(unit)
-        } else if (initialOrganizationalUnit && initialOrganizationalUnit.id === newValue) {
+        } else if (initialOrganizationalUnit?.id === newValue) {
           onOrganizationalUnitChange(initialOrganizationalUnit)
-        } else if (currentUserOrgUnit && currentUserOrgUnit.id === newValue) {
+        } else if (currentUserOrgUnit?.id === newValue) {
           onOrganizationalUnitChange(currentUserOrgUnit)
         } else {
           onOrganizationalUnitChange(null)

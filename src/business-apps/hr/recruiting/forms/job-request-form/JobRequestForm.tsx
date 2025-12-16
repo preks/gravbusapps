@@ -19,18 +19,22 @@ import {
   FormMessage,
   Input,
   Textarea,
-  DateInput
+  DateInput,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
 } from '@newwork/nw-design-system'
 import { EmployeeSelect } from '@/components/employee-select'
 import { JobPositionSelect } from '@/components/job-position-select'
 import { JobProfileSelect } from '@/components/job-profile-select'
 import { OrganizationalUnitSelect } from '@/components/organizational-unit-select'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system'
 import {
   RECRUITING_CATALOGS,
   JOB_REQUISITION_REASON_VALUES
 } from '@/common/data/recruiting/constants/recruitingConstants'
-import { RequisitionStatus, REQUISITION_STATUS_OPTIONS } from '@/common/data/recruiting/constants/requisitionStatus'
+import { REQUISITION_STATUS_OPTIONS } from '@/common/data/recruiting/constants/requisitionStatus'
 
 const jobRequestSchema = z.object({
   id: z.string().optional(),
@@ -41,7 +45,7 @@ const jobRequestSchema = z.object({
   headcount: z.number().min(1, 'Headcount must be at least 1').default(1),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  requisitionStatus: z.nativeEnum(RequisitionStatus).optional(),
+  requisitionStatus: z.string().optional(),
   reasonRef: z.string().optional(),
   contractTypeRef: z.string().optional(),
   experienceLevelRef: z.string().optional(),
@@ -89,24 +93,6 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
     }
   }, [])
 
-  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load job request data' })
-  }
-
-  if (errors.length > 0) {
-    return <ErrorAlert errors={errors} prefixDataTestId="job-request-form" />
-  }
-
-  const handleCancel = async () => {
-    // AppActionForm handles cancellation via process events
-  }
-
-  const processType = jobRequest?.id ? 'update' : 'create'
-
   // Watch reasonRef to determine which fields to show
   const reasonRef = form.watch('reasonRef')
 
@@ -135,6 +121,24 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
       form.setValue('replacedPositionId', undefined)
     }
   }, [reasonRef, isReplacement, isNew, form])
+
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load job request data' })
+  }
+
+  if (errors.length > 0) {
+    return <ErrorAlert errors={errors} prefixDataTestId="job-request-form" />
+  }
+
+  const handleCancel = async () => {
+    // AppActionForm handles cancellation via process events
+  }
+
+  const processType = jobRequest?.id ? 'update' : 'create'
 
   return (
     <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
