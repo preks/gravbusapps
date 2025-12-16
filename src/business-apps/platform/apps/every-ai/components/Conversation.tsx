@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { Sparkle, CopySimple, Check } from '@phosphor-icons/react'
+import { Sparkle, Copy, CheckCircle } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
 
 interface ConversationProps {
@@ -140,9 +140,9 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
                 data-testid="user-message-copy-button"
               >
                 {copied ? (
-                  <Check className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+                  <CheckCircle className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
                 ) : (
-                  <CopySimple className="gba:h-4 gba:w-4" />
+                  <Copy className="gba:h-4 gba:w-4" />
                 )}
               </Button>
             </div>
