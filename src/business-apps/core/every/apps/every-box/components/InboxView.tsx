@@ -14,7 +14,12 @@ import {
   Alert,
   AlertTitle,
   AlertDescription,
-  Badge,
+  TabSwitch,
+  TabSwitchList,
+  TabSwitchTrigger,
+  TabSwitchBadge,
+  ScrollArea,
+  ScrollBar,
   useTranslation,
   useLocale
 } from '@newwork/nw-design-system'
@@ -562,70 +567,67 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
 
         {/* Task Type Filters */}
-        <div className="gba:flex gba:items-center gba:gap-1 gba:max-w-[40%]" data-testid="inbox-filter-buttons">
-          <Button
-            variant={filterType === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('all')}
-            data-testid="inbox-filter-all"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <Inbox className="gba:h-3.5 gba:w-3.5" />
-            <span>{t('inbox-filter-all')}</span>
-            <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-              {taskCounts.all}
-              {taskCounts.allHasMore ? '+' : ''}
-            </Badge>
-          </Button>
-          <Button
-            variant={filterType === 'blinks' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('blinks')}
-            data-testid="inbox-filter-blinks"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <Zap className="gba:h-3.5 gba:w-3.5" />
-            <span>{t('inbox-filter-blinks')}</span>
-            {taskCounts.blinks > 0 && (
-              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-                {taskCounts.blinks}
-                {taskCounts.blinksHasMore ? '+' : ''}
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant={filterType === 'approvals' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('approvals')}
-            data-testid="inbox-filter-approvals"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <CheckCircle className="gba:h-3.5 gba:w-3.5" />
-            <span>{t('inbox-filter-approvals')}</span>
-            {taskCounts.approvals > 0 && (
-              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-                {taskCounts.approvals}
-                {taskCounts.approvalsHasMore ? '+' : ''}
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant={filterType === 'completed' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('completed')}
-            data-testid="inbox-filter-completed"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <CheckCheck className="gba:h-3.5 gba:w-3.5" />
-            <span>{t('inbox-filter-completed')}</span>
-            {taskCounts.completed > 0 && (
-              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-                {taskCounts.completed}
-                {taskCounts.completedHasMore ? '+' : ''}
-              </Badge>
-            )}
-          </Button>
-        </div>
+        <ScrollArea className="gba:-mx-3">
+          <div className="gba:px-3">
+            <TabSwitch value={filterType} onValueChange={value => setFilterType(value as TaskFilterType)}>
+              <TabSwitchList data-testid="inbox-filter-buttons">
+                <TabSwitchTrigger
+                  value="all"
+                  data-testid="inbox-filter-all"
+                  startIcon={<Inbox className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.all}
+                      {taskCounts.allHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-all')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="blinks"
+                  data-testid="inbox-filter-blinks"
+                  startIcon={<Zap className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.blinks}
+                      {taskCounts.blinksHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-blinks')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="approvals"
+                  data-testid="inbox-filter-approvals"
+                  startIcon={<CheckCircle className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.approvals}
+                      {taskCounts.approvalsHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-approvals')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="completed"
+                  data-testid="inbox-filter-completed"
+                  startIcon={<CheckCheck className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.completed}
+                      {taskCounts.completedHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-completed')}
+                </TabSwitchTrigger>
+              </TabSwitchList>
+            </TabSwitch>
+          </div>
+          <ScrollBar orientation="horizontal" className="gba:opacity-50" />
+        </ScrollArea>
 
         {/* Error Alert */}
         {currentError && (
