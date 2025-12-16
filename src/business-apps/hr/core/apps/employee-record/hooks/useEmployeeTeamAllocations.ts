@@ -13,10 +13,21 @@ interface EmployeeMatrixUnitResponse {
     employeeId: string
     matrixUnitId: string
     percentage: number
+    createdAt: string
     matrixUnit: {
       id: string
       name: string
+      createdAt: string
     }
+  }>
+}
+
+interface ProjectsByMatrixUnitResponse {
+  Project: Array<{
+    id: string
+    name: string
+    matrixUnitId: string
+    status: string
   }>
 }
 
@@ -71,13 +82,57 @@ const GET_EMPLOYEE_TEAM_ALLOCATIONS = `
       employeeId
       matrixUnitId
       percentage
+      createdAt
       matrixUnit {
         id
         name
+        createdAt
       }
     }
   }
 `
+
+/**
+ * GraphQL query to get projects by matrix unit IDs
+ */
+const GET_PROJECTS_BY_MATRIX_UNITS = `
+  query GetProjectsByMatrixUnits($matrixUnitIds: [uuid!]!) {
+    Project(
+      where: {
+        matrixUnitId: {_in: $matrixUnitIds}
+        isDeleted: {_eq: false}
+      }
+    ) {
+      id
+      name
+      matrixUnitId
+      status
+    }
+  }
+`
+
+/**
+ * GraphQL query to get projects by IDs (for historical booked hours)
+ */
+const GET_PROJECTS_BY_IDS = `
+  query GetProjectsByIds($projectIds: [uuid!]!) {
+    Project(where: {id: {_in: $projectIds}}) {
+      id
+      name
+      matrixUnitId
+      status
+    }
+  }
+`
+
+interface ProjectsByIdsResponse {
+  Project: Array<{
+    id: string
+    name: string
+    matrixUnitId: string | null
+    status: string
+  }>
+}
 
 /**
  * GraphQL query to get employee attendance for current month
@@ -125,6 +180,12 @@ const GET_EMPLOYEE_PROJECT_WORKING_HOURS = `
  * Hook to fetch employee's team allocations (matrix units)
  * In the future, this will also filter by projectAssignmentId when team-project relationship is implemented
  */
+export interface HistoricalProject {
+  projectId: string
+  projectName: string
+  isHistorical: true // Always true - these are projects from booked hours, not current allocations
+}
+
 export const useEmployeeTeamAllocations = ({
   accessToken,
   employeeId
@@ -133,11 +194,13 @@ export const useEmployeeTeamAllocations = ({
   employeeId: string
 }) => {
   const [allocations, setAllocations] = useState<TeamAllocation[]>([])
+  const [historicalProjects, setHistoricalProjects] = useState<HistoricalProject[]>([])
   const [recordedHoursByDate, setRecordedHoursByDate] = useState<Record<string, number>>({})
   const [bookedHours, setBookedHours] = useState<
     Record<string, { id: string; version: number; hours: number; projectId: string }>
   >({})
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingWeekData, setIsLoadingWeekData] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const graphqlClient = useGraphqlClient(accessToken)
@@ -162,17 +225,45 @@ export const useEmployeeTeamAllocations = ({
         structureId
       })
 
-      if (response.EmployeeMatrixUnit) {
-        const transformedAllocations: TeamAllocation[] = response.EmployeeMatrixUnit.map(item => ({
-          teamId: item.matrixUnitId,
-          teamName: item.matrixUnit.name,
-          percentage: item.percentage,
-          // projectId and projectName will be added when BE implements team-project relationship
-          projectId: undefined,
-          projectName: undefined
-        }))
+      if (response.EmployeeMatrixUnit && response.EmployeeMatrixUnit.length > 0) {
+        // Get all matrix unit IDs
+        const matrixUnitIds = response.EmployeeMatrixUnit.map(item => item.matrixUnitId)
 
-        setAllocations(transformedAllocations)
+        // Fetch projects associated with these matrix units
+        const projectsResponse = await graphqlClient.request<ProjectsByMatrixUnitResponse>(
+          GET_PROJECTS_BY_MATRIX_UNITS,
+          { matrixUnitIds }
+        )
+        console.log(projectsResponse, 'projectsByMatrixUnit')
+
+        // Create a map of matrixUnitId -> project
+        const projectsByMatrixUnit = new Map<string, { id: string; name: string }>()
+        if (projectsResponse.Project) {
+          for (const project of projectsResponse.Project) {
+            if (project.matrixUnitId) {
+              projectsByMatrixUnit.set(project.matrixUnitId, {
+                id: project.id,
+                name: project.name
+              })
+            }
+          }
+        }
+
+        // Transform allocations with project data
+        const transformedAllocations: TeamAllocation[] = response.EmployeeMatrixUnit.map(item => {
+          const project = projectsByMatrixUnit.get(item.matrixUnitId)
+          return {
+            teamId: item.matrixUnitId,
+            teamName: item.matrixUnit.name,
+            percentage: item.percentage,
+            projectId: project?.id,
+            projectName: project?.name,
+            assignedAt: item.createdAt
+          }
+        })
+
+        const allocationsWithProjects = transformedAllocations.filter(a => a.projectId)
+        setAllocations(allocationsWithProjects)
       } else {
         setAllocations([])
       }
@@ -217,7 +308,8 @@ export const useEmployeeTeamAllocations = ({
    * Fetch booked working hours for a specific week
    */
   const fetchBookedHours = useCallback(
-    async (weekDays: Date[]) => {
+    async (weekDays: Date[], currentAllocations: TeamAllocation[]) => {
+      setIsLoadingWeekData(true)
       try {
         const workingDates = weekDays.map(day => dayjs(day).format('YYYY-MM-DD'))
         const response = await graphqlClient.request<EmployeeProjectWorkingHoursResponse>(
@@ -230,22 +322,66 @@ export const useEmployeeTeamAllocations = ({
 
         // Create a map: key = "projectId-workingDate", value = { id, version, hours, projectId }
         const bookedMap: Record<string, { id: string; version: number; hours: number; projectId: string }> = {}
+        const projectIdsFromBookedHours = new Set<string>()
+
         if (response.EmployeeProjectWorkingHours) {
           for (const entry of response.EmployeeProjectWorkingHours) {
             const hours = parseEffectiveTimeToHours(entry.actualWorkingHours)
             const key = `${entry.projectId}-${entry.workingDate}`
-            bookedMap[key] = {
-              id: entry.id,
-              version: entry.version,
-              hours,
-              projectId: entry.projectId
+            // Sum hours if multiple entries for same project-date
+            if (bookedMap[key]) {
+              bookedMap[key].hours += hours
+            } else {
+              bookedMap[key] = {
+                id: entry.id,
+                version: entry.version,
+                hours,
+                projectId: entry.projectId
+              }
             }
+            projectIdsFromBookedHours.add(entry.projectId)
           }
         }
         setBookedHours(bookedMap)
+
+        // Find historical projects (projects with booked hours but not in current allocations)
+        const currentProjectIds = new Set(currentAllocations.map(a => a.projectId).filter(Boolean))
+        const historicalProjectIds = [...projectIdsFromBookedHours].filter(id => !currentProjectIds.has(id))
+
+        if (historicalProjectIds.length > 0) {
+          // Try to fetch project details for historical projects
+          // Note: Hasura permissions might filter out deleted projects, so we handle missing ones
+          const projectsMap = new Map<string, string>()
+
+          try {
+            const projectsResponse = await graphqlClient.request<ProjectsByIdsResponse>(GET_PROJECTS_BY_IDS, {
+              projectIds: historicalProjectIds
+            })
+
+            for (const p of projectsResponse.Project || []) {
+              projectsMap.set(p.id, p.name)
+            }
+          } catch (err) {
+            console.warn('Could not fetch historical project details:', err)
+          }
+
+          // Create historical projects list - use project name if available, otherwise use ID
+          const historicalProjectsList: HistoricalProject[] = historicalProjectIds.map(projectId => ({
+            projectId,
+            projectName: projectsMap.get(projectId) || `Project (${projectId.slice(0, 8)}...)`,
+            isHistorical: true as const
+          }))
+
+          setHistoricalProjects(historicalProjectsList)
+        } else {
+          setHistoricalProjects([])
+        }
       } catch (err) {
         console.error('Error fetching booked hours:', err)
         setBookedHours({})
+        setHistoricalProjects([])
+      } finally {
+        setIsLoadingWeekData(false)
       }
     },
     [employeeId, graphqlClient]
@@ -274,13 +410,13 @@ export const useEmployeeTeamAllocations = ({
    * @param weekBookings - Array of bookings with days containing hours
    */
   const submitWorkingHours = useCallback(
-    async (weekBookings: Array<{ teamId: string; days: Array<{ date: string; hours: number }> }>) => {
+    async (
+      weekBookings: Array<{ teamId: string; projectId: string; days: Array<{ date: string; hours: number }> }>
+    ) => {
       setIsSubmitting(true)
       setError(null)
 
       try {
-        const PROJECT_ID = 'c9e04233-02bd-46f9-90b2-b2a72e017371'
-
         // Prepare headers with access token
         const headers: Record<string, string> = {
           'Content-Type': 'application/json'
@@ -289,10 +425,16 @@ export const useEmployeeTeamAllocations = ({
           headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
         }
 
-        // Create promises for all days across all teams
+        // Create promises for all days across all teams/projects
         const promises: Promise<any>[] = []
 
         for (const booking of weekBookings) {
+          // Skip bookings without a projectId
+          if (!booking.projectId) {
+            console.warn(`Skipping booking for team ${booking.teamId} - no project associated`)
+            continue
+          }
+
           for (const day of booking.days) {
             const workingDate = dayjs(day.date).format('YYYY-MM-DD')
             const actualHours = day.hours
@@ -304,7 +446,7 @@ export const useEmployeeTeamAllocations = ({
                 {
                   employeeProjectWorkingHours: {
                     employee: employeeId,
-                    project: PROJECT_ID,
+                    project: booking.projectId,
                     workingDate,
                     plannedWorkingHours: formatHoursToText(plannedHours),
                     actualWorkingHours: formatHoursToText(actualHours)
@@ -335,9 +477,11 @@ export const useEmployeeTeamAllocations = ({
 
   return {
     allocations,
+    historicalProjects,
     recordedHoursByDate,
     bookedHours,
     isLoading,
+    isLoadingWeekData,
     isSubmitting,
     error,
     refetch: fetchTeamAllocations,
