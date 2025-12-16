@@ -19,7 +19,7 @@ import {
   GraphQLEmployeeBenefitResponse
 } from '../types/benefitCatalogTypes'
 import { EmployeeBenefit, CatalogEntry } from '../types/compensationTypes'
-import { BenefitStatus, isBenefitActive } from '../types/compensationEnums'
+import { BenefitStatus, isBenefitActive, isBenefitScheduledForStart } from '../types/compensationEnums'
 
 /**
  * Custom hook to fetch and manage benefits catalog
@@ -126,8 +126,12 @@ export const useBenefitsCatalog = (
         // Check if benefit is active (includes date validation)
         const isActive = employeeBenefit ? isBenefitActive(employeeBenefit) : false
 
+        // Check if benefit is scheduled to start in the future (approved but not started yet)
+        const isScheduled = employeeBenefit ? isBenefitScheduledForStart(employeeBenefit) : false
+
         // Determine action capabilities
-        const canRequest = !isActive // Can request if not currently active
+        // CRITICAL FIX: Cannot request if benefit is active OR scheduled
+        const canRequest = !isActive && !isScheduled
         const canDeactivate = isActive // Can deactivate if currently active
 
         // Store catalog entry with translations for runtime translation
@@ -145,6 +149,7 @@ export const useBenefitsCatalog = (
 
           // Employee benefit data (if exists)
           isActive,
+          isScheduled, // NEW: Indicates benefit is approved and scheduled for future start
           employeeBenefitId: employeeBenefit?.id,
           provider: employeeBenefit?.benefitProvider,
           providerRef: employeeBenefit?.benefitProviderRef,
