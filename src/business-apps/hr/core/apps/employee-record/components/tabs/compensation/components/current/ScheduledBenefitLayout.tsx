@@ -40,7 +40,7 @@ const ScheduledBenefitLayout: React.FC<ScheduledBenefitLayoutProps> = ({
         {/* Scheduled-specific: Badge with Start Date */}
         {benefit.startDate && (
           <div
-            className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-info-foreground gba:bg-info-secondary gba:px-2 gba:py-1 gba:rounded-md gba:mt-2"
+            className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-foreground gba:bg-info-secondary gba:px-2 gba:py-1 gba:rounded-md gba:mt-2"
             data-testid={`benefit-scheduled-badge-${benefit.code}`}
           >
             <span className="gba:font-semibold">{t('benefit-scheduled-badge')}</span>
