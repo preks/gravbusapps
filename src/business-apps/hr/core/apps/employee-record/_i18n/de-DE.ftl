@@ -81,16 +81,21 @@ benefit-status-active = Aktiv
 benefit-status-pending = Ausstehend
 benefit-status-available = Verfügbar
 benefit-request-button = Anfordern
+benefit-request-employee-id-missing = Mitarbeiter-ID nicht verfügbar. Kann Leistungsanfrage nicht initiieren.
 benefit-deactivate-button = Deaktivieren
 benefit-view-details = Details anzeigen
 benefit-provider = Anbieter
 benefit-value-yearly = Jahreswert
 benefit-no-provider = Kein Anbieter angegeben
 benefit-since = Seit
+benefit-starts-in = Beginnt im
+benefit-ends = Endet
 
 # Benefit Details Modal
 benefit-details-type-info = Informationen zum Leistungstyp
+benefit-details-benefit-information = Leistungsinformationen
 benefit-details-code = Code
+benefit-details-type = Typ
 benefit-details-category = Kategorie
 benefit-details-provider-info = Anbieterinformationen
 benefit-details-provider = Anbieter
@@ -102,6 +107,9 @@ benefit-details-start-date = Startdatum
 benefit-details-end-date = Enddatum
 benefit-details-notes = Notizen
 benefit-details-available-providers = Verfügbare Anbieter
+benefit-details-additional-info = Zusätzliche Informationen
+benefit-details-value = Wert
+benefit-details-no-value-info = Detaillierte Wertinformationen werden nach Beantragung dieser Leistung festgelegt.
 benefit-details-description = Leistungsdetails
 common-close = Schließen
 
@@ -126,6 +134,7 @@ payslip-download-failed = Fehler beim Herunterladen der Gehaltsabrechnung. Bitte
 
 # Request Benefit Modal
 modal-request-title = Zusatzleistung anfordern
+modal-request-loading = Lade Zusatzleistungsinformationen...
 modal-request-description = Füllen Sie das untenstehende Formular aus, um diese Zusatzleistung anzufordern
 modal-request-provider-label = Zusatzleistungsanbieter
 modal-request-provider-placeholder = Anbieter auswählen
@@ -237,6 +246,7 @@ action-enter-placeholder = Bitte eingeben
 
 # Benefits Catalog Section
 benefit-per-year = /Jahr
+benefit-per-month = /Monat
 benefits-catalog-summary = {$active} aktiv · {$available} verfügbar · {$total} gesamt
 benefits-catalog-search-placeholder = Zusatzleistungen suchen...
 benefits-catalog-loading = Zusatzleistungs-Katalog wird geladen...
@@ -258,6 +268,11 @@ payslip-download-tooltip = Gehaltsabrechnung herunterladen
 modal-request-benefit-type-label = Leistungsart
 modal-character-count = {$current} / {$max} Zeichen
 modal-character-minimum = (mindestens {$min} Zeichen)
+
+# Period translations
+period-monthly = Monatlich
+period-yearly = Jährlich
+period-daily = Täglich
 
 # Form Validation Errors
 error-end-date-required = Enddatum ist erforderlich

@@ -16,6 +16,8 @@ export interface DynamicFormFieldDefinition {
   required: boolean
   /** Display order within group (e.g., "1", "1.1", "1.2", "2") */
   displayOrder: string | number
+  /** Optional: false means field should be excluded from report forms/tables */
+  report?: boolean
 }
 
 /**

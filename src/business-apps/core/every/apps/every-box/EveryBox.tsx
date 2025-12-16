@@ -25,10 +25,12 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-  Badge,
+  TabsBadge,
   ThemeProvider,
-  Button
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from './_i18n'
 import { Inbox, Send, Zap } from 'lucide-react'
 import { message } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -90,6 +92,8 @@ const POLLING_CONFIG = {
 }
 
 export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-box', ...context }) => {
+  const { t } = useTranslation(translations)
+
   // Feature flag guard - EveryBox only available when preview.enabled is true
   const previewFeature = useFeature(Feature.Preview.Enabled.Key)
   const isPreviewEnabled = previewFeature !== false // true if undefined (development) or 'true'
@@ -252,7 +256,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
             uploadResults = await uploadFiles(filesToUpload)
           } catch (uploadError) {
             message.error(
-              `Failed to upload attachments: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`
+              t('blink-upload-error', { error: uploadError instanceof Error ? uploadError.message : 'Unknown error' })
             )
             throw uploadError // Re-throw to prevent task creation with missing attachments
           }
@@ -268,7 +272,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
         apiBaseUrl: baseUrl
       })
 
-      message.success(`Blink "${data.title}" created successfully!`)
+      message.success(t('blink-created-success', { title: data.title }))
 
       // Refresh the task lists in the background (don't wait for them)
       // This allows the modal to close immediately
@@ -276,7 +280,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
         // Ignore errors in background refresh
       })
     } catch (error) {
-      message.error(`Failed to create Blink: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      message.error(t('blink-created-error', { error: error instanceof Error ? error.message : 'Unknown error' }))
       throw error // Re-throw to prevent modal from closing on error
     }
   }
@@ -297,7 +301,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     className="gba:text-lg gba:font-bold gba:text-foreground"
                     data-testid={`${prefixDataTestId}-title`}
                   >
-                    EveryBox
+                    {t('every-box-title')}
                   </h1>
 
                   {/* Blink Button - Aligned with content right edge */}
@@ -308,45 +312,33 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     data-testid={`${prefixDataTestId}-blink-button`}
                   >
                     <Zap className="gba:h-4 gba:w-4 gba:mr-2" />
-                    Blink
+                    {t('every-box-blink-button')}
                   </Button>
                 </div>
 
-                {/* Tabs - Now starts from top with full height */}
+                {/* Tabs - Pill-shaped segmented control style */}
                 <Tabs
                   value={activeTab}
                   onValueChange={handleTabChange}
                   className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:pt-10"
                   data-testid={`${prefixDataTestId}-tabs`}
                 >
-                  <TabsList className="gba:mb-2 gba:flex-shrink-0 gba:ml-3">
+                  <TabsList className="gba:mb-4 gba:flex-shrink-0 gba:ml-3">
                     <TabsTrigger
                       value="inbox"
                       data-testid={`${prefixDataTestId}-inbox-tab`}
-                      startIcon={<Inbox className="gba:h-5 gba:w-5" />}
-                      endAdornment={
-                        totalTaskCount > 0 && (
-                          <Badge variant="secondary" className="gba:ml-2">
-                            {totalTaskCount}
-                          </Badge>
-                        )
-                      }
+                      startIcon={<Inbox className="gba:h-4 gba:w-4" />}
+                      endAdornment={totalTaskCount > 0 && <TabsBadge>{totalTaskCount}</TabsBadge>}
                     >
-                      InFlows
+                      {t('every-box-tab-inflows')}
                     </TabsTrigger>
                     <TabsTrigger
                       value="outbox"
                       data-testid={`${prefixDataTestId}-outbox-tab`}
-                      startIcon={<Send className="gba:h-5 gba:w-5" />}
-                      endAdornment={
-                        flows.length > 0 && (
-                          <Badge variant="secondary" className="gba:ml-2">
-                            {flows.length}
-                          </Badge>
-                        )
-                      }
+                      startIcon={<Send className="gba:h-4 gba:w-4" />}
+                      endAdornment={flows.length > 0 && <TabsBadge>{flows.length}</TabsBadge>}
                     >
-                      OutFlows
+                      {t('every-box-tab-outflows')}
                     </TabsTrigger>
                   </TabsList>
 
@@ -395,8 +387,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
             accessToken={context.accessToken}
             currentUserId={context.userInfo?.id}
             onSubmit={handleQuickTaskSubmit}
-            title="Blink"
-            description="Create and assign a quick task instantly"
+            title={t('every-box-blink-button')}
+            description={t('every-box-blink-description')}
             config={{
               assigneeSelector: { mode: 'employee-search', required: true },
               enableFileUpload: true,

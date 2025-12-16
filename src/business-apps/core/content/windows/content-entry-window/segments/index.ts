@@ -6,3 +6,4 @@
 export { ArticleSegment } from './ArticleSegment'
 export { QuestionSegment } from './QuestionSegment'
 export { DocumentSegment } from './DocumentSegment'
+export { GlossarySegment } from './GlossarySegment'

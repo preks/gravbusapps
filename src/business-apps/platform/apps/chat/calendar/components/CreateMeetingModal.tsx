@@ -20,7 +20,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Calendar, Clock, MapPin, Video, Users, X, Repeat, Bell, Palette, User } from 'lucide-react'
 import type { CreateMeetingData, MeetingRecurrence } from '../types'
-import { MEETING_COLORS, REMINDER_OPTIONS } from '../types'
+import { MEETING_COLORS, REMINDER_OPTIONS, getDefaultCalendarColor } from '../types'
 import { createEmployeeSearchService, CalendarEmployee } from '../services/employeeSearchService'
 
 interface CreateMeetingModalProps {
@@ -90,7 +90,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   const [isAllDay, setIsAllDay] = useState(false)
   const [recurrence, setRecurrence] = useState<MeetingRecurrence>('none')
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
-  const [selectedColor, setSelectedColor] = useState(MEETING_COLORS[0].value)
+  const [selectedColor, setSelectedColor] = useState(getDefaultCalendarColor())
   const [reminderMinutes, setReminderMinutes] = useState<number[]>([15])
 
   // Initialize form when editMeeting changes
@@ -106,7 +106,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setIsAllDay(editMeeting.isAllDay || false)
       setRecurrence(editMeeting.recurrence || 'none')
       setRecurrenceEndDate(editMeeting.recurrenceEndDate ? formatDateForInput(editMeeting.recurrenceEndDate) : '')
-      setSelectedColor(editMeeting.color || MEETING_COLORS[0].value)
+      setSelectedColor(editMeeting.color || getDefaultCalendarColor())
       setReminderMinutes(editMeeting.reminderMinutes || [15])
       // Convert participants to CalendarEmployee format
       if (editMeeting.participants) {
@@ -296,7 +296,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     setIsAllDay(false)
     setRecurrence('none')
     setRecurrenceEndDate('')
-    setSelectedColor(MEETING_COLORS[0].value)
+    setSelectedColor(getDefaultCalendarColor())
     setReminderMinutes([15])
     setSelectedParticipants([])
     setSearchQuery('')

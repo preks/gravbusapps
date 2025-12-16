@@ -39,6 +39,7 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
             _or: [
               { firstName: { _ilike: $searchPattern } }
               { lastName: { _ilike: $searchPattern } }
+              { fullName: { _ilike: $searchPattern } }
               { email: { _ilike: $searchPattern } }
               { code: { _ilike: $searchPattern } }
             ]
@@ -51,6 +52,7 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
       code
       firstName
       lastName
+      fullName
       email
     }
     
@@ -118,6 +120,7 @@ interface CustomerEntitiesResponse {
     code?: string
     firstName?: string
     lastName?: string
+    fullName?: string
     email?: string
   }>
   Opportunity: Array<{
@@ -172,7 +175,11 @@ export const useCustomerRelatedEntities = (context: BusinessAppContextProps) => 
 
         const contactOptions: EntityOption[] = (result.Contact || []).map(contact => ({
           id: contact.id,
-          name: `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+          name:
+            `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+            contact.fullName ||
+            contact.code ||
+            'Contact',
           type: 'contact' as const,
           subtitle: contact.email || contact.code || undefined
         }))
@@ -210,14 +217,14 @@ export const useCustomerRelatedEntities = (context: BusinessAppContextProps) => 
         })
 
         setHasMore(combined.length >= PAGE_SIZE)
-        setOffset(append ? pageOffset + PAGE_SIZE : PAGE_SIZE)
+        setOffset(pageOffset)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setLoading(false)
       }
     },
-    [graphqlClient]
+    [PAGE_SIZE, graphqlClient]
   )
 
   const searchEntities = useCallback(
@@ -242,8 +249,9 @@ export const useCustomerRelatedEntities = (context: BusinessAppContextProps) => 
   )
 
   const loadMore = useCallback(() => {
-    return fetchPage(searchTerm, offset, true)
-  }, [fetchPage, searchTerm, offset])
+    if (loading || !hasMore) return
+    return fetchPage(searchTerm, offset + PAGE_SIZE, true)
+  }, [fetchPage, hasMore, loading, offset, PAGE_SIZE, searchTerm])
 
   // Hydrate a specific entity by ID and type so it appears in the combobox trigger
   const hydrateEntityById = useCallback(
@@ -256,7 +264,7 @@ export const useCustomerRelatedEntities = (context: BusinessAppContextProps) => 
               id
               code
               ${type === 'account' ? 'name email' : ''}
-              ${type === 'contact' ? 'firstName lastName email' : ''}
+              ${type === 'contact' ? 'firstName lastName fullName email' : ''}
               ${type === 'opportunity' ? 'name stage' : ''}
               ${type === 'lead' ? 'firstName lastName companyName email' : ''}
             }
@@ -273,7 +281,7 @@ export const useCustomerRelatedEntities = (context: BusinessAppContextProps) => 
             name = item.name || ''
             subtitle = item.email || item.code || ''
           } else if (type === 'contact') {
-            name = `${item.firstName || ''} ${item.lastName || ''}`.trim()
+            name = `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.fullName || item.code || 'Contact'
             subtitle = item.email || item.code || ''
           } else if (type === 'opportunity') {
             name = item.name || ''

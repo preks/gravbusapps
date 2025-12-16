@@ -154,8 +154,18 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
       const activeInvestmentType = catalogData.investmentTypes.find((type: any) => type.code === currentSection)
 
       if (activeInvestmentType?.objectValue?.formFields) {
-        activeInvestmentType.objectValue.formFields.forEach((group: any) => {
+        // Parse objectValue if it's a string
+        const parsedObjectValue =
+          typeof activeInvestmentType.objectValue === 'string'
+            ? JSON.parse(activeInvestmentType.objectValue)
+            : activeInvestmentType.objectValue
+
+        parsedObjectValue.formFields?.forEach((group: any) => {
           group.fields.forEach((field: any) => {
+            // Filter out fields with report: false (not for report tables)
+            if (field.report === false) {
+              return
+            }
             // Use the same ID generation as the table transformer (property with dots -> underscores)
             const columnId = field.property.replaceAll('.', '_')
             columns.push({

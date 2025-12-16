@@ -24,6 +24,7 @@ export const extractTextFromHTML = (html: string): string => {
 
 /**
  * Collects all translatable texts from a ContentEntry
+ * Passes HTML content directly to translation API (which preserves HTML structure)
  */
 export const collectAllTexts = (contentEntry: {
   title?: string | null
@@ -41,11 +42,8 @@ export const collectAllTexts = (contentEntry: {
   }
 
   if (contentEntry.content) {
-    // Extract text from HTML content
-    const plainText = extractTextFromHTML(contentEntry.content)
-    if (plainText.trim()) {
-      texts.push(plainText)
-    }
+    // Pass HTML content directly - translation API preserves HTML structure
+    texts.push(contentEntry.content)
   }
 
   return texts.filter(text => text.trim().length > 0)
@@ -100,16 +98,8 @@ export const mapTranslationsToContentEntry = (
   }
 
   if (contentEntry.content && translations[translationIndex]) {
-    // For HTML content, we need to replace the text content while preserving HTML structure
-    // This is a simplified approach - in production, you might want more sophisticated HTML handling
-    const originalText = extractTextFromHTML(contentEntry.content)
-    if (originalText.trim() && translations[translationIndex]) {
-      // Replace the text content in HTML
-      const tempDiv = document.createElement('div')
-      tempDiv.innerHTML = contentEntry.content
-      tempDiv.textContent = translations[translationIndex]
-      result.content = tempDiv.innerHTML
-    }
+    // Translation API returns HTML with translated text, preserving structure
+    result.content = translations[translationIndex]
   }
 
   return result

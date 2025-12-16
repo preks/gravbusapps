@@ -14,18 +14,32 @@ import {
   Progress,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  useTranslation,
+  useLocale
 } from '@newwork/nw-design-system'
 import { Calendar, CheckCircle, Circle, Users, Clock, X } from 'lucide-react'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isYesterday from 'dayjs/plugin/isYesterday'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/es'
+import 'dayjs/locale/it'
 import { Flow } from '../types'
-import {
-  formatDateTime,
-  formatRelativeTime,
-  getFlowStatusBadgeVariant,
-  formatFlowStatus
-} from '../utils/taskFormatters'
+import { getFlowStatusBadgeVariant, formatFlowStatus } from '../utils/taskFormatters'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { base64ToObjectURL } from '../utils/avatarUtils'
+import translations from '../_i18n'
+
+dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isYesterday)
 
 // Helper function to get step status icon color class
 const getStepStatusIconClass = (status: string): { className: string; filled: boolean } => {
@@ -57,17 +71,26 @@ interface AssigneeItemProps {
 }
 
 const AssigneeItem: React.FC<AssigneeItemProps> = ({ assigneeFlow, index, accessToken }) => {
+  const { t } = useTranslation(translations)
+  const { locale } = useLocale()
+
   // Get assignee user ID from the flow tags (set when workflow was created)
   const assigneeUserId = assigneeFlow.assignedUserId || ''
   const { employeeData, isLoading } = useEmployeeAvatar(accessToken, assigneeUserId)
 
   const isCompleted = assigneeFlow.status === 'COMPLETED'
 
+  // Date formatting function
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  const formatRelativeTime = (date: string | Date): string => {
+    return dayjs(date).locale(baseLocale).fromNow()
+  }
+
   // Get display name and initials
   const displayName =
     employeeData?.displayName ||
     `${employeeData?.firstName || ''} ${employeeData?.lastName || ''}`.trim() ||
-    'Loading...'
+    t('flow-detail-loading')
   const initials = employeeData
     ? `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()
     : '?'
@@ -133,16 +156,20 @@ const AssigneeItem: React.FC<AssigneeItemProps> = ({ assigneeFlow, index, access
         <div className="gba:font-medium gba:text-sm gba:truncate">{displayName}</div>
         <div className="gba:text-xs gba:text-muted-foreground">
           {isCompleted ? (
-            <>Completed {assigneeFlow.completedAt && formatRelativeTime(assigneeFlow.completedAt)}</>
+            <>
+              {t('flow-detail-completed-at', {
+                date: assigneeFlow.completedAt ? formatRelativeTime(assigneeFlow.completedAt) : ''
+              })}
+            </>
           ) : (
-            <>In Progress • Started {formatRelativeTime(assigneeFlow.startedAt)}</>
+            <>{t('flow-detail-in-progress', { date: formatRelativeTime(assigneeFlow.startedAt) })}</>
           )}
         </div>
       </div>
 
       {/* Status Badge */}
       <Badge variant={getFlowStatusBadgeVariant(assigneeFlow.status)} className="gba:text-xs gba:flex-shrink-0">
-        {formatFlowStatus(assigneeFlow.status)}
+        {formatFlowStatus(assigneeFlow.status, t)}
       </Badge>
     </div>
   )
@@ -157,13 +184,14 @@ interface InitiatorInfoProps {
 }
 
 const InitiatorInfo: React.FC<InitiatorInfoProps> = ({ initiatorUserId, accessToken }) => {
+  const { t } = useTranslation(translations)
   const { employeeData, isLoading } = useEmployeeAvatar(accessToken, initiatorUserId)
 
   // Get display name and initials
   const displayName =
     employeeData?.displayName ||
     `${employeeData?.firstName || ''} ${employeeData?.lastName || ''}`.trim() ||
-    'Loading...'
+    t('flow-detail-loading')
   const initials = employeeData
     ? `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()
     : '?'
@@ -219,9 +247,33 @@ const InitiatorInfo: React.FC<InitiatorInfoProps> = ({ initiatorUserId, accessTo
 }
 
 export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClose, accessToken }) => {
+  const { t } = useTranslation(translations)
+  const { locale } = useLocale()
+
   if (!flow) return null
 
   const progressPercentage = flow.totalSteps > 0 ? Math.round((flow.currentStep / flow.totalSteps) * 100) : 0
+
+  // Date formatting functions
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+
+  const formatRelativeTime = (date: string | Date): string => {
+    return dayjs(date).locale(baseLocale).fromNow()
+  }
+
+  const formatDateTime = (date: string | Date): string => {
+    const d = dayjs(date)
+    const time = d.locale(baseLocale).format('LT')
+
+    if (d.isToday()) {
+      return `${t('formatter-today')}, ${time}`
+    }
+    if (d.isYesterday()) {
+      return `${t('formatter-yesterday')}, ${time}`
+    }
+
+    return d.locale(baseLocale).format('L LT')
+  }
 
   return (
     <Card className="gba:h-full gba:flex gba:flex-col gba:shadow-lg" data-testid="flow-detail-dialog">
@@ -250,8 +302,8 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
         <div className="gba:space-y-4">
           {/* Status Badge */}
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Badge variant={getFlowStatusBadgeVariant(flow.status)}>{formatFlowStatus(flow.status)}</Badge>
-            <span className="gba:text-sm gba:text-muted-foreground">ID: {flow.id}</span>
+            <Badge variant={getFlowStatusBadgeVariant(flow.status)}>{formatFlowStatus(flow.status, t)}</Badge>
+            <span className="gba:text-sm gba:text-muted-foreground">{t('flow-detail-id', { id: flow.id })}</span>
           </div>
 
           {/* Assignee Progress (for grouped multi-user blinks) */}
@@ -260,10 +312,13 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
               <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <Users className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                  <span className="gba:text-sm gba:font-medium">Assignee Progress</span>
+                  <span className="gba:text-sm gba:font-medium">{t('flow-detail-assignee-progress')}</span>
                 </div>
                 <span className="gba:text-sm gba:text-muted-foreground">
-                  {flow.completedAssignees} of {flow.assigneeCount} completed
+                  {t('flow-detail-completed-count', {
+                    completed: flow.completedAssignees || 0,
+                    total: flow.assigneeCount
+                  })}
                 </span>
               </div>
               <Progress value={((flow.completedAssignees || 0) / flow.assigneeCount) * 100} className="gba:h-2" />
@@ -276,10 +331,10 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
               <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <Users className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                  <span className="gba:text-sm gba:font-medium">Assignee Progress</span>
+                  <span className="gba:text-sm gba:font-medium">{t('flow-detail-assignee-progress')}</span>
                 </div>
                 <span className="gba:text-sm gba:text-muted-foreground">
-                  {flow.status === 'COMPLETED' ? '1' : '0'} of 1 completed
+                  {t('flow-detail-completed-count', { completed: flow.status === 'COMPLETED' ? 1 : 0, total: 1 })}
                 </span>
               </div>
               <Progress value={flow.status === 'COMPLETED' ? 100 : 0} className="gba:h-2" />
@@ -290,9 +345,9 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
           {!flow.isGrouped && !flow.assignedUserId && flow.totalSteps > 0 && (
             <div>
               <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-                <span className="gba:text-sm gba:font-medium">Overall Progress</span>
+                <span className="gba:text-sm gba:font-medium">{t('flow-detail-overall-progress')}</span>
                 <span className="gba:text-sm gba:text-muted-foreground">
-                  {flow.currentStep} of {flow.totalSteps} steps
+                  {t('flow-detail-steps-count', { current: flow.currentStep, total: flow.totalSteps })}
                 </span>
               </div>
               <Progress value={progressPercentage} className="gba:h-2" />
@@ -306,7 +361,7 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
             <div className="gba:flex gba:items-center gba:gap-2">
               <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
               <div>
-                <div className="gba:text-xs gba:text-muted-foreground">Started</div>
+                <div className="gba:text-xs gba:text-muted-foreground">{t('flow-detail-started')}</div>
                 <div className="gba:font-medium">
                   {formatDateTime(flow.startedAt)} ({formatRelativeTime(flow.startedAt)})
                 </div>
@@ -317,7 +372,7 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
               <div className="gba:flex gba:items-center gba:gap-2">
                 <CheckCircle className="gba:h-4 gba:w-4 gba:text-success" />
                 <div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Completed</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('flow-detail-completed')}</div>
                   <div className="gba:font-medium">
                     {formatDateTime(flow.completedAt)} ({formatRelativeTime(flow.completedAt)})
                   </div>
@@ -327,13 +382,13 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
 
             {flow.initiatedBy && (
               <div>
-                <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">Initiated By</div>
+                <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">{t('flow-detail-initiated-by')}</div>
                 <InitiatorInfo initiatorUserId={flow.initiatedBy} accessToken={accessToken} />
               </div>
             )}
 
             <div>
-              <div className="gba:text-xs gba:text-muted-foreground">Template</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('flow-detail-template')}</div>
               <div className="gba:font-medium">{flow.templateId}</div>
             </div>
           </div>
@@ -343,7 +398,7 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
             <>
               <Separator />
               <div>
-                <h4 className="gba:font-semibold gba:mb-3">Assignee Status</h4>
+                <h4 className="gba:font-semibold gba:mb-3">{t('flow-detail-assignee-status')}</h4>
                 <div className="gba:space-y-3">
                   {flow.groupedFlows.map((assigneeFlow, index) => (
                     <AssigneeItem
@@ -363,7 +418,7 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
             <>
               <Separator />
               <div>
-                <h4 className="gba:font-semibold gba:mb-3">Assignee</h4>
+                <h4 className="gba:font-semibold gba:mb-3">{t('flow-detail-assignee')}</h4>
                 <AssigneeItem assigneeFlow={flow} index={0} accessToken={accessToken} />
               </div>
             </>
@@ -374,7 +429,7 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
             <>
               <Separator />
               <div>
-                <h4 className="gba:font-semibold gba:mb-3">Flow Steps</h4>
+                <h4 className="gba:font-semibold gba:mb-3">{t('flow-detail-flow-steps')}</h4>
                 <div className="gba:space-y-3">
                   {flow.steps.map(step => {
                     const statusIconClass = getStepStatusIconClass(step.status)
@@ -394,16 +449,16 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
                         </div>
                         <div className="gba:flex-1">
                           <div className="gba:font-medium gba:text-sm">
-                            Step {step.stepIndex + 1}: {step.title}
+                            {t('flow-detail-step', { number: step.stepIndex + 1, title: step.title })}
                           </div>
                           <div className="gba:text-xs gba:text-muted-foreground">
                             {step.type}
-                            {step.assignedTo && ` • Assigned to: ${step.assignedTo}`}
-                            {step.completedBy && ` • Completed by: ${step.completedBy}`}
+                            {step.assignedTo && ` • ${t('flow-detail-assigned-to', { name: step.assignedTo })}`}
+                            {step.completedBy && ` • ${t('flow-detail-completed-by', { name: step.completedBy })}`}
                           </div>
                           {step.completedAt && (
                             <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                              Completed {formatRelativeTime(step.completedAt)}
+                              {t('flow-detail-completed-at', { date: formatRelativeTime(step.completedAt) })}
                             </div>
                           )}
                         </div>

@@ -141,8 +141,46 @@ grant-bonus-review-notes = Note
 grant-bonus-review-acknowledge = Confirmă
 grant-bonus-review-reject = Respinge
 
+# ============================================
+# Common Review Form Translations
+# ============================================
+
+# Common Card Titles
+card-title-unchanged = Toate celelalte câmpuri
+
+# Common Badges
+badge-new = Nou
+badge-changed = Modificat
+badge-unchanged = Neschimbat
+badge-not-set = Nesetat
+badge-changes = { $count } { $count ->
+    [one] Modificare
+   *[other] Modificări
+}
+
+# Common Field Values
+value-not-set = Nesetat
+value-na = N/A
+
+# Common Actions
+action-acknowledge = Confirmă
+action-retry = Reîncearcă
+
+# Common States
+loading = Se încarcă...
+
+# Common Field Labels
+label-first-name = Prenume
+label-last-name = Nume
+label-email = E-mail
+label-notes = Note
+label-birth-date = Data nașterii
+label-country = Țară
+label-city = Oraș
+label-currency = Monedă
+
 # Deactivate Employee Benefit Review Form
-deactivate-benefit-review-title = Cerere dezactivare beneficiu pentru { $employeeName }
+deactivate-benefit-review-title = Cerere dezactivare beneficiu
 deactivate-benefit-review-requested-by = Solicitat de { $initiatorName }
 deactivate-benefit-review-loading = Se încarcă cererea de dezactivare beneficiu...
 deactivate-benefit-review-error-title = Imposibil de încărcat datele
@@ -152,6 +190,7 @@ deactivate-benefit-review-deactivation-details = Cerere dezactivare
 deactivate-benefit-review-submit = Dezactivează beneficiu
 deactivate-benefit-review-benefit-type = Tip beneficiu
 deactivate-benefit-review-provider = Furnizor
+deactivate-benefit-review-value = Valoare
 deactivate-benefit-review-yearly-value = Valoare anuală
 deactivate-benefit-review-monthly-value = Valoare lunară
 deactivate-benefit-review-period = Perioadă
@@ -163,14 +202,18 @@ deactivate-benefit-review-end-date = Dată de încheiere solicitată
 deactivate-benefit-review-reason = Motiv dezactivare
 
 # Request Employee Benefit Review Form
-request-benefit-review-title = Revizuire beneficiu pentru { $employeeName }
+request-benefit-review-title = Revizuire cerere beneficiu
 request-benefit-review-initiated-by = Inițiat de { $initiatorName }
 request-benefit-review-benefit-details = Detalii beneficiu
 request-benefit-review-benefit-type = Tipul beneficiului
 request-benefit-review-provider = Furnizor
-request-benefit-review-yearly-value = Valoare anuală
-request-benefit-review-monthly-value = Valoare lunară
+request-benefit-review-value = Valoare
 request-benefit-review-period = Perioadă
+
+# Period translations
+period-monthly = Lunar
+period-yearly = Anual
+period-daily = Zilnic
 request-benefit-review-start-date = Dată de început preferată
 request-benefit-review-employee-yearly-contribution = Contribuție anuală angajat
 request-benefit-review-employee-monthly-contribution = Contribuție lunară angajat

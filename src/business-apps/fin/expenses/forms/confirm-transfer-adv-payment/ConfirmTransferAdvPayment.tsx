@@ -4,11 +4,11 @@ import {
   Alert,
   AlertTitle,
   AlertDescription,
-  Badge,
   Card,
   CardContent,
   CardHeader,
-  CardTitle
+  CardTitle,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CheckCircle } from 'lucide-react'
 import dayjs from 'dayjs'
@@ -17,7 +17,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 dayjs.extend(utc)
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
@@ -29,6 +28,7 @@ import EmployeeInfoSection from './components/EmployeeInfoSection'
 import SupervisorInfoSection from './components/SupervisorInfoSection'
 import TransactionSection from './components/TransactionSection'
 import TransactionConfirmationDetailsSection from './components/TransactionConfirmationDetailsSection'
+import translations from './_i18n'
 
 /**
  * Extended interface for additionalData with form-specific properties
@@ -55,6 +55,8 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
   userInfo,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
@@ -74,9 +76,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
-  const taskTitle =
-    processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Confirm Advance Payment Transfer'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || t('task-title')
 
   const formatDateToISO = (dateString: string): string => {
     if (!dateString) {
@@ -128,11 +128,11 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
       if (data) {
         setPaymentData(data)
       } else {
-        setError('No payment data received from server')
+        setError(t('error-no-payment-received'))
       }
     } catch (err) {
       if (err instanceof Error && err.message.includes('429')) {
-        setError('API rate limit exceeded. Please wait a moment and try again.')
+        setError(t('error-rate-limit'))
       } else {
         setError(err instanceof Error ? err.message : 'Failed to fetch payment data')
       }
@@ -153,18 +153,18 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
     }
 
     if (!transactionDate) {
-      setError('Transaction date is required')
+      setError(t('error-transaction-date-required'))
       return
     }
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/
     if (!dateRegex.test(transactionDate)) {
-      setError('Please enter a valid transaction date (YYYY-MM-DD)')
+      setError(t('error-invalid-date'))
       return
     }
 
     if (!confirmationChecked) {
-      setError('Please confirm the payment transfer')
+      setError(t('error-confirm-required'))
       return
     }
 
@@ -188,7 +188,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
 
       dispatchProcessContinueEvent('pse_approve', payload)
     } catch {
-      setError('Failed to confirm payment. Please try again.')
+      setError(t('error-confirm-failed'))
     } finally {
       setIsConfirming(false)
     }
@@ -216,7 +216,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
     const employee = paymentData.expensePlan.employee
 
     return {
-      displayName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Employee',
+      displayName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || t('value-employee') || 'Employee',
       firstName: employee.firstName,
       lastName: employee.lastName,
       avatarUrl: employee.pictureThumbnail ? `data:image/jpeg;base64,${employee.pictureThumbnail}` : undefined,
@@ -224,27 +224,10 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
     }
   }, [paymentData])
 
-  // Get status display
-  const getStatusDisplay = (status?: string) => {
-    if (!status) return { label: 'Pending', variant: 'default' as const }
-    const statusUpper = status.toUpperCase()
-    if (statusUpper === 'BOOKED' || statusUpper === 'APPROVED') {
-      return { label: status, variant: 'default' as const }
-    }
-    return { label: status, variant: 'default' as const }
-  }
-
-  const statusDisplay = useMemo(() => getStatusDisplay(paymentData?.status), [paymentData?.status])
-
   if (isLoading) {
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
-        <TaskDetailHeader
-          title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
-          onClose={isEveryBoxContext ? handleClose : undefined}
-        />
+        <TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleClose : undefined} />
         <div
           className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px] gba:flex-1"
           data-testid="confirm-transfer-adv-payment-loading"
@@ -258,15 +241,10 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
   if (error) {
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
-        <TaskDetailHeader
-          title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
-          onClose={isEveryBoxContext ? handleClose : undefined}
-        />
+        <TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleClose : undefined} />
         <div className="gba:flex-1 gba:overflow-y-auto gba:py-6">
           <Alert variant="destructive" data-testid="confirm-transfer-adv-payment-error">
-            <AlertTitle>Error Loading Payment Data</AlertTitle>
+            <AlertTitle>{t('error-loading-title')}</AlertTitle>
             <AlertDescription>
               {error}
               {error.includes('rate limit') && (
@@ -278,7 +256,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
                     className="gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
                     data-testid="retry-button"
                   >
-                    Retry
+                    {t('action-retry')}
                   </button>
                 </div>
               )}
@@ -292,16 +270,11 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
   if (!paymentData) {
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
-        <TaskDetailHeader
-          title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
-          onClose={isEveryBoxContext ? handleClose : undefined}
-        />
+        <TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleClose : undefined} />
         <div className="gba:flex-1 gba:overflow-y-auto gba:flex gba:items-center gba:justify-center gba:py-6">
           <Alert data-testid="confirm-transfer-adv-payment-no-data">
-            <AlertTitle>No Payment Data</AlertTitle>
-            <AlertDescription>Unable to load payment information. Please try refreshing the page.</AlertDescription>
+            <AlertTitle>{t('error-no-data-title')}</AlertTitle>
+            <AlertDescription>{t('error-no-data-description')}</AlertDescription>
           </Alert>
         </div>
       </div>
@@ -329,17 +302,10 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={employeeDataForHeader}
           isLoadingEmployee={isLoading}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={statusDisplay.variant} data-testid="payment-status-badge">
-              {statusDisplay.label}
-            </Badge>
-          }
         />
       }
       footer={
@@ -348,7 +314,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
             data-testid="confirm-transfer-adv-payment-actions"
             actions={[
               {
-                label: 'Confirm',
+                label: t('action-confirm'),
                 onClick: handleConfirm,
                 variant: 'default' as const,
                 disabled: isConfirming || !confirmationChecked,
@@ -374,12 +340,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
       {/* Request Details Section */}
       <Card>
         <CardHeader>
-          <CardTitle>
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:confirm_transfer_advance_payment.request_details',
-              'Request Details'
-            )}
-          </CardTitle>
+          <CardTitle>{t('section-request-details')}</CardTitle>
         </CardHeader>
         <CardContent>
           <EmployeeInfoSection
@@ -397,12 +358,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
       {employee.employeePosition?.supervisor && (
         <Card>
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:confirm_transfer_advance_payment.approved_by',
-                'Approved By'
-              )}
-            </CardTitle>
+            <CardTitle>{t('section-approved-by')}</CardTitle>
           </CardHeader>
           <CardContent>
             <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
@@ -414,12 +370,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
       {!isTaskCompleted && (
         <Card>
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:confirm_transfer_advance_payment.transaction_confirmation_text',
-                'Transaction Confirmation'
-              )}
-            </CardTitle>
+            <CardTitle>{t('section-transaction-confirmation')}</CardTitle>
           </CardHeader>
           <CardContent>
             <TransactionSection
@@ -438,12 +389,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
       {isTaskCompleted && paymentData.transactionDate && (
         <Card>
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:confirm_transfer_advance_payment.transaction_confirmation_details',
-                'Transaction Confirmation Details'
-              )}
-            </CardTitle>
+            <CardTitle>{t('section-transaction-confirmation-details')}</CardTitle>
           </CardHeader>
           <CardContent>
             <TransactionConfirmationDetailsSection
