@@ -80,8 +80,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   /**
    * Filter and split benefits based on search query
    */
-  const { activeBenefits, availableBenefits } = React.useMemo(() => {
-    if (!catalogData) return { activeBenefits: [], availableBenefits: [] }
+  const { activeBenefits, scheduledBenefits, availableBenefits } = React.useMemo(() => {
+    if (!catalogData) return { activeBenefits: [], scheduledBenefits: [], availableBenefits: [] }
 
     let benefits = catalogData.catalogBenefits
 
@@ -125,11 +125,12 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
 
     benefits = benefits.filter(isEligibleByGroups)
 
-    // Split into active and available
+    // Split into active, scheduled, and available
     const active = benefits.filter(b => b.isActive)
-    const available = benefits.filter(b => !b.isActive)
+    const scheduled = benefits.filter(b => !b.isActive && b.isScheduled)
+    const available = benefits.filter(b => !b.isActive && !b.isScheduled)
 
-    return { activeBenefits: active, availableBenefits: available }
+    return { activeBenefits: active, scheduledBenefits: scheduled, availableBenefits: available }
   }, [catalogData, searchQuery, hrBackofficeHasPermission])
 
   /**
@@ -149,11 +150,30 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
               <CardTitle>{t('benefits-catalog-title')}</CardTitle>
               {catalogData && (
                 <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                  {t('benefits-catalog-summary', {
-                    active: catalogData.activeBenefitsCount,
-                    available: catalogData.availableBenefitsCount,
-                    total: catalogData.totalBenefitsCount
-                  })}
+                  {activeBenefits.length > 0 && (
+                    <span>
+                      {activeBenefits.length} {t('benefit-status-active').toLowerCase()}
+                    </span>
+                  )}
+                  {scheduledBenefits.length > 0 && (
+                    <>
+                      {activeBenefits.length > 0 && <span> • </span>}
+                      <span>
+                        {scheduledBenefits.length} {t('benefit-status-scheduled').toLowerCase()}
+                      </span>
+                    </>
+                  )}
+                  {availableBenefits.length > 0 && (
+                    <>
+                      {(activeBenefits.length > 0 || scheduledBenefits.length > 0) && <span> • </span>}
+                      <span>
+                        {availableBenefits.length} {t('benefit-status-available').toLowerCase()}
+                      </span>
+                    </>
+                  )}
+                  {activeBenefits.length === 0 && scheduledBenefits.length === 0 && availableBenefits.length === 0 && (
+                    <span>{t('benefits-catalog-no-results')}</span>
+                  )}
                 </div>
               )}
             </div>
@@ -161,7 +181,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             {/* Search Control */}
             <div className="gba:w-full gba:md:w-[260px]">
               <DebouncedInput
-                placeholder={t('benefits-catalog-search-placeholder')}
+                placeholder={t('benefits-search-placeholder')}
                 value={searchQuery}
                 onChange={setSearchQuery}
                 debounceDelay={300}
@@ -177,7 +197,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
           {/* Loading State */}
           {loading && (
             <div className="gba:text-center gba:text-muted-foreground gba:py-12" data-testid="benefits-catalog-loading">
-              <div className="gba:animate-pulse">{t('benefits-catalog-loading')}</div>
+              <div className="gba:animate-pulse">{t('benefits-loading')}</div>
             </div>
           )}
 
@@ -186,11 +206,11 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             <Alert variant="destructive" className="gba:mb-4" data-testid="benefits-catalog-error">
               <div className="gba:flex gba:justify-between gba:items-center">
                 <div>
-                  <h4 className="gba:font-semibold gba:mb-1">{t('benefits-catalog-error-title')}</h4>
+                  <h4 className="gba:font-semibold gba:mb-1">{t('benefits-error-title')}</h4>
                   <p className="gba:text-sm">{error}</p>
                 </div>
                 <Button size="sm" onClick={refetch} variant="outline" data-testid="benefits-catalog-retry-button">
-                  {t('benefits-catalog-retry')}
+                  {t('benefits-error-retry')}
                 </Button>
               </div>
             </Alert>
@@ -213,6 +233,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             catalogData &&
             catalogData.totalBenefitsCount > 0 &&
             activeBenefits.length === 0 &&
+            scheduledBenefits.length === 0 &&
             availableBenefits.length === 0 && (
               <div
                 className="gba:text-center gba:text-muted-foreground gba:py-12"
@@ -243,6 +264,34 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                 data-testid="active-benefits-grid"
               >
                 {activeBenefits.map(benefit => (
+                  <BenefitCatalogCard
+                    key={benefit.catalogId}
+                    t={t}
+                    benefit={benefit}
+                    employeeId={employeeId}
+                    currencyCode={currencyCode}
+                    locale={locale}
+                    onViewDetails={handleViewDetails}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    additionalData={additionalData}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Scheduled Benefits Section */}
+          {!loading && !error && scheduledBenefits.length > 0 && (
+            <div className="gba:mb-8" data-testid="scheduled-benefits-section">
+              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
+                {t('benefits-scheduled-section-title', { count: scheduledBenefits.length })}
+              </h3>
+              <div
+                className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4"
+                data-testid="scheduled-benefits-grid"
+              >
+                {scheduledBenefits.map(benefit => (
                   <BenefitCatalogCard
                     key={benefit.catalogId}
                     t={t}
