@@ -1,30 +1,63 @@
 'use client'
 
 import React from 'react'
-import { Button, Card, Alert, Icon } from '@newwork/nw-design-system'
+import { Button, Card, Alert, Icon, useTranslation } from '@newwork/nw-design-system'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import { TimeEntriesTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/TimeEntriesTable'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PencilIcon } from '@phosphor-icons/react'
+import { exportTimeHistoryPdf } from '../utils/exportTimeHistoryPdf'
+import timeTrackingTranslations from '../_i18n'
 
 interface TimeHistoryProps {
   employeeId: string
   accessToken: string
+  userId?: string
+  employeeFirstName?: string
+  employeeLastName?: string
 }
 
-const TimeHistory: React.FC<TimeHistoryProps> = ({ employeeId, accessToken }) => {
+const TimeHistory: React.FC<TimeHistoryProps> = ({
+  employeeId,
+  accessToken,
+  userId,
+  employeeFirstName,
+  employeeLastName
+}) => {
   const locale = getCurrentActiveUserLocale()
   const { currentMonth, prevMonth, nextMonth, entries, pageSize, setPageSize, error } = useTimeTrackingData({
     employeeId,
     accessToken
   })
 
+  const { t } = useTranslation(timeTrackingTranslations)
+
+  const handleGenerateReport = async () => {
+    try {
+      await exportTimeHistoryPdf({
+        entries,
+        monthDate: currentMonth,
+        locale,
+        employeeId,
+        employeeFirstName,
+        employeeLastName
+      })
+    } catch (e) {
+      // Swallow errors silently; UI already has general error alert area
+      // and PDF generation is a best-effort client-side feature.
+      console.error('[TimeHistory] PDF export failed', e)
+    }
+  }
+
   return (
     <div data-testid="time-tracking-history-container">
-      {/* Top-left Request Correction button */}
-      <div className="gba:mb-3 gba:flex gba:items-center gba:justify-end">
+      {/* Top-right actions */}
+      <div className="gba:mb-3 gba:flex gba:items-center gba:justify-end gba:gap-2">
+        <Button onClick={handleGenerateReport} data-testid="my-time-history-generate-report-button">
+          {t('generate_report')}
+        </Button>
         <AppAction
           variant="update-primary"
           data-testid="my-time-history-request-correction-button"
@@ -75,6 +108,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({ employeeId, accessToken }) =>
           onPageSizeChange={setPageSize}
           accessToken={accessToken}
           employeeId={employeeId}
+          userId={userId}
         />
       </Card>
     </div>

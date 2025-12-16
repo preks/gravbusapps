@@ -8,7 +8,20 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { Input, Button, Badge, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import {
+  Input,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  TabSwitch,
+  TabSwitchList,
+  TabSwitchTrigger,
+  TabSwitchBadge,
+  useTranslation,
+  useLocale
+} from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { Search, RefreshCw, Zap, FileText, X } from 'lucide-react'
 import { Flow } from '../types'
 import { FlowCard } from './FlowCard'
@@ -52,25 +65,30 @@ const updateFlowUrl = (flowId: string | null) => {
   globalThis.history.replaceState({}, '', newUrl)
 }
 
-/**
- * Get empty state message based on search query and filter type
- */
-const getEmptyFlowMessage = (searchQuery: string, filterType: FlowFilterType): string => {
-  if (searchQuery.trim()) {
-    return `No workflows found matching "${searchQuery}"`
-  }
-
-  switch (filterType) {
-    case 'blinks':
-      return 'No blinks sent yet'
-    case 'requests':
-      return 'No requests initiated yet'
-    default:
-      return 'You have not initiated any workflows yet'
-  }
-}
-
 export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error, onRefresh, accessToken }) => {
+  const { t } = useTranslation(translations)
+  const { locale } = useLocale()
+
+  /**
+   * Get empty state message based on search query and filter type
+   */
+  const getEmptyFlowMessage = useCallback(
+    (query: string, filter: FlowFilterType): string => {
+      if (query.trim()) {
+        return t('outbox-empty-no-results', { query })
+      }
+
+      switch (filter) {
+        case 'blinks':
+          return t('outbox-empty-no-blinks')
+        case 'requests':
+          return t('outbox-empty-no-requests')
+        default:
+          return t('outbox-empty-no-workflows')
+      }
+    },
+    [t]
+  )
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null)
   const [filterType, setFilterType] = useState<FlowFilterType>('all')
@@ -228,12 +246,10 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
       <Alert variant="destructive" className="gba:m-4">
         <AlertDescription>
           <div className="gba:space-y-2">
-            <p className="gba:font-semibold">Unable to load outflows</p>
-            <p className="gba:text-sm">
-              The server is experiencing performance issues. This is a known backend problem.
-            </p>
+            <p className="gba:font-semibold">{t('outbox-error-unable')}</p>
+            <p className="gba:text-sm">{t('outbox-error-server')}</p>
             <Button onClick={onRefresh} variant="outline" size="sm" className="gba:mt-2">
-              Try Again
+              {t('outbox-try-again')}
             </Button>
           </div>
         </AlertDescription>
@@ -254,7 +270,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
           <div className="gba:relative gba:flex-1">
             <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
             <Input
-              placeholder="Search workflows..."
+              placeholder={t('outbox-search-placeholder')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="gba:pl-11 gba:pr-9"
@@ -267,7 +283,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
                 onClick={() => setSearchQuery('')}
                 className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground hover:gba:text-foreground gba:cursor-pointer gba:z-10"
                 data-testid="outbox-search-clear-button"
-                aria-label="Clear search"
+                aria-label={t('outbox-clear-search')}
               >
                 <X className="gba:h-4 gba:w-4" />
               </button>
@@ -285,48 +301,46 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         </div>
 
         {/* Flow Type Filters */}
-        <div className="gba:flex gba:gap-2 gba:flex-wrap" data-testid="outbox-filters">
-          <Button
-            variant={filterType === 'all' ? 'default' : 'outline'}
-            onClick={() => setFilterType('all')}
-            data-testid="outbox-filter-all"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            All
-            <Badge variant="secondary" className="gba:ml-1">
-              {flowCounts.all}
-            </Badge>
-          </Button>
-          <Button
-            variant={filterType === 'blinks' ? 'default' : 'outline'}
-            onClick={() => setFilterType('blinks')}
-            data-testid="outbox-filter-blinks"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <Zap className="gba:h-4 gba:w-4" />
-            Blinks
-            <Badge variant="secondary" className="gba:ml-1">
-              {flowCounts.blinks}
-            </Badge>
-          </Button>
-          <Button
-            variant={filterType === 'requests' ? 'default' : 'outline'}
-            onClick={() => setFilterType('requests')}
-            data-testid="outbox-filter-requests"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <FileText className="gba:h-4 gba:w-4" />
-            Requests
-            <Badge variant="secondary" className="gba:ml-1">
-              {flowCounts.requests}
-            </Badge>
-          </Button>
+        <div
+          className="gba:overflow-x-auto gba:overflow-y-hidden gba:-mx-3 gba:px-3"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--nw-border) transparent'
+          }}
+        >
+          <TabSwitch value={filterType} onValueChange={value => setFilterType(value as FlowFilterType)}>
+            <TabSwitchList data-testid="outbox-filters">
+              <TabSwitchTrigger
+                value="all"
+                data-testid="outbox-filter-all"
+                endAdornment={<TabSwitchBadge>{flowCounts.all}</TabSwitchBadge>}
+              >
+                {t('outbox-filter-all')}
+              </TabSwitchTrigger>
+              <TabSwitchTrigger
+                value="blinks"
+                data-testid="outbox-filter-blinks"
+                startIcon={<Zap className="gba:h-4 gba:w-4" />}
+                endAdornment={<TabSwitchBadge>{flowCounts.blinks}</TabSwitchBadge>}
+              >
+                {t('outbox-filter-blinks')}
+              </TabSwitchTrigger>
+              <TabSwitchTrigger
+                value="requests"
+                data-testid="outbox-filter-requests"
+                startIcon={<FileText className="gba:h-4 gba:w-4" />}
+                endAdornment={<TabSwitchBadge>{flowCounts.requests}</TabSwitchBadge>}
+              >
+                {t('outbox-filter-requests')}
+              </TabSwitchTrigger>
+            </TabSwitchList>
+          </TabSwitch>
         </div>
 
         {/* Error Alert */}
         {error && (
           <Alert variant="destructive">
-            <AlertTitle>Error Loading Flows</AlertTitle>
+            <AlertTitle>{t('outbox-error-title')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -345,6 +359,8 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
                   accessToken={accessToken}
                   isSelected={selectedFlow?.id === flow.id}
                   employeeMap={employeeMap}
+                  t={t}
+                  locale={locale}
                 />
               ))}
             </div>

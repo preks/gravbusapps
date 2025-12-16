@@ -82,7 +82,7 @@ export const TaskExpertForm: React.FC<TaskExpertFormProps> = props => {
         systemContent,
         modelSettings: {},
         responseSchema: null,
-        tools: ''
+        tools: []
       })
       setLoading(false)
       onSaved()

@@ -12,11 +12,11 @@ import {
 } from '@newwork/nw-design-system'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
-import { UserIcon } from '@phosphor-icons/react'
+import { UserIcon, BriefcaseIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
-import { ContactTypeBadge } from '../shared/ContactTypeBadge'
+import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 import EmptyState from '@/components/empty-state/EmptyState'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
@@ -135,19 +135,20 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
     return parts.length > 0 ? parts.join(' ') : '-'
   }
 
-  // Helper function to build job info
-  const buildJobInfo = () => {
-    const parts = []
-    if (contact?.jobPosition) parts.push(contact.jobPosition)
-    if ((contact as any)?.department) {
-      const department = (contact as any).department as string
-      parts.push(department.charAt(0).toUpperCase() + department.slice(1))
-    }
-    return parts.length > 0 ? parts.join(' • ') : '-'
-  }
-
   // Get contact type from extended contact object (passed from parent via accountContacts/opportunityContacts)
   const contactType = (contact as any)?.contactType
+
+  // Helper function to build secondary info (Position • Contact Type)
+  const buildSecondaryInfo = () => {
+    const parts = []
+    if (contact?.jobPosition) parts.push(contact.jobPosition)
+
+    // Add contact type if available
+    const contactTypeLabel = getContactTypeLabel(contactType)
+    if (contactTypeLabel) parts.push(contactTypeLabel)
+
+    return parts.length > 0 ? parts.join(' • ') : null
+  }
 
   // Extract contact image URL - support both pictureThumbnail and URLs
   // Only use uploaded images or fallback to icon - no random/hardcoded images
@@ -157,14 +158,14 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
 
   // Get dynamic field values
   const fullName = buildFullName()
-  const jobInfo = buildJobInfo()
+  const secondaryInfo = buildSecondaryInfo()
 
   return (
     <div className="gba:w-full gba:relative gba:flex gba:flex-col gba:h-full">
-      <div className="gba:space-y-2 gba:flex-1">
+      <div className="gba:space-y-1 gba:flex-1">
         {/* Contact Name and Avatar with Action Button */}
         <div className="gba:flex gba:items-center gba:gap-3">
-          <div className="gba:relative gba:shrink-0 gba:p-1">
+          <div className="gba:relative gba:shrink-0">
             {contactImageUrl ? (
               <Avatar className="gba:h-12 gba:w-12">
                 <AvatarImage src={contactImageUrl} alt={fullName} />
@@ -175,8 +176,6 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
             ) : (
               <IconAvatar icon={UserIcon} variant="default" size="lg" title="Contact" />
             )}
-
-            <ContactTypeBadge contactType={contactType} />
           </div>
           <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
             <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">
@@ -207,24 +206,26 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
                 </Tooltip>
               </TooltipProvider>
             </div>
-            {/* Job Title and Department - directly under name */}
-            <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div
-                      className="gba:text-xs gba:text-muted-foreground gba:truncate gba:min-w-0"
-                      data-testid="contact-secondary-info"
-                    >
-                      {jobInfo || '-'}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="gba:max-w-xs gba:break-words">{jobInfo || '-'}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
+            {/* Position and Department - directly under name */}
+            {secondaryInfo && (
+              <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className="gba:text-xs gba:text-muted-foreground gba:truncate gba:min-w-0"
+                        data-testid="contact-secondary-info"
+                      >
+                        {secondaryInfo}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:max-w-xs gba:break-words">{secondaryInfo}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
           </div>
           {/* Action Button removed - handled by SectionWrapper */}
         </div>
@@ -238,16 +239,37 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
             // Dynamically render ALL communication channels that have values
             const communicationChannelItems = renderCommunicationChannels(contact?.communicationChannels, 'contact')
 
-            // If no channels, show a placeholder
-            if (communicationChannelItems.length === 0) {
+            // Add department as a static field if it exists
+            const departmentValue = (contact as any)?.department
+            const departmentItem = departmentValue
+              ? {
+                  icon: BriefcaseIcon,
+                  title: 'Department',
+                  value: departmentValue,
+                  render: (value: string) => (
+                    <span className="gba:text-sm gba:text-muted-foreground">
+                      {value.charAt(0).toUpperCase() + value.slice(1)}
+                    </span>
+                  )
+                }
+              : null
+
+            // Combine communication channels with department field
+            const allItems = departmentItem ? [departmentItem, ...communicationChannelItems] : communicationChannelItems
+
+            // Filter out items without values
+            const itemsWithValues = allItems.filter(item => item.value)
+
+            // If no items, show a placeholder
+            if (itemsWithValues.length === 0) {
               return (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
-                  <span className="gba:text-sm gba:text-muted-foreground">No communication channels available</span>
+                  <span className="gba:text-sm gba:text-muted-foreground">No contact information available</span>
                 </div>
               )
             }
 
-            return communicationChannelItems.map((item, index) => {
+            return itemsWithValues.map((item, index) => {
               const IconComponent = item.icon
               const content = item.render(item.value)
 

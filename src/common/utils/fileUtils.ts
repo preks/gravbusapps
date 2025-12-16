@@ -19,7 +19,17 @@ import { FileInfo } from '@/common/types/FileTypes'
  * @param fileInfo - FileInfo object from file service
  * @returns URL to access the file
  */
-export const buildFileUrl = (fileInfo: FileInfo): string => {
+export function buildFileUrl(fileInfo: FileInfo): string
+
+/**
+ * Build a file URL from fileInfo object and fetch it as a blob URL with authentication
+ * @param fileInfo - FileInfo object from file service
+ * @param accessToken - Access token for authentication
+ * @returns Promise that resolves to a blob URL (e.g., "blob:http://...")
+ */
+export function buildFileUrl(fileInfo: FileInfo, accessToken: string): Promise<string>
+
+export function buildFileUrl(fileInfo: FileInfo, accessToken?: string): string | Promise<string> {
   if (!fileInfo) {
     throw new Error('No fileInfo provided')
   }
@@ -31,9 +41,33 @@ export const buildFileUrl = (fileInfo: FileInfo): string => {
     throw new Error('No path found in fileInfo')
   }
 
+  // Normalize path: remove leading slash if present to avoid double slashes
+  const normalizedPath = path.startsWith('/') ? path.substring(1) : path
+
   // Build URL: BASE_URL + /files/ + path
   const baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-  return `${baseUrl}/files/${path}`
+  const url = `${baseUrl}/files/${normalizedPath}`
+
+  // If no access token, return URL string (backwards compatible)
+  if (!accessToken) {
+    console.log('No access token provided, returning URL string')
+    return url
+  }
+
+  // If access token provided, fetch as blob and return Promise
+  return fetch(url, {
+    credentials: 'include',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`)
+      }
+      return response.blob()
+    })
+    .then(blob => URL.createObjectURL(blob))
 }
 
 /**

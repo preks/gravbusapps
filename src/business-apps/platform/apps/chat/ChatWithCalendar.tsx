@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react'
-import { Tabs, TabsContent } from '@newwork/nw-design-system'
-import { MessageSquare, Calendar as CalendarIcon } from 'lucide-react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { Tabs, TabsContent, Button } from '@newwork/nw-design-system'
+import { MessageSquare, Calendar as CalendarIcon, Sparkles } from 'lucide-react'
+import { ArrowsOut } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Chat } from './Chat'
 import { Calendar } from './calendar/Calendar'
+import { EveryAI } from '../every-ai/EveryAI'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
-type TabValue = 'chat' | 'calendar'
+type TabValue = 'everyai' | 'chat' | 'calendar'
 
 interface ChatWithCalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -13,30 +16,68 @@ interface ChatWithCalendarProps extends BusinessAppContextProps {
 }
 
 /**
- * ChatWithCalendar - Combined Chat and Calendar view
+ * ChatWithCalendar - Combined EveryAI, Chat and Calendar view
  *
- * This component provides a unified interface for messaging and scheduling,
- * allowing users to seamlessly switch between chat conversations and their
- * meeting calendar.
+ * This component provides a unified interface for AI assistance, messaging and scheduling,
+ * allowing users to seamlessly switch between EveryAI conversations, chat conversations
+ * and their meeting calendar.
  */
 export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
   accessToken,
   userInfo,
   prefixDataTestId = 'chat-calendar',
-  defaultTab = 'chat',
+  defaultTab = 'everyai',
   ...props
 }) => {
   const [activeTab, setActiveTab] = useState<TabValue>(defaultTab)
+
+  // Detect if we're in sidepanel mode (not the fullscreen view)
+  const isInSidepanel = useMemo(() => {
+    if (typeof window === 'undefined') return false
+
+    // In prod mode, check if we're on /platform/chat (actual fullscreen route)
+    if (window.location.pathname === '/platform/chat') return false
+
+    // For dev mode with ?app parameter:
+    // In dev, the component is always loaded via ?app parameter
+    // We can't reliably distinguish sidebar from fullscreen in dev mode this way
+    // So in dev mode (when ?app parameter exists), always show the button
+    // This matches EveryAI behavior where button is always visible in dev
+
+    return true // Always show button in dev mode, hide only in prod fullscreen
+  }, [])
+
+  // Navigate to fullscreen mode
+  const openFullscreen = useCallback(() => {
+    // Preserve the current tab when going fullscreen
+    const url = `/platform/chat?view=${activeTab}`
+    navigateTo(url)
+  }, [activeTab])
 
   // Handle URL parameter for initial tab
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const viewParam = urlParams.get('view')
 
-    if (viewParam === 'calendar') {
+    if (viewParam === 'everyai') {
+      setActiveTab('everyai')
+    } else if (viewParam === 'calendar') {
       setActiveTab('calendar')
     } else if (viewParam === 'chat') {
       setActiveTab('chat')
+    }
+  }, [])
+
+  // Listen for custom event to switch to calendar (e.g., from MeetingCard click)
+  useEffect(() => {
+    const handleSwitchToCalendar = () => {
+      setActiveTab('calendar')
+      // The Calendar component will handle the date/meetingId from URL params
+    }
+
+    window.addEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+    return () => {
+      window.removeEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
     }
   }, [])
 
@@ -51,11 +92,43 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
   }
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col gba:bg-background" data-testid={prefixDataTestId}>
+    <div className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative" data-testid={prefixDataTestId}>
+      {/* Floating fullscreen button (only in sidepanel mode) */}
+      {isInSidepanel && (
+        <div className="gba:absolute gba:top-4 gba:left-4 gba:z-50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={openFullscreen}
+            className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
+            data-testid="chat-fullscreen-button"
+            title="Open in Fullscreen"
+          >
+            <ArrowsOut
+              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+              weight="regular"
+            />
+          </Button>
+        </div>
+      )}
+
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
-        {/* Minimal tab bar */}
+        {/* Tab bar */}
         <div className="gba:flex gba:justify-center gba:border-b gba:border-border/40">
           <div className="gba:flex gba:gap-0">
+            <button
+              onClick={() => handleTabChange('everyai')}
+              className={`gba:relative gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:transition-colors ${
+                activeTab === 'everyai' ? 'gba:text-foreground' : 'gba:text-muted-foreground gba:hover:text-foreground'
+              }`}
+              data-testid={`${prefixDataTestId}-everyai-tab`}
+            >
+              <Sparkles className="gba:h-3.5 gba:w-3.5" />
+              <span>EveryAI</span>
+              {activeTab === 'everyai' && (
+                <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
+              )}
+            </button>
             <button
               onClick={() => handleTabChange('chat')}
               className={`gba:relative gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:transition-colors ${
@@ -86,7 +159,20 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
         </div>
 
         {/* Tab content - ensure proper height for mobile web views */}
-        <TabsContent value="chat" className="gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden">
+        {/* Use forceMount to keep all tabs mounted for call persistence */}
+        <TabsContent
+          value="everyai"
+          forceMount
+          className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'everyai' ? 'gba:hidden' : ''}`}
+        >
+          <EveryAI accessToken={accessToken} userInfo={userInfo} {...props} />
+        </TabsContent>
+
+        <TabsContent
+          value="chat"
+          forceMount
+          className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'chat' ? 'gba:hidden' : ''}`}
+        >
           <Chat
             accessToken={accessToken}
             userInfo={userInfo}
@@ -95,7 +181,11 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
           />
         </TabsContent>
 
-        <TabsContent value="calendar" className="gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden">
+        <TabsContent
+          value="calendar"
+          forceMount
+          className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'calendar' ? 'gba:hidden' : ''}`}
+        >
           <Calendar
             accessToken={accessToken}
             userInfo={userInfo}

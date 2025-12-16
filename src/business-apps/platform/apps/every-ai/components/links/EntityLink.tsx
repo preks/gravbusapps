@@ -114,7 +114,7 @@ const ENTITY_CHIP_CONFIG: Record<
     icon: () => createIcon('emoji', '💰')
   },
   intranet: {
-    urlTemplate: '/platform/knowledge/{id}',
+    urlTemplate: '/platform/content/intranet/content-record?contentId={id}',
     icon: () =>
       React.createElement(
         'svg',

@@ -1,5 +1,7 @@
 import React, { useMemo, useEffect } from 'react'
-import { Input, Label, Textarea } from '@newwork/nw-design-system'
+import { Input, Label } from '@newwork/nw-design-system'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 import {
   sanitizeControlId,
   deepEquals,
@@ -45,6 +47,37 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   const fieldPath = path ? `${path}.${name}` : name
   const controlId = sanitizeControlId(fieldPath)
   const label = formatFieldName(name)
+
+  // Inject styles for react-quill text selection visibility
+  useEffect(() => {
+    if (schema.contentMediaType !== 'application/vnd.quill+html') return
+
+    const styleId = 'react-quill-selection-styles'
+    if (document.getElementById(styleId)) return
+
+    const style = document.createElement('style')
+    style.id = styleId
+    style.textContent = `
+      .ql-editor::selection,
+      .ql-editor *::selection {
+        background-color: rgba(59, 130, 246, 0.3) !important;
+        color: inherit !important;
+      }
+      .ql-editor::-moz-selection,
+      .ql-editor *::-moz-selection {
+        background-color: rgba(59, 130, 246, 0.3) !important;
+        color: inherit !important;
+      }
+    `
+    document.head.appendChild(style)
+
+    return () => {
+      const existingStyle = document.getElementById(styleId)
+      if (existingStyle) {
+        existingStyle.remove()
+      }
+    }
+  }, [schema.contentMediaType])
 
   // Conditional display logic
   const displayCondition = schema?.['x-display']
@@ -144,17 +177,45 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
           )
         }
 
-        // Markdown content type - use plain Textarea for markdown input
-        if (schema.contentMediaType === 'text/markdown') {
+        // Quill rich text editor - use ReactQuill for application/vnd.quill+html
+        if (schema.contentMediaType === 'application/vnd.quill+html') {
+          const quillModules = {
+            toolbar: [
+              [{ header: [1, 2, 3, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ list: 'ordered' }, { list: 'bullet' }],
+              [{ align: [] }],
+              ['link', 'image', 'video'],
+              ['clean']
+            ]
+          }
+
+          const quillFormats = [
+            'header',
+            'bold',
+            'italic',
+            'underline',
+            'strike',
+            'list',
+            'align',
+            'link',
+            'image',
+            'video'
+          ]
+
           return (
-            <Textarea
-              id={controlId}
-              placeholder={label}
-              value={String(typeof value === 'string' ? value : (value ?? ''))}
-              onChange={e => onChange(e.target.value)}
-              disabled={disabled}
-              className="gba:min-h-[150px]"
-            />
+            <div className="gba:rounded-md gba:border gba:border-border gba:overflow-hidden [&_.ql-toolbar]:gba:border-b [&_.ql-toolbar]:gba:border-border [&_.ql-toolbar]:gba:bg-muted/30 [&_.ql-container]:gba:border-0 [&_.ql-editor]:gba:min-h-[150px] [&_.ql-editor]:gba:text-foreground [&_.ql-editor.ql-blank::before]:gba:text-muted-foreground">
+              <ReactQuill
+                id={controlId}
+                theme="snow"
+                value={String(typeof value === 'string' ? value : (value ?? ''))}
+                onChange={(content: string) => onChange(content)}
+                readOnly={disabled}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder={label}
+              />
+            </div>
           )
         }
 

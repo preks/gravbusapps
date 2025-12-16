@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
-import { DataDisplay, Spinner } from '@newwork/nw-design-system'
+import { DataDisplay, Spinner, AiButton } from '@newwork/nw-design-system'
+import { Upload } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { RealEstateAnalyticsTable } from './components/RealEstateAnalyticsTable'
 import { useRealEstateInvestmentTypes } from './hooks/useRealEstateInvestmentTypes'
@@ -7,6 +8,8 @@ import type { RealEstateReportFilters } from './types'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../hooks'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface RealEstateReportProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -151,8 +154,18 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
       const activeInvestmentType = catalogData.investmentTypes.find((type: any) => type.code === currentSection)
 
       if (activeInvestmentType?.objectValue?.formFields) {
-        activeInvestmentType.objectValue.formFields.forEach((group: any) => {
+        // Parse objectValue if it's a string
+        const parsedObjectValue =
+          typeof activeInvestmentType.objectValue === 'string'
+            ? JSON.parse(activeInvestmentType.objectValue)
+            : activeInvestmentType.objectValue
+
+        parsedObjectValue.formFields?.forEach((group: any) => {
           group.fields.forEach((field: any) => {
+            // Filter out fields with report: false (not for report tables)
+            if (field.report === false) {
+              return
+            }
             // Use the same ID generation as the table transformer (property with dots -> underscores)
             const columnId = field.property.replaceAll('.', '_')
             columns.push({
@@ -249,6 +262,48 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     [localReportFilters]
   )
 
+  // Primary action for "Add Report" - memoized to prevent reload on tab change
+  const primaryActions = useMemo(() => {
+    return (
+      <AppAction
+        variant="create-primary"
+        contexts={[
+          {
+            context: FlowContextName.investmentReportCreate,
+            contextData: { investmentId: '' }
+          }
+        ]}
+        accessToken={accessToken || ''}
+        data-testid="report-view-add-report-action"
+      >
+        {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
+      </AppAction>
+    )
+  }, [accessToken])
+
+  // Secondary action for "Upload Report" - using AiButton like in record
+  const secondaryActions = useMemo(() => {
+    return (
+      <AppAction
+        contexts={[{ context: FlowContextName.investmentReportUpload, contextData: {} }]}
+        accessToken={accessToken || ''}
+        emptyState="hide"
+        prefixDataTestId="report-view-upload-report"
+      >
+        <AiButton
+          variant="default"
+          size="default"
+          showIcon={true}
+          icon={<Upload style={{ height: '1rem', width: '1rem' }} />}
+          iconPosition="before"
+          data-testid="report-view-upload-report-button"
+        >
+          {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'Upload Report')}
+        </AiButton>
+      </AppAction>
+    )
+  }, [accessToken])
+
   // Don't render filter-dependent content until filters are initialized
   if (!localReportFilters.filtersInitialized) {
     return (
@@ -284,6 +339,8 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
+        primaryAction={primaryActions}
+        secondaryActions={secondaryActions}
         toolbarDensity="default"
       >
         {typesForSections.map(type => (

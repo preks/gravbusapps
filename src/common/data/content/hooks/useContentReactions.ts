@@ -3,11 +3,10 @@
  * Fetch and aggregate reactions for content entries
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql-mock/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildContentReactionsQuery } from '../queries/contentQueries'
-import { mapBaseToContentEntryReaction, aggregateReactions } from '../mappers/contentMappers'
-import type { ContentEntryReaction, ContentReactionQueryParams, ReactionAggregation } from '../types/contentTypes'
-import type { BaseContentEntryReaction } from '../types/contentBaseTypes'
+import type { ContentEntryReaction, ReactionAggregation } from '../types/contentEntryTypes'
+import type { ContentReactionQueryParams } from '../queries/contentQueries'
 
 interface UseContentReactionsResult {
   reactions: ContentEntryReaction[]
@@ -19,12 +18,39 @@ interface UseContentReactionsResult {
 }
 
 interface ContentReactionsResponse {
-  ContentEntryReaction: BaseContentEntryReaction[]
+  ContentEntryReaction: ContentEntryReaction[]
   ContentEntryReactionAggregate?: {
     aggregate: {
       count: number
     }
   }
+}
+
+/**
+ * Aggregate reactions by emoji type
+ */
+function aggregateReactions(reactions: ContentEntryReaction[]): ReactionAggregation[] {
+  const reactionMap = new Map<string, ReactionAggregation>()
+
+  reactions.forEach(reaction => {
+    const reactionRef = reaction.contentReactionRef || 'unknown'
+    const existing = reactionMap.get(reactionRef)
+
+    if (existing && reaction.creatorEmployee) {
+      existing.count++
+      existing.employees.push(reaction.creatorEmployee)
+    } else if (reaction.creatorEmployee) {
+      reactionMap.set(reactionRef, {
+        reactionRef,
+        reactionName: reaction.contentReaction?.value || 'Unknown',
+        reactionEmoji: reaction.contentReaction?.value,
+        count: 1,
+        employees: [reaction.creatorEmployee]
+      })
+    }
+  })
+
+  return Array.from(reactionMap.values()).sort((a, b) => b.count - a.count)
 }
 
 /**
@@ -51,14 +77,13 @@ export const useContentReactions = (
       const response = await graphqlClient.request<ContentReactionsResponse>(query)
 
       if (response.ContentEntryReaction) {
-        const mappedReactions = response.ContentEntryReaction.map(mapBaseToContentEntryReaction)
-        setReactions(mappedReactions)
+        setReactions(response.ContentEntryReaction)
 
         // Aggregate reactions by emoji type
         const aggregatedReactions = aggregateReactions(response.ContentEntryReaction)
         setAggregated(aggregatedReactions)
 
-        setTotalCount(response.ContentEntryReactionAggregate?.aggregate?.count || mappedReactions.length)
+        setTotalCount(response.ContentEntryReactionAggregate?.aggregate?.count || response.ContentEntryReaction.length)
       } else {
         setReactions([])
         setAggregated([])

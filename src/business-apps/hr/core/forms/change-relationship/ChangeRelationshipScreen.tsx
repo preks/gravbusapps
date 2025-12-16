@@ -134,7 +134,8 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   }
 
   const validateNameFunction = (name: string, which: 'first' | 'last'): string => {
-    const nameRegex = /^[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:[-\s]?[a-zA-ZÀ-ÿ\u00f1\u00d1]+)*$/
+    const nameRegex =
+      /^[A-Za-zÀ-ÿ\u0100-\u017F\u0218-\u021B]{2,}(?:(?:\s*-\s*|\s)[A-Za-zÀ-ÿ\u0100-\u017F\u0218-\u021B]{2,})*$/
     const trimmed = (name || '').trim()
     if (trimmed.length === 0) {
       return which === 'first'

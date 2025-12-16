@@ -23,6 +23,8 @@ export function useMessages({
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(1)
   const isLoadingMoreRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const activeConversationIdRef = useRef<string | null>(null)
 
   // Use ref for conversation to avoid triggering loadMessages when conversation metadata changes
   const conversationRef = useRef(conversation)
@@ -32,7 +34,7 @@ export function useMessages({
 
   const loadMessages = useCallback(
     async (pageNum: number = 1, append: boolean = false) => {
-      if (!conversationId || !enabled || isLoadingMoreRef.current) return
+      if (!conversationId || !enabled) return
 
       // Check if apiClient is valid (not empty object)
       if (!apiClient || typeof apiClient.getMessages !== 'function') {
@@ -40,12 +42,43 @@ export function useMessages({
         return
       }
 
+      // Prevent concurrent loads for the SAME conversation
+      // (but allow new conversation loads to proceed)
+      if (isLoadingMoreRef.current && conversationId === activeConversationIdRef.current) {
+        console.log('[useMessages] Already loading messages for this conversation, skipping')
+        return
+      }
+
+      // Cancel any in-flight request for previous conversation
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      // Create new abort controller for this request
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
+
+      // Capture the conversation ID at the time of the request
+      const requestConversationId = conversationId
+
       try {
         isLoadingMoreRef.current = true
         setIsLoading(true)
         setError(null)
 
         const response: PaginatedResponse<Message> = await apiClient.getMessages(conversationId, pageNum, 50)
+
+        // CRITICAL: Check if this response is still relevant
+        // If conversation changed while request was in flight, discard the response
+        if (abortController.signal.aborted || requestConversationId !== activeConversationIdRef.current) {
+          console.log('[useMessages] Discarding stale response for conversation:', requestConversationId)
+          // Clear loading states for the aborted request
+          if (requestConversationId !== activeConversationIdRef.current) {
+            setIsLoading(false)
+            isLoadingMoreRef.current = false
+          }
+          return
+        }
 
         // Ensure response.data exists and is an array
         // Backend already returns messages in ascending order (oldest first, newest last)
@@ -97,9 +130,23 @@ export function useMessages({
         setHasMore(response.page < response.totalPages)
         setPage(response.page)
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to load messages'))
-        console.error('Error loading messages:', err)
+        // Don't set error if request was aborted (expected behavior)
+        if (err instanceof Error && err.name === 'AbortError') {
+          console.log('[useMessages] Request aborted for conversation:', requestConversationId)
+          // Clear loading states when aborted
+          setIsLoading(false)
+          isLoadingMoreRef.current = false
+          return
+        }
+
+        // Only set error if this is still the active conversation
+        if (requestConversationId === activeConversationIdRef.current) {
+          setError(err instanceof Error ? err : new Error('Failed to load messages'))
+          console.error('Error loading messages:', err)
+        }
       } finally {
+        // Always clear loading state in finally block
+        // This ensures loading state is cleared even if conversation changed
         setIsLoading(false)
         isLoadingMoreRef.current = false
       }
@@ -186,8 +233,20 @@ export function useMessages({
       if (isConversationChange) {
         // Clear old messages immediately to prevent showing wrong conversation's messages
         setMessages([])
+
+        // Cancel any in-flight requests from previous conversation
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort()
+          abortControllerRef.current = null
+        }
+
+        // Set loading state immediately for smooth UX (shows spinner while switching)
+        setIsLoading(true)
+        isLoadingMoreRef.current = false
       }
 
+      // Update active conversation ref BEFORE starting the load
+      activeConversationIdRef.current = conversationId
       prevConversationIdRef.current = conversationId
 
       startTransition(() => {
@@ -196,6 +255,14 @@ export function useMessages({
       })
       // Load new messages
       loadMessages(1, false)
+    }
+
+    // Cleanup: abort any in-flight requests when component unmounts or conversation becomes null
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
     }
   }, [conversationId, enabled, apiClient, loadMessages]) // Removed 'conversation' to prevent reload on metadata changes
 

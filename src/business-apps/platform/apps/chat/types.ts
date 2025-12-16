@@ -34,6 +34,15 @@ export interface User {
   updatedAt: Date | string
 }
 
+export interface ActiveCall {
+  conversationId: string
+  roomId: string
+  callType: 'audio' | 'video'
+  startedBy: { id: string; odId: string; odName: string; avatarUrl?: string }
+  participantIds: string[]
+  startedAt: Date | string
+}
+
 export interface Conversation {
   id: string
   type: ConversationType
@@ -49,6 +58,8 @@ export interface Conversation {
   participants?: ConversationParticipant[]
   lastMessage?: Message
   unreadCount?: number
+  activeCall?: ActiveCall | null
+  activeExperts?: string[] // Array of Every Expert prompt IDs
 }
 
 export interface ConversationParticipant {
@@ -112,6 +123,9 @@ export interface PresenceStatus {
 
 // Entity Reference Types for @ mentions
 export type EntityType =
+  // AI Assistants
+  | 'ai_assistant'
+  | 'every_expert' // NEW: Specialized Every Experts
   // CRM entities
   | 'lead'
   | 'contact'
@@ -135,10 +149,14 @@ export type EntityType =
 
 export interface EntityReference {
   id: string
+  userId?: string // Open Directory ID (for employees - used by calendar/meetings API)
   type: EntityType | string
   name: string
   subtitle?: string
   pictureThumbnail?: string
+  // Document/content data (for sending full content to AI)
+  contentPreview?: string // Preview/excerpt of document content
+  contentData?: any // Full content data if available
 }
 
 export interface MessageEntityReference extends EntityReference {
@@ -148,6 +166,9 @@ export interface MessageEntityReference extends EntityReference {
 
 // Entity navigation paths (platform URLs that work with navigateTo)
 export const ENTITY_NAVIGATION_PATHS: Record<EntityType, string> = {
+  // AI Assistant - opens Every AI
+  ai_assistant: '/platform/every-ai',
+  every_expert: '/platform/every-ai', // Experts also open Every AI
   // CRM
   lead: '/platform/crm/lead-record',
   contact: '/platform/crm/contact-record',
@@ -171,6 +192,9 @@ export const ENTITY_NAVIGATION_PATHS: Record<EntityType, string> = {
 }
 
 export const ENTITY_QUERY_PARAMS: Record<EntityType, string> = {
+  // AI Assistant - no specific query param needed
+  ai_assistant: '',
+  every_expert: '', // Experts also don't need query params
   // CRM
   lead: 'leadId',
   contact: 'contactId',

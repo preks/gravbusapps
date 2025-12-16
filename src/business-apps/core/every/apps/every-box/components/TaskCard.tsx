@@ -6,10 +6,26 @@
 import React, { memo, useEffect, useState } from 'react'
 import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Clock, AlertTriangle, Zap } from 'lucide-react'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isYesterday from 'dayjs/plugin/isYesterday'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/es'
+import 'dayjs/locale/it'
 import { UnifiedTask } from '../types'
-import { formatRelativeTime, formatDateTime, isOverdue, isDueSoon } from '../utils/taskFormatters'
+import { isOverdue, isDueSoon } from '../utils/taskFormatters'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
 import { getModuleInfo } from '../utils/moduleIcons'
+
+dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isYesterday)
 
 interface TaskCardProps {
   task: UnifiedTask
@@ -22,13 +38,24 @@ interface TaskCardProps {
    * When true, we hide the fallback initials to avoid flicker before avatar URLs arrive.
    */
   areAvatarsLoading?: boolean
+  /** Translation function passed from parent to avoid useTranslation in each card */
+  t: (key: string, params?: Record<string, any>) => string
+  /** Locale string for date formatting (e.g., 'en-US', 'de-DE') */
+  locale: string
 }
 
 // Helper function to get due date text
-const getDueDateText = (overdue: boolean, dueSoon: boolean, dueDate?: string | null): string => {
-  if (overdue) return 'Overdue'
-  if (dueSoon) return 'Due soon'
-  return `Due ${formatRelativeTime(dueDate)}`
+const getDueDateText = (
+  overdue: boolean,
+  dueSoon: boolean,
+  dueDate: string | null | undefined,
+  locale: string,
+  t: (key: string, params?: Record<string, any>) => string
+): string => {
+  if (overdue) return t('task-card-overdue')
+  if (dueSoon) return t('task-card-due-soon')
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  return dueDate ? t('task-card-due', { date: dayjs(dueDate).locale(baseLocale).fromNow() }) : ''
 }
 
 // Helper function to get due date styling class
@@ -38,63 +65,152 @@ const getDueDateClass = (overdue: boolean, dueSoon: boolean): string => {
   return 'gba:text-muted-foreground'
 }
 
-export const TaskCard: React.FC<TaskCardProps> = memo(
-  ({ task, onView, employeeMap, isSelected = false, isDetailViewOpen = false, areAvatarsLoading = false }) => {
-    // Check if task is completed
-    const isCompleted = task.status === 'COMPLETED' || !!task.completedAt
+// Helper to get module name from process definition ID
+const getModuleName = (processDefId?: string): string | null => {
+  if (!processDefId) return null
+  return processDefId
+    .split(/[_-]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
 
-    // Only show overdue/due soon for non-completed tasks
+// Helper to get task title based on source
+const getTaskTitle = (task: UnifiedTask, t: (key: string) => string): string => {
+  if (task.source === 'kogito') {
+    return task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || t('task-card-untitled')
+  }
+  return task.title || task.name || t('task-card-untitled')
+}
+
+// Helper to get creator ID from task metadata
+const getCreatorId = (task: UnifiedTask): string | undefined => {
+  return (
+    task.sourceMetadata?.creatorUserId ||
+    task.sourceMetadata?.creatorEmployeeId ||
+    task.sourceMetadata?.createdBy ||
+    task.sourceMetadata?.initiatedBy
+  )
+}
+
+// Helper to check if task is completed
+const checkTaskCompleted = (task: UnifiedTask): boolean => {
+  return task.status === 'COMPLETED' || !!task.completedAt
+}
+
+// Helper to check if task is a Blink task
+const checkIsBlinkTask = (task: UnifiedTask): boolean => {
+  return task.source === 'cflow' && task.tags?.app === 'quick-task'
+}
+
+// Helper to determine avatar display state
+const getAvatarDisplayState = (
+  avatarStatus: 'idle' | 'loading' | 'loaded' | 'error',
+  employeeData: EmployeeAvatarData | null | undefined,
+  areAvatarsLoading: boolean
+): { showImage: boolean; showFallback: boolean } => {
+  const showImage = avatarStatus === 'loaded' && !!employeeData?.avatarUrl
+  const noAvatarAvailable = avatarStatus === 'idle' && !employeeData?.avatarUrl
+  const showFallback = !areAvatarsLoading && (avatarStatus === 'error' || noAvatarAvailable)
+
+  return { showImage, showFallback }
+}
+
+// Helper to get creator name with fallback logic
+const getCreatorDisplayName = (
+  task: UnifiedTask,
+  employeeData: EmployeeAvatarData | null | undefined,
+  areAvatarsLoading: boolean,
+  t: (key: string) => string
+): string => {
+  if (task.sourceMetadata?.creatorName) return task.sourceMetadata.creatorName
+  if (task.sourceMetadata?.ownerName) return task.sourceMetadata.ownerName
+  if (areAvatarsLoading) return ''
+  if (employeeData) {
+    const firstName = employeeData.firstName || ''
+    const lastName = employeeData.lastName || ''
+    const fullName = `${firstName} ${lastName}`.trim()
+    return fullName || t('task-card-unknown-creator')
+  }
+  return t('task-card-unknown-creator')
+}
+
+// Helper to format date/time with Today/Yesterday support
+const formatDateTimeWithRelative = (date: string | Date, locale: string, t: (key: string) => string): string => {
+  const d = dayjs(date)
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  const time = d.locale(baseLocale).format('LT')
+
+  if (d.isToday()) {
+    return `${t('formatter-today')}, ${time}`
+  }
+  if (d.isYesterday()) {
+    return `${t('formatter-yesterday')}, ${time}`
+  }
+
+  return d.locale(baseLocale).format('L LT')
+}
+
+// Helper to generate user initials
+const generateInitials = (name: string): string => {
+  const trimmed = name.trim()
+
+  // Return placeholder for empty or whitespace-only names
+  if (!trimmed) {
+    return '??'
+  }
+
+  const parts = trimmed.split(/\s+/).filter(part => part.length > 0)
+
+  // Handle multiple parts (first and last name)
+  if (parts.length >= 2) {
+    const firstInitial = parts[0][0] || ''
+    const lastInitial = parts[parts.length - 1][0] || ''
+    return `${firstInitial}${lastInitial}`.toUpperCase()
+  }
+
+  // Handle single part - take up to 2 characters, pad with second char if only 1
+  const singlePart = parts[0] || ''
+  if (singlePart.length === 1) {
+    return (singlePart + singlePart).toUpperCase()
+  }
+  return singlePart.substring(0, 2).toUpperCase()
+}
+
+export const TaskCard: React.FC<TaskCardProps> = memo(
+  ({
+    task,
+    onView,
+    employeeMap,
+    isSelected = false,
+    isDetailViewOpen = false,
+    areAvatarsLoading = false,
+    t,
+    locale
+  }) => {
+    // Task status checks
+    const isCompleted = checkTaskCompleted(task)
     const overdue = !isCompleted && isOverdue(task.dueDate)
     const dueSoon = !isCompleted && isDueSoon(task.dueDate)
+    const isBlinkTask = checkIsBlinkTask(task)
 
-    // Check if this is a Blink task (quick direct task from one person to another)
-    const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
-
-    // Format process/module name from processDefinitionId for Kogito tasks
-    const getModuleName = (processDefId?: string): string | null => {
-      if (!processDefId) return null
-      // Convert snake_case or kebab-case to Title Case
-      return processDefId
-        .split(/[_-]/)
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ')
-    }
-
+    // Module and task metadata
     const moduleName = task.source === 'kogito' ? getModuleName(task.type) : null
     const moduleInfo = getModuleInfo(task.name, task.type)
     const ModuleIcon = moduleInfo.icon
+    const taskTitle = getTaskTitle(task, t)
 
-    // Get task name/title
-    // For Kogito tasks, prefer referenceName (most descriptive with context)
-    // Then fallback to nodeName, title, or name
-    // For CFlow tasks, use title or name
-    const taskTitle =
-      task.source === 'kogito'
-        ? task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || 'Untitled Task'
-        : task.title || task.name || 'Untitled Task'
-
-    // Extract creator ID - both sources now use user ID:
-    // - Kogito: creatorUserId (user ID)
-    // - CFlow: creatorUserId (user ID from flowInitiatedBy)
-    const creatorId =
-      task.sourceMetadata?.creatorUserId || // Both Kogito & CFlow (userId)
-      task.sourceMetadata?.creatorEmployeeId || // Legacy fallback (employeeId)
-      task.sourceMetadata?.createdBy ||
-      task.sourceMetadata?.initiatedBy
-
-    // Get employee data from the batch-fetched map (used for avatar only, name comes from metadata)
+    // Creator data
+    const creatorId = getCreatorId(task)
     const employeeData = creatorId ? employeeMap.get(creatorId) : null
 
-    // Avatar loading state to prevent initials flicker
+    // Avatar loading state
     const [avatarStatus, setAvatarStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
 
     useEffect(() => {
-      // SSR/Node safety
       if (typeof window === 'undefined') return
 
       const avatarUrl = employeeData?.avatarUrl
 
-      // No avatar URL – immediately fall back to initials
       if (!avatarUrl) {
         setAvatarStatus('error')
         return
@@ -105,13 +221,8 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
       const img = new Image()
       img.src = avatarUrl
 
-      const handleLoad = () => {
-        setAvatarStatus('loaded')
-      }
-
-      const handleError = () => {
-        setAvatarStatus('error')
-      }
+      const handleLoad = () => setAvatarStatus('loaded')
+      const handleError = () => setAvatarStatus('error')
 
       img.addEventListener('load', handleLoad)
       img.addEventListener('error', handleError)
@@ -122,41 +233,12 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
       }
     }, [employeeData?.avatarUrl])
 
-    // Get creator name - prefer metadata (instant, no loading), then employee data
-    // Kogito provides creatorName, CFlow does not (flowInitiatedByName not sent by backend)
-    // For CFlow: show empty while loading, then real name when employee data loads
-    const creatorName =
-      task.sourceMetadata?.creatorName ||
-      task.sourceMetadata?.ownerName ||
-      (areAvatarsLoading ? '' : employeeData ? `${employeeData.firstName} ${employeeData.lastName}`.trim() : 'Unknown')
-
+    // Display data
+    const creatorName = getCreatorDisplayName(task, employeeData, areAvatarsLoading, t)
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
-
-    // Generate initials from creator name (use metadata name, consistent with creatorName)
-    const getInitials = (name: string): string => {
-      const parts = name.trim().split(/\s+/)
-      if (parts.length >= 2) {
-        return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-      }
-      return name.substring(0, 2).toUpperCase()
-    }
-
-    // Show avatar image only when fully loaded
-    const showAvatarImage = avatarStatus === 'loaded' && !!employeeData?.avatarUrl
-
-    // Show fallback (initials) only when:
-    // 1. Avatars batch fetch is complete (!areAvatarsLoading)
-    // 2. AND one of:
-    //    a) avatarStatus is 'error' (no avatar URL or image failed to load)
-    //    b) avatarStatus is 'idle' AND there's no avatarUrl (employee not found or has no picture)
-    //
-    // Do NOT show fallback when:
-    // - Still fetching employee data (areAvatarsLoading)
-    // - Image is being preloaded (avatarStatus === 'loading')
-    // - avatarStatus is 'idle' but avatarUrl exists (about to start preloading)
-    // - Image has loaded successfully (avatarStatus === 'loaded')
-    const noAvatarAvailable = avatarStatus === 'idle' && !employeeData?.avatarUrl
-    const showAvatarFallback = !areAvatarsLoading && (avatarStatus === 'error' || noAvatarAvailable)
+    const avatarDisplay = getAvatarDisplayState(avatarStatus, employeeData, areAvatarsLoading)
+    const showAvatarImage = avatarDisplay.showImage
+    const showAvatarFallback = avatarDisplay.showFallback
 
     // Full list view (no task selected) - single row layout with fixed columns
     if (!isDetailViewOpen) {
@@ -173,9 +255,9 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
               data-testid="task-created-at"
             >
               {task.status === 'COMPLETED' && task.completedAt ? (
-                <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
+                <span className="gba:text-success">✓ {formatDateTimeWithRelative(task.completedAt, locale, t)}</span>
               ) : (
-                createdAt && formatDateTime(createdAt)
+                createdAt && formatDateTimeWithRelative(createdAt, locale, t)
               )}
             </span>
 
@@ -184,7 +266,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
               {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
               {showAvatarFallback && (
                 <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
-                  {getInitials(creatorName)}
+                  {generateInitials(creatorName)}
                 </AvatarFallback>
               )}
             </Avatar>
@@ -213,7 +295,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                   data-testid="task-blink-indicator"
                 >
                   <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
-                  <span className="gba:text-sm gba:font-medium gba:text-blue-500">Blink</span>
+                  <span className="gba:text-sm gba:font-medium gba:text-blue-500">{t('task-card-blink')}</span>
                 </div>
               )}
             </div>
@@ -233,7 +315,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                     <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                   )}
                   <span className={`gba:text-sm ${getDueDateClass(overdue, dueSoon)}`} data-testid="task-due-date">
-                    {getDueDateText(overdue, dueSoon, task.dueDate)}
+                    {getDueDateText(overdue, dueSoon, task.dueDate, locale, t)}
                   </span>
                 </div>
               )}
@@ -261,9 +343,9 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             data-testid="task-created-at"
           >
             {task.status === 'COMPLETED' && task.completedAt ? (
-              <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
+              <span className="gba:text-success">✓ {formatDateTimeWithRelative(task.completedAt, locale, t)}</span>
             ) : (
-              createdAt && formatDateTime(createdAt)
+              createdAt && formatDateTimeWithRelative(createdAt, locale, t)
             )}
           </span>
 
@@ -272,7 +354,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
             {showAvatarFallback && (
               <AvatarFallback className="gba:text-[9px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
-                {getInitials(creatorName)}
+                {generateInitials(creatorName)}
               </AvatarFallback>
             )}
           </Avatar>

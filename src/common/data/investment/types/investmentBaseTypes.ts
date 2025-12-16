@@ -2,7 +2,8 @@
 // These should match the DBML schema exactly without any computed fields
 import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import type { InvestmentAccount, InvestmentOpportunity } from './'
+import type { InvestmentAccount } from './investmentAccountTypes'
+import type { InvestmentOpportunity } from './investmentOpportunityTypes'
 import type { Investment, InvestmentRole } from './investmentTypes'
 import type { ReportScope } from './investmentEnums'
 
@@ -70,6 +71,11 @@ export interface BaseInvestment extends BaseEntity {
 
   fundManagerName?: string
   identification?: any // Jsonb
+
+  // Financial metrics
+  irr?: number // Internal Rate of Return
+  moic?: number // Multiple on Invested Capital
+
   additionalProperties?: any // Jsonb - stores custom tile data and other additional information
 }
 
@@ -125,6 +131,10 @@ export interface BaseInvestmentReport extends BaseEntity {
 
   fundManagerName?: string
   identification?: any // Jsonb
+
+  // Financial metrics
+  irr?: number // Internal Rate of Return
+  moic?: number // Multiple on Invested Capital
 
   // Additional metadata fields
   additionalProperties?: any // Jsonb - custom properties
@@ -214,7 +224,11 @@ export interface BaseEquityInvestmentRound extends BaseEntity {
   currency?: CatalogEntry
 
   // Entity references (using Ref types)
-  equityInvestment?: BaseEquityInvestment
+  equityInvestment?: BaseEquityInvestment & {
+    investmentId?: string
+    investment?: { id: string }
+  }
+  equityInvestmentId?: string
   investmentOpportunity?: InvestmentOpportunity
   investmentOpportunityId?: string
 }

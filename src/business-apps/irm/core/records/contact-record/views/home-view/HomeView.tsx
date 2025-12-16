@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
@@ -131,49 +132,11 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
   }, [loadSectionData])
 
   // Listen for process completion events to refresh section data
-  useEffect(() => {
-    const handleProcessCompletion = async (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          await loadSectionData()
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.contact) {
-          await loadSectionData()
-        }
-      } catch (err) {
-        console.error('Error handling process completion in HomeView:', err)
-      }
+  useProcessCompletion({
+    onSuccess: () => {
+      loadSectionData()
     }
-
-    // Listen to multiple possible event names
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    for (const eventName of eventNames) {
-      globalThis.addEventListener(eventName, handleProcessCompletion as EventListener)
-    }
-
-    return () => {
-      for (const eventName of eventNames) {
-        globalThis.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      }
-    }
-  }, [loadSectionData])
+  })
 
   return (
     <>

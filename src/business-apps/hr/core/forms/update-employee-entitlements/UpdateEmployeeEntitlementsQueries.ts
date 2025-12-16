@@ -14,9 +14,13 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUse
     id
     firstName
     lastName
+    pictureThumbnail
     employeePosition{
       organizationalUnitId
       organizationalUnit {
+        name
+      }
+      jobPosition {
         name
       }
     }

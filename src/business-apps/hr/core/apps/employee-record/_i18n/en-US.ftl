@@ -81,16 +81,21 @@ benefit-status-active = Active
 benefit-status-pending = Pending
 benefit-status-available = Available
 benefit-request-button = Request
+benefit-request-employee-id-missing = Employee ID not available. Cannot initiate benefit request.
 benefit-deactivate-button = Deactivate
 benefit-view-details = View Details
 benefit-provider = Provider
 benefit-value-yearly = Yearly Value
 benefit-no-provider = No provider specified
 benefit-since = Since
+benefit-starts-in = Starts in
+benefit-ends = Ends
 
 # Benefit Details Modal
 benefit-details-type-info = Benefit Type Information
+benefit-details-benefit-information = Benefit Information
 benefit-details-code = Code
+benefit-details-type = Type
 benefit-details-category = Category
 benefit-details-provider-info = Provider Information
 benefit-details-provider = Provider
@@ -102,6 +107,9 @@ benefit-details-start-date = Start Date
 benefit-details-end-date = End Date
 benefit-details-notes = Notes
 benefit-details-available-providers = Available Providers
+benefit-details-additional-info = Additional Information
+benefit-details-value = Value
+benefit-details-no-value-info = Detailed value information will be determined after requesting this benefit.
 benefit-details-description = Benefit details
 common-close = Close
 
@@ -126,6 +134,7 @@ payslip-download-failed = Failed to download payslip. Please try again.
 
 # Request Benefit Modal
 modal-request-title = Request Benefit
+modal-request-loading = Loading benefit information...
 modal-request-description = Complete the form below to request this benefit
 modal-request-provider-label = Benefit Provider
 modal-request-provider-placeholder = Select a provider
@@ -237,6 +246,7 @@ action-enter-placeholder = Please Enter
 
 # Benefits Catalog Section
 benefit-per-year = /yr
+benefit-per-month = /mo
 benefits-catalog-summary = {$active} active · {$available} available · {$total} total
 benefits-catalog-search-placeholder = Search benefits...
 benefits-catalog-loading = Loading benefits catalog...
@@ -259,8 +269,12 @@ modal-request-benefit-type-label = Benefit Type
 modal-character-count = {$current} / {$max} characters
 modal-character-minimum = (minimum {$min} characters)
 
-# Deactivation Reasons
-modal-deactivate-reason-no_longer_needed = No longer needed
-modal-deactivate-reason-found_alternative = Found alternative
-modal-deactivate-reason-cost_reduction = Cost reduction
-modal-deactivate-reason-other = Other (please specify)
+# Period translations
+period-monthly = Monthly
+period-yearly = Yearly
+period-daily = Daily
+
+# Form Validation Errors
+error-end-date-required = End date is required
+error-end-date-today-or-later = End date must be today or later
+error-end-date-after-start-date = End date must be on or after the benefit start date
