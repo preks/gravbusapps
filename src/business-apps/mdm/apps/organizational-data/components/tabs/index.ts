@@ -1,5 +1,4 @@
 export { CompaniesTab } from './CompaniesTab'
-export { ProjectsTab } from './ProjectsTab'
 export { SiteLocationsTab } from './SiteLocationsTab'
 export { CapabilitiesTab } from './CapabilitiesTab'
 export { CostCentersTab } from './CostCentersTab'
@@ -8,7 +7,6 @@ export { TeamsTab } from './TeamsTab'
 
 // Export types
 export type { Company, CompaniesTabProps } from './CompaniesTab'
-export type { Project, ProjectsTabProps } from './ProjectsTab'
 export type { SiteLocation, SiteLocationsTabProps } from './SiteLocationsTab'
 export type { Capability, CapabilitiesTabProps } from './CapabilitiesTab'
 export type { CostCenter, CostCentersTabProps } from './CostCentersTab'

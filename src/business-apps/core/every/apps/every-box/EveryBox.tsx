@@ -25,7 +25,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-  Badge,
+  TabsBadge,
   ThemeProvider,
   Button,
   useTranslation
@@ -316,39 +316,27 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                   </Button>
                 </div>
 
-                {/* Tabs - Now starts from top with full height */}
+                {/* Tabs - Pill-shaped segmented control style */}
                 <Tabs
                   value={activeTab}
                   onValueChange={handleTabChange}
                   className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:pt-10"
                   data-testid={`${prefixDataTestId}-tabs`}
                 >
-                  <TabsList className="gba:mb-2 gba:flex-shrink-0 gba:ml-3">
+                  <TabsList className="gba:mb-4 gba:flex-shrink-0 gba:ml-3">
                     <TabsTrigger
                       value="inbox"
                       data-testid={`${prefixDataTestId}-inbox-tab`}
-                      startIcon={<Inbox className="gba:h-5 gba:w-5" />}
-                      endAdornment={
-                        totalTaskCount > 0 && (
-                          <Badge variant="secondary" className="gba:ml-2">
-                            {totalTaskCount}
-                          </Badge>
-                        )
-                      }
+                      startIcon={<Inbox className="gba:h-4 gba:w-4" />}
+                      endAdornment={totalTaskCount > 0 && <TabsBadge>{totalTaskCount}</TabsBadge>}
                     >
                       {t('every-box-tab-inflows')}
                     </TabsTrigger>
                     <TabsTrigger
                       value="outbox"
                       data-testid={`${prefixDataTestId}-outbox-tab`}
-                      startIcon={<Send className="gba:h-5 gba:w-5" />}
-                      endAdornment={
-                        flows.length > 0 && (
-                          <Badge variant="secondary" className="gba:ml-2">
-                            {flows.length}
-                          </Badge>
-                        )
-                      }
+                      startIcon={<Send className="gba:h-4 gba:w-4" />}
+                      endAdornment={flows.length > 0 && <TabsBadge>{flows.length}</TabsBadge>}
                     >
                       {t('every-box-tab-outflows')}
                     </TabsTrigger>

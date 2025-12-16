@@ -22,7 +22,6 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
 import { env } from '@/common/env/EnvUtils'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { CongratulationsModal } from './CongratulationsModal'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
@@ -134,7 +133,8 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   }
 
   const validateNameFunction = (name: string, which: 'first' | 'last'): string => {
-    const nameRegex = /^[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:[-\s]?[a-zA-ZÀ-ÿ\u00f1\u00d1]+)*$/
+    const nameRegex =
+      /^[A-Za-zÀ-ÿ\u0100-\u017F\u0218-\u021B]{2,}(?:(?:\s*-\s*|\s)[A-Za-zÀ-ÿ\u0100-\u017F\u0218-\u021B]{2,})*$/
     const trimmed = (name || '').trim()
     if (trimmed.length === 0) {
       return which === 'first'
@@ -357,7 +357,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       onSubmit={data => data}
       // Prevent platform hooks here; let outer flow listen to pse events
       submitEventType={undefined as any}
-      cancelEventType={undefined as any}
+      cancelEventType="pse_abort"
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
@@ -366,19 +366,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      onCancel={() => {
-        dispatchProcessContinueEvent('pse_abort', {
-          event: 'pse_abort',
-          pso_exitStrategy: 'abort',
-          pso_completeNotification: {
-            type: 'error',
-            messageKey: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_module.toast_notification_cancel_create_absence',
-              'The action has been canceled.'
-            )
-          }
-        })
-      }}
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
         <FormHeader
