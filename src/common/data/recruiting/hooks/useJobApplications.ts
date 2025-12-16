@@ -14,12 +14,16 @@ export interface UseJobApplicationsResult {
   total: number
   loading: boolean
   error: string | null
-  refetch: (variables?: JobApplicationQueryVariables) => Promise<void>
+  refetch: (variables?: JobApplicationQueryVariables & { where?: any }) => Promise<void>
+}
+
+export interface JobApplicationQueryOptions extends JobApplicationQueryVariables {
+  where?: any // Additional where conditions to merge
 }
 
 export function useJobApplications(
   accessToken: string,
-  variables: JobApplicationQueryVariables = {},
+  variables: JobApplicationQueryOptions = {},
   config: string | string[] = 'list'
 ): UseJobApplicationsResult {
   const graphqlClient = useGraphQLClient(accessToken)
@@ -32,7 +36,7 @@ export function useJobApplications(
   })
 
   const fetchJobApplications = useCallback(
-    async (fetchVariables?: JobApplicationQueryVariables) => {
+    async (fetchVariables?: JobApplicationQueryOptions) => {
       const vars = { ...stableVariables, ...fetchVariables }
       if (!accessToken) {
         setState(prev => ({ ...prev, loading: false }))
@@ -45,12 +49,18 @@ export function useJobApplications(
             ? JOB_APPLICATION_QUERY_CONFIGS[config] || JOB_APPLICATION_QUERY_CONFIGS.list
             : config
         const fragment = buildJobApplicationFragment(fields)
-        const whereObj = buildWhere({
+
+        // Build base where condition from search/filters
+        const baseWhereObj = buildWhere({
           variables: vars,
           descriptors: JOB_APPLICATION_DESCRIPTORS,
           ids: vars.ids,
           isDeleted: true
         })
+
+        // Merge with additional where conditions if provided
+        const whereObj = vars.where ? { _and: [baseWhereObj, vars.where] } : baseWhereObj
+
         const orderByInput =
           vars.orderBy && vars.orderBy.length > 0
             ? vars.orderBy

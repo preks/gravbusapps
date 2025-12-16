@@ -5,13 +5,7 @@ import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { JobApplicationFields } from '../types/jobApplicationTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
-export interface JobApplicationQueryVariables extends BaseQueryVariables {
-  jobCandidateId?: string
-  jobPostingId?: string
-  currentStage?: string
-  applicationChannelId?: string
-  referralId?: string
-}
+export type JobApplicationQueryVariables = BaseQueryVariables
 
 export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
   minimal: ['createdAt', 'id', 'applicationDate'],
@@ -32,10 +26,13 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'id',
     'applicationDate',
     'currentStage',
+    'currentStage',
     'jobCandidate',
     'jobCandidateId',
     'jobPosting',
     'jobPostingId',
+    'applicationChannelId',
+    'referralId',
     'applicationChannelId',
     'referralId',
     'updatedAt',
@@ -51,8 +48,6 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'version', value: 'version' },
     { key: 'applicationDate', value: JobApplicationFields.applicationDate },
     { key: 'currentStage', value: JobApplicationFields.currentStage },
-    { key: 'jobCandidateId', value: JobApplicationFields.jobCandidateId },
-    { key: 'jobPostingId', value: JobApplicationFields.jobPostingId },
     { key: 'applicationChannelId', value: JobApplicationFields.applicationChannelId },
     { key: 'referralId', value: JobApplicationFields.referralId },
     { key: 'createdAt', value: 'createdAt' },
@@ -91,6 +86,8 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
+    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName')}
+    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      jobTitle')}
     ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName')}
     ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      jobTitle')}
   `

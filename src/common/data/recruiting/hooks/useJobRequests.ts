@@ -72,43 +72,14 @@ export function useJobRequests(
         const limit = Math.min(vars.limit || 50, 100)
         const offset = vars.offset || 0
 
-        const query = `
-          query GetJobRequisitions(
-            $limit: Int
-            $offset: Int
-            $where: JobRequisitionBoolExp
-            $orderBy: [JobRequisitionOrderBy!]
-          ) {
-            JobRequisition(
-              limit: $limit
-              offset: $offset
-              orderBy: $orderBy
-              where: $where
-            ) {
-              ${fragment}
-            }
-            
-            JobRequisitionAggregate(where: $where) {
-              aggregate {
-                count
-              }
-            }
-          }
-        `
-
+        const query = `query GetJobRequisitions($limit: Int $offset: Int $where: JobRequisitionBoolExp $orderBy: [JobRequisitionOrderBy!]) {
+          JobRequisition(limit: $limit offset: $offset orderBy: $orderBy where: $where) { ${fragment} }
+          JobRequisitionAggregate(where: $where) { aggregate { count } }
+        }`
         const result = await graphqlClient.request<{
           JobRequisition: any[]
-          JobRequisitionAggregate: {
-            aggregate: {
-              count: number
-            }
-          }
-        }>(query, {
-          limit,
-          offset,
-          where: whereObj,
-          orderBy: orderByArray
-        })
+          JobRequisitionAggregate: { aggregate: { count: number } }
+        }>(query, { limit, offset, where: whereObj, orderBy: orderByArray })
 
         setState({
           jobRequests: (result.JobRequisition || []) as JobRequest[],
@@ -117,8 +88,8 @@ export function useJobRequests(
           error: null
         })
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch job requests'
-        console.error('Error fetching job requests:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch job requisitions'
+        console.error('Error fetching job requisitions:', error)
         setState({
           jobRequests: [],
           total: 0,
