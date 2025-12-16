@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobPosting } from '@/common/data/recruiting/hooks/useJobPosting'
+import { buildJobPostingPayload } from '@/common/data/recruiting/payloads/jobPostingPayloads'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ErrorAlert } from '@/components/error-alert'
@@ -17,8 +18,10 @@ import {
   FormControl,
   FormMessage,
   Input,
-  Textarea
+  Textarea,
+  DateInput
 } from '@newwork/nw-design-system'
+import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
 
 const jobPostingSchema = z.object({
   id: z.string().optional(),
@@ -65,8 +68,9 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
 
   const handleSubmit = useCallback(async (data: any) => {
     try {
+      const payload = buildJobPostingPayload(data)
       return {
-        ...data,
+        ...payload,
         changeMode: data.id ? 'UPDATE' : 'INSERT'
       }
     } catch (error) {
@@ -127,12 +131,187 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea {...field} data-testid={formatDataTestId('job-posting-form', 'description-input')} />
+                    <Textarea
+                      {...field}
+                      rows={4}
+                      data-testid={formatDataTestId('job-posting-form', 'description-input')}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="requirements"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Requirements</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      rows={4}
+                      data-testid={formatDataTestId('job-posting-form', 'requirements-input')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="jobPostingStatusRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.JOB_POSTING_STATUS}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-posting-form', 'status-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="jobPostingTypeRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.JOB_POSTING_TYPE}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-posting-form', 'type-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="locationRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.LOCATION}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-posting-form', 'location-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="employmentTypeRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employment Type</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.EMPLOYMENT_TYPE}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-posting-form', 'employment-type-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="contractTypeRef"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contract Type</FormLabel>
+                  <FormControl>
+                    <CatalogSelect
+                      catalogIdentifier={RECRUITING_CATALOGS.CONTRACT_TYPE}
+                      value={field.value || null}
+                      onValueChange={(v: string | string[]) => field.onChange(Array.isArray(v) ? v[0] || '' : v || '')}
+                      data-testid={formatDataTestId('job-posting-form', 'contract-type-select')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="publishedDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Published Date</FormLabel>
+                    <FormControl>
+                      <DateInput
+                        type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(value || '')}
+                        placeholder="Select published date..."
+                        data-testid={formatDataTestId('job-posting-form', 'published-date-input')}
+                        captionLayout="dropdown"
+                        outputFormat="iso"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="closingDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Closing Date</FormLabel>
+                    <FormControl>
+                      <DateInput
+                        type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(value || '')}
+                        placeholder="Select closing date..."
+                        data-testid={formatDataTestId('job-posting-form', 'closing-date-input')}
+                        captionLayout="dropdown"
+                        outputFormat="iso"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         </Form>
       </AppActionForm>

@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobCandidate } from '@/common/data/recruiting/hooks/useJobCandidate'
+import { buildJobCandidatePayload } from '@/common/data/recruiting/payloads/jobCandidatePayloads'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ErrorAlert } from '@/components/error-alert'
@@ -56,8 +57,9 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
 
   const handleSubmit = useCallback(async (data: any) => {
     try {
+      const payload = buildJobCandidatePayload(data)
       return {
-        ...data,
+        ...payload,
         changeMode: data.id ? 'UPDATE' : 'INSERT'
       }
     } catch (error) {
@@ -97,45 +99,185 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
       >
         <Form {...form}>
           <div className="gba:space-y-4">
-            <FormField
-              control={form.control}
-              name="firstName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>First Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'firstName-input')} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'firstName-input')} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'lastName-input')} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        {...field}
+                        data-testid={formatDataTestId('job-candidate-form', 'email-input')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'phone-input')} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
-              name="lastName"
+              name="linkedinUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Last Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'lastName-input')} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>LinkedIn URL</FormLabel>
                   <FormControl>
                     <Input
-                      type="email"
+                      type="url"
                       {...field}
-                      data-testid={formatDataTestId('job-candidate-form', 'email-input')}
+                      placeholder="https://linkedin.com/in/..."
+                      data-testid={formatDataTestId('job-candidate-form', 'linkedin-input')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="resumeUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Resume URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="url"
+                        {...field}
+                        placeholder="https://..."
+                        data-testid={formatDataTestId('job-candidate-form', 'resume-input')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="coverLetterUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cover Letter URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="url"
+                        {...field}
+                        placeholder="https://..."
+                        data-testid={formatDataTestId('job-candidate-form', 'cover-letter-input')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="candidateStatusRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Candidate Status</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier="CandidateStatus"
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-candidate-form', 'status-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sourceRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier="Source"
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-candidate-form', 'source-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="academicTitleRef"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Academic Title</FormLabel>
+                  <FormControl>
+                    <CatalogSelect
+                      catalogIdentifier="AcademicTitle"
+                      value={field.value || null}
+                      onValueChange={(v: string | string[]) => field.onChange(Array.isArray(v) ? v[0] || '' : v || '')}
+                      data-testid={formatDataTestId('job-candidate-form', 'academic-title-select')}
                     />
                   </FormControl>
                   <FormMessage />

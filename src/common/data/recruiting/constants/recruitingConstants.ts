@@ -19,7 +19,8 @@ export const RECRUITING_CATALOGS = {
   APPLICATION_STATUS: 'ApplicationStatus',
   APPLICATION_STAGE: 'ApplicationStage',
   JOB_REQUISITION_REASON: 'JobRequisitionReason',
-  EXPERIENCE_LEVEL: 'ExperienceLevelCatalog'
+  EXPERIENCE_LEVEL: 'ExperienceLevelCatalog',
+  INTERVIEW_TYPE: 'InterviewType'
 } as const
 
 /**
