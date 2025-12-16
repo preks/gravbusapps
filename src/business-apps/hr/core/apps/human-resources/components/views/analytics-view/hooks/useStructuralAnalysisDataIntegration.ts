@@ -79,15 +79,14 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     type MutableNode = OrganizationalNode & { childrenIds?: string[] }
 
     const nodesById = new Map<string, MutableNode>()
-    const ensureNode = (id: string, name: string | null | undefined): MutableNode => {
+
+    const getOrCreateNode = (id: string, name?: string | null): MutableNode => {
       const safeId = String(id)
-      const safeName = String(name ?? id)
       const existing = nodesById.get(safeId)
       if (existing) return existing
-
-      const created: MutableNode = {
+      const node: MutableNode = {
         id: safeId,
-        name: safeName,
+        name: String(name ?? id),
         description: null,
         parentId: null,
         level: 0,
@@ -99,52 +98,55 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         costCenter: undefined,
         childrenIds: []
       }
-      nodesById.set(safeId, created)
-      return created
+      nodesById.set(safeId, node)
+      return node
     }
 
-    for (const row of edgeRows) {
+    const attachEdge = (row: HierarchyEdgeRow) => {
       const childId = String(row.child_id_text ?? '').trim()
-      if (!childId) continue
+      if (!childId) return
       const parentId = row.parent_id_text ? String(row.parent_id_text).trim() : ''
+      const childNode = getOrCreateNode(childId, row.child_name ?? row.category)
+      const parentNode = parentId ? getOrCreateNode(parentId, row.parent_name ?? '') : null
 
-      const childNode = ensureNode(childId, row.child_name ?? row.category)
-      const parentNode = parentId ? ensureNode(parentId, row.parent_name ?? '') : null
-
-      // assign parent relationship
       if (parentNode) {
         childNode.parentId = parentNode.id
-        parentNode.childrenIds?.push(childNode.id)
-      } else {
-        childNode.parentId = null
+        parentNode.childrenIds!.push(childNode.id)
       }
 
-      // set direct employee count for the node from dataset value
       const numericValue = typeof row.value === 'number' ? row.value : Number(row.value ?? 0)
       childNode.employeeCount = Number.isFinite(numericValue) ? numericValue : 0
     }
 
-    // derive levels via BFS from roots
-    const roots: MutableNode[] = []
-    nodesById.forEach(node => {
-      if (!node.parentId) roots.push(node)
-    })
+    edgeRows.forEach(attachEdge)
 
-    const queue: Array<{ node: MutableNode; level: number }> = roots.map(r => ({ node: r, level: 0 }))
-    while (queue.length > 0) {
-      const { node, level } = queue.shift()!
-      node.level = level
-      const children = (node.childrenIds ?? []).map(id => nodesById.get(id)).filter(Boolean) as MutableNode[]
-      for (const child of children) {
-        queue.push({ node: child, level: level + 1 })
+    const computeRoots = (): MutableNode[] => {
+      const roots: MutableNode[] = []
+      nodesById.forEach(node => {
+        if (!node.parentId) roots.push(node)
+      })
+      return roots
+    }
+
+    const assignLevelsBfs = (roots: MutableNode[]) => {
+      const queue: Array<{ node: MutableNode; level: number }> = roots.map(r => ({ node: r, level: 0 }))
+      while (queue.length > 0) {
+        const { node, level } = queue.shift()!
+        node.level = level
+        const children = (node.childrenIds ?? []).map(id => nodesById.get(id)).filter(Boolean) as MutableNode[]
+        children.forEach(child => queue.push({ node: child, level: level + 1 }))
       }
     }
 
-    // compute span of control as number of direct child units
-    nodesById.forEach(node => {
-      node.spanOfControl = (node.childrenIds ?? []).length
-      delete (node as MutableNode).childrenIds
-    })
+    const finalizeSpanOfControl = () => {
+      nodesById.forEach(node => {
+        node.spanOfControl = (node.childrenIds ?? []).length
+        delete (node as MutableNode).childrenIds
+      })
+    }
+
+    assignLevelsBfs(computeRoots())
+    finalizeSpanOfControl()
 
     return Array.from(nodesById.values())
   }
