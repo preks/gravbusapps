@@ -1,0 +1,24 @@
+{
+  "jobRequisition": {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "version": 0,
+    "createdAt": "2025-01-27T10:30:00.000Z",
+    "createdBy": "a58d0dd1-f2ec-43f7-98ad-3dd32c5f4891",
+    "name": "Senior Software Engineer - Backend",
+    "code": "JR-2025-001",
+    "requesterId": "2eae3fee-c6ce-40f5-8fbd-a2e91a593342",
+    "organizationalUnitId": "91cbe5fa-c5e8-4646-a172-01dea325ff17",
+    "costCenterId": "28b7fbfd-1090-4fa5-b1a1-567437b49233",
+    "jobProfileId": "d5b43c96-3136-407b-8b2c-ebbd692f7c18",
+    "jobPositionId": "3b7cb831-3861-490a-80b4-591c2d09064f",
+    "contractTypeRef": "ContractType:v1:FTS",
+    "experienceLevelRef": "ExperienceLevel:v1:1",
+    "startDate": "2025-12-15T21:54:06.387Z",
+    "endDate": "2026-03-15T21:54:06.387Z",
+    "headcount": 2,
+    "reasonRef": "JobRequisitionReason:v1:2",
+    "replacedPositionId": "2a9f4864-27ea-4fd4-b063-8df5469392d2",
+    "requisitionStatus": ["DRAFT"],
+    "note": "Looking for experienced backend engineers to join our team. Must have 5+ years of experience with Node.js and TypeScript."
+  }
+}

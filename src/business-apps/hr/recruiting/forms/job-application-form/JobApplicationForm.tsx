@@ -5,12 +5,24 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobApplication } from '@/common/data/recruiting/hooks/useJobApplication'
+import { buildJobApplicationPayload } from '@/common/data/recruiting/payloads/jobApplicationPayloads'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ErrorAlert } from '@/components/error-alert'
 import { CatalogSelect } from '@/components/catalog-select'
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Textarea,
+  DateInput,
+  Input
+} from '@newwork/nw-design-system'
 import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
+import { EmployeeSelect } from '@/components/employee-select'
 
 const jobApplicationSchema = z.object({
   id: z.string().optional(),
@@ -54,8 +66,9 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
 
   const handleSubmit = useCallback(async (data: any) => {
     try {
+      const payload = buildJobApplicationPayload(data)
       return {
-        ...data,
+        ...payload,
         changeMode: data.id ? 'UPDATE' : 'INSERT'
       }
     } catch (error) {
@@ -97,12 +110,20 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
           <div className="gba:space-y-4">
             <FormField
               control={form.control}
-              name="notes"
+              name="applicationDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes</FormLabel>
+                  <FormLabel>Application Date</FormLabel>
                   <FormControl>
-                    <Textarea {...field} data-testid={formatDataTestId('job-application-form', 'notes-input')} />
+                    <DateInput
+                      type="date"
+                      value={field.value || ''}
+                      onChange={value => field.onChange(value || '')}
+                      placeholder="Select application date..."
+                      data-testid={formatDataTestId('job-application-form', 'application-date-input')}
+                      captionLayout="dropdown"
+                      outputFormat="iso"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -111,18 +132,93 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
 
             <FormField
               control={form.control}
-              name="applicationStatusRef"
+              name="status"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status</FormLabel>
                   <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier={RECRUITING_CATALOGS.APPLICATION_STATUS}
+                    <Input {...field} data-testid={formatDataTestId('job-application-form', 'status-input')} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      rows={4}
+                      data-testid={formatDataTestId('job-application-form', 'notes-input')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="applicationStatusRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Application Status</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.APPLICATION_STATUS}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-application-form', 'application-status-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="applicationStageRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Application Stage</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.APPLICATION_STAGE}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-application-form', 'application-stage-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="reviewedByEmployeeId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reviewed By</FormLabel>
+                  <FormControl>
+                    <EmployeeSelect
                       value={field.value || null}
-                      onValueChange={(v: string | null) => field.onChange(v || '')}
+                      onValueChange={v => field.onChange(v || '')}
                       businessAppContext={{ accessToken, userInfo, additionalData }}
-                      placeholder="Select status..."
-                      data-testid={formatDataTestId('job-application-form', 'status-select')}
+                      placeholder="Select reviewer..."
+                      data-testid={formatDataTestId('job-application-form', 'reviewer-select')}
                     />
                   </FormControl>
                   <FormMessage />

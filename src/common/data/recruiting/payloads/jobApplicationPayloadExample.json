@@ -1,0 +1,12 @@
+{
+  "jobApplication": {
+    "id": "6fa85f64-5717-4562-b3fc-2c963f66afa9",
+    "version": 0,
+    "createdAt": "2025-01-27T10:30:00.000Z",
+    "createdBy": "a58d0dd1-f2ec-43f7-98ad-3dd32c5f4891",
+    "applicationDate": "2025-01-27T10:30:00.000Z",
+    "currentStage": "Initial Review",
+    "jobCandidateId": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+    "jobPostingId": "4fa85f64-5717-4562-b3fc-2c963f66afa7"
+  }
+}
