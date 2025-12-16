@@ -1,4 +1,4 @@
-import React, { Dispatch, SetStateAction, useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import React, { Dispatch, SetStateAction, useState, useEffect, useMemo, useRef } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
@@ -16,10 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
   Combobox,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  Spinner,
   DateInput,
   Dialog,
   DialogContent,
@@ -30,64 +26,21 @@ import {
   Button,
   Icon
 } from '@newwork/nw-design-system'
-import { PiMagnifyingGlass } from 'react-icons/pi'
 import { WarningIcon } from '@phosphor-icons/react'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import type { Project } from '../../apps/project-management/types'
 import { ProjectStatusBE, ProjectStatusUI } from '../../apps/project-management/types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useDebounce } from '@/common/hooks/useDebounce'
 import { useTranslation } from 'react-i18next'
 import { Account } from '../../apps/project-management/hooks/useProjects'
-import { useProjectManagers, ProjectManager } from '../../apps/project-management/hooks/useProjectManagers'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import { EmployeeSelect } from '@/components/employee-select'
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
 const DATA_TEST_ID_PREFIX = 'ProjectForm'
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
-
-// Custom manager option renderer
-const ManagerSelectItem: React.FC<{ manager: ProjectManager; selectedManagerId?: string | null }> = ({
-  manager,
-  selectedManagerId
-}) => {
-  const displayName = `${manager.firstName || ''} ${manager.lastName || ''}`.trim() || manager.fullName || 'Unknown'
-  const initials =
-    displayName
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || '??'
-
-  return (
-    <div className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:w-full">
-      {/* Manager Avatar */}
-      <Avatar size="sm">
-        {manager.picture_thumbnail ? (
-          <AvatarImage src={`data:image/jpeg;base64,${manager.picture_thumbnail}`} alt={displayName} />
-        ) : null}
-        <AvatarFallback className="gba:bg-linear-to-br gba:from-blue-500 gba:to-purple-600 gba:text-primary-foreground gba:font-semibold gba:text-xs">
-          {initials}
-        </AvatarFallback>
-      </Avatar>
-
-      {/* Manager Information */}
-      <div className="gba:flex-1 gba:min-w-0">
-        <div className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{displayName}</div>
-        {manager.email && <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{manager.email}</div>}
-      </div>
-
-      {/* Selection indicator */}
-      {selectedManagerId && selectedManagerId === manager.id && (
-        <div className="gba:w-4 gba:h-4 gba:bg-primary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:shrink-0">
-          <div className="gba:w-1.5 gba:h-1.5 gba:bg-primary-foreground gba:rounded-full"></div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // Helper function to transform UI status to BE status
 const transformUIStatusToBE = (uiStatus: ProjectStatusUI): ProjectStatusBE => {
@@ -247,27 +200,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const restClient = useRestClient(ORGCHART_BASE_URL)
   const { t } = useTranslation('master-data')
-  const { getProjectManagers } = useProjectManagers(accessToken)
 
   const [loading, setLoading] = useState(false)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
   const [projectType, setProjectType] = useState<string>(project?.projectType || '')
   const [accountSearchTerm, setAccountSearchTerm] = useState<string>('')
-  const [projectManagers, setProjectManagers] = useState<ProjectManager[]>([])
-  const [managerSearchInput, setManagerSearchInput] = useState<string>('')
-  const debouncedManagerSearch = useDebounce(managerSearchInput, 300)
-  const [selectedProjectManagerId, setSelectedProjectManagerId] = useState<string | null>(null)
-  const [isLoadingManagers, setIsLoadingManagers] = useState(false)
-  const [hasMoreManagers, setHasMoreManagers] = useState(false)
-  const [currentManagerPage, setCurrentManagerPage] = useState(0)
-  const [isManagerSelectOpen, setIsManagerSelectOpen] = useState(false)
-  const [cachedSelectedManager, setCachedSelectedManager] = useState<ProjectManager | null>(null)
-  const managerListRef = useRef<HTMLDivElement>(null)
-  const pageSize = 50
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<ProjectStatusBE | null>(null)
   const [previousStatusValue, setPreviousStatusValue] = useState<ProjectStatusBE | null>(null)
   const statusSetValueRef = useRef<((value: ProjectStatusBE) => void) | null>(null)
+  const { employees, loading: searchLoading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
 
   const accountOptions = useMemo(() => {
     return accounts
@@ -277,120 +220,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         label: account.name
       }))
   }, [accounts, accountSearchTerm])
-
-  // Load project managers with pagination
-  const loadProjectManagers = useCallback(
-    async (page: number, search: string, append: boolean = false) => {
-      if (!structureId) return
-
-      try {
-        setIsLoadingManagers(true)
-        const managers = await getProjectManagers({
-          structureId,
-          isPlanningMode: false,
-          searchCriteria: search,
-          page,
-          size: pageSize
-        })
-
-        if (append) {
-          setProjectManagers(prev => [...prev, ...(managers || [])])
-        } else {
-          setProjectManagers(managers || [])
-        }
-
-        setHasMoreManagers((managers || []).length === pageSize)
-      } catch (error) {
-        console.error('Error loading project managers:', error)
-        if (!append) {
-          setProjectManagers([])
-        }
-      } finally {
-        setIsLoadingManagers(false)
-      }
-    },
-    [structureId, getProjectManagers, pageSize]
-  )
-
-  // Initial load and search
-  useEffect(() => {
-    if (structureId && isManagerSelectOpen) {
-      setCurrentManagerPage(0)
-      loadProjectManagers(0, debouncedManagerSearch, false)
-    }
-  }, [structureId, debouncedManagerSearch, isManagerSelectOpen, loadProjectManagers])
-
-  // Load more on scroll
-  const loadMoreManagers = useCallback(() => {
-    if (!isLoadingManagers && hasMoreManagers) {
-      const nextPage = currentManagerPage + 1
-      setCurrentManagerPage(nextPage)
-      loadProjectManagers(nextPage, debouncedManagerSearch, true)
-    }
-  }, [isLoadingManagers, hasMoreManagers, currentManagerPage, debouncedManagerSearch, loadProjectManagers])
-
-  // Handle scroll for infinite loading
-  const handleManagerScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const { target } = e
-      if (target instanceof HTMLDivElement) {
-        const { scrollTop, scrollHeight, clientHeight } = target
-        if (scrollTop + clientHeight >= scrollHeight - 10 && hasMoreManagers && !isLoadingManagers) {
-          loadMoreManagers()
-        }
-      }
-    },
-    [hasMoreManagers, isLoadingManagers, loadMoreManagers]
-  )
-
-  // Find selected manager
-  const selectedManager = useMemo(() => {
-    if (!selectedProjectManagerId) return null
-    return projectManagers.find(m => m.id === selectedProjectManagerId) || cachedSelectedManager
-  }, [selectedProjectManagerId, projectManagers, cachedSelectedManager])
-
-  // Update cached manager when found
-  useEffect(() => {
-    if (selectedManager) {
-      setCachedSelectedManager(selectedManager)
-    }
-  }, [selectedManager])
-
-  // Clear cached manager when value is cleared
-  useEffect(() => {
-    if (!selectedProjectManagerId) {
-      setCachedSelectedManager(null)
-    }
-  }, [selectedProjectManagerId])
-
-  // Handle search input change
-  const handleManagerSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation()
-    setManagerSearchInput(e.target.value)
-  }, [])
-
-  // Handle manager selection change
-  const handleManagerChange = useCallback(
-    (value: string) => {
-      const manager = projectManagers.find(m => m.id === value) || cachedSelectedManager
-      if (manager) {
-        setCachedSelectedManager(manager)
-      }
-      setSelectedProjectManagerId(value || null)
-      // Clear search after selection
-      setManagerSearchInput('')
-      setIsManagerSelectOpen(false)
-    },
-    [projectManagers, cachedSelectedManager]
-  )
-
-  // Handle dropdown open/close
-  const handleManagerOpenChange = useCallback((open: boolean) => {
-    setIsManagerSelectOpen(open)
-    if (!open) {
-      setManagerSearchInput('')
-    }
-  }, [])
 
   useEffect(() => {
     setSelectedAccountId(null)
@@ -402,9 +231,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       if (project.customerId) {
         const account = accounts.find(acc => acc.id === project.customerId)
         setSelectedAccountId(account?.id || null)
-      }
-      if (project.projectManagerId) {
-        setSelectedProjectManagerId(project.projectManagerId)
       }
     }
   }, [project, accounts])
@@ -449,7 +275,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         structureId: structureId,
         status: status,
         ...(values.projectType === 'EXTERNAL' && selectedAccountId ? { customerId: selectedAccountId } : {}),
-        ...(selectedProjectManagerId ? { projectManagerId: selectedProjectManagerId } : {}),
+        ...(selectedUserId ? { projectManagerId: selectedUserId } : {}),
         ...(closureDate ? { closureDate: closureDate } : {}),
         ...(project ? { id: project.id } : {}),
         // Remove team reference if closing project with a team
@@ -470,7 +296,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
     } catch (error) {
       console.error('Form validation error:', error)
     } finally {
-      setSelectedProjectManagerId(null)
+      setSelectedUserId(null)
       setLoading(false)
       setOpen?.(false)
     }
@@ -503,7 +329,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       onSubmit={handleSubmit}
       onCancel={() => {
         onCancel?.()
-        setSelectedProjectManagerId(null)
+        setSelectedUserId(null)
       }}
       defaultValues={defaultValues}
       isEditing={!!project}
@@ -513,6 +339,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       open={open}
       setOpen={setOpen}
       resolver={resolver}
+      validateBeforeSubmit={false}
     >
       <FormField
         name="name"
@@ -553,185 +380,62 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         )}
       />
 
-      <div className="gba:flex gba:gap-4 gba:items-start">
-        <FormField
-          name="projectManagerId"
-          render={({ field }) => {
-            const displayManager = selectedManager || cachedSelectedManager
-            const displayName = displayManager
-              ? `${displayManager.firstName || ''} ${displayManager.lastName || ''}`.trim() ||
-                displayManager.fullName ||
-                'Unknown'
-              : ''
+      <FormField
+        name="projectManagerId"
+        render={() => (
+          <FormItem>
+            <FormLabel>
+              {t('forms.project.fields.projectManager.label', { defaultValue: 'Select Project Manager' })}
+            </FormLabel>
+            <FormControl>
+              <EmployeeSelect
+                value={selectedUserId}
+                employees={employees}
+                onValueChange={setSelectedUserId}
+                onSearch={search}
+                loading={searchLoading}
+                hasMore={hasMore}
+                onLoadMore={loadMore}
+                placeholder="Select project manager"
+                searchPlaceholder="Search by name..."
+                data-testid="project-manager"
+              />
+            </FormControl>
+          </FormItem>
+        )}
+      />
 
-            return (
-              <FormItem className="gba:w-1/2">
-                <FormLabel>
-                  {t('forms.project.fields.projectManager.label', { defaultValue: 'Select Project Manager' })}
-                </FormLabel>
-                <FormControl>
-                  <Select
-                    value={selectedProjectManagerId || field.value || ''}
-                    onValueChange={value => {
-                      handleManagerChange(value)
-                      field.onChange(value)
-                    }}
-                    onOpenChange={handleManagerOpenChange}
-                    open={isManagerSelectOpen}
-                    data-testid={`${dataTestId}-projectManager-select`}
-                  >
-                    <SelectTrigger className="gba:w-full gba:border-gray-300 gba:bg-background gba:min-h-[60px]">
-                      <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:h-full">
-                        {displayManager ? (
-                          <>
-                            {/* Selected Manager Avatar */}
-                            <Avatar key={displayManager.id} size="sm" className="gba:shrink-0">
-                              {displayManager.picture_thumbnail ? (
-                                <AvatarImage
-                                  src={`data:image/jpeg;base64,${displayManager.picture_thumbnail}`}
-                                  alt={displayName}
-                                />
-                              ) : null}
-                              <AvatarFallback className="gba:bg-linear-to-br gba:from-blue-500 gba:to-purple-600 gba:text-primary-foreground gba:font-semibold gba:text-xs">
-                                {displayName
-                                  .split(' ')
-                                  .map(n => n[0])
-                                  .join('')
-                                  .toUpperCase()
-                                  .slice(0, 2) || '??'}
-                              </AvatarFallback>
-                            </Avatar>
-
-                            {/* Selected Manager Info */}
-                            <div className="gba:flex-1 gba:min-w-0 gba:text-left">
-                              <div className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                                {displayName}
-                              </div>
-                              {displayManager.email && (
-                                <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                                  {displayManager.email}
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="gba:text-muted-foreground gba:text-sm">
-                            {t('forms.project.fields.projectManager.placeholder', {
-                              defaultValue: 'Select project manager'
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent className="gba:w-full gba:min-w-[300px] gba:max-w-[500px] gba:border-gray-300 gba:bg-background">
-                      {/* Search input */}
-                      <div className="gba:p-2 gba:border-b gba:border-border">
-                        <div className="gba:relative">
-                          <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:pl-2 gba:flex gba:items-center gba:pointer-events-none gba:z-10">
-                            <PiMagnifyingGlass className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                          </div>
-                          <Input
-                            value={managerSearchInput}
-                            onChange={handleManagerSearchChange}
-                            onKeyDown={e => e.stopPropagation()}
-                            onClick={e => e.stopPropagation()}
-                            placeholder={t('forms.project.fields.projectManager.search', {
-                              defaultValue: 'Search project managers...'
-                            })}
-                            className="gba:border-gray-300 gba:bg-background gba:text-sm"
-                            style={{
-                              paddingLeft: '28px'
-                            }}
-                            autoFocus
-                          />
-                        </div>
-                      </div>
-
-                      {/* Managers list */}
-                      <div
-                        ref={managerListRef}
-                        onScroll={handleManagerScroll}
-                        className="gba:max-h-60 gba:overflow-y-auto"
-                      >
-                        {projectManagers.length > 0
-                          ? projectManagers.map((manager, index) => (
-                              <SelectItem
-                                key={`${manager.id}-${index}`}
-                                value={manager.id}
-                                className="gba:p-0 gba:h-auto"
-                              >
-                                <ManagerSelectItem manager={manager} selectedManagerId={selectedProjectManagerId} />
-                              </SelectItem>
-                            ))
-                          : !isLoadingManagers &&
-                            managerSearchInput && (
-                              <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-                                {t('forms.project.fields.projectManager.empty', {
-                                  defaultValue: 'No project manager found.'
-                                })}
-                              </div>
-                            )}
-
-                        {/* Load more indicator */}
-                        {isLoadingManagers && (
-                          <div className="gba:p-2 gba:text-center gba:border-t gba:border-border">
-                            <Spinner size="sm" className="gba:mr-2" />
-                            <span className="gba:text-muted-foreground">
-                              {t('forms.project.fields.projectManager.loading', { defaultValue: 'Loading...' })}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Has more indicator */}
-                        {hasMoreManagers && !isLoadingManagers && (
-                          <div className="gba:p-2 gba:text-center gba:text-muted-foreground gba:text-sm gba:border-t gba:border-border">
-                            {t('forms.project.fields.projectManager.loadMore', {
-                              defaultValue: 'Scroll down to load more...'
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )
-          }}
-        />
-
-        <FormField
-          name="hoursBudget"
-          render={({ field }) => (
-            <FormItem className="gba:w-1/2">
-              <FormLabel>{t('forms.project.fields.effort.label', { defaultValue: 'Effort (Hours)' })}</FormLabel>
-              <FormControl>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={8}
-                  placeholder={t('forms.project.fields.effort.placeholder', {
-                    defaultValue: 'Enter hours budget'
-                  })}
-                  {...field}
-                  value={field.value ?? ''}
-                  onChange={e => {
-                    const value = e.target.value
-                    // Only allow digits, max 8 characters (up to 99,999,999 hours)
-                    if (value === '' || /^\d{1,8}$/.test(value)) {
-                      // Remove leading zeros and convert to number
-                      const numValue = value === '' ? '' : parseInt(value, 10)
-                      field.onChange(numValue)
-                    }
-                  }}
-                  data-testid={`${dataTestId}-hoursBudget-input`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+      <FormField
+        name="hoursBudget"
+        render={({ field }) => (
+          <FormItem className="gba:w-1/2">
+            <FormLabel>{t('forms.project.fields.effort.label', { defaultValue: 'Effort (Hours)' })}</FormLabel>
+            <FormControl>
+              <Input
+                type="text"
+                inputMode="numeric"
+                maxLength={8}
+                placeholder={t('forms.project.fields.effort.placeholder', {
+                  defaultValue: 'Enter hours budget'
+                })}
+                {...field}
+                value={field.value ?? ''}
+                onChange={e => {
+                  const value = e.target.value
+                  // Only allow digits, max 8 characters (up to 99,999,999 hours)
+                  if (value === '' || /^\d{1,8}$/.test(value)) {
+                    // Remove leading zeros and convert to number
+                    const numValue = value === '' ? '' : parseInt(value, 10)
+                    field.onChange(numValue)
+                  }
+                }}
+                data-testid={`${dataTestId}-hoursBudget-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       <div className="gba:flex gba:flex-col gba:gap-4">
         <div className="gba:flex gba:gap-4 gba:items-start">
