@@ -3,8 +3,7 @@
 import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
-import { formatCurrencyString } from '@/common/utils/numberFormatter'
-import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../../utils/benefitTranslationUtils'
+import BenefitInfoSection from './BenefitInfoSection'
 
 interface ScheduledBenefitLayoutProps {
   t: (key: string, params?: any) => string
@@ -31,37 +30,14 @@ const ScheduledBenefitLayout: React.FC<ScheduledBenefitLayoutProps> = ({
   return (
     <div className="gba:flex gba:justify-between gba:gap-3">
       {/* Left side: Benefit info stacked */}
-      <div className="gba:flex-1 gba:space-y-0.5">
-        <h3
-          className="gba:text-base gba:font-semibold gba:text-foreground gba:leading-tight"
-          data-testid={`benefit-catalog-title-${benefit.code}`}
-        >
-          {getTranslatedBenefitType(benefit, locale)}
-        </h3>
-
-        {/* Provider and Amount */}
-        {(benefit.provider || valueDisplay) && (
-          <div
-            className="gba:text-xs gba:text-muted-foreground gba:leading-tight"
-            data-testid={`benefit-provider-amount-${benefit.code}`}
-          >
-            {benefit.provider && <span>{getTranslatedCatalogEntryValue(benefit.provider, locale)}</span>}
-            {benefit.provider && valueDisplay && <span> • </span>}
-            {valueDisplay && (
-              <span className="gba:font-medium gba:text-foreground">
-                {formatCurrencyString(valueDisplay.amount, {
-                  currency: benefit.currency?.code || currencyCode,
-                  locale: locale,
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 2
-                })}
-                {t(valueDisplay.periodKey)}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Scheduled Badge with Start Date */}
+      <BenefitInfoSection
+        t={t}
+        benefit={benefit}
+        currencyCode={currencyCode}
+        locale={locale}
+        valueDisplay={valueDisplay}
+      >
+        {/* Scheduled-specific: Badge with Start Date */}
         {benefit.startDate && (
           <div
             className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-info-foreground gba:bg-info-secondary gba:px-2 gba:py-1 gba:rounded-md gba:mt-2"
@@ -79,7 +55,7 @@ const ScheduledBenefitLayout: React.FC<ScheduledBenefitLayoutProps> = ({
             </span>
           </div>
         )}
-      </div>
+      </BenefitInfoSection>
 
       {/* Right side: Action buttons stacked */}
       <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-32" data-testid={`benefit-actions-${benefit.code}`}>

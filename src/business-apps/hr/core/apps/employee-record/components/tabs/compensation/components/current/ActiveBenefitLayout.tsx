@@ -6,8 +6,7 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { BenefitStatus } from '../../types/compensationEnums'
-import { formatCurrencyString } from '@/common/utils/numberFormatter'
-import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../../utils/benefitTranslationUtils'
+import BenefitInfoSection from './BenefitInfoSection'
 import dayjs from 'dayjs'
 
 interface ActiveBenefitLayoutProps {
@@ -43,37 +42,14 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
   return (
     <div className="gba:flex gba:justify-between gba:gap-3">
       {/* Left side: Benefit info stacked */}
-      <div className="gba:flex-1 gba:space-y-0.5">
-        <h3
-          className="gba:text-base gba:font-semibold gba:text-foreground gba:leading-tight"
-          data-testid={`benefit-catalog-title-${benefit.code}`}
-        >
-          {getTranslatedBenefitType(benefit, locale)}
-        </h3>
-
-        {/* Provider and Amount */}
-        {(benefit.provider || valueDisplay) && (
-          <div
-            className="gba:text-xs gba:text-muted-foreground gba:leading-tight"
-            data-testid={`benefit-provider-amount-${benefit.code}`}
-          >
-            {benefit.provider && <span>{getTranslatedCatalogEntryValue(benefit.provider, locale)}</span>}
-            {benefit.provider && valueDisplay && <span> • </span>}
-            {valueDisplay && (
-              <span className="gba:font-medium gba:text-foreground">
-                {formatCurrencyString(valueDisplay.amount, {
-                  currency: benefit.currency?.code || currencyCode,
-                  locale: locale,
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 2
-                })}
-                {t(valueDisplay.periodKey)}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Start Date */}
+      <BenefitInfoSection
+        t={t}
+        benefit={benefit}
+        currencyCode={currencyCode}
+        locale={locale}
+        valueDisplay={valueDisplay}
+      >
+        {/* Active-specific: Start Date */}
         {benefit.startDate && (
           <div
             className="gba:text-xs gba:text-muted-foreground gba:leading-tight"
@@ -86,7 +62,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             })}
           </div>
         )}
-      </div>
+      </BenefitInfoSection>
 
       {/* Right side: Action buttons stacked */}
       <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-32" data-testid={`benefit-actions-${benefit.code}`}>

@@ -97,19 +97,27 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
     }
   }
 
+  /**
+   * Get card styling classes based on benefit status
+   */
+  const getCardClassName = (): string => {
+    const baseClasses = 'gba:p-3 gba:transition-all gba:duration-200'
+
+    if (benefit.isActive) {
+      return `${baseClasses} gba:border-success gba:bg-success-secondary/10`
+    }
+
+    if (benefit.isScheduled) {
+      return `${baseClasses} gba:border-info gba:bg-info-secondary/10`
+    }
+
+    return `${baseClasses} gba:border-border gba:hover:border-accent`
+  }
+
   const valueDisplay = benefit.isActive || benefit.isScheduled ? getBenefitValueDisplay() : null
 
   return (
-    <Card
-      className={`gba:p-3 gba:transition-all gba:duration-200 ${
-        benefit.isActive
-          ? 'gba:border-success gba:bg-success-secondary/10'
-          : benefit.isScheduled
-            ? 'gba:border-info gba:bg-info-secondary/10'
-            : 'gba:border-border gba:hover:border-accent'
-      }`}
-      data-testid={`benefit-catalog-card-${benefit.code}`}
-    >
+    <Card className={getCardClassName()} data-testid={`benefit-catalog-card-${benefit.code}`}>
       {/* Available Benefits Layout */}
       {!benefit.isActive && !benefit.isScheduled && (
         <AvailableBenefitLayout
