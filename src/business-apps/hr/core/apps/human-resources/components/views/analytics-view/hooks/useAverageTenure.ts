@@ -1,22 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import dayjs from 'dayjs'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getEmployeeTenureDataQuery } from '../queries/getEmployeeTenureData'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-/**
- * GraphQL response type for employee tenure data query
- */
-interface EmployeeTenureDataResponse {
-  Employee: Array<{
-    id: string
-  }>
-  EmployeeWorkingCondition: Array<{
-    employeeId: string
-    hireDate: string | null
-  }>
-}
 
 /**
  * Tenure representation with years and months
@@ -41,22 +26,8 @@ export const useAverageTenure = (accessToken: string) => {
   const isMounted = useRef<boolean>(true)
   const { t } = useTranslation(hrTranslations)
 
-  // Get GraphQL client using the project's pattern
-  const graphQLClient = useGraphqlClient(accessToken)
-
-  /**
-   * Calculate tenure between hire date and today
-   * Using the same calculation logic as in ProfileHeader component
-   */
-  const calculateTenure = (hireDate: string): Tenure => {
-    const hireDateObj = dayjs(hireDate)
-    const now = dayjs()
-
-    const years = now.diff(hireDateObj, 'year')
-    const months = now.diff(hireDateObj, 'month') % 12
-
-    return { years, months }
-  }
+  // Dataset client
+  const queryClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   /**
    * Format tenure into a string representation (e.g., "3.2 yrs")
@@ -75,7 +46,9 @@ export const useAverageTenure = (accessToken: string) => {
   }
 
   /**
-   * Fetch employee tenure data from GraphQL API and calculate average
+   * Fetch average tenure from dataset (runner-safe) and format
+   * Expects dataset 'averageEmployeeTenure' returning one row:
+   *   { category: 'average_tenure_months', value: <numeric months> }
    */
   const fetchAverageTenure = useCallback(async () => {
     if (!accessToken) {
@@ -92,85 +65,25 @@ export const useAverageTenure = (accessToken: string) => {
         setError(null)
       }
 
-      console.log('[useAverageTenure] Fetching employee tenure data')
+      console.log('[useAverageTenure] Fetching average tenure from dataset')
 
-      // Execute the GraphQL query
-      const response = await graphQLClient.request<EmployeeTenureDataResponse>(getEmployeeTenureDataQuery)
+      const ds = await queryClient.executeQuery('averageEmployeeTenure', QueryType.DATASET, {})
 
-      // Validate response structure
-      if (!response || !response.EmployeeWorkingCondition || !response.Employee) {
-        throw new Error('[useAverageTenure] Invalid response structure from GraphQL API')
-      }
-
-      const allEmployees = response.Employee
-      const workingConditions = response.EmployeeWorkingCondition
-
-      // Get the total number of employees
-      const totalEmployeeCount = allEmployees.length
-
-      // Handle case when no employees are found
-      if (totalEmployeeCount === 0) {
-        console.warn('[useAverageTenure] No employees found')
-
-        if (isMounted.current) {
-          setAverageTenure({ years: 0, months: 0 })
-          setFormattedTenure(`0 ${t('hr-analytics-months-plural')}`)
-          setEmployeeCount(0)
-          setError(null)
-          setLoading(false)
-        }
-        return
-      }
-
-      // Create a map of employeeId -> hireDate for quick lookup
-      const employeeHireDates = new Map<string, string>()
-
-      // Only keep the earliest hire date for each employee
-      workingConditions.forEach(condition => {
-        if (!condition.employeeId || !condition.hireDate) return
-
-        const existingDate = employeeHireDates.get(condition.employeeId)
-
-        if (!existingDate || dayjs(condition.hireDate).isBefore(dayjs(existingDate))) {
-          employeeHireDates.set(condition.employeeId, condition.hireDate)
-        }
-      })
-
-      console.log(
-        `[useAverageTenure] Found ${employeeHireDates.size} employees with hire dates out of ${totalEmployeeCount} total employees`
-      )
-
-      // Calculate total tenure across all employees
-      let totalMonths = 0
-
-      // For each employee in our total count, either use their hire date if available or count as 0 months
-      allEmployees.forEach(employee => {
-        const hireDate = employeeHireDates.get(employee.id)
-
-        if (hireDate) {
-          const tenure = calculateTenure(hireDate)
-          const tenureInMonths = tenure.years * 12 + tenure.months
-          totalMonths += tenureInMonths
-        }
-        // If no hire date is found, this employee contributes 0 months to the average
-      })
-
-      // Calculate average tenure based on ALL employees
-      const avgMonths = Math.round(totalMonths / totalEmployeeCount)
+      const avgMonthsRaw = Array.isArray(ds?.data) && ds.data.length > 0 ? Number(ds.data[0]?.value ?? 0) : 0
+      const avgMonths = Math.max(0, Math.round(avgMonthsRaw))
       const avgYears = Math.floor(avgMonths / 12)
       const avgRemainingMonths = avgMonths % 12
 
       const avgTenure = { years: avgYears, months: avgRemainingMonths }
 
-      console.log(
-        `[useAverageTenure] Calculated average tenure: ${avgYears} years, ${avgRemainingMonths} months for ${totalEmployeeCount} employees`
-      )
+      console.log(`[useAverageTenure] Calculated average tenure (dataset): ${avgYears}y ${avgRemainingMonths}m`)
 
       // Update state if component is still mounted
       if (isMounted.current) {
         setAverageTenure(avgTenure)
         setFormattedTenure(formatTenure(avgTenure))
-        setEmployeeCount(totalEmployeeCount) // Use the total employee count
+        // Employee count not needed for consumers; keep 0 or extend dataset in future
+        setEmployeeCount(0)
         setError(null)
         setLoading(false)
       }
@@ -182,7 +95,7 @@ export const useAverageTenure = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, graphQLClient])
+  }, [accessToken, queryClient, t])
 
   // Set up effect to fetch data and handle cleanup
   useEffect(() => {
