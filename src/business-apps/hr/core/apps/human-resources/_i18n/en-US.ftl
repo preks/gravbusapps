@@ -79,7 +79,7 @@ hr-analytics-error-message = Error loading data
 hr-analytics-top-org-units-note = Showing top 10 org units out of { $total } total
 
 # Analytics - Turnover/Retention statistics
-hr-analytics-voluntary-turnover-rate = Voluntary Turnover Rate
+hr-analytics-voluntary-turnover-rate = Turnover Rate
 hr-analytics-current-month-rate = Current month rate
 hr-analytics-at-risk-departments = At-Risk Departments
 hr-analytics-below-retention-target = Below { $target }% retention target

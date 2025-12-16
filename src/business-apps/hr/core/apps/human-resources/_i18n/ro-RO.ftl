@@ -408,7 +408,7 @@ hr-analytics-error-message = Eroare la încărcarea datelor
 hr-analytics-top-org-units-note = Afișăm primele 10 unități din totalul de { $total }
 
 # Analytics - Turnover/Retention statistics
-hr-analytics-voluntary-turnover-rate = Rată de fluctuație voluntară
+hr-analytics-voluntary-turnover-rate = Rată de fluctuație
 hr-analytics-current-month-rate = Rata lunii curente
 hr-analytics-average-tenure = Vechime medie
 hr-analytics-company-wide-average = Media la nivelul companiei

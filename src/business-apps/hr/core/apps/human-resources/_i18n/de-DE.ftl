@@ -398,7 +398,7 @@ hr-analytics-error-message = Fehler beim Laden der Daten
 hr-analytics-top-org-units-note = Anzeige der Top 10 Org.-Einheiten von insgesamt { $total }
 
 # Analytics - Turnover/Retention statistics
-hr-analytics-voluntary-turnover-rate = Freiwillige Fluktuationsrate
+hr-analytics-voluntary-turnover-rate = Fluktuationsrate
 hr-analytics-current-month-rate = Rate des aktuellen Monats
 hr-analytics-average-tenure = Durchschnittliche Betriebszugehörigkeit
 hr-analytics-company-wide-average = Unternehmensweiter Durchschnitt
