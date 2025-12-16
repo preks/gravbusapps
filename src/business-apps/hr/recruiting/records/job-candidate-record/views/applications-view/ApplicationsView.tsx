@@ -169,6 +169,14 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
             'No applications found for this candidate'
           )}
           actions={rowActions}
+          onRowClick={row => {
+            if (row.id) {
+              const url = buildPlatformUrl('/platform/hr/recruiting/job-application-record', {
+                jobApplicationId: row.id
+              })
+              navigateTo(url)
+            }
+          }}
           data-testid="job-candidate-applications-list"
         />
       </DataDisplay>
