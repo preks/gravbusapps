@@ -1,7 +1,7 @@
 import React, { Dispatch, SetStateAction, useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
-import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, toast } from '@newwork/nw-design-system'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -152,10 +152,11 @@ const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
       onSubmit?.()
     } catch (error) {
       console.error('Error updating employee allocation:', error)
+      toast.error('Failed to send request')
     } finally {
       setLoading(false)
-      setOpen?.(false)
     }
+    setOpen?.(false)
   }
 
   const defaultValues = useMemo(() => {

@@ -943,6 +943,9 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
               [data-slot='popover-content'] {
                 z-index: 1002 !important;
               }
+                [data-slot='dialog-content'] {
+                z-index: 1002 !important;
+        }
             `}</style>
             <SheetContent side="right" data-testid={`${dataTestId}-details-sheet`}>
               <SheetHeader>

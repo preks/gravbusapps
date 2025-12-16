@@ -1,68 +1,108 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { env } from '@/common/env/EnvUtils'
 import { Project, ProjectData, ProjectStatusBE, ProjectStatusUI, ProjectTypeBE } from '../types'
 
 // Default pagination values
 const DEFAULT_PAGE_SIZE = 10
 const DEFAULT_CURRENT_PAGE = 1
 
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
-// GraphQL query for projects with pagination
-export const GET_PROJECTS_DATA = (
+// GraphQL query to get active structure ID
+export const GET_ACTIVE_STRUCTURE = (): string => {
+  return `query getActiveStructure {
+    Structure(where: {isActive: {_eq: true}}, limit: 1) {
+      id
+    }
+  }`
+}
+
+interface ActiveStructureResponse {
+  Structure?: Array<{ id: string }>
+}
+
+// GraphQL query builder for projects with pagination
+// Uses variables for all user inputs to prevent injection
+export const buildProjectsQuery = (hasSearch: boolean, onlyActiveProjects: boolean): string => {
+  const searchCondition = hasSearch
+    ? `_or: [
+        { name: { _ilike: $search } }
+        { description: { _ilike: $search } }
+      ]`
+    : ''
+
+  const activeCondition = onlyActiveProjects ? `status: { _in: $activeStatuses }` : ''
+
+  const searchVariable = hasSearch ? '$search: String!' : ''
+  const activeVariable = onlyActiveProjects ? '$activeStatuses: [String!]!' : ''
+
+  const additionalVariables = [searchVariable, activeVariable].filter(Boolean).join(', ')
+  const variablesDef = additionalVariables ? `, ${additionalVariables}` : ''
+
+  const whereConditions = [searchCondition, activeCondition].filter(Boolean).join(', ')
+  const additionalWhere = whereConditions ? `, ${whereConditions}` : ''
+
+  return `
+    query getProjects($structureId: uuid!, $limit: Int!, $offset: Int!${variablesDef}) {
+      Project(
+        where: {
+          isDeleted: { _eq: false }
+          structureId: { _eq: $structureId }
+          ${additionalWhere}
+        }
+        limit: $limit
+        offset: $offset
+        orderBy: { name: ASC }
+      ) {
+        id
+        name
+        description
+        hoursBudget
+        projectType
+        status
+        customerId
+        projectManagerId
+        matrixUnitId
+        validFrom
+        validTo
+      }
+      ProjectAggregate(
+        where: {
+          isDeleted: { _eq: false }
+          structureId: { _eq: $structureId }
+          ${hasSearch ? searchCondition : ''}
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+    }
+  `
+}
+
+// Helper to build query variables (values are always passed as variables for security)
+export const buildProjectsQueryVariables = (
   structureId: string,
   limit: number,
   offset: number,
   search?: string,
   onlyActiveProjects: boolean = false
-): string => {
-  const searchCondition = search
-    ? `, _or: [
-        { name: { _ilike: "%${search}%" } },
-        { description: { _ilike: "%${search}%" } },
-      ]`
-    : ''
+): Record<string, unknown> => {
+  const variables: Record<string, unknown> = {
+    structureId,
+    limit,
+    offset
+  }
 
-  const activeProjectsCondition = onlyActiveProjects ? `, status: { _in: ["IN_PROGRESS", "ON_HOLD", "PLANNED"] }` : ''
+  if (search) {
+    variables.search = `%${search}%`
+  }
 
-  return `query getProjects {
-    Project(
-      where: {
-        isDeleted: { _eq: false }
-        structureId: { _eq: "${structureId}" }
-        ${searchCondition}
-        ${activeProjectsCondition}
-      }
-      limit: ${limit}
-      offset: ${offset}
-      orderBy: { name: ASC }
-    ) {
-      id
-      name
-      description
-      hoursBudget
-      projectType
-      status
-      customerId
-      projectManagerId
-      matrixUnitId
-      validFrom
-      validTo
-    }
-    ProjectAggregate(
-      where: {
-        isDeleted: { _eq: false }
-        structureId: { _eq: "${structureId}" }
-        ${searchCondition}
-      }
-    ) {
-      aggregate {
-        count
-      }
-    }
-  }`
+  if (onlyActiveProjects) {
+    variables.activeStatuses = ['IN_PROGRESS', 'ON_HOLD', 'PLANNED']
+  }
+
+  return variables
 }
 
 // GraphQL response type for projects
@@ -97,29 +137,27 @@ export const GET_ACCOUNTS_DATA = (): string => {
   }`
 }
 
-// GraphQL query for employees (project managers) by IDs - batch query
-export const GET_EMPLOYEES_BY_IDS = (employeeIds: string[]): string => {
-  const idsString = employeeIds.map(id => `"${id}"`).join(', ')
-  return `query getEmployeesByIds {
-    Employee(where: { id: { _in: [${idsString}] } }) {
+// GraphQL query for employees (project managers) by IDs - batch query (using variables for security)
+export const GET_EMPLOYEES_BY_IDS_QUERY = `
+  query getEmployeesByIds($employeeIds: [uuid!]!) {
+    Employee(where: { id: { _in: $employeeIds } }) {
       id
       firstName
       lastName
       displayName
       pictureThumbnail
     }
-  }`
-}
+  }
+`
 
-// GraphQL query for matrix unit member counts - fetches assignments to count per matrix
-export const GET_MATRIX_MEMBER_COUNTS = (matrixUnitIds: string[]): string => {
-  const idsString = matrixUnitIds.map(id => `"${id}"`).join(', ')
-  return `query getMatrixMemberCounts {
-    EmployeeMatrixUnit(where: { matrixUnitId: { _in: [${idsString}] } }) {
+// GraphQL query for matrix unit member counts (using variables for security)
+export const GET_MATRIX_MEMBER_COUNTS_QUERY = `
+  query getMatrixMemberCounts($matrixUnitIds: [uuid!]!) {
+    EmployeeMatrixUnit(where: { matrixUnitId: { _in: $matrixUnitIds } }) {
       matrixUnitId
     }
-  }`
-}
+  }
+`
 
 export type AccountData = {
   Account?: {
@@ -182,7 +220,7 @@ const transformStatus = (beStatus?: ProjectStatusBE): ProjectStatusUI => {
 // Transform API project data to UI-friendly Project interface
 const transformProject = (projectData: ProjectData): Project => {
   const now = new Date()
-  let status: ProjectStatusUI = ProjectStatusUI.InProgress
+  let status = ProjectStatusUI.InProgress
   let isActive = true
   let daysUntilExpiry: number | undefined
   let daysUntilStart: number | undefined
@@ -222,7 +260,6 @@ const transformProject = (projectData: ProjectData): Project => {
   } else {
     // Default to In Progress if no status from BE
     status = ProjectStatusUI.InProgress
-    isActive = true
   }
 
   return {
@@ -261,30 +298,25 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
   const [currentPage, setCurrentPage] = useState<number>(DEFAULT_CURRENT_PAGE)
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE)
 
-  const restClient = useRestClient(ORGCHART_BASE_URL)
   const graphqlClient = useGraphqlClient(context.accessToken)
 
   // Fetch projects using GraphQL with pagination
   const fetchProjects = useCallback(
     async (limit: number, offset: number, search?: string): Promise<{ projects: Project[]; totalCount: number }> => {
       try {
-        if (!structureId.current) {
-          throw new Error('Structure ID is required to fetch projects')
+        // Fetch active structure ID using GraphQL
+        const structureQuery = GET_ACTIVE_STRUCTURE()
+        const structureResult = await graphqlClient.request<ActiveStructureResponse>(structureQuery)
+
+        if (!structureResult.Structure || structureResult.Structure.length === 0) {
+          throw new Error('No active structure found')
         }
 
-        const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
-          params: {
-            isPlanningMode: false
-          },
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`
-          }
-        })
-        structureId.current = getStructureResponse.structure.structureId
-        // structureId.current = '4ff76a51-551d-4d5a-8e50-28ef08c6ab67'
+        structureId.current = structureResult.Structure[0].id
 
-        const query = GET_PROJECTS_DATA(structureId.current, limit, offset, search, onlyActiveProjects)
-        const result = await graphqlClient.request<ProjectsGraphQLResponse>(query)
+        const query = buildProjectsQuery(Boolean(search), onlyActiveProjects)
+        const variables = buildProjectsQueryVariables(structureId.current, limit, offset, search, onlyActiveProjects)
+        const result = await graphqlClient.request<ProjectsGraphQLResponse>(query, variables)
 
         if (result.Project) {
           const transformedProjects = result.Project.map(project => {
@@ -351,8 +383,9 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
       }
 
       try {
-        const query = GET_EMPLOYEES_BY_IDS(employeeIds)
-        const result = await graphqlClient.request<EmployeesGraphQLResponse>(query)
+        const result = await graphqlClient.request<EmployeesGraphQLResponse>(GET_EMPLOYEES_BY_IDS_QUERY, {
+          employeeIds
+        })
 
         const employeeMap = new Map<string, EmployeeData>()
         if (result.Employee) {
@@ -377,8 +410,9 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
       }
 
       try {
-        const query = GET_MATRIX_MEMBER_COUNTS(matrixUnitIds)
-        const result = await graphqlClient.request<MatrixMemberCountsResponse>(query)
+        const result = await graphqlClient.request<MatrixMemberCountsResponse>(GET_MATRIX_MEMBER_COUNTS_QUERY, {
+          matrixUnitIds
+        })
 
         // Count members per matrix unit
         const countMap = new Map<string, number>()
@@ -415,10 +449,10 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
 
         // Step 2: Extract unique IDs for batch queries
         const managerIds = [
-          ...new Set(projectsResult.projects.map(p => p.projectManagerId).filter((id): id is string => Boolean(id)))
+          ...new Set(projectsResult.projects.map(p => p.projectManagerId).filter(Boolean) as string[])
         ]
         const matrixUnitIds = [
-          ...new Set(projectsResult.projects.map(p => p.matrixTeam?.matrixId).filter((id): id is string => Boolean(id)))
+          ...new Set(projectsResult.projects.map(p => p.matrixTeam?.matrixId).filter(Boolean) as string[])
         ]
 
         // Step 3: Batch fetch employees and matrix member counts in parallel

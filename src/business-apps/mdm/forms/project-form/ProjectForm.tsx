@@ -1,5 +1,4 @@
-import React, { Dispatch, SetStateAction, useState, useEffect, useMemo, useRef } from 'react'
-import { useFormContext } from 'react-hook-form'
+import React, { Dispatch, SetStateAction, useState, useEffect, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import {
@@ -38,8 +37,162 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { EmployeeSelect } from '@/components/employee-select'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
+import { useFormContext, ControllerRenderProps } from 'react-hook-form'
 
 const DATA_TEST_ID_PREFIX = 'ProjectForm'
+
+// Separate component to handle status field with proper hook usage
+interface StatusSelectProps {
+  field: ControllerRenderProps<any, 'status'>
+  dataTestId: string
+  t: (key: string, options?: { defaultValue: string }) => string
+  onStatusChangeRequest: (newStatus: ProjectStatusBE, previousStatus: ProjectStatusBE) => void
+}
+
+const StatusSelect: React.FC<StatusSelectProps> = ({ field, dataTestId, t, onStatusChangeRequest }) => {
+  const { setValue } = useFormContext()
+
+  const handleStatusChange = (value: string) => {
+    const newStatus = value as ProjectStatusBE
+
+    // Check if user is trying to set CANCELLED or COMPLETED
+    if (newStatus === ProjectStatusBE.CANCELLED || newStatus === ProjectStatusBE.COMPLETED) {
+      // Pass to parent for confirmation dialog
+      onStatusChangeRequest(newStatus, field.value as ProjectStatusBE)
+    } else {
+      // For other statuses, update directly
+      setValue('status', newStatus, { shouldValidate: true, shouldDirty: true })
+    }
+  }
+
+  return (
+    <Select onValueChange={handleStatusChange} value={field.value} data-testid={`${dataTestId}-status-select`}>
+      <SelectTrigger>
+        <SelectValue
+          placeholder={t('forms.project.fields.status.placeholder', {
+            defaultValue: 'Select project status'
+          })}
+        />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ProjectStatusBE.PLANNED}>
+          {t('forms.project.fields.status.options.planned', {
+            defaultValue: 'Planned'
+          })}
+        </SelectItem>
+        <SelectItem value={ProjectStatusBE.IN_PROGRESS}>
+          {t('forms.project.fields.status.options.inProgress', {
+            defaultValue: 'In Progress'
+          })}
+        </SelectItem>
+        <SelectItem value={ProjectStatusBE.ON_HOLD}>
+          {t('forms.project.fields.status.options.onHold', {
+            defaultValue: 'On Hold'
+          })}
+        </SelectItem>
+        <SelectItem value={ProjectStatusBE.CANCELLED}>
+          {t('forms.project.fields.status.options.canceled', {
+            defaultValue: 'Canceled'
+          })}
+        </SelectItem>
+        <SelectItem value={ProjectStatusBE.COMPLETED}>
+          {t('forms.project.fields.status.options.completed', {
+            defaultValue: 'Completed'
+          })}
+        </SelectItem>
+      </SelectContent>
+    </Select>
+  )
+}
+
+// Separate component for confirmation dialog with proper hook usage
+interface ConfirmStatusDialogProps {
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  pendingStatus: ProjectStatusBE | null
+  previousStatusValue: ProjectStatusBE | null
+  onClose: () => void
+  dataTestId: string
+  t: (key: string, options?: { defaultValue: string }) => string
+}
+
+const ConfirmStatusDialog: React.FC<ConfirmStatusDialogProps> = ({
+  isOpen,
+  onOpenChange,
+  pendingStatus,
+  previousStatusValue,
+  onClose,
+  dataTestId,
+  t
+}) => {
+  const { setValue } = useFormContext()
+
+  const handleCancel = () => {
+    // Restore previous status if user cancels
+    if (previousStatusValue) {
+      setValue('status', previousStatusValue, { shouldValidate: true, shouldDirty: true })
+    }
+    onClose()
+  }
+
+  const handleConfirm = () => {
+    if (pendingStatus) {
+      // Update the form field with the confirmed status
+      setValue('status', pendingStatus, { shouldValidate: true, shouldDirty: true })
+    }
+    onClose()
+  }
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      // Restore previous status if dialog is closed without confirmation
+      if (previousStatusValue) {
+        setValue('status', previousStatusValue, { shouldValidate: true, shouldDirty: true })
+      }
+      onClose()
+    }
+    onOpenChange(open)
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <style>{`
+        
+      `}</style>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="gba:flex gba:items-center gba:gap-2">
+            <Icon icon={WarningIcon} className="gba:text-warning" />
+            {pendingStatus === ProjectStatusBE.CANCELLED
+              ? t('forms.project.dialog.cancelTitle', { defaultValue: 'Cancel Project' })
+              : t('forms.project.dialog.completeTitle', { defaultValue: 'Complete Project' })}
+          </DialogTitle>
+          <DialogDescription>
+            {pendingStatus === ProjectStatusBE.CANCELLED
+              ? t('forms.project.dialog.cancelMessage', {
+                  defaultValue:
+                    'Are you sure you want to cancel this project? Once canceled, the project cannot be modified and this action cannot be undone.'
+                })
+              : t('forms.project.dialog.completeMessage', {
+                  defaultValue:
+                    'Are you sure you want to complete this project? Once completed, the project cannot be modified and this action cannot be undone.'
+                })}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleCancel} data-testid={`${dataTestId}-status-confirm-cancel-button`}>
+            {t('forms.project.dialog.cancel', { defaultValue: 'Cancel' })}
+          </Button>
+          <Button variant="destructive" onClick={handleConfirm} data-testid={`${dataTestId}-status-confirm-button`}>
+            {pendingStatus === ProjectStatusBE.CANCELLED
+              ? t('forms.project.dialog.confirmCancel', { defaultValue: 'Yes, Cancel Project' })
+              : t('forms.project.dialog.confirmComplete', { defaultValue: 'Yes, Complete Project' })}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 // Helper function to transform UI status to BE status
@@ -83,7 +236,7 @@ export const formatDateToISO = (date: Date | string | undefined): string | undef
     }
     // If it's a date string without time, add time component
     const dateObj = new Date(date)
-    if (!isNaN(dateObj.getTime())) {
+    if (!Number.isNaN(dateObj.getTime())) {
       return dateObj.toISOString()
     }
   }
@@ -209,8 +362,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<ProjectStatusBE | null>(null)
   const [previousStatusValue, setPreviousStatusValue] = useState<ProjectStatusBE | null>(null)
-  const statusSetValueRef = useRef<((value: ProjectStatusBE) => void) | null>(null)
   const { employees, loading: searchLoading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
+
+  // Handler for status change request (when user tries to set CANCELLED or COMPLETED)
+  const handleStatusChangeRequest = useCallback((newStatus: ProjectStatusBE, previousStatus: ProjectStatusBE) => {
+    setPreviousStatusValue(previousStatus)
+    setPendingStatus(newStatus)
+    setIsConfirmDialogOpen(true)
+  }, [])
 
   const accountOptions = useMemo(() => {
     return accounts
@@ -425,7 +584,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
                   // Only allow digits, max 8 characters (up to 99,999,999 hours)
                   if (value === '' || /^\d{1,8}$/.test(value)) {
                     // Remove leading zeros and convert to number
-                    const numValue = value === '' ? '' : parseInt(value, 10)
+                    const numValue = value === '' ? '' : Number.parseInt(value, 10)
                     field.onChange(numValue)
                   }
                 }}
@@ -554,153 +713,37 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
 
         <FormField
           name="status"
-          render={({ field }) => {
-            const { setValue } = useFormContext()
-
-            // Store setValue in ref for use in dialog
-            statusSetValueRef.current = (value: ProjectStatusBE) => {
-              setValue('status', value, { shouldValidate: true, shouldDirty: true })
-              field.onChange(value)
-            }
-
-            const handleStatusChange = (value: string) => {
-              const newStatus = value as ProjectStatusBE
-
-              // Check if user is trying to set CANCELLED or COMPLETED
-              if (newStatus === ProjectStatusBE.CANCELLED || newStatus === ProjectStatusBE.COMPLETED) {
-                // Store the previous status and pending status, then show confirmation dialog
-                setPreviousStatusValue(field.value as ProjectStatusBE)
-                setPendingStatus(newStatus)
-                setIsConfirmDialogOpen(true)
-              } else {
-                // For other statuses, update directly
-                field.onChange(value)
-              }
-            }
-
-            return (
-              <FormItem>
-                <FormLabel>{t('forms.project.fields.status.label', { defaultValue: 'Project Status' })}</FormLabel>
-                <FormControl>
-                  <Select
-                    onValueChange={handleStatusChange}
-                    value={field.value}
-                    data-testid={`${dataTestId}-status-select`}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={t('forms.project.fields.status.placeholder', {
-                          defaultValue: 'Select project status'
-                        })}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ProjectStatusBE.PLANNED}>
-                        {t('forms.project.fields.status.options.planned', {
-                          defaultValue: 'Planned'
-                        })}
-                      </SelectItem>
-                      <SelectItem value={ProjectStatusBE.IN_PROGRESS}>
-                        {t('forms.project.fields.status.options.inProgress', {
-                          defaultValue: 'In Progress'
-                        })}
-                      </SelectItem>
-                      <SelectItem value={ProjectStatusBE.ON_HOLD}>
-                        {t('forms.project.fields.status.options.onHold', {
-                          defaultValue: 'On Hold'
-                        })}
-                      </SelectItem>
-                      <SelectItem value={ProjectStatusBE.CANCELLED}>
-                        {t('forms.project.fields.status.options.canceled', {
-                          defaultValue: 'Canceled'
-                        })}
-                      </SelectItem>
-                      <SelectItem value={ProjectStatusBE.COMPLETED}>
-                        {t('forms.project.fields.status.options.completed', {
-                          defaultValue: 'Completed'
-                        })}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )
-          }}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('forms.project.fields.status.label', { defaultValue: 'Project Status' })}</FormLabel>
+              <FormControl>
+                <StatusSelect
+                  field={field}
+                  dataTestId={dataTestId}
+                  t={t}
+                  onStatusChangeRequest={handleStatusChangeRequest}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
       </div>
 
       {/* Confirmation Dialog for Canceled/Completed Status */}
-      <Dialog
-        open={isConfirmDialogOpen}
-        onOpenChange={open => {
-          if (!open) {
-            // Restore previous status if dialog is closed without confirmation
-            if (previousStatusValue && statusSetValueRef.current) {
-              statusSetValueRef.current(previousStatusValue)
-            }
-            setPendingStatus(null)
-            setPreviousStatusValue(null)
-          }
-          setIsConfirmDialogOpen(open)
+      <ConfirmStatusDialog
+        isOpen={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        pendingStatus={pendingStatus}
+        previousStatusValue={previousStatusValue}
+        onClose={() => {
+          setIsConfirmDialogOpen(false)
+          setPendingStatus(null)
+          setPreviousStatusValue(null)
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-              <Icon icon={WarningIcon} className="gba:text-warning" />
-              {pendingStatus === ProjectStatusBE.CANCELLED
-                ? t('forms.project.dialog.cancelTitle', { defaultValue: 'Cancel Project' })
-                : t('forms.project.dialog.completeTitle', { defaultValue: 'Complete Project' })}
-            </DialogTitle>
-            <DialogDescription>
-              {pendingStatus === ProjectStatusBE.CANCELLED
-                ? t('forms.project.dialog.cancelMessage', {
-                    defaultValue:
-                      'Are you sure you want to cancel this project? Once canceled, the project cannot be modified and this action cannot be undone.'
-                  })
-                : t('forms.project.dialog.completeMessage', {
-                    defaultValue:
-                      'Are you sure you want to complete this project? Once completed, the project cannot be modified and this action cannot be undone.'
-                  })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                // Restore previous status if user cancels
-                if (previousStatusValue && statusSetValueRef.current) {
-                  statusSetValueRef.current(previousStatusValue)
-                }
-                setIsConfirmDialogOpen(false)
-                setPendingStatus(null)
-                setPreviousStatusValue(null)
-              }}
-              data-testid={`${dataTestId}-status-confirm-cancel-button`}
-            >
-              {t('forms.project.dialog.cancel', { defaultValue: 'Cancel' })}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (pendingStatus && statusSetValueRef.current) {
-                  // Update the form field with the confirmed status
-                  statusSetValueRef.current(pendingStatus)
-                }
-                setIsConfirmDialogOpen(false)
-                setPendingStatus(null)
-                setPreviousStatusValue(null)
-              }}
-              data-testid={`${dataTestId}-status-confirm-button`}
-            >
-              {pendingStatus === ProjectStatusBE.CANCELLED
-                ? t('forms.project.dialog.confirmCancel', { defaultValue: 'Yes, Cancel Project' })
-                : t('forms.project.dialog.confirmComplete', { defaultValue: 'Yes, Complete Project' })}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        dataTestId={dataTestId}
+        t={t}
+      />
     </FormWrapperModal>
   )
 }

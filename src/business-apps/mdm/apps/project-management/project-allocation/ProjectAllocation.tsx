@@ -31,7 +31,8 @@ import {
   SheetHeader,
   SheetTitle,
   Progress,
-  CardHeader
+  CardHeader,
+  Toaster
 } from '@newwork/nw-design-system'
 import {
   EyeIcon,
@@ -1070,6 +1071,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
           </Dialog>
         )}
       </CardContent>
+      <Toaster />
     </Card>
   )
 }

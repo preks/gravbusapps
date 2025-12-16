@@ -27,7 +27,7 @@ const transformUIStatusToBE = (status: ProjectStatusUI): string => {
 const formatDateToISO = (date: string | undefined): string | undefined => {
   if (!date) return undefined
   const dateObj = new Date(date)
-  if (!isNaN(dateObj.getTime())) {
+  if (!Number.isNaN(dateObj.getTime())) {
     return dateObj.toISOString()
   }
   return undefined

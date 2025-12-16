@@ -21,7 +21,6 @@ export interface TeamFormProps extends BusinessAppContextProps {
   isDrawerActive?: boolean
   childAddButton?: React.ReactNode
   teamsCount: number
-  onSubmit?: () => void
 }
 
 export const TeamForm: React.FC<TeamFormProps> = ({
@@ -34,8 +33,7 @@ export const TeamForm: React.FC<TeamFormProps> = ({
   isDrawerActive = false,
   childAddButton,
   accessToken,
-  teamsCount,
-  onSubmit
+  teamsCount
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const restClient = useRestClient(ORGCHART_BASE_URL)
@@ -78,12 +76,6 @@ export const TeamForm: React.FC<TeamFormProps> = ({
       }
 
       refetch?.()
-
-      // Call onSubmit callback if provided (only on success)
-      if (onSubmit) {
-        onSubmit()
-      }
-
       setOpen?.(false)
     } catch (error) {
       console.error('Error saving team:', error)
