@@ -290,6 +290,25 @@ export const useAbsenceValidation = ({
     fetchAbsenceEntitlement()
   }, [accessToken, employeeId, selectedType, client, absenceTypeDetails])
 
+  const extractPriority = (objectValue: any): number => {
+    if (!objectValue) return 999
+
+    if (typeof objectValue === 'string') {
+      try {
+        const parsed = JSON.parse(objectValue)
+        return typeof parsed?.priority === 'number' ? parsed.priority : 999
+      } catch {
+        return 999
+      }
+    }
+
+    if (typeof objectValue === 'object' && objectValue !== null) {
+      return typeof objectValue?.priority === 'number' ? objectValue.priority : 999
+    }
+
+    return 999
+  }
+
   const checkOverlapValidation = useCallback(
     (newStartDate: Date, newEndDate: Date): AbsenceValidationError[] => {
       const errors: AbsenceValidationError[] = []
@@ -305,23 +324,7 @@ export const useAbsenceValidation = ({
       const newStart = dayjs(newStartDate)
       const newEnd = dayjs(newEndDate)
 
-      let newAbsencePriority: number | undefined
-      const newObjectValue = absenceTypeDetails?.objectValue
-
-      if (newObjectValue) {
-        if (typeof newObjectValue === 'string') {
-          try {
-            const parsed = JSON.parse(newObjectValue)
-            newAbsencePriority = typeof parsed?.priority === 'number' ? parsed.priority : undefined
-          } catch {
-            newAbsencePriority = undefined
-          }
-        } else if (typeof newObjectValue === 'object' && newObjectValue !== null) {
-          newAbsencePriority = typeof newObjectValue?.priority === 'number' ? newObjectValue.priority : undefined
-        }
-      }
-
-      const newPriority = newAbsencePriority !== undefined ? newAbsencePriority : 999
+      const newPriority = extractPriority(absenceTypeDetails?.objectValue)
 
       for (const absence of existingAbsences) {
         if (absence.status === 'CANCELLED' || absence.status === 'REJECTED') {
@@ -345,23 +348,7 @@ export const useAbsenceValidation = ({
             absenceTypeName = localeTranslation?.value || absence.type.translations[0].value
           }
 
-          let existingAbsencePriority: number | undefined
-          const objectValue = absence.type?.objectValue
-
-          if (objectValue) {
-            if (typeof objectValue === 'string') {
-              try {
-                const parsed = JSON.parse(objectValue)
-                existingAbsencePriority = typeof parsed?.priority === 'number' ? parsed.priority : undefined
-              } catch {
-                existingAbsencePriority = undefined
-              }
-            } else if (typeof objectValue === 'object' && objectValue !== null) {
-              existingAbsencePriority = typeof objectValue?.priority === 'number' ? objectValue.priority : undefined
-            }
-          }
-
-          const existingPriority = existingAbsencePriority !== undefined ? existingAbsencePriority : 999
+          const existingPriority = extractPriority(absence.type?.objectValue)
 
           if (newPriority >= existingPriority) {
             errors.push({
@@ -377,12 +364,7 @@ export const useAbsenceValidation = ({
                 },
                 absenceType: absenceTypeName,
                 existingPriority,
-                newPriority,
-                priorityComparison: {
-                  existing: existingPriority,
-                  new: newPriority,
-                  canOverride: newPriority < existingPriority
-                }
+                newPriority
               }
             })
           }
