@@ -56,6 +56,12 @@ definitions:
         files:
           - package-lock.json
       path: ./node_modules
+    sonar:
+      key:
+        files:
+          - sonar-project.properties
+          - package-lock.json
+      path: .scannerwork
 
   steps:
     - step: &check-hash-file-change
@@ -224,13 +230,18 @@ definitions:
           depth: full # SonarCloud scanner needs the full history to assign issues properly
         caches:
           - nodecustom
+          - sonar
         services:
           - docker-large
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_SCANNER_OPTS: -Xmx10240m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=9216']
+              EXTRA_ARGS:
+                [
+                  "-Dsonar.javascript.node.maxspace=9216",
+                  "-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info",
+                ]
 
     - step: &sonar_scan_main
         name: Sonar scan (main)
@@ -240,22 +251,27 @@ definitions:
           depth: full # SonarCloud scanner needs the full history to assign issues properly
         caches:
           - nodecustom
+          - sonar
         services:
           - docker-large
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_SCANNER_OPTS: -Xmx14336m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=13312']
+              EXTRA_ARGS:
+                [
+                  "-Dsonar.javascript.node.maxspace=13312",
+                  "-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info",
+                ]
 
 pipelines:
   pull-requests:
-    '**':
+    "**":
       - step: *check-hash-file-change
       - step: *install_dependencies
       - parallel:
-        - step: *build-validate-screens
-        - step: *sonar_scan
+          - step: *build-validate-screens
+          - step: *sonar_scan
 
   branches:
     develop:
@@ -281,36 +297,36 @@ pipelines:
     build-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ''
+            default: ""
       - step: *install_dependencies
       - step: *build-validate-screens
 
     publish-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ''
+            default: ""
           - name: PUBLISH_ALL_SCREENS
-            default: 'false'
+            default: "false"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
       - step: *install_dependencies
       - step: *publish-manual-screens
 
     publish-manual-prod:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ''
+            default: ""
           - name: PUBLISH_ALL_SCREENS
-            default: 'false'
+            default: "false"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
           - name: SKIP_RESOURCE_URL_SYNC
-            default: 'true'
+            default: "true"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
       - step:
           name: Enforce develop/main branches for production publish
           script:
@@ -325,28 +341,28 @@ pipelines:
     calculate-hashes:
       - variables:
           - name: HASH_ENV
-            default: 'dev'
+            default: "dev"
             allowed-values:
-              - 'dev'
-              - 'prod'
+              - "dev"
+              - "prod"
           - name: SCREENS
-            default: ''
+            default: ""
           - name: COMMIT_CHANGES
-            default: 'false'
+            default: "false"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
           - name: DRY_RUN
-            default: 'true'
+            default: "true"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
       - step: *install_dependencies
       - step:
           name: Calculate screen hashes
           size: 2x
           caches:
-          - nodecustom
+            - nodecustom
           script:
             - echo "🔧 Calculating hashes for $HASH_ENV environment"
             - |
