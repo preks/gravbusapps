@@ -33,7 +33,7 @@ interface ActiveBenefitContentProps {
 
 /**
  * Active Benefit Content Component
- * Displays provider information, value details, active period, and notes for active benefits
+ * Displays provider information, value details, and active period for active benefits
  */
 const ActiveBenefitContent: React.FC<ActiveBenefitContentProps> = ({
   benefit,
@@ -117,16 +117,6 @@ const ActiveBenefitContent: React.FC<ActiveBenefitContentProps> = ({
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {/* Notes */}
-      {benefit.notes && (
-        <div className="gba:space-y-3 gba:pt-4 gba:border-t">
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground gba:uppercase gba:tracking-wide">
-            {t('benefit-details-notes')}
-          </h3>
-          <div className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-wrap">{benefit.notes}</div>
         </div>
       )}
     </>

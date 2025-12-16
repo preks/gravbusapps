@@ -33,17 +33,30 @@ const BenefitHeader: React.FC<BenefitHeaderProps> = ({ title, benefit, t, locale
   const isAlreadyDeactivated =
     benefit.isActive && Boolean(benefit.endDate) && benefit.benefitStatus === BenefitStatus.INACTIVE
 
+  // Determine status badge variant and text
+  const getStatusBadge = () => {
+    if (benefit.isActive) {
+      return { variant: 'success' as const, text: t('benefit-status-active') }
+    }
+    if (benefit.isScheduled) {
+      return { variant: 'info' as const, text: t('benefit-status-scheduled') }
+    }
+    return { variant: 'default' as const, text: t('benefit-status-available') }
+  }
+
+  const statusBadge = getStatusBadge()
+
   return (
     <SheetHeader className="gba:px-6">
       <div className="gba:space-y-2">
         <SheetTitle className="gba:text-xl gba:font-semibold">{title}</SheetTitle>
         <div className="gba:flex gba:gap-2 gba:flex-wrap">
           <Badge
-            variant={benefit.isActive ? 'success' : 'default'}
+            variant={statusBadge.variant}
             data-testid={`benefit-status-badge-${benefit.code}`}
             className="gba:w-fit"
           >
-            {benefit.isActive ? t('benefit-status-active') : t('benefit-status-available')}
+            {statusBadge.text}
           </Badge>
           {isAlreadyDeactivated && (
             <Badge

@@ -60,9 +60,7 @@ rewards-package-description = Pachetul dvs. de recompense totale include salariu
 
 # Benefits & Perks
 benefits-catalog-title = Catalog de beneficii
-benefits-active-count = { $count } active
-benefits-available-count = { $count } disponibile
-benefits-total-count = { $count } total
+benefits-catalog-no-results = Niciun rezultat
 benefits-search-placeholder = Căutați beneficii...
 benefits-loading = Se încarcă catalogul de beneficii...
 benefits-error-title = Eroare la încărcarea beneficiilor
@@ -74,14 +72,17 @@ benefits-catalog-no-results-title = Niciun beneficiu găsit
 benefits-catalog-no-results-description = Niciun beneficiu nu corespunde criteriilor dvs. de căutare.
 benefits-catalog-clear-search = Șterge căutarea
 benefits-active-section-title = Beneficii active ({ $count })
+benefits-scheduled-section-title = Beneficii programate ({ $count })
 benefits-available-section-title = Beneficii disponibile ({ $count })
 
 # Benefit Card
 benefit-status-active = Activ
+benefit-status-scheduled = Programat
 benefit-status-pending = În așteptare
 benefit-status-available = Disponibil
 benefit-request-button = Solicită
 benefit-request-employee-id-missing = ID-ul angajatului nu este disponibil. Nu se poate iniția solicitarea de beneficiu.
+benefit-already-scheduled = Programat
 benefit-deactivate-button = Dezactivează
 benefit-view-details = Vezi detalii
 benefit-provider = Furnizor
@@ -89,6 +90,8 @@ benefit-value-yearly = Valoare anuală
 benefit-no-provider = Niciun furnizor specificat
 benefit-since = Din
 benefit-starts-in = Începe în
+benefit-starts-on = Începe pe
+benefit-scheduled-badge = Programat
 benefit-ends = Se încheie
 
 # Benefit Details Modal
@@ -247,11 +250,6 @@ action-enter-placeholder = Vă rugăm să introduceți
 # Benefits Catalog Section
 benefit-per-year = /an
 benefit-per-month = /lună
-benefits-catalog-summary = {$active} active · {$available} disponibile · {$total} total
-benefits-catalog-search-placeholder = Căutați beneficii...
-benefits-catalog-loading = Se încarcă catalogul de beneficii...
-benefits-catalog-error-title = Eroare la încărcarea beneficiilor
-benefits-catalog-retry = Reîncearcă
 
 # Payslip Section
 payslip-no-data = Nu există fluturaș salarial disponibile
