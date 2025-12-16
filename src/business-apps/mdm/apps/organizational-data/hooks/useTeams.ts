@@ -1,10 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { env } from '@/common/env/EnvUtils'
 import { MatrixTeamApiResponse, Team } from '../types'
 
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+
+// GraphQL query to get active structure ID
+const GET_ACTIVE_STRUCTURE = (): string => {
+  return `query getActiveStructure {
+    Structure(where: {isActive: {_eq: true}}, limit: 1) {
+      id
+    }
+  }`
+}
+
+interface ActiveStructureResponse {
+  Structure?: Array<{ id: string }>
+}
 
 export const useTeams = (context: BusinessAppContextProps) => {
   const [teams, setTeams] = useState<Team[]>([])
@@ -13,6 +27,7 @@ export const useTeams = (context: BusinessAppContextProps) => {
   const structureId = useRef<string>(context.additionalData?.structureId || 'active')
 
   const restClient = useRestClient(ORGCHART_BASE_URL)
+  const graphqlClient = useGraphqlClient(context.accessToken)
 
   // Transform API matrix team response to UI-friendly Team interface
   const transformTeam = (apiTeam: MatrixTeamApiResponse): Team => {
@@ -70,18 +85,15 @@ export const useTeams = (context: BusinessAppContextProps) => {
   // Fetch matrix teams from API
   const fetchTeams = useCallback(async (): Promise<Team[]> => {
     try {
-      if (!structureId) {
-        throw new Error('Structure ID is required to fetch teams')
+      // Fetch active structure ID using GraphQL
+      const structureQuery = GET_ACTIVE_STRUCTURE()
+      const structureResult = await graphqlClient.request<ActiveStructureResponse>(structureQuery)
+
+      if (!structureResult.Structure || structureResult.Structure.length === 0) {
+        throw new Error('No active structure found')
       }
-      const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
-        params: {
-          nodeType: 'cost_center'
-        },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
-        }
-      })
-      structureId.current = getStructureResponse.structure.structureId
+
+      structureId.current = structureResult.Structure[0].id
 
       const response = await restClient.get<MatrixTeamApiResponse[]>('/matrix-units', {
         params: { structureId: structureId.current },
@@ -106,7 +118,7 @@ export const useTeams = (context: BusinessAppContextProps) => {
       console.error('Error fetching teams:', error)
       throw new Error('Failed to fetch teams from orgchart API')
     }
-  }, [context.accessToken, context.additionalData?.structureId, restClient])
+  }, [context.accessToken, graphqlClient, restClient])
 
   // Load initial data
   const loadData = useCallback(async () => {
