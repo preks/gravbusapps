@@ -75,6 +75,7 @@ export interface BenefitCatalogItem {
 export interface BenefitsCatalogData {
   catalogBenefits: BenefitCatalogItem[]
   activeBenefitsCount: number
+  scheduledBenefitsCount: number
   availableBenefitsCount: number
   totalBenefitsCount: number
 }

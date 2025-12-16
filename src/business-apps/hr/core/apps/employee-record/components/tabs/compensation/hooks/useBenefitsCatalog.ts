@@ -273,12 +273,14 @@ export const useBenefitsCatalog = (
 
       // Calculate statistics
       const activeBenefitsCount = mergedBenefits.filter(b => b.isActive).length
+      const scheduledBenefitsCount = mergedBenefits.filter(b => b.isScheduled).length
       const totalBenefitsCount = mergedBenefits.length
-      const availableBenefitsCount = totalBenefitsCount - activeBenefitsCount
+      const availableBenefitsCount = totalBenefitsCount - activeBenefitsCount - scheduledBenefitsCount
 
       setCatalogData({
         catalogBenefits: mergedBenefits,
         activeBenefitsCount,
+        scheduledBenefitsCount,
         availableBenefitsCount,
         totalBenefitsCount
       })
