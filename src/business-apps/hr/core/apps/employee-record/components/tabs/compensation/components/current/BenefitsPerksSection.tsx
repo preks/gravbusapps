@@ -5,10 +5,11 @@ import { Card, CardHeader, CardTitle, CardContent, Alert, Button } from '@newwor
 import { Search } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBenefitsCatalog } from '../../hooks/useBenefitsCatalog'
-import BenefitCatalogCard from './BenefitCatalogCard'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { DebouncedInput } from '@/components/debounced-input'
 import BenefitDetailsModal from './BenefitDetailsModal'
+import BenefitsSectionGrid from './BenefitsSectionGrid'
+import BenefitsEmptyStates from './BenefitsEmptyStates'
 
 interface BenefitsPerksProps extends BusinessAppContextProps {
   /**
@@ -216,125 +217,67 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             </Alert>
           )}
 
-          {/* Empty State - No Benefits in Catalog */}
-          {!loading && !error && catalogData?.totalBenefitsCount === 0 && (
-            <div
-              className="gba:text-center gba:text-muted-foreground gba:py-12"
-              data-testid="benefits-catalog-empty-catalog"
-            >
-              <div className="gba:text-lg gba:font-medium gba:mb-2">{t('benefits-catalog-empty-title')}</div>
-              <p className="gba:text-sm">{t('benefits-catalog-empty-description')}</p>
-            </div>
+          {/* Empty States */}
+          {!loading && !error && (
+            <BenefitsEmptyStates
+              t={t}
+              totalBenefitsCount={catalogData?.totalBenefitsCount || 0}
+              hasVisibleBenefits={
+                activeBenefits.length > 0 || scheduledBenefits.length > 0 || availableBenefits.length > 0
+              }
+              onClearSearch={() => setSearchQuery('')}
+            />
           )}
 
-          {/* Empty State - No Search Results */}
-          {!loading &&
-            !error &&
-            catalogData &&
-            catalogData.totalBenefitsCount > 0 &&
-            activeBenefits.length === 0 &&
-            scheduledBenefits.length === 0 &&
-            availableBenefits.length === 0 && (
-              <div
-                className="gba:text-center gba:text-muted-foreground gba:py-12"
-                data-testid="benefits-catalog-empty-search"
-              >
-                <div className="gba:text-lg gba:font-medium gba:mb-2">{t('benefits-catalog-no-results-title')}</div>
-                <p className="gba:text-sm">{t('benefits-catalog-no-results-description')}</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSearchQuery('')}
-                  className="gba:mt-4"
-                  data-testid="benefits-catalog-clear-search-button"
-                >
-                  {t('benefits-catalog-clear-search')}
-                </Button>
-              </div>
-            )}
-
           {/* Active Benefits Section */}
-          {!loading && !error && activeBenefits.length > 0 && (
-            <div className="gba:mb-8" data-testid="active-benefits-section">
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
-                {t('benefits-active-section-title', { count: activeBenefits.length })}
-              </h3>
-              <div
-                className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4"
-                data-testid="active-benefits-grid"
-              >
-                {activeBenefits.map(benefit => (
-                  <BenefitCatalogCard
-                    key={benefit.catalogId}
-                    t={t}
-                    benefit={benefit}
-                    employeeId={employeeId}
-                    currencyCode={currencyCode}
-                    locale={locale}
-                    onViewDetails={handleViewDetails}
-                    accessToken={accessToken}
-                    userInfo={userInfo}
-                    additionalData={additionalData}
-                  />
-                ))}
-              </div>
-            </div>
+          {!loading && !error && (
+            <BenefitsSectionGrid
+              t={t}
+              benefits={activeBenefits}
+              employeeId={employeeId}
+              currencyCode={currencyCode}
+              locale={locale}
+              onViewDetails={handleViewDetails}
+              sectionTitle={t('benefits-active-section-title', { count: activeBenefits.length })}
+              testId="active-benefits-section"
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={additionalData}
+            />
           )}
 
           {/* Scheduled Benefits Section */}
-          {!loading && !error && scheduledBenefits.length > 0 && (
-            <div className="gba:mb-8" data-testid="scheduled-benefits-section">
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
-                {t('benefits-scheduled-section-title', { count: scheduledBenefits.length })}
-              </h3>
-              <div
-                className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4"
-                data-testid="scheduled-benefits-grid"
-              >
-                {scheduledBenefits.map(benefit => (
-                  <BenefitCatalogCard
-                    key={benefit.catalogId}
-                    t={t}
-                    benefit={benefit}
-                    employeeId={employeeId}
-                    currencyCode={currencyCode}
-                    locale={locale}
-                    onViewDetails={handleViewDetails}
-                    accessToken={accessToken}
-                    userInfo={userInfo}
-                    additionalData={additionalData}
-                  />
-                ))}
-              </div>
-            </div>
+          {!loading && !error && (
+            <BenefitsSectionGrid
+              t={t}
+              benefits={scheduledBenefits}
+              employeeId={employeeId}
+              currencyCode={currencyCode}
+              locale={locale}
+              onViewDetails={handleViewDetails}
+              sectionTitle={t('benefits-scheduled-section-title', { count: scheduledBenefits.length })}
+              testId="scheduled-benefits-section"
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={additionalData}
+            />
           )}
 
           {/* Available Benefits Section */}
-          {!loading && !error && availableBenefits.length > 0 && (
-            <div data-testid="available-benefits-section">
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
-                {t('benefits-available-section-title', { count: availableBenefits.length })}
-              </h3>
-              <div
-                className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4"
-                data-testid="available-benefits-grid"
-              >
-                {availableBenefits.map(benefit => (
-                  <BenefitCatalogCard
-                    key={benefit.catalogId}
-                    t={t}
-                    benefit={benefit}
-                    employeeId={employeeId}
-                    currencyCode={currencyCode}
-                    locale={locale}
-                    onViewDetails={handleViewDetails}
-                    accessToken={accessToken}
-                    userInfo={userInfo}
-                    additionalData={additionalData}
-                  />
-                ))}
-              </div>
-            </div>
+          {!loading && !error && (
+            <BenefitsSectionGrid
+              t={t}
+              benefits={availableBenefits}
+              employeeId={employeeId}
+              currencyCode={currencyCode}
+              locale={locale}
+              onViewDetails={handleViewDetails}
+              sectionTitle={t('benefits-available-section-title', { count: availableBenefits.length })}
+              testId="available-benefits-section"
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={additionalData}
+            />
           )}
         </CardContent>
       </Card>
