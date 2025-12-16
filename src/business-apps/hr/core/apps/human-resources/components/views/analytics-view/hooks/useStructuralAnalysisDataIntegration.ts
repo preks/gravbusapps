@@ -21,6 +21,8 @@ import {
   StructuralStatistics
 } from '../components/views/structural-analysis/types/structuralTypes'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import {
   useGetHierarchyEdgesMin,
   useGetHierarchyEdgesWithCounts
@@ -38,6 +40,7 @@ export interface StructuralAnalysisIntegrationData {
 }
 
 export const useStructuralAnalysisDataIntegration = (context: BusinessAppContextProps) => {
+  const { t } = useTranslation(hrTranslations)
   const [data, setData] = useState<StructuralAnalysisIntegrationData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +49,16 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
   const { fetchHierarchyEdgesMin } = useGetHierarchyEdgesMin(context)
   const { fetchHierarchyEdgesWithCounts } = useGetHierarchyEdgesWithCounts(context)
   type DatasetRow = { category: string; value: number }
+  interface DatasetResponse<T> {
+    data: T[]
+  }
+  const toRows = <T>(res: unknown): T[] => {
+    if (res && typeof res === 'object' && 'data' in (res as Record<string, unknown>)) {
+      const d = (res as DatasetResponse<T>).data
+      return Array.isArray(d) ? d : []
+    }
+    return []
+  }
   const getValueByCategory = (rows: DatasetRow[], key: string): number => {
     const row = rows.find(r => String(r.category).toLowerCase() === key.toLowerCase())
     return typeof row?.value === 'number' ? row.value : 0
@@ -161,10 +174,10 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
             .executeQuery('orgHierarchySunburstData', QueryType.DATASET, { structureId })
             .catch(() => ({ data: [] }))
         ])
-        overviewRows = ((overviewRes as any)?.data ?? []) as DatasetRow[]
-        hierarchyRows = ((hierarchyRes as any)?.data ?? []) as DatasetRow[]
-        spanDistRows = ((spanDistRes as any)?.data ?? []) as DatasetRow[]
-        const sunburstRows = ((sunburstRes as any)?.data ?? []) as any[]
+        overviewRows = toRows<DatasetRow>(overviewRes)
+        hierarchyRows = toRows<DatasetRow>(hierarchyRes)
+        spanDistRows = toRows<DatasetRow>(spanDistRes)
+        const sunburstRows = toRows<{ category: string; value: number }>(sunburstRes)
 
         if (Array.isArray(sunburstRows) && sunburstRows.length > 0) {
           edgeRowsFromDataset = sunburstRows
@@ -242,11 +255,17 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
       // No extra overrides needed when dataset provided edges + counts
 
       // Generate analysis data (prefer dataset rows for span-of-control distribution)
-      const spanOfControlData =
+      const spanOfControlData: SpanOfControlData[] =
         spanDistRows.length > 0
-          ? spanDistRows.map(r => {
+          ? spanDistRows.map<SpanOfControlData>(r => {
               const directReports = typeof r.value === 'number' ? r.value : 0
               const efficiency = directReports > 7 ? 'Overloaded' : directReports >= 3 ? 'Optimal' : 'Underutilized'
+              const recommendation =
+                efficiency === 'Overloaded'
+                  ? t('hr-analytics-recommendation-overloaded')
+                  : efficiency === 'Underutilized'
+                    ? t('hr-analytics-recommendation-underutilized')
+                    : t('hr-analytics-recommendation-optimal')
               return {
                 managerId: r.category, // no id available; use name as key
                 managerName: r.category,
@@ -254,16 +273,11 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
                 directReports,
                 managerLevel: null,
                 efficiency,
-                recommendation:
-                  efficiency === 'Overloaded'
-                    ? 'Consider redistributing direct reports or adding a layer.'
-                    : efficiency === 'Underutilized'
-                      ? 'Consider consolidating roles or expanding responsibilities.'
-                      : 'Current span is within optimal range.'
-              } as any
+                recommendation
+              }
             })
           : generateSpanOfControlAnalysis(organizationalNodes)
-      let spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData as any)
+      let spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
       const depthAnalysisData = generateDepthAnalysis(organizationalNodes)
       const reportingChainData = generateReportingChainAnalysis(organizationalNodes)
       let reportingChainSummary = generateReportingChainSummary(reportingChainData)

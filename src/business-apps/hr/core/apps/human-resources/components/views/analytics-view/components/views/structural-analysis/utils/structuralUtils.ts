@@ -8,6 +8,8 @@ import {
   SunburstNode,
   StructuralStatistics
 } from '../types/structuralTypes'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 // Color schemes for visualizations
 export const chartColors = {
@@ -40,6 +42,7 @@ export const chartColors = {
 
 // Generate span of control analysis data
 export const generateSpanOfControlAnalysis = (nodes: OrganizationalNode[]): SpanOfControlData[] => {
+  const { t } = useTranslation(hrTranslations)
   return nodes
     .filter(node => node.directReports > 0) // Only managers
     .map(node => {
@@ -51,13 +54,13 @@ export const generateSpanOfControlAnalysis = (nodes: OrganizationalNode[]): Span
 
       if (directReports >= 3 && directReports <= 7) {
         efficiency = 'Optimal'
-        recommendation = 'Current span of control is within optimal range.'
+        recommendation = t('hr-analytics-recommendation-optimal')
       } else if (directReports > 7) {
         efficiency = 'Overloaded'
-        recommendation = 'Consider redistributing some direct reports or adding intermediate management layers.'
+        recommendation = t('hr-analytics-recommendation-overloaded')
       } else {
         efficiency = 'Underutilized'
-        recommendation = 'Consider consolidating roles or expanding responsibilities.'
+        recommendation = t('hr-analytics-recommendation-underutilized')
       }
 
       return {
