@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobRequests } from '@/common/data/recruiting/hooks/useJobRequests'
 import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { JobRequest } from '@/common/data/recruiting/types/jobRequestTypes'
 
@@ -34,19 +34,16 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
   // Row actions
   const rowActions = useMemo(
     () => (row: any) => (
-      <div className="gba:flex gba:justify-start gba:gap-2">
-        <AppActionButton
-          data-testid={`job-requisition-update-button-${row.original.id}`}
-          size="icon"
-          contextsArray={[]}
-          externalContextData={{ jobRequisitionId: row.original.id }}
-          prefixDataTestId="job-requisition-update"
-          accessToken={context.accessToken}
-          emptyStateBehavior="enable"
-          deferMainContextRequestsUntilClick
-          onClick={e => e.stopPropagation()}
-        />
-      </div>
+      <AppAction
+        data-testid={`job-requisition-update-button-${row.original.id}`}
+        variant="table-row"
+        contexts={[]}
+        externalContextData={{ jobRequisitionId: row.original.id }}
+        prefixDataTestId="job-requisition-update"
+        accessToken={context.accessToken}
+        lazyLoad
+        onClick={e => e.stopPropagation()}
+      />
     ),
     [context.accessToken]
   )

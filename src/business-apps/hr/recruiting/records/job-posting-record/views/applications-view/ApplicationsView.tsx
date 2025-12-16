@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobApplications } from '@/common/data/recruiting/hooks/useJobApplications'
 import { DataDisplay, DataTable, Badge, Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { JobApplication } from '@/common/data/recruiting/types/jobApplicationTypes'
@@ -54,19 +54,16 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobPostingId
   // Row actions
   const rowActions = useMemo(
     () => (row: any) => (
-      <div className="gba:flex gba:justify-start gba:gap-2">
-        <AppActionButton
-          data-testid={`job-application-update-button-${row.original.id}`}
-          size="icon"
-          contextsArray={[]}
-          externalContextData={{ jobApplicationId: row.original.id }}
-          prefixDataTestId="job-application-update"
-          accessToken={accessToken}
-          emptyStateBehavior="enable"
-          deferMainContextRequestsUntilClick
-          onClick={e => e.stopPropagation()}
-        />
-      </div>
+      <AppAction
+        data-testid={`job-application-update-button-${row.original.id}`}
+        variant="table-row"
+        contexts={[]}
+        externalContextData={{ jobApplicationId: row.original.id }}
+        prefixDataTestId="job-application-update"
+        accessToken={accessToken}
+        lazyLoad
+        onClick={e => e.stopPropagation()}
+      />
     ),
     [accessToken]
   )
@@ -149,7 +146,10 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobPostingId
   )
 
   return (
-    <div data-testid="job-posting-applications-view" className="gba:h-full">
+    <div
+      className="gba:col-span-1 gba:sm:col-span-12 gba:md:col-span-12 gba:lg:col-span-12"
+      data-testid="job-posting-applications-view"
+    >
       <DataDisplay
         titleSections={[
           {

@@ -1,1 +1,4 @@
-export { default as JobPostingRecord } from './JobPostingRecord'
+import JobPostingRecord from './JobPostingRecord'
+
+export { JobPostingRecord }
+export default JobPostingRecord
