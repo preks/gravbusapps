@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -7,26 +7,19 @@ import {
   Button,
   Alert,
   AlertDescription,
-  Spinner
+  Spinner,
+  Input,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import EmployeeSearchableSelect from '@/business-apps/crm/core/forms/lead-form/components/EmployeeSearchableSelect'
+import { useStructureEmployees } from '@/business-apps/hr/core/forms/feedback-request-form/hooks/useStructureEmployees'
 
 const prefixDataTestId = 'RequestFeedbackModal'
-
-interface EmployeeOption {
-  id: string
-  name: string
-  jobTitle?: string
-  department?: string
-  pictureThumbnail?: string
-  userId?: string
-}
 
 interface RequestFeedbackModalProps {
   isOpen: boolean
@@ -35,148 +28,68 @@ interface RequestFeedbackModalProps {
 }
 
 const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onClose, businessAppContext }) => {
-  // Safety check for businessAppContext
-  if (!businessAppContext) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="gba:max-w-md gba:w-full">
-          <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
-          </DialogHeader>
-          <div className="gba:p-4">
-            <Alert variant="destructive">
-              <AlertDescription>Business app context is not available. Please refresh the page.</AlertDescription>
-            </Alert>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
-  }
-
-  const [employees, setEmployees] = useState<EmployeeOption[]>([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
-  const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
-  // Add null checks for businessAppContext
-  if (!businessAppContext || !businessAppContext.accessToken) {
-    return null
-  }
-
-  const graphqlClient = useGraphQLClient(businessAppContext.accessToken)
+  // Get current user employee ID
   const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
 
-  // Safety check for accessToken
-  if (!businessAppContext.accessToken) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="gba:max-w-md gba:w-full">
-          <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
-          </DialogHeader>
-          <div className="gba:p-4">
-            <Alert variant="destructive">
-              <AlertDescription>
-                Access token is not available. Please ensure you are properly authenticated.
-              </AlertDescription>
-            </Alert>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
-  }
+  // Use the existing hook for fetching employees
+  const {
+    employees,
+    isLoading,
+    error: fetchError,
+    fetchStructureEmployees
+  } = useStructureEmployees(businessAppContext.accessToken, true, currentUserEmployeeId)
 
-  // Fetch employees
-  const fetchEmployees = async (search?: string) => {
-    if (!businessAppContext.accessToken) return
+  // Combine local error with fetch error
+  const displayError = error || fetchError
 
-    const structureId = getCurrentActiveStructureId()
-    if (!structureId) {
-      setError('No structure ID available')
-      return
-    }
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchStructureEmployees(searchTerm)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm, fetchStructureEmployees])
 
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const query = `
-        query GetStructureEmployees($structureId: uuid!, $search: String, $limit: Int) {
-          EmployeePosition(
-            where: {
-              structureId: { _eq: $structureId },
-              employee: { isDeleted: { _eq: false } },
-              _or: [
-                { firstName: { _ilike: $search } },
-                { lastName: { _ilike: $search } },
-                { employee: { displayName: { _ilike: $search } } }
-              ]
-            },
-            limit: $limit,
-            orderBy: { firstName: ASC, lastName: ASC }
-          ) {
-            id
-            employeeId
-            firstName
-            lastName
-            employee {
-                id
-                displayName
-                pictureThumbnail
-                userId
-              }
-            jobPosition {
-              name
-            }
-            organizationalUnit {
-              name
-            }
-          }
-        }
-      `
-
-      const variables = {
-        structureId,
-        search: search ? `%${search}%` : '%',
-        limit: 200
-      }
-
-      const result = await graphqlClient.request(query, variables)
-
-      const employeeOptions: EmployeeOption[] = result.EmployeePosition.map((emp: any) => ({
-        id: emp.employeeId,
-        name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
-        jobTitle: emp.jobPosition?.name,
-        department: emp.organizationalUnit?.name,
-        pictureThumbnail: emp.employee?.pictureThumbnail,
-        userId: emp.employee?.userId || undefined
-      }))
-        // Filter out the current user from the list
-        .filter((emp: EmployeeOption) => !currentUserEmployeeId || emp.id !== currentUserEmployeeId)
-
-      setEmployees(employeeOptions)
-    } catch (err) {
-      console.error('Error fetching employees:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch employees')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleEmployeeSearch = (value: string) => {
-    fetchEmployees(value)
-  }
+  // Filter employees by search term (client-side)
+  const filteredEmployees = useMemo(() => {
+    if (!searchTerm.trim()) return employees
+    const q = searchTerm.toLowerCase()
+    return employees.filter(e => [e.name, e.jobTitle, e.department].some(v => (v || '').toLowerCase().includes(q)))
+  }, [employees, searchTerm])
 
   const handleEmployeeSelect = (employeeId: string) => {
     setSelectedEmployeeId(employeeId)
+    setError(null)
   }
 
-  const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId)
+  const selectedEmployee = useMemo(
+    () => employees.find(emp => emp.id === selectedEmployeeId),
+    [employees, selectedEmployeeId]
+  )
 
   const handleSubmit = async () => {
     if (!selectedEmployeeId) {
-      setError('Please select an employee to request feedback from')
+      setError(
+        getTranslationFromI18nKeyAndLabel(
+          'feedback.request.noEmployee',
+          'Please select an employee to request feedback from'
+        )
+      )
+      return
+    }
+
+    if (!currentUserEmployeeId) {
+      setError(getTranslationFromI18nKeyAndLabel('feedback.request.noCurrentUser', 'Unable to identify current user'))
+      return
+    }
+
+    if (!selectedEmployee) {
+      setError(getTranslationFromI18nKeyAndLabel('feedback.request.employeeNotFound', 'Selected employee not found'))
       return
     }
 
@@ -184,26 +97,25 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
     setError(null)
 
     try {
+      // Use the same payload structure as feedback-request-form
       const payload = {
-        feedbackRequest: {
-          id: undefined, // Will be generated by the process
-          businessKey: undefined, // Will be generated by the process
-          requestDate: new Date().toISOString(),
-          requesterEmployeeId: currentUserEmployeeId, // Current user requesting feedback
-          requestedEmployeeId: selectedEmployeeId, // Employee to request feedback from
-          status: 'pending' // Default status
-        },
-        receiverId: selectedEmployee?.userId, // The user ID of the employee to request feedback from
-        event: 'request_feedback'
+        requestedFrom: selectedEmployee.userId || selectedEmployee.id,
+        requestedFromList: [selectedEmployee.userId || selectedEmployee.id],
+        creatorUserId: currentUserEmployeeId,
+        requestMessage: '' // Empty message for this context
       }
 
-      // Dispatch the process continue event
-      dispatchProcessContinueEvent('pse_request_feedback', payload)
+      // Dispatch the process continue event with 'pse_submit' to match feedback-request-form pattern
+      dispatchProcessContinueEvent('pse_submit', payload)
 
       // Close the modal
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to request feedback')
+      setError(
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel('feedback.request.error', 'Failed to send feedback request')
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -213,57 +125,92 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
   useEffect(() => {
     if (isOpen) {
       setSelectedEmployeeId('')
+      setSearchTerm('')
       setError(null)
-      fetchEmployees()
+      fetchStructureEmployees()
     }
-  }, [isOpen])
+  }, [isOpen, fetchStructureEmployees])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="gba:max-w-md gba:w-full">
+      <DialogContent className="gba:max-w-2xl gba:w-full">
         <DialogHeader>
           <DialogTitle>{getTranslationFromI18nKeyAndLabel('feedback.request.title', 'Request Feedback')}</DialogTitle>
         </DialogHeader>
 
         <div className="gba:space-y-4">
           {/* Error Display */}
-          {error && (
+          {displayError && (
             <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'ErrorAlert')}>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{displayError}</AlertDescription>
             </Alert>
           )}
 
-          {/* Employee Selection */}
-          <div className="gba:space-y-2">
-            <EmployeeSearchableSelect
-              label={getTranslationFromI18nKeyAndLabel('feedback.request.requestFrom', 'Request feedback from...')}
-              name="employee-select"
-              value={selectedEmployeeId}
-              placeholder={getTranslationFromI18nKeyAndLabel('feedback.request.selectPlaceholder', 'Select employee')}
-              options={employees.map(emp => ({
-                id: emp.id,
-                value: emp.id,
-                name: emp.name,
-                label: emp.name,
-                jobTitle: emp.jobTitle,
-                department: emp.department,
-                pictureThumbnail: emp.pictureThumbnail,
-                userId: emp.userId,
-                extraInfo: {
-                  jobPosition: emp.jobTitle,
-                  organizationalUnit: emp.department,
-                  pictureThumbnail: emp.pictureThumbnail,
-                  userId: emp.userId
-                }
-              }))}
-              loading={isLoading}
-              onSearch={handleEmployeeSearch}
-              onChange={handleEmployeeSelect}
-              data-testid={formatDataTestId(prefixDataTestId, 'EmployeeSelect')}
-              error={error}
-              required={true}
-              className="gba:w-full"
-            />
+          {/* Search Input */}
+          <Input
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder={getTranslationFromI18nKeyAndLabel('feedback.request.searchPlaceholder', 'Search employees...')}
+            data-testid={formatDataTestId(prefixDataTestId, 'SearchInput')}
+          />
+
+          {/* Employee List */}
+          <div className="gba:max-h-[60vh] gba:overflow-y-auto gba:space-y-2">
+            {isLoading && filteredEmployees.length === 0 ? (
+              <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-8">
+                {getTranslationFromI18nKeyAndLabel('common.loading', 'Loading...')}
+              </div>
+            ) : filteredEmployees.length === 0 ? (
+              <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-8">
+                {getTranslationFromI18nKeyAndLabel('common.noResults', 'No employees found')}
+              </div>
+            ) : (
+              filteredEmployees.map(emp => {
+                const selected = selectedEmployeeId === emp.id
+                const initials = (emp.name || '?')
+                  .split(' ')
+                  .map((p: string) => p[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()
+
+                return (
+                  <button
+                    key={emp.id}
+                    type="button"
+                    onClick={() => handleEmployeeSelect(emp.id)}
+                    className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-4 gba:rounded-lg gba:border gba:transition-all ${
+                      selected ? 'gba:bg-accent gba:border-accent' : 'gba:hover:bg-muted'
+                    }`}
+                    data-testid={formatDataTestId(prefixDataTestId, `EmployeeRow-${emp.id}`)}
+                  >
+                    <Avatar>
+                      {emp.pictureThumbnail ? (
+                        <AvatarImage src={`data:image/jpeg;base64,${emp.pictureThumbnail}`} alt={emp.name} />
+                      ) : (
+                        <AvatarFallback>{initials}</AvatarFallback>
+                      )}
+                    </Avatar>
+
+                    <div className="gba:flex-1 gba:min-w-0 gba:text-left">
+                      <div className="gba:text-sm gba:font-medium gba:truncate">{emp.name}</div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:flex-wrap gba:gap-2">
+                        {emp.jobTitle && <span>{emp.jobTitle}</span>}
+                        {emp.department && <span>· {emp.department}</span>}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`gba:w-5 gba:h-5 gba:rounded gba:border gba:flex gba:items-center gba:justify-center ${
+                        selected ? 'gba:bg-primary gba:text-primary-foreground' : ''
+                      }`}
+                    >
+                      {selected ? '✓' : ''}
+                    </div>
+                  </button>
+                )
+              })
+            )}
           </div>
 
           {/* Action Buttons */}

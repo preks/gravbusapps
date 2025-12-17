@@ -721,7 +721,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
         cssFileName: 'main'
       },
       minify: isProduction ? 'esbuild' : false, // Ensure minification for production
-      reportCompressedSize: isUnversionedBuild,
+      reportCompressedSize: isUnversionedBuild && isSingleBuild ? true : false,
       // Enable CSS processing
       css: {
         devSourcemap: true
@@ -744,27 +744,26 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
               ...wrappedEntries
             },
 
-        // Only keep React-related packages as external
-        // All other imports will be bundled into the main file
         external: [
-          'react',
-          'react-dom',
           'antd',
           '@ant-design/icons',
-          'react-icons/pi',
-          'react/jsx-runtime',
           '@dnd-kit/core',
-          '@dnd-kit/sortable',
           '@dnd-kit/utilities',
+          '@dnd-kit/sortable',
           'zustand',
-          'react-i18next',
-          'react-icons',
           'clsx',
           'tailwind-merge',
+          'react-i18next',
+          'react-icons',
+          'react-icons/pi',
+          '@phosphor-icons/react',
           '@newwork/gravity-ui-catalog',
           '@remixicon/react',
           'class-variance-authority',
           'lucide-react',
+          'react',
+          'react-dom',
+          'react/jsx-runtime',
           'react-router-dom'
         ],
         output: {

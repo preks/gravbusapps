@@ -11,3 +11,9 @@ export enum HrSettingsSections {
   COMPLIANCE_POLICIES = 'compliance-policies',
   REPORTING_ANALYTICS = 'reporting-analytics'
 }
+
+// Default export for wrapper compatibility
+export default {
+  HrSettingsChangeMode,
+  HrSettingsSections
+}

@@ -3,9 +3,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { Briefcase, AlertTriangle, CheckCircle, FileText, Users, TrendingUp, Clock } from 'lucide-react'
+import { Briefcase, AlertTriangle, CheckCircle, FileText, Users, TrendingUp } from 'lucide-react'
 
-export const AdvisorySolution: React.FC<BusinessAppContextProps> = _context => {
+export const AdvisorySolution: React.FC<BusinessAppContextProps> = () => {
   const [search, setSearch] = useState('')
 
   const widgets: WidgetItem[] = [
@@ -283,3 +283,5 @@ export const AdvisorySolution: React.FC<BusinessAppContextProps> = _context => {
     </div>
   )
 }
+
+export default AdvisorySolution
