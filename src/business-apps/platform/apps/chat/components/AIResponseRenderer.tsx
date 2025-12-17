@@ -391,4 +391,58 @@ export const AIThinkingIndicator: React.FC = () => {
   )
 }
 
+export interface ExpertThinkingIndicatorProps {
+  expertName: string
+  expertColor?: string
+}
+
+/**
+ * Expert Thinking indicator component - shows when an AI expert is processing
+ */
+export const ExpertThinkingIndicator: React.FC<ExpertThinkingIndicatorProps> = ({ expertName, expertColor }) => {
+  const color = expertColor || 'var(--nw-primary)'
+
+  return (
+    <div
+      className="gba:px-4 gba:py-3 gba:border-t gba:border-border/30 gba:bg-muted/30"
+      data-testid="expert-thinking-indicator"
+    >
+      <div className="gba:flex gba:gap-3 gba:items-center">
+        {/* Expert Avatar */}
+        <div
+          className="gba:w-8 gba:h-8 gba:flex-shrink-0 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-xs"
+          style={{ backgroundColor: color }}
+        >
+          {expertName?.charAt(0)?.toUpperCase() || '?'}
+        </div>
+
+        {/* Animated dots and status */}
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <div className="gba:flex gba:gap-1.5">
+            <span
+              className="gba:w-2 gba:h-2 gba:rounded-full gba:animate-bounce"
+              style={{ backgroundColor: color, animationDelay: '0ms' }}
+            />
+            <span
+              className="gba:w-2 gba:h-2 gba:rounded-full gba:animate-bounce"
+              style={{ backgroundColor: color, animationDelay: '150ms' }}
+            />
+            <span
+              className="gba:w-2 gba:h-2 gba:rounded-full gba:animate-bounce"
+              style={{ backgroundColor: color, animationDelay: '300ms' }}
+            />
+          </div>
+
+          <div className="gba:flex gba:flex-col gba:gap-0.5">
+            <span className="gba:text-sm gba:font-medium" style={{ color }}>
+              {expertName}
+            </span>
+            <span className="gba:text-xs gba:text-muted-foreground">is analyzing your request...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export { parseEntityLinks, type EntityLink }
