@@ -18,11 +18,7 @@ export interface ExpenseSettingsProps extends BusinessAppContextProps {
 }
 
 const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
-  console.log('🚀 ExpenseSettings component mounting...', { context })
-  
   const { prefixDataTestId = '', className = '' } = context
-  
-  console.log('✅ ExpenseSettings props:', { prefixDataTestId, className, accessToken: context.accessToken ? 'present' : 'missing' })
 
   // TEMPORARY: Feature flag disabled for local development testing
   // const isDevEnabled = useFeature('dev.enabled')
@@ -132,7 +128,7 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
   // Render content based on active view and rule record parameters
   const renderViewContent = () => {
     console.log('📄 renderViewContent called, activeView:', activeView)
-    
+
     // Render the normal view content
     switch (activeView) {
       case 'dashboard':
@@ -178,12 +174,6 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
   return (
     <div data-testid={`${prefixDataTestId}-expense-settings`} className={className}>
       <PageLayout
-        headerPhosphorIcon={{
-          icon: undefined,
-          variant: 'strategy',
-          size: 'lg',
-          label: 'Expense Settings'
-        }}
         headerTitle={getTranslationFromI18nKeyAndLabel('expense-settings:page_title', 'Expense Settings')}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'expense-settings:page_description',
