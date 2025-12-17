@@ -485,14 +485,19 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
         <Button
           variant="default"
           onClick={handleSubmit}
-          disabled={isSubmitting || !hasUnsubmittedHours}
+          disabled={isSubmitting || isLoadingWeekData || !hasUnsubmittedHours}
           data-testid={`${dataTestId}-submit-button`}
         >
           {isSubmitting
             ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitting', 'Submitting...')
-            : hasSubmittedHours && !hasUnsubmittedHours
-              ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitted', 'Submitted')
-              : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submit_hours', 'Submit Hours')}
+            : isLoadingWeekData
+              ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.loading', 'Loading...')
+              : hasSubmittedHours && !hasUnsubmittedHours
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitted', 'Submitted')
+                : getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:time_tracking.smart_booking.submit_hours',
+                    'Submit Hours'
+                  )}
         </Button>
       </div>
       {/* Week Navigation */}

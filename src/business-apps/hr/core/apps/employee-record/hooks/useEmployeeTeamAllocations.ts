@@ -267,32 +267,6 @@ export const useEmployeeTeamAllocations = ({
       } else {
         setAllocations([])
       }
-
-      // Fetch attendance for current month
-      const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-
-      const attendanceResponse = await graphqlClient.request<EmployeeAttendanceResponse>(GET_EMPLOYEE_ATTENDANCE, {
-        employeeId,
-        dateFrom: dayjs(monthStart).format('YYYY-MM-DD'),
-        dateTo: dayjs(monthEnd).format('YYYY-MM-DD')
-      })
-
-      // Group attendance by date and sum effective hours
-      const hoursByDate: Record<string, number> = {}
-      if (attendanceResponse.EmployeeAttendance) {
-        for (const attendance of attendanceResponse.EmployeeAttendance) {
-          const date = attendance.attendanceDate
-          const hours = parseEffectiveTimeToHours(attendance.effectiveTime)
-          if (hoursByDate[date]) {
-            hoursByDate[date] += hours
-          } else {
-            hoursByDate[date] = hours
-          }
-        }
-      }
-      setRecordedHoursByDate(hoursByDate)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch team allocations'
       setError(errorMessage)
@@ -305,20 +279,49 @@ export const useEmployeeTeamAllocations = ({
   }, [employeeId, structureId, graphqlClient])
 
   /**
-   * Fetch booked working hours for a specific week
+   * Fetch booked working hours and attendance for a specific week
    */
   const fetchBookedHours = useCallback(
     async (weekDays: Date[], currentAllocations: TeamAllocation[]) => {
       setIsLoadingWeekData(true)
+      // Reset old data immediately to prevent flicker with stale data
+      setBookedHours({})
+      setRecordedHoursByDate({})
+      setHistoricalProjects([])
       try {
         const workingDates = weekDays.map(day => dayjs(day).format('YYYY-MM-DD'))
-        const response = await graphqlClient.request<EmployeeProjectWorkingHoursResponse>(
-          GET_EMPLOYEE_PROJECT_WORKING_HOURS,
-          {
+        const weekStart = weekDays[0]
+        const weekEnd = weekDays[weekDays.length - 1]
+
+        // Fetch booked hours and attendance in parallel
+        const [workingHoursResponse, attendanceResponse] = await Promise.all([
+          graphqlClient.request<EmployeeProjectWorkingHoursResponse>(GET_EMPLOYEE_PROJECT_WORKING_HOURS, {
             employeeId,
             workingDates
+          }),
+          graphqlClient.request<EmployeeAttendanceResponse>(GET_EMPLOYEE_ATTENDANCE, {
+            employeeId,
+            dateFrom: dayjs(weekStart).format('YYYY-MM-DD'),
+            dateTo: dayjs(weekEnd).format('YYYY-MM-DD')
+          })
+        ])
+
+        // Group attendance by date and sum effective hours
+        const hoursByDate: Record<string, number> = {}
+        if (attendanceResponse.EmployeeAttendance) {
+          for (const attendance of attendanceResponse.EmployeeAttendance) {
+            const date = attendance.attendanceDate
+            const hours = parseEffectiveTimeToHours(attendance.effectiveTime)
+            if (hoursByDate[date]) {
+              hoursByDate[date] += hours
+            } else {
+              hoursByDate[date] = hours
+            }
           }
-        )
+        }
+        setRecordedHoursByDate(hoursByDate)
+
+        const response = workingHoursResponse
 
         // Create a map: key = "projectId-workingDate", value = { id, version, hours, projectId }
         const bookedMap: Record<string, { id: string; version: number; hours: number; projectId: string }> = {}
@@ -380,6 +383,7 @@ export const useEmployeeTeamAllocations = ({
         console.error('Error fetching booked hours:', err)
         setBookedHours({})
         setHistoricalProjects([])
+        setRecordedHoursByDate({})
       } finally {
         setIsLoadingWeekData(false)
       }
