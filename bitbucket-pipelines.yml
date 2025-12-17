@@ -134,7 +134,7 @@ definitions:
 
     - step: &build-screens
         name: Build Screens
-        size: 2x
+        size: 4x
         caches:
           - nodecustom
         services:
