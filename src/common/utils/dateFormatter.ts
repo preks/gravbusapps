@@ -147,6 +147,37 @@ export const isValidDate = (dateString: string | undefined | null): boolean => {
 }
 
 /**
+ * Formats a date for display using numeric format only (no month names)
+ * Provides locale-aware formatting while avoiding translation issues
+ * @param dateString - Date string or Date object
+ * @param locale - Locale for formatting (defaults to 'en-US')
+ * @returns Formatted date string with numeric month (e.g., 17.12.2025, 12/17/2025)
+ */
+export const formatForDisplayNumeric = (
+  dateString: string | Date | undefined | null,
+  locale: string = 'en-US'
+): string => {
+  if (!dateString) return ''
+
+  try {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString
+
+    if (Number.isNaN(date.getTime())) {
+      return ''
+    }
+
+    return date.toLocaleDateString(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+  } catch (error) {
+    console.error('Error formatting date for display (numeric):', error)
+    return ''
+  }
+}
+
+/**
  * Format date and time with locale support and relative time (Today/Yesterday)
  * Useful for displaying user-friendly timestamps with relative time indicators
  *
