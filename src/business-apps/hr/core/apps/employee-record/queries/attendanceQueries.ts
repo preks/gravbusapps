@@ -17,7 +17,7 @@ export const employeeAttendanceMonthlyQuery = `
         isDeleted: { _eq: false }
         attendanceDate: { _gte: $dateFrom, _lte: $dateTo }
       }
-      orderBy: { startTime: DESC, attendanceDate: DESC }
+      orderBy: { attendanceDate: DESC, startTime: DESC }
       limit: $limit
       offset: $offset
     ) {

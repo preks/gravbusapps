@@ -5,7 +5,7 @@ import { Button } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
-import { getTranslatedBenefitType } from '../../utils/benefitTranslationUtils'
+import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../../utils/benefitTranslationUtils'
 
 interface AvailableBenefitLayoutProps {
   t: (key: string, params?: any) => string
@@ -38,6 +38,22 @@ const AvailableBenefitLayout: React.FC<AvailableBenefitLayoutProps> = ({
         >
           {getTranslatedBenefitType(benefit, locale)}
         </h3>
+
+        {/* Provider Badges */}
+        {benefit.availableProviders && benefit.availableProviders.length > 0 && (
+          <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-1" data-testid={`benefit-providers-${benefit.code}`}>
+            {benefit.availableProviders.map(provider => (
+              <span
+                key={provider.id}
+                className="gba:inline-flex gba:items-center gba:text-xs gba:text-foreground gba:bg-muted gba:px-2 gba:py-0.5 gba:rounded-md"
+                data-testid={`benefit-provider-badge-${benefit.code}-${provider.code}`}
+              >
+                {getTranslatedCatalogEntryValue(provider, locale)}
+              </span>
+            ))}
+          </div>
+        )}
+
         {benefit.description && (
           <p
             className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2 gba:mt-1"
