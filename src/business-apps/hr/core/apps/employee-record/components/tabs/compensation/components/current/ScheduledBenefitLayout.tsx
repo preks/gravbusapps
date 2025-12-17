@@ -4,7 +4,7 @@ import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import BenefitInfoSection from './BenefitInfoSection'
-import { formatDate } from '@/common/utils/windowUtils'
+import { formatForDisplayNumeric } from '@/common/utils/dateFormatter'
 
 interface ScheduledBenefitLayoutProps {
   t: (key: string, params?: any) => string
@@ -47,7 +47,7 @@ const ScheduledBenefitLayout: React.FC<ScheduledBenefitLayoutProps> = ({
             <span className="gba:font-semibold">{t('benefit-scheduled-badge')}</span>
             <span>•</span>
             <span>
-              {t('benefit-starts-on')} {formatDate(benefit.startDate, 'date.short')}
+              {t('benefit-starts-on')} {formatForDisplayNumeric(benefit.startDate, locale)}
             </span>
           </div>
         )}
