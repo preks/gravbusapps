@@ -6,8 +6,9 @@ import remarkGfm from 'remark-gfm'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { CheckCircleIcon, CopyIcon, SparkleIcon } from '@phosphor-icons/react'
+import { CheckCircleIcon, CopyIcon, PencilSimple, SparkleIcon } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ConversationRendererProps {
   turns: ConversationTurn[]
@@ -66,9 +67,11 @@ const UserMessageWithCopy: React.FC<{
     // Not JSON, use original text
   }
   const textWithMentions = buildTextWithMentions(displayText, turn.mentions)
+  const hasTextToCopy = displayText.trim().length > 0
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (!hasTextToCopy) return
     try {
       await navigator.clipboard.writeText(displayText)
       setCopied(true)
@@ -136,19 +139,38 @@ const UserMessageWithCopy: React.FC<{
                   {textWithMentions}
                 </ReactMarkdown>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:absolute gba:top-4 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
-                onClick={handleCopy}
-                data-testid="user-message-copy-button"
-              >
-                {copied ? (
-                  <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
-                ) : (
-                  <CopyIcon className="gba:h-4 gba:w-4" />
-                )}
-              </Button>
+              <div className="gba:absolute gba:top-4 gba:right-2 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-7 gba:w-7 gba:p-0"
+                  onClick={handleCopy}
+                  data-testid="user-message-copy-button"
+                  disabled={!hasTextToCopy}
+                  aria-label={
+                    copied
+                      ? getTranslationFromI18nKeyAndLabel('everyAI.message.copy.copied', 'Message copied')
+                      : getTranslationFromI18nKeyAndLabel('everyAI.message.label', 'Copy message')
+                  }
+                >
+                  {copied ? (
+                    <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+                  ) : (
+                    <CopyIcon className="gba:h-4 gba:w-4" />
+                  )}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-7 gba:w-7 gba:p-0"
+                  onClick={e => e.stopPropagation()}
+                  data-testid="user-message-edit-button"
+                  aria-label={getTranslationFromI18nKeyAndLabel('everyAI.message.edit.label', 'Edit message')}
+                >
+                  <PencilSimple className="gba:h-4 gba:w-4" />
+                </Button>
+              </div>
             </div>
           </div>
           {userInfo?.employeeDetails && (

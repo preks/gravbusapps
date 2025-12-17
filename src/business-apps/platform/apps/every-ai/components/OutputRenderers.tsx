@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
-import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
+import { CheckCircleIcon, CopyIcon, PencilSimple } from '@phosphor-icons/react'
 import type {
   OutputItem,
   AnswerOutput,
@@ -1050,12 +1050,13 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
           {renderDisplayData(item, idx, accessToken)}
         </div>
       ))}
-      {hasTextToCopy && (
+      <div className="gba:absolute gba:top-4 gba:right-2 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
         <Button
           variant="ghost"
           size="sm"
-          className="gba:absolute gba:top-4 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
+          className="gba:h-7 gba:w-7 gba:p-0"
           onClick={handleCopy}
+          disabled={!hasTextToCopy}
           data-testid="agent-message-copy-button"
           aria-label={
             copied
@@ -1069,7 +1070,18 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
             <CopyIcon className="gba:h-4 gba:w-4" />
           )}
         </Button>
-      )}
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gba:h-7 gba:w-7 gba:p-0"
+          onClick={e => e.stopPropagation()}
+          data-testid="agent-message-edit-button"
+          aria-label={getTranslationFromI18nKeyAndLabel('everyAI.message.edit.label', 'Edit message')}
+        >
+          <PencilSimple className="gba:h-4 gba:w-4" />
+        </Button>
+      </div>
     </div>
   )
 }
