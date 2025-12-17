@@ -1,7 +1,6 @@
 import React from 'react'
-import dayjs from 'dayjs'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../utils/translationHelpers'
 import { parseBenefitObjectValue } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/utils/benefitDetailsUtils'
 import type { BenefitSummaryData } from '../types'
@@ -84,7 +83,7 @@ const BenefitSummaryCard: React.FC<BenefitSummaryCardProps> = ({ t, benefit, loc
       {benefit.startDate && (
         <div className="gba:text-sm gba:text-muted-foreground">
           <span className="gba:font-medium">{t('modal-request-start-date-label')}:</span>{' '}
-          {dayjs(benefit.startDate).format('MM/DD/YYYY')}
+          {formatDate(benefit.startDate, 'date.short')}
         </div>
       )}
     </div>

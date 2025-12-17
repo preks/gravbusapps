@@ -7,7 +7,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { BenefitStatus } from '../../types/compensationEnums'
 import BenefitInfoSection from './BenefitInfoSection'
-import { formatForDisplayNumeric } from '@/common/utils/dateFormatter'
+import { formatDate } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 
 interface ActiveBenefitLayoutProps {
@@ -57,7 +57,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             data-testid={`benefit-start-date-${benefit.code}`}
           >
             {startDateInFuture ? t('benefit-starts-in') : t('benefit-since')}{' '}
-            {formatForDisplayNumeric(benefit.startDate, locale)}
+            {formatDate(benefit.startDate, 'date.short')}
           </div>
         )}
 
@@ -69,7 +69,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
           >
             <span className="gba:font-semibold">{t('benefit-ends')}</span>
             <span>•</span>
-            <span>{formatForDisplayNumeric(benefit.endDate, locale)}</span>
+            <span>{formatDate(benefit.endDate, 'date.short')}</span>
           </div>
         )}
       </BenefitInfoSection>
