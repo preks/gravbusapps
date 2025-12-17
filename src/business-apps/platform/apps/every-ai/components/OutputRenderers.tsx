@@ -1050,7 +1050,7 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
           {renderDisplayData(item, idx, accessToken)}
         </div>
       ))}
-      <div className="gba:absolute gba:top-4 gba:right-2 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
+      <div className="gba:absolute gba:top-0 gba:right-2 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
         <Button
           variant="ghost"
           size="sm"
