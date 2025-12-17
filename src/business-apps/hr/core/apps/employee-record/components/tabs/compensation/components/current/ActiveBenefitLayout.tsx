@@ -7,6 +7,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { BenefitStatus } from '../../types/compensationEnums'
 import BenefitInfoSection from './BenefitInfoSection'
+import { formatDate } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 
 interface ActiveBenefitLayoutProps {
@@ -56,10 +57,19 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             data-testid={`benefit-start-date-${benefit.code}`}
           >
             {startDateInFuture ? t('benefit-starts-in') : t('benefit-since')}{' '}
-            {new Date(benefit.startDate).toLocaleDateString(locale ?? 'en-US', {
-              month: 'short',
-              year: 'numeric'
-            })}
+            {formatDate(benefit.startDate, 'date.short')}
+          </div>
+        )}
+
+        {/* Scheduled Deactivation Badge - Moved to left column */}
+        {isAlreadyDeactivated && benefit.endDate && (
+          <div
+            className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-warning-foreground gba:bg-warning-secondary gba:px-2 gba:py-1 gba:rounded-md gba:mt-2"
+            data-testid={`benefit-scheduled-deactivation-${benefit.code}`}
+          >
+            <span className="gba:font-semibold">{t('benefit-ends')}</span>
+            <span>•</span>
+            <span>{formatDate(benefit.endDate, 'date.short')}</span>
           </div>
         )}
       </BenefitInfoSection>
@@ -77,22 +87,20 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             {t('benefit-view-details')}
           </Button>
         )}
-        {/* Show deactivate button OR "Ends" badge */}
+        {/* Show deactivate button (active or disabled) */}
         {isAlreadyDeactivated ? (
-          /* Show badge when benefit is already deactivated (has endDate + INACTIVE_BENEFIT status) */
-          <div
-            className="gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-warning-foreground gba:bg-warning-secondary gba:px-3 gba:py-2 gba:rounded-md gba:w-full gba:text-center"
-            data-testid={`benefit-scheduled-deactivation-${benefit.code}`}
+          /* Show disabled button when benefit is already deactivated */
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={true}
+            className="gba:w-full gba:opacity-50 gba:cursor-not-allowed"
+            data-testid={`benefit-catalog-deactivate-button-disabled-${benefit.code}`}
           >
-            {t('benefit-ends')}{' '}
-            {new Date(benefit.endDate!).toLocaleDateString(locale ?? 'en-US', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric'
-            })}
-          </div>
+            {t('benefit-deactivate-button')}
+          </Button>
         ) : (
-          /* Show deactivate button when benefit can still be deactivated */
+          /* Show active deactivate button when benefit can still be deactivated */
           <AppAction
             variant="custom"
             mode="button"
