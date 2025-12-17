@@ -57,6 +57,7 @@ interface ExpenseItemContextProps {
   setMultiPosition: (isMulti: boolean) => void
   isEditMode: boolean
   setCurrentSelectedDate: (date: Date | null) => void
+  isCreating: boolean
 
   positions: ExpensePosition[]
   setPositions: (positions: ExpensePosition[]) => void
@@ -138,6 +139,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null)
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
   const [receiptCurrencyError, setReceiptCurrencyError] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState<boolean>(false)
 
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
   const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
@@ -860,27 +862,41 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       throw new Error(receiptCurrencyError)
     }
 
-    return await handleSubmit(
-      form,
-      positions,
-      customFields,
-      employeeRuleId,
-      catalogueDataResponse,
-      multiPosition,
-      setPositions,
-      setFileListState,
-      setCurrentStep,
-      setLoading,
-      t,
-      fileList,
-      accessToken,
-      userInfo?.employeeDetails?.employeeId,
-      additionalData,
-      userInfo,
-      itemValues || undefined,
-      getIsProcessEventDispatched,
-      dispatchProcessContinueEventIfEnabled
-    )
+    // Show overlay spinner for 1 second
+    setIsCreating(true)
+    const spinnerTimeout = setTimeout(() => {
+      setIsCreating(false)
+    }, 1000)
+
+    try {
+      return await handleSubmit(
+        form,
+        positions,
+        customFields,
+        employeeRuleId,
+        catalogueDataResponse,
+        multiPosition,
+        setPositions,
+        setFileListState,
+        setCurrentStep,
+        setLoading,
+        t,
+        fileList,
+        accessToken,
+        userInfo?.employeeDetails?.employeeId,
+        additionalData,
+        userInfo,
+        itemValues || undefined,
+        getIsProcessEventDispatched,
+        dispatchProcessContinueEventIfEnabled
+      )
+    } finally {
+      // Ensure spinner is hidden after 1 second even if submission completes earlier
+      clearTimeout(spinnerTimeout)
+      setTimeout(() => {
+        setIsCreating(false)
+      }, 1000)
+    }
   }
 
   const handleCancelWrapper = (noDispatchEvent: boolean = false) => {
@@ -1077,6 +1093,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setMultiPosition,
       isEditMode,
       setCurrentSelectedDate,
+      isCreating,
       positions,
       setPositions,
       expenseGroups,
@@ -1113,6 +1130,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       isFormDisabled,
       multiPosition,
       isEditMode,
+      isCreating,
       positions,
       expenseGroups,
       expenseTypes,
