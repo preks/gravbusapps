@@ -37,6 +37,8 @@ import type {
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { EveryExpertFields } from './EveryExpertFields'
 import { KnowledgeSourcesPanel } from './KnowledgeSourcesPanel'
+import { TaskExpertAiAssist } from './TaskExpertAiAssist'
+import type { GeneratedTaskExpert } from '../hooks/useTaskExpertAiGenerate'
 
 export interface TaskExpertEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
@@ -224,6 +226,15 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
       setUserContent(typeof userTemplate === 'string' ? userTemplate : '')
       setSystemContent(typeof systemTemplate === 'string' ? systemTemplate : '')
 
+      // Initialize response schema and type from prompt
+      if (prompt.response_schema) {
+        setResponseType('json')
+        setResponseSchema(JSON.stringify(prompt.response_schema, null, 2))
+      } else {
+        setResponseType('text')
+        setResponseSchema('')
+      }
+
       // Initialize parameter rows from prompt parameters
       const userParamsFromPrompt = Array.isArray(prompt.user_content?.parameters) ? prompt.user_content.parameters : []
       const systemParamsFromPrompt = Array.isArray(prompt.system_content?.parameters)
@@ -339,6 +350,12 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           return tool.code
         })
 
+      // Build model settings - enforce JSON response when a schema is provided
+      const modelSettings: Record<string, unknown> = {}
+      if (responseType === 'json' && responseSchema && responseSchema.trim()) {
+        modelSettings.response_format = { type: 'json_object' }
+      }
+
       // For create mode, filter out document sources (will be uploaded after)
       // Keep content_entry and url sources (they don't need file upload)
       const sourcesForCreate =
@@ -353,7 +370,7 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           modelId,
           userContent,
           systemContent,
-          modelSettings: {},
+          modelSettings,
           responseSchema: responseSchema ? JSON.parse(responseSchema) : null,
           tools: toolCodes,
           // Every Expert fields
@@ -379,7 +396,7 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           userContent,
           systemContent,
           modelId,
-          modelSettings: {},
+          modelSettings,
           responseSchema: responseSchema ? JSON.parse(responseSchema) : null,
           tools: toolCodes,
           revisionMessage: '',
@@ -426,6 +443,49 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
     onClose
   ])
 
+  // Handler for AI-generated content
+  const handleAiApply = useCallback(
+    (generated: GeneratedTaskExpert) => {
+      // Apply generated content to form fields
+      if (generated.name && !name) {
+        setName(generated.name)
+      }
+      if (generated.description) {
+        setDescription(generated.description)
+      }
+      if (generated.systemContent) {
+        setSystemContent(generated.systemContent)
+      }
+      if (generated.userContent) {
+        setUserContent(generated.userContent)
+      }
+      if (generated.responseSchema) {
+        setResponseType('json')
+        setResponseSchema(generated.responseSchema)
+      } else {
+        setResponseType('text')
+        setResponseSchema('')
+      }
+
+      // EveryAI-specific fields
+      if (agentType === 'everyai') {
+        if (generated.specialty) {
+          setSpecialty(generated.specialty)
+        }
+        if (generated.responseStyle) {
+          setResponseStyle(generated.responseStyle)
+        }
+        if (generated.citationMode) {
+          setCitationMode(generated.citationMode)
+        }
+        if (generated.tags && generated.tags.length > 0) {
+          setTags(generated.tags)
+        }
+      }
+    },
+    [name, agentType]
+  )
+
   const onTest = useCallback(async () => {
     if (mode === 'create' || !prompt?._id) {
       setError('Please save the task expert before testing')
@@ -471,9 +531,16 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
             {mode === 'edit' ? name || prompt?.name : 'New Task Expert'}
           </div>
         </div>
-        <div className="gba:flex gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <TaskExpertAiAssist
+            {...props}
+            agentType={agentType}
+            onApply={handleAiApply}
+            data-testid="task-expert-editor-ai-assist"
+          />
           <Button
             variant="default"
+            size="sm"
             onClick={onSave}
             disabled={!isValid || isSaving}
             data-testid="task-expert-editor-save"
@@ -489,28 +556,14 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
         </div>
       )}
 
-      {/* Validation Helper - shows what's missing */}
-      {!isValid && (
-        <div className="gba:bg-warning/10 gba:border gba:border-warning/20 gba:rounded-lg gba:p-3">
-          <p className="gba:text-sm gba:font-semibold gba:text-warning-foreground gba:mb-2">
-            ⚠️ Required fields missing:
-          </p>
-          <ul className="gba:list-disc gba:pl-5 gba:space-y-1 gba:text-sm gba:text-warning-foreground">
-            {!name && <li>Name</li>}
-            {!workspaceId && <li>Workspace</li>}
-            {!modelId && <li>AI Model (scroll right sidebar)</li>}
-            {!userContent && <li>User Prompt</li>}
-            {agentType === 'everyai' && !specialty && <li>Specialty (in Every Expert Configuration)</li>}
-          </ul>
-        </div>
-      )}
-
       {/* Top section: Name, Description, Workspace, Agent Type */}
       <Card>
         <CardContent className="gba:space-y-4 gba:pt-6">
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             <div className="gba:space-y-2">
-              <Label>Name</Label>
+              <Label>
+                Name <span className="gba:text-destructive">*</span>
+              </Label>
               <Input value={name} onChange={e => setName(e.target.value)} data-testid="task-expert-editor-name" />
             </div>
             <div className="gba:space-y-2">
@@ -522,7 +575,9 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
               />
             </div>
             <div className="gba:space-y-2">
-              <Label>Workspace</Label>
+              <Label>
+                Workspace <span className="gba:text-destructive">*</span>
+              </Label>
               <Select value={workspaceId} onValueChange={setWorkspaceId} data-testid="task-expert-editor-workspace">
                 <SelectTrigger>
                   <SelectValue placeholder="Select workspace" />
@@ -550,30 +605,16 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="flow">
-                  <div className="gba:space-y-0.5">
-                    <div className="gba:font-medium">FLOW Agent</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">For process automation and workflows</div>
-                  </div>
-                </SelectItem>
-                <SelectItem value="everyai">
-                  <div className="gba:space-y-0.5">
-                    <div className="gba:font-medium">EveryAI Expert</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">
-                      Specialized AI assistant for chat conversations
-                    </div>
-                  </div>
-                </SelectItem>
-                <SelectItem value="general">
-                  <div className="gba:space-y-0.5">
-                    <div className="gba:font-medium">General Agent</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">
-                      General purpose agent for standalone use
-                    </div>
-                  </div>
-                </SelectItem>
+                <SelectItem value="flow">FLOW Agent</SelectItem>
+                <SelectItem value="everyai">EveryAI Expert</SelectItem>
+                <SelectItem value="general">General Agent</SelectItem>
               </SelectContent>
             </Select>
+            <p className="gba:text-xs gba:text-muted-foreground">
+              {agentType === 'flow' && 'For process automation and workflows'}
+              {agentType === 'everyai' && 'Specialized AI assistant for chat conversations'}
+              {agentType === 'general' && 'General purpose agent for standalone use'}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -607,7 +648,9 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
               <Tabs defaultValue="system">
                 <TabsList>
                   <TabsTrigger value="system">System</TabsTrigger>
-                  <TabsTrigger value="user">User</TabsTrigger>
+                  <TabsTrigger value="user">
+                    User <span className="gba:text-destructive">*</span>
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="system" className="gba:mt-3">
                   <Textarea rows={8} value={systemContent} onChange={e => setSystemContent(e.target.value)} />
@@ -827,7 +870,9 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
                 </Select>
               </div>
               <div className="gba:space-y-2">
-                <Label>Model</Label>
+                <Label>
+                  Model <span className="gba:text-destructive">*</span>
+                </Label>
                 <Select value={modelId} onValueChange={setModelId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select model" />

@@ -14,7 +14,7 @@ import { MessageList } from './components/MessageList'
 import { MessageInput } from './components/MessageInput'
 import { CreateGroupModal } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
-import { AIThinkingIndicator, AIResponseRenderer } from './components/AIResponseRenderer'
+import { AIThinkingIndicator, AIResponseRenderer, ExpertThinkingIndicator } from './components/AIResponseRenderer'
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
@@ -41,6 +41,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [draftMessage, setDraftMessage] = useState<string>('')
+  const [isExpertProcessing, setIsExpertProcessing] = useState(false)
+  const [processingExpert, setProcessingExpert] = useState<{ name: string; color?: string } | null>(null)
   const registerMentionEntityRef = useRef<((entity: any, text: string, startIndex: number) => any) | null>(null)
   const focusInputRef = useRef<(() => void) | null>(null)
   const urlContextProcessed = useRef(false)
@@ -539,11 +541,19 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         }
 
         // Upload attachments to backend and get URLs
+        let uploadedAttachments: Array<{
+          id: string
+          name: string
+          url: string
+          type?: string
+          mimeType?: string
+          size?: number
+        }> = []
         if (attachments?.length && apiClient) {
           try {
             const files = attachments.map(a => a.file)
-            const uploadedFiles = await apiClient.uploadFiles(activeConversationId, files)
-            metadata.attachments = uploadedFiles
+            uploadedAttachments = await apiClient.uploadFiles(activeConversationId, files)
+            metadata.attachments = uploadedAttachments
           } catch (uploadErr) {
             console.error('Error uploading attachments:', uploadErr)
             // Continue sending message without attachments if upload fails
@@ -555,7 +565,22 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         setDraftMessage('') // clear draft after successful send
 
         // Check for expert mention FIRST (before @Every)
-        const expertResult = await processExpertMention(content, entityReferences)
+        // Detect expert mention to show loading indicator
+        const expertMention = entityReferences?.find(ref => ref.type === 'every_expert')
+        const mentionedExpert = expertMention ? activeExperts.find(e => e.expertId === expertMention.id) : null
+
+        // Show expert processing indicator if expert is mentioned
+        if (mentionedExpert) {
+          setIsExpertProcessing(true)
+          setProcessingExpert({ name: mentionedExpert.expertName, color: mentionedExpert.color })
+        }
+
+        // Pass uploaded attachments so the expert can access them
+        const expertResult = await processExpertMention(content, entityReferences, uploadedAttachments)
+
+        // Clear expert processing indicator
+        setIsExpertProcessing(false)
+        setProcessingExpert(null)
 
         if (expertResult.isExpertMention && expertResult.expertResponse) {
           // Expert handled the message, send expert's response
@@ -698,8 +723,18 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
               mentionedUsers
             }
 
+            // Extract file attachments to send to Every AI
+            // Note: File size limits and security validations are handled by the backend
+            // when files are uploaded via apiClient.uploadFiles() above
+            const fileAttachments = attachments?.map(a => a.file) || []
+
             // Process the message with Every AI
-            const aiResponse = await processEveryAIMessage(content, entityReferences, conversationContext)
+            const aiResponse = await processEveryAIMessage(
+              content,
+              entityReferences,
+              conversationContext,
+              fileAttachments
+            )
 
             if (aiResponse && aiResponse.text && !aiResponse.error) {
               // Keep the original text with entity links intact (don't sanitize them)
@@ -796,8 +831,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
               : ''
           }
 
-          // Process through EveryAI
-          const aiResponse = await processEveryAIMessage(content, [], conversationContext)
+          // Process through EveryAI (no file attachments for form submissions)
+          const aiResponse = await processEveryAIMessage(content, [], conversationContext, [])
 
           if (aiResponse && !aiResponse.error) {
             // Check if we have any content to display (text OR outputs)
@@ -1527,6 +1562,28 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                           <AIThinkingIndicator />
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Expert Processing Indicator */}
+                {isExpertProcessing && processingExpert && (
+                  <div
+                    className="gba:px-4 gba:py-3 gba:border-t gba:border-border/30"
+                    style={{ backgroundColor: `${processingExpert.color}10` || 'var(--nw-muted)' }}
+                  >
+                    <div className="gba:flex gba:gap-3 gba:items-center">
+                      {/* Expert Avatar */}
+                      <div
+                        className="gba:w-8 gba:h-8 gba:flex-shrink-0 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-xs"
+                        style={{ backgroundColor: processingExpert.color || 'var(--nw-primary)' }}
+                      >
+                        {processingExpert.name.charAt(0).toUpperCase()}
+                      </div>
+                      <ExpertThinkingIndicator
+                        expertName={processingExpert.name}
+                        expertColor={processingExpert.color}
+                      />
                     </div>
                   </div>
                 )}

@@ -111,19 +111,21 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
       try {
         await handleSubmit()
         if (onClose) {
-          // Pass true to indicate we should refetch the expense request data
-          // This is needed because we've created a new expense item
-          // The hideExpenseItem function in ExpenseRequestWizardContext will handle the refetch
           onClose(true)
         }
-      } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_summary_request.no_expense_items',
-            'No expense items created'
-          ),
-          'error'
-        )
+      } catch (error: any) {
+        // Currency validation errors are already toasted by the context - don't show duplicate
+        const isCurrencyError = error?.message?.toLowerCase()?.includes('currency')
+        if (!isCurrencyError) {
+          showToast(
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_summary_request.no_expense_items',
+              'No expense items created'
+            ),
+            'error'
+          )
+        }
+        throw error
       }
     }
 

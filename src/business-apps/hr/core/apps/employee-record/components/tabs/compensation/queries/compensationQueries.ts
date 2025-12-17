@@ -154,6 +154,8 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       status
       benefitStatus
       notes
+      createdAt
+      updatedAt
     }
   }
 `

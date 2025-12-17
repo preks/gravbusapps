@@ -24,6 +24,7 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
+import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -31,6 +32,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 export interface ContentDocumentPopupProps extends BusinessAppContextProps {
   documentId?: string
   contentEntryId?: string
+  changeMode?: 'UPSERT' | 'REPLACE'
 }
 
 interface ContentDocumentFormValues {
@@ -75,6 +77,35 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
     documentAreaQueryOptions
   )
 
+  // Extract contentEntryId from props or additionalData
+  const contentEntryId = useMemo(() => {
+    return (
+      context.contentEntryId ||
+      context.additionalData?.contentEntryId ||
+      context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentEntryId
+    )
+  }, [context.contentEntryId, context.additionalData])
+
+  // Extract changeMode from props or additionalData (default to UPSERT)
+  const changeMode = useMemo(() => {
+    return (
+      context.changeMode ||
+      context.additionalData?.changeMode ||
+      context.additionalData?.psi_taskPayload?.psi_initialParameters?.changeMode ||
+      'UPSERT'
+    )
+  }, [context.changeMode, context.additionalData])
+  const contentEntryQueryOptions = useMemo(
+    () => ({
+      fields: ['id', 'version'] as Array<'id' | 'version'>
+    }),
+    []
+  )
+  const { entry: contentEntry } = useContentEntry(contentEntryId || '', {
+    accessToken: context.accessToken,
+    queryOptions: contentEntryQueryOptions
+  })
+
   // Fetch available folders (parent documents) for the selected area
   const [availableFolders, setAvailableFolders] = useState<any[]>([])
   const [isLoadingFolders, setIsLoadingFolders] = useState(false)
@@ -87,7 +118,9 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
           id: z.string().optional(),
           title: z.string().optional(), // Optional since we auto-generate from file names
           description: z.string().optional(),
-          contentEntryId: z.string().min(1, 'Content Entry is required'),
+          contentEntryId: contentEntryId
+            ? z.string().optional() // Not required if provided in additionalData
+            : z.string().min(1, 'Content Entry is required'), // Required if not provided
           parentDocument: z.string().optional(),
           tags: z.array(z.string()).optional(),
           documentGroupRef: z.string().optional(),
@@ -103,7 +136,7 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
             })
           }
         }),
-    [selectedFiles, context.documentId]
+    [selectedFiles, context.documentId, contentEntryId]
   )
 
   const defaultValues = useMemo(
@@ -111,13 +144,13 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
       id: context.documentId || '',
       title: '',
       description: '',
-      contentEntryId: context.contentEntryId || '',
+      contentEntryId: contentEntryId || '', // Use extracted contentEntryId from additionalData
       parentDocument: '',
       tags: [],
       documentGroupRef: '',
       documentTypeRef: ''
     }),
-    [context.documentId, context.contentEntryId]
+    [context.documentId, contentEntryId]
   )
 
   const form = useForm<ContentDocumentFormValues>({
@@ -127,7 +160,8 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
   })
 
   const { control, watch } = form
-  const watchContentEntryId = watch('contentEntryId')
+  // Use contentEntryId from additionalData if available, otherwise watch form field
+  const watchContentEntryId = contentEntryId || watch('contentEntryId')
 
   // Load folders when contentEntryId changes
   React.useEffect(() => {
@@ -229,7 +263,9 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
       throw new Error('Employee ID is required')
     }
 
-    if (!data.contentEntryId) {
+    // Use contentEntryId from additionalData if available, otherwise from form data
+    const finalContentEntryId = contentEntryId || data.contentEntryId
+    if (!finalContentEntryId) {
       throw new Error('Content Entry ID is required')
     }
 
@@ -244,17 +280,24 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
       ...(data.parentDocument && { parentDocument: data.parentDocument })
     }))
 
-    // Build payload using Content Entry update with contentDocuments bulk operation
+    // Build payload with contentDocuments nested inside contentEntry
+    // Use contentEntryId from additionalData if available, otherwise from form data
+    const entryId = finalContentEntryId
+
+    // Check if we need version for optimistic locking
+    // If contentEntry is loaded and matches the form's contentEntryId, use its version
+    const needsVersion = contentEntry?.id === entryId
+
     const payload = {
+      changeMode: 'UPDATE',
       contentEntry: {
-        id: data.contentEntryId,
-        version: 0, // We don't have version info here, will be resolved by backend
-        updaterEmployee: employeeId
-      },
-      contentDocuments: {
-        changeMode: 'UPSERT',
-        documents: {
-          Items: documents
+        id: entryId,
+        ...(needsVersion && contentEntry?.version !== undefined && contentEntry.version !== null
+          ? { version: contentEntry.version }
+          : {}),
+        contentDocuments: {
+          changeMode: changeMode,
+          documents: documents
         }
       }
     }
@@ -275,32 +318,34 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
     >
       <div className="gba:space-y-6">
         {/* Document Area and Parent Folder - Side by Side */}
-        <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-          {/* Content Entry Selection (Document Area) */}
-          <FormField
-            control={control as any}
-            name="contentEntryId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Document Area *</FormLabel>
-                <FormControl>
-                  <Select value={field.value || ''} onValueChange={field.onChange} disabled={isLoadingAreas}>
-                    <SelectTrigger data-testid="content-document-popup-area-select">
-                      <SelectValue placeholder={isLoadingAreas ? 'Loading...' : 'Select document area...'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {documentAreas?.map(area => (
-                        <SelectItem key={area.id} value={area.id}>
-                          {area.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className={contentEntryId ? 'gba:grid gba:grid-cols-1 gba:gap-4' : 'gba:grid gba:grid-cols-2 gba:gap-4'}>
+          {/* Content Entry Selection (Document Area) - Only show if not provided in additionalData */}
+          {!contentEntryId && (
+            <FormField
+              control={control as any}
+              name="contentEntryId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Document Area *</FormLabel>
+                  <FormControl>
+                    <Select value={field.value || ''} onValueChange={field.onChange} disabled={isLoadingAreas}>
+                      <SelectTrigger data-testid="content-document-popup-area-select">
+                        <SelectValue placeholder={isLoadingAreas ? 'Loading...' : 'Select document area...'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {documentAreas?.map(area => (
+                          <SelectItem key={area.id} value={area.id}>
+                            {area.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           {/* Parent Folder Selection */}
           <FormField

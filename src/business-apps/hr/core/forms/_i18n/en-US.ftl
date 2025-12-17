@@ -180,7 +180,7 @@ label-city = City
 label-currency = Currency
 
 # Deactivate Employee Benefit Review Form
-deactivate-benefit-review-title = Benefit Deactivation Request for { $employeeName }
+deactivate-benefit-review-title = Benefit Deactivation Request
 deactivate-benefit-review-requested-by = Requested by { $initiatorName }
 deactivate-benefit-review-loading = Loading benefit deactivation request...
 deactivate-benefit-review-error-title = Unable to Load Data
@@ -190,6 +190,7 @@ deactivate-benefit-review-deactivation-details = Deactivation Request
 deactivate-benefit-review-submit = Deactivate Benefit
 deactivate-benefit-review-benefit-type = Benefit Type
 deactivate-benefit-review-provider = Provider
+deactivate-benefit-review-value = Value
 deactivate-benefit-review-yearly-value = Yearly Value
 deactivate-benefit-review-monthly-value = Monthly Value
 deactivate-benefit-review-period = Period
@@ -201,14 +202,18 @@ deactivate-benefit-review-end-date = Requested End Date
 deactivate-benefit-review-reason = Reason for Deactivation
 
 # Request Employee Benefit Review Form
-request-benefit-review-title = Employee Benefit Review for { $employeeName }
+request-benefit-review-title = Review Benefit Request
 request-benefit-review-initiated-by = Initiated by { $initiatorName }
 request-benefit-review-benefit-details = Benefit Details
 request-benefit-review-benefit-type = Benefit Type
 request-benefit-review-provider = Provider
-request-benefit-review-yearly-value = Yearly Value
-request-benefit-review-monthly-value = Monthly Value
+request-benefit-review-value = Value
 request-benefit-review-period = Period
+
+# Period translations
+period-monthly = Monthly
+period-yearly = Yearly
+period-daily = Daily
 request-benefit-review-start-date = Preferred Start Date
 request-benefit-review-employee-yearly-contribution = Employee Yearly Contribution
 request-benefit-review-employee-monthly-contribution = Employee Monthly Contribution

@@ -199,7 +199,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      // Trigger a refresh by calling fetchItems with current parameters
+      // Trigger a refresh by calling fetchItems with current parameters.
+      // Use force=true to bypass duplicate-call suppression so that newly
+      // created/updated advance payments are always reloaded after a process.
       if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
         fetchItems(
           fetchParams.searchText,
@@ -210,7 +212,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           fetchParams.currentAdvanceRange,
           fetchParams.sortField,
           fetchParams.sortOrder,
-          fetchParams.selectedCurrencyRef
+          fetchParams.selectedCurrencyRef,
+          { force: true }
         )
       }
     }

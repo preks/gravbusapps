@@ -5,10 +5,11 @@ import { Card, CardHeader, CardTitle, CardContent, Alert, Button } from '@newwor
 import { Search } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBenefitsCatalog } from '../../hooks/useBenefitsCatalog'
-import BenefitCatalogCard from './BenefitCatalogCard'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { DebouncedInput } from '@/components/debounced-input'
 import BenefitDetailsModal from './BenefitDetailsModal'
+import BenefitsSectionGrid from './BenefitsSectionGrid'
+import BenefitsEmptyStates from './BenefitsEmptyStates'
 
 interface BenefitsPerksProps extends BusinessAppContextProps {
   /**
@@ -80,8 +81,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   /**
    * Filter and split benefits based on search query
    */
-  const { activeBenefits, availableBenefits } = React.useMemo(() => {
-    if (!catalogData) return { activeBenefits: [], availableBenefits: [] }
+  const { activeBenefits, scheduledBenefits, availableBenefits } = React.useMemo(() => {
+    if (!catalogData) return { activeBenefits: [], scheduledBenefits: [], availableBenefits: [] }
 
     let benefits = catalogData.catalogBenefits
 
@@ -125,11 +126,12 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
 
     benefits = benefits.filter(isEligibleByGroups)
 
-    // Split into active and available
+    // Split into active, scheduled, and available
     const active = benefits.filter(b => b.isActive)
-    const available = benefits.filter(b => !b.isActive)
+    const scheduled = benefits.filter(b => !b.isActive && b.isScheduled)
+    const available = benefits.filter(b => !b.isActive && !b.isScheduled)
 
-    return { activeBenefits: active, availableBenefits: available }
+    return { activeBenefits: active, scheduledBenefits: scheduled, availableBenefits: available }
   }, [catalogData, searchQuery, hrBackofficeHasPermission])
 
   /**
@@ -149,11 +151,30 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
               <CardTitle>{t('benefits-catalog-title')}</CardTitle>
               {catalogData && (
                 <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                  {t('benefits-catalog-summary', {
-                    active: catalogData.activeBenefitsCount,
-                    available: catalogData.availableBenefitsCount,
-                    total: catalogData.totalBenefitsCount
-                  })}
+                  {activeBenefits.length > 0 && (
+                    <span>
+                      {activeBenefits.length} {t('benefit-status-active').toLowerCase()}
+                    </span>
+                  )}
+                  {scheduledBenefits.length > 0 && (
+                    <>
+                      {activeBenefits.length > 0 && <span> • </span>}
+                      <span>
+                        {scheduledBenefits.length} {t('benefit-status-scheduled').toLowerCase()}
+                      </span>
+                    </>
+                  )}
+                  {availableBenefits.length > 0 && (
+                    <>
+                      {(activeBenefits.length > 0 || scheduledBenefits.length > 0) && <span> • </span>}
+                      <span>
+                        {availableBenefits.length} {t('benefit-status-available').toLowerCase()}
+                      </span>
+                    </>
+                  )}
+                  {activeBenefits.length === 0 && scheduledBenefits.length === 0 && availableBenefits.length === 0 && (
+                    <span>{t('benefits-catalog-no-results')}</span>
+                  )}
                 </div>
               )}
             </div>
@@ -161,7 +182,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             {/* Search Control */}
             <div className="gba:w-full gba:md:w-[260px]">
               <DebouncedInput
-                placeholder={t('benefits-catalog-search-placeholder')}
+                placeholder={t('benefits-search-placeholder')}
                 value={searchQuery}
                 onChange={setSearchQuery}
                 debounceDelay={300}
@@ -177,7 +198,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
           {/* Loading State */}
           {loading && (
             <div className="gba:text-center gba:text-muted-foreground gba:py-12" data-testid="benefits-catalog-loading">
-              <div className="gba:animate-pulse">{t('benefits-catalog-loading')}</div>
+              <div className="gba:animate-pulse">{t('benefits-loading')}</div>
             </div>
           )}
 
@@ -186,104 +207,77 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             <Alert variant="destructive" className="gba:mb-4" data-testid="benefits-catalog-error">
               <div className="gba:flex gba:justify-between gba:items-center">
                 <div>
-                  <h4 className="gba:font-semibold gba:mb-1">{t('benefits-catalog-error-title')}</h4>
+                  <h4 className="gba:font-semibold gba:mb-1">{t('benefits-error-title')}</h4>
                   <p className="gba:text-sm">{error}</p>
                 </div>
                 <Button size="sm" onClick={refetch} variant="outline" data-testid="benefits-catalog-retry-button">
-                  {t('benefits-catalog-retry')}
+                  {t('benefits-error-retry')}
                 </Button>
               </div>
             </Alert>
           )}
 
-          {/* Empty State - No Benefits in Catalog */}
-          {!loading && !error && catalogData?.totalBenefitsCount === 0 && (
-            <div
-              className="gba:text-center gba:text-muted-foreground gba:py-12"
-              data-testid="benefits-catalog-empty-catalog"
-            >
-              <div className="gba:text-lg gba:font-medium gba:mb-2">{t('benefits-catalog-empty-title')}</div>
-              <p className="gba:text-sm">{t('benefits-catalog-empty-description')}</p>
-            </div>
+          {/* Empty States */}
+          {!loading && !error && (
+            <BenefitsEmptyStates
+              t={t}
+              totalBenefitsCount={catalogData?.totalBenefitsCount || 0}
+              hasVisibleBenefits={
+                activeBenefits.length > 0 || scheduledBenefits.length > 0 || availableBenefits.length > 0
+              }
+              onClearSearch={() => setSearchQuery('')}
+            />
           )}
 
-          {/* Empty State - No Search Results */}
-          {!loading &&
-            !error &&
-            catalogData &&
-            catalogData.totalBenefitsCount > 0 &&
-            activeBenefits.length === 0 &&
-            availableBenefits.length === 0 && (
-              <div
-                className="gba:text-center gba:text-muted-foreground gba:py-12"
-                data-testid="benefits-catalog-empty-search"
-              >
-                <div className="gba:text-lg gba:font-medium gba:mb-2">{t('benefits-catalog-no-results-title')}</div>
-                <p className="gba:text-sm">{t('benefits-catalog-no-results-description')}</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSearchQuery('')}
-                  className="gba:mt-4"
-                  data-testid="benefits-catalog-clear-search-button"
-                >
-                  {t('benefits-catalog-clear-search')}
-                </Button>
-              </div>
-            )}
-
           {/* Active Benefits Section */}
-          {!loading && !error && activeBenefits.length > 0 && (
-            <div className="gba:mb-8" data-testid="active-benefits-section">
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
-                {t('benefits-active-section-title', { count: activeBenefits.length })}
-              </h3>
-              <div
-                className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4"
-                data-testid="active-benefits-grid"
-              >
-                {activeBenefits.map(benefit => (
-                  <BenefitCatalogCard
-                    key={benefit.catalogId}
-                    t={t}
-                    benefit={benefit}
-                    currencyCode={currencyCode}
-                    locale={locale}
-                    onViewDetails={handleViewDetails}
-                    accessToken={accessToken}
-                    userInfo={userInfo}
-                    additionalData={additionalData}
-                  />
-                ))}
-              </div>
-            </div>
+          {!loading && !error && (
+            <BenefitsSectionGrid
+              t={t}
+              benefits={activeBenefits}
+              employeeId={employeeId}
+              currencyCode={currencyCode}
+              locale={locale}
+              onViewDetails={handleViewDetails}
+              sectionTitle={t('benefits-active-section-title', { count: activeBenefits.length })}
+              testId="active-benefits-section"
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={additionalData}
+            />
+          )}
+
+          {/* Scheduled Benefits Section */}
+          {!loading && !error && (
+            <BenefitsSectionGrid
+              t={t}
+              benefits={scheduledBenefits}
+              employeeId={employeeId}
+              currencyCode={currencyCode}
+              locale={locale}
+              onViewDetails={handleViewDetails}
+              sectionTitle={t('benefits-scheduled-section-title', { count: scheduledBenefits.length })}
+              testId="scheduled-benefits-section"
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={additionalData}
+            />
           )}
 
           {/* Available Benefits Section */}
-          {!loading && !error && availableBenefits.length > 0 && (
-            <div data-testid="available-benefits-section">
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
-                {t('benefits-available-section-title', { count: availableBenefits.length })}
-              </h3>
-              <div
-                className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4"
-                data-testid="available-benefits-grid"
-              >
-                {availableBenefits.map(benefit => (
-                  <BenefitCatalogCard
-                    key={benefit.catalogId}
-                    t={t}
-                    benefit={benefit}
-                    currencyCode={currencyCode}
-                    locale={locale}
-                    onViewDetails={handleViewDetails}
-                    accessToken={accessToken}
-                    userInfo={userInfo}
-                    additionalData={additionalData}
-                  />
-                ))}
-              </div>
-            </div>
+          {!loading && !error && (
+            <BenefitsSectionGrid
+              t={t}
+              benefits={availableBenefits}
+              employeeId={employeeId}
+              currencyCode={currencyCode}
+              locale={locale}
+              onViewDetails={handleViewDetails}
+              sectionTitle={t('benefits-available-section-title', { count: availableBenefits.length })}
+              testId="available-benefits-section"
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={additionalData}
+            />
           )}
         </CardContent>
       </Card>

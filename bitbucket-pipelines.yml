@@ -58,6 +58,35 @@ definitions:
       path: ./node_modules
 
   steps:
+    - step: &check-hash-file-change
+        name: Check hash file change
+        size: 1x
+        clone:
+          enabled: true
+          depth: full
+        script:
+          - set -e
+          - |
+            PROD_HASH_FILE="component-hashes-prod.json"
+
+            if [ -z "${BITBUCKET_PR_DESTINATION_BRANCH:-}" ]; then
+              echo "Not a PR build (BITBUCKET_PR_DESTINATION_BRANCH not set). Skipping."
+              exit 0
+            fi
+
+            echo "Verifying that ${PROD_HASH_FILE} was NOT changed in this PR..."
+
+            git fetch origin "${BITBUCKET_PR_DESTINATION_BRANCH}"
+
+            CHANGED_FILES="$(git diff --name-only "origin/${BITBUCKET_PR_DESTINATION_BRANCH}...HEAD" || true)"
+
+            if echo "${CHANGED_FILES}" | grep -Fxq "${PROD_HASH_FILE}"; then
+              echo "${PROD_HASH_FILE} was modified in this PR. Changes to this file are not allowed."
+              exit 1
+            fi
+
+            echo "OK - ${PROD_HASH_FILE} not changed."
+
     - step: &install_dependencies
         name: Install dependencies
         size: 1x
@@ -222,6 +251,7 @@ definitions:
 pipelines:
   pull-requests:
     '**':
+      - step: *check-hash-file-change
       - step: *install_dependencies
       - parallel:
         - step: *build-validate-screens
