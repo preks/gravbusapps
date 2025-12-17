@@ -160,7 +160,6 @@ export class RestClient {
         }
       }
     } catch (e: unknown) {
-      console.error('Failed to parse response:', e)
       const errorMessage = e instanceof Error ? e.message : String(e)
       throw new Error(`Failed to parse response: ${errorMessage}`)
     }

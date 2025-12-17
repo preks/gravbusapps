@@ -60,9 +60,7 @@ rewards-package-description = Your total rewards package includes base salary, b
 
 # Benefits & Perks
 benefits-catalog-title = Benefits Catalog
-benefits-active-count = { $count } active
-benefits-available-count = { $count } available
-benefits-total-count = { $count } total
+benefits-catalog-no-results = No benefits found
 benefits-search-placeholder = Search benefits...
 benefits-loading = Loading benefits catalog...
 benefits-error-title = Error Loading Benefits
@@ -74,23 +72,33 @@ benefits-catalog-no-results-title = No Benefits Found
 benefits-catalog-no-results-description = No benefits match your search criteria.
 benefits-catalog-clear-search = Clear Search
 benefits-active-section-title = Active Benefits ({ $count })
+benefits-scheduled-section-title = Scheduled Benefits ({ $count })
 benefits-available-section-title = Available Benefits ({ $count })
 
 # Benefit Card
 benefit-status-active = Active
+benefit-status-scheduled = Scheduled
 benefit-status-pending = Pending
 benefit-status-available = Available
 benefit-request-button = Request
+benefit-request-employee-id-missing = Employee ID not available. Cannot initiate benefit request.
+benefit-already-scheduled = Scheduled
 benefit-deactivate-button = Deactivate
 benefit-view-details = View Details
 benefit-provider = Provider
 benefit-value-yearly = Yearly Value
 benefit-no-provider = No provider specified
 benefit-since = Since
+benefit-starts-in = Starts in
+benefit-starts-on = Starts on
+benefit-scheduled-badge = Scheduled
+benefit-ends = Ends
 
 # Benefit Details Modal
 benefit-details-type-info = Benefit Type Information
+benefit-details-benefit-information = Benefit Information
 benefit-details-code = Code
+benefit-details-type = Type
 benefit-details-category = Category
 benefit-details-provider-info = Provider Information
 benefit-details-provider = Provider
@@ -102,6 +110,9 @@ benefit-details-start-date = Start Date
 benefit-details-end-date = End Date
 benefit-details-notes = Notes
 benefit-details-available-providers = Available Providers
+benefit-details-additional-info = Additional Information
+benefit-details-value = Value
+benefit-details-no-value-info = Detailed value information will be determined after requesting this benefit.
 benefit-details-description = Benefit details
 common-close = Close
 
@@ -238,11 +249,7 @@ action-enter-placeholder = Please Enter
 
 # Benefits Catalog Section
 benefit-per-year = /yr
-benefits-catalog-summary = {$active} active · {$available} available · {$total} total
-benefits-catalog-search-placeholder = Search benefits...
-benefits-catalog-loading = Loading benefits catalog...
-benefits-catalog-error-title = Error Loading Benefits
-benefits-catalog-retry = Retry
+benefit-per-month = /mo
 
 # Payslip Section
 payslip-no-data = No payslips available

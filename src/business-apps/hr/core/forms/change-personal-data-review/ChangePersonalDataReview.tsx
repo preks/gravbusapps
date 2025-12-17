@@ -188,7 +188,8 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
     setIsAcknowledging(true)
     try {
       dispatchProcessContinueEvent('pse_submit', {
-        acknowledge: 'acknowledged'
+        acknowledge: 'acknowledged',
+        approval: 'approved'
       })
     } catch (err) {
       console.error('Error acknowledging personal data change:', err)
