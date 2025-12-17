@@ -1093,11 +1093,6 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
           ) : (
             <Copy className="gba:h-4 gba:w-4" />
           )}
-          {copied ? (
-            <CheckCircle className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
-          ) : (
-            <Copy className="gba:h-4 gba:w-4" />
-          )}
         </Button>
       )}
     </div>
