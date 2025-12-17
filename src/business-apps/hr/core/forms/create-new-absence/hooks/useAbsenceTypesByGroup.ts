@@ -5,16 +5,19 @@ import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { CatalogEntry } from '@/common/types/CatalogTypes'
 
 /**
- * GraphQL query to fetch absence types from the CatalogEntry table.
+ * GraphQL query to fetch absence types from the CatalogEntry table with pagination.
  * This uses the same approach as other forms (e.g., Change Communication) to ensure
  * consistent permissions and data access.
  */
 const GET_ABSENCE_TYPES = `
-  query GetAbsenceTypes($activeUserLocale: String!) {
+  query GetAbsenceTypes($activeUserLocale: String!, $limit: Int!, $offset: Int!) {
     CatalogEntry(
       where: { 
         catalog: { version: { _eq: "v1" }, identifier: { _eq: "AbsenceType" } }
       }
+      limit: $limit
+      offset: $offset
+      orderBy: { value: ASC }
     ) {
       id
       value
@@ -30,6 +33,8 @@ const GET_ABSENCE_TYPES = `
     }
   }
 `
+
+const BATCH_SIZE = 100
 
 interface GraphQLCatalogEntry {
   id: string
@@ -76,13 +81,30 @@ export const useAbsenceTypesByGroup = (
     }
 
     try {
-      const response = await graphqlClient.request<{ CatalogEntry: GraphQLCatalogEntry[] }>(GET_ABSENCE_TYPES, {
-        activeUserLocale: userLocale
-      })
+      // Fetch all entries using pagination
+      const allEntries: GraphQLCatalogEntry[] = []
+      let offset = 0
+      let hasMore = true
 
-      const entries = response?.CatalogEntry || []
+      while (hasMore) {
+        const response = await graphqlClient.request<{ CatalogEntry: GraphQLCatalogEntry[] }>(GET_ABSENCE_TYPES, {
+          activeUserLocale: userLocale,
+          limit: BATCH_SIZE,
+          offset
+        })
 
-      if (entries.length === 0) {
+        const entries = response?.CatalogEntry || []
+        allEntries.push(...entries)
+
+        // If we got fewer entries than the batch size, we've reached the end
+        if (entries.length < BATCH_SIZE) {
+          hasMore = false
+        } else {
+          offset += BATCH_SIZE
+        }
+      }
+
+      if (allEntries.length === 0) {
         return []
       }
 
@@ -90,12 +112,12 @@ export const useAbsenceTypesByGroup = (
       // - a parent entry id (e.g. 'AbsenceType:v1:A001') OR
       // - a child entry value (e.g. 'Vacation')
       // Find the parent id first, then return all entries with the same parentEntryId
-      let filteredEntries = entries
+      let filteredEntries = allEntries
       if (parentEntryId) {
         const normalize = (s?: string) => (s ?? '').toLowerCase().trim()
 
         // Try to find an entry matching by id OR by value
-        const matchedEntry = entries.find((entry: GraphQLCatalogEntry) => {
+        const matchedEntry = allEntries.find((entry: GraphQLCatalogEntry) => {
           return entry.id === parentEntryId || normalize(entry.value) === normalize(parentEntryId)
         })
 
@@ -103,7 +125,7 @@ export const useAbsenceTypesByGroup = (
         const targetParentId = matchedEntry ? matchedEntry.parentEntryId || matchedEntry.id : parentEntryId
 
         // Return all entries that share this parent id
-        filteredEntries = entries.filter((entry: GraphQLCatalogEntry) => entry.parentEntryId === targetParentId)
+        filteredEntries = allEntries.filter((entry: GraphQLCatalogEntry) => entry.parentEntryId === targetParentId)
       }
 
       const processedOptions = filteredEntries.map((entry: GraphQLCatalogEntry) => {
@@ -126,7 +148,8 @@ export const useAbsenceTypesByGroup = (
       })
 
       return processedOptions
-    } catch {
+    } catch (err) {
+      console.error('Failed to load absence types:', err instanceof Error ? err.message : 'Unknown error')
       return []
     }
   }, [graphqlClient, context.accessToken, userLocale, parentEntryId])
@@ -146,6 +169,7 @@ export const useAbsenceTypesByGroup = (
       setAbsenceTypes(types)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load absence types'
+      console.error('Error loading absence types catalog:', errorMessage)
       setError(errorMessage)
     } finally {
       setIsLoading(false)

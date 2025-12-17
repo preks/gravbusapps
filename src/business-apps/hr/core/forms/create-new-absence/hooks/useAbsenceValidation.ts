@@ -84,6 +84,31 @@ export interface UseAbsenceValidationProps {
   context: BusinessAppContextProps
 }
 
+/**
+ * Extracts priority from an absence type's objectValue.
+ * Lower numbers indicate higher priority (e.g., priority 5 > priority 10).
+ * Returns 999 as default (lowest priority) if no priority is found.
+ */
+export const extractPriority = (objectValue: unknown): number => {
+  if (!objectValue) return 999
+
+  if (typeof objectValue === 'string') {
+    try {
+      const parsed = JSON.parse(objectValue)
+      return typeof parsed?.priority === 'number' ? parsed.priority : 999
+    } catch {
+      return 999
+    }
+  }
+
+  if (typeof objectValue === 'object' && objectValue !== null) {
+    const obj = objectValue as Record<string, unknown>
+    return typeof obj?.priority === 'number' ? obj.priority : 999
+  }
+
+  return 999
+}
+
 export const useAbsenceValidation = ({
   accessToken,
   employeeId,
@@ -289,25 +314,6 @@ export const useAbsenceValidation = ({
 
     fetchAbsenceEntitlement()
   }, [accessToken, employeeId, selectedType, client, absenceTypeDetails])
-
-  const extractPriority = (objectValue: any): number => {
-    if (!objectValue) return 999
-
-    if (typeof objectValue === 'string') {
-      try {
-        const parsed = JSON.parse(objectValue)
-        return typeof parsed?.priority === 'number' ? parsed.priority : 999
-      } catch {
-        return 999
-      }
-    }
-
-    if (typeof objectValue === 'object' && objectValue !== null) {
-      return typeof objectValue?.priority === 'number' ? objectValue.priority : 999
-    }
-
-    return 999
-  }
 
   const checkOverlapValidation = useCallback(
     (newStartDate: Date, newEndDate: Date): AbsenceValidationError[] => {
