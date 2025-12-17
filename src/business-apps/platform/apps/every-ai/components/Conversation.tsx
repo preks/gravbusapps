@@ -135,7 +135,7 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
               <Button
                 variant="ghost"
                 size="sm"
-                className="gba:absolute gba:top-2 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
+                className="gba:absolute gba:top-4 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
                 onClick={handleCopy}
                 data-testid="user-message-copy-button"
               >

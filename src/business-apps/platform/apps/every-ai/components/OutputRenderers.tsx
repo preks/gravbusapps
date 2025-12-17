@@ -252,21 +252,14 @@ const normalizeLinkSpacing = (input: string): string => {
 
 export const TextBlockDisplay: React.FC<{ data: TextBlockData; accessToken: string }> = ({ data, accessToken }) => {
   const content = normalizeLinkSpacing(data.text)
-  const [copied, setCopied] = useState(false)
 
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    try {
-      await navigator.clipboard.writeText(data.text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy text:', err)
-    }
-  }
+  // NOTE: Copy behaviour for AI answers is now handled once at the AnswerOutput level
+  // (see AnswerOutputRenderer / agent-message-copy-button). We deliberately keep this
+  // component focused on rendering the text only so the UI is consistent: one copy
+  // button per AI message, just like in OpenAI Chat.
 
   return (
-    <div className="gba:relative gba:group" data-testid="text-block-display">
+    <div className="gba:relative" data-testid="text-block-display">
       <div className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
@@ -284,24 +277,6 @@ export const TextBlockDisplay: React.FC<{ data: TextBlockData; accessToken: stri
           {content}
         </ReactMarkdown>
       </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="gba:absolute gba:top-2 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
-        onClick={handleCopy}
-        data-testid="text-block-copy-button"
-        aria-label={
-          copied
-            ? getTranslationFromI18nKeyAndLabel('everyAI.textBlock.copy.copied', 'Text copied')
-            : getTranslationFromI18nKeyAndLabel('everyAI.textBlock.copy.label', 'Copy text')
-        }
-      >
-        {copied ? (
-          <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
-        ) : (
-          <CopyIcon className="gba:h-4 gba:w-4" />
-        )}
-      </Button>
     </div>
   )
 }
@@ -1079,13 +1054,13 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
         <Button
           variant="ghost"
           size="sm"
-          className="gba:absolute gba:top-2 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
+          className="gba:absolute gba:top-4 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
           onClick={handleCopy}
           data-testid="agent-message-copy-button"
           aria-label={
             copied
               ? getTranslationFromI18nKeyAndLabel('everyAI.message.copy.copied', 'Message copied')
-              : getTranslationFromI18nKeyAndLabel('everyAI.message.copy.label', 'Copy message')
+              : getTranslationFromI18nKeyAndLabel('everyAI.message.label', 'Copy message')
           }
         >
           {copied ? (
