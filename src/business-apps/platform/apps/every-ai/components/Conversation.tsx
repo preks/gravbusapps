@@ -8,7 +8,6 @@ import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { CheckCircleIcon, CopyIcon, PencilSimple, SparkleIcon } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ConversationProps {
   turns: ConversationTurn[]
@@ -58,11 +57,9 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
     // Not JSON, use original text
   }
   const textWithMentions = buildTextWithMentions(displayText, turn.mentions)
-  const hasTextToCopy = displayText.trim().length > 0
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!hasTextToCopy) return
     try {
       await navigator.clipboard.writeText(displayText)
       setCopied(true)
@@ -142,12 +139,6 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
                   className="gba:h-7 gba:w-7 gba:p-0"
                   onClick={handleCopy}
                   data-testid="user-message-copy-button"
-                  disabled={!hasTextToCopy}
-                  aria-label={
-                    copied
-                      ? getTranslationFromI18nKeyAndLabel('everyAI.message.copy.copied', 'Message copied')
-                      : getTranslationFromI18nKeyAndLabel('everyAI.message.label', 'Copy message')
-                  }
                 >
                   {copied ? (
                     <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
@@ -162,7 +153,7 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
                   className="gba:h-7 gba:w-7 gba:p-0"
                   onClick={e => e.stopPropagation()}
                   data-testid="user-message-edit-button"
-                  aria-label={getTranslationFromI18nKeyAndLabel('everyAI.message.edit.label', 'Edit message')}
+                  aria-label="Edit message"
                 >
                   <PencilSimple className="gba:h-4 gba:w-4" />
                 </Button>
