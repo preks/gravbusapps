@@ -6,6 +6,7 @@ import { TeamAllocation } from '../types'
 import dayjs from 'dayjs'
 import { env } from '@/common/env/EnvUtils'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
+import { toast } from '@newwork/nw-design-system'
 
 interface EmployeeMatrixUnitResponse {
   EmployeeMatrixUnit: Array<{
@@ -234,7 +235,6 @@ export const useEmployeeTeamAllocations = ({
           GET_PROJECTS_BY_MATRIX_UNITS,
           { matrixUnitIds }
         )
-        console.log(projectsResponse, 'projectsByMatrixUnit')
 
         // Create a map of matrixUnitId -> project
         const projectsByMatrixUnit = new Map<string, { id: string; name: string }>()
@@ -366,6 +366,7 @@ export const useEmployeeTeamAllocations = ({
             }
           } catch (err) {
             console.warn('Could not fetch historical project details:', err)
+            toast.error('Could not fetch historical project details')
           }
 
           // Create historical projects list - use project name if available, otherwise use ID

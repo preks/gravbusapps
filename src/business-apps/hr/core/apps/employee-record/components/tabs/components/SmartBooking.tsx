@@ -24,7 +24,9 @@ import {
   FormField,
   FormItem,
   FormControl,
-  FormMessage
+  FormMessage,
+  Toaster,
+  toast
 } from '@newwork/nw-design-system'
 import { CalendarIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import { getWeekStart, getWeekEnd, getWeekdays } from '../../../utils/weekUtils'
@@ -198,9 +200,9 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     // Update form default values
     const formValues: FormValues = {}
     for (const booking of allBookings) {
-      for (let dayIndex = 0; dayIndex < booking.days.length; dayIndex++) {
+      for (const [dayIndex, day] of booking.days.entries()) {
         const fieldKey = `${booking.teamId}-${dayIndex}`
-        formValues[fieldKey] = booking.days[dayIndex].hours
+        formValues[fieldKey] = day.hours
       }
     }
     form.reset(formValues)
@@ -229,39 +231,41 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   // Get current week bookings
   const currentBookings = weekBookings[weekKey] || []
 
+  // Helper function to check day editability status
+  const getDayEditStatus = useCallback(
+    (day: DayHours, booking: WeekBooking) => {
+      const currentMonth = dayjs().month()
+      const currentYear = dayjs().year()
+      const dateKey = dayjs(day.date).format('YYYY-MM-DD')
+      const bookedKey = booking.projectId ? `${booking.projectId}-${dateKey}` : ''
+
+      const isSubmitted = bookedKey ? !!bookedHours[bookedKey] : false
+      const isBeforeAssignment = booking.assignedAt ? dayjs(day.date).isBefore(dayjs(booking.assignedAt), 'day') : false
+      const dayMonth = dayjs(day.date).month()
+      const dayYear = dayjs(day.date).year()
+      const isNotCurrentMonth = dayMonth !== currentMonth || dayYear !== currentYear
+      const isEditable = !isSubmitted && !isBeforeAssignment && !isNotCurrentMonth
+
+      return { isSubmitted, isBeforeAssignment, isNotCurrentMonth, isEditable, dateKey, bookedKey }
+    },
+    [bookedHours]
+  )
+
   // Check if there are any unsubmitted hours (to enable/disable submit button)
   const hasUnsubmittedHours = useMemo(() => {
-    const currentMonth = dayjs().month()
-    const currentYear = dayjs().year()
-
     for (const booking of currentBookings) {
       // Skip bookings without projectId or historical bookings
       if (!booking.projectId || booking.teamId.startsWith('historical-')) continue
 
-      for (let dayIndex = 0; dayIndex < booking.days.length; dayIndex++) {
-        const day = booking.days[dayIndex]
-        const dateKey = dayjs(day.date).format('YYYY-MM-DD')
-        const bookedKey = `${booking.projectId}-${dateKey}`
-        const isSubmitted = !!bookedHours[bookedKey]
-
-        // Check if day is before assignment
-        const isBeforeAssignment = booking.assignedAt
-          ? dayjs(day.date).isBefore(dayjs(booking.assignedAt), 'day')
-          : false
-
-        // Check if day is not in the current month
-        const dayMonth = dayjs(day.date).month()
-        const dayYear = dayjs(day.date).year()
-        const isNotCurrentMonth = dayMonth !== currentMonth || dayYear !== currentYear
-
-        // If not submitted, not before assignment, and in current month, we have unsubmitted hours
-        if (!isSubmitted && !isBeforeAssignment && !isNotCurrentMonth) {
+      for (const day of booking.days) {
+        const { isEditable } = getDayEditStatus(day, booking)
+        if (isEditable) {
           return true
         }
       }
     }
     return false
-  }, [currentBookings, bookedHours])
+  }, [currentBookings, getDayEditStatus])
 
   // Check if there are any submitted hours for this week (to show "Submitted" label)
   const hasSubmittedHours = useMemo(() => {
@@ -344,44 +348,29 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   const handleSubmit = useCallback(async () => {
     try {
       const formValues = form.getValues()
-      const currentMonth = dayjs().month()
-      const currentYear = dayjs().year()
+      const dailyTotals: Record<string, number> = {}
+      const editableDates = new Set<string>()
       const modifiedBookings: Array<{
         teamId: string
         projectId: string
         days: Array<{ date: string; hours: number }>
       }> = []
 
-      // Only include bookings that have been modified (not already submitted)
       for (const booking of currentBookings) {
-        // Skip bookings without projectId
-        if (!booking.projectId) continue
+        // Skip bookings without projectId or historical bookings
+        if (!booking.projectId || booking.teamId.startsWith('historical-')) continue
 
         const modifiedDays: Array<{ date: string; hours: number }> = []
-        for (let dayIndex = 0; dayIndex < booking.days.length; dayIndex++) {
-          const day = booking.days[dayIndex]
+
+        for (const [dayIndex, day] of booking.days.entries()) {
+          const { isEditable, dateKey } = getDayEditStatus(day, booking)
           const fieldKey = `${booking.teamId}-${dayIndex}`
           const formValue = formValues[fieldKey] || 0
-          const dateKey = dayjs(day.date).format('YYYY-MM-DD')
-          const bookedKey = `${booking.projectId}-${dateKey}`
-          const isSubmitted = !!bookedHours[bookedKey]
 
-          // Skip days before employee was assigned to this project
-          const isBeforeAssignment = booking.assignedAt
-            ? dayjs(day.date).isBefore(dayjs(booking.assignedAt), 'day')
-            : false
-
-          // Skip days not in current month
-          const dayMonth = dayjs(day.date).month()
-          const dayYear = dayjs(day.date).year()
-          const isNotCurrentMonth = dayMonth !== currentMonth || dayYear !== currentYear
-
-          // Only include if not already submitted, not before assignment date, and in current month
-          if (!isSubmitted && !isBeforeAssignment && !isNotCurrentMonth) {
-            modifiedDays.push({
-              date: day.date,
-              hours: formValue
-            })
+          if (isEditable) {
+            editableDates.add(dateKey)
+            dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + formValue
+            modifiedDays.push({ date: day.date, hours: formValue })
           }
         }
 
@@ -394,6 +383,25 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
         }
       }
 
+      // Validate: Check if allocated hours >= recorded hours for each editable day
+      for (const dateKey of editableDates) {
+        const allocatedTotal = dailyTotals[dateKey] || 0
+        const recordedTotal = recordedHoursByDate[dateKey] || 0
+
+        // Allocated hours must be at least equal to recorded hours
+        if (allocatedTotal < recordedTotal - 0.01) {
+          // Allow small floating point tolerance
+          toast.error(
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_tracking.smart_booking.hours_not_distributed',
+              'All recorded hours must be fully distributed. You cannot allocate fewer hours than recorded hours.'
+            )
+          )
+          return
+        }
+      }
+
+      // Submit if we have bookings to submit
       if (modifiedBookings.length > 0) {
         await submitWorkingHours(modifiedBookings)
         // Refetch booked hours after successful submit
@@ -403,7 +411,16 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       // Error is already handled in the hook
       console.error('Failed to submit working hours:', err)
     }
-  }, [form, submitWorkingHours, currentBookings, bookedHours, fetchBookedHours, weekDays, allocations])
+  }, [
+    form,
+    submitWorkingHours,
+    currentBookings,
+    bookedHours,
+    fetchBookedHours,
+    weekDays,
+    allocations,
+    recordedHoursByDate
+  ])
 
   // Show loading state
   if (isLoadingAllocations) {
@@ -476,6 +493,20 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     )
   }
 
+  // Determine submit button text based on state
+  const getSubmitButtonText = () => {
+    if (isSubmitting) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitting', 'Submitting...')
+    }
+    if (isLoadingWeekData) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.loading', 'Loading...')
+    }
+    if (hasSubmittedHours && !hasUnsubmittedHours) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitted', 'Submitted')
+    }
+    return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submit_hours', 'Submit Hours')
+  }
+
   return (
     <div data-testid={dataTestId} className="gba:overflow-hidden gba:flex gba:flex-col gba:gap-4">
       <div className="gba:flex gba:items-center gba:justify-between">
@@ -488,16 +519,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
           disabled={isSubmitting || isLoadingWeekData || !hasUnsubmittedHours}
           data-testid={`${dataTestId}-submit-button`}
         >
-          {isSubmitting
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitting', 'Submitting...')
-            : isLoadingWeekData
-              ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.loading', 'Loading...')
-              : hasSubmittedHours && !hasUnsubmittedHours
-                ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitted', 'Submitted')
-                : getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.smart_booking.submit_hours',
-                    'Submit Hours'
-                  )}
+          {getSubmitButtonText()}
         </Button>
       </div>
       {/* Week Navigation */}
@@ -625,21 +647,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
                         </TableCell>
                         {booking.days.map((day, dayIndex) => {
                           const fieldKey = `${booking.teamId}-${dayIndex}`
-                          const dateKey = dayjs(day.date).format('YYYY-MM-DD')
-                          const bookedKey = booking.projectId ? `${booking.projectId}-${dateKey}` : ''
-                          const isSubmitted = bookedKey ? !!bookedHours[bookedKey] : false
-
-                          // Check if day is before employee was assigned to this team/project
-                          const isBeforeAssignment = booking.assignedAt
-                            ? dayjs(day.date).isBefore(dayjs(booking.assignedAt), 'day')
-                            : false
-
-                          // Check if day is not in the current month (disable editing for past/future months)
-                          const currentMonth = dayjs().month()
-                          const currentYear = dayjs().year()
-                          const dayMonth = dayjs(day.date).month()
-                          const dayYear = dayjs(day.date).year()
-                          const isNotCurrentMonth = dayMonth !== currentMonth || dayYear !== currentYear
+                          const { isSubmitted, isBeforeAssignment, isNotCurrentMonth } = getDayEditStatus(day, booking)
 
                           return (
                             <TableCell key={day.date} className="gba:text-center">
@@ -691,13 +699,13 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
                                               // Parse and validate (max 24 hours per day)
                                               const numValue = Number.parseFloat(rawValue)
                                               if (!Number.isNaN(numValue) && numValue <= 24) {
-                                                field.onChange(Number.parseFloat(numValue.toFixed(1)))
+                                                field.onChange(Math.round(numValue * 10) / 10)
                                               }
                                             }}
                                             onBlur={() => {
                                               // Ensure value is properly formatted on blur
                                               const val = field.value ?? 0
-                                              field.onChange(Number.parseFloat(val.toFixed(1)))
+                                              field.onChange(Math.round(val * 10) / 10)
                                             }}
                                           />
                                         </div>
@@ -742,6 +750,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
           </form>
         </Form>
       )}
+      <Toaster />
     </div>
   )
 }
