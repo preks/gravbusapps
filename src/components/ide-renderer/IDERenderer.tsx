@@ -109,9 +109,19 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
     // This defensive approach prevents orphaned tasks at the cost of redundant events
     if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup' || selectedApp.type === 'window')) {
       try {
+        // Extract endpoint from additionalData for Kogito API call
+        // Platform listener needs this to know where to send the DELETE request
+        const processMetadata = additionalData?.psi_processMetadata
+        const taskPayload = additionalData?.psi_taskPayload
+        const endpoint = processMetadata?.endpoint || taskPayload?.endpoint || (additionalData as any)?.endpoint
+
         dispatchProcessContinueEvent(PSE_ABORT_EVENT, {
           event: PSE_ABORT_EVENT,
-          pso_exitStrategy: ABORT_EXIT_STRATEGY
+          pso_exitStrategy: ABORT_EXIT_STRATEGY,
+          // Include metadata so platform listener can make the DELETE request
+          ...(processMetadata && { psi_processMetadata: processMetadata }),
+          ...(taskPayload && { psi_taskPayload: taskPayload }),
+          ...(endpoint && { endpoint })
         })
       } catch (error) {
         // Log error for observability while still allowing dialog close to proceed
