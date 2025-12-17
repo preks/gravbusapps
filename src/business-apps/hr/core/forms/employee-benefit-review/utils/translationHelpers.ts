@@ -1,42 +1,6 @@
-import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
-import type { CatalogEntry as CommonCatalogEntry } from '@/common/data/catalog/types/catalogTypes'
-import type { BenefitSummaryData, CatalogEntry } from '../types'
+import type { BenefitSummaryData } from '../types'
 import type { BenefitCatalogItem } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/types/benefitCatalogTypes'
-import type { CatalogEntry as CompensationCatalogEntry } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/types/compensationTypes'
-
-/**
- * Type guard to check if entry has the structure we need
- */
-type AnyCatalogEntry = CatalogEntry | CompensationCatalogEntry
-
-/**
- * Converts a simplified CatalogEntry to common CatalogEntry format
- * for use with getCatalogEntryValue utility
- */
-const toCommonCatalogEntry = (entry: AnyCatalogEntry | null | undefined): CommonCatalogEntry | null => {
-  if (!entry) return null
-
-  return {
-    id: entry.id || '',
-    code: entry.code || '',
-    value: entry.value || '',
-    catalogId: '',
-    translations:
-      entry.translations?.map(t => ({
-        id: '',
-        localeCode: t.localeCode,
-        value: t.value,
-        additionalValue1: '',
-        additionalValue2: '',
-        additionalValue3: '',
-        catalogEntryId: ''
-      })) || [],
-    displayValue: entry.value || '',
-    hasChildren: false,
-    level: 0,
-    searchableText: entry.value || ''
-  } as CommonCatalogEntry
-}
+import { getTranslatedCatalogEntryValue as getTranslatedValue } from '@/business-apps/hr/core/utils/catalogConversionUtils'
 
 /**
  * Gets the translated benefit type value from BenefitSummaryData or BenefitCatalogItem
@@ -51,21 +15,15 @@ export const getTranslatedBenefitType = (benefit: BenefitSummaryData | BenefitCa
     return benefit.benefitType || ''
   }
 
-  const commonEntry = toCommonCatalogEntry(benefit.catalogEntry as AnyCatalogEntry)
-
-  if (!commonEntry) return benefit.benefitType || ''
-  return getCatalogEntryValue(commonEntry, locale)
+  return getTranslatedValue(benefit.catalogEntry, locale) || benefit.benefitType || ''
 }
 
 /**
  * Gets the translated value from a CatalogEntry
+ * Re-exported for convenience to maintain API compatibility
  *
  * @param entry - The catalog entry
  * @param locale - The locale code (e.g., "de-DE", "en-US")
  * @returns The translated value
  */
-export const getTranslatedCatalogEntryValue = (entry: AnyCatalogEntry | null | undefined, locale: string): string => {
-  const commonEntry = toCommonCatalogEntry(entry)
-  if (!commonEntry) return ''
-  return getCatalogEntryValue(commonEntry, locale)
-}
+export const getTranslatedCatalogEntryValue = getTranslatedValue
