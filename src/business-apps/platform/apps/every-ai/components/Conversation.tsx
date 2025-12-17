@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { Sparkle, Copy, CheckCircle } from '@phosphor-icons/react'
+import { CheckCircleIcon, CopyIcon, SparkleIcon } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
 
 interface ConversationProps {
@@ -140,9 +140,9 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
                 data-testid="user-message-copy-button"
               >
                 {copied ? (
-                  <CheckCircle className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+                  <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
                 ) : (
-                  <Copy className="gba:h-4 gba:w-4" />
+                  <CopyIcon className="gba:h-4 gba:w-4" />
                 )}
               </Button>
             </div>
@@ -216,11 +216,8 @@ const Conversation: React.FC<ConversationProps> = ({ turns, accessToken, sendMes
             data-testid="chat-agent-turn"
           >
             {/* Premium AI Avatar */}
-            <div className="gba:relative gba:flex-shrink-0">
-              <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:blur-md gba:opacity-40 gba:animate-pulse" />
-              <div className="gba:h-10 gba:w-10 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
-                <Sparkle className="gba:h-5 gba:w-5 gba:text-ai-foreground" weight="fill" />
-              </div>
+            <div className="gba:flex-shrink-0 gba:w-10 gba:h-10 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:shadow-lg">
+              <SparkleIcon className="gba:h-5 gba:w-5 gba:text-ai-foreground" weight="fill" />
             </div>
 
             {/* Message content */}

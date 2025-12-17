@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
-import { Copy, CheckCircle } from '@phosphor-icons/react'
+import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
 import type {
   OutputItem,
   AnswerOutput,
@@ -297,9 +297,9 @@ export const TextBlockDisplay: React.FC<{ data: TextBlockData; accessToken: stri
         }
       >
         {copied ? (
-          <CheckCircle className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+          <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
         ) : (
-          <Copy className="gba:h-4 gba:w-4" />
+          <CopyIcon className="gba:h-4 gba:w-4" />
         )}
       </Button>
     </div>
@@ -1089,9 +1089,9 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
           }
         >
           {copied ? (
-            <CheckCircle className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+            <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
           ) : (
-            <Copy className="gba:h-4 gba:w-4" />
+            <CopyIcon className="gba:h-4 gba:w-4" />
           )}
         </Button>
       )}
