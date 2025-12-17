@@ -4,7 +4,6 @@ import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster } from '@newwork/nw-design-system'
 import CompaniesTab from './components/tabs/CompaniesTab'
-import ProjectsTab from './components/tabs/ProjectsTab'
 import { SiteLocationsTab } from './components/tabs/SiteLocationsTab'
 import { CapabilitiesTab } from './components/tabs/CapabilitiesTab'
 import { CostCentersTab } from './components/tabs/CostCentersTab'
@@ -14,7 +13,6 @@ import { BuildingsIcon } from '@phosphor-icons/react'
 
 export enum OrganizationalDataTabs {
   COMPANIES = 'companies',
-  PROJECTS = 'projects',
   SITE_LOCATIONS = 'site-locations',
   CAPABILITIES = 'capabilities',
   COST_CENTERS = 'cost-centers',
@@ -77,11 +75,6 @@ const OrganizationalData: React.FC<OrganizationalDataProps> = ({ className, pref
       key: OrganizationalDataTabs.COMPANIES,
       label: t('hr.companies', 'Companies'),
       children: <CompaniesTab {...contextProps} prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`} />
-    },
-    {
-      key: OrganizationalDataTabs.PROJECTS,
-      label: t('hr.projects', 'Projects'),
-      children: <ProjectsTab {...contextProps} prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`} />
     },
     {
       key: OrganizationalDataTabs.SITE_LOCATIONS,
