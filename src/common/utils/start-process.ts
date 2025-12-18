@@ -61,9 +61,7 @@ export function startProcess({
         startProcessBody,
         processInstanceId,
         builderType,
-        skipScreen,
-        targetDesktop,
-        targetMobile
+        skipScreen
       }
     })
   )

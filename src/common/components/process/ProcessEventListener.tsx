@@ -8,8 +8,6 @@ export interface ProcessLocalDevEvent {
   processInstanceId?: string
   builderType?: 'NATIVE_SCREEN' | 'LOWCODER'
   skipScreen?: boolean
-  targetDesktop?: string
-  targetMobile?: string
 }
 
 interface ProcessEventListenerProps {

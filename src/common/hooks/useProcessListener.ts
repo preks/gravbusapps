@@ -7,8 +7,6 @@ interface ProcessStartEventDetail {
   processInstanceId?: string
   builderType?: 'NATIVE_SCREEN' | 'LOWCODER'
   skipScreen?: boolean
-  targetDesktop?: string
-  targetMobile?: string
 }
 
 /**
@@ -28,7 +26,7 @@ export const useProcessListener = (): void => {
 
       if (isLocalhost) {
         // Local development handling
-        const { builderType, skipScreen, targetDesktop, targetMobile } = event.detail
+        const { builderType, skipScreen } = event.detail
         const ideEvent = new CustomEvent('com.newwork.business.app.ide.localdev', {
           detail: {
             domain,
@@ -36,9 +34,7 @@ export const useProcessListener = (): void => {
             startProcessBody,
             processInstanceId,
             builderType,
-            skipScreen,
-            targetDesktop,
-            targetMobile
+            skipScreen
           }
         })
         window.dispatchEvent(ideEvent)
