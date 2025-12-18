@@ -16,3 +16,26 @@ export {
 export { allowanceRegionRuleFormSchema, type AllowanceRegionRuleFormSchema } from './allowanceRegionRuleFormSchema'
 export { assignmentFormSchema, type AssignmentFormSchema } from './assignmentFormSchema'
 export { customFieldFormSchema, type CustomFieldFormSchema } from './customFieldFormSchema'
+
+// Default export for screen entry point
+import { allowanceCodeFormSchema } from './allowanceCodeFormSchema'
+import { generalExpenseFormSchema, createGeneralExpenseFormSchema } from './generalExpenseFormSchema'
+import { deductionFormSchema } from './deductionFormSchema'
+import { calculationRuleFormSchema } from './calculationRuleFormSchema'
+import { mileageRuleFormSchema, mileageRuleDetailFormSchema } from './mileageRuleFormSchema'
+import { allowanceRegionRuleFormSchema } from './allowanceRegionRuleFormSchema'
+import { assignmentFormSchema } from './assignmentFormSchema'
+import { customFieldFormSchema } from './customFieldFormSchema'
+
+export default {
+  allowanceCodeFormSchema,
+  generalExpenseFormSchema,
+  createGeneralExpenseFormSchema,
+  deductionFormSchema,
+  calculationRuleFormSchema,
+  mileageRuleFormSchema,
+  mileageRuleDetailFormSchema,
+  allowanceRegionRuleFormSchema,
+  assignmentFormSchema,
+  customFieldFormSchema
+}

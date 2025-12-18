@@ -509,3 +509,5 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
     </div>
   )
 }
+
+export default DocumentSegment
