@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 
 import { Form, message } from 'antd'
 import { ExpensePosition, ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
+import { useTranslation } from '@newwork/nw-design-system'
+import expenseItemTranslations from '../_i18n'
 
 import {
   getCurrentActiveUserLocale,
@@ -57,6 +59,7 @@ interface ExpenseItemContextProps {
   setMultiPosition: (isMulti: boolean) => void
   isEditMode: boolean
   setCurrentSelectedDate: (date: Date | null) => void
+  isCreating: boolean
 
   positions: ExpensePosition[]
   setPositions: (positions: ExpensePosition[]) => void
@@ -102,7 +105,11 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
+  const { t: tNew } = useTranslation(expenseItemTranslations)
+  // Wrapper function for backward compatibility with old translation pattern
+  const t = (key: string, fallback?: string) => {
+    return getTranslationFromI18nKeyAndLabel(key, fallback || key)
+  }
 
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)
@@ -138,6 +145,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null)
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
   const [receiptCurrencyError, setReceiptCurrencyError] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState<boolean>(false)
 
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
   const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
@@ -599,10 +607,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     const requestCurrency = currencies.find(c => c.id === additionalData.itemCurrency)
 
     if (additionalData?.useSingleCurrency && !requestCurrency) {
-      const errorMsg = t(
-        'lowcoder:expense_item.currency_validation_unavailable',
-        'Unable to validate the receipt currency against your expense rule. Please try again or contact your administrator.'
-      )
+      const errorMsg = tNew('currency-validation-unavailable')
       setReceiptCurrencyError(errorMsg)
       return false
     }
@@ -615,10 +620,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       return true
     }
 
-    const detailedMessage = t(
-      'lowcoder:create_expense_item.currency_mismatch_detail',
-      `The receipt currency (${data.currencyCode}) does not match the expense request currency (${requestCurrency.code}). The expense item could not be created.`
-    )
+    const detailedMessage = tNew('currency-mismatch-detail', {
+      receiptCurrency: data.currencyCode,
+      requestCurrency: requestCurrency.code
+    } as Record<string, any>)
 
     setReceiptCurrencyError(detailedMessage)
 
@@ -860,27 +865,44 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       throw new Error(receiptCurrencyError)
     }
 
-    return await handleSubmit(
-      form,
-      positions,
-      customFields,
-      employeeRuleId,
-      catalogueDataResponse,
-      multiPosition,
-      setPositions,
-      setFileListState,
-      setCurrentStep,
-      setLoading,
-      t,
-      fileList,
-      accessToken,
-      userInfo?.employeeDetails?.employeeId,
-      additionalData,
-      userInfo,
-      itemValues || undefined,
-      getIsProcessEventDispatched,
-      dispatchProcessContinueEventIfEnabled
-    )
+    // Show overlay spinner for 1 second
+    setIsCreating(true)
+    const startTime = Date.now()
+    const spinnerTimeout = setTimeout(() => {
+      setIsCreating(false)
+    }, 1000)
+
+    try {
+      return await handleSubmit(
+        form,
+        positions,
+        customFields,
+        employeeRuleId,
+        catalogueDataResponse,
+        multiPosition,
+        setPositions,
+        setFileListState,
+        setCurrentStep,
+        setLoading,
+        t,
+        fileList,
+        accessToken,
+        userInfo?.employeeDetails?.employeeId,
+        additionalData,
+        userInfo,
+        itemValues || undefined,
+        getIsProcessEventDispatched,
+        dispatchProcessContinueEventIfEnabled
+      )
+    } finally {
+      // Ensure spinner is hidden after exactly 1 second total
+      clearTimeout(spinnerTimeout)
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, 1000 - elapsedTime)
+      setTimeout(() => {
+        setIsCreating(false)
+      }, remainingTime)
+    }
   }
 
   const handleCancelWrapper = (noDispatchEvent: boolean = false) => {
@@ -1077,6 +1099,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setMultiPosition,
       isEditMode,
       setCurrentSelectedDate,
+      isCreating,
       positions,
       setPositions,
       expenseGroups,
@@ -1113,6 +1136,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       isFormDisabled,
       multiPosition,
       isEditMode,
+      isCreating,
       positions,
       expenseGroups,
       expenseTypes,
