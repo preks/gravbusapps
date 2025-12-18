@@ -228,7 +228,7 @@ const UserMessage: React.FC<UserMessageProps> = ({
                       aria-label={
                         copied
                           ? getTranslationFromI18nKeyAndLabel('everyAI.message.copy.copied', 'Message copied')
-                          : getTranslationFromI18nKeyAndLabel('everyAI.message.label', 'Copy message')
+                          : getTranslationFromI18nKeyAndLabel('everyAI.message.copy.label', 'Copy message')
                       }
                     >
                       {copied ? (
