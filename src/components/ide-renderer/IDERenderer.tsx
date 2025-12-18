@@ -100,32 +100,85 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
     }
   }, [selectedApp])
 
-  const handleDialogClose = () => {
-    // Dispatch abort event to clean up Kogito tasks when dialog closes via X button or ESC
+  const handleDialogClose = async () => {
+    // Clean up Kogito tasks when dialog closes via X button, ESC, or clicking outside
     // NOTE: This runs on ANY close (X button, ESC, or programmatic)
-    // - If form already handled cleanup (via Cancel/Submit), Kogito ignores duplicate events
-    // - If task is completed, abort events are safely ignored by the platform
+    // - If form already handled cleanup (via Cancel/Submit), Kogito ignores duplicate requests (idempotent)
+    // - If task is completed, abort requests are safely ignored by the platform
     // - If user closed via X/ESC without cleanup, this ensures task cleanup
-    // This defensive approach prevents orphaned tasks at the cost of redundant events
+    // This defensive approach prevents orphaned tasks at the cost of redundant requests
     if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup' || selectedApp.type === 'window')) {
       try {
         // Extract endpoint from additionalData for Kogito API call
-        // Platform listener needs this to know where to send the DELETE request
         const processMetadata = additionalData?.psi_processMetadata
         const taskPayload = additionalData?.psi_taskPayload
         const endpoint = processMetadata?.endpoint || taskPayload?.endpoint || (additionalData as any)?.endpoint
 
-        dispatchProcessContinueEvent(PSE_ABORT_EVENT, {
-          event: PSE_ABORT_EVENT,
-          pso_exitStrategy: ABORT_EXIT_STRATEGY,
-          // Include metadata so platform listener can make the DELETE request
-          ...(processMetadata && { psi_processMetadata: processMetadata }),
-          ...(taskPayload && { psi_taskPayload: taskPayload }),
-          ...(endpoint && { endpoint })
-        })
+        if (endpoint && accessToken) {
+          // Extract process instance ID from endpoint
+          // Endpoint format: /processes/{domain}/{processName}/{processInstanceId}/{taskName}/{taskId}
+          // We need: /processes/{domain}/{processName}/{processInstanceId}
+          let processInstanceUrl = ''
+          const baseUrl = window.location.origin
+
+          try {
+            let endpointPath = endpoint
+            // Handle full URLs
+            if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+              const url = new URL(endpoint)
+              endpointPath = url.pathname
+            }
+
+            // Split path and extract process instance part
+            // /processes/employee/changeCommunication/abc-123-def/Task_1/task-id
+            // We want: /processes/employee/changeCommunication/abc-123-def
+            const segments = endpointPath.split('/').filter(Boolean)
+            if (segments.length >= 4 && segments[0] === 'processes') {
+              // Take first 4 segments: processes/{domain}/{processName}/{processInstanceId}
+              processInstanceUrl = `/${segments.slice(0, 4).join('/')}`
+            } else {
+              processInstanceUrl = endpointPath
+            }
+          } catch {
+            // Fallback: use endpoint as is
+            processInstanceUrl = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+          }
+
+          const fullUrl = `${baseUrl}${processInstanceUrl}`
+
+          // Make direct HTTP DELETE to abort the Kogito process (same as Cancel button)
+          // Fire and forget - don't wait for response to avoid blocking UI close
+          fetch(fullUrl, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${accessToken}`
+            }
+          }).catch(error => {
+            // Log error but don't block dialog close
+            console.error('Failed to abort Kogito process on dialog close:', error)
+          })
+
+          // Also dispatch event for any other listeners (backwards compatibility)
+          dispatchProcessContinueEvent(PSE_ABORT_EVENT, {
+            event: PSE_ABORT_EVENT,
+            pso_exitStrategy: ABORT_EXIT_STRATEGY,
+            ...(processMetadata && { psi_processMetadata: processMetadata }),
+            ...(taskPayload && { psi_taskPayload: taskPayload }),
+            ...(endpoint && { endpoint })
+          })
+        } else {
+          // No endpoint or accessToken - just dispatch event as fallback
+          dispatchProcessContinueEvent(PSE_ABORT_EVENT, {
+            event: PSE_ABORT_EVENT,
+            pso_exitStrategy: ABORT_EXIT_STRATEGY,
+            ...(processMetadata && { psi_processMetadata: processMetadata }),
+            ...(taskPayload && { psi_taskPayload: taskPayload }),
+            ...(endpoint && { endpoint })
+          })
+        }
       } catch (error) {
         // Log error for observability while still allowing dialog close to proceed
-        console.error('Failed to dispatch pse_abort event on dialog close:', error)
+        console.error('Error in handleDialogClose:', error)
       }
     }
 
