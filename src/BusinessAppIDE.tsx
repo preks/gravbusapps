@@ -238,11 +238,29 @@ export interface CompMeta {
 }
 
 const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
-  const { domain, processName, processInstanceId, startProcessBody } = event
+  const {
+    domain,
+    processName,
+    processInstanceId,
+    startProcessBody,
+    builderType,
+    skipScreen,
+    targetDesktop,
+    targetMobile
+  } = event
+  const parts = [
+    `Domain: ${domain}`,
+    `Process: ${processName}`,
+    processInstanceId ? `ID: ${processInstanceId}` : null,
+    builderType ? `Builder: ${builderType}` : null,
+    skipScreen !== undefined ? `Skip Screen: ${skipScreen}` : null,
+    targetDesktop ? `Target Desktop: ${targetDesktop}` : null,
+    targetMobile ? `Target Mobile: ${targetMobile}` : null,
+    `Process body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`
+  ].filter(Boolean)
+
   toast.success('Process Start Event Detected', {
-    description: `Domain: ${domain}, \nProcess: ${processName}${
-      processInstanceId ? `, ID: ${processInstanceId}` : ''
-    }\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
+    description: parts.join('\n'),
     position: 'top-right'
   })
 }
