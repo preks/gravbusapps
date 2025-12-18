@@ -39,7 +39,6 @@ interface FormScreenComponentProps {
   handleRemovePosition: (positionId: string) => void
   loading: boolean
   calculateTotal: () => number
-  isEmbeddedInRequestWizard?: boolean
 }
 
 export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
@@ -63,8 +62,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   handleExpenseTypeChange,
   handleAddPosition,
   handleRemovePosition,
-  calculateTotal,
-  isEmbeddedInRequestWizard = false
+  calculateTotal
 }) => {
   const t = getTranslationFromI18nKeyAndLabel
   const {
@@ -76,6 +74,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     isEditMode,
     additionalData
   } = useExpenseItem()
+
+  // Calculate isEmbeddedInRequestWizard from additionalData
+  const isEmbeddedInRequestWizard = Boolean(additionalData?.expenseRequestId && additionalData.expenseRequestId !== '0')
 
   const selectedExpenseRequestId = Form.useWatch('expenseRequestId', form)
   const hadBackendRequestRef = useRef(false)
