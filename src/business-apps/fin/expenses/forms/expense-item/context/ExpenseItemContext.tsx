@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 
 import { Form, message } from 'antd'
 import { ExpensePosition, ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
+import { useTranslation } from '@newwork/nw-design-system'
+import expenseItemTranslations from '../_i18n'
 
 import {
   getCurrentActiveUserLocale,
@@ -103,7 +105,11 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
+  const { t: tNew } = useTranslation(expenseItemTranslations)
+  // Wrapper function for backward compatibility with old translation pattern
+  const t = (key: string, fallback?: string) => {
+    return getTranslationFromI18nKeyAndLabel(key, fallback || key)
+  }
 
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)
@@ -601,10 +607,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     const requestCurrency = currencies.find(c => c.id === additionalData.itemCurrency)
 
     if (additionalData?.useSingleCurrency && !requestCurrency) {
-      const errorMsg = t(
-        'lowcoder:expense_item.currency_validation_unavailable',
-        'Unable to validate the receipt currency against your expense rule. Please try again or contact your administrator.'
-      )
+      const errorMsg = tNew('currency-validation-unavailable')
       setReceiptCurrencyError(errorMsg)
       return false
     }
@@ -617,10 +620,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       return true
     }
 
-    const detailedMessage = t(
-      'lowcoder:create_expense_item.currency_mismatch_detail',
-      `The receipt currency (${data.currencyCode}) does not match the expense request currency (${requestCurrency.code}). The expense item could not be created.`
-    )
+    const detailedMessage = tNew('currency-mismatch-detail', {
+      receiptCurrency: data.currencyCode,
+      requestCurrency: requestCurrency.code
+    } as Record<string, any>)
 
     setReceiptCurrencyError(detailedMessage)
 
