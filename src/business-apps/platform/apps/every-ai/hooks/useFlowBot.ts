@@ -4,18 +4,11 @@ import type { ConversationTurn, OutputItem, FileMeta, CurrentPageContext } from 
 import { getCurrentPageContext } from '../utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
-import { env } from '@/common/env/EnvUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 const STORAGE_KEY = 'newwork_every_ai'
 const LLM_MODEL = 'gpt-4.1'
 const SUBMITTING_FORM_MESSAGE = 'Submitting form data...'
-const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
-
-function resolveFlowbotBaseUrl(): string {
-  return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
-}
-
-const FLOWBOT_BASE_URL = resolveFlowbotBaseUrl()
 
 type ConversationState = {
   conversation: ConversationTurn[]
@@ -85,7 +78,8 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
   if (!sessionId) return { conversation: [], sessionId: null }
 
   try {
-    const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/session/${sessionId}/history`, {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -485,15 +479,8 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
-        // Use local FlowBot in development
-        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        const baseUrl = isLocalDev ? 'http://localhost:8000' : FLOWBOT_BASE_URL
+        const baseUrl = resolveFlowbotBaseUrl()
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
-
-        // Debug log only in development
-        if (isLocalDev) {
-          console.log('📤 [FlowBot] Sending to local:', userInputText.substring(0, 50))
-        }
 
         const res = await fetch(url, {
           method: 'POST',
@@ -607,7 +594,8 @@ export function useFlowBot(accessToken: string) {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
 
-      const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/prechat-suggestions`, {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -685,6 +673,7 @@ export function useFlowBot(accessToken: string) {
     editMessage,
     clearConversation,
     nextStepProposals,
-    isPrechatLoading
+    isPrechatLoading,
+    sessionId: state.sessionId
   }
 }

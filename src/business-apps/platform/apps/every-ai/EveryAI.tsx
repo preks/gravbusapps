@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { useFlowBot } from './hooks/useFlowBot'
 import { useVoiceInput } from './hooks/useVoiceInput'
 import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
@@ -47,8 +48,16 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
 
-  const { conversation, isLoading, sendMessage, editMessage, clearConversation, nextStepProposals, isPrechatLoading } =
-    useFlowBot(accessToken)
+  const {
+    conversation,
+    isLoading,
+    sendMessage,
+    editMessage,
+    clearConversation,
+    nextStepProposals,
+    isPrechatLoading,
+    sessionId
+  } = useFlowBot(accessToken)
 
   // Fetch current user's picture
   const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)
@@ -657,6 +666,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               userInfo={userInfo}
               pictureThumbnail={pictureThumbnail}
               isVoiceMode={isSpeechMode}
+              sessionId={sessionId ?? undefined}
             />
           )}
         </div>

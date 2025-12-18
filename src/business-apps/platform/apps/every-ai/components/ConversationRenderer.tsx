@@ -24,6 +24,7 @@ interface ConversationRendererProps {
   userInfo?: UserInfoProps
   pictureThumbnail: string | null
   isVoiceMode?: boolean
+  sessionId?: string
 }
 
 interface UserMessageProps {
@@ -262,7 +263,8 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
   onEditMessage,
   userInfo,
   pictureThumbnail,
-  isVoiceMode = false
+  isVoiceMode = false,
+  sessionId
 }) => {
   const [editingTurnIndex, setEditingTurnIndex] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
@@ -334,6 +336,7 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
                     sendMessage={sendMessage}
                     conversation={turns}
                     isVoiceMode={isVoiceMode}
+                    sessionId={sessionId}
                   />
                 )
               })}
