@@ -203,7 +203,21 @@ const UserMessage: React.FC<UserMessageProps> = ({
                       {textWithMentions}
                     </ReactMarkdown>
                   </div>
-                  <div className="gba:absolute gba:top-1 gba:right-2 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
+                  <div
+                    className="
+                      gba:absolute
+                      gba:top-full
+                      gba:right-2
+                      gba:mt-1
+                      gba:flex
+                      gba:items-center
+                      gba:gap-1
+                      gba:opacity-0
+                      gba:group-hover:opacity-100
+                      gba:transition-opacity
+                      gba:z-10
+                    "
+                  >
                     <Button
                       variant="ghost"
                       size="sm"
