@@ -740,3 +740,5 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
     </div>
   )
 }
+
+export default ArticleSegment

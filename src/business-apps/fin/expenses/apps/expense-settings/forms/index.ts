@@ -15,3 +15,24 @@ export {
   type GeneralExpenseFormProps,
   type UsageInfo
 } from './general-expense-form'
+
+// Default export for screen entry point
+import { CalculationRuleForm } from './calculation-rule-form'
+import { MileageRuleForm } from './mileage-rule-form'
+import { TravelRegionRuleForm } from './travel-region-rule-form'
+import { AssignmentForm } from './assignment-form'
+import { AllowanceCodeForm } from './allowance-code-form'
+import { DeductionForm } from './deduction-form'
+import { CustomFieldForm } from './custom-field-form'
+import { GeneralExpenseForm } from './general-expense-form'
+
+export default {
+  CalculationRuleForm,
+  MileageRuleForm,
+  TravelRegionRuleForm,
+  AssignmentForm,
+  AllowanceCodeForm,
+  DeductionForm,
+  CustomFieldForm,
+  GeneralExpenseForm
+}

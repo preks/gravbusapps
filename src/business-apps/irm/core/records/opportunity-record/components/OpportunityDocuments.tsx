@@ -44,6 +44,26 @@ import { env } from '@/common/env/EnvUtils'
 import { useGetInvestmentDocumentsByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { useSearchInvestmentDocuments } from '@/common/data/investment/hooks/useSearchInvestmentDocuments'
 import { buildFileUrl } from '@/common/utils/fileUtils'
+import {
+  AppstoreOutlined,
+  BarsOutlined,
+  CalendarOutlined,
+  CaretRightOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  EyeOutlined,
+  FileExcelOutlined,
+  FileImageOutlined,
+  FileOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  FileWordOutlined,
+  FolderAddOutlined,
+  FolderOpenOutlined,
+  MoreOutlined,
+  UserOutlined
+} from '@ant-design/icons'
 
 interface Document {
   id: string
