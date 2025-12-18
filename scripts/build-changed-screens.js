@@ -179,14 +179,14 @@ async function main() {
 
   if (!manualScreensFile) {
     console.log('ℹ️  No specific screens file provided.')
-    console.log('🚀 Building all screens with multi-build...')
+    console.log('🚀 Building all screens with batched multi-build...')
 
     try {
-      execSync('npm run build', { stdio: 'inherit' })
-      console.log('✅ All screens built successfully with multi-build.')
+      execSync('npm run build:batched', { stdio: 'inherit' })
+      console.log('✅ All screens built successfully with batched build.')
       return
     } catch (error) {
-      console.error('❌ Multi-build failed:', error.message)
+      console.error('❌ Batched build failed:', error.message)
       process.exit(1)
     }
   }

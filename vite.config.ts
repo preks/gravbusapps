@@ -12,6 +12,17 @@ import { execSync } from 'child_process'
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
+  // Check if running in batch mode
+  const batchMode = process.env.VITE_BATCH_MODE === 'true'
+  const batchEntriesFile = path.join(projectRootDir, '.batch-entries.json')
+
+  if (batchMode && fs.existsSync(batchEntriesFile)) {
+    console.log('[vite.config.ts] Batch mode: Loading entries from .batch-entries.json')
+    const batchEntries = JSON.parse(fs.readFileSync(batchEntriesFile, 'utf8'))
+    console.log(`[vite.config.ts] Batch mode: Building ${Object.keys(batchEntries).length} screens`)
+    return batchEntries
+  }
+
   const businessAppsDir = path.join(projectRootDir, 'src', 'business-apps')
   const entries: Record<string, string> = {}
 

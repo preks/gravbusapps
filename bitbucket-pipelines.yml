@@ -134,7 +134,7 @@ definitions:
 
     - step: &build-screens
         name: Build Screens
-        size: 4x
+        size: 2x
         caches:
           - nodecustom
         services:
@@ -146,7 +146,7 @@ definitions:
               echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
               node scripts/build-changed-screens.js manual-screens.txt
             else
-              echo "No screens specified, build all screens"
+              echo "No screens specified, building all screens in batches"
               node scripts/build-changed-screens.js
             fi
         artifacts:
