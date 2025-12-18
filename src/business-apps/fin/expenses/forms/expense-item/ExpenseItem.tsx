@@ -42,8 +42,7 @@ const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void
       handleRemovePosition,
       calculateTotal,
       currencies,
-      isEditMode,
-      additionalData
+      isEditMode
     } = useExpenseItem()
 
     // Modified handleCancel to use onClose callback if provided
@@ -171,9 +170,6 @@ const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void
             handleRemovePosition={handleRemovePosition}
             loading={loading}
             calculateTotal={calculateTotal}
-            isEmbeddedInRequestWizard={Boolean(
-              additionalData?.expenseRequestId && additionalData.expenseRequestId !== '0'
-            )}
           />
         )}
       </div>

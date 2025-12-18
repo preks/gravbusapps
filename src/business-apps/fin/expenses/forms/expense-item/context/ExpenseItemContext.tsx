@@ -867,6 +867,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
     // Show overlay spinner for 1 second
     setIsCreating(true)
+    const startTime = Date.now()
     const spinnerTimeout = setTimeout(() => {
       setIsCreating(false)
     }, 1000)
@@ -894,11 +895,13 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         dispatchProcessContinueEventIfEnabled
       )
     } finally {
-      // Ensure spinner is hidden after 1 second even if submission completes earlier
+      // Ensure spinner is hidden after exactly 1 second total
       clearTimeout(spinnerTimeout)
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, 1000 - elapsedTime)
       setTimeout(() => {
         setIsCreating(false)
-      }, 1000)
+      }, remainingTime)
     }
   }
 
