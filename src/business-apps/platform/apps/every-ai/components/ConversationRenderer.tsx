@@ -20,6 +20,7 @@ interface ConversationRendererProps {
     isSearching?: boolean,
     mentions?: any
   ) => Promise<void>
+  onEditMessage?: (turnIndex: number, newText: string) => Promise<void>
   userInfo?: UserInfoProps
   pictureThumbnail: string | null
   isVoiceMode?: boolean
@@ -258,6 +259,7 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
   turns,
   accessToken,
   sendMessage,
+  onEditMessage,
   userInfo,
   pictureThumbnail,
   isVoiceMode = false
@@ -276,9 +278,15 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
   }
 
   const handleEditSave = async (newText: string) => {
-    if (sendMessage && newText.trim()) {
-      // Resend the message with the edited text
-      await sendMessage(newText, [], false, false, undefined)
+    if (editingTurnIndex === null || !newText.trim()) return
+
+    try {
+      if (onEditMessage) {
+        await onEditMessage(editingTurnIndex, newText)
+      } else if (sendMessage) {
+        await sendMessage(newText, [], false, false, undefined)
+      }
+    } finally {
       setEditingTurnIndex(null)
       setEditText('')
     }

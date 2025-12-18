@@ -655,10 +655,34 @@ export function useFlowBot(accessToken: string) {
     }
   }, [state.conversation.length, accessToken, currentPageContext, fetchPrechatSuggestions])
 
+  // Edit message: Remove message at index and all messages after it, then resend
+  const editMessage = useCallback(
+    async (turnIndex: number, newText: string) => {
+      if (turnIndex < 0 || turnIndex >= state.conversation.length) return
+      if (!newText.trim()) return
+
+      // Remove the message at turnIndex and all messages after it
+      setState(prev => {
+        // Keep only messages before the edited one
+        const newConversation = prev.conversation.slice(0, turnIndex + 1)
+
+        return {
+          ...prev,
+          conversation: newConversation
+        }
+      })
+
+      // Send the new message
+      await sendMessage(newText, [], false, false, undefined)
+    },
+    [state.conversation.length, sendMessage]
+  )
+
   return {
     conversation: state.conversation,
     isLoading,
     sendMessage,
+    editMessage,
     clearConversation,
     nextStepProposals,
     isPrechatLoading
