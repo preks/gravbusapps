@@ -14,19 +14,18 @@ export interface JobCandidateQueryVariables extends BaseQueryVariables {
 }
 
 export const JOB_CANDIDATE_QUERY_CONFIGS: Record<string, string[]> = {
-  minimal: ['code', 'createdAt', 'id', 'firstName', 'lastName', 'displayName'],
+  minimal: ['code', 'createdAt', 'id', 'firstName', 'lastName'],
   list: [
     'code',
     'createdAt',
     'id',
     'firstName',
     'lastName',
-    'displayName',
-    'fullName',
-    'jobCandidateStatus',
     'academicTitle',
     'academicTitleRef',
     'birthDate',
+    'email', // Deprecated but might still be in backend
+    'phone', // Deprecated but might still be in backend
     'updatedAt'
   ],
   record: [
@@ -34,50 +33,22 @@ export const JOB_CANDIDATE_QUERY_CONFIGS: Record<string, string[]> = {
     'createdAt',
     'createdBy',
     'id',
-    // Name fields
-    'title',
+    // Basic name fields (likely in backend)
     'firstName',
     'lastName',
-    'birthName',
-    'preferredName',
-    'fullName',
-    'displayName',
-    // Personal information
-    'birthPlace',
+    // Personal information (basic fields)
     'birthDate',
-    'picture',
-    'pictureThumbnail',
-    'severelyDisabilityDegree',
-    'notes',
-    'children',
-    // Status
-    'jobCandidateStatus',
-    'userId',
-    // Catalog references and objects
+    // Catalog references that existed before
     'academicTitle',
     'academicTitleRef',
-    'ethnicity',
-    'ethnicityRef',
     'gender',
     'genderRef',
-    'language',
-    'languageRef',
-    'maritalStatus',
-    'maritalStatusRef',
     'nationality',
     'nationalityRef',
-    'salutation',
-    'salutationRef',
-    'schoolQualification',
-    'schoolQualificationRef',
-    // Jsonb fields
-    'addresses',
-    'skills',
-    'certificates',
-    'communicationChannels',
-    'educations',
-    'hobbies',
-    'jobHistory',
+    // Old deprecated fields (might still be in backend)
+    'email',
+    'phone',
+    'linkedinUrl',
     'updatedAt',
     'updatedBy',
     'version',

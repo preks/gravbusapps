@@ -107,8 +107,8 @@ export const buildJobInterviewParticipantFragment = (fields: string[]): string =
     
     ${buildEntityReferenceField(fieldSet, 'jobInterview', 'jobInterviewId', JobInterviewParticipantFields.jobInterview, 'id\n      scheduledAt')}
     
-    ${buildEntityReferenceField(fieldSet, 'employee', 'employeeId', JobInterviewParticipantFields.employee, 'id\n      firstName\n      lastName\n      displayName')}
-    
-    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobInterviewParticipantFields.jobCandidate, 'id\n      firstName\n      lastName\n      displayName')}
+    ${buildEntityReferenceField(fieldSet, 'employee', 'employeeId', JobInterviewParticipantFields.employee, 'id\n      firstName\n      lastName')}
+
+    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobInterviewParticipantFields.jobCandidate, 'id\n      firstName\n      lastName')}
   `
 }

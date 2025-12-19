@@ -11,18 +11,24 @@ export interface JobPostingQueryVariables extends BaseQueryVariables {
 
 export const JOB_POSTING_QUERY_CONFIGS: Record<string, string[]> = {
   minimal: ['createdAt', 'id', 'title'],
-  list: ['createdAt', 'id', 'title', 'content', 'jobRequest', 'jobRequestId', 'updatedAt'],
+  list: ['createdAt', 'id', 'title', 'location', 'department', 'updatedAt'],
   record: [
     'createdAt',
     'createdBy',
     'id',
     'title',
-    'titleI18n',
-    'content',
-    'contentI18n',
-    'fileInfo',
-    'jobRequest',
-    'jobRequestId',
+    // New fields - may not exist in backend yet
+    // 'titleI18n',
+    // 'content',
+    // 'contentI18n',
+    // 'fileInfo',
+    // 'jobRequest',
+    // 'jobRequestId',
+    // Deprecated but still in backend
+    'location',
+    'department',
+    'remote',
+    'contractType',
     'updatedAt',
     'updatedBy',
     'version',

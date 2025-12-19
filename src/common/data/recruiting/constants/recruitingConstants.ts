@@ -39,7 +39,7 @@ export const RECRUITING_CATALOGS = {
   /** @deprecated Use enum JobRequestType instead */
   JOB_REQUEST_TYPE: 'JobRequestType',
   /** @deprecated Use enum JobRequestType instead */
-  JOB_REQUISITION_REASON: 'JobRequisitionReason',
+  JOB_REQUEST_REASON: 'JobRequestReason',
   /** @deprecated Use JOB_EXPERIENCE_LEVEL instead */
   EXPERIENCE_LEVEL: 'ExperienceLevelCatalog',
   /** @deprecated Not used anymore */
@@ -65,14 +65,14 @@ export const RECRUITING_CATALOGS = {
 } as const
 
 /**
- * @deprecated Job Requisition Reason is now an enum (JobRequestType)
+ * @deprecated Job Request Reason is now an enum (JobRequestType)
  * Use JobRequestType.NEW or JobRequestType.REPLACEMENT instead
  *
  * This is kept for backward compatibility during migration only
  */
-export const JOB_REQUISITION_REASON_VALUES = {
+export const JOB_REQUEST_REASON_VALUES = {
   /** @deprecated Use JobRequestType.REPLACEMENT */
-  REPLACEMENT: 'JobRequisitionReason:v1:1',
+  REPLACEMENT: 'JobRequestReason:v1:1',
   /** @deprecated Use JobRequestType.NEW */
-  NEW: 'JobRequisitionReason:v1:2'
+  NEW: 'JobRequestReason:v1:2'
 } as const

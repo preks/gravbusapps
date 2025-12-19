@@ -23,9 +23,12 @@ export const HomeView: React.FC<HomeViewProps> = ({ jobApplication }) => {
   const posting = jobApplication.jobPosting
 
   return (
-    <div className="gba:grid gba:gap-6 gba:p-6" data-testid="job-application-home-view">
-      {/* Application Details Card */}
-      <Card data-testid="job-application-details-card">
+    <>
+      {/* Application Details Card - Full width */}
+      <Card
+        className="gba:col-span-1 gba:sm:col-span-12 gba:md:col-span-12 gba:lg:col-span-12"
+        data-testid="job-application-details-card"
+      >
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <Briefcase className="gba:h-5 gba:w-5" />
@@ -90,8 +93,11 @@ export const HomeView: React.FC<HomeViewProps> = ({ jobApplication }) => {
         </CardContent>
       </Card>
 
-      {/* Audit Information Card */}
-      <Card data-testid="job-application-audit-card">
+      {/* Audit Information Card - Full width */}
+      <Card
+        className="gba:col-span-1 gba:sm:col-span-12 gba:md:col-span-12 gba:lg:col-span-12"
+        data-testid="job-application-audit-card"
+      >
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:h-5 gba:w-5" />
@@ -122,6 +128,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ jobApplication }) => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </>
   )
 }

@@ -224,6 +224,6 @@ export const buildJobRequestFragment = (fields: string[]): string => {
     
     ${buildEntityReferenceField(fieldSet, 'jobPosition', 'jobPositionId', JobRequestFields.jobPosition, 'id\n      name')}
     
-    ${buildEntityReferenceField(fieldSet, 'requesterEmployee', 'requesterEmployeeId', JobRequestFields.requesterEmployee, 'id\n      firstName\n      lastName\n      displayName')}
+    ${buildEntityReferenceField(fieldSet, 'requesterEmployee', 'requesterEmployeeId', JobRequestFields.requesterEmployee, 'id\n      firstName\n      lastName')}
   `
 }

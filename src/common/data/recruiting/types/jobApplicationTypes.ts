@@ -52,6 +52,7 @@ export interface JobApplication extends BaseEntity {
 
 /**
  * JobApplication Fields
+ * Note: Backend still uses OLD field names
  */
 export const JobApplicationFields = {
   id: 'id',
@@ -59,7 +60,7 @@ export const JobApplicationFields = {
 
   // Catalog references
   jobApplicationPipelineRef: 'jobApplicationPipelineRef',
-  jobApplicationStageRef: 'jobApplicationStageRef',
+  jobApplicationStageRef: 'currentStage', // Backend still uses 'currentStage'
 
   // Catalog objects
   jobApplicationPipeline: 'jobApplicationPipeline',
@@ -74,8 +75,8 @@ export const JobApplicationFields = {
   // Entity IDs
   jobCandidateId: 'jobCandidateId',
   jobPostingId: 'jobPostingId',
-  jobPostingPublicationId: 'jobPostingPublicationId',
-  referrerEmployeeId: 'referrerEmployeeId',
+  jobPostingPublicationId: 'applicationChannelId', // Backend still uses 'applicationChannelId'
+  referrerEmployeeId: 'referralId', // Backend still uses 'referralId'
   referredBy: 'referredBy',
 
   // Deprecated

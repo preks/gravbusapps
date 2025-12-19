@@ -4,7 +4,7 @@
  */
 
 /**
- * JobRequestType - Replaces JobRequisitionReason catalog
+ * JobRequestType - Replaces JobRequestReason catalog
  */
 export enum JobRequestType {
   UNKNOWN = 'UNKNOWN_JOB_REQUEST_TYPE',
@@ -13,7 +13,7 @@ export enum JobRequestType {
 }
 
 /**
- * JobRequestStatus - Replaces requisitionStatus string field
+ * JobRequestStatus - Status values for job requests
  */
 export enum JobRequestStatus {
   UNKNOWN = 'UNKNOWN_JOB_REQUEST_STATUS',

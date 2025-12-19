@@ -84,7 +84,7 @@ export const buildJobPostingPositionFragment = (fields: string[]): string => {
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
     
-    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobPostingPositionFields.jobPosting, 'id\n      title')}
+    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobPostingPositionFields.jobPosting, 'id\n      jobTitle')}
     
     ${buildEntityReferenceField(fieldSet, 'jobPosition', 'jobPositionId', JobPostingPositionFields.jobPosition, 'id\n      name')}
   `

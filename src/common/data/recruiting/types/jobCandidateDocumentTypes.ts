@@ -35,6 +35,7 @@ export interface JobCandidateDocument extends BaseEntity {
 
 /**
  * JobCandidateDocument Fields
+ * Note: Backend uses NEW field names matching TypeScript
  */
 export const JobCandidateDocumentFields = {
   id: 'id',

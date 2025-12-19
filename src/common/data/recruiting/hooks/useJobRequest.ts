@@ -50,17 +50,17 @@ export function useJobRequest(
 
       const query = `
         query GetJobRequestByPk($id: uuid!) {
-          JobRequisitionByPk(id: $id) {
+          JobRequestByPk(id: $id) {
             ${fragment}
           }
         }
       `
 
       const result = await graphqlClient.request<{
-        JobRequisitionByPk: any
+        JobRequestByPk: any
       }>(query, { id })
 
-      const jobRequest = result.JobRequisitionByPk as JobRequest | null
+      const jobRequest = result.JobRequestByPk as JobRequest | null
 
       setState({ jobRequest, loading: false, error: null })
     } catch (error) {

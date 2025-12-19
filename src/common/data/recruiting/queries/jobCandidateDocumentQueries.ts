@@ -146,6 +146,6 @@ export const buildJobCandidateDocumentFragment = (fields: string[]): string => {
     
     ${buildCatalogReferenceField(fieldSet, 'documentType', 'documentTypeRef', JobCandidateDocumentFields.documentType)}
     
-    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobCandidateDocumentFields.jobCandidate, 'id\n      firstName\n      lastName\n      displayName')}
+    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobCandidateDocumentFields.jobCandidate, 'id\n      firstName\n      lastName')}
   `
 }

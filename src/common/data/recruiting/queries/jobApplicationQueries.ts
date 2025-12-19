@@ -20,10 +20,7 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'createdAt',
     'id',
     'applicationDate',
-    'jobApplicationStage',
-    'jobApplicationStageRef',
-    'jobApplicationPipeline',
-    'jobApplicationPipelineRef',
+    'jobApplicationStageRef', // Maps to 'currentStage' in backend
     'jobCandidate',
     'jobCandidateId',
     'jobPosting',
@@ -35,19 +32,11 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'createdBy',
     'id',
     'applicationDate',
-    'jobApplicationPipeline',
-    'jobApplicationPipelineRef',
-    'jobApplicationStage',
-    'jobApplicationStageRef',
+    'jobApplicationStageRef', // Maps to 'currentStage' in backend
     'jobCandidate',
     'jobCandidateId',
     'jobPosting',
     'jobPostingId',
-    'jobPostingPublication',
-    'jobPostingPublicationId',
-    'referrerEmployee',
-    'referrerEmployeeId',
-    'referredBy',
     'updatedAt',
     'updatedBy',
     'version',
@@ -141,12 +130,12 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
     
     ${buildCatalogReferenceField(fieldSet, 'jobApplicationStage', 'jobApplicationStageRef', JobApplicationFields.jobApplicationStage)}
     
-    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName\n      displayName')}
+    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName')}
     
-    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      title')}
+    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      jobTitle')}
     
     ${buildEntityReferenceField(fieldSet, 'jobPostingPublication', 'jobPostingPublicationId', JobApplicationFields.jobPostingPublication, 'id\n      url')}
     
-    ${buildEntityReferenceField(fieldSet, 'referrerEmployee', 'referrerEmployeeId', JobApplicationFields.referrerEmployee, 'id\n      firstName\n      lastName\n      displayName')}
+    ${buildEntityReferenceField(fieldSet, 'referrerEmployee', 'referrerEmployeeId', JobApplicationFields.referrerEmployee, 'id\n      firstName\n      lastName')}
   `
 }

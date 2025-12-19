@@ -12,18 +12,7 @@ export interface JobApplicationInterviewQueryVariables extends BaseQueryVariable
 
 export const JOB_APPLICATION_INTERVIEW_QUERY_CONFIGS: Record<string, string[]> = {
   minimal: ['createdAt', 'id', 'scheduledAt'],
-  list: [
-    'createdAt',
-    'id',
-    'scheduledAt',
-    'duration',
-    'location',
-    'meetingLink',
-    'jobInterviewStatus',
-    'jobApplication',
-    'jobApplicationId',
-    'updatedAt'
-  ],
+  list: ['createdAt', 'id', 'scheduledAt', 'duration', 'location', 'jobApplication', 'jobApplicationId', 'updatedAt'],
   record: [
     'createdAt',
     'createdBy',
@@ -31,8 +20,6 @@ export const JOB_APPLICATION_INTERVIEW_QUERY_CONFIGS: Record<string, string[]> =
     'scheduledAt',
     'duration',
     'location',
-    'meetingLink',
-    'jobInterviewStatus',
     'jobApplication',
     'jobApplicationId',
     'updatedAt',

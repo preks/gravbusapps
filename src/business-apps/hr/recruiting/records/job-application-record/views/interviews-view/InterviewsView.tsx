@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobApplicationInterviews } from '@/common/data/recruiting/hooks/useJobApplicationInterviews'
-import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
+import { DataDisplay, DataTable } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -59,8 +59,8 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
   const columns = useMemo<ColumnDef<JobApplicationInterview>[]>(
     () => [
       {
-        id: 'scheduledDate',
-        accessorKey: 'scheduledDate',
+        id: 'scheduledDate', // Backend OrderBy uses 'scheduledDate'
+        accessorKey: 'scheduledAt', // Data field uses 'scheduledAt'
         header: getTranslationFromI18nKeyAndLabel('recruiting.scheduledDate', 'Scheduled Date'),
         cell: info => {
           const value = info.getValue() as string
@@ -71,22 +71,6 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
           )
         },
         meta: { type: 'date' as const }
-      },
-      {
-        id: 'type',
-        accessorKey: 'type',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.interviewType', 'Type'),
-        cell: info => {
-          const value = info.getValue() as any
-          return value?.value ? (
-            <Badge variant="secondary" className="gba:text-xs">
-              {value.value}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
-        meta: { type: 'text' as const }
       },
       {
         id: 'duration',
@@ -103,41 +87,9 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
         meta: { type: 'number' as const }
       },
       {
-        id: 'confirmedDate',
-        accessorKey: 'confirmedDate',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.confirmedDate', 'Confirmed'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <Badge variant="success" className="gba:text-xs">
-              {new Date(value).toLocaleDateString()}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
-        meta: { type: 'date' as const }
-      },
-      {
-        id: 'cancelledDate',
-        accessorKey: 'cancelledDate',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.cancelledDate', 'Cancelled'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <Badge variant="destructive" className="gba:text-xs">
-              {new Date(value).toLocaleDateString()}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
-        meta: { type: 'date' as const }
-      },
-      {
-        id: 'meetingPlace',
-        accessorKey: 'meetingPlace',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.meetingPlace', 'Location'),
+        id: 'meetingPlace', // Backend OrderBy uses 'meetingPlace'
+        accessorKey: 'location', // Data field uses 'location'
+        header: getTranslationFromI18nKeyAndLabel('recruiting.location', 'Location'),
         cell: info => {
           const value = info.getValue() as string
           return <div className="gba:text-sm">{value || '-'}</div>
@@ -149,7 +101,10 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
   )
 
   return (
-    <div data-testid="job-application-interviews-view" className="gba:h-full">
+    <div
+      className="gba:col-span-1 gba:sm:col-span-12 gba:md:col-span-12 gba:lg:col-span-12"
+      data-testid="job-application-interviews-view"
+    >
       <DataDisplay
         titleSections={[
           {

@@ -72,24 +72,24 @@ export function useJobRequests(
         const limit = Math.min(vars.limit || 50, 100)
         const offset = vars.offset || 0
 
-        const query = `query GetJobRequisitions($limit: Int $offset: Int $where: JobRequisitionBoolExp $orderBy: [JobRequisitionOrderBy!]) {
-          JobRequisition(limit: $limit offset: $offset orderBy: $orderBy where: $where) { ${fragment} }
-          JobRequisitionAggregate(where: $where) { aggregate { count } }
+        const query = `query GetJobRequests($limit: Int $offset: Int $where: JobRequestBoolExp $orderBy: [JobRequestOrderBy!]) {
+          JobRequest(limit: $limit offset: $offset orderBy: $orderBy where: $where) { ${fragment} }
+          JobRequestAggregate(where: $where) { aggregate { count } }
         }`
         const result = await graphqlClient.request<{
-          JobRequisition: any[]
-          JobRequisitionAggregate: { aggregate: { count: number } }
+          JobRequest: any[]
+          JobRequestAggregate: { aggregate: { count: number } }
         }>(query, { limit, offset, where: whereObj, orderBy: orderByArray })
 
         setState({
-          jobRequests: (result.JobRequisition || []) as JobRequest[],
-          total: result.JobRequisitionAggregate?.aggregate?.count || 0,
+          jobRequests: (result.JobRequest || []) as JobRequest[],
+          total: result.JobRequestAggregate?.aggregate?.count || 0,
           loading: false,
           error: null
         })
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch job requisitions'
-        console.error('Error fetching job requisitions:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch job requests'
+        console.error('Error fetching job requests:', error)
         setState({
           jobRequests: [],
           total: 0,

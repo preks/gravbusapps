@@ -22,9 +22,12 @@ export const HomeView: React.FC<HomeViewProps> = ({ jobCandidate }) => {
   const fullName = `${jobCandidate.firstName} ${jobCandidate.lastName}`.trim()
 
   return (
-    <div className="gba:grid gba:gap-6 gba:p-6" data-testid="job-candidate-home-view">
-      {/* Candidate Details Card */}
-      <Card data-testid="job-candidate-details-card">
+    <>
+      {/* Candidate Details Card - Full width */}
+      <Card
+        className="gba:col-span-1 gba:sm:col-span-12 gba:md:col-span-12 gba:lg:col-span-12"
+        data-testid="job-candidate-details-card"
+      >
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <User className="gba:h-5 gba:w-5" />
@@ -72,8 +75,11 @@ export const HomeView: React.FC<HomeViewProps> = ({ jobCandidate }) => {
         </CardContent>
       </Card>
 
-      {/* Audit Information Card */}
-      <Card data-testid="job-candidate-audit-card">
+      {/* Audit Information Card - Full width */}
+      <Card
+        className="gba:col-span-1 gba:sm:col-span-12 gba:md:col-span-12 gba:lg:col-span-12"
+        data-testid="job-candidate-audit-card"
+      >
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:h-5 gba:w-5" />
@@ -104,6 +110,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ jobCandidate }) => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </>
   )
 }

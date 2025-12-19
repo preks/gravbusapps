@@ -36,11 +36,11 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
   const rowActions = useMemo(
     () => (row: any) => (
       <AppAction
-        data-testid={`job-requisition-update-button-${row.original.id}`}
+        data-testid={`job-request-update-button-${row.original.id}`}
         variant="table-row"
         contexts={[]}
-        externalContextData={{ jobRequisitionId: row.original.id }}
-        prefixDataTestId="job-requisition-update"
+        externalContextData={{ jobRequestId: row.original.id }}
+        prefixDataTestId="job-request-update"
         accessToken={context.accessToken}
         lazyLoad
         onClick={e => e.stopPropagation()}
@@ -149,12 +149,12 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
   )
 
   return (
-    <div data-testid="job-requisition-view" className="gba:h-full">
+    <div data-testid="job-request-view" className="gba:h-full">
       <DataDisplay
         titleSections={[
           {
             id: 'all',
-            label: getTranslationFromI18nKeyAndLabel('recruiting.allJobRequisitions', 'All Job Requisitions'),
+            label: getTranslationFromI18nKeyAndLabel('recruiting.allJobRequests', 'All Job Requests'),
             metadata: {
               count: total,
               isLoading: loading
@@ -163,10 +163,7 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
         ]}
         currentSection="all"
         searchValue={search}
-        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
-          'recruiting.searchJobRequisitions',
-          'Search job requisitions...'
-        )}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel('recruiting.searchJobRequests', 'Search job requests...')}
         onSearchChange={setSearch}
         toolbarDensity="default"
       >
@@ -189,12 +186,9 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
           rowsPerPageOptions={[10, 20, 50, 100]}
           showPageNumbers
           maxVisiblePages={7}
-          emptyMessage={getTranslationFromI18nKeyAndLabel(
-            'recruiting.noJobRequisitionsFound',
-            'No job requisitions found'
-          )}
+          emptyMessage={getTranslationFromI18nKeyAndLabel('recruiting.noJobRequestsFound', 'No job requests found')}
           actions={rowActions}
-          data-testid="job-requisition-list"
+          data-testid="job-request-list"
         />
       </DataDisplay>
     </div>

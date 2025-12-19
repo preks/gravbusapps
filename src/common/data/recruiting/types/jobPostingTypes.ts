@@ -41,10 +41,11 @@ export interface JobPosting extends BaseEntity {
 
 /**
  * JobPosting Fields
+ * Note: Backend still uses OLD field names (jobTitle, not title)
  */
 export const JobPostingFields = {
   id: 'id',
-  title: 'title',
+  title: 'jobTitle', // Backend still uses 'jobTitle'
   titleI18n: 'titleI18n',
   content: 'content',
   contentI18n: 'contentI18n',

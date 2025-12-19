@@ -52,7 +52,7 @@ export interface JobProfile {
 }
 
 /**
- * JobRequest Type (formerly JobRequisition)
+ * JobRequest Type
  * Represents the actual data model from GraphQL
  */
 export interface JobRequest extends BaseEntity {
@@ -115,6 +115,7 @@ export interface JobRequest extends BaseEntity {
 /**
  * JobRequest Fields
  * ALL fields including Ref and Id fields
+ * Note: Backend uses NEW field names matching TypeScript
  */
 export const JobRequestFields = {
   id: 'id',

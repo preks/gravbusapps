@@ -58,12 +58,13 @@ export interface JobApplicationInterview extends BaseEntity {
 
 /**
  * JobApplicationInterview Fields
+ * Note: Backend still uses OLD field names
  */
 export const JobApplicationInterviewFields = {
   id: 'id',
-  scheduledAt: 'scheduledAt',
+  scheduledAt: 'scheduledDate', // Backend still uses 'scheduledDate'
   duration: 'duration',
-  location: 'location',
+  location: 'meetingPlace', // Backend still uses 'meetingPlace'
   meetingLink: 'meetingLink',
   jobInterviewStatus: 'jobInterviewStatus',
 

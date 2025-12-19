@@ -109,6 +109,6 @@ export const buildJobApplicationFeedbackFragment = (fields: string[]): string =>
     
     ${buildEntityReferenceField(fieldSet, 'jobInterview', 'jobInterviewId', JobApplicationFeedbackFields.jobInterview, 'id\n      scheduledAt')}
     
-    ${buildEntityReferenceField(fieldSet, 'creatorEmployee', 'creatorEmployeeId', JobApplicationFeedbackFields.creatorEmployee, 'id\n      firstName\n      lastName\n      displayName')}
+    ${buildEntityReferenceField(fieldSet, 'creatorEmployee', 'creatorEmployeeId', JobApplicationFeedbackFields.creatorEmployee, 'id\n      firstName\n      lastName')}
   `
 }

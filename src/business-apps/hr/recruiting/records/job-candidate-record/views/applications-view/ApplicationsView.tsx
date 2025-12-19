@@ -124,7 +124,10 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
   )
 
   return (
-    <div data-testid="job-candidate-applications-view" className="gba:h-full">
+    <div
+      className="gba:col-span-1 gba:sm:col-span-12 gba:md:col-span-12 gba:lg:col-span-12"
+      data-testid="job-candidate-applications-view"
+    >
       <DataDisplay
         titleSections={[
           {
