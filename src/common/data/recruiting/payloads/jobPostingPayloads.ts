@@ -2,18 +2,7 @@
  * JobPosting Payload Builders
  */
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-
-export interface JobPostingPayload {
-  id?: string
-  version?: number
-  title: string
-  titleI18n?: any
-  content?: string
-  contentI18n?: any
-  fileInfo?: any
-  jobRequestId?: string
-  additionalProperties?: any
-}
+import type { JobPosting } from '../types/jobPostingTypes'
 
 export const JobPostingFormFields = {
   id: 'id',
@@ -27,10 +16,13 @@ export const JobPostingFormFields = {
   additionalProperties: 'additionalProperties'
 } as const
 
-export const buildJobPostingPayload = (data: any): JobPostingPayload => {
-  const payload = buildPayload(data, JobPostingFormFields)
+export const buildJobPostingPayload = (data: Partial<JobPosting>) => {
+  const basePayload = buildPayload(data, JobPostingFormFields)
+
   return {
-    ...payload,
-    title: data.title || ''
+    jobPosting: {
+      ...basePayload,
+      title: data.title || ''
+    }
   }
 }

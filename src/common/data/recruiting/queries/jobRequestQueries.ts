@@ -11,7 +11,6 @@ import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
  * JobRequest Query Variables
  */
 export interface JobRequestQueryVariables extends BaseQueryVariables {
-  // New fields
   contractTypeRef?: string
   employmentTypeRef?: string
   jobExperienceLevelRef?: string
@@ -24,13 +23,6 @@ export interface JobRequestQueryVariables extends BaseQueryVariables {
   requesterEmployeeId?: string
   jobRequestType?: string
   jobRequestStatus?: string
-
-  // Deprecated fields (for backward compatibility)
-  experienceLevelRef?: string
-  replacedPositionId?: string
-  requesterId?: string
-  requisitionStatus?: string
-  reasonRef?: string
 }
 
 /**
@@ -140,15 +132,7 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'siteLocationId', value: JobRequestFields.siteLocationId },
     { key: 'organizationalUnitId', value: JobRequestFields.organizationalUnitId },
     { key: 'requesterEmployeeId', value: JobRequestFields.requesterEmployeeId },
-    { key: 'additionalProperties', value: 'additionalProperties' },
-    // Deprecated fields for backward compatibility
-    { key: 'note', value: JobRequestFields.note },
-    { key: 'headcount', value: JobRequestFields.headcount },
-    { key: 'startDate', value: JobRequestFields.startDate },
-    { key: 'endDate', value: JobRequestFields.endDate },
-    { key: 'requisitionStatus', value: JobRequestFields.requisitionStatus },
-    { key: 'replacedPositionId', value: JobRequestFields.replacedPositionId },
-    { key: 'requesterId', value: JobRequestFields.requesterId }
+    { key: 'additionalProperties', value: 'additionalProperties' }
   ]
 
   return scalarFields

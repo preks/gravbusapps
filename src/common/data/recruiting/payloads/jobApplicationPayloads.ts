@@ -2,20 +2,7 @@
  * JobApplication Payload Builders
  */
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-
-export interface JobApplicationPayload {
-  id?: string
-  version?: number
-  applicationDate?: string
-  jobApplicationPipelineRef?: string
-  jobApplicationStageRef?: string
-  jobCandidateId?: string
-  jobPostingId?: string
-  jobPostingPublicationId?: string
-  referrerEmployeeId?: string
-  referredBy?: string
-  additionalProperties?: any
-}
+import type { JobApplication } from '../types/jobApplicationTypes'
 
 export const JobApplicationFormFields = {
   id: 'id',
@@ -31,6 +18,10 @@ export const JobApplicationFormFields = {
   additionalProperties: 'additionalProperties'
 } as const
 
-export const buildJobApplicationPayload = (data: any): JobApplicationPayload => {
-  return buildPayload(data, JobApplicationFormFields)
+export const buildJobApplicationPayload = (data: Partial<JobApplication>) => {
+  const basePayload = buildPayload(data, JobApplicationFormFields)
+
+  return {
+    jobApplication: basePayload
+  }
 }

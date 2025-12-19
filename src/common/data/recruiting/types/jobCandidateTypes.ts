@@ -132,14 +132,6 @@ export interface JobCandidate extends BaseEntity {
   educations?: CandidateEducation[]
   hobbies?: CandidateHobby[]
   jobHistory?: CandidateJobHistory[]
-
-  // Deprecated fields (for backward compatibility)
-  /** @deprecated Use communicationChannels jsonb instead */
-  email?: string
-  /** @deprecated Use communicationChannels jsonb instead */
-  phone?: string
-  /** @deprecated Use communicationChannels jsonb instead */
-  linkedinUrl?: string
 }
 
 /**

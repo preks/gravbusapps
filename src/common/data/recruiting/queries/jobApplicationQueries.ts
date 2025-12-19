@@ -20,7 +20,7 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'createdAt',
     'id',
     'applicationDate',
-    'jobApplicationStageRef', // Maps to 'currentStage' in backend
+    'jobApplicationStageRef',
     'jobCandidate',
     'jobCandidateId',
     'jobPosting',
@@ -32,7 +32,7 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'createdBy',
     'id',
     'applicationDate',
-    'jobApplicationStageRef', // Maps to 'currentStage' in backend
+    'jobApplicationStageRef',
     'jobCandidate',
     'jobCandidateId',
     'jobPosting',
@@ -76,11 +76,7 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'recordState', value: 'recordState' },
     { key: 'activeFrom', value: 'activeFrom' },
     { key: 'activeTo', value: 'activeTo' },
-    { key: 'additionalProperties', value: 'additionalProperties' },
-    // Deprecated
-    { key: 'currentStage', value: JobApplicationFields.currentStage },
-    { key: 'applicationChannelId', value: JobApplicationFields.applicationChannelId },
-    { key: 'referralId', value: JobApplicationFields.referralId }
+    { key: 'additionalProperties', value: 'additionalProperties' }
   ]
 
   return scalarFields
@@ -132,7 +128,7 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
     
     ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName')}
     
-    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      jobTitle')}
+    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      title')}
     
     ${buildEntityReferenceField(fieldSet, 'jobPostingPublication', 'jobPostingPublicationId', JobApplicationFields.jobPostingPublication, 'id\n      url')}
     

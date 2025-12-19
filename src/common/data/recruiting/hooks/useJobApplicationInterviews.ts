@@ -64,7 +64,7 @@ export function useJobApplicationInterviews(
         const orderByInput =
           vars.orderBy && vars.orderBy.length > 0
             ? vars.orderBy
-            : [{ field: 'scheduledDate', direction: 'DESC_NULLS_LAST' as const }]
+            : [{ field: 'scheduledAt', direction: 'DESC_NULLS_LAST' as const }]
         const orderByArray = buildOrderBy(orderByInput, JOB_APPLICATION_INTERVIEW_DESCRIPTORS)
         const limit = Math.min(vars.limit || 50, 100)
         const offset = vars.offset || 0

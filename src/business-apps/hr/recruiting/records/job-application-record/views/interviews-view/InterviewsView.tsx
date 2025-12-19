@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobApplicationInterviews } from '@/common/data/recruiting/hooks/useJobApplicationInterviews'
 import { DataDisplay, DataTable } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { JobApplicationInterview } from '@/common/data/recruiting/types/jobApplicationInterviewTypes'
@@ -14,7 +14,7 @@ interface InterviewsViewProps extends BusinessAppContextProps {
 
 export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId, accessToken }) => {
   const [search, setSearch] = useState('')
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'scheduledDate', desc: true }])
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'scheduledAt', desc: true }])
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20
@@ -39,19 +39,27 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
   // Row actions
   const rowActions = useMemo(
     () => (row: any) => (
-      <div className="gba:flex gba:justify-start gba:gap-2">
-        <AppActionButton
-          data-testid={`interview-actions-${row.original.id}`}
-          size="icon"
-          contextsArray={[FlowContextName.jobApplicationInterviewEntity]}
-          externalContextData={{ jobApplicationInterviewId: row.original.id }}
-          prefixDataTestId="interview-actions"
-          accessToken={accessToken}
-          emptyStateBehavior="enable"
-          deferMainContextRequestsUntilClick
-          onClick={e => e.stopPropagation()}
-        />
-      </div>
+      <AppAction
+        data-testid={`interview-actions-${row.original.id}`}
+        variant="table-row"
+        contexts={[
+          {
+            context: FlowContextName.jobApplicationInterviewEntity,
+            contextData: { jobApplicationInterviewId: row.original.id }
+          }
+        ]}
+        shareContext={{
+          entityType: 'jobApplicationInterview',
+          entityId: row.original.id,
+          entityName: row.original.scheduledAt
+            ? `Interview on ${new Date(row.original.scheduledAt).toLocaleDateString()}`
+            : 'Interview'
+        }}
+        prefixDataTestId="interview-actions"
+        accessToken={accessToken}
+        lazyLoad
+        onClick={e => e.stopPropagation()}
+      />
     ),
     [accessToken]
   )
@@ -60,9 +68,9 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
   const columns = useMemo<ColumnDef<JobApplicationInterview>[]>(
     () => [
       {
-        id: 'scheduledDate', // Backend OrderBy uses 'scheduledDate'
-        accessorKey: 'scheduledAt', // Data field uses 'scheduledAt'
-        header: getTranslationFromI18nKeyAndLabel('recruiting.scheduledDate', 'Scheduled Date'),
+        id: 'scheduledAt',
+        accessorKey: 'scheduledAt',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.scheduledAt', 'Scheduled Date & Time'),
         cell: info => {
           const value = info.getValue() as string
           return value ? (
@@ -88,8 +96,8 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
         meta: { type: 'number' as const }
       },
       {
-        id: 'meetingPlace', // Backend OrderBy uses 'meetingPlace'
-        accessorKey: 'location', // Data field uses 'location'
+        id: 'location',
+        accessorKey: 'location',
         header: getTranslationFromI18nKeyAndLabel('recruiting.location', 'Location'),
         cell: info => {
           const value = info.getValue() as string

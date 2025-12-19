@@ -2,30 +2,7 @@
  * JobRequest Payload Builders
  */
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-import { JobRequestType, JobRequestStatus } from '../types/enums'
-
-export interface JobRequestPayload {
-  id?: string
-  version?: number
-  code?: string
-  name: string
-  description?: string
-  plannedHireDate?: string
-  plannedExitDate?: string
-  jobRequestType?: JobRequestType
-  jobRequestStatus?: JobRequestStatus
-  contractTypeRef?: string
-  employmentTypeRef?: string
-  jobExperienceLevelRef?: string
-  organizationalUnitId?: string
-  companyId?: string
-  costCenterId?: string
-  siteLocationId?: string
-  jobProfileId?: string
-  jobPositionId?: string
-  requesterEmployeeId?: string
-  additionalProperties?: any
-}
+import type { JobRequest } from '../types/jobRequestTypes'
 
 export const JobRequestFormFields = {
   id: 'id',
@@ -50,10 +27,13 @@ export const JobRequestFormFields = {
   additionalProperties: 'additionalProperties'
 } as const
 
-export const buildJobRequestPayload = (data: any): JobRequestPayload => {
-  const payload = buildPayload(data, JobRequestFormFields)
+export const buildJobRequestPayload = (data: Partial<JobRequest>) => {
+  const basePayload = buildPayload(data, JobRequestFormFields)
+
   return {
-    ...payload,
-    name: data.name || ''
+    jobRequest: {
+      ...basePayload,
+      name: data.name || ''
+    }
   }
 }

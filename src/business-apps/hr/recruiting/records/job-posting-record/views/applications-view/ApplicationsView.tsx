@@ -138,9 +138,9 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobPostingId
         meta: { type: 'date' as const }
       },
       {
-        id: 'currentStage',
-        accessorKey: 'currentStage',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.currentStage', 'Current Stage'),
+        id: 'jobApplicationStage',
+        accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
         cell: info => {
           const value = info.getValue() as string
           return value ? (

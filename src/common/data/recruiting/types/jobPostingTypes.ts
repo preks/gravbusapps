@@ -25,27 +25,14 @@ export interface JobPosting extends BaseEntity {
 
   // Entity Reference IDs
   jobRequestId?: string
-
-  // Deprecated fields (for backward compatibility)
-  /** @deprecated Use title instead */
-  jobTitle?: string
-  /** @deprecated Location info now in job_posting_position */
-  location?: string
-  /** @deprecated Remote info now in job_posting_position */
-  remote?: string
-  /** @deprecated Department info now in job_posting_position */
-  department?: string
-  /** @deprecated Contract type info now in job_posting_position */
-  contractType?: string
 }
 
 /**
  * JobPosting Fields
- * Note: Backend still uses OLD field names (jobTitle, not title)
  */
 export const JobPostingFields = {
   id: 'id',
-  title: 'jobTitle', // Backend still uses 'jobTitle'
+  title: 'title',
   titleI18n: 'titleI18n',
   content: 'content',
   contentI18n: 'contentI18n',
@@ -53,14 +40,7 @@ export const JobPostingFields = {
 
   // Entity references
   jobRequest: 'jobRequest',
-  jobRequestId: 'jobRequestId',
-
-  // Deprecated
-  jobTitle: 'jobTitle',
-  location: 'location',
-  remote: 'remote',
-  department: 'department',
-  contractType: 'contractType'
+  jobRequestId: 'jobRequestId'
 } as const
 
 /**

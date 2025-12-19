@@ -59,15 +59,7 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'recordState', value: 'recordState' },
     { key: 'activeFrom', value: 'activeFrom' },
     { key: 'activeTo', value: 'activeTo' },
-    { key: 'additionalProperties', value: 'additionalProperties' },
-    // Deprecated
-    { key: 'scheduledDate', value: JobApplicationInterviewFields.scheduledDate },
-    { key: 'meetingPlace', value: JobApplicationInterviewFields.meetingPlace },
-    { key: 'interviewDate', value: JobApplicationInterviewFields.interviewDate },
-    { key: 'confirmedDate', value: JobApplicationInterviewFields.confirmedDate },
-    { key: 'cancelledDate', value: JobApplicationInterviewFields.cancelledDate },
-    { key: 'participants', value: JobApplicationInterviewFields.participants },
-    { key: 'employeeId', value: JobApplicationInterviewFields.employeeId }
+    { key: 'additionalProperties', value: 'additionalProperties' }
   ]
 
   return scalarFields

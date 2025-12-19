@@ -69,7 +69,7 @@ const JobPostingRecordContent: React.FC<JobPostingRecordContentProps> = ({ jobPo
 
   // Calculate jobPostingName early for use in headerActionButton
   const jobPostingName =
-    jobPosting?.jobTitle || getTranslationFromI18nKeyAndLabel('recruiting.jobPosting.unnamed', 'Unnamed Job Posting')
+    jobPosting?.title || getTranslationFromI18nKeyAndLabel('recruiting.jobPosting.unnamed', 'Unnamed Job Posting')
 
   const headerActionButton = useMemo(
     () => (

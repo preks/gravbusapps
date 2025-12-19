@@ -11,24 +11,18 @@ export interface JobPostingQueryVariables extends BaseQueryVariables {
 
 export const JOB_POSTING_QUERY_CONFIGS: Record<string, string[]> = {
   minimal: ['createdAt', 'id', 'title'],
-  list: ['createdAt', 'id', 'title', 'location', 'department', 'updatedAt'],
+  list: ['createdAt', 'id', 'title', 'updatedAt'],
   record: [
     'createdAt',
     'createdBy',
     'id',
     'title',
-    // New fields - may not exist in backend yet
-    // 'titleI18n',
-    // 'content',
-    // 'contentI18n',
-    // 'fileInfo',
-    // 'jobRequest',
-    // 'jobRequestId',
-    // Deprecated but still in backend
-    'location',
-    'department',
-    'remote',
-    'contractType',
+    'titleI18n',
+    'content',
+    'contentI18n',
+    'fileInfo',
+    'jobRequest',
+    'jobRequestId',
     'updatedAt',
     'updatedBy',
     'version',
@@ -66,13 +60,7 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'recordState', value: 'recordState' },
     { key: 'activeFrom', value: 'activeFrom' },
     { key: 'activeTo', value: 'activeTo' },
-    { key: 'additionalProperties', value: 'additionalProperties' },
-    // Deprecated
-    { key: 'jobTitle', value: JobPostingFields.jobTitle },
-    { key: 'department', value: JobPostingFields.department },
-    { key: 'location', value: JobPostingFields.location },
-    { key: 'contractType', value: JobPostingFields.contractType },
-    { key: 'remote', value: JobPostingFields.remote }
+    { key: 'additionalProperties', value: 'additionalProperties' }
   ]
 
   return scalarFields

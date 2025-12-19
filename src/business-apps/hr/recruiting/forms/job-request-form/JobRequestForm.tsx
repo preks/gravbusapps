@@ -86,9 +86,9 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
 
   const handleSubmit = useCallback(async (data: any) => {
     try {
-      const payload = buildJobRequestPayload(data)
+      const { jobRequest } = buildJobRequestPayload(data)
       return {
-        ...payload,
+        jobRequest,
         changeMode: data.id ? 'UPDATE' : 'INSERT'
       }
     } catch (error) {

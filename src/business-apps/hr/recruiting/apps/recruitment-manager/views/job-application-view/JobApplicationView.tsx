@@ -39,6 +39,27 @@ export const JobApplicationView: React.FC<JobApplicationViewProps> = context => 
     return (first + last).toUpperCase() || 'A'
   }
 
+  // Primary action for creating new job application
+  const primaryAction = useMemo(
+    () => (
+      <AppAction
+        variant="create-primary"
+        contexts={[
+          {
+            context: FlowContextName.jobApplicationCreate,
+            contextData: {}
+          }
+        ]}
+        accessToken={context.accessToken}
+        emptyState="hide"
+        data-testid="add-job-application-action"
+      >
+        {getTranslationFromI18nKeyAndLabel('recruiting.addJobApplication', 'Add Job Application')}
+      </AppAction>
+    ),
+    [context.accessToken]
+  )
+
   // Row actions
   const rowActions = useMemo(
     () => (row: any) => (
@@ -103,12 +124,12 @@ export const JobApplicationView: React.FC<JobApplicationViewProps> = context => 
       },
       {
         id: 'jobPosting',
-        accessorFn: row => row.jobPosting?.jobTitle || '-',
+        accessorFn: row => row.jobPosting?.title || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting'),
         cell: info => {
           const posting = info.row.original.jobPosting
-          return posting?.jobTitle ? (
-            <div className="gba:text-sm gba:font-medium">{posting.jobTitle}</div>
+          return posting?.title ? (
+            <div className="gba:text-sm gba:font-medium">{posting.title}</div>
           ) : (
             <span className="gba:text-sm gba:text-muted-foreground">-</span>
           )
@@ -130,9 +151,9 @@ export const JobApplicationView: React.FC<JobApplicationViewProps> = context => 
         meta: { type: 'date' as const }
       },
       {
-        id: 'currentStage',
-        accessorKey: 'currentStage',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.currentStage', 'Current Stage'),
+        id: 'jobApplicationStage',
+        accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
         cell: info => {
           const value = info.getValue() as string
           return value ? (
@@ -169,6 +190,7 @@ export const JobApplicationView: React.FC<JobApplicationViewProps> = context => 
           'Search job applications...'
         )}
         onSearchChange={setSearch}
+        primaryAction={primaryAction}
         toolbarDensity="default"
       >
         <DataTable<JobApplication>

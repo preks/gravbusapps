@@ -42,6 +42,27 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
     navigateTo(url)
   }, [])
 
+  // Primary action for creating new job posting
+  const primaryAction = useMemo(
+    () => (
+      <AppAction
+        variant="create-primary"
+        contexts={[
+          {
+            context: FlowContextName.jobPostingCreate,
+            contextData: {}
+          }
+        ]}
+        accessToken={context.accessToken}
+        emptyState="hide"
+        data-testid="add-job-posting-action"
+      >
+        {getTranslationFromI18nKeyAndLabel('recruiting.addJobPosting', 'Add Job Posting')}
+      </AppAction>
+    ),
+    [context.accessToken]
+  )
+
   // Row actions
   const rowActions = useMemo(
     () => (row: any) => (
@@ -57,7 +78,7 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
         shareContext={{
           entityType: 'jobPosting',
           entityId: row.original.id,
-          entityName: row.original.jobTitle
+          entityName: row.original.title
         }}
         prefixDataTestId="job-posting-actions"
         accessToken={context.accessToken}
@@ -72,9 +93,9 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
   const columns = useMemo<ColumnDef<JobPosting>[]>(
     () => [
       {
-        id: 'jobTitle',
-        accessorKey: 'jobTitle',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.jobTitle', 'Job Title'),
+        id: 'title',
+        accessorKey: 'title',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.title', 'Job Title'),
         cell: info => <div className="gba:text-sm gba:font-medium">{(info.getValue() as string) || '-'}</div>,
         meta: { type: 'text' as const }
       },
@@ -145,6 +166,7 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
         searchValue={search}
         searchPlaceholder={getTranslationFromI18nKeyAndLabel('recruiting.searchJobPostings', 'Search job postings...')}
         onSearchChange={setSearch}
+        primaryAction={primaryAction}
         toolbarDensity="default"
       >
         <DataTable<JobPosting>

@@ -2,19 +2,7 @@
  * JobApplicationInterview Payload Builders (JobInterview)
  */
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-import { JobInterviewStatus } from '../types/enums'
-
-export interface JobApplicationInterviewPayload {
-  id?: string
-  version?: number
-  scheduledAt?: string
-  duration?: number
-  location?: string
-  meetingLink?: string
-  jobInterviewStatus?: JobInterviewStatus
-  jobApplicationId: string
-  additionalProperties?: any
-}
+import type { JobApplicationInterview } from '../types/jobApplicationInterviewTypes'
 
 export const JobApplicationInterviewFormFields = {
   id: 'id',
@@ -28,10 +16,13 @@ export const JobApplicationInterviewFormFields = {
   additionalProperties: 'additionalProperties'
 } as const
 
-export const buildJobApplicationInterviewPayload = (data: any): JobApplicationInterviewPayload => {
-  const payload = buildPayload(data, JobApplicationInterviewFormFields)
+export const buildJobApplicationInterviewPayload = (data: Partial<JobApplicationInterview>) => {
+  const basePayload = buildPayload(data, JobApplicationInterviewFormFields)
+
   return {
-    ...payload,
-    jobApplicationId: data.jobApplicationId || ''
+    jobApplicationInterview: {
+      ...basePayload,
+      jobApplicationId: data.jobApplicationId || ''
+    }
   }
 }

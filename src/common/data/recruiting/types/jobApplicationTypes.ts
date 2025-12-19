@@ -2,16 +2,8 @@ import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/c
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { JobCandidate } from './jobCandidateTypes'
 import type { JobPosting } from './jobPostingTypes'
+import type { JobPostingPublication } from './jobPostingPublicationTypes'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
-
-/**
- * JobPostingPublication reference type
- */
-export interface JobPostingPublication {
-  id?: string
-  url?: string
-  jobPostingChannelRef?: string
-}
 
 /**
  * JobApplication Type
@@ -40,19 +32,10 @@ export interface JobApplication extends BaseEntity {
   jobPostingPublicationId?: string
   referrerEmployeeId?: string
   referredBy?: string // user id of external referrer
-
-  // Deprecated fields (for backward compatibility)
-  /** @deprecated Use jobApplicationStageRef instead */
-  currentStage?: string
-  /** @deprecated Use jobPostingPublicationId instead */
-  applicationChannelId?: string
-  /** @deprecated Use referrerEmployeeId instead */
-  referralId?: string
 }
 
 /**
  * JobApplication Fields
- * Note: Backend still uses OLD field names
  */
 export const JobApplicationFields = {
   id: 'id',
@@ -60,7 +43,7 @@ export const JobApplicationFields = {
 
   // Catalog references
   jobApplicationPipelineRef: 'jobApplicationPipelineRef',
-  jobApplicationStageRef: 'currentStage', // Backend still uses 'currentStage'
+  jobApplicationStageRef: 'jobApplicationStageRef',
 
   // Catalog objects
   jobApplicationPipeline: 'jobApplicationPipeline',
@@ -75,14 +58,9 @@ export const JobApplicationFields = {
   // Entity IDs
   jobCandidateId: 'jobCandidateId',
   jobPostingId: 'jobPostingId',
-  jobPostingPublicationId: 'applicationChannelId', // Backend still uses 'applicationChannelId'
-  referrerEmployeeId: 'referralId', // Backend still uses 'referralId'
-  referredBy: 'referredBy',
-
-  // Deprecated
-  currentStage: 'currentStage',
-  applicationChannelId: 'applicationChannelId',
-  referralId: 'referralId'
+  jobPostingPublicationId: 'jobPostingPublicationId',
+  referrerEmployeeId: 'referrerEmployeeId',
+  referredBy: 'referredBy'
 } as const
 
 /**

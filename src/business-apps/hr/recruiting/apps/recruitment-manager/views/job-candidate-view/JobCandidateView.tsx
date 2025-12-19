@@ -49,6 +49,27 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
     navigateTo(url)
   }, [])
 
+  // Primary action for creating new job candidate
+  const primaryAction = useMemo(
+    () => (
+      <AppAction
+        variant="create-primary"
+        contexts={[
+          {
+            context: FlowContextName.jobCandidateCreate,
+            contextData: {}
+          }
+        ]}
+        accessToken={context.accessToken}
+        emptyState="hide"
+        data-testid="add-job-candidate-action"
+      >
+        {getTranslationFromI18nKeyAndLabel('recruiting.addJobCandidate', 'Add Job Candidate')}
+      </AppAction>
+    ),
+    [context.accessToken]
+  )
+
   // Row actions
   const rowActions = useMemo(
     () => (row: any) => (
@@ -160,6 +181,7 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
           'Search job candidates...'
         )}
         onSearchChange={setSearch}
+        primaryAction={primaryAction}
         toolbarDensity="default"
       >
         <DataTable<JobCandidate>

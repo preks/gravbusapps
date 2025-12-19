@@ -83,9 +83,11 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
             icon: Calendar
           },
           {
-            label: getTranslationFromI18nKeyAndLabel('recruiting.currentStage', 'Current Stage'),
+            label: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
             value:
-              jobApplication?.currentStage || getTranslationFromI18nKeyAndLabel('common.notSpecified', 'Not specified'),
+              jobApplication?.jobApplicationStage?.value ||
+              jobApplication?.jobApplicationStageRef ||
+              getTranslationFromI18nKeyAndLabel('common.notSpecified', 'Not specified'),
             icon: Briefcase
           },
           {
@@ -98,7 +100,7 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
           {
             label: getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting'),
             value:
-              jobApplication?.jobPosting?.jobTitle ||
+              jobApplication?.jobPosting?.title ||
               getTranslationFromI18nKeyAndLabel('common.notSpecified', 'Not specified'),
             icon: FileText
           }
@@ -110,7 +112,7 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
 
   // Calculate jobApplicationName early for use in headerActionButton
   const jobApplicationName = jobApplication?.jobCandidate
-    ? `${jobApplication.jobCandidate.firstName} ${jobApplication.jobCandidate.lastName} - ${jobApplication.jobPosting?.jobTitle || 'Application'}`
+    ? `${jobApplication.jobCandidate.firstName} ${jobApplication.jobCandidate.lastName} - ${jobApplication.jobPosting?.title || 'Application'}`
     : getTranslationFromI18nKeyAndLabel('recruiting.jobApplication.unnamed', 'Unnamed Application')
 
   const headerActionButton = useMemo(

@@ -113,6 +113,6 @@ export const buildJobPostingPublicationFragment = (fields: string[]): string => 
     
     ${buildCatalogReferenceField(fieldSet, 'jobPostingChannel', 'jobPostingChannelRef', JobPostingPublicationFields.jobPostingChannel)}
     
-    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobPostingPublicationFields.jobPosting, 'id\n      jobTitle')}
+    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobPostingPublicationFields.jobPosting, 'id\n      title')}
   `
 }

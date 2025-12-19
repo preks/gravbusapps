@@ -37,9 +37,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ jobPosting }) => {
             {/* Job Title */}
             <div className="gba:space-y-1">
               <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('recruiting.jobTitle', 'Job Title')}
+                {getTranslationFromI18nKeyAndLabel('recruiting.title', 'Job Title')}
               </div>
-              <div className="gba:text-base gba:font-semibold">{jobPosting.jobTitle || '-'}</div>
+              <div className="gba:text-base gba:font-semibold">{jobPosting.title || '-'}</div>
             </div>
 
             {/* Department */}

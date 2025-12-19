@@ -60,7 +60,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
         shareContext={{
           entityType: 'jobApplication',
           entityId: row.original.id,
-          entityName: row.original.jobPosting?.jobTitle || 'Application'
+          entityName: row.original.jobPosting?.title || 'Application'
         }}
         prefixDataTestId="job-application-actions"
         accessToken={accessToken}
@@ -76,11 +76,11 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
     () => [
       {
         id: 'jobPosting',
-        accessorFn: row => row.jobPosting?.jobTitle || '-',
+        accessorFn: row => row.jobPosting?.title || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting'),
         cell: info => {
           const posting = info.row.original.jobPosting
-          return posting?.jobTitle ? (
+          return posting?.title ? (
             <button
               onClick={e => {
                 e.stopPropagation()
@@ -91,7 +91,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
               className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline gba:cursor-pointer gba:text-left"
               data-testid={`job-posting-link-${posting.id}`}
             >
-              {posting.jobTitle}
+              {posting.title}
             </button>
           ) : (
             <span className="gba:text-sm gba:text-muted-foreground">-</span>
@@ -114,9 +114,9 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
         meta: { type: 'date' as const }
       },
       {
-        id: 'currentStage',
-        accessorKey: 'currentStage',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.currentStage', 'Current Stage'),
+        id: 'jobApplicationStage',
+        accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
         cell: info => {
           const value = info.getValue() as string
           return value ? (

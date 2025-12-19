@@ -51,12 +51,14 @@ export const HomeView: React.FC<HomeViewProps> = ({ jobApplication }) => {
             )}
 
             {/* Current Stage */}
-            {jobApplication.currentStage && (
+            {(jobApplication.jobApplicationStage?.value || jobApplication.jobApplicationStageRef) && (
               <div className="gba:space-y-1">
                 <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('recruiting.currentStage', 'Current Stage')}
+                  {getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage')}
                 </div>
-                <div className="gba:text-base">{jobApplication.currentStage}</div>
+                <div className="gba:text-base">
+                  {jobApplication.jobApplicationStage?.value || jobApplication.jobApplicationStageRef}
+                </div>
               </div>
             )}
 
@@ -86,7 +88,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ jobApplication }) => {
                   <Briefcase className="gba:h-4 gba:w-4" />
                   {getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting')}
                 </div>
-                <div className="gba:text-base">{posting.jobTitle || '-'}</div>
+                <div className="gba:text-base">{posting.title || '-'}</div>
               </div>
             )}
           </div>

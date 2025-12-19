@@ -94,22 +94,6 @@ export interface JobRequest extends BaseEntity {
   jobProfileId?: string
   jobPositionId?: string
   requesterEmployeeId?: string
-
-  // Deprecated fields (for backward compatibility during migration)
-  /** @deprecated Use plannedHireDate instead */
-  startDate?: string
-  /** @deprecated Use plannedExitDate instead */
-  endDate?: string
-  /** @deprecated Use jobRequestStatus instead */
-  requisitionStatus?: string
-  /** @deprecated Use jobRequestType instead */
-  reasonRef?: string
-  /** @deprecated Use requesterEmployeeId instead */
-  requesterId?: string
-  /** @deprecated Use jobPositionId instead */
-  replacedPositionId?: string
-  /** @deprecated Removed - headcount is now auto-generated based on type */
-  headcount?: number
 }
 
 /**
@@ -155,17 +139,7 @@ export const JobRequestFields = {
   siteLocationId: 'siteLocationId',
   jobProfileId: 'jobProfileId',
   jobPositionId: 'jobPositionId',
-  requesterEmployeeId: 'requesterEmployeeId',
-
-  // Deprecated fields (for backward compatibility)
-  startDate: 'startDate',
-  endDate: 'endDate',
-  requisitionStatus: 'requisitionStatus',
-  reasonRef: 'reasonRef',
-  requesterId: 'requesterId',
-  replacedPositionId: 'replacedPositionId',
-  headcount: 'headcount',
-  note: 'note'
+  requesterEmployeeId: 'requesterEmployeeId'
 } as const
 
 /**

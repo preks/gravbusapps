@@ -2,65 +2,7 @@
  * JobCandidate Payload Builders
  */
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-import { JobCandidateStatus } from '../types/enums'
-import type {
-  CandidateAddress,
-  CandidateSkill,
-  CandidateCertificate,
-  CandidateCommunicationChannel,
-  CandidateEducation,
-  CandidateHobby,
-  CandidateJobHistory
-} from '../types/jobCandidateTypes'
-
-export interface JobCandidatePayload {
-  id?: string
-  version?: number
-  code?: string
-
-  // Name fields
-  title?: string
-  firstName: string
-  lastName: string
-  birthName?: string
-  preferredName?: string
-  fullName?: string
-  displayName?: string
-
-  // Personal information
-  birthPlace?: string
-  birthDate?: string
-  picture?: any
-  pictureThumbnail?: string
-  severelyDisabilityDegree?: number
-  notes?: string
-  children?: number
-
-  // Status and user
-  jobCandidateStatus?: JobCandidateStatus
-  userId?: string
-
-  // Catalog references
-  academicTitleRef?: string
-  ethnicityRef?: string
-  genderRef?: string
-  languageRef?: string
-  maritalStatusRef?: string
-  nationalityRef?: string
-  salutationRef?: string
-  schoolQualificationRef?: string
-
-  // Jsonb fields
-  addresses?: CandidateAddress[]
-  skills?: CandidateSkill[]
-  certificates?: CandidateCertificate[]
-  communicationChannels?: CandidateCommunicationChannel[]
-  educations?: CandidateEducation[]
-  hobbies?: CandidateHobby[]
-  jobHistory?: CandidateJobHistory[]
-
-  additionalProperties?: any
-}
+import type { JobCandidate } from '../types/jobCandidateTypes'
 
 export const JobCandidateFormFields = {
   id: 'id',
@@ -111,8 +53,8 @@ export const JobCandidateFormFields = {
   additionalProperties: 'additionalProperties'
 } as const
 
-export const buildJobCandidatePayload = (data: any): JobCandidatePayload => {
-  const payload = buildPayload(data, JobCandidateFormFields)
+export const buildJobCandidatePayload = (data: Partial<JobCandidate>) => {
+  const basePayload = buildPayload(data, JobCandidateFormFields)
 
   // Ensure jsonb fields are properly serialized
   const jsonbFields = [
@@ -125,18 +67,20 @@ export const buildJobCandidatePayload = (data: any): JobCandidatePayload => {
     'jobHistory'
   ]
   jsonbFields.forEach(field => {
-    if (payload[field as keyof JobCandidatePayload]) {
+    if (basePayload[field]) {
       // Ensure it's an array
-      const value = payload[field as keyof JobCandidatePayload]
+      const value = basePayload[field]
       if (!Array.isArray(value)) {
-        payload[field as keyof JobCandidatePayload] = value ? [value] : []
+        basePayload[field] = value ? [value] : []
       }
     }
   })
 
   return {
-    ...payload,
-    firstName: data.firstName || '',
-    lastName: data.lastName || ''
+    jobCandidate: {
+      ...basePayload,
+      firstName: data.firstName || '',
+      lastName: data.lastName || ''
+    }
   }
 }

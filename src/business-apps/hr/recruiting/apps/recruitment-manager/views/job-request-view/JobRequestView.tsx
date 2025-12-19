@@ -33,6 +33,27 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
     'list'
   )
 
+  // Primary action for creating new job request
+  const primaryAction = useMemo(
+    () => (
+      <AppAction
+        variant="create-primary"
+        contexts={[
+          {
+            context: FlowContextName.jobRequestCreate,
+            contextData: {}
+          }
+        ]}
+        accessToken={context.accessToken}
+        emptyState="hide"
+        data-testid="add-job-request-action"
+      >
+        {getTranslationFromI18nKeyAndLabel('recruiting.addJobRequest', 'Add Job Request')}
+      </AppAction>
+    ),
+    [context.accessToken]
+  )
+
   // Row actions
   const rowActions = useMemo(
     () => (row: any) => (
@@ -141,9 +162,9 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
         meta: { type: 'text' as const }
       },
       {
-        id: 'endDate',
-        accessorKey: 'endDate',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.endDate', 'End Date'),
+        id: 'plannedExitDate',
+        accessorKey: 'plannedExitDate',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.plannedExitDate', 'Planned Exit Date'),
         cell: info => {
           const value = info.getValue() as string
           return value ? (
@@ -175,6 +196,7 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
         searchValue={search}
         searchPlaceholder={getTranslationFromI18nKeyAndLabel('recruiting.searchJobRequests', 'Search job requests...')}
         onSearchChange={setSearch}
+        primaryAction={primaryAction}
         toolbarDensity="default"
       >
         <DataTable<JobRequest>
