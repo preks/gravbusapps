@@ -104,7 +104,8 @@ export const DeactivateEmployeeBenefitReview: React.FC<BusinessAppContextProps> 
           submitButtonTestId="deactivate-employee-benefit-review-submit-button"
           onSubmit={async () => {
             return {
-              approval: 'approved'
+              note: null,
+              event: 'pse_submit'
             }
           }}
           data-testid="deactivate-employee-benefit-review"

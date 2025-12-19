@@ -86,42 +86,6 @@ export interface CompanyHierarchyState {
   expandedIds: Set<string>
 }
 
-// Project-related types based on orgchart API
-export interface ProjectData {
-  id: string
-  name: string
-  description?: string
-  validTo?: string // ISO timestamp
-  structureId: string
-  projectType: 'INTERNAL' | 'EXTERNAL'
-  customerId?: string // Only for EXTERNAL projects
-}
-
-export interface PaginatedProjectRecords {
-  data: ProjectData[]
-  paging: {
-    offset: number
-    totalRecords: number
-    hasMore: boolean
-  }
-}
-
-// Enhanced Project interface for UI display
-export interface Project {
-  id: string
-  name: string
-  description?: string
-  validTo?: string
-  structureId: string
-  projectType: 'INTERNAL' | 'EXTERNAL'
-  customerId?: string
-  // Computed fields
-  status: 'Active' | 'Expired' | 'Expiring Soon'
-  isActive: boolean
-  daysUntilExpiry?: number
-  formattedValidTo?: string
-}
-
 // Other organizational data types
 export interface Capability {
   id: string

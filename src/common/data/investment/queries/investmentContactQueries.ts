@@ -83,6 +83,9 @@ export const buildInvestmentContactQuery = (
     ${fields.leads}(where: { isDeleted: { _eq: false } }) {
       ${buildLeadFragment(InvestmentLeadFields)}
     }
+    
+    # IRM-specific fields
+    ${fields.userId}
   `
   return buildContactQuery('InvestmentContact', fields, relationBuilders, relationFields, entityFields)
 }
@@ -125,6 +128,9 @@ export const buildInvestmentContactByIdQuery = (
     ${fields.leads}(where: { isDeleted: { _eq: false } }) {
       ${buildLeadFragment(InvestmentLeadFields)}
     }
+    
+    # IRM-specific fields
+    ${fields.userId}
   `
 
   return buildContactByIdQuery('InvestmentContact', fields, relationBuilders, relationFields, entityFields)

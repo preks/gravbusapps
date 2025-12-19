@@ -14,7 +14,6 @@ import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useWorkingConditionsLookups } from './queries/UpdateWorkingConditionsQueries'
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import { truncateText } from '@/common/utils/textUtils'
@@ -131,20 +130,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       cancelButtonTestId="flw_updateWorkingConditions_cancelBtn"
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+      cancelEventType="pse_abort"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      onCancel={() => {
-        dispatchProcessContinueEvent('pse_abort', {
-          event: 'pse_abort',
-          pso_exitStrategy: 'abort',
-          pso_completeNotification: {
-            type: 'error',
-            messageKey: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_module.toast_notification_cancel_create_absence',
-              'The action has been canceled.'
-            )
-          }
-        })
-      }}
     >
       <div className="gba:bg-white gba:max-w-3xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
         {/* Title Header */}

@@ -233,3 +233,5 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({
     </div>
   )
 }
+
+export default QuestionSegment

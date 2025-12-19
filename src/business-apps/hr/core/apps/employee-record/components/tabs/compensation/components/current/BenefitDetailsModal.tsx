@@ -69,8 +69,12 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
   // Parse benefit details from catalog objectValue (guard against missing catalogEntry)
   const benefitDetails = parseBenefitObjectValue(benefit.catalogEntry?.objectValue)
 
-  // Get catalog value for active benefits
-  const catalogValue = benefit.isActive ? getCatalogValueDisplay(benefit, benefitDetails, t) : null
+  // Get catalog value for active and scheduled benefits (both have employee benefit data)
+  const catalogValue =
+    benefit.isActive || benefit.isScheduled ? getCatalogValueDisplay(benefit, benefitDetails, t) : null
+
+  // Determine if we should show full benefit details (active or scheduled)
+  const showFullDetails = benefit.isActive || benefit.isScheduled
 
   return (
     <SheetPrimitive
@@ -88,7 +92,7 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
 
         <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
           <div className="gba:space-y-6">
-            {benefit.isActive ? (
+            {showFullDetails ? (
               <ActiveBenefitContent
                 benefit={benefit}
                 t={t}

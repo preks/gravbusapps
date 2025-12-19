@@ -265,6 +265,16 @@ const ENTITY_CHIP_CONFIG: Record<
   }
 }
 
+/**
+ * Build a platform URL for an entity using the same base mapping as the chips.
+ * Returns undefined if the entity is unknown.
+ */
+export function getEntityUrl(entity: string, id: string): string | undefined {
+  const config = ENTITY_CHIP_CONFIG[entity]
+  if (!config) return undefined
+  return config.urlTemplate.replace('{id}', id)
+}
+
 interface EntityLinkProps {
   href?: string
   accessToken: string

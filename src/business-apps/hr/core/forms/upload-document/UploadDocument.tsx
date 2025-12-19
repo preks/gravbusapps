@@ -19,7 +19,6 @@ import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import type { UploadFile } from 'antd'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useUploadDocumentLookups } from './queries/UploadDocumentQueries'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { env } from '@/common/env/EnvUtils'
 
@@ -197,19 +196,6 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             event: 'pse_submit',
             pso_exitStrategy: 'complete'
           }
-        }}
-        onCancel={() => {
-          dispatchProcessContinueEvent('pse_abort', {
-            event: 'pse_abort',
-            pso_exitStrategy: 'abort',
-            pso_completeNotification: {
-              type: 'error',
-              messageKey: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_module.toast_notification_cancel_create_absence',
-                'The action has been canceled.'
-              )
-            }
-          })
         }}
         onSubmit={() => ({})}
         data-testid={APP_FORM_TID}

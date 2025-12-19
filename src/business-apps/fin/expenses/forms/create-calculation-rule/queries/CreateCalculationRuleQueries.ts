@@ -164,3 +164,119 @@ export const getExpenseRuleAggregateByCode = `query ExpenseRuleAggregateByCode($
   }
 }
 `
+
+// Combined query for Edit mode - fetches everything in one call
+export const getEditModeData = `query getEditModeData($calculationId: uuid!, $activeUserLocale: String!) {
+  # Catalog data
+  Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}, orderBy: {value: ASC}) {
+    code
+    value
+    id
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog { defaultLocale }
+  }
+  CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}}, orderBy: {value: ASC}) {
+    value
+    id
+    code
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog { defaultLocale }
+  }
+  Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } } }, orderBy: { value: ASC }) {
+    code
+    id
+    value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog { defaultLocale }
+  }
+  # Rule being edited
+  ExpenseRule(where: { isDeleted: {_eq: false}, id: { _eq: $calculationId } }) {
+    id
+    version
+    name
+    code
+    calculationTypeRef
+    standard
+    activeFrom
+    activeTo
+    currency { id code }
+    currencyRef
+    deductionLimit
+    taxesCode
+    useLastCountry
+    nonpayableCode
+    advancePaymentCode
+    countryRef
+    useSingleCurrency
+  }
+  # Flags for this rule
+  ExpenseRuleFlag(where: { expenseRuleId: {_eq: $calculationId}, isDeleted: {_eq: false}}) {
+    id
+    version
+    expenseRuleId
+    value
+    name
+  }
+  # Usage check - determine if rule has been used
+  planCount: ExpensePlanAggregate(where: { expenseRuleId: { _eq: $calculationId }, isDeleted: { _eq: false } }) {
+    aggregate { count }
+  }
+  requestCount: ExpenseRequestAggregate(where: { expenseRuleId: { _eq: $calculationId }, isDeleted: { _eq: false } }) {
+    aggregate { count }
+  }
+  itemCount: ExpenseItemAggregate(where: { expenseRuleGeneralExpense: { expenseRuleId: { _eq: $calculationId } }, isDeleted: { _eq: false } }) {
+    aggregate { count }
+  }
+}
+`
+
+// Combined query for Create mode - fetches catalogs and last rule
+export const getCreateModeData = `query getCreateModeData($activeUserLocale: String!) {
+  # Catalog data
+  Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}, orderBy: {value: ASC}) {
+    code
+    value
+    id
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog { defaultLocale }
+  }
+  CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}}, orderBy: {value: ASC}) {
+    value
+    id
+    code
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog { defaultLocale }
+  }
+  Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } } }, orderBy: { value: ASC }) {
+    code
+    id
+    value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog { defaultLocale }
+  }
+  # Last rule for reference
+  ExpenseRule(orderBy: {createdAt: DESC}, limit: 1, where: {isDeleted: {_eq: false}}) {
+    id
+    version
+    code
+  }
+}
+`

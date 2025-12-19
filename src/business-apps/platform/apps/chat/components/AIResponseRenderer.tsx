@@ -1,5 +1,5 @@
 import React from 'react'
-import { Building2, User, Users, UserCircle, Rocket, TrendingUp, Sparkles } from 'lucide-react'
+import { Building2, User, Users, UserCircle, Rocket, TrendingUp, Sparkles, ExternalLink } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import type { ScheduledMeeting } from '../hooks/useEveryAIChat'
 import { MeetingCard } from './MeetingCard'
@@ -12,10 +12,26 @@ import { MeetingCard } from './MeetingCard'
  */
 const ENTITY_LINK_REGEX = /\[([^\]]+)\]\((\w+):\/\/([^)]+)\)/g
 
+/**
+ * Markdown HTTP link pattern: [Display Text](https://url) or [Display Text](http://url)
+ * Examples:
+ * - [Website](https://www.zalando.com)
+ * - [Activity Source](https://jobs.zalando.com/en/open-positions/)
+ */
+const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
+
 interface EntityLink {
   displayName: string
   type: string
   id: string
+  fullMatch: string
+  startIndex: number
+  endIndex: number
+}
+
+interface MarkdownLink {
+  displayText: string
+  url: string
   fullMatch: string
   startIndex: number
   endIndex: number
@@ -70,11 +86,37 @@ function parseEntityLinks(text: string): EntityLink[] {
   const links: EntityLink[] = []
   let match
 
+  // Reset regex lastIndex
+  ENTITY_LINK_REGEX.lastIndex = 0
+
   while ((match = ENTITY_LINK_REGEX.exec(text)) !== null) {
     links.push({
       displayName: match[1],
       type: match[2],
       id: match[3],
+      fullMatch: match[0],
+      startIndex: match.index,
+      endIndex: match.index + match[0].length
+    })
+  }
+
+  return links
+}
+
+/**
+ * Parse markdown HTTP links from text
+ */
+function parseMarkdownLinks(text: string): MarkdownLink[] {
+  const links: MarkdownLink[] = []
+  let match
+
+  // Reset regex lastIndex
+  MARKDOWN_LINK_REGEX.lastIndex = 0
+
+  while ((match = MARKDOWN_LINK_REGEX.exec(text)) !== null) {
+    links.push({
+      displayText: match[1],
+      url: match[2],
       fullMatch: match[0],
       startIndex: match.index,
       endIndex: match.index + match[0].length
@@ -126,31 +168,81 @@ const EntityChip: React.FC<{ link: EntityLink }> = ({ link }) => {
   )
 }
 
+/**
+ * Markdown link component - clickable link for HTTP URLs
+ */
+const MarkdownLinkChip: React.FC<{ link: MarkdownLink }> = ({ link }) => {
+  return (
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={e => e.stopPropagation()}
+      className="gba:inline-flex gba:items-center gba:gap-1 gba:text-primary gba:underline gba:hover:text-primary/80 gba:transition-colors"
+      title={link.url}
+      data-testid={`ai-markdown-link`}
+    >
+      {link.displayText}
+      <ExternalLink className="gba:w-3 gba:h-3" />
+    </a>
+  )
+}
+
+/**
+ * Combined link type for sorting
+ */
+type ParsedLink = { type: 'entity'; data: EntityLink } | { type: 'markdown'; data: MarkdownLink }
+
+/**
+ * Parse all links (entity + markdown) from text and sort by position
+ */
+function parseAllLinks(text: string): ParsedLink[] {
+  const entityLinks = parseEntityLinks(text)
+  const markdownLinks = parseMarkdownLinks(text)
+
+  const allLinks: ParsedLink[] = [
+    ...entityLinks.map(link => ({ type: 'entity' as const, data: link })),
+    ...markdownLinks.map(link => ({ type: 'markdown' as const, data: link }))
+  ]
+
+  // Sort by start index
+  allLinks.sort((a, b) => {
+    const aStart = a.type === 'entity' ? a.data.startIndex : a.data.startIndex
+    const bStart = b.type === 'entity' ? b.data.startIndex : b.data.startIndex
+    return aStart - bStart
+  })
+
+  return allLinks
+}
+
 interface AIResponseRendererProps {
   content: string
   scheduledMeeting?: ScheduledMeeting
 }
 
 /**
- * Render AI response with clickable entity cards and optional meeting card
+ * Render AI response with clickable entity cards, markdown links, and optional meeting card
  */
 export const AIResponseRenderer: React.FC<AIResponseRendererProps> = ({ content, scheduledMeeting }) => {
-  const entityLinks = parseEntityLinks(content)
+  const allLinks = parseAllLinks(content)
 
   const renderTextContent = () => {
-    if (entityLinks.length === 0) {
-      // No entity links, render as plain text with markdown-style formatting
+    if (allLinks.length === 0) {
+      // No links, render as plain text with markdown-style formatting
       return <span className="gba:whitespace-pre-wrap">{renderMarkdownLite(content)}</span>
     }
 
-    // Build parts array with text and entity chips
+    // Build parts array with text and link chips
     const parts: React.ReactNode[] = []
     let lastIndex = 0
 
-    entityLinks.forEach((link, idx) => {
+    allLinks.forEach((link, idx) => {
+      const startIndex = link.type === 'entity' ? link.data.startIndex : link.data.startIndex
+      const endIndex = link.type === 'entity' ? link.data.endIndex : link.data.endIndex
+
       // Add text before this link
-      if (link.startIndex > lastIndex) {
-        const textBefore = content.slice(lastIndex, link.startIndex)
+      if (startIndex > lastIndex) {
+        const textBefore = content.slice(lastIndex, startIndex)
         parts.push(
           <span key={`text-${idx}`} className="gba:whitespace-pre-wrap">
             {renderMarkdownLite(textBefore)}
@@ -158,10 +250,14 @@ export const AIResponseRenderer: React.FC<AIResponseRendererProps> = ({ content,
         )
       }
 
-      // Add the entity chip
-      parts.push(<EntityChip key={`entity-${idx}`} link={link} />)
+      // Add the appropriate chip based on link type
+      if (link.type === 'entity') {
+        parts.push(<EntityChip key={`entity-${idx}`} link={link.data} />)
+      } else {
+        parts.push(<MarkdownLinkChip key={`mdlink-${idx}`} link={link.data} />)
+      }
 
-      lastIndex = link.endIndex
+      lastIndex = endIndex
     })
 
     // Add remaining text
@@ -198,8 +294,46 @@ export const AIResponseRenderer: React.FC<AIResponseRendererProps> = ({ content,
 }
 
 /**
+ * URL regex pattern for detecting URLs in text
+ * Matches http://, https://, and www. prefixed URLs
+ */
+const URL_REGEX = /(https?:\/\/[^\s<>[\]()]+|www\.[^\s<>[\]()]+)/gi
+
+/**
+ * Render URLs as clickable links
+ */
+function renderTextWithUrls(text: string, keyPrefix: string): React.ReactNode {
+  const parts = text.split(URL_REGEX)
+
+  return parts.map((part, idx) => {
+    // Check if this part is a URL
+    if (URL_REGEX.test(part)) {
+      // Reset regex lastIndex since we're using 'g' flag
+      URL_REGEX.lastIndex = 0
+
+      // Add https:// if it starts with www.
+      const href = part.startsWith('www.') ? `https://${part}` : part
+
+      return (
+        <a
+          key={`${keyPrefix}-url-${idx}`}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="gba:text-primary gba:underline gba:hover:text-primary/80 gba:transition-colors"
+          onClick={e => e.stopPropagation()}
+        >
+          {part}
+        </a>
+      )
+    }
+    return part
+  })
+}
+
+/**
  * Simple markdown-lite renderer for basic formatting
- * Handles: **bold**, *italic*, `code`, and line breaks
+ * Handles: **bold**, *italic*, `code`, URLs, and line breaks
  */
 function renderMarkdownLite(text: string): React.ReactNode {
   // Split by bold markers
@@ -209,14 +343,14 @@ function renderMarkdownLite(text: string): React.ReactNode {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
         <strong key={idx} className="gba:font-semibold">
-          {part.slice(2, -2)}
+          {renderTextWithUrls(part.slice(2, -2), `bold-${idx}`)}
         </strong>
       )
     }
     if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
       return (
         <em key={idx} className="gba:italic">
-          {part.slice(1, -1)}
+          {renderTextWithUrls(part.slice(1, -1), `italic-${idx}`)}
         </em>
       )
     }
@@ -227,7 +361,8 @@ function renderMarkdownLite(text: string): React.ReactNode {
         </code>
       )
     }
-    return part
+    // For plain text, also check for URLs
+    return <React.Fragment key={idx}>{renderTextWithUrls(part, `text-${idx}`)}</React.Fragment>
   })
 }
 
@@ -252,6 +387,60 @@ export const AIThinkingIndicator: React.FC = () => {
         />
       </div>
       <span>Every AI is thinking...</span>
+    </div>
+  )
+}
+
+export interface ExpertThinkingIndicatorProps {
+  expertName: string
+  expertColor?: string
+}
+
+/**
+ * Expert Thinking indicator component - shows when an AI expert is processing
+ */
+export const ExpertThinkingIndicator: React.FC<ExpertThinkingIndicatorProps> = ({ expertName, expertColor }) => {
+  const color = expertColor || 'var(--nw-primary)'
+
+  return (
+    <div
+      className="gba:px-4 gba:py-3 gba:border-t gba:border-border/30 gba:bg-muted/30"
+      data-testid="expert-thinking-indicator"
+    >
+      <div className="gba:flex gba:gap-3 gba:items-center">
+        {/* Expert Avatar */}
+        <div
+          className="gba:w-8 gba:h-8 gba:flex-shrink-0 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-xs"
+          style={{ backgroundColor: color }}
+        >
+          {expertName?.charAt(0)?.toUpperCase() || '?'}
+        </div>
+
+        {/* Animated dots and status */}
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <div className="gba:flex gba:gap-1.5">
+            <span
+              className="gba:w-2 gba:h-2 gba:rounded-full gba:animate-bounce"
+              style={{ backgroundColor: color, animationDelay: '0ms' }}
+            />
+            <span
+              className="gba:w-2 gba:h-2 gba:rounded-full gba:animate-bounce"
+              style={{ backgroundColor: color, animationDelay: '150ms' }}
+            />
+            <span
+              className="gba:w-2 gba:h-2 gba:rounded-full gba:animate-bounce"
+              style={{ backgroundColor: color, animationDelay: '300ms' }}
+            />
+          </div>
+
+          <div className="gba:flex gba:flex-col gba:gap-0.5">
+            <span className="gba:text-sm gba:font-medium" style={{ color }}>
+              {expertName}
+            </span>
+            <span className="gba:text-xs gba:text-muted-foreground">is analyzing your request...</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -14,6 +14,11 @@ dayjs.extend(relativeTime)
 dayjs.extend(calendar)
 
 /**
+ * Type representing a date value that can be a string, Date object, undefined, or null
+ */
+export type DateInput = string | Date | undefined | null
+
+/**
  * Converts a date string to ISO format
  * @param dateString - Date string in various formats (YYYY-MM-DD, ISO string, etc.)
  * @returns ISO formatted date string or undefined if invalid
@@ -109,7 +114,7 @@ export const toISOFormatWithTime = (
  * @param locale - Locale for formatting (defaults to 'en-US')
  * @returns Formatted date string
  */
-export const formatForDisplay = (dateString: string | Date | undefined | null, locale: string = 'en-US'): string => {
+export const formatForDisplay = (dateString: DateInput, locale: string = 'en-US'): string => {
   if (!dateString) return ''
 
   try {
@@ -147,6 +152,34 @@ export const isValidDate = (dateString: string | undefined | null): boolean => {
 }
 
 /**
+ * Formats a date for display using numeric format only (no month names)
+ * Provides locale-aware formatting while avoiding translation issues
+ * @param dateString - Date string or Date object
+ * @param locale - Locale for formatting (defaults to 'en-US')
+ * @returns Formatted date string with numeric month (e.g., 17.12.2025, 12/17/2025)
+ */
+export const formatForDisplayNumeric = (dateString: DateInput, locale: string = 'en-US'): string => {
+  if (!dateString) return ''
+
+  try {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString
+
+    if (Number.isNaN(date.getTime())) {
+      return ''
+    }
+
+    return date.toLocaleDateString(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+  } catch (error) {
+    console.error('Error formatting date for display (numeric):', error)
+    return ''
+  }
+}
+
+/**
  * Format date and time with locale support and relative time (Today/Yesterday)
  * Useful for displaying user-friendly timestamps with relative time indicators
  *
@@ -157,7 +190,7 @@ export const isValidDate = (dateString: string | undefined | null): boolean => {
  * @param locale - Optional locale (e.g., 'ro', 'de', 'en', defaults to 'en')
  * @returns Formatted date and time string with locale support
  */
-export const formatDateTime = (date: string | Date | undefined | null, locale: string = 'en'): string => {
+export const formatDateTime = (date: DateInput, locale: string = 'en'): string => {
   if (!date) return ''
 
   const d = dayjs(date)
