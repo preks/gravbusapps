@@ -50,7 +50,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
       },
       newHires: {
         value: newHiresCount,
-        label: t('hr-analytics-new-hires')
+        label: t('hr-analytics-new-hires-ytd')
       },
       turnoverRate: {
         value: turnoverRate,

@@ -229,16 +229,16 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
 
   // Watch for table refresh trigger from parent
   useEffect(() => {
-    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      // Trigger a table refresh by calling onTableChange with current state
+    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0 && onTableChange) {
+      // Trigger a table refresh by calling onTableChange with current pagination & current sort
       const pagination = {
         current: currentPage,
-        pageSize: pageSize,
-        total: totalCount
+        pageSize
       }
-      onTableChange(pagination, {}, {})
+      const sorter = sortField ? { field: sortField, order: sortOrder } : {}
+      onTableChange(pagination, {}, sorter)
     }
-  }, [props.tableRefreshTrigger, currentPage, pageSize, totalCount, onTableChange])
+  }, [props.tableRefreshTrigger, currentPage, pageSize, sortField, sortOrder, onTableChange])
 
   // Watch search prop transitions to manage page restore when cleared
   useEffect(() => {

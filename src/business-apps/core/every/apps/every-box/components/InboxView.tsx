@@ -8,7 +8,22 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { Input, Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
+import {
+  Input,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  TabSwitch,
+  TabSwitchList,
+  TabSwitchTrigger,
+  TabSwitchBadge,
+  ScrollArea,
+  ScrollBar,
+  useTranslation,
+  useLocale
+} from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { Search, RefreshCw, Zap, CheckCircle, Inbox, CheckCheck, X } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { TaskCard } from './TaskCard'
@@ -68,23 +83,37 @@ const updateTaskUrl = (taskId: string | null) => {
 }
 
 /**
- * Get empty state message based on search query and filter type
+ * Filter active tasks (non-completed)
  */
-const getEmptyStateMessage = (searchQuery: string, filterType: TaskFilterType): string => {
-  if (searchQuery.trim()) {
-    return `No tasks found matching "${searchQuery}"`
-  }
+const filterActiveTasks = (tasks: UnifiedTask[]): UnifiedTask[] => {
+  return tasks.filter(task => {
+    if (task.status === 'COMPLETED') return false
+    // Only exclude if completedAt AND status is not active
+    if (task.completedAt) {
+      const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
+      if (!activeStatuses.includes(task.status)) {
+        return false
+      }
+    }
+    return true
+  })
+}
 
-  switch (filterType) {
-    case 'blinks':
-      return 'No Blink tasks at the moment'
-    case 'approvals':
-      return 'No approval tasks at the moment'
-    case 'completed':
-      return 'No completed tasks yet'
-    default:
-      return 'No tasks assigned to you at the moment'
-  }
+/**
+ * Filter truly completed tasks
+ */
+const filterCompletedTasks = (tasks: UnifiedTask[]): UnifiedTask[] => {
+  return tasks.filter(task => {
+    if (task.status === 'COMPLETED') return true
+    // Only consider completedAt if status is not an active status
+    if (task.completedAt) {
+      const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
+      if (!activeStatuses.includes(task.status)) {
+        return true
+      }
+    }
+    return false
+  })
 }
 
 export const InboxView: React.FC<InboxViewProps> = ({
@@ -108,6 +137,32 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onLoadNewCompletedTasks,
   ...context
 }) => {
+  const { t } = useTranslation(translations)
+  const { locale } = useLocale()
+
+  /**
+   * Get empty state message based on search query and filter type
+   */
+  const getEmptyStateMessage = useCallback(
+    (query: string, filter: TaskFilterType): string => {
+      if (query.trim()) {
+        return t('inbox-empty-no-results', { query })
+      }
+
+      switch (filter) {
+        case 'blinks':
+          return t('inbox-empty-no-blinks')
+        case 'approvals':
+          return t('inbox-empty-no-approvals')
+        case 'completed':
+          return t('inbox-empty-no-completed')
+        default:
+          return t('inbox-empty-no-tasks')
+      }
+    },
+    [t]
+  )
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null)
   const [filterType, setFilterType] = useState<TaskFilterType>('all')
@@ -121,31 +176,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
   // Sync local tasks with props
   // Filter out completed tasks from active tasks to prevent duplicates
   useEffect(() => {
-    const activeTasks = tasks.filter(task => {
-      if (task.status === 'COMPLETED') return false
-      if (task.completedAt) return false
-      return true
-    })
-    setLocalTasks(activeTasks)
+    setLocalTasks(filterActiveTasks(tasks))
   }, [tasks])
 
   useEffect(() => {
     // Ensure completed tasks only include truly completed tasks
-    // Task is completed if:
-    // 1. status is COMPLETED, OR
-    // 2. has completedAt AND status is not an active status (PENDING, IN_PROGRESS, SCHEDULED)
-    const trulyCompletedTasks = completedTasks.filter(task => {
-      if (task.status === 'COMPLETED') return true
-      // Only consider completedAt if status is not an active status
-      if (task.completedAt) {
-        const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
-        if (!activeStatuses.includes(task.status)) {
-          return true
-        }
-      }
-      return false
-    })
-    setLocalCompletedTasks(trulyCompletedTasks)
+    setLocalCompletedTasks(filterCompletedTasks(completedTasks))
   }, [completedTasks])
 
   // Initialize selected task from URL when tasks are loaded
@@ -201,22 +237,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
     updateTaskUrl(null)
   }, [])
 
-  // Handler to remove task immediately after completion and refresh completed tasks
-  const handleTaskCompleted = useCallback(
-    (taskId: string) => {
-      // Remove from local inbox/active tasks immediately for better UX
-      setLocalTasks(prev => prev.filter(t => t.id !== taskId))
-      setLocalCompletedTasks(prev => prev.filter(t => t.id !== taskId))
-
-      // Close the task detail and clear URL
-      handleCloseTask()
-
-      // Refresh completed tasks from backend using dedicated endpoint
-      onCompletedRefresh()
-    },
-    [onCompletedRefresh, handleCloseTask]
-  )
-
   /**
    * Helper function to check if a task is a Blink (quick direct task)
    */
@@ -241,6 +261,51 @@ export const InboxView: React.FC<InboxViewProps> = ({
       task.tags?.category === 'approval'
     )
   }
+
+  /**
+   * Helper function to check if a cFlow task should be included
+   */
+  const shouldIncludeCflowTask = useCallback(
+    (task: UnifiedTask): boolean => {
+      if (task.source !== 'cflow') return true
+
+      const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
+      if (assignmentMode !== 'assign') return false
+
+      return task.assignment?.assignedTo === loggedInUserId
+    },
+    [loggedInUserId]
+  )
+
+  /**
+   * Helper function to check if a task is completed
+   */
+  const isTaskCompleted = useCallback((task: UnifiedTask): boolean => {
+    if (task.status === 'COMPLETED') return true
+
+    if (task.completedAt) {
+      const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
+      return !activeStatuses.includes(task.status)
+    }
+
+    return false
+  }, [])
+
+  /**
+   * Apply type-specific filtering (blinks, approvals)
+   */
+  const applyTypeFilter = useCallback(
+    (tasks: UnifiedTask[], filter: TaskFilterType): UnifiedTask[] => {
+      if (filter === 'blinks') {
+        return tasks.filter(isBlinkTask)
+      }
+      if (filter === 'approvals') {
+        return tasks.filter(isApprovalTask)
+      }
+      return tasks
+    },
+    [isBlinkTask, isApprovalTask]
+  )
 
   // Use appropriate data source based on filter type
   const currentTasks = filterType === 'completed' ? localCompletedTasks : localTasks
@@ -280,6 +345,34 @@ export const InboxView: React.FC<InboxViewProps> = ({
     employeeIds
   )
 
+  // Helper: Get navigable tasks after applying all filters
+  const getNavigableTasks = useCallback((): UnifiedTask[] => {
+    // Note: localTasks and localCompletedTasks are already filtered by completion status
+    // (filterActiveTasks and filterCompletedTasks), so no additional completion check needed
+    const currentFilteredTasks = filterType === 'completed' ? localCompletedTasks : localTasks
+    let tasksToNavigate = currentFilteredTasks.filter(shouldIncludeCflowTask)
+
+    // Apply type-specific filtering (only for non-completed views)
+    if (filterType !== 'completed') {
+      tasksToNavigate = applyTypeFilter(tasksToNavigate, filterType)
+    }
+
+    // Apply search filter if active
+    if (searchQuery.trim()) {
+      tasksToNavigate = filterTasksBySearch(tasksToNavigate, searchQuery, employeeMap)
+    }
+
+    return tasksToNavigate
+  }, [localTasks, localCompletedTasks, filterType, searchQuery, employeeMap, shouldIncludeCflowTask, applyTypeFilter])
+
+  // Helper: Calculate next task index for keyboard navigation
+  const getNextTaskIndex = (currentIndex: number, direction: 'up' | 'down', maxIndex: number): number => {
+    if (direction === 'up') {
+      return currentIndex > 0 ? currentIndex - 1 : currentIndex
+    }
+    return currentIndex < maxIndex ? currentIndex + 1 : currentIndex
+  }
+
   // Keyboard navigation: Arrow keys to navigate through tasks
   useEffect(() => {
     if (!selectedTask) return
@@ -296,69 +389,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       e.preventDefault()
 
-      // Get current filtered tasks
-      const currentFilteredTasks = filterType === 'completed' ? localCompletedTasks : localTasks
-      let tasksToNavigate = currentFilteredTasks
-
-      // Apply same filtering logic as filteredTasks
-      if (filterType !== 'completed') {
-        // Filter cFlow tasks: only show tasks with assignmentMode === 'assign' (case-insensitive) and assigned to current user
-        tasksToNavigate = tasksToNavigate.filter(task => {
-          // Only filter cFlow tasks
-          if (task.source !== 'cflow') return true
-
-          // Must have assignmentMode === 'assign' (case-insensitive check)
-          const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
-          if (assignmentMode !== 'assign') return false
-
-          // Must be assigned to current user
-          if (task.assignment?.assignedTo !== loggedInUserId) return false
-
-          return true
-        })
-
-        if (filterType === 'blinks') {
-          tasksToNavigate = tasksToNavigate.filter(isBlinkTask)
-        } else if (filterType === 'approvals') {
-          tasksToNavigate = tasksToNavigate.filter(isApprovalTask)
-        }
-      } else {
-        // For completed view, apply cFlow filtering
-        tasksToNavigate = tasksToNavigate.filter(task => {
-          // Only filter cFlow tasks
-          if (task.source !== 'cflow') return true
-
-          // Must have assignmentMode === 'assign' (case-insensitive check)
-          const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
-          if (assignmentMode !== 'assign') return false
-
-          // Must be assigned to current user
-          if (task.assignment?.assignedTo !== loggedInUserId) return false
-
-          return true
-        })
-      }
-
-      // Apply search filter if active
-      if (searchQuery.trim()) {
-        tasksToNavigate = filterTasksBySearch(tasksToNavigate, searchQuery, employeeMap)
-      }
-
-      // Find current task index
+      const tasksToNavigate = getNavigableTasks()
       const currentIndex = tasksToNavigate.findIndex(t => t.id === selectedTask.id)
       if (currentIndex === -1) return
 
-      // Calculate next index based on arrow key
-      let nextIndex: number
-      if (e.key === 'ArrowUp') {
-        nextIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex // Stop at top
-      } else {
-        // ArrowDown
-        nextIndex = currentIndex < tasksToNavigate.length - 1 ? currentIndex + 1 : currentIndex // Stop at bottom
-      }
-
-      // Select the next task
+      const direction = e.key === 'ArrowUp' ? 'up' : 'down'
+      const nextIndex = getNextTaskIndex(currentIndex, direction, tasksToNavigate.length - 1)
       const nextTask = tasksToNavigate[nextIndex]
+
       if (nextTask) {
         handleSelectTask(nextTask)
       }
@@ -366,93 +404,21 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [
-    selectedTask,
-    localTasks,
-    localCompletedTasks,
-    filterType,
-    searchQuery,
-    employeeMap,
-    handleSelectTask,
-    loggedInUserId
-  ])
+  }, [selectedTask, handleSelectTask, getNavigableTasks])
 
   // Filter tasks (tasks are already sorted by date from the API)
   const filteredTasks = useMemo(() => {
+    // Note: currentTasks is either localTasks or localCompletedTasks, both already filtered
+    // by completion status (filterActiveTasks and filterCompletedTasks), so no additional
+    // completion check needed here
     let result = currentTasks
 
-    // Apply task type filter (only for active/inbox tasks, not completed)
+    // Filter cFlow tasks: only show tasks assigned to current user
+    result = result.filter(shouldIncludeCflowTask)
+
+    // Apply type-specific filtering (only for non-completed views)
     if (filterType !== 'completed') {
-      // Exclude completed tasks from "all" view
-      // Task is completed if:
-      // 1. status is COMPLETED, OR
-      // 2. has completedAt AND status is not an active status (PENDING, IN_PROGRESS, SCHEDULED)
-      result = result.filter(task => {
-        // Exclude if status is COMPLETED
-        if (task.status === 'COMPLETED') return false
-        // Only exclude if completedAt exists AND status is not an active status
-        if (task.completedAt) {
-          const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
-          if (!activeStatuses.includes(task.status)) {
-            return false // Exclude - this is a completed task
-          }
-        }
-        return true
-      })
-
-      // Filter cFlow tasks: only show tasks with assignmentMode === 'assign' (case-insensitive) and assigned to current user
-      result = result.filter(task => {
-        // Only filter cFlow tasks
-        if (task.source !== 'cflow') return true
-
-        // Must have assignmentMode === 'assign' (case-insensitive check)
-        const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
-        if (assignmentMode !== 'assign') return false
-
-        // Must be assigned to current user
-        if (task.assignment?.assignedTo !== loggedInUserId) return false
-
-        return true
-      })
-
-      if (filterType === 'blinks') {
-        result = result.filter(isBlinkTask)
-      } else if (filterType === 'approvals') {
-        result = result.filter(isApprovalTask)
-      }
-      // 'all' shows all active tasks (excluding completed)
-    } else {
-      // For completed view, ensure we only show truly completed tasks
-      // Task is completed if:
-      // 1. status is COMPLETED, OR
-      // 2. has completedAt AND status is not an active status (PENDING, IN_PROGRESS, SCHEDULED)
-      result = result.filter(task => {
-        // Include if status is COMPLETED
-        if (task.status === 'COMPLETED') return true
-        // Only include if completedAt exists AND status is not an active status
-        if (task.completedAt) {
-          const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
-          if (!activeStatuses.includes(task.status)) {
-            return true // Include - this is a completed task
-          }
-        }
-        return false
-      })
-
-      // Filter cFlow tasks: only show completed tasks with assignmentMode === 'assign' (case-insensitive) and assigned to current user
-      result = result.filter(task => {
-        // Only filter cFlow tasks
-        if (task.source !== 'cflow') return true
-
-        // Must have assignmentMode === 'assign' (case-insensitive check)
-        const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
-        if (assignmentMode !== 'assign') return false
-
-        // Must be assigned to current user
-        if (task.assignment?.assignedTo !== loggedInUserId) return false
-
-        return true
-      })
+      result = applyTypeFilter(result, filterType)
     }
 
     // Apply search filter (including sender name search)
@@ -464,41 +430,57 @@ export const InboxView: React.FC<InboxViewProps> = ({
     // No additional sorting needed here
 
     return result
-  }, [currentTasks, searchQuery, filterType, loggedInUserId, employeeMap])
+  }, [currentTasks, searchQuery, filterType, employeeMap, shouldIncludeCflowTask, applyTypeFilter])
+
+  // Handler to remove task immediately after completion and refresh completed tasks
+  // AUTO-ADVANCE: Opens the next task in the list after completing current one
+  const handleTaskCompleted = useCallback(
+    (taskId: string) => {
+      // Use the ACTUAL displayed list from filteredTasks
+      const displayedTasks = filteredTasks
+
+      // Find the completed task's index in the DISPLAYED list
+      const completedTaskIndex = displayedTasks.findIndex(t => t.id === taskId)
+
+      // Calculate next task BEFORE removing from state
+      let nextTask: UnifiedTask | null = null
+      if (completedTaskIndex !== -1 && displayedTasks.length > 1) {
+        // Try to get the next task after the completed one
+        if (completedTaskIndex < displayedTasks.length - 1) {
+          nextTask = displayedTasks[completedTaskIndex + 1]
+        } else if (completedTaskIndex > 0) {
+          // If completed task was last, get the previous one
+          nextTask = displayedTasks[completedTaskIndex - 1]
+        }
+      }
+
+      // Remove completed task from local state (immediate UI feedback)
+      setLocalTasks(prev => prev.filter(t => t.id !== taskId))
+      setLocalCompletedTasks(prev => prev.filter(t => t.id !== taskId))
+
+      // Auto-advance to next task or close if none available
+      if (nextTask && nextTask.id !== taskId) {
+        // Use setTimeout to ensure this runs AFTER any pending onClose() calls from child components
+        // This prevents cFlow's onClose() from closing the newly selected task
+        setTimeout(() => {
+          setSelectedTask(nextTask)
+          updateTaskUrl(nextTask.id)
+        }, 0)
+      } else {
+        // No more tasks in filtered list - close detail panel
+        handleCloseTask()
+      }
+
+      // Refresh completed tasks from backend
+      onCompletedRefresh()
+    },
+    [filteredTasks, onCompletedRefresh, handleCloseTask, filterType]
+  )
 
   // Count tasks by type for badges
   // Note: Shows counts from loaded tasks. Adds "+" suffix if more tasks exist
   const taskCounts = useMemo(() => {
-    // Filter out completed tasks from active tasks for accurate counts
-    // Task is completed if:
-    // 1. status is COMPLETED, OR
-    // 2. has completedAt AND status is not an active status (PENDING, IN_PROGRESS, SCHEDULED)
-    let activeTasks = tasks.filter(task => {
-      if (task.status === 'COMPLETED') return false
-      // Only exclude if completedAt exists AND status is not an active status
-      if (task.completedAt) {
-        const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
-        if (!activeStatuses.includes(task.status)) {
-          return false // Exclude - this is a completed task
-        }
-      }
-      return true
-    })
-
-    // Apply cFlow filtering: only show tasks with assignmentMode === 'assign' (case-insensitive) and assigned to current user
-    activeTasks = activeTasks.filter(task => {
-      // Only filter cFlow tasks
-      if (task.source !== 'cflow') return true
-
-      // Must have assignmentMode === 'assign' (case-insensitive check)
-      const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
-      if (assignmentMode !== 'assign') return false
-
-      // Must be assigned to current user
-      if (task.assignment?.assignedTo !== loggedInUserId) return false
-
-      return true
-    })
+    const activeTasks = tasks.filter(task => !isTaskCompleted(task)).filter(shouldIncludeCflowTask)
 
     return {
       all: activeTasks.length,
@@ -510,7 +492,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
       completed: completedTotalCount,
       completedHasMore: completedHasMore
     }
-  }, [tasks, totalCount, hasMore, completedTotalCount, completedHasMore, loggedInUserId])
+  }, [tasks, hasMore, completedTotalCount, completedHasMore, isTaskCompleted, shouldIncludeCflowTask])
 
   if (currentIsLoading && currentTasks.length === 0) {
     return <LoadingSkeleton type="task" />
@@ -530,7 +512,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             <AlertTitle className="gba:flex gba:items-center gba:justify-between">
               <span className="gba:flex gba:items-center gba:gap-2">
                 <Zap className="gba:h-4 gba:w-4 gba:text-info-foreground" />
-                <span className="gba:text-info-foreground">New tasks available</span>
+                <span className="gba:text-info-foreground">{t('inbox-new-tasks-title')}</span>
               </span>
               <Button
                 size="sm"
@@ -538,13 +520,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 onClick={filterType === 'completed' ? onLoadNewCompletedTasks : onLoadNewTasks}
                 data-testid="load-new-tasks-button"
               >
-                Load new tasks
+                {t('inbox-new-tasks-button')}
               </Button>
             </AlertTitle>
             <AlertDescription className="gba:text-info-secondary-foreground">
               {filterType === 'completed'
-                ? 'New completed tasks have arrived. Click to refresh and see them.'
-                : 'New tasks have arrived. Click to refresh and see them.'}
+                ? t('inbox-new-completed-tasks-description')
+                : t('inbox-new-tasks-description')}
             </AlertDescription>
           </Alert>
         )}
@@ -554,7 +536,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
           <div className="gba:relative gba:flex-1">
             <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
             <Input
-              placeholder="Search tasks..."
+              placeholder={t('inbox-search-placeholder')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="gba:pl-11 gba:pr-9"
@@ -567,7 +549,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 onClick={() => setSearchQuery('')}
                 className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground hover:gba:text-foreground gba:cursor-pointer gba:z-10"
                 data-testid="inbox-search-clear-button"
-                aria-label="Clear search"
+                aria-label={t('inbox-clear-search')}
               >
                 <X className="gba:h-4 gba:w-4" />
               </button>
@@ -585,75 +567,72 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
 
         {/* Task Type Filters */}
-        <div className="gba:flex gba:items-center gba:gap-1 gba:max-w-[40%]" data-testid="inbox-filter-buttons">
-          <Button
-            variant={filterType === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('all')}
-            data-testid="inbox-filter-all"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <Inbox className="gba:h-3.5 gba:w-3.5" />
-            <span>All</span>
-            <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-              {taskCounts.all}
-              {taskCounts.allHasMore ? '+' : ''}
-            </Badge>
-          </Button>
-          <Button
-            variant={filterType === 'blinks' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('blinks')}
-            data-testid="inbox-filter-blinks"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <Zap className="gba:h-3.5 gba:w-3.5" />
-            <span>Blinks</span>
-            {taskCounts.blinks > 0 && (
-              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-                {taskCounts.blinks}
-                {taskCounts.blinksHasMore ? '+' : ''}
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant={filterType === 'approvals' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('approvals')}
-            data-testid="inbox-filter-approvals"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <CheckCircle className="gba:h-3.5 gba:w-3.5" />
-            <span>Approvals</span>
-            {taskCounts.approvals > 0 && (
-              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-                {taskCounts.approvals}
-                {taskCounts.approvalsHasMore ? '+' : ''}
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant={filterType === 'completed' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('completed')}
-            data-testid="inbox-filter-completed"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <CheckCheck className="gba:h-3.5 gba:w-3.5" />
-            <span>Completed</span>
-            {taskCounts.completed > 0 && (
-              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-                {taskCounts.completed}
-                {taskCounts.completedHasMore ? '+' : ''}
-              </Badge>
-            )}
-          </Button>
-        </div>
+        <ScrollArea className="gba:-mx-3">
+          <div className="gba:px-3">
+            <TabSwitch value={filterType} onValueChange={value => setFilterType(value as TaskFilterType)}>
+              <TabSwitchList data-testid="inbox-filter-buttons">
+                <TabSwitchTrigger
+                  value="all"
+                  data-testid="inbox-filter-all"
+                  startIcon={<Inbox className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.all}
+                      {taskCounts.allHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-all')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="blinks"
+                  data-testid="inbox-filter-blinks"
+                  startIcon={<Zap className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.blinks}
+                      {taskCounts.blinksHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-blinks')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="approvals"
+                  data-testid="inbox-filter-approvals"
+                  startIcon={<CheckCircle className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.approvals}
+                      {taskCounts.approvalsHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-approvals')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="completed"
+                  data-testid="inbox-filter-completed"
+                  startIcon={<CheckCheck className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.completed}
+                      {taskCounts.completedHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-completed')}
+                </TabSwitchTrigger>
+              </TabSwitchList>
+            </TabSwitch>
+          </div>
+          <ScrollBar orientation="horizontal" className="gba:opacity-50" />
+        </ScrollArea>
 
         {/* Error Alert */}
         {currentError && (
           <Alert variant="destructive">
-            <AlertTitle>Error Loading Tasks</AlertTitle>
+            <AlertTitle>{t('inbox-error-title')}</AlertTitle>
             <AlertDescription>{currentError}</AlertDescription>
           </Alert>
         )}
@@ -674,6 +653,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     areAvatarsLoading={areAvatarsLoading}
                     isSelected={selectedTask?.id === task.id}
                     isDetailViewOpen={!!selectedTask}
+                    t={t}
+                    locale={locale}
                   />
                 ))}
               </div>
@@ -682,8 +663,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
               {!searchQuery.trim() && (
                 <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t gba:mt-4">
                   <p className="gba:text-sm gba:text-muted-foreground">
-                    Showing {filteredTasks.length} of {currentTotalCount}
-                    {currentHasMore ? '+' : ''} tasks
+                    {t('inbox-showing-tasks', {
+                      current: filteredTasks.length.toString(),
+                      total: currentTotalCount.toString(),
+                      hasMore: currentHasMore ? '+' : ''
+                    })}
                   </p>
                   {currentHasMore && (
                     <Button
@@ -692,7 +676,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                       disabled={currentIsLoading}
                       data-testid="inbox-load-more-button"
                     >
-                      Load More
+                      {t('inbox-load-more')}
                     </Button>
                   )}
                 </div>

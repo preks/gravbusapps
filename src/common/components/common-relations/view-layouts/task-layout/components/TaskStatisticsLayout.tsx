@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Card } from '@newwork/nw-design-system'
 import { UserIcon, ClockIcon, CheckCircleIcon, WarningIcon, UsersIcon } from '@phosphor-icons/react'
 
@@ -131,23 +131,35 @@ export const TaskStatisticsLayout: React.FC<TaskStatisticsLayoutProps> = ({
   error = null,
   onRetry
 }) => {
-  const renderCardContent = (title: string, icon: React.ReactNode, statistics: TaskStatisticsData) => {
+  // Memoize My Tasks card content to prevent unnecessary re-renders
+  const myTasksContent = useMemo(() => {
     if (isLoading) return <LoadingSkeleton />
     if (error) return <ErrorContent onRetry={onRetry} />
-    return <DataContent title={title} icon={icon} statistics={statistics} />
-  }
+    return (
+      <DataContent title="My Tasks" icon={<UserIcon className="gba:text-blue-500" />} statistics={myTasksStatistics} />
+    )
+  }, [isLoading, error, onRetry, myTasksStatistics])
+
+  // Memoize Team Tasks card content to prevent unnecessary re-renders
+  const teamTasksContent = useMemo(() => {
+    if (isLoading) return <LoadingSkeleton />
+    if (error) return <ErrorContent onRetry={onRetry} />
+    return (
+      <DataContent
+        title="Team Tasks"
+        icon={<UsersIcon className="gba:text-blue-500" />}
+        statistics={teamTasksStatistics}
+      />
+    )
+  }, [isLoading, error, onRetry, teamTasksStatistics])
 
   return (
     <div data-testid="task-statistics-layout-container" className="gba:flex gba:gap-4 gba:mb-6">
       {/* My Tasks Card */}
-      <Card className="gba:flex-1 gba:p-6 gba:min-h-[160px]">
-        {renderCardContent('My Tasks', <UserIcon className="gba:text-blue-500" />, myTasksStatistics)}
-      </Card>
+      <Card className="gba:flex-1 gba:p-6 gba:min-h-[160px]">{myTasksContent}</Card>
 
       {/* Team Tasks Card */}
-      <Card className="gba:flex-1 gba:p-6 gba:min-h-[160px]">
-        {renderCardContent('Team Tasks', <UsersIcon className="gba:text-blue-500" />, teamTasksStatistics)}
-      </Card>
+      <Card className="gba:flex-1 gba:p-6 gba:min-h-[160px]">{teamTasksContent}</Card>
     </div>
   )
 }

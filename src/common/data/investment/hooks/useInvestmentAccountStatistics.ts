@@ -43,6 +43,8 @@ const GET_ALL_INVESTMENT_ACCOUNT_STATISTICS_WITH_TREND = `
     recentAccountsPrevious: InvestmentAccountAggregate(where: { createdAt: { _gte: $previousStart, _lt: $previousEnd }, isDeleted: { _eq: false } }) {
       aggregate { count }
     }
+    # Note: investmentOpportunity relationship exists on InvestmentAccount
+    # via the investmentOpportunity array field, so this is valid
     activeAccountsCurrent: InvestmentAccountAggregate(where: { isDeleted: { _eq: false }, investmentOpportunity: { id: { _isNull: false } } }) {
       aggregate { count }
     }

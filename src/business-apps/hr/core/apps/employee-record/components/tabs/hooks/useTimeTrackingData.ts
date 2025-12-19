@@ -66,7 +66,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [error, setError] = useState<string | null>(null)
 
   // Search removed per requirements
-  const [sortKey, setSortKey] = useState<keyof TimeEntry>('startTimeISO')
+  const [sortKey, setSortKey] = useState<keyof TimeEntry>('attendanceDateISO')
   const [sortDir, setSortDir] = useState<SortDirection>('desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -169,7 +169,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       manualOverride: Boolean(row.manualOverride),
       notes: row.notes ?? '',
       attendanceLocation: row?.attendanceLocation ?? undefined,
-      status: 'approved',
+      status: 'open',
       totalMinutes
     }
   }
@@ -189,6 +189,36 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const result = await graphqlClient.request<any>(employeeAttendanceMonthlyQuery, variables)
     const rows = result?.EmployeeAttendance ?? []
     const list: TimeEntry[] = rows.map(mapAttendanceToEntry)
+
+    // Fetch active correction requests for the same date range and employee
+    try {
+      const { employeeAttendanceCorrectionsForRangeQuery } = await import(
+        '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
+      )
+      const corRes = await graphqlClient.request<any>(employeeAttendanceCorrectionsForRangeQuery, {
+        employeeId,
+        dateFrom: variables.dateFrom,
+        dateTo: variables.dateTo
+      })
+      const correctionDates: Set<string> = new Set(
+        (corRes?.EmployeeAttendanceCorrectionRequest ?? [])
+          // Ignore approved requests; treat all other active requests as pending overlays
+          .filter((r: any) => String(r?.status) !== 'APPROVED_CORRECTION_REQUEST')
+          .map((r: any) => String(r.attendanceDate))
+      )
+      // Mark entries as pending if there's an active correction for the same date
+      if (correctionDates.size > 0) {
+        for (const entry of list) {
+          const entryDay = toLocalDateKey(new Date(entry.attendanceDateISO))
+          if (correctionDates.has(entryDay)) {
+            entry.status = 'pending'
+          }
+        }
+      }
+    } catch {
+      // If the correction query fails, keep default statuses
+    }
+
     setAllEntries(list)
     const count = result?.EmployeeAttendance_aggregate?.aggregate?.count ?? list.length
     setTotalCount(count)
@@ -339,7 +369,6 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       // Exclude today from daily average; consider strictly earlier days
       if (rowDay < untilDay) {
         const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
-        console.log('r', effective)
         const eff = Math.max(0, effective)
         workedUntilYesterday += eff
         // Count days that have any attendance entry, regardless of effective minutes

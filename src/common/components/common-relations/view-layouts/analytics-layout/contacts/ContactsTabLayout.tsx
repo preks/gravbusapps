@@ -27,7 +27,6 @@ export interface ContactsTabLayoutProps {
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
   contactsOverTime: ContactsOverTimePoint[]
-  contactsOverTimeLoading?: boolean
   topAccountsByContacts: Array<{ accountName: string; contactCount: number }>
   recentContacts: Array<{
     id: string
@@ -39,6 +38,7 @@ export interface ContactsTabLayoutProps {
   insightsData?: ContactInsightsDashboardData // optional: if provided, show dashboard widget
   qualityData?: ContactQualityData
   moduleColor?: string
+  module: 'crm' | 'irm'
 }
 
 export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
@@ -55,12 +55,12 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   selectedTimeFilter,
   onTimeFilterChange,
   contactsOverTime,
-  contactsOverTimeLoading,
   topAccountsByContacts,
   recentContacts,
   insightsData,
   qualityData,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  module
 }) => {
   // Helper to calculate trend percentage
   const calculateTrendPercent = (current: number, previous: number): number => {
@@ -156,15 +156,16 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       </div>
 
       <ContactLifecycleChart
+        key={`contact-lifecycle-${selectedTimeFilter}`}
         data={contactsOverTime}
-        isLoading={contactsOverTimeLoading}
+        isLoading={trendLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}
       />
 
       {/** Optional full insights dashboard (exact copy from originals) */}
-      {insightsData && <ContactInsightsDashboard data={insightsData} moduleColor={moduleColor} />}
+      {insightsData && <ContactInsightsDashboard data={insightsData} moduleColor={moduleColor} module={module} />}
 
       {!insightsData && (
         <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">

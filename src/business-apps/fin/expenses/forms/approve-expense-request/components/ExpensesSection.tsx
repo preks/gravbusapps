@@ -1,7 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, Badge } from '@newwork/nw-design-system'
 import { PiReceipt } from 'react-icons/pi'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseItem {
   id: string
@@ -22,13 +21,15 @@ interface ExpensesSectionProps {
   currencyCode: string
   formatCurrency: (amount: number, currency: string) => string
   getCatalogValue: (catalog: ExpenseItem['expenseClass']) => string
+  t: (key: string) => string
 }
 
 const ExpensesSection: React.FC<ExpensesSectionProps> = ({
   expenseItems,
   currencyCode,
   formatCurrency,
-  getCatalogValue
+  getCatalogValue,
+  t
 }) => {
   if (!expenseItems || expenseItems.length === 0) {
     return null
@@ -39,7 +40,7 @@ const ExpensesSection: React.FC<ExpensesSectionProps> = ({
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <PiReceipt className="gba:h-5 gba:w-5" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.planned_expenses_header', 'Expenses')}
+          {t('section-expenses')}
           <Badge variant="secondary" className="gba:ml-2">
             {expenseItems.length}
           </Badge>

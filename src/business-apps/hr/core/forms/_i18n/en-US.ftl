@@ -140,3 +140,107 @@ grant-bonus-review-description = Description
 grant-bonus-review-notes = Notes
 grant-bonus-review-acknowledge = Acknowledge
 grant-bonus-review-reject = Reject
+
+# ============================================
+# Common Review Form Translations
+# ============================================
+
+# Common Card Titles
+card-title-unchanged = All Other Fields
+
+# Common Badges
+badge-new = New
+badge-changed = Changed
+badge-unchanged = Unchanged
+badge-not-set = Not Set
+badge-changes = { $count } { $count ->
+    [one] Change
+   *[other] Changes
+}
+
+# Common Field Values
+value-not-set = Not set
+value-na = N/A
+
+# Common Actions
+action-acknowledge = Acknowledge
+action-retry = Retry
+
+# Common States
+loading = Loading...
+
+# Common Field Labels
+label-first-name = First Name
+label-last-name = Last Name
+label-email = Email
+label-notes = Notes
+label-birth-date = Birth Date
+label-country = Country
+label-city = City
+label-currency = Currency
+
+# Benefit Summary Card Translations
+benefit-provider = Provider
+benefit-value-yearly = Yearly Value
+benefit-details-monthly-value = Monthly Value
+current-annually = Annually
+current-monthly = Monthly
+modal-request-start-date-label = Start Date
+
+# Deactivate Employee Benefit Review Form
+deactivate-benefit-review-title = Benefit Deactivation Request
+deactivate-benefit-review-requested-by = Requested by { $initiatorName }
+deactivate-benefit-review-loading = Loading benefit deactivation request...
+deactivate-benefit-review-error-title = Unable to Load Data
+deactivate-benefit-review-error-description = Failed to load benefit deactivation request data
+deactivate-benefit-review-benefit-details = Benefit Details
+deactivate-benefit-review-deactivation-details = Deactivation Request
+deactivate-benefit-review-submit = Deactivate Benefit
+deactivate-benefit-review-benefit-type = Benefit Type
+deactivate-benefit-review-provider = Provider
+deactivate-benefit-review-value = Value
+deactivate-benefit-review-yearly-value = Yearly Value
+deactivate-benefit-review-monthly-value = Monthly Value
+deactivate-benefit-review-period = Period
+deactivate-benefit-review-start-date = Start Date
+deactivate-benefit-review-employee-yearly-contribution = Employee Yearly Contribution
+deactivate-benefit-review-employee-monthly-contribution = Employee Monthly Contribution
+deactivate-benefit-review-employee-contributions = Employee Contributions
+deactivate-benefit-review-end-date = Requested End Date
+deactivate-benefit-review-reason = Reason for Deactivation
+
+# Request Employee Benefit Review Form
+request-benefit-review-title = Review Benefit Request
+request-benefit-review-initiated-by = Initiated by { $initiatorName }
+request-benefit-review-benefit-details = Benefit Details
+request-benefit-review-benefit-type = Benefit Type
+request-benefit-review-provider = Provider
+request-benefit-review-value = Value
+request-benefit-review-period = Period
+
+# Period translations
+period-monthly = Monthly
+period-yearly = Yearly
+period-daily = Daily
+request-benefit-review-start-date = Preferred Start Date
+request-benefit-review-employee-yearly-contribution = Employee Yearly Contribution
+request-benefit-review-employee-monthly-contribution = Employee Monthly Contribution
+request-benefit-review-additional-info = Additional Information
+request-benefit-review-justification = Justification
+request-benefit-review-financial-details = Financial Details
+request-benefit-review-employee-contributions = Employee Contributions
+request-benefit-review-approve = Approve
+request-benefit-review-reject = Reject
+request-benefit-review-loading = Loading benefit review data...
+request-benefit-review-error-title = Unable to Load Data
+request-benefit-review-error-description = Failed to load employee benefit data
+
+# Deactivate Employee Benefit Form
+modal-deactivate-title = Deactivate Employee Benefit
+modal-deactivate-end-date-label = End Date
+modal-deactivate-submit-button = Deactivate Benefit
+
+# Deactivate Employee Benefit Form - Validation Messages
+error-end-date-required = End date is required. Please select an end date.
+error-end-date-today-or-later = End date must be today or later.
+error-end-date-after-start-date = End date cannot be before the benefit start date.

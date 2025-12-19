@@ -60,9 +60,7 @@ rewards-package-description = Pachetul dvs. de recompense totale include salariu
 
 # Benefits & Perks
 benefits-catalog-title = Catalog de beneficii
-benefits-active-count = { $count } active
-benefits-available-count = { $count } disponibile
-benefits-total-count = { $count } total
+benefits-catalog-no-results = Niciun rezultat
 benefits-search-placeholder = Căutați beneficii...
 benefits-loading = Se încarcă catalogul de beneficii...
 benefits-error-title = Eroare la încărcarea beneficiilor
@@ -74,23 +72,33 @@ benefits-catalog-no-results-title = Niciun beneficiu găsit
 benefits-catalog-no-results-description = Niciun beneficiu nu corespunde criteriilor dvs. de căutare.
 benefits-catalog-clear-search = Șterge căutarea
 benefits-active-section-title = Beneficii active ({ $count })
+benefits-scheduled-section-title = Beneficii programate ({ $count })
 benefits-available-section-title = Beneficii disponibile ({ $count })
 
 # Benefit Card
 benefit-status-active = Activ
+benefit-status-scheduled = Programat
 benefit-status-pending = În așteptare
 benefit-status-available = Disponibil
 benefit-request-button = Solicită
+benefit-request-employee-id-missing = ID-ul angajatului nu este disponibil. Nu se poate iniția solicitarea de beneficiu.
+benefit-already-scheduled = Programat
 benefit-deactivate-button = Dezactivează
 benefit-view-details = Vezi detalii
 benefit-provider = Furnizor
 benefit-value-yearly = Valoare anuală
 benefit-no-provider = Niciun furnizor specificat
 benefit-since = Din
+benefit-starts-in = Începe în
+benefit-starts-on = Începe pe
+benefit-scheduled-badge = Programat
+benefit-ends = Se încheie
 
 # Benefit Details Modal
 benefit-details-type-info = Informații despre tipul de beneficiu
+benefit-details-benefit-information = Informații despre beneficiu
 benefit-details-code = Cod
+benefit-details-type = Tip
 benefit-details-category = Categorie
 benefit-details-provider-info = Informații despre furnizor
 benefit-details-provider = Furnizor
@@ -102,6 +110,9 @@ benefit-details-start-date = Data de început
 benefit-details-end-date = Data de încheiere
 benefit-details-notes = Note
 benefit-details-available-providers = Furnizori disponibili
+benefit-details-additional-info = Informații suplimentare
+benefit-details-value = Valoare
+benefit-details-no-value-info = Informațiile detaliate despre valoare vor fi determinate după solicitarea acestui beneficiu.
 benefit-details-description = Detalii beneficiu
 common-close = Închide
 
@@ -126,6 +137,7 @@ payslip-download-failed = Descărcarea fluturului de salariu a eșuat. Vă rugă
 
 # Request Benefit Modal
 modal-request-title = Solicită beneficiu
+modal-request-loading = Se încarcă informațiile despre beneficii...
 modal-request-description = Completați formularul de mai jos pentru a solicita acest beneficiu
 modal-request-provider-label = Furnizor beneficiu
 modal-request-provider-placeholder = Selectați un furnizor
@@ -237,11 +249,7 @@ action-enter-placeholder = Vă rugăm să introduceți
 
 # Benefits Catalog Section
 benefit-per-year = /an
-benefits-catalog-summary = {$active} active · {$available} disponibile · {$total} total
-benefits-catalog-search-placeholder = Căutați beneficii...
-benefits-catalog-loading = Se încarcă catalogul de beneficii...
-benefits-catalog-error-title = Eroare la încărcarea beneficiilor
-benefits-catalog-retry = Reîncearcă
+benefit-per-month = /lună
 
 # Payslip Section
 payslip-no-data = Nu există fluturaș salarial disponibile
@@ -259,8 +267,12 @@ modal-request-benefit-type-label = Tipul Beneficiului
 modal-character-count = {$current} / {$max} caractere
 modal-character-minimum = (minim {$min} caractere)
 
-# Deactivation Reasons
-modal-deactivate-reason-no_longer_needed = Nu mai este necesar
-modal-deactivate-reason-found_alternative = A fost găsită o alternativă
-modal-deactivate-reason-cost_reduction = Reducerea costurilor
-modal-deactivate-reason-other = Altele (vă rugăm să specificați)
+# Period translations
+period-monthly = Lunar
+period-yearly = Anual
+period-daily = Zilnic
+
+# Form Validation Errors
+error-end-date-required = Data de încheiere este obligatorie
+error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau mai târziu
+error-end-date-after-start-date = Data de încheiere trebuie să fie în sau după data de început a beneficiului

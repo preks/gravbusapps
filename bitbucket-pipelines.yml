@@ -58,6 +58,35 @@ definitions:
       path: ./node_modules
 
   steps:
+    - step: &check-hash-file-change
+        name: Check hash file change
+        size: 1x
+        clone:
+          enabled: true
+          depth: full
+        script:
+          - set -e
+          - |
+            PROD_HASH_FILE="component-hashes-prod.json"
+
+            if [ -z "${BITBUCKET_PR_DESTINATION_BRANCH:-}" ]; then
+              echo "Not a PR build (BITBUCKET_PR_DESTINATION_BRANCH not set). Skipping."
+              exit 0
+            fi
+
+            echo "Verifying that ${PROD_HASH_FILE} was NOT changed in this PR..."
+
+            git fetch origin "${BITBUCKET_PR_DESTINATION_BRANCH}"
+
+            CHANGED_FILES="$(git diff --name-only "origin/${BITBUCKET_PR_DESTINATION_BRANCH}...HEAD" || true)"
+
+            if echo "${CHANGED_FILES}" | grep -Fxq "${PROD_HASH_FILE}"; then
+              echo "${PROD_HASH_FILE} was modified in this PR. Changes to this file are not allowed."
+              exit 1
+            fi
+
+            echo "OK - ${PROD_HASH_FILE} not changed."
+
     - step: &install_dependencies
         name: Install dependencies
         size: 1x
@@ -103,8 +132,8 @@ definitions:
         artifacts:
           - changed-tsx.txt
 
-    - step: &build-validate-screens
-        name: Build Validate Changed Screens
+    - step: &build-screens
+        name: Build Screens
         size: 2x
         caches:
           - nodecustom
@@ -117,7 +146,7 @@ definitions:
               echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
               node scripts/build-changed-screens.js manual-screens.txt
             else
-              echo "No screens specified, using change detection to build screens"
+              echo "No screens specified, building all screens in batches"
               node scripts/build-changed-screens.js
             fi
         artifacts:
@@ -222,9 +251,10 @@ definitions:
 pipelines:
   pull-requests:
     '**':
+      - step: *check-hash-file-change
       - step: *install_dependencies
       - parallel:
-        - step: *build-validate-screens
+        - step: *build-screens
         - step: *sonar_scan
 
   branches:
@@ -253,7 +283,7 @@ pipelines:
           - name: SCREENS_TO_PUBLISH
             default: ''
       - step: *install_dependencies
-      - step: *build-validate-screens
+      - step: *build-screens
 
     publish-manual:
       - variables:
@@ -281,6 +311,14 @@ pipelines:
             allowed-values:
               - 'true'
               - 'false'
+      - step:
+          name: Enforce develop/main branches for production publish
+          script:
+            - |
+              if [ "$BITBUCKET_BRANCH" != "develop" ] && [ "$BITBUCKET_BRANCH" != "main" ]; then
+                echo "publishing to production is restricted to develop or main branches. Current branch: $BITBUCKET_BRANCH"
+                exit 1
+              fi
       - step: *install_dependencies
       - step: *publish-manual-prod-screens
 

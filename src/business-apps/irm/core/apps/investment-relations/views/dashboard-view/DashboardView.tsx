@@ -19,13 +19,29 @@ export interface DashboardViewProps extends BusinessAppContextProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRange, moduleColor, ...context }) => {
   const [activeTab] = useState<string>('overview')
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>(pipelines.length > 0 ? pipelines[0].id : '')
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
-  const { overviewData, isLoading, error, refetch } = useOverviewData(context, pipelines, dateRange, selectedCurrency)
+  const { overviewData, isLoading, error, refetch, setSelectedCurrency } = useOverviewData(
+    context,
+    pipelines,
+    dateRange
+  )
 
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId)
+  const [pipelineCurrency, setPipelineCurrency] = useState<string | undefined>(undefined)
 
-  const { pipelineData } = usePipelineData(context, selectedPipeline || null, dateRange)
+  const { pipelineData, availableCurrencies: pipelineCurrencies } = usePipelineData(
+    context,
+    selectedPipeline || null,
+    dateRange,
+    pipelineCurrency
+  )
+
+  // Auto-select the first available currency when data loads
+  useEffect(() => {
+    if (pipelineCurrencies.length > 0 && !pipelineCurrency) {
+      setPipelineCurrency(pipelineCurrencies[0])
+    }
+  }, [pipelineCurrencies, pipelineCurrency])
 
   const handlePipelineChange = (pipelineId: string) => {
     setSelectedPipelineId(pipelineId)
@@ -138,15 +154,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
               pipelines: pipelines.map(p => ({ id: p.id, name: p.name })),
               selectedPipelineId,
               onPipelineChange: handlePipelineChange,
+              availableCurrencies: pipelineCurrencies,
+              selectedCurrency: pipelineCurrency,
+              onCurrencyChange: setPipelineCurrency,
               pipelineHeaderBadges: pipelineData
                 ? [
                     {
                       label: `${pipelineData.metrics.totalOpportunities} opportunities`,
                       variant: 'secondary' as const
                     },
-                    { label: `${formatCurrency(pipelineData.metrics.totalValue)}`, variant: 'default' as const },
                     {
-                      label: `${pipelineData.metrics.conversionRate.toFixed(1)}% conversion`,
+                      label: `${formatCurrency(pipelineData.metrics.totalValue, pipelineCurrency || 'EUR')}`,
+                      variant: 'default' as const
+                    },
+                    {
+                      label: `${pipelineData.metrics.dealsWon} won`,
                       variant: 'outline' as const
                     }
                   ]
@@ -156,14 +178,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
                 ? {
                     totalValue: pipelineData.metrics.totalValue,
                     avgDealSize: pipelineData.metrics.avgDealSize,
-                    conversionRate: pipelineData.metrics.conversionRate,
-                    avgSalesCycle: pipelineData.metrics.avgSalesCycle
+                    dealsWon: pipelineData.metrics.dealsWon,
+                    winRate: pipelineData.metrics.winRate
                   }
                 : {
                     totalValue: 0,
                     avgDealSize: 0,
-                    conversionRate: 0,
-                    avgSalesCycle: 0
+                    dealsWon: 0,
+                    winRate: 0
                   },
               funnelData: pipelineData?.funnelData || [],
               winRateMetrics: pipelineData?.winRateMetrics || { monthToDate: 0, quarterToDate: 0 },

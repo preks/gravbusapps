@@ -158,7 +158,9 @@ export const transformBenefit = (benefit: any): EmployeeBenefit => {
     endDate: benefit.endDate,
     status: benefit.status,
     benefitStatus: benefit.benefitStatus,
-    notes: benefit.notes || ''
+    notes: benefit.notes || '',
+    createdAt: benefit.createdAt,
+    updatedAt: benefit.updatedAt
   }
 }
 

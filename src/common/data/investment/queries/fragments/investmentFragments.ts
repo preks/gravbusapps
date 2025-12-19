@@ -9,6 +9,7 @@
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
+import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
 import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
 import { InvestmentAccountFields } from '../../types/investmentAccountTypes'
@@ -38,10 +39,20 @@ import {
 export const INVESTMENT_OPPORTUNITY = `
   ${INVESTMENT_OPPORTUNITY_REF}
   
-  # Entity relations
-  accountId
-  account {
-    ${INVESTMENT_ACCOUNT_REF}
+  # Entity relations (via junction table)
+  # GraphQL field name: opportunityAccounts (not investmentOpportunityAccounts)
+  opportunityAccounts(where: { isDeleted: { _eq: false } }) {
+    id
+    version
+    opportunityId
+    accountId
+    accountTypeRef
+    accountType {
+      ${CATALOG_ENTRY}
+    }
+    account {
+      ${INVESTMENT_ACCOUNT_REF}
+    }
   }
   
   activities(where: { isDeleted: { _eq: false } }) {
@@ -266,21 +277,36 @@ export const INVESTMENT = `
         }
     }
     
-    # Entity relationships
-    investmentAccount {
-        ${INVESTMENT_ACCOUNT_REF}
-        ${InvestmentAccountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-            ${COMMUNICATION_CHANNEL_REF}
+    # Entity relationships (via junction table)
+    # GraphQL field name: investmentAccounts (not investmentInvestmentAccounts)
+    investmentAccounts(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        investmentId
+        investmentAccountId
+        investmentAccountTypeRef
+        investmentAccountType {
+            ${CATALOG_ENTRY}
         }
-        ${InvestmentAccountFields.addresses}(where: { isDeleted: { _eq: false } }) {
-            ${ADDRESS_REF}
-        }
-        investmentAccountContact {
-            contactType
-            contact {
-                ${INVESTMENT_CONTACT_REF}
-                ${InvestmentContactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-                    ${COMMUNICATION_CHANNEL_REF}
+        investmentAccount {
+            ${INVESTMENT_ACCOUNT_REF}
+            ${InvestmentAccountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+                ${COMMUNICATION_CHANNEL_REF}
+            }
+            ${InvestmentAccountFields.addresses}(where: { isDeleted: { _eq: false } }) {
+                ${ADDRESS_REF}
+            }
+            ${InvestmentAccountFields.accountContacts}(where: { isDeleted: { _eq: false } }) {
+                id
+                version
+                accountId
+                contactId
+                contactType
+                contact {
+                    ${INVESTMENT_CONTACT_REF}
+                    ${InvestmentContactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+                        ${COMMUNICATION_CHANNEL_REF}
+                    }
                 }
             }
         }
@@ -293,6 +319,11 @@ export const INVESTMENT = `
     # Loan recipient investment account
     loanRecipientInvestmentAccount {
         ${INVESTMENT_ACCOUNT_REF}
+    }
+    
+    # Company relationship
+    company {
+        ${COMPANY_REF}
     }
     
     # All investment specializations with full details
@@ -348,6 +379,11 @@ export const EQUITY_INVESTMENT = `
         currencyRef
         currency {
             ${CATALOG_ENTRY}
+        }
+        investmentOpportunityId
+        investmentOpportunity {
+            id
+            name
         }
         additionalProperties
         ${AUDIT_FIELDS}

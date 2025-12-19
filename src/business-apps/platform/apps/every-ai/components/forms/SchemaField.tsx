@@ -48,6 +48,37 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   const controlId = sanitizeControlId(fieldPath)
   const label = formatFieldName(name)
 
+  // Inject styles for react-quill text selection visibility
+  useEffect(() => {
+    if (schema.contentMediaType !== 'application/vnd.quill+html') return
+
+    const styleId = 'react-quill-selection-styles'
+    if (document.getElementById(styleId)) return
+
+    const style = document.createElement('style')
+    style.id = styleId
+    style.textContent = `
+      .ql-editor::selection,
+      .ql-editor *::selection {
+        background-color: rgba(59, 130, 246, 0.3) !important;
+        color: inherit !important;
+      }
+      .ql-editor::-moz-selection,
+      .ql-editor *::-moz-selection {
+        background-color: rgba(59, 130, 246, 0.3) !important;
+        color: inherit !important;
+      }
+    `
+    document.head.appendChild(style)
+
+    return () => {
+      const existingStyle = document.getElementById(styleId)
+      if (existingStyle) {
+        existingStyle.remove()
+      }
+    }
+  }, [schema.contentMediaType])
+
   // Conditional display logic
   const displayCondition = schema?.['x-display']
   const shouldShowField = useMemo(() => {
@@ -146,8 +177,8 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
           )
         }
 
-        // Markdown content type - use ReactQuill rich text editor
-        if (schema.contentMediaType === 'text/markdown') {
+        // Quill rich text editor - use ReactQuill for application/vnd.quill+html
+        if (schema.contentMediaType === 'application/vnd.quill+html') {
           const quillModules = {
             toolbar: [
               [{ header: [1, 2, 3, false] }],

@@ -8,10 +8,14 @@ import TimeTracking from './components/TimeTracking'
 import { useEmployeeData } from '../employee-record/hooks/useEmployeeData'
 import timeTrackingTranslations from './_i18n'
 import DailyLog from './components/DailyLog'
+import TimeHistory from './components/TimeHistory'
+import SmartBooking from '../employee-record/components/tabs/components/SmartBooking'
 
 enum MyTimeTabEnum {
   TimeTracking = 'time-tracking',
-  DailyLog = 'daily-log'
+  SmartBooking = 'smart-booking',
+  DailyLog = 'daily-log',
+  History = 'history'
 }
 
 export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
@@ -42,8 +46,16 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
               label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Time Tracking')
             },
             {
+              value: MyTimeTabEnum.SmartBooking,
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.title', 'Smart Booking')
+            },
+            {
               value: MyTimeTabEnum.DailyLog,
               label: t('daily_log')
+            },
+            {
+              value: MyTimeTabEnum.History,
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.history.title', 'History')
             }
           ]
         }}
@@ -56,9 +68,27 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
           </div>
         )}
 
+        {activeTab === MyTimeTabEnum.SmartBooking && (
+          <div data-testid="my-time-smart-booking-content" className="gba:mt-4">
+            <SmartBooking employeeId={employeeId} accessToken={accessToken} />
+          </div>
+        )}
+
         {activeTab === MyTimeTabEnum.DailyLog && (
           <div data-testid="my-time-activity-content" className="gba:mt-4">
             <DailyLog employee={employee} employeeId={employeeId} accessToken={accessToken} />
+          </div>
+        )}
+
+        {activeTab === MyTimeTabEnum.History && (
+          <div data-testid="my-time-history-content" className="gba:mt-4">
+            <TimeHistory
+              employeeId={employeeId}
+              accessToken={accessToken}
+              userId={userInfo?.id || ''}
+              employeeFirstName={employee?.firstName}
+              employeeLastName={employee?.lastName}
+            />
           </div>
         )}
       </PageLayout>

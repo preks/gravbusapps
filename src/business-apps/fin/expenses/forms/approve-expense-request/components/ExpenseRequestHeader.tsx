@@ -1,12 +1,12 @@
 import React from 'react'
 import { Separator } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseRequestHeaderProps {
   title: string
+  t: (key: string) => string
 }
 
-const ExpenseRequestHeader: React.FC<ExpenseRequestHeaderProps> = ({ title }) => {
+const ExpenseRequestHeader: React.FC<ExpenseRequestHeaderProps> = ({ title, t }) => {
   return (
     <>
       {/* Header Section */}
@@ -24,10 +24,7 @@ const ExpenseRequestHeader: React.FC<ExpenseRequestHeaderProps> = ({ title }) =>
           className="gba:text-sm gba:font-normal gba:m-0 gba:text-muted-foreground"
           data-testid="approve-expense-request-v2-subtitle"
         >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_request.expense_subtitle',
-            'Expense Request Approval'
-          )}
+          {t('subtitle-expense-request-approval')}
         </h2>
       </div>
 

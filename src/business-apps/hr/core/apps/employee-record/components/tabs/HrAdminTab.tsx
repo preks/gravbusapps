@@ -91,6 +91,11 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
       ? false
       : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
 
+  const canDeleteDocuments =
+    permissionsLoading || employeeRecordHrBackoffice.loading
+      ? false
+      : !isSelfView && employeeRecordHrBackoffice?.hasPermission === true
+
   const hasChangeLogPermission =
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
       ? false
@@ -299,7 +304,13 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
                 <Spin size="large" />
               </div>
             ) : (
-              <DocumentsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
+              <DocumentsTab
+                employee={employee}
+                accessToken={accessToken}
+                employeeId={employeeId}
+                userInfo={userInfo}
+                canEditDocuments={canDeleteDocuments}
+              />
             )}
           </TabsContent>
         )}

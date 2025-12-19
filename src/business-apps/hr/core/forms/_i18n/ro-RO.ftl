@@ -140,3 +140,107 @@ grant-bonus-review-description = Descriere
 grant-bonus-review-notes = Note
 grant-bonus-review-acknowledge = Confirmă
 grant-bonus-review-reject = Respinge
+
+# ============================================
+# Common Review Form Translations
+# ============================================
+
+# Common Card Titles
+card-title-unchanged = Toate celelalte câmpuri
+
+# Common Badges
+badge-new = Nou
+badge-changed = Modificat
+badge-unchanged = Neschimbat
+badge-not-set = Nesetat
+badge-changes = { $count } { $count ->
+    [one] Modificare
+   *[other] Modificări
+}
+
+# Common Field Values
+value-not-set = Nesetat
+value-na = N/A
+
+# Common Actions
+action-acknowledge = Confirmă
+action-retry = Reîncearcă
+
+# Common States
+loading = Se încarcă...
+
+# Common Field Labels
+label-first-name = Prenume
+label-last-name = Nume
+label-email = E-mail
+label-notes = Note
+label-birth-date = Data nașterii
+label-country = Țară
+label-city = Oraș
+label-currency = Monedă
+
+# Benefit Summary Card Translations
+benefit-provider = Furnizor
+benefit-value-yearly = Valoare anuală
+benefit-details-monthly-value = Valoare lunară
+current-annually = Anual
+current-monthly = Lunar
+modal-request-start-date-label = Dată de început
+
+# Deactivate Employee Benefit Review Form
+deactivate-benefit-review-title = Cerere dezactivare beneficiu
+deactivate-benefit-review-requested-by = Solicitat de { $initiatorName }
+deactivate-benefit-review-loading = Se încarcă cererea de dezactivare beneficiu...
+deactivate-benefit-review-error-title = Imposibil de încărcat datele
+deactivate-benefit-review-error-description = Eroare la încărcarea cererii de dezactivare beneficiu
+deactivate-benefit-review-benefit-details = Detalii beneficiu
+deactivate-benefit-review-deactivation-details = Cerere dezactivare
+deactivate-benefit-review-submit = Dezactivează beneficiu
+deactivate-benefit-review-benefit-type = Tip beneficiu
+deactivate-benefit-review-provider = Furnizor
+deactivate-benefit-review-value = Valoare
+deactivate-benefit-review-yearly-value = Valoare anuală
+deactivate-benefit-review-monthly-value = Valoare lunară
+deactivate-benefit-review-period = Perioadă
+deactivate-benefit-review-start-date = Dată de început
+deactivate-benefit-review-employee-yearly-contribution = Contribuție anuală angajat
+deactivate-benefit-review-employee-monthly-contribution = Contribuție lunară angajat
+deactivate-benefit-review-employee-contributions = Contribuții angajat
+deactivate-benefit-review-end-date = Dată de încheiere solicitată
+deactivate-benefit-review-reason = Motiv dezactivare
+
+# Request Employee Benefit Review Form
+request-benefit-review-title = Revizuire cerere beneficiu
+request-benefit-review-initiated-by = Inițiat de { $initiatorName }
+request-benefit-review-benefit-details = Detalii beneficiu
+request-benefit-review-benefit-type = Tipul beneficiului
+request-benefit-review-provider = Furnizor
+request-benefit-review-value = Valoare
+request-benefit-review-period = Perioadă
+
+# Period translations
+period-monthly = Lunar
+period-yearly = Anual
+period-daily = Zilnic
+request-benefit-review-start-date = Dată de început preferată
+request-benefit-review-employee-yearly-contribution = Contribuție anuală angajat
+request-benefit-review-employee-monthly-contribution = Contribuție lunară angajat
+request-benefit-review-additional-info = Informații suplimentare
+request-benefit-review-justification = Justificare
+request-benefit-review-financial-details = Detalii financiare
+request-benefit-review-employee-contributions = Contribuții angajat
+request-benefit-review-approve = Aprobă
+request-benefit-review-reject = Respinge
+request-benefit-review-loading = Se încarcă datele despre beneficiu...
+request-benefit-review-error-title = Nu se pot încărca datele
+request-benefit-review-error-description = Eroare la încărcarea datelor despre beneficiile angajatului
+
+# Deactivate Employee Benefit Form
+modal-deactivate-title = Dezactivare beneficiu angajat
+modal-deactivate-end-date-label = Dată de încheiere
+modal-deactivate-submit-button = Dezactivează beneficiu
+
+# Deactivate Employee Benefit Form - Validation Messages
+error-end-date-required = Data de încheiere este obligatorie. Vă rugăm să selectați o dată de încheiere.
+error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau ulterior.
+error-end-date-after-start-date = Data de încheiere nu poate fi înaintea datei de început a beneficiului.

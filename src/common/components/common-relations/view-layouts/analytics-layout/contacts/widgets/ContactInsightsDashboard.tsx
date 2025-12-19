@@ -15,6 +15,7 @@ import {
 import { ContactsOutlined, TeamOutlined, BankOutlined } from '@ant-design/icons'
 import { BarChart, Bar, XAxis, YAxis } from 'recharts'
 import { UsersIcon } from '@phosphor-icons/react'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface ContactsByTypeItem {
   type: string
@@ -22,6 +23,7 @@ export interface ContactsByTypeItem {
   percentage: number
 }
 export interface ContactsByAccountItem {
+  accountId: string
   accountName: string
   contactCount: number
 }
@@ -43,11 +45,13 @@ export interface ContactInsightsDashboardData {
 interface ContactInsightsDashboardProps {
   data: ContactInsightsDashboardData
   moduleColor?: string
+  module: 'crm' | 'irm'
 }
 
 export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> = ({
   data,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  module
 }) => {
   const chartConfig = useMemo(
     () =>
@@ -58,6 +62,19 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
       }) satisfies ChartConfig,
     []
   )
+
+  const handleAccountClick = (accountId: string) => {
+    if (!accountId) return // Skip "No Account" entries
+    const basePath = module === 'crm' ? '/platform/crm/account-record' : '/platform/irm/account-record'
+    const url = buildPlatformUrl(basePath, { accountId })
+    navigateTo(url)
+  }
+
+  const handleContactClick = (contactId: string) => {
+    const basePath = module === 'crm' ? '/platform/crm/contact-record' : '/platform/irm/contact-record'
+    const url = buildPlatformUrl(basePath, { contactId })
+    navigateTo(url)
+  }
   return (
     <Card data-testid="contact-insights-analysis">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
@@ -116,10 +133,17 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
             <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Top Accounts by Contact Count</h4>
             <div className="gba:space-y-3 gba:max-h-80 gba:overflow-y-auto">
               {data.contactsByAccount.slice(0, 8).map((account, index) => (
-                <div
+                <button
                   key={`${account.accountName}-${index}`}
-                  className="gba:p-3 gba:bg-gray-50 gba:border gba:border-gray-200 gba:rounded-lg"
+                  type="button"
+                  disabled={!account.accountId}
+                  className={`gba:w-full gba:p-3 gba:rounded-lg gba:transition-colors gba:text-left ${
+                    account.accountId
+                      ? 'gba:bg-blue-50 gba:border gba:border-blue-200 gba:cursor-pointer gba:hover:bg-blue-100'
+                      : 'gba:bg-gray-50 gba:border gba:border-gray-200 gba:cursor-not-allowed'
+                  }`}
                   data-testid={`top-account-${index}`}
+                  onClick={() => handleAccountClick(account.accountId)}
                 >
                   <div className="gba:flex gba:justify-between gba:items-center">
                     <div className="gba:flex-1">
@@ -129,7 +153,7 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
                       <Badge variant="outline">{account.contactCount} contacts</Badge>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -139,10 +163,12 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
           <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Recent Contacts</h4>
           <div className="gba:space-y-3">
             {data.recentContacts.map(contact => (
-              <div
+              <button
                 key={contact.id}
-                className="gba:p-3 gba:bg-gray-50 gba:border gba:border-gray-200 gba:rounded-lg"
+                type="button"
+                className="gba:w-full gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg gba:cursor-pointer gba:hover:bg-green-100 gba:transition-colors gba:text-left"
                 data-testid={`recent-contact-${contact.id}`}
+                onClick={() => handleContactClick(contact.id)}
               >
                 <div className="gba:flex gba:justify-between gba:items-start">
                   <div className="gba:flex-1">
@@ -157,7 +183,7 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
                     </Badge>
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

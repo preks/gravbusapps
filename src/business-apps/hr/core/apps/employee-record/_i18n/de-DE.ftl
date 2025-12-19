@@ -60,9 +60,7 @@ rewards-package-description = Ihr Gesamtvergütungspaket umfasst Grundgehalt, Bo
 
 # Benefits & Perks
 benefits-catalog-title = Zusatzleistungs-Katalog
-benefits-active-count = { $count } aktiv
-benefits-available-count = { $count } verfügbar
-benefits-total-count = { $count } gesamt
+benefits-catalog-no-results = Keine Ergebnisse
 benefits-search-placeholder = Zusatzleistungen suchen...
 benefits-loading = Zusatzleistungs-Katalog wird geladen...
 benefits-error-title = Fehler beim Laden der Zusatzleistungen
@@ -74,23 +72,33 @@ benefits-catalog-no-results-title = Keine Zusatzleistungen gefunden
 benefits-catalog-no-results-description = Keine Zusatzleistungen entsprechen Ihren Suchkriterien.
 benefits-catalog-clear-search = Suche löschen
 benefits-active-section-title = Aktive Zusatzleistungen ({ $count })
+benefits-scheduled-section-title = Geplante Zusatzleistungen ({ $count })
 benefits-available-section-title = Verfügbare Zusatzleistungen ({ $count })
 
 # Benefit Card
 benefit-status-active = Aktiv
+benefit-status-scheduled = Geplant
 benefit-status-pending = Ausstehend
 benefit-status-available = Verfügbar
 benefit-request-button = Anfordern
+benefit-request-employee-id-missing = Mitarbeiter-ID nicht verfügbar. Kann Leistungsanfrage nicht initiieren.
+benefit-already-scheduled = Geplant
 benefit-deactivate-button = Deaktivieren
 benefit-view-details = Details anzeigen
 benefit-provider = Anbieter
 benefit-value-yearly = Jahreswert
 benefit-no-provider = Kein Anbieter angegeben
 benefit-since = Seit
+benefit-starts-in = Beginnt im
+benefit-starts-on = Beginnt am
+benefit-scheduled-badge = Geplant
+benefit-ends = Endet
 
 # Benefit Details Modal
 benefit-details-type-info = Informationen zum Leistungstyp
+benefit-details-benefit-information = Leistungsinformationen
 benefit-details-code = Code
+benefit-details-type = Typ
 benefit-details-category = Kategorie
 benefit-details-provider-info = Anbieterinformationen
 benefit-details-provider = Anbieter
@@ -102,6 +110,9 @@ benefit-details-start-date = Startdatum
 benefit-details-end-date = Enddatum
 benefit-details-notes = Notizen
 benefit-details-available-providers = Verfügbare Anbieter
+benefit-details-additional-info = Zusätzliche Informationen
+benefit-details-value = Wert
+benefit-details-no-value-info = Detaillierte Wertinformationen werden nach Beantragung dieser Leistung festgelegt.
 benefit-details-description = Leistungsdetails
 common-close = Schließen
 
@@ -126,6 +137,7 @@ payslip-download-failed = Fehler beim Herunterladen der Gehaltsabrechnung. Bitte
 
 # Request Benefit Modal
 modal-request-title = Zusatzleistung anfordern
+modal-request-loading = Lade Zusatzleistungsinformationen...
 modal-request-description = Füllen Sie das untenstehende Formular aus, um diese Zusatzleistung anzufordern
 modal-request-provider-label = Zusatzleistungsanbieter
 modal-request-provider-placeholder = Anbieter auswählen
@@ -237,11 +249,7 @@ action-enter-placeholder = Bitte eingeben
 
 # Benefits Catalog Section
 benefit-per-year = /Jahr
-benefits-catalog-summary = {$active} aktiv · {$available} verfügbar · {$total} gesamt
-benefits-catalog-search-placeholder = Zusatzleistungen suchen...
-benefits-catalog-loading = Zusatzleistungs-Katalog wird geladen...
-benefits-catalog-error-title = Fehler beim Laden der Zusatzleistungen
-benefits-catalog-retry = Wiederholen
+benefit-per-month = /Monat
 
 # Payslip Section
 payslip-no-data = Keine Gehaltsabrechnungen verfügbar
@@ -259,8 +267,12 @@ modal-request-benefit-type-label = Leistungsart
 modal-character-count = {$current} / {$max} Zeichen
 modal-character-minimum = (mindestens {$min} Zeichen)
 
-# Deactivation Reasons
-modal-deactivate-reason-no_longer_needed = Nicht mehr benötigt
-modal-deactivate-reason-found_alternative = Alternative gefunden
-modal-deactivate-reason-cost_reduction = Kostenreduzierung
-modal-deactivate-reason-other = Sonstiges (bitte angeben)
+# Period translations
+period-monthly = Monatlich
+period-yearly = Jährlich
+period-daily = Täglich
+
+# Form Validation Errors
+error-end-date-required = Enddatum ist erforderlich
+error-end-date-today-or-later = Enddatum muss heute oder später sein
+error-end-date-after-start-date = Enddatum muss am oder nach dem Startdatum der Leistung liegen

@@ -10,12 +10,16 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent
+  ChartLegendContent,
+  Spinner
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, XAxis, YAxis } from 'recharts'
 import { ChartLineIcon, CalendarIcon } from '@phosphor-icons/react'
+import { TIME_FILTER_OPTIONS, formatLifecycleXAxisLabel, getCurrentFilterLabel } from '../../shared/lifecycleChartUtils'
+import type { TimeFilter } from '../../shared/lifecycleChartUtils'
 
-export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
+// Re-export TimeFilter for backward compatibility
+export type { TimeFilter } from '../../shared/lifecycleChartUtils'
 
 export interface ContactsOverTimePoint {
   date: string
@@ -30,14 +34,6 @@ export interface ContactLifecycleChartProps {
   moduleColor?: string
 }
 
-const timeFilterOptions = [
-  { key: 'month' as TimeFilter, label: 'Last Month' },
-  { key: 'quarter' as TimeFilter, label: 'Last Quarter' },
-  { key: 'sixMonths' as TimeFilter, label: 'Last 6 Months' },
-  { key: 'year' as TimeFilter, label: 'Last Year' },
-  { key: 'historical' as TimeFilter, label: 'Historical' }
-]
-
 export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
   data,
   isLoading = false,
@@ -45,19 +41,8 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
   onTimeFilterChange,
   moduleColor
 }) => {
-  const formatXAxisLabel = (value: string) => {
-    const date = new Date(value)
-    if (selectedTimeFilter === 'month') {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) // "Nov 1", "Nov 2"
-    }
-    if (selectedTimeFilter === 'historical') {
-      return date.getFullYear().toString() // "2024"
-    }
-    // For quarter, sixMonths, and year: show month + year (monthly aggregation)
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) // "Nov 2025"
-  }
-
-  // Chart configuration (moved to top level to avoid conditional hook calls)
+  // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
+  // Chart configuration - must be called before early return
   const chartConfig = useMemo(
     () => ({
       contactsCreated: { label: 'Contacts Created' }
@@ -65,23 +50,31 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
     []
   )
 
+  // Non-hook logic
+  const currentFilterLabel = getCurrentFilterLabel(selectedTimeFilter)
+
+  // Early return AFTER all hooks
+  if (isLoading) {
+    return (
+      <Card data-testid="ContactLifecycleChart-loading">
+        <CardHeader>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <IconAvatar icon={ChartLineIcon} variant={moduleColor as any} size="md" decorative />
+            Contact Lifecycle Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-[400px]">
+            <Spinner size="lg" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const chartData = data || []
 
   const renderChartContent = () => {
-    if (isLoading) {
-      return (
-        <div
-          className="gba:flex gba:items-center gba:justify-center gba:h-[320px]"
-          data-testid="ContactLifecycleChart-loading"
-        >
-          <div className="gba:text-center">
-            <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
-            <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading chart data...</p>
-          </div>
-        </div>
-      )
-    }
-
     if (!chartData || chartData.length === 0) {
       return (
         <div className="gba:text-center gba:p-8" data-testid="ContactLifecycleChart-empty-state">
@@ -97,12 +90,16 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
     return (
       <ChartContainer
         config={chartConfig}
-        className="gba:h-[320px] gba:w-full"
+        className="gba:h-[400px] gba:w-full gba:aspect-auto"
         data-testid="ContactLifecycleChart-chart"
       >
-        <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} />
-          <YAxis tick={{ fontSize: 12 }} />
+        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+          <XAxis
+            dataKey="date"
+            tickLine={false}
+            tickFormatter={value => formatLifecycleXAxisLabel(value, selectedTimeFilter)}
+          />
+          <YAxis tickLine={false} />
           <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
           <ChartLegend content={<ChartLegendContent />} />
           <Area
@@ -111,9 +108,8 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
             name="contactsCreated"
             stroke={`var(--color-contactsCreated)`}
             fill={`var(--color-contactsCreated)`}
-            fillOpacity={0.12}
+            fillOpacity={0.2}
             strokeWidth={2}
-            dot={false}
           />
         </AreaChart>
       </ChartContainer>
@@ -126,12 +122,12 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={ChartLineIcon} variant={moduleColor as any} size="md" decorative />
-            Contact Lifecycle Overview
+            Contact Lifecycle Overview ({currentFilterLabel})
           </CardTitle>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <CalendarIcon size={16} className="gba:text-gray-500" />
+            <CalendarIcon size={16} className="gba:text-muted-foreground" />
             <div className="gba:flex gba:gap-1" data-testid="ContactLifecycleChart-time-filters">
-              {timeFilterOptions.map(option => (
+              {TIME_FILTER_OPTIONS.map(option => (
                 <Button
                   key={option.key}
                   variant={selectedTimeFilter === option.key ? 'default' : 'outline'}

@@ -629,6 +629,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
           value: opt.value || opt,
           label: opt.label || opt.value || opt
         })),
+        // Include dataSource configuration for dynamic SELECT/MULTISELECT fields
+        dataSource: field.dataSource,
         validation: field.required ? [{ type: 'required' as const }] : undefined
       })
     )
@@ -956,17 +958,22 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
                     Fill out the required information to complete this ticket.
                   </p>
 
-                  {/* Note when ticket is not claimed */}
-                  {!ticket.claimedByUserId && (
+                  {/* Note when ticket cannot be completed (based on API availableActions) */}
+                  {availableActions && !availableActions.canComplete && (
                     <div className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-amber-700 gba:bg-amber-50 gba:p-3 gba:rounded-lg gba:border gba:border-amber-200">
                       <InfoIcon className="gba:w-4 gba:h-4" />
                       <span>
-                        <strong>Note:</strong> You must claim this ticket before completion.
+                        <strong>Note:</strong> This ticket cannot be completed yet. Please check if you need to claim it
+                        first.
                       </span>
                     </div>
                   )}
 
-                  <div className={!ticket.claimedByUserId ? 'gba:opacity-60 gba:pointer-events-none' : ''}>
+                  <div
+                    className={
+                      availableActions && !availableActions.canComplete ? 'gba:opacity-60 gba:pointer-events-none' : ''
+                    }
+                  >
                     <DynamicFormGenerator
                       schema={transformTaskFormFields(getTaskFormFields())}
                       initialValues={taskFormData}
@@ -976,6 +983,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
                       submitButtonText="Complete Ticket"
                       title="" // No title since we have card header
                       showCard={false} // Don't wrap in card since we're already in one
+                      accessToken={accessToken} // Required for dataSource SELECT/MULTISELECT fields
                     />
                   </div>
                 </CardContent>
@@ -1314,7 +1322,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
                           <Button
                             size="sm"
                             onClick={() => handleTaskAction('complete')}
-                            disabled={isActionLoading || !ticket.claimedByUserId}
+                            disabled={isActionLoading}
                             className="gba:gap-2 gba:bg-green-600 hover:gba:bg-green-700"
                           >
                             <CheckCircleIcon className="gba:w-4 gba:h-4" />

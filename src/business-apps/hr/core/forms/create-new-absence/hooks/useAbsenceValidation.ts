@@ -23,7 +23,7 @@ dayjs.extend(isSameOrBefore)
 dayjs.extend(isSameOrAfter)
 import {
   getEmployeeAbsences,
-  getEmployeeAbsenceBalance,
+  getEmployeeAbsenceEntitlement,
   getTodayAbsences,
   employeeRegionLookupQuery,
   employmentRegionHolidaysQuery,
@@ -60,15 +60,19 @@ export interface EmployeeAbsence {
   }
 }
 
-export interface EmployeeAbsenceBalance {
+export interface EmployeeAbsenceEntitlement {
   id: string
   employeeId: string
-  typeRef: string
-  annualTotal: number
-  remaining: number
+  available: number
+  pending: number
   approved: number
+  total: number
   validFrom: string
   validTo: string
+  type?: {
+    id: string
+    objectValue?: any
+  }
 }
 
 export interface UseAbsenceValidationProps {
@@ -78,6 +82,31 @@ export interface UseAbsenceValidationProps {
   startDate?: Date
   endDate?: Date
   context: BusinessAppContextProps
+}
+
+/**
+ * Extracts priority from an absence type's objectValue.
+ * Lower numbers indicate higher priority (e.g., priority 5 > priority 10).
+ * Returns 999 as default (lowest priority) if no priority is found.
+ */
+export const extractPriority = (objectValue: unknown): number => {
+  if (!objectValue) return 999
+
+  if (typeof objectValue === 'string') {
+    try {
+      const parsed = JSON.parse(objectValue)
+      return typeof parsed?.priority === 'number' ? parsed.priority : 999
+    } catch {
+      return 999
+    }
+  }
+
+  if (typeof objectValue === 'object' && objectValue !== null) {
+    const obj = objectValue as Record<string, unknown>
+    return typeof obj?.priority === 'number' ? obj.priority : 999
+  }
+
+  return 999
 }
 
 export const useAbsenceValidation = ({
@@ -93,7 +122,7 @@ export const useAbsenceValidation = ({
   const [validationWarnings, setValidationWarnings] = useState<AbsenceValidationError[]>([])
   const [isValidating, setIsValidating] = useState(false)
   const [existingAbsences, setExistingAbsences] = useState<EmployeeAbsence[]>([])
-  const [absenceBalance, setAbsenceBalance] = useState<EmployeeAbsenceBalance | null>(null)
+  const [absenceEntitlement, setAbsenceEntitlement] = useState<EmployeeAbsenceEntitlement | null>(null)
   const [todayAbsences, setTodayAbsences] = useState<EmployeeAbsence[]>([])
   const [existingSickLeave, setExistingSickLeave] = useState<EmployeeAbsence | null>(null)
   const [holidays, setHolidays] = useState<HolidayEntry[]>([])
@@ -248,41 +277,42 @@ export const useAbsenceValidation = ({
 
   useEffect(() => {
     if (!accessToken || !employeeId || !selectedType) {
-      setAbsenceBalance(null)
+      setAbsenceEntitlement(null)
       return
     }
 
     const shouldCheckEntitlement = absenceTypeDetails?.objectValue?.checkEntitlement === true
 
     if (!shouldCheckEntitlement) {
-      setAbsenceBalance(null)
+      setAbsenceEntitlement(null)
       return
     }
 
-    const fetchAbsenceBalance = async () => {
+    const fetchAbsenceEntitlement = async () => {
       try {
-        const response = await client.request(getEmployeeAbsenceBalance, {
+        const response = await client.request(getEmployeeAbsenceEntitlement, {
           employeeId,
           typeRef: selectedType
         })
-        const balances = response?.EmployeeAbsenceBalance || []
+        const entitlements = response?.EmployeeAbsenceEntitlement || []
 
-        const validBalance = balances.find((balance: EmployeeAbsenceBalance) => {
+        // Find valid entitlement for current period
+        const validEntitlement = entitlements.find((entitlement: EmployeeAbsenceEntitlement) => {
           const now = dayjs()
-          const validFrom = dayjs(balance.validFrom)
-          const validTo = dayjs(balance.validTo)
-          const isValid = now.isAfter(validFrom) && now.isBefore(validTo)
+          const validFrom = dayjs(entitlement.validFrom)
+          const validTo = dayjs(entitlement.validTo)
+          const isValid = now.isSameOrAfter(validFrom) && now.isSameOrBefore(validTo)
 
           return isValid
         })
 
-        setAbsenceBalance(validBalance || null)
+        setAbsenceEntitlement(validEntitlement || null)
       } catch {
-        setAbsenceBalance(null)
+        setAbsenceEntitlement(null)
       }
     }
 
-    fetchAbsenceBalance()
+    fetchAbsenceEntitlement()
   }, [accessToken, employeeId, selectedType, client, absenceTypeDetails])
 
   const checkOverlapValidation = useCallback(
@@ -300,23 +330,7 @@ export const useAbsenceValidation = ({
       const newStart = dayjs(newStartDate)
       const newEnd = dayjs(newEndDate)
 
-      let newAbsencePriority: number | undefined
-      const newObjectValue = absenceTypeDetails?.objectValue
-
-      if (newObjectValue) {
-        if (typeof newObjectValue === 'string') {
-          try {
-            const parsed = JSON.parse(newObjectValue)
-            newAbsencePriority = typeof parsed?.priority === 'number' ? parsed.priority : undefined
-          } catch {
-            newAbsencePriority = undefined
-          }
-        } else if (typeof newObjectValue === 'object' && newObjectValue !== null) {
-          newAbsencePriority = typeof newObjectValue?.priority === 'number' ? newObjectValue.priority : undefined
-        }
-      }
-
-      const newPriority = newAbsencePriority !== undefined ? newAbsencePriority : 999
+      const newPriority = extractPriority(absenceTypeDetails?.objectValue)
 
       for (const absence of existingAbsences) {
         if (absence.status === 'CANCELLED' || absence.status === 'REJECTED') {
@@ -340,23 +354,7 @@ export const useAbsenceValidation = ({
             absenceTypeName = localeTranslation?.value || absence.type.translations[0].value
           }
 
-          let existingAbsencePriority: number | undefined
-          const objectValue = absence.type?.objectValue
-
-          if (objectValue) {
-            if (typeof objectValue === 'string') {
-              try {
-                const parsed = JSON.parse(objectValue)
-                existingAbsencePriority = typeof parsed?.priority === 'number' ? parsed.priority : undefined
-              } catch {
-                existingAbsencePriority = undefined
-              }
-            } else if (typeof objectValue === 'object' && objectValue !== null) {
-              existingAbsencePriority = typeof objectValue?.priority === 'number' ? objectValue.priority : undefined
-            }
-          }
-
-          const existingPriority = existingAbsencePriority !== undefined ? existingAbsencePriority : 999
+          const existingPriority = extractPriority(absence.type?.objectValue)
 
           if (newPriority >= existingPriority) {
             errors.push({
@@ -372,12 +370,7 @@ export const useAbsenceValidation = ({
                 },
                 absenceType: absenceTypeName,
                 existingPriority,
-                newPriority,
-                priorityComparison: {
-                  existing: existingPriority,
-                  new: newPriority,
-                  canOverride: newPriority < existingPriority
-                }
+                newPriority
               }
             })
           }
@@ -405,14 +398,14 @@ export const useAbsenceValidation = ({
         return { errors, warnings }
       }
 
-      if (!absenceBalance) {
+      if (!absenceEntitlement) {
         warnings.push({
           type: 'balance',
           message: getTranslationFromI18nKeyAndLabel(
             'lowcoder:hr_absences.unable_to_verify_absence_balance',
             'Unable to verify absence balance. Please check manually.'
           ),
-          details: { reason: 'no_balance_info' }
+          details: { reason: 'no_entitlement_info' }
         })
         return { errors, warnings }
       }
@@ -441,7 +434,8 @@ export const useAbsenceValidation = ({
 
       const roundedRequestedDays = Math.round(requestedDays * 100) / 100
 
-      if (roundedRequestedDays > absenceBalance.remaining) {
+      // Use 'available' from entitlement - this already accounts for pending absences
+      if (roundedRequestedDays > absenceEntitlement.available) {
         const insufficientBalanceLabel = getTranslationFromI18nKeyAndLabel(
           'lowcoder:hr_absences.insufficient_balance',
           'Insufficient balance'
@@ -455,19 +449,20 @@ export const useAbsenceValidation = ({
 
         errors.push({
           type: 'balance',
-          message: `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${absenceBalance.remaining} ${daysLabel}`,
+          message: `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${absenceEntitlement.available} ${daysLabel}`,
           details: {
             requestedDays: roundedRequestedDays,
-            availableBalance: absenceBalance.remaining,
-            totalBalance: absenceBalance.annualTotal,
-            usedBalance: absenceBalance.approved
+            availableBalance: absenceEntitlement.available,
+            totalBalance: absenceEntitlement.total,
+            approvedBalance: absenceEntitlement.approved,
+            pendingBalance: absenceEntitlement.pending
           }
         })
       }
 
       return { errors, warnings }
     },
-    [absenceBalance, absenceTypeDetails, holidays]
+    [absenceEntitlement, absenceTypeDetails, holidays, workingHours]
   )
 
   const validateAbsence = useCallback(
@@ -542,7 +537,7 @@ export const useAbsenceValidation = ({
     balanceErrors: validationErrors.filter(error => error.type === 'balance'),
     generalErrors: validationErrors.filter(error => error.type === 'general'),
     existingAbsences,
-    absenceBalance,
+    absenceEntitlement,
     todayAbsences,
     existingSickLeave,
     isSickLeaveType,

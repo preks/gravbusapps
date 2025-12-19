@@ -3,6 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_ADDITIONAL_PROPS } from './AdditionalPropertiesQueries'
 
+import { EmployeeInfo } from '../components/FormHeader'
+
 interface AdditionalPropertiesContextValue {
   isLoading: boolean
   error: string | null
@@ -11,6 +13,7 @@ interface AdditionalPropertiesContextValue {
   existingProps: string[]
   existingPropsMap: Record<string, string>
   employeeVersion?: number
+  employeeHeaderInfo?: EmployeeInfo
 }
 
 const AdditionalPropertiesContext = createContext<AdditionalPropertiesContextValue | undefined>(undefined)
@@ -31,6 +34,7 @@ export const AdditionalPropertiesProvider: React.FC<ProviderProps> = ({
   const [existingProps, setExistingProps] = useState<string[]>([])
   const [existingPropsMap, setExistingPropsMap] = useState<Record<string, string>>({})
   const [employeeVersion, setEmployeeVersion] = useState<number | undefined>(undefined)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
 
   const employeeId: string | undefined = useMemo(() => {
     return (
@@ -57,6 +61,14 @@ export const AdditionalPropertiesProvider: React.FC<ProviderProps> = ({
       const rawProps = node?.employeePosition?.employee?.additionalProperties ?? node?.additionalProperties ?? null
       const nodeVersion: number | undefined = typeof node?.version === 'number' ? (node.version as number) : undefined
       setEmployeeVersion(nodeVersion)
+
+      // Extract employee header info for FormHeader
+      setEmployeeHeaderInfo({
+        firstName: node?.firstName,
+        lastName: node?.lastName,
+        pictureThumbnail: node?.pictureThumbnail,
+        jobTitle: node?.employeePosition?.jobPosition?.name
+      })
 
       const normalizeProps = (raw: any): string[] => {
         if (!raw) return []
@@ -151,7 +163,8 @@ export const AdditionalPropertiesProvider: React.FC<ProviderProps> = ({
     employeeId,
     existingProps,
     existingPropsMap,
-    employeeVersion
+    employeeVersion,
+    employeeHeaderInfo
   }
 
   return <AdditionalPropertiesContext.Provider value={value}>{children}</AdditionalPropertiesContext.Provider>

@@ -249,7 +249,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       <div className="gba:employee-profile gba:w-full gba:h-full">
         <ScreenBody className="gba:h-full gba:w-full">
           <ProfileLayout
-            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} />}
+            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} isSelfView={isSelfView} />}
             contentHeader={tabNavigation}
             contentContainer={getTabContent()}
             headerPlacement="left"
@@ -461,7 +461,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                   employee={employee}
                   accessToken={accessToken}
                   employeeId={employeeIdToShow}
-                  userInfo={userInfo}
+                  userId={userInfo?.id || ''}
                   isSelfView={isSelfView}
                 />
               )

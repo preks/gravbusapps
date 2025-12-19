@@ -15,8 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { PiLink } from 'react-icons/pi'
 import { ExpensePlanItem } from '../types/expensePlanV2Types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import Pill from '@/components/pill'
 
 interface ExpensePlanItemsSectionProps {
@@ -25,6 +24,7 @@ interface ExpensePlanItemsSectionProps {
   formatCurrency: (amount: number, currencyCode: string) => string
   getCatalogValue: (item: any) => string | null
   prefixDataTestId?: string
+  t: (key: string, vars?: Record<string, unknown>) => string
 }
 
 const ExpensePlanItemsSection: React.FC<ExpensePlanItemsSectionProps> = ({
@@ -32,7 +32,8 @@ const ExpensePlanItemsSection: React.FC<ExpensePlanItemsSectionProps> = ({
   currencyCode,
   formatCurrency,
   getCatalogValue,
-  prefixDataTestId = 'approve-expense-plan-v2'
+  prefixDataTestId = 'approve-expense-plan-v2',
+  t
 }) => {
   // Date formatting helper - use formatDateTime from every-box
   const formatDateDisplay = (dateString: string | null) => {
@@ -87,37 +88,31 @@ const ExpensePlanItemsSection: React.FC<ExpensePlanItemsSectionProps> = ({
     () => [
       {
         id: 'total-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_plan_table.total_amount',
-          'Total Amount'
-        ),
+        title: t('label-total-amount'),
         value: formatAmount(summaryAmounts.total)
       },
       {
         id: 'reimbursable-amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
+        title: t('label-reimbursable'),
         value: formatAmount(summaryAmounts.reimbursable)
       },
       {
         id: 'non-reimbursable-amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.non-reimbursable', 'Non-Reimbursable'),
+        title: t('label-non-reimbursable'),
         value: formatAmount(summaryAmounts.nonReimbursable)
       },
       {
         id: 'deductible-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible',
-          'Deductible'
-        ),
+        title: t('label-deductible'),
         value: formatAmount(summaryAmounts.deductible)
       },
       {
         id: 'non-deductible-amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.non_deductible', 'Non-Deductible'),
+        title: t('label-non-deductible'),
         value: formatAmount(summaryAmounts.nonDeductible)
       }
     ],
-    [summaryAmounts, formatAmount]
+    [summaryAmounts, formatAmount, t]
   )
 
   // Calculate totals for table footer
@@ -142,7 +137,7 @@ const ExpensePlanItemsSection: React.FC<ExpensePlanItemsSectionProps> = ({
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <PiLink className="gba:h-5 gba:w-5" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.expense_plan_items', 'Expense Plan Items')}
+          {t('section-expense-plan-items')}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:space-y-6">
@@ -159,39 +154,14 @@ const ExpensePlanItemsSection: React.FC<ExpensePlanItemsSectionProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Code')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label',
-                    'Expense Group'
-                  )}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_class', 'Expense Class')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date')}
-                </TableHead>
-                <TableHead className="gba:text-right">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                    'Total Amount'
-                  )}
-                </TableHead>
-                <TableHead className="gba:text-right">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable')}
-                </TableHead>
-                <TableHead className="gba:text-right">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible',
-                    'Deductible'
-                  )}
-                </TableHead>
+                <TableHead>{t('label-code')}</TableHead>
+                <TableHead>{t('label-title')}</TableHead>
+                <TableHead>{t('label-expense-group')}</TableHead>
+                <TableHead>{t('label-expense-class')}</TableHead>
+                <TableHead>{t('label-date')}</TableHead>
+                <TableHead className="gba:text-right">{t('label-total-amount')}</TableHead>
+                <TableHead className="gba:text-right">{t('label-reimbursable')}</TableHead>
+                <TableHead className="gba:text-right">{t('label-deductible')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -201,12 +171,7 @@ const ExpensePlanItemsSection: React.FC<ExpensePlanItemsSectionProps> = ({
                   typeof item.title === 'string' &&
                   item.title.trim().toLowerCase() === 'generated allowance'
 
-                const displayTitle = isGeneratedAllowance
-                  ? getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:personal_expenses.generated_allowance',
-                      'Generated Allowance'
-                    )
-                  : item.title
+                const displayTitle = isGeneratedAllowance ? t('value-generated-allowance') : item.title
 
                 const expenseGroupLabel = item.expenseGroup
                   ? (getCatalogValue(item.expenseGroup) ?? item.expenseGroup.value)
@@ -244,9 +209,7 @@ const ExpensePlanItemsSection: React.FC<ExpensePlanItemsSectionProps> = ({
               })}
               {/* Total Row */}
               <TableRow className="gba:font-semibold" data-testid={`${prefixDataTestId}-items-total-row`}>
-                <TableCell colSpan={5}>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
-                </TableCell>
+                <TableCell colSpan={5}>{t('label-total')}</TableCell>
                 <TableCell className="gba:text-right">{formatAmount(tableTotals.total)}</TableCell>
                 <TableCell className="gba:text-right">{formatAmount(tableTotals.reimbursable)}</TableCell>
                 <TableCell className="gba:text-right">{formatAmount(tableTotals.deductible)}</TableCell>

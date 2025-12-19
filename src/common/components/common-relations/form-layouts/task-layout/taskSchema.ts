@@ -56,12 +56,11 @@ export const taskSchema = z.object({
 
   // Other fields
   source: z.string().nullable().optional(),
-  taskTiming: z.string().nullable().optional(),
 
   // Legacy/helper fields
   files: z.any().optional(),
   _pendingFiles: z.array(z.instanceof(File)).optional(),
-  relatedEntityId: z.string().nullable().optional()
+  relatedEntityId: z.string().min(1, 'Related entity is required')
 })
 
 export type TaskSchema = z.infer<typeof taskSchema>

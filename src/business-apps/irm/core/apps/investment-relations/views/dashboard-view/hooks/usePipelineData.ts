@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PipelineInfo, DateRange, PipelineData } from '../types/dashboardTypes'
 import { useDashboardQueries } from '../queries/DashboardQueries'
-import { transformPipelineData } from '../utils/dashboardUtils'
+import { transformPipelineData, extractCurrencyCode } from '../utils/dashboardUtils'
 import dayjs from 'dayjs'
 import quarterOfYear from 'dayjs/plugin/quarterOfYear'
 
@@ -11,16 +11,19 @@ export interface UsePipelineDataReturn {
   isLoading: boolean
   error: string | null
   refetch: () => void
+  availableCurrencies: string[]
 }
 
 export const usePipelineData = (
   context: BusinessAppContextProps,
   pipeline: PipelineInfo | null,
-  dateRange: DateRange
+  dateRange: DateRange,
+  selectedCurrency?: string
 ): UsePipelineDataReturn => {
   const [pipelineData, setPipelineData] = useState<PipelineData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [availableCurrencies, setAvailableCurrencies] = useState<string[]>(['EUR'])
 
   const {
     fetchPipelineStages,
@@ -46,17 +49,15 @@ export const usePipelineData = (
 
       const startDate = dayjs(dateRange.startDate).toISOString()
       const endDate = dayjs(dateRange.endDate).toISOString()
-      const monthStart = dayjs().startOf('month').format('YYYY-MM-DDTHH:mm:ss')
-      const quarterStart = dayjs().startOf('quarter').format('YYYY-MM-DDTHH:mm:ss')
 
       // Fetch all data in parallel
-      const [stages, opportunities, activities, winRateData, salesRepData] = await Promise.all([
+      // Note: pipeline.ref is the full reference string like "OpportunityPipeline:v1:STANDARD"
+      // This works for both parentEntryId and opportunityPipelineRef queries
+      const [stages, opportunities, activities, , salesRepData] = await Promise.all([
         fetchPipelineStages(pipeline.ref),
         fetchPipelineOpportunities({
           pipelineRef: pipeline.ref,
-          startDate,
-          endDate,
-          limit: 50
+          limit: 100 // Fetch more opportunities for accurate KPIs
         }),
         fetchSalesActivities({
           startDate,
@@ -64,21 +65,29 @@ export const usePipelineData = (
           pipelineRef: pipeline.ref
         }),
         fetchWinRateData({
-          pipelineRef: pipeline.ref,
-          monthStart,
-          quarterStart,
-          endDate: dayjs(dateRange.endDate).format('YYYY-MM-DDTHH:mm:ss')
+          pipelineRef: pipeline.ref
         }),
         fetchSalesRepPerformance({
           pipelineRef: pipeline.ref,
-          startDate: dayjs(dateRange.startDate).format('YYYY-MM-DDTHH:mm:ss'),
-          endDate: dayjs(dateRange.endDate).format('YYYY-MM-DDTHH:mm:ss'),
           activityStartDate: startDate,
           activityEndDate: endDate
         })
       ])
 
-      // Transform the data
+      // Extract unique currencies from opportunities
+      const currencies = [
+        ...new Set(opportunities.map((opp: any) => extractCurrencyCode(opp.currencyRef || 'Currency:v1:EUR')))
+      ].sort()
+      setAvailableCurrencies(currencies.length > 0 ? currencies : ['EUR'])
+
+      // Filter opportunities by selected currency if provided
+      const filteredOpportunities = selectedCurrency
+        ? opportunities.filter(
+            (opp: any) => extractCurrencyCode(opp.currencyRef || 'Currency:v1:EUR') === selectedCurrency
+          )
+        : opportunities
+
+      // Transform the data with filtered opportunities
       const transformedData = transformPipelineData(
         {
           id: pipeline.id,
@@ -87,51 +96,47 @@ export const usePipelineData = (
           description: pipeline.description,
           additionalProperties: { color: pipeline.color }
         },
-        opportunities,
+        filteredOpportunities,
         activities,
         stages
       )
+
+      // Use the SAME filteredOpportunities for win rate - consistent with KPIs and leaderboard
+      // Helper functions to check opportunity status
+      const isWonOpp = (opp: any) => opp.opportunityStatus?.code === 'WON' || opp.status === 'Won'
+      const isLostOpp = (opp: any) => opp.opportunityStatus?.code === 'LOST' || opp.status === 'Lost'
+      const isClosedOpp = (opp: any) => isWonOpp(opp) || isLostOpp(opp)
+
+      // Get closed opportunities from the same data source as KPIs
+      const closedOpportunities = filteredOpportunities.filter(isClosedOpp)
+      const wonOpportunities = filteredOpportunities.filter(isWonOpp)
+      const lostOpportunities = filteredOpportunities.filter(isLostOpp)
+
+      // Calculate win rate
+      const totalClosed = closedOpportunities.length
+      const winRate = totalClosed > 0 ? (wonOpportunities.length / totalClosed) * 100 : 0
 
       // Enhance with win rate and sales rep data
       const enhancedData: PipelineData = {
         ...transformedData,
         winRateMetrics: {
+          // Use same data for month and quarter (all-time stats for consistency)
           monthToDate: {
-            won: winRateData.monthOpportunities.filter(
-              (opp: any) => opp.opportunityStatus?.code === 'WON' || opp.status === 'Won'
-            ).length,
-            lost: winRateData.monthOpportunities.filter(
-              (opp: any) => opp.opportunityStatus?.code === 'LOST' || opp.status === 'Lost'
-            ).length,
-            winRate: (() => {
-              const won = winRateData.monthOpportunities.filter(
-                (opp: any) => opp.opportunityStatus?.code === 'WON' || opp.status === 'Won'
-              ).length
-              const total = winRateData.monthOpportunities.length
-              return total > 0 ? (won / total) * 100 : 0
-            })()
+            won: wonOpportunities.length,
+            lost: lostOpportunities.length,
+            winRate
           },
           quarterToDate: {
-            won: winRateData.quarterOpportunities.filter(
-              (opp: any) => opp.opportunityStatus?.code === 'WON' || opp.status === 'Won'
-            ).length,
-            lost: winRateData.quarterOpportunities.filter(
-              (opp: any) => opp.opportunityStatus?.code === 'LOST' || opp.status === 'Lost'
-            ).length,
-            winRate: (() => {
-              const won = winRateData.quarterOpportunities.filter(
-                (opp: any) => opp.opportunityStatus?.code === 'WON' || opp.status === 'Won'
-              ).length
-              const total = winRateData.quarterOpportunities.length
-              return total > 0 ? (won / total) * 100 : 0
-            })()
+            won: wonOpportunities.length,
+            lost: lostOpportunities.length,
+            winRate
           }
         },
         leaderboard: (() => {
           const repMap = new Map<string, any>()
 
-          // Process opportunities for leaderboard
-          salesRepData.opportunities.forEach((opp: any) => {
+          // Use the SAME filteredOpportunities as KPI cards for consistency
+          filteredOpportunities.forEach((opp: any) => {
             const empId = opp.ownerEmployeeId
             if (!empId) return
 
@@ -143,6 +148,7 @@ export const usePipelineData = (
                 displayName: `${opp.ownerEmployee?.firstName || ''} ${opp.ownerEmployee?.lastName || ''}`.trim(),
                 dealsWon: 0,
                 dealsLost: 0,
+                totalDeals: 0,
                 totalValue: 0,
                 winRate: 0,
                 activitiesCount: 0
@@ -150,10 +156,12 @@ export const usePipelineData = (
             }
 
             const rep = repMap.get(empId)
-            if (opp.opportunityStatus?.code === 'WON' || opp.status === 'Won') {
+            rep.totalDeals++
+            rep.totalValue += opp.estimatedAmount || 0
+
+            if (isWonOpp(opp)) {
               rep.dealsWon++
-              rep.totalValue += opp.estimatedAmount || 0
-            } else if (opp.opportunityStatus?.code === 'LOST' || opp.status === 'Lost') {
+            } else if (isLostOpp(opp)) {
               rep.dealsLost++
             }
           })
@@ -169,13 +177,14 @@ export const usePipelineData = (
             }
           })
 
-          // Calculate win rates and sort
+          // Calculate win rates and sort by total value
           const leaderboard = Array.from(repMap.values()).map((rep: any) => ({
             ...rep,
             winRate: rep.dealsWon + rep.dealsLost > 0 ? (rep.dealsWon / (rep.dealsWon + rep.dealsLost)) * 100 : 0
           }))
 
-          return leaderboard.sort((a: any, b: any) => b.totalValue - a.totalValue)
+          // Sort by deals won (primary), then total value (secondary)
+          return leaderboard.sort((a: any, b: any) => b.dealsWon - a.dealsWon || b.totalValue - a.totalValue)
         })()
       }
 
@@ -196,6 +205,7 @@ export const usePipelineData = (
     pipeline?.color,
     dateRange.startDate,
     dateRange.endDate,
+    selectedCurrency,
     fetchPipelineStages,
     fetchPipelineOpportunities,
     fetchSalesActivities,
@@ -215,6 +225,7 @@ export const usePipelineData = (
     pipelineData,
     isLoading,
     error,
-    refetch
+    refetch,
+    availableCurrencies
   }
 }

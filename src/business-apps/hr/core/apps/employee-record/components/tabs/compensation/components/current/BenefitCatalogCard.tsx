@@ -1,13 +1,13 @@
 'use client'
 
 import React from 'react'
-import { Card, Badge, Button } from '@newwork/nw-design-system'
-import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { Card } from '@newwork/nw-design-system'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
-import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../../utils/benefitTranslationUtils'
+import { parseBenefitObjectValue } from '../../utils/benefitDetailsUtils'
+import AvailableBenefitLayout from './AvailableBenefitLayout'
+import ActiveBenefitLayout from './ActiveBenefitLayout'
+import ScheduledBenefitLayout from './ScheduledBenefitLayout'
 
 interface BenefitCatalogCardProps extends BusinessAppContextProps {
   /**
@@ -19,6 +19,10 @@ interface BenefitCatalogCardProps extends BusinessAppContextProps {
    */
   benefit: BenefitCatalogItem
   /**
+   * Employee ID for the profile being viewed (NOT the logged-in user)
+   */
+  employeeId: string
+  /**
    * Currency code for formatting amounts
    */
   currencyCode?: string
@@ -26,14 +30,6 @@ interface BenefitCatalogCardProps extends BusinessAppContextProps {
    * Locale for formatting currency
    */
   locale: string
-  /**
-   * Callback when user requests to activate benefit
-   */
-  onRequest?: (benefitCatalogId: string) => void
-  /**
-   * Callback when user requests to deactivate benefit
-   */
-  onDeactivate?: (employeeBenefitId: string) => void
   /**
    * Callback when user wants to view benefit details
    */
@@ -52,40 +48,44 @@ interface BenefitCatalogCardProps extends BusinessAppContextProps {
 const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
   t,
   benefit,
+  employeeId,
   currencyCode = 'EUR',
   locale,
-  onDeactivate,
   onViewDetails,
-  accessToken,
-  userInfo
+  accessToken
 }) => {
-  const employeeId = userInfo?.employeeDetails?.employeeId
   /**
-   * Get status badge variant based on benefit state
+   * Get benefit value display from catalog objectValue
+   * Returns the catalog's defined value with proper period suffix
    */
-  const getStatusVariant = (): 'success' | 'secondary' => {
-    if (benefit.isActive) return 'success'
-    return 'secondary' // Light gray for available benefits
-  }
+  const getBenefitValueDisplay = (): { amount: number; periodKey: string } | null => {
+    // For active/scheduled benefits, prefer catalog value over employee value
+    const catalogDetails = parseBenefitObjectValue(benefit.catalogEntry?.objectValue)
 
-  /**
-   * Get status label for badge
-   */
-  const getStatusLabel = (): string => {
-    if (benefit.isActive) return t('benefit-status-active')
-    if (benefit.isPending) return t('benefit-status-pending')
-    return t('benefit-status-available')
-  }
+    if (catalogDetails.value && catalogDetails.value !== 'none') {
+      const amount = Number.parseFloat(catalogDetails.value)
 
-  // Request handled via AppActionButton
+      // Validate that the parsed amount is a valid number
+      if (!Number.isFinite(amount)) {
+        return null
+      }
 
-  /**
-   * Handle deactivate benefit action
-   */
-  const handleDeactivate = () => {
-    if (onDeactivate && benefit.canDeactivate && benefit.employeeBenefitId) {
-      onDeactivate(benefit.employeeBenefitId)
+      const period = catalogDetails.period || 'yearly'
+      const periodKey = period === 'monthly' ? 'benefit-per-month' : 'benefit-per-year'
+
+      return { amount, periodKey }
     }
+
+    // Fallback to employee benefit data if catalog value not available
+    if (benefit.yearlyAmount) {
+      return { amount: benefit.yearlyAmount, periodKey: 'benefit-per-year' }
+    }
+
+    if (benefit.monthlyAmount) {
+      return { amount: benefit.monthlyAmount, periodKey: 'benefit-per-month' }
+    }
+
+    return null
   }
 
   /**
@@ -97,111 +97,63 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
     }
   }
 
+  /**
+   * Get card styling classes based on benefit status
+   */
+  const getCardClassName = (): string => {
+    const baseClasses = 'gba:p-3 gba:transition-all gba:duration-200'
+
+    if (benefit.isActive) {
+      return `${baseClasses} gba:border-success gba:bg-success-secondary/10`
+    }
+
+    if (benefit.isScheduled) {
+      return `${baseClasses} gba:border-info gba:bg-info-secondary/10`
+    }
+
+    return `${baseClasses} gba:border-border gba:hover:border-accent`
+  }
+
+  const valueDisplay = benefit.isActive || benefit.isScheduled ? getBenefitValueDisplay() : null
+
   return (
-    <Card
-      className={`gba:p-4 gba:transition-all gba:duration-200 gba:flex gba:flex-col gba:gap-3 ${
-        benefit.isActive
-          ? 'gba:border-success gba:bg-success-secondary/10'
-          : 'gba:border-border gba:hover:border-accent'
-      }`}
-      data-testid={`benefit-catalog-card-${benefit.code}`}
-    >
-      {/* Header: Benefit Type and Status/Action */}
-      <div className="gba:flex gba:justify-between gba:items-start gba:gap-2">
-        <div className="gba:flex-1 gba:space-y-1">
-          <h3
-            className="gba:text-base gba:font-semibold gba:text-foreground gba:leading-tight"
-            data-testid={`benefit-catalog-title-${benefit.code}`}
-          >
-            {getTranslatedBenefitType(benefit, locale)}
-          </h3>
-          {/* Description under title */}
-          {benefit.description && (
-            <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">{benefit.description}</p>
-          )}
-        </div>
-
-        {/* For active benefits: show badge; for available: show AppAction button */}
-        {benefit.isActive ? (
-          <Badge variant={getStatusVariant()} data-testid={`benefit-catalog-status-badge-${benefit.code}`}>
-            {getStatusLabel()}
-          </Badge>
-        ) : (
-          <AppAction
-            variant="update-primary"
-            data-testid={`benefit-catalog-request-button-${benefit.code}`}
-            contexts={[
-              {
-                context: FlowContextName.employeeBenefitRequest,
-                contextData: { employeeId: employeeId, benefit: benefit }
-              }
-            ]}
-            prefixDataTestId={`benefit-request-${benefit.code}`}
-            autoExecute={true}
-            accessToken={accessToken}
-          >
-            {benefit.isPending ? t('benefit-status-pending') : t('benefit-request-button')}
-          </AppAction>
-        )}
-      </div>
-
-      {/* Active Benefit Details (Compact) */}
-      {benefit.isActive && (
-        <div className="gba:flex gba:justify-between gba:items-start gba:space-y-1">
-          {/* Provider and Value on same line */}
-          {(benefit.provider || benefit.yearlyAmount) && (
-            <div className="gba:text-xs gba:text-muted-foreground">
-              {benefit.provider && <span>{getTranslatedCatalogEntryValue(benefit.provider, locale)}</span>}
-              {benefit.provider && benefit.yearlyAmount && <span> • </span>}
-              {benefit.yearlyAmount && (
-                <span className="gba:font-medium gba:text-foreground">
-                  {formatCurrencyString(benefit.yearlyAmount, {
-                    currency: benefit.currency?.code || currencyCode,
-                    locale: locale,
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  })}
-                  {t('benefit-per-year')}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Start Date */}
-          {benefit.startDate && (
-            <div className="gba:text-xs gba:text-muted-foreground">
-              {t('benefit-since')}{' '}
-              {new Date(benefit.startDate).toLocaleDateString(locale ?? 'en-US', { month: 'short', year: 'numeric' })}
-            </div>
-          )}
-        </div>
+    <Card className={getCardClassName()} data-testid={`benefit-catalog-card-${benefit.code}`}>
+      {/* Available Benefits Layout */}
+      {!benefit.isActive && !benefit.isScheduled && (
+        <AvailableBenefitLayout
+          t={t}
+          benefit={benefit}
+          employeeId={employeeId}
+          locale={locale}
+          onViewDetails={handleViewDetails}
+          accessToken={accessToken}
+        />
       )}
 
-      {/* Action Buttons - Only for active benefits */}
+      {/* Active Benefits Layout */}
       {benefit.isActive && (
-        <div className="gba:flex gba:gap-2 gba:mt-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDeactivate}
-            disabled={!benefit.canDeactivate || benefit.isPending}
-            className="gba:flex-1"
-            data-testid={`benefit-catalog-deactivate-button-${benefit.code}`}
-          >
-            {t('benefit-deactivate-button')}
-          </Button>
-          {onViewDetails && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleViewDetails}
-              className="gba:flex-1"
-              data-testid={`benefit-catalog-details-button-${benefit.code}`}
-            >
-              {t('benefit-view-details')}
-            </Button>
-          )}
-        </div>
+        <ActiveBenefitLayout
+          t={t}
+          benefit={benefit}
+          employeeId={employeeId}
+          currencyCode={currencyCode}
+          locale={locale}
+          onViewDetails={handleViewDetails}
+          accessToken={accessToken}
+          valueDisplay={valueDisplay}
+        />
+      )}
+
+      {/* Scheduled Benefits Layout */}
+      {benefit.isScheduled && (
+        <ScheduledBenefitLayout
+          t={t}
+          benefit={benefit}
+          currencyCode={currencyCode}
+          locale={locale}
+          onViewDetails={handleViewDetails}
+          valueDisplay={valueDisplay}
+        />
       )}
     </Card>
   )
