@@ -4,6 +4,7 @@ import { useJobPostings } from '@/common/data/recruiting/hooks/useJobPostings'
 import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { JobPosting } from '@/common/data/recruiting/types/jobPostingTypes'
@@ -45,11 +46,20 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
   const rowActions = useMemo(
     () => (row: any) => (
       <AppAction
-        data-testid={`job-posting-update-button-${row.original.id}`}
+        data-testid={`job-posting-actions-${row.original.id}`}
         variant="table-row"
-        contexts={[]}
-        externalContextData={{ jobPostingId: row.original.id }}
-        prefixDataTestId="job-posting-update"
+        contexts={[
+          {
+            context: FlowContextName.jobPostingEntity,
+            contextData: { jobPostingId: row.original.id }
+          }
+        ]}
+        shareContext={{
+          entityType: 'jobPosting',
+          entityId: row.original.id,
+          entityName: row.original.jobTitle
+        }}
+        prefixDataTestId="job-posting-actions"
         accessToken={context.accessToken}
         lazyLoad
         onClick={e => e.stopPropagation()}

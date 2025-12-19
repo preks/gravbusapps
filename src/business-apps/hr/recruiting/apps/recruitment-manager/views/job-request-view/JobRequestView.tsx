@@ -4,6 +4,7 @@ import { useJobRequests } from '@/common/data/recruiting/hooks/useJobRequests'
 import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { JobRequest } from '@/common/data/recruiting/types/jobRequestTypes'
 import { getJobRequestTypeLabel, getJobRequestStatusLabel } from '@/common/data/recruiting/types/enums'
@@ -36,11 +37,20 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
   const rowActions = useMemo(
     () => (row: any) => (
       <AppAction
-        data-testid={`job-request-update-button-${row.original.id}`}
+        data-testid={`job-request-actions-${row.original.id}`}
         variant="table-row"
-        contexts={[]}
-        externalContextData={{ jobRequestId: row.original.id }}
-        prefixDataTestId="job-request-update"
+        contexts={[
+          {
+            context: FlowContextName.jobRequestEntity,
+            contextData: { jobRequestId: row.original.id }
+          }
+        ]}
+        shareContext={{
+          entityType: 'jobRequest',
+          entityId: row.original.id,
+          entityName: row.original.name || row.original.code
+        }}
+        prefixDataTestId="job-request-actions"
         accessToken={context.accessToken}
         lazyLoad
         onClick={e => e.stopPropagation()}

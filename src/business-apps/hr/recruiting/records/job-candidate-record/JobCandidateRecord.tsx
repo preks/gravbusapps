@@ -7,6 +7,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useJobCandidate } from '@/common/data/recruiting/hooks/useJobCandidate'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view'
 import { ApplicationsView } from './views/applications-view'
 
@@ -103,27 +104,31 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
     ? jobCandidate.displayName || `${jobCandidate.firstName} ${jobCandidate.lastName}`.trim()
     : getTranslationFromI18nKeyAndLabel('recruiting.jobCandidate.unnamed', 'Unnamed Candidate')
 
-  const headerActionButton = useMemo(() => {
-    const entityUrl = buildPlatformUrl('/platform/hr/recruiting/job-candidate-record', {
-      jobCandidateId
-    })
-
-    return (
+  const headerActionButton = useMemo(
+    () => (
       <AppAction
         data-testid="job-candidate-record-action-button"
         variant="header"
-        contexts={[]}
+        contexts={[
+          {
+            context: FlowContextName.jobCandidateEntity,
+            contextData: { jobCandidateId }
+          }
+        ]}
         shareContext={{
           entityType: 'jobCandidate',
           entityId: jobCandidateId,
           entityName: jobCandidateName,
-          entityUrl
+          entityUrl: buildPlatformUrl('/platform/hr/recruiting/job-candidate-record', {
+            jobCandidateId
+          })
         }}
         prefixDataTestId="job-candidate-record-action"
         accessToken={props.accessToken}
       />
-    )
-  }, [jobCandidateId, jobCandidateName, props.accessToken])
+    ),
+    [jobCandidateId, jobCandidateName, props.accessToken]
+  )
 
   const subViewsConfig = useMemo(
     () => ({

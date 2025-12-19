@@ -7,6 +7,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useJobPosting } from '@/common/data/recruiting/hooks/useJobPosting'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ApplicationsView } from './views/applications-view'
 
 interface JobPostingRecordContentProps extends BusinessAppContextProps {
@@ -70,27 +71,31 @@ const JobPostingRecordContent: React.FC<JobPostingRecordContentProps> = ({ jobPo
   const jobPostingName =
     jobPosting?.jobTitle || getTranslationFromI18nKeyAndLabel('recruiting.jobPosting.unnamed', 'Unnamed Job Posting')
 
-  const headerActionButton = useMemo(() => {
-    const entityUrl = buildPlatformUrl('/platform/hr/recruiting/job-posting-record', {
-      jobPostingId
-    })
-
-    return (
+  const headerActionButton = useMemo(
+    () => (
       <AppAction
         data-testid="job-posting-record-action-button"
         variant="header"
-        contexts={[]}
+        contexts={[
+          {
+            context: FlowContextName.jobPostingEntity,
+            contextData: { jobPostingId }
+          }
+        ]}
         shareContext={{
           entityType: 'jobPosting',
           entityId: jobPostingId,
           entityName: jobPostingName,
-          entityUrl
+          entityUrl: buildPlatformUrl('/platform/hr/recruiting/job-posting-record', {
+            jobPostingId
+          })
         }}
         prefixDataTestId="job-posting-record-action"
         accessToken={props.accessToken}
       />
-    )
-  }, [jobPostingId, jobPostingName, props.accessToken])
+    ),
+    [jobPostingId, jobPostingName, props.accessToken]
+  )
 
   // Single tab configuration for Applications (must be before early returns to satisfy Rules of Hooks)
   const subViewsConfig = useMemo(

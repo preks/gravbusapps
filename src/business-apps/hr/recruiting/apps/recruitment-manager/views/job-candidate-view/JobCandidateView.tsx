@@ -4,6 +4,7 @@ import { useJobCandidates } from '@/common/data/recruiting/hooks/useJobCandidate
 import { DataDisplay, DataTable, Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { JobCandidate } from '@/common/data/recruiting/types/jobCandidateTypes'
@@ -52,11 +53,20 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
   const rowActions = useMemo(
     () => (row: any) => (
       <AppAction
-        data-testid={`job-candidate-update-button-${row.original.id}`}
+        data-testid={`job-candidate-actions-${row.original.id}`}
         variant="table-row"
-        contexts={[]}
-        externalContextData={{ jobCandidateId: row.original.id }}
-        prefixDataTestId="job-candidate-update"
+        contexts={[
+          {
+            context: FlowContextName.jobCandidateEntity,
+            contextData: { jobCandidateId: row.original.id }
+          }
+        ]}
+        shareContext={{
+          entityType: 'jobCandidate',
+          entityId: row.original.id,
+          entityName: `${row.original.firstName} ${row.original.lastName}`.trim()
+        }}
+        prefixDataTestId="job-candidate-actions"
         accessToken={context.accessToken}
         lazyLoad
         onClick={e => e.stopPropagation()}

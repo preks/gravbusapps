@@ -4,6 +4,7 @@ import { useJobApplicationInterviews } from '@/common/data/recruiting/hooks/useJ
 import { DataDisplay, DataTable } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { JobApplicationInterview } from '@/common/data/recruiting/types/jobApplicationInterviewTypes'
 
@@ -40,11 +41,11 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
     () => (row: any) => (
       <div className="gba:flex gba:justify-start gba:gap-2">
         <AppActionButton
-          data-testid={`interview-update-button-${row.original.id}`}
+          data-testid={`interview-actions-${row.original.id}`}
           size="icon"
-          contextsArray={[]}
-          externalContextData={{ interviewId: row.original.id }}
-          prefixDataTestId="interview-update"
+          contextsArray={[FlowContextName.jobApplicationInterviewEntity]}
+          externalContextData={{ jobApplicationInterviewId: row.original.id }}
+          prefixDataTestId="interview-actions"
           accessToken={accessToken}
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick
