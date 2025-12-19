@@ -1080,88 +1080,115 @@ export const AnswerOutputRenderer: React.FC<{
 
         {sessionId && (
           <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="gba:h-7 gba:w-7 gba:p-0"
-              disabled={isSendingFeedback}
-              onClick={async e => {
-                e.stopPropagation()
-                if (!sessionId) return
-                setFeedback('like')
-                setIsSendingFeedback(true)
-                try {
-                  const baseUrl = resolveFlowbotBaseUrl()
-                  await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify({
-                      session_id: sessionId,
-                      message_id: null,
-                      feedback: 'like',
-                      source: 'every-ai',
-                      assistant: 'Every'
+            {/* Like button: visible unless current feedback is 'dislike' */}
+            {feedback !== 'dislike' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-7 gba:w-7 gba:p-0"
+                disabled={isSendingFeedback}
+                onClick={async e => {
+                  e.stopPropagation()
+                  if (!sessionId) return
+
+                  const isSame = feedback === 'like'
+                  const nextFeedback = isSame ? null : 'like'
+                  setFeedback(nextFeedback)
+
+                  if (!nextFeedback) {
+                    // User cleared feedback – do not send anything to backend
+                    return
+                  }
+
+                  setIsSendingFeedback(true)
+                  try {
+                    const baseUrl = resolveFlowbotBaseUrl()
+                    await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`
+                      },
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        message_id: null,
+                        feedback: 'like',
+                        source: 'every-ai',
+                        assistant: 'Every'
+                      })
                     })
-                  })
-                } catch (error) {
-                  console.error('[EveryAI] Failed to send like feedback:', error)
-                } finally {
-                  setIsSendingFeedback(false)
-                }
-              }}
-              data-testid="everyai-feedback-like-button"
-              aria-label="Like this AI response"
-            >
-              <ThumbsUp
-                className={`gba:h-4 gba:w-4 ${feedback === 'like' ? 'gba:text-success' : 'gba:text-muted-foreground'}`}
-                weight={feedback === 'like' ? 'fill' : 'regular'}
-              />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="gba:h-7 gba:w-7 gba:p-0"
-              disabled={isSendingFeedback}
-              onClick={async e => {
-                e.stopPropagation()
-                if (!sessionId) return
-                setFeedback('dislike')
-                setIsSendingFeedback(true)
-                try {
-                  const baseUrl = resolveFlowbotBaseUrl()
-                  await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify({
-                      session_id: sessionId,
-                      message_id: null,
-                      feedback: 'dislike',
-                      source: 'every-ai',
-                      assistant: 'Every'
+                  } catch (error) {
+                    console.error('[EveryAI] Failed to send like feedback:', error)
+                  } finally {
+                    setIsSendingFeedback(false)
+                  }
+                }}
+                data-testid="everyai-feedback-like-button"
+                aria-label="Like this AI response"
+              >
+                <ThumbsUp
+                  className={`gba:h-4 gba:w-4 ${
+                    feedback === 'like' ? 'gba:text-foreground' : 'gba:text-muted-foreground'
+                  }`}
+                  weight={feedback === 'like' ? 'fill' : 'regular'}
+                />
+              </Button>
+            )}
+
+            {/* Dislike button: visible unless current feedback is 'like' */}
+            {feedback !== 'like' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-7 gba:w-7 gba:p-0"
+                disabled={isSendingFeedback}
+                onClick={async e => {
+                  e.stopPropagation()
+                  if (!sessionId) return
+
+                  const isSame = feedback === 'dislike'
+                  const nextFeedback = isSame ? null : 'dislike'
+                  setFeedback(nextFeedback)
+
+                  if (!nextFeedback) {
+                    // User cleared feedback – do not send anything to backend
+                    return
+                  }
+
+                  setIsSendingFeedback(true)
+                  try {
+                    const baseUrl = resolveFlowbotBaseUrl()
+                    await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`
+                      },
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        message_id: null,
+                        feedback: 'dislike',
+                        source: 'every-ai',
+                        assistant: 'Every'
+                      })
                     })
-                  })
-                } catch (error) {
-                  console.error('[EveryAI] Failed to send dislike feedback:', error)
-                } finally {
-                  setIsSendingFeedback(false)
-                }
-              }}
-              data-testid="everyai-feedback-dislike-button"
-              aria-label="Dislike this AI response"
-            >
-              <ThumbsDown
-                className={`gba:h-4 gba:w-4 ${
-                  feedback === 'dislike' ? 'gba:text-destructive' : 'gba:text-muted-foreground'
-                }`}
-                weight={feedback === 'dislike' ? 'fill' : 'regular'}
-              />
-            </Button>
+                  } catch (error) {
+                    console.error('[EveryAI] Failed to send dislike feedback:', error)
+                  } finally {
+                    setIsSendingFeedback(false)
+                  }
+                }}
+                data-testid="everyai-feedback-dislike-button"
+                aria-label="Dislike this AI response"
+              >
+                <ThumbsDown
+                  className={`gba:h-4 gba:w-4 ${
+                    feedback === 'dislike' ? 'gba:text-foreground' : 'gba:text-muted-foreground'
+                  }`}
+                  weight={feedback === 'dislike' ? 'fill' : 'regular'}
+                />
+              </Button>
+            )}
           </>
         )}
       </div>
