@@ -1,3 +1,7 @@
+// Sales Associate capability name for filtering (consistent with Sales Performance module)
+// MUST be defined before template literals that use it
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
 // Time period configurations
 export const TIME_PERIODS = {
   SHORT: 7, // 7 days for quick comparisons
@@ -284,9 +288,6 @@ export const GET_ACTIVITY_STATS = `
   }
 `
 
-// Sales Associate capability name for filtering (consistent with Sales Performance module)
-const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
-
 // Query for employee performance with rolling 30-day comparison
 // Filtered to only include employees with Sales Associate capability
 export const GET_EMPLOYEE_PERFORMANCE = `
@@ -381,6 +382,7 @@ export const GET_EMPLOYEE_PERFORMANCE = `
 
 // Query for employee absences - fetches all approved absences overlapping with the period
 // Uses timestamp type for startDate/endDate (not timestamptz)
+// Filtered to only include employees with Sales Associate capability
 export const GET_EMPLOYEE_ABSENCES = `
   query GetEmployeeAbsences(
     $periodStart: timestamp!,
@@ -388,12 +390,23 @@ export const GET_EMPLOYEE_ABSENCES = `
     $todayStart: timestamp!,
     $todayEnd: timestamp!
   ) {
-    # Absences that overlap with analysis period (for counting leave days)
+    # Absences that overlap with analysis period (for counting leave days) - Sales Associates only
     periodAbsences: EmployeeAbsence(
       where: {
         _and: [
           { isDeleted: { _eq: false } }
           { status: { _eq: "APPROVED" } }
+          {
+            employee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
           {
             _or: [
               { startDate: { _gte: $periodStart, _lte: $periodEnd } }
@@ -424,7 +437,7 @@ export const GET_EMPLOYEE_ABSENCES = `
       }
     }
     
-    # Employees currently on leave today (approved absence where today is between start and end)
+    # Employees currently on leave today (Sales Associates only)
     currentlyOnLeave: EmployeeAbsence(
       where: {
         _and: [
@@ -432,6 +445,17 @@ export const GET_EMPLOYEE_ABSENCES = `
           { status: { _eq: "APPROVED" } }
           { startDate: { _lte: $todayEnd } }
           { endDate: { _gte: $todayStart } }
+          {
+            employee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
         ]
       }
     ) {
