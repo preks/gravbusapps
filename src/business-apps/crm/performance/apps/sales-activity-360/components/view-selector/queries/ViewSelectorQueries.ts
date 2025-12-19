@@ -9,6 +9,7 @@ export const TIME_PERIODS = {
 export const ROLLING_PERIOD_DAYS = TIME_PERIODS.MEDIUM // Use 14 days as default
 
 // Query to get comprehensive activity stats with rolling periods
+// Filtered to only include activities from Sales Associate employees
 export const GET_ACTIVITY_STATS = `
   query GetActivityStats(
     $todayStart: timestamptz!, 
@@ -20,70 +21,262 @@ export const GET_ACTIVITY_STATS = `
     $lastQuarterStart: timestamptz!,
     $lastQuarterEnd: timestamptz!
   ) {
-    # Total activities
-    totalActivities: SalesActivityAggregate(where: { isDeleted: { _eq: false } }) {
+    # Total activities (Sales Associates only)
+    totalActivities: SalesActivityAggregate(
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ) {
       aggregate { count }
     }
-    # Today
+    # Today (Sales Associates only)
     today: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { createdAt: { _gte: $todayStart } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { createdAt: { _gte: $todayStart } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
-    # This week
+    # This week (Sales Associates only)
     thisWeek: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { createdAt: { _gte: $weekStart } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { createdAt: { _gte: $weekStart } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
-    # Last 30 days (rolling)
+    # Last 30 days (rolling, Sales Associates only)
     last30Days: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { createdAt: { _gte: $last30DaysStart } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { createdAt: { _gte: $last30DaysStart } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
-    # Previous 30 days (for comparison)
+    # Previous 30 days (for comparison, Sales Associates only)
     prev30Days: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { createdAt: { _gte: $prev30DaysStart, _lt: $prev30DaysEnd } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { createdAt: { _gte: $prev30DaysStart, _lt: $prev30DaysEnd } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
-    # This quarter
+    # This quarter (Sales Associates only)
     thisQuarter: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { createdAt: { _gte: $quarterStart } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { createdAt: { _gte: $quarterStart } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
-    # Last quarter (for comparison)
+    # Last quarter (for comparison, Sales Associates only)
     lastQuarter: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { createdAt: { _gte: $lastQuarterStart, _lt: $lastQuarterEnd } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { createdAt: { _gte: $lastQuarterStart, _lt: $lastQuarterEnd } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
-    # By type counts
+    # By type counts (Sales Associates only)
     accountActivities: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { accountId: { _isNull: false } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { accountId: { _isNull: false } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
     contactActivities: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { contactId: { _isNull: false } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { contactId: { _isNull: false } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
     leadActivities: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { leadId: { _isNull: false } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { leadId: { _isNull: false } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
     opportunityActivities: SalesActivityAggregate(
-      where: { _and: [{ isDeleted: { _eq: false } }, { opportunityId: { _isNull: false } }] }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { opportunityId: { _isNull: false } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     ) {
       aggregate { count }
     }
-    # Active employees with activities
+    # Active Sales Associate employees with activities
     activeEmployees: SalesActivity(
-      where: { isDeleted: { _eq: false } }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
       distinctOn: [ownerEmployeeId]
     ) {
       ownerEmployeeId
@@ -91,16 +284,35 @@ export const GET_ACTIVITY_STATS = `
   }
 `
 
+// Sales Associate capability name for filtering (consistent with Sales Performance module)
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
 // Query for employee performance with rolling 30-day comparison
+// Filtered to only include employees with Sales Associate capability
 export const GET_EMPLOYEE_PERFORMANCE = `
   query GetEmployeePerformance(
     $last30DaysStart: timestamptz!, 
     $prev30DaysStart: timestamptz!,
     $prev30DaysEnd: timestamptz!
   ) {
-    # Get all employees who have ever logged activities with their most recent activity
+    # Get all Sales Associate employees who have ever logged activities with their most recent activity
     allActiveEmployees: SalesActivity(
-      where: { isDeleted: { _eq: false } }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
       distinctOn: [ownerEmployeeId]
       orderBy: [{ ownerEmployeeId: ASC }, { createdAt: DESC }]
     ) {
@@ -119,24 +331,46 @@ export const GET_EMPLOYEE_PERFORMANCE = `
       }
     }
     
-    # Activities in last 30 days per employee
+    # Activities in last 30 days per employee (Sales Associates only)
     activitiesLast30Days: SalesActivity(
       where: { 
         _and: [
           { isDeleted: { _eq: false } }
           { createdAt: { _gte: $last30DaysStart } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
         ]
       }
     ) {
       ownerEmployeeId
     }
     
-    # Activities in previous 30 days per employee (for comparison)
+    # Activities in previous 30 days per employee (Sales Associates only)
     activitiesPrev30Days: SalesActivity(
       where: { 
         _and: [
           { isDeleted: { _eq: false } }
           { createdAt: { _gte: $prev30DaysStart, _lt: $prev30DaysEnd } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
         ]
       }
     ) {

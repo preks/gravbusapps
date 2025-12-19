@@ -18,10 +18,25 @@ interface Activity360CalendarTabProps extends Pick<BusinessAppContextProps, 'acc
   compact?: boolean
 }
 
-// Query to get all employees for "all" view
+// Sales Associate capability name for filtering (consistent with Sales Performance module)
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
+// Query to get sales associates only - consistent with Sales Performance module
 const GET_ALL_EMPLOYEES = `
   query GetAllEmployees {
-    Employee(where: { isDeleted: { _eq: false } }, limit: 1000) {
+    Employee(
+      where: { 
+        isDeleted: { _eq: false }
+        employeePosition: {
+          employeeCapabilities: {
+            capability: {
+              name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+            }
+          }
+        }
+      }
+      limit: 1000
+    ) {
       id
       fullName
     }
