@@ -1,11 +1,5 @@
 import { useCallback, useState } from 'react'
-import { env } from '@/common/env/EnvUtils'
-
-const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
-
-function resolveFlowbotBaseUrl(): string {
-  return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
-}
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 const FLOWBOT_BASE_URL = resolveFlowbotBaseUrl()
 

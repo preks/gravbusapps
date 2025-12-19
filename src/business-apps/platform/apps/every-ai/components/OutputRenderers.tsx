@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
-import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
+import { CheckCircleIcon, CopyIcon, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import type {
   OutputItem,
   AnswerOutput,
@@ -1008,8 +1009,14 @@ function extractTextFromAnswerOutput(data: AnswerOutput): string {
 }
 
 // Answer Output Renderer
-export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: string }> = ({ data, accessToken }) => {
+export const AnswerOutputRenderer: React.FC<{
+  data: AnswerOutput
+  accessToken: string
+  sessionId?: string
+}> = ({ data, accessToken, sessionId }) => {
   const [copied, setCopied] = useState(false)
+  const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false)
 
   // Deduplicate reminder entities to prevent double display
   const deduplicatedData = data.displayData.filter((item, idx, arr) => {
@@ -1053,7 +1060,7 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
       <div className="gba:absolute gba:top-full gba:left-0 gba:mt-1 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           className="gba:h-7 gba:w-7 gba:p-0"
           onClick={handleCopy}
           disabled={!hasTextToCopy}
@@ -1070,6 +1077,120 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
             <CopyIcon className="gba:h-4 gba:w-4" />
           )}
         </Button>
+
+        {sessionId && (
+          <>
+            {/* Like button: visible unless current feedback is 'dislike' */}
+            {feedback !== 'dislike' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-7 gba:w-7 gba:p-0"
+                disabled={isSendingFeedback}
+                onClick={async e => {
+                  e.stopPropagation()
+                  if (!sessionId) return
+
+                  const isSame = feedback === 'like'
+                  const nextFeedback = isSame ? null : 'like'
+                  setFeedback(nextFeedback)
+
+                  if (!nextFeedback) {
+                    // User cleared feedback – do not send anything to backend
+                    return
+                  }
+
+                  setIsSendingFeedback(true)
+                  try {
+                    const baseUrl = resolveFlowbotBaseUrl()
+                    await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`
+                      },
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        message_id: null,
+                        feedback: 'like',
+                        source: 'every-ai',
+                        assistant: 'Every'
+                      })
+                    })
+                  } catch (error) {
+                    console.error('[EveryAI] Failed to send like feedback:', error)
+                  } finally {
+                    setIsSendingFeedback(false)
+                  }
+                }}
+                data-testid="everyai-feedback-like-button"
+                aria-label="Like this AI response"
+              >
+                <ThumbsUp
+                  className={`gba:h-4 gba:w-4 ${
+                    feedback === 'like' ? 'gba:text-foreground' : 'gba:text-muted-foreground'
+                  }`}
+                  weight={feedback === 'like' ? 'fill' : 'regular'}
+                />
+              </Button>
+            )}
+
+            {/* Dislike button: visible unless current feedback is 'like' */}
+            {feedback !== 'like' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-7 gba:w-7 gba:p-0"
+                disabled={isSendingFeedback}
+                onClick={async e => {
+                  e.stopPropagation()
+                  if (!sessionId) return
+
+                  const isSame = feedback === 'dislike'
+                  const nextFeedback = isSame ? null : 'dislike'
+                  setFeedback(nextFeedback)
+
+                  if (!nextFeedback) {
+                    // User cleared feedback – do not send anything to backend
+                    return
+                  }
+
+                  setIsSendingFeedback(true)
+                  try {
+                    const baseUrl = resolveFlowbotBaseUrl()
+                    await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`
+                      },
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        message_id: null,
+                        feedback: 'dislike',
+                        source: 'every-ai',
+                        assistant: 'Every'
+                      })
+                    })
+                  } catch (error) {
+                    console.error('[EveryAI] Failed to send dislike feedback:', error)
+                  } finally {
+                    setIsSendingFeedback(false)
+                  }
+                }}
+                data-testid="everyai-feedback-dislike-button"
+                aria-label="Dislike this AI response"
+              >
+                <ThumbsDown
+                  className={`gba:h-4 gba:w-4 ${
+                    feedback === 'dislike' ? 'gba:text-foreground' : 'gba:text-muted-foreground'
+                  }`}
+                  weight={feedback === 'dislike' ? 'fill' : 'regular'}
+                />
+              </Button>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
@@ -1082,10 +1203,11 @@ export const OutputItemRenderer: React.FC<{
   sendMessage?: (message: string, files: File[]) => void
   conversation?: ConversationTurn[]
   isVoiceMode?: boolean
-}> = ({ item, accessToken, sendMessage, conversation, isVoiceMode = false }) => {
+  sessionId?: string
+}> = ({ item, accessToken, sendMessage, conversation, isVoiceMode = false, sessionId }) => {
   switch (item.type) {
     case 'answer':
-      return <AnswerOutputRenderer data={item} accessToken={accessToken} />
+      return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
     case 'loading':
