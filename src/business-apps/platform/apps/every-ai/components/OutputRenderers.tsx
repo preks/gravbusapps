@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
-import { CheckCircleIcon, CopyIcon, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
+import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
+import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import type {
   OutputItem,
@@ -1128,9 +1129,8 @@ export const AnswerOutputRenderer: React.FC<{
               >
                 <ThumbsUp
                   className={`gba:h-4 gba:w-4 ${
-                    feedback === 'like' ? 'gba:text-foreground' : 'gba:text-muted-foreground'
+                    feedback === 'like' ? 'gba:text-foreground gba:fill-current' : 'gba:text-muted-foreground'
                   }`}
-                  weight={feedback === 'like' ? 'fill' : 'regular'}
                 />
               </Button>
             )}
@@ -1183,9 +1183,8 @@ export const AnswerOutputRenderer: React.FC<{
               >
                 <ThumbsDown
                   className={`gba:h-4 gba:w-4 ${
-                    feedback === 'dislike' ? 'gba:text-foreground' : 'gba:text-muted-foreground'
+                    feedback === 'dislike' ? 'gba:text-foreground gba:fill-current' : 'gba:text-muted-foreground'
                   }`}
-                  weight={feedback === 'dislike' ? 'fill' : 'regular'}
                 />
               </Button>
             )}
