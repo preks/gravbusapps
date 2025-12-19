@@ -1,11 +1,18 @@
 /**
  * JobApplication Queries
  */
-import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { JobApplicationFields } from '../types/jobApplicationTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
-export type JobApplicationQueryVariables = BaseQueryVariables
+export interface JobApplicationQueryVariables extends BaseQueryVariables {
+  jobApplicationPipelineRef?: string
+  jobApplicationStageRef?: string
+  jobCandidateId?: string
+  jobPostingId?: string
+  jobPostingPublicationId?: string
+  referrerEmployeeId?: string
+}
 
 export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
   minimal: ['createdAt', 'id', 'applicationDate'],
@@ -13,7 +20,10 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'createdAt',
     'id',
     'applicationDate',
-    'currentStage',
+    'jobApplicationStage',
+    'jobApplicationStageRef',
+    'jobApplicationPipeline',
+    'jobApplicationPipelineRef',
     'jobCandidate',
     'jobCandidateId',
     'jobPosting',
@@ -25,16 +35,19 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'createdBy',
     'id',
     'applicationDate',
-    'currentStage',
-    'currentStage',
+    'jobApplicationPipeline',
+    'jobApplicationPipelineRef',
+    'jobApplicationStage',
+    'jobApplicationStageRef',
     'jobCandidate',
     'jobCandidateId',
     'jobPosting',
     'jobPostingId',
-    'applicationChannelId',
-    'referralId',
-    'applicationChannelId',
-    'referralId',
+    'jobPostingPublication',
+    'jobPostingPublicationId',
+    'referrerEmployee',
+    'referrerEmployeeId',
+    'referredBy',
     'updatedAt',
     'updatedBy',
     'version',
@@ -43,13 +56,29 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
 }
 
 const buildScalarFields = (fieldSet: Set<string>): string => {
+  const auditFields = new Set([
+    'createdAt',
+    'createdBy',
+    'updatedAt',
+    'updatedBy',
+    'isDeleted',
+    'recordState',
+    'activeFrom',
+    'activeTo',
+    'version'
+  ])
+
   const scalarFields = [
     { key: 'id', value: 'id' },
     { key: 'version', value: 'version' },
     { key: 'applicationDate', value: JobApplicationFields.applicationDate },
-    { key: 'currentStage', value: JobApplicationFields.currentStage },
-    { key: 'applicationChannelId', value: JobApplicationFields.applicationChannelId },
-    { key: 'referralId', value: JobApplicationFields.referralId },
+    { key: 'jobApplicationPipelineRef', value: JobApplicationFields.jobApplicationPipelineRef },
+    { key: 'jobApplicationStageRef', value: JobApplicationFields.jobApplicationStageRef },
+    { key: 'jobCandidateId', value: JobApplicationFields.jobCandidateId },
+    { key: 'jobPostingId', value: JobApplicationFields.jobPostingId },
+    { key: 'jobPostingPublicationId', value: JobApplicationFields.jobPostingPublicationId },
+    { key: 'referrerEmployeeId', value: JobApplicationFields.referrerEmployeeId },
+    { key: 'referredBy', value: JobApplicationFields.referredBy },
     { key: 'createdAt', value: 'createdAt' },
     { key: 'createdBy', value: 'createdBy' },
     { key: 'updatedAt', value: 'updatedAt' },
@@ -58,12 +87,33 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'recordState', value: 'recordState' },
     { key: 'activeFrom', value: 'activeFrom' },
     { key: 'activeTo', value: 'activeTo' },
-    { key: 'additionalProperties', value: 'additionalProperties' }
+    { key: 'additionalProperties', value: 'additionalProperties' },
+    // Deprecated
+    { key: 'currentStage', value: JobApplicationFields.currentStage },
+    { key: 'applicationChannelId', value: JobApplicationFields.applicationChannelId },
+    { key: 'referralId', value: JobApplicationFields.referralId }
   ]
+
   return scalarFields
-    .filter(field => fieldSet.has(field.key))
+    .filter(field => fieldSet.has(field.key) && !auditFields.has(field.key))
     .map(field => field.value)
     .join('\n    ')
+}
+
+const buildCatalogReferenceField = (
+  fieldSet: Set<string>,
+  fieldName: string,
+  fieldRefName: string,
+  fieldKey: string
+): string => {
+  if (!fieldSet.has(fieldName) && !fieldSet.has(fieldRefName)) {
+    return ''
+  }
+  const hasObject = fieldSet.has(fieldName)
+  return `
+      ${hasObject ? `${fieldKey} { ${CATALOG_ENTRY} }` : ''}
+      ${JobApplicationFields[fieldRefName as keyof typeof JobApplicationFields]}
+    `
 }
 
 const buildEntityReferenceField = (
@@ -86,9 +136,17 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
-    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName')}
-    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      jobTitle')}
-    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName')}
-    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      jobTitle')}
+    
+    ${buildCatalogReferenceField(fieldSet, 'jobApplicationPipeline', 'jobApplicationPipelineRef', JobApplicationFields.jobApplicationPipeline)}
+    
+    ${buildCatalogReferenceField(fieldSet, 'jobApplicationStage', 'jobApplicationStageRef', JobApplicationFields.jobApplicationStage)}
+    
+    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName\n      displayName')}
+    
+    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      title')}
+    
+    ${buildEntityReferenceField(fieldSet, 'jobPostingPublication', 'jobPostingPublicationId', JobApplicationFields.jobPostingPublication, 'id\n      url')}
+    
+    ${buildEntityReferenceField(fieldSet, 'referrerEmployee', 'referrerEmployeeId', JobApplicationFields.referrerEmployee, 'id\n      firstName\n      lastName\n      displayName')}
   `
 }

@@ -1,39 +1,30 @@
 /**
- * JobApplicationInterview Payload Builders
+ * JobApplicationInterview Payload Builders (JobInterview)
  */
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import { JobInterviewStatus } from '../types/enums'
 
 export interface JobApplicationInterviewPayload {
   id?: string
   version?: number
-  interviewDate?: string
-  scheduledDate?: string
-  confirmedDate?: string
-  cancelledDate?: string
+  scheduledAt?: string
   duration?: number
-  participants?: any
-  meetingPlace?: string
+  location?: string
   meetingLink?: string
-  typeRef?: string
+  jobInterviewStatus?: JobInterviewStatus
   jobApplicationId: string
-  employeeId?: string
   additionalProperties?: any
 }
 
 export const JobApplicationInterviewFormFields = {
   id: 'id',
   version: 'version',
-  interviewDate: 'interviewDate',
-  scheduledDate: 'scheduledDate',
-  confirmedDate: 'confirmedDate',
-  cancelledDate: 'cancelledDate',
+  scheduledAt: 'scheduledAt',
   duration: 'duration',
-  participants: 'participants',
-  meetingPlace: 'meetingPlace',
+  location: 'location',
   meetingLink: 'meetingLink',
-  typeRef: 'typeRef',
+  jobInterviewStatus: 'jobInterviewStatus',
   jobApplicationId: 'jobApplication',
-  employeeId: 'employee',
   additionalProperties: 'additionalProperties'
 } as const
 

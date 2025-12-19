@@ -1,6 +1,7 @@
 import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { JobApplication } from './jobApplicationTypes'
+import { JobInterviewStatus } from './enums'
 
 /**
  * Employee reference (minimal)
@@ -13,32 +14,46 @@ export interface Employee {
 }
 
 /**
- * JobApplicationInterview Type
+ * JobApplicationInterview Type (also known as JobInterview)
+ * Note: Backend table is job_interview, but GraphQL might still use JobApplicationInterview
  */
 export interface JobApplicationInterview extends BaseEntity {
   id?: string
-  interviewDate?: string
+  scheduledAt?: string // Timestamp - renamed from scheduledDate
   duration?: number
-  scheduledDate?: string
-  confirmedDate?: string
-  cancelledDate?: string
-  participants?: any // JSONB
-  meetingPlace?: string
+  location?: string // renamed from meetingPlace
   meetingLink?: string
 
-  // Catalog References (objects)
-  type?: CatalogEntry
-
-  // Catalog Reference IDs (Ref fields)
-  typeRef?: string
+  // Enum field
+  jobInterviewStatus?: JobInterviewStatus
 
   // Entity References (objects)
   jobApplication?: JobApplication
-  employee?: Employee
 
   // Entity Reference IDs (Id fields)
   jobApplicationId?: string
+
+  // Deprecated fields (for backward compatibility)
+  /** @deprecated Use scheduledAt instead */
+  scheduledDate?: string
+  /** @deprecated Use location instead */
+  meetingPlace?: string
+  /** @deprecated Removed - interview type not needed currently */
+  typeRef?: string
+  /** @deprecated Removed - interview type not needed currently */
+  type?: CatalogEntry
+  /** @deprecated Removed - use audit fields instead */
+  interviewDate?: string
+  /** @deprecated Removed - use audit fields instead */
+  confirmedDate?: string
+  /** @deprecated Removed - use audit fields instead */
+  cancelledDate?: string
+  /** @deprecated Moved to separate job_interview_participant table */
+  participants?: any
+  /** @deprecated Removed - not relevant */
   employeeId?: string
+  /** @deprecated Removed - not relevant */
+  employee?: Employee
 }
 
 /**
@@ -46,28 +61,29 @@ export interface JobApplicationInterview extends BaseEntity {
  */
 export const JobApplicationInterviewFields = {
   id: 'id',
-  interviewDate: 'interviewDate',
+  scheduledAt: 'scheduledAt',
   duration: 'duration',
-  scheduledDate: 'scheduledDate',
-  confirmedDate: 'confirmedDate',
-  cancelledDate: 'cancelledDate',
-  participants: 'participants',
-  meetingPlace: 'meetingPlace',
+  location: 'location',
   meetingLink: 'meetingLink',
-
-  // Catalog References (objects)
-  type: 'type',
-
-  // Catalog Reference IDs (Ref fields)
-  typeRef: 'typeRef',
+  jobInterviewStatus: 'jobInterviewStatus',
 
   // Entity References (objects)
   jobApplication: 'jobApplication',
-  employee: 'employee',
 
   // Entity Reference IDs (Id fields)
   jobApplicationId: 'jobApplicationId',
-  employeeId: 'employeeId'
+
+  // Deprecated
+  scheduledDate: 'scheduledDate',
+  meetingPlace: 'meetingPlace',
+  interviewDate: 'interviewDate',
+  confirmedDate: 'confirmedDate',
+  cancelledDate: 'cancelledDate',
+  participants: 'participants',
+  typeRef: 'typeRef',
+  type: 'type',
+  employeeId: 'employeeId',
+  employee: 'employee'
 } as const
 
 /**
@@ -75,23 +91,9 @@ export const JobApplicationInterviewFields = {
  */
 export const JOB_APPLICATION_INTERVIEW_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
-  { key: 'interviewDate', searchPaths: ['interviewDate'], sortPath: 'interviewDate', type: 'date' },
+  { key: 'scheduledAt', searchPaths: ['scheduledAt'], sortPath: 'scheduledAt', type: 'date' },
   { key: 'duration', searchPaths: ['duration'], sortPath: 'duration', type: 'number' },
-  { key: 'scheduledDate', searchPaths: ['scheduledDate'], sortPath: 'scheduledDate', type: 'date' },
-  { key: 'confirmedDate', searchPaths: ['confirmedDate'], sortPath: 'confirmedDate', type: 'date' },
-  { key: 'cancelledDate', searchPaths: ['cancelledDate'], sortPath: 'cancelledDate', type: 'date' },
-  { key: 'meetingPlace', searchPaths: ['meetingPlace'], sortPath: 'meetingPlace', type: 'text' },
+  { key: 'location', searchPaths: ['location'], sortPath: 'location', type: 'text' },
   { key: 'meetingLink', searchPaths: ['meetingLink'], sortPath: 'meetingLink', type: 'text' },
-  {
-    key: 'type',
-    searchPaths: ['type.value'],
-    sortPath: 'type.value',
-    type: 'text'
-  },
-  {
-    key: 'employee',
-    searchPaths: ['employee.firstName', 'employee.lastName', 'employee.displayName'],
-    sortPath: 'employee.lastName',
-    type: 'text'
-  }
+  { key: 'jobInterviewStatus', searchPaths: ['jobInterviewStatus'], sortPath: 'jobInterviewStatus', type: 'text' }
 ]

@@ -11,15 +11,26 @@ import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
  * JobRequest Query Variables
  */
 export interface JobRequestQueryVariables extends BaseQueryVariables {
+  // New fields
   contractTypeRef?: string
-  experienceLevelRef?: string
+  employmentTypeRef?: string
+  jobExperienceLevelRef?: string
   costCenterId?: string
   jobProfileId?: string
+  jobPositionId?: string
   organizationalUnitId?: string
-  requisitionStatus?: string
-  reasonRef?: string
+  companyId?: string
+  siteLocationId?: string
+  requesterEmployeeId?: string
+  jobRequestType?: string
+  jobRequestStatus?: string
+
+  // Deprecated fields (for backward compatibility)
+  experienceLevelRef?: string
   replacedPositionId?: string
   requesterId?: string
+  requisitionStatus?: string
+  reasonRef?: string
 }
 
 /**
@@ -32,14 +43,19 @@ export const JOB_REQUEST_QUERY_CONFIGS: Record<string, string[]> = {
     'createdAt',
     'id',
     'name',
-    'startDate',
-    'endDate',
-    'requisitionStatus',
+    'description',
+    'plannedHireDate',
+    'plannedExitDate',
+    'jobRequestType',
+    'jobRequestStatus',
     'organizationalUnit',
     'organizationalUnitId',
-    'replacedPosition',
-    'replacedPositionId',
-    'requesterId',
+    'company',
+    'companyId',
+    'jobPosition',
+    'jobPositionId',
+    'requesterEmployee',
+    'requesterEmployeeId',
     'updatedAt'
   ],
   record: [
@@ -48,24 +64,31 @@ export const JOB_REQUEST_QUERY_CONFIGS: Record<string, string[]> = {
     'createdBy',
     'id',
     'name',
-    'note',
-    'headcount',
-    'startDate',
-    'endDate',
-    'requisitionStatus',
-    'reason',
-    'reasonRef',
+    'description',
+    'plannedHireDate',
+    'plannedExitDate',
+    'jobRequestType',
+    'jobRequestStatus',
     'contractType',
     'contractTypeRef',
-    'experienceLevel',
-    'experienceLevelRef',
+    'employmentType',
+    'employmentTypeRef',
+    'jobExperienceLevel',
+    'jobExperienceLevelRef',
     'organizationalUnit',
     'organizationalUnitId',
-    'replacedPosition',
-    'replacedPositionId',
-    'requesterId',
-    'jobProfileId',
+    'company',
+    'companyId',
+    'costCenter',
     'costCenterId',
+    'siteLocation',
+    'siteLocationId',
+    'jobProfile',
+    'jobProfileId',
+    'jobPosition',
+    'jobPositionId',
+    'requesterEmployee',
+    'requesterEmployeeId',
     'updatedAt',
     'updatedBy',
     'version',
@@ -97,11 +120,11 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'version', value: 'version' },
     { key: 'code', value: JobRequestFields.code },
     { key: 'name', value: JobRequestFields.name },
-    { key: 'note', value: JobRequestFields.note },
-    { key: 'headcount', value: JobRequestFields.headcount },
-    { key: 'startDate', value: JobRequestFields.startDate },
-    { key: 'endDate', value: JobRequestFields.endDate },
-    { key: 'requisitionStatus', value: JobRequestFields.requisitionStatus },
+    { key: 'description', value: JobRequestFields.description },
+    { key: 'plannedHireDate', value: JobRequestFields.plannedHireDate },
+    { key: 'plannedExitDate', value: JobRequestFields.plannedExitDate },
+    { key: 'jobRequestType', value: JobRequestFields.jobRequestType },
+    { key: 'jobRequestStatus', value: JobRequestFields.jobRequestStatus },
     { key: 'createdAt', value: 'createdAt' },
     { key: 'createdBy', value: 'createdBy' },
     { key: 'updatedAt', value: 'updatedAt' },
@@ -111,9 +134,21 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'activeFrom', value: 'activeFrom' },
     { key: 'activeTo', value: 'activeTo' },
     { key: 'jobProfileId', value: JobRequestFields.jobProfileId },
+    { key: 'jobPositionId', value: JobRequestFields.jobPositionId },
     { key: 'costCenterId', value: JobRequestFields.costCenterId },
+    { key: 'companyId', value: JobRequestFields.companyId },
+    { key: 'siteLocationId', value: JobRequestFields.siteLocationId },
+    { key: 'organizationalUnitId', value: JobRequestFields.organizationalUnitId },
+    { key: 'requesterEmployeeId', value: JobRequestFields.requesterEmployeeId },
+    { key: 'additionalProperties', value: 'additionalProperties' },
+    // Deprecated fields for backward compatibility
+    { key: 'note', value: JobRequestFields.note },
+    { key: 'headcount', value: JobRequestFields.headcount },
+    { key: 'startDate', value: JobRequestFields.startDate },
+    { key: 'endDate', value: JobRequestFields.endDate },
+    { key: 'requisitionStatus', value: JobRequestFields.requisitionStatus },
     { key: 'replacedPositionId', value: JobRequestFields.replacedPositionId },
-    { key: 'additionalProperties', value: 'additionalProperties' }
+    { key: 'requesterId', value: JobRequestFields.requesterId }
   ]
 
   return scalarFields
@@ -171,16 +206,24 @@ export const buildJobRequestFragment = (fields: string[]): string => {
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
     
-    ${buildCatalogReferenceField(fieldSet, 'reason', 'reasonRef', JobRequestFields.reason)}
-    
     ${buildCatalogReferenceField(fieldSet, 'contractType', 'contractTypeRef', JobRequestFields.contractType)}
     
-    ${buildCatalogReferenceField(fieldSet, 'experienceLevel', 'experienceLevelRef', JobRequestFields.experienceLevel)}
+    ${buildCatalogReferenceField(fieldSet, 'employmentType', 'employmentTypeRef', JobRequestFields.employmentType)}
+    
+    ${buildCatalogReferenceField(fieldSet, 'jobExperienceLevel', 'jobExperienceLevelRef', JobRequestFields.jobExperienceLevel)}
     
     ${buildEntityReferenceField(fieldSet, 'organizationalUnit', 'organizationalUnitId', JobRequestFields.organizationalUnit, 'id\n      name')}
     
-    ${buildEntityReferenceField(fieldSet, 'replacedPosition', 'replacedPositionId', JobRequestFields.replacedPosition, 'id\n      name')}
+    ${buildEntityReferenceField(fieldSet, 'company', 'companyId', JobRequestFields.company, 'id\n      name')}
     
-    ${fieldSet.has('requesterId') ? `${JobRequestFields.requesterId}` : ''}
+    ${buildEntityReferenceField(fieldSet, 'costCenter', 'costCenterId', JobRequestFields.costCenter, 'id\n      name')}
+    
+    ${buildEntityReferenceField(fieldSet, 'siteLocation', 'siteLocationId', JobRequestFields.siteLocation, 'id\n      name')}
+    
+    ${buildEntityReferenceField(fieldSet, 'jobProfile', 'jobProfileId', JobRequestFields.jobProfile, 'id\n      name')}
+    
+    ${buildEntityReferenceField(fieldSet, 'jobPosition', 'jobPositionId', JobRequestFields.jobPosition, 'id\n      name')}
+    
+    ${buildEntityReferenceField(fieldSet, 'requesterEmployee', 'requesterEmployeeId', JobRequestFields.requesterEmployee, 'id\n      firstName\n      lastName\n      displayName')}
   `
 }

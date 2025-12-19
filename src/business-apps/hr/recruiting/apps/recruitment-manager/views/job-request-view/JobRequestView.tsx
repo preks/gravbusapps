@@ -6,6 +6,7 @@ import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-t
 import { AppAction } from '@/components/app-action'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { JobRequest } from '@/common/data/recruiting/types/jobRequestTypes'
+import { getJobRequestTypeLabel, getJobRequestStatusLabel } from '@/common/data/recruiting/types/enums'
 
 export type JobRequestViewProps = BusinessAppContextProps
 
@@ -66,11 +67,36 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
         meta: { type: 'text' as const }
       },
       {
-        id: 'headcount',
-        accessorKey: 'headcount',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.headcount', 'Headcount'),
-        cell: info => <div className="gba:text-sm gba:text-right">{(info.getValue() as number) || '-'}</div>,
-        meta: { type: 'number' as const }
+        id: 'jobRequestType',
+        accessorKey: 'jobRequestType',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.requestType', 'Request Type'),
+        cell: info => {
+          const value = info.getValue() as string
+          return value ? (
+            <Badge variant="outline" className="gba:text-xs">
+              {getJobRequestTypeLabel(value)}
+            </Badge>
+          ) : (
+            <span className="gba:text-sm gba:text-muted-foreground">-</span>
+          )
+        },
+        meta: { type: 'text' as const }
+      },
+      {
+        id: 'jobRequestStatus',
+        accessorKey: 'jobRequestStatus',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.status', 'Status'),
+        cell: info => {
+          const value = info.getValue() as string
+          return value ? (
+            <Badge variant="secondary" className="gba:text-xs">
+              {getJobRequestStatusLabel(value)}
+            </Badge>
+          ) : (
+            <span className="gba:text-sm gba:text-muted-foreground">-</span>
+          )
+        },
+        meta: { type: 'text' as const }
       },
       {
         id: 'contractType',

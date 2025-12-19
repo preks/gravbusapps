@@ -6,40 +6,24 @@ import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 export interface JobPostingPayload {
   id?: string
   version?: number
-  code?: string
   title: string
-  description?: string
-  requirements?: string
-  publishedDate?: string
-  closingDate?: string
-  isPublished?: boolean
-  jobPostingStatusRef?: string
-  jobPostingTypeRef?: string
-  locationRef?: string
-  employmentTypeRef?: string
-  contractTypeRef?: string
+  titleI18n?: any
+  content?: string
+  contentI18n?: any
+  fileInfo?: any
   jobRequestId?: string
-  createdByEmployeeId?: string
   additionalProperties?: any
 }
 
 export const JobPostingFormFields = {
   id: 'id',
   version: 'version',
-  code: 'code',
   title: 'title',
-  description: 'description',
-  requirements: 'requirements',
-  publishedDate: 'publishedDate',
-  closingDate: 'closingDate',
-  isPublished: 'isPublished',
-  jobPostingStatusRef: 'jobPostingStatusRef',
-  jobPostingTypeRef: 'jobPostingTypeRef',
-  locationRef: 'locationRef',
-  employmentTypeRef: 'employmentTypeRef',
-  contractTypeRef: 'contractTypeRef',
+  titleI18n: 'titleI18n',
+  content: 'content',
+  contentI18n: 'contentI18n',
+  fileInfo: 'fileInfo',
   jobRequestId: 'jobRequest',
-  createdByEmployeeId: 'createdByEmployee',
   additionalProperties: 'additionalProperties'
 } as const
 

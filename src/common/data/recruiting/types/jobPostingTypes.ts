@@ -2,15 +2,41 @@ import { type BaseEntity, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graph
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 /**
+ * JobRequest reference type
+ */
+export interface JobRequest {
+  id?: string
+  name?: string
+}
+
+/**
  * JobPosting Type
  */
 export interface JobPosting extends BaseEntity {
   id?: string
+  title?: string
+  titleI18n?: any
+  content?: string
+  contentI18n?: any
+  fileInfo?: any
+
+  // Entity References
+  jobRequest?: JobRequest
+
+  // Entity Reference IDs
+  jobRequestId?: string
+
+  // Deprecated fields (for backward compatibility)
+  /** @deprecated Use title instead */
   jobTitle?: string
-  department?: string
+  /** @deprecated Location info now in job_posting_position */
   location?: string
-  contractType?: string
+  /** @deprecated Remote info now in job_posting_position */
   remote?: string
+  /** @deprecated Department info now in job_posting_position */
+  department?: string
+  /** @deprecated Contract type info now in job_posting_position */
+  contractType?: string
 }
 
 /**
@@ -18,11 +44,22 @@ export interface JobPosting extends BaseEntity {
  */
 export const JobPostingFields = {
   id: 'id',
+  title: 'title',
+  titleI18n: 'titleI18n',
+  content: 'content',
+  contentI18n: 'contentI18n',
+  fileInfo: 'fileInfo',
+
+  // Entity references
+  jobRequest: 'jobRequest',
+  jobRequestId: 'jobRequestId',
+
+  // Deprecated
   jobTitle: 'jobTitle',
-  department: 'department',
   location: 'location',
-  contractType: 'contractType',
-  remote: 'remote'
+  remote: 'remote',
+  department: 'department',
+  contractType: 'contractType'
 } as const
 
 /**
@@ -30,9 +67,12 @@ export const JobPostingFields = {
  */
 export const JOB_POSTING_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
-  { key: 'jobTitle', searchPaths: ['jobTitle'], sortPath: 'jobTitle', type: 'text' },
-  { key: 'department', searchPaths: ['department'], sortPath: 'department', type: 'text' },
-  { key: 'location', searchPaths: ['location'], sortPath: 'location', type: 'text' },
-  { key: 'contractType', searchPaths: ['contractType'], sortPath: 'contractType', type: 'text' },
-  { key: 'remote', searchPaths: ['remote'], sortPath: 'remote', type: 'text' }
+  { key: 'title', searchPaths: ['title'], sortPath: 'title', type: 'text' },
+  { key: 'content', searchPaths: ['content'], sortPath: 'content', type: 'text' },
+  {
+    key: 'jobRequest',
+    searchPaths: ['jobRequest.name'],
+    sortPath: 'jobRequest.name',
+    type: 'text'
+  }
 ]

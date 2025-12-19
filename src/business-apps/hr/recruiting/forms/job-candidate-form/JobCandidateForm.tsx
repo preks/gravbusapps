@@ -16,17 +16,19 @@ const jobCandidateSchema = z.object({
   id: z.string().optional(),
   version: z.number().optional(),
   code: z.string().optional(),
+  title: z.string().optional(),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email().optional().or(z.literal('')),
-  phone: z.string().optional(),
-  linkedinUrl: z.string().optional(),
-  resumeUrl: z.string().optional(),
-  coverLetterUrl: z.string().optional(),
-  candidateStatusRef: z.string().optional(),
-  sourceRef: z.string().optional(),
+  displayName: z.string().optional(),
+  birthDate: z.string().optional(),
+  jobCandidateStatus: z.string().optional(),
   academicTitleRef: z.string().optional(),
-  createdByEmployeeId: z.string().optional(),
+  genderRef: z.string().optional(),
+  nationalityRef: z.string().optional(),
+  notes: z.string().optional(),
+  // Jsonb fields (simplified for now - full editors can be added later)
+  communicationChannels: z.any().optional(),
+  addresses: z.any().optional(),
   additionalProperties: z.any().optional()
 })
 

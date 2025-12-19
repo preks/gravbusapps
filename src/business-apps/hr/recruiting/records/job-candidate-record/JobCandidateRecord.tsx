@@ -100,7 +100,7 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
 
   // Calculate jobCandidateName early for use in headerActionButton
   const jobCandidateName = jobCandidate
-    ? `${jobCandidate.firstName} ${jobCandidate.lastName}`.trim()
+    ? jobCandidate.displayName || `${jobCandidate.firstName} ${jobCandidate.lastName}`.trim()
     : getTranslationFromI18nKeyAndLabel('recruiting.jobCandidate.unnamed', 'Unnamed Candidate')
 
   const headerActionButton = useMemo(() => {

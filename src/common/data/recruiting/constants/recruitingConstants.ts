@@ -4,33 +4,75 @@
  */
 
 export const RECRUITING_CATALOGS = {
-  JOB_REQUEST_STATUS: 'JobRequestStatus',
-  JOB_REQUEST_TYPE: 'JobRequestType',
-  PRIORITY: 'Priority',
-  DEPARTMENT: 'Department',
-  JOB_POSTING_STATUS: 'JobPostingStatus',
-  JOB_POSTING_TYPE: 'JobPostingType',
-  LOCATION: 'Location',
-  EMPLOYMENT_TYPE: 'EmploymentType',
+  // Job Request related
   CONTRACT_TYPE: 'ContractType',
-  CANDIDATE_STATUS: 'CandidateStatus',
-  SOURCE: 'Source',
+  EMPLOYMENT_TYPE: 'EmploymentType',
+  JOB_EXPERIENCE_LEVEL: 'JobExperienceLevel',
+
+  // Job Candidate related
   ACADEMIC_TITLE: 'AcademicTitle',
-  APPLICATION_STATUS: 'ApplicationStatus',
-  APPLICATION_STAGE: 'ApplicationStage',
+  ETHNICITY: 'Ethnicity',
+  GENDER: 'Gender',
+  LANGUAGES: 'Languages',
+  MARITAL_STATUS: 'MaritalStatus',
+  NATIONALITY: 'Nationality',
+  SALUTATION: 'Salutation',
+  SCHOOL_QUALIFICATION: 'SchoolQualification',
+  COUNTRY: 'Country',
+  COUNTRY_REGION: 'CountryRegion',
+  COMMUNICATION_CHANNEL: 'CommunicationChannel',
+
+  // Job Application related
+  JOB_APPLICATION_PIPELINE: 'JobApplicationPipeline',
+  JOB_APPLICATION_STAGE: 'JobApplicationStage',
+
+  // Job Posting related
+  JOB_POSTING_CHANNEL: 'JobPostingChannel',
+
+  // Job Candidate Document related
+  JOB_CANDIDATE_DOCUMENT_GROUP: 'JobCandidateDocumentGroup',
+  JOB_CANDIDATE_DOCUMENT_TYPE: 'JobCandidateDocumentType',
+
+  // Deprecated catalogs (kept for backward compatibility)
+  /** @deprecated Use enum JobRequestStatus instead */
+  JOB_REQUEST_STATUS: 'JobRequestStatus',
+  /** @deprecated Use enum JobRequestType instead */
+  JOB_REQUEST_TYPE: 'JobRequestType',
+  /** @deprecated Use enum JobRequestType instead */
   JOB_REQUISITION_REASON: 'JobRequisitionReason',
+  /** @deprecated Use JOB_EXPERIENCE_LEVEL instead */
   EXPERIENCE_LEVEL: 'ExperienceLevelCatalog',
-  INTERVIEW_TYPE: 'InterviewType'
+  /** @deprecated Not used anymore */
+  INTERVIEW_TYPE: 'InterviewType',
+  /** @deprecated Use JOB_APPLICATION_STAGE instead */
+  APPLICATION_STAGE: 'ApplicationStage',
+  /** @deprecated Not used anymore */
+  CANDIDATE_STATUS: 'CandidateStatus',
+  /** @deprecated Not used anymore */
+  SOURCE: 'Source',
+  /** @deprecated Not used anymore */
+  PRIORITY: 'Priority',
+  /** @deprecated Not used anymore */
+  DEPARTMENT: 'Department',
+  /** @deprecated Not used anymore */
+  JOB_POSTING_STATUS: 'JobPostingStatus',
+  /** @deprecated Not used anymore */
+  JOB_POSTING_TYPE: 'JobPostingType',
+  /** @deprecated Not used anymore */
+  LOCATION: 'Location',
+  /** @deprecated Not used anymore */
+  APPLICATION_STATUS: 'ApplicationStatus'
 } as const
 
 /**
- * Job Requisition Reason Catalog Values
- * Full catalog entry identifiers in format: CatalogName:Version:Code
+ * @deprecated Job Requisition Reason is now an enum (JobRequestType)
+ * Use JobRequestType.NEW or JobRequestType.REPLACEMENT instead
  *
- * Catalog: JobRequisitionReason
- * Version: v1
+ * This is kept for backward compatibility during migration only
  */
 export const JOB_REQUISITION_REASON_VALUES = {
+  /** @deprecated Use JobRequestType.REPLACEMENT */
   REPLACEMENT: 'JobRequisitionReason:v1:1',
+  /** @deprecated Use JobRequestType.NEW */
   NEW: 'JobRequisitionReason:v1:2'
 } as const

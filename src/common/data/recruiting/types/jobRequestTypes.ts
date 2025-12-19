@@ -1,6 +1,7 @@
 import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
+import { JobRequestType, JobRequestStatus } from './enums'
 
 /**
  * JobPosition reference type
@@ -11,43 +12,104 @@ export interface JobPosition {
 }
 
 /**
- * JobRequest Type (JobRequisition)
+ * OrganizationalUnit reference type
+ */
+export interface OrganizationalUnit {
+  id: string
+  name: string
+}
+
+/**
+ * Company reference type
+ */
+export interface Company {
+  id: string
+  name?: string
+}
+
+/**
+ * CostCenter reference type
+ */
+export interface CostCenter {
+  id: string
+  name?: string
+}
+
+/**
+ * SiteLocation reference type
+ */
+export interface SiteLocation {
+  id: string
+  name?: string
+}
+
+/**
+ * JobProfile reference type
+ */
+export interface JobProfile {
+  id: string
+  name?: string
+}
+
+/**
+ * JobRequest Type (formerly JobRequisition)
  * Represents the actual data model from GraphQL
  */
 export interface JobRequest extends BaseEntity {
   id?: string
   code?: string
   name: string
-  note?: string
-  headcount: number
-  startDate?: string
-  endDate?: string
-  requisitionStatus?: string
+  description?: string
+  plannedHireDate?: string
+  plannedExitDate?: string
+
+  // Enum fields
+  jobRequestType?: JobRequestType
+  jobRequestStatus?: JobRequestStatus
 
   // Catalog References (objects)
-  reason?: CatalogEntry
   contractType?: CatalogEntry
-  experienceLevel?: CatalogEntry
+  employmentType?: CatalogEntry
+  jobExperienceLevel?: CatalogEntry
 
   // Catalog Reference IDs (Ref fields)
-  reasonRef?: string
   contractTypeRef?: string
-  experienceLevelRef?: string
+  employmentTypeRef?: string
+  jobExperienceLevelRef?: string
 
   // Entity References (objects)
-  organizationalUnit?: {
-    id: string
-    name: string
-  }
-  replacedPosition?: JobPosition
-  requester?: Employee
+  organizationalUnit?: OrganizationalUnit
+  company?: Company
+  costCenter?: CostCenter
+  siteLocation?: SiteLocation
+  jobProfile?: JobProfile
+  jobPosition?: JobPosition
+  requesterEmployee?: Employee
 
   // Entity Reference IDs (Id fields)
   organizationalUnitId?: string
-  replacedPositionId?: string
-  requesterId?: string
-  jobProfileId?: string
+  companyId?: string
   costCenterId?: string
+  siteLocationId?: string
+  jobProfileId?: string
+  jobPositionId?: string
+  requesterEmployeeId?: string
+
+  // Deprecated fields (for backward compatibility during migration)
+  /** @deprecated Use plannedHireDate instead */
+  startDate?: string
+  /** @deprecated Use plannedExitDate instead */
+  endDate?: string
+  /** @deprecated Use jobRequestStatus instead */
+  requisitionStatus?: string
+  /** @deprecated Use jobRequestType instead */
+  reasonRef?: string
+  /** @deprecated Use requesterEmployeeId instead */
+  requesterId?: string
+  /** @deprecated Use jobPositionId instead */
+  replacedPositionId?: string
+  /** @deprecated Removed - headcount is now auto-generated based on type */
+  headcount?: number
 }
 
 /**
@@ -58,33 +120,51 @@ export const JobRequestFields = {
   id: 'id',
   code: 'code',
   name: 'name',
-  note: 'note',
-  headcount: 'headcount',
-  startDate: 'startDate',
-  endDate: 'endDate',
-  requisitionStatus: 'requisitionStatus',
+  description: 'description',
+  plannedHireDate: 'plannedHireDate',
+  plannedExitDate: 'plannedExitDate',
+
+  // Enum fields
+  jobRequestType: 'jobRequestType',
+  jobRequestStatus: 'jobRequestStatus',
 
   // Catalog References (objects)
-  reason: 'reason',
   contractType: 'contractType',
-  experienceLevel: 'experienceLevel',
+  employmentType: 'employmentType',
+  jobExperienceLevel: 'jobExperienceLevel',
 
   // Catalog Reference IDs (Ref fields)
-  reasonRef: 'reasonRef',
   contractTypeRef: 'contractTypeRef',
-  experienceLevelRef: 'experienceLevelRef',
+  employmentTypeRef: 'employmentTypeRef',
+  jobExperienceLevelRef: 'jobExperienceLevelRef',
 
   // Entity References (objects)
   organizationalUnit: 'organizationalUnit',
-  replacedPosition: 'replacedPosition',
-  requester: 'requester',
+  company: 'company',
+  costCenter: 'costCenter',
+  siteLocation: 'siteLocation',
+  jobProfile: 'jobProfile',
+  jobPosition: 'jobPosition',
+  requesterEmployee: 'requesterEmployee',
 
   // Entity Reference IDs (Id fields)
   organizationalUnitId: 'organizationalUnitId',
-  replacedPositionId: 'replacedPositionId',
-  requesterId: 'requesterId',
+  companyId: 'companyId',
+  costCenterId: 'costCenterId',
+  siteLocationId: 'siteLocationId',
   jobProfileId: 'jobProfileId',
-  costCenterId: 'costCenterId'
+  jobPositionId: 'jobPositionId',
+  requesterEmployeeId: 'requesterEmployeeId',
+
+  // Deprecated fields (for backward compatibility)
+  startDate: 'startDate',
+  endDate: 'endDate',
+  requisitionStatus: 'requisitionStatus',
+  reasonRef: 'reasonRef',
+  requesterId: 'requesterId',
+  replacedPositionId: 'replacedPositionId',
+  headcount: 'headcount',
+  note: 'note'
 } as const
 
 /**
@@ -95,17 +175,11 @@ export const JOB_REQUEST_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
   { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
   { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
-  { key: 'note', searchPaths: ['note'], sortPath: 'note', type: 'text' },
-  { key: 'headcount', searchPaths: ['headcount'], sortPath: 'headcount', type: 'number' },
-  { key: 'startDate', searchPaths: ['startDate'], sortPath: 'startDate', type: 'date' },
-  { key: 'endDate', searchPaths: ['endDate'], sortPath: 'endDate', type: 'date' },
-  { key: 'requisitionStatus', searchPaths: ['requisitionStatus'], sortPath: 'requisitionStatus', type: 'text' },
-  {
-    key: 'reason',
-    searchPaths: ['reason.value'],
-    sortPath: 'reason.value',
-    type: 'text'
-  },
+  { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
+  { key: 'plannedHireDate', searchPaths: ['plannedHireDate'], sortPath: 'plannedHireDate', type: 'date' },
+  { key: 'plannedExitDate', searchPaths: ['plannedExitDate'], sortPath: 'plannedExitDate', type: 'date' },
+  { key: 'jobRequestType', searchPaths: ['jobRequestType'], sortPath: 'jobRequestType', type: 'text' },
+  { key: 'jobRequestStatus', searchPaths: ['jobRequestStatus'], sortPath: 'jobRequestStatus', type: 'text' },
   {
     key: 'contractType',
     searchPaths: ['contractType.value'],
@@ -113,9 +187,15 @@ export const JOB_REQUEST_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
-    key: 'experienceLevel',
-    searchPaths: ['experienceLevel.value'],
-    sortPath: 'experienceLevel.value',
+    key: 'employmentType',
+    searchPaths: ['employmentType.value'],
+    sortPath: 'employmentType.value',
+    type: 'text'
+  },
+  {
+    key: 'jobExperienceLevel',
+    searchPaths: ['jobExperienceLevel.value'],
+    sortPath: 'jobExperienceLevel.value',
     type: 'text'
   },
   {
@@ -125,15 +205,39 @@ export const JOB_REQUEST_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
-    key: 'replacedPosition',
-    searchPaths: ['replacedPosition.name'],
-    sortPath: 'replacedPosition.name',
+    key: 'company',
+    searchPaths: ['company.name'],
+    sortPath: 'company.name',
     type: 'text'
   },
   {
-    key: 'requester',
-    searchPaths: ['requester.firstName', 'requester.lastName', 'requester.displayName'],
-    sortPath: 'requester.displayName',
+    key: 'costCenter',
+    searchPaths: ['costCenter.name'],
+    sortPath: 'costCenter.name',
+    type: 'text'
+  },
+  {
+    key: 'siteLocation',
+    searchPaths: ['siteLocation.name'],
+    sortPath: 'siteLocation.name',
+    type: 'text'
+  },
+  {
+    key: 'jobProfile',
+    searchPaths: ['jobProfile.name'],
+    sortPath: 'jobProfile.name',
+    type: 'text'
+  },
+  {
+    key: 'jobPosition',
+    searchPaths: ['jobPosition.name'],
+    sortPath: 'jobPosition.name',
+    type: 'text'
+  },
+  {
+    key: 'requesterEmployee',
+    searchPaths: ['requesterEmployee.firstName', 'requesterEmployee.lastName', 'requesterEmployee.displayName'],
+    sortPath: 'requesterEmployee.displayName',
     type: 'text'
   }
 ]

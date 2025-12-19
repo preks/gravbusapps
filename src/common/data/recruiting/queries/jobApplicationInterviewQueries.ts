@@ -1,50 +1,40 @@
 /**
- * JobApplicationInterview Queries
+ * JobApplicationInterview Queries (JobInterview)
  */
 import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { JobApplicationInterviewFields } from '../types/jobApplicationInterviewTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
-export type JobApplicationInterviewQueryVariables = BaseQueryVariables
+export interface JobApplicationInterviewQueryVariables extends BaseQueryVariables {
+  jobApplicationId?: string
+  jobInterviewStatus?: string
+}
 
 export const JOB_APPLICATION_INTERVIEW_QUERY_CONFIGS: Record<string, string[]> = {
-  minimal: ['createdAt', 'id', 'interviewDate', 'scheduledDate'],
+  minimal: ['createdAt', 'id', 'scheduledAt'],
   list: [
     'createdAt',
     'id',
-    'interviewDate',
+    'scheduledAt',
     'duration',
-    'scheduledDate',
-    'confirmedDate',
-    'cancelledDate',
-    'type',
-    'typeRef',
-    'employee',
-    'employeeId',
+    'location',
+    'meetingLink',
+    'jobInterviewStatus',
     'jobApplication',
     'jobApplicationId',
-    'meetingPlace',
-    'meetingLink',
     'updatedAt'
   ],
   record: [
     'createdAt',
     'createdBy',
     'id',
-    'interviewDate',
+    'scheduledAt',
     'duration',
-    'scheduledDate',
-    'confirmedDate',
-    'cancelledDate',
-    'participants',
-    'type',
-    'typeRef',
-    'employee',
-    'employeeId',
+    'location',
+    'meetingLink',
+    'jobInterviewStatus',
     'jobApplication',
     'jobApplicationId',
-    'meetingPlace',
-    'meetingLink',
     'updatedAt',
     'updatedBy',
     'version',
@@ -53,19 +43,27 @@ export const JOB_APPLICATION_INTERVIEW_QUERY_CONFIGS: Record<string, string[]> =
 }
 
 const buildScalarFields = (fieldSet: Set<string>): string => {
+  const auditFields = new Set([
+    'createdAt',
+    'createdBy',
+    'updatedAt',
+    'updatedBy',
+    'isDeleted',
+    'recordState',
+    'activeFrom',
+    'activeTo',
+    'version'
+  ])
+
   const scalarFields = [
     { key: 'id', value: 'id' },
     { key: 'version', value: 'version' },
-    { key: 'interviewDate', value: JobApplicationInterviewFields.interviewDate },
+    { key: 'scheduledAt', value: JobApplicationInterviewFields.scheduledAt },
     { key: 'duration', value: JobApplicationInterviewFields.duration },
-    { key: 'scheduledDate', value: JobApplicationInterviewFields.scheduledDate },
-    { key: 'confirmedDate', value: JobApplicationInterviewFields.confirmedDate },
-    { key: 'cancelledDate', value: JobApplicationInterviewFields.cancelledDate },
-    { key: 'participants', value: JobApplicationInterviewFields.participants },
-    { key: 'meetingPlace', value: JobApplicationInterviewFields.meetingPlace },
+    { key: 'location', value: JobApplicationInterviewFields.location },
     { key: 'meetingLink', value: JobApplicationInterviewFields.meetingLink },
+    { key: 'jobInterviewStatus', value: JobApplicationInterviewFields.jobInterviewStatus },
     { key: 'jobApplicationId', value: JobApplicationInterviewFields.jobApplicationId },
-    { key: 'employeeId', value: JobApplicationInterviewFields.employeeId },
     { key: 'createdAt', value: 'createdAt' },
     { key: 'createdBy', value: 'createdBy' },
     { key: 'updatedAt', value: 'updatedAt' },
@@ -74,26 +72,21 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     { key: 'recordState', value: 'recordState' },
     { key: 'activeFrom', value: 'activeFrom' },
     { key: 'activeTo', value: 'activeTo' },
-    { key: 'additionalProperties', value: 'additionalProperties' }
+    { key: 'additionalProperties', value: 'additionalProperties' },
+    // Deprecated
+    { key: 'scheduledDate', value: JobApplicationInterviewFields.scheduledDate },
+    { key: 'meetingPlace', value: JobApplicationInterviewFields.meetingPlace },
+    { key: 'interviewDate', value: JobApplicationInterviewFields.interviewDate },
+    { key: 'confirmedDate', value: JobApplicationInterviewFields.confirmedDate },
+    { key: 'cancelledDate', value: JobApplicationInterviewFields.cancelledDate },
+    { key: 'participants', value: JobApplicationInterviewFields.participants },
+    { key: 'employeeId', value: JobApplicationInterviewFields.employeeId }
   ]
+
   return scalarFields
-    .filter(field => fieldSet.has(field.key))
+    .filter(field => fieldSet.has(field.key) && !auditFields.has(field.key))
     .map(field => field.value)
     .join('\n    ')
-}
-
-const buildCatalogReferenceField = (
-  fieldSet: Set<string>,
-  fieldName: string,
-  fieldRefName: string,
-  fieldKey: string
-): string => {
-  if (!fieldSet.has(fieldName) && !fieldSet.has(fieldRefName)) return ''
-  const hasObject = fieldSet.has(fieldName)
-  return `
-    ${hasObject ? `${fieldKey} { id\n      value }` : ''}
-    ${JobApplicationInterviewFields[fieldRefName as keyof typeof JobApplicationInterviewFields]}
-  `
 }
 
 const buildEntityReferenceField = (
@@ -116,8 +109,7 @@ export const buildJobApplicationInterviewFragment = (fields: string[]): string =
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
-    ${buildCatalogReferenceField(fieldSet, 'type', 'typeRef', JobApplicationInterviewFields.type)}
-    ${buildEntityReferenceField(fieldSet, 'employee', 'employeeId', JobApplicationInterviewFields.employee, 'id\n      firstName\n      lastName\n      displayName')}
-    ${buildEntityReferenceField(fieldSet, 'jobApplication', 'jobApplicationId', JobApplicationInterviewFields.jobApplication, 'id\n      applicationDate\n      currentStage')}
+    
+    ${buildEntityReferenceField(fieldSet, 'jobApplication', 'jobApplicationId', JobApplicationInterviewFields.jobApplication, 'id\n      applicationDate')}
   `
 }

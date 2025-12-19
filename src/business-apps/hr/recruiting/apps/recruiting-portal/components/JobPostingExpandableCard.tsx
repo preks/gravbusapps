@@ -95,7 +95,7 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
   }
 
   const headerAriaLabel = showExpandButton
-    ? `${isExpanded ? 'Collapse' : 'Expand'} ${jobPosting.jobTitle} job posting details`
+    ? `${isExpanded ? 'Collapse' : 'Expand'} ${jobPosting.title} job posting details`
     : undefined
 
   return (
@@ -127,7 +127,7 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
               <div className="gba:flex-1 gba:min-w-0">
                 <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1 gba:flex-wrap">
                   <h3 className="gba:m-0 gba:text-xl gba:font-bold gba:text-foreground">
-                    {jobPosting.jobTitle || 'Untitled Position'}
+                    {jobPosting.title || 'Untitled Position'}
                   </h3>
                   {jobPosting.department && (
                     <Badge variant="secondary" className="gba:text-xs">
@@ -181,7 +181,7 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
               <div className="gba:flex-1 gba:min-w-0">
                 <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1 gba:flex-wrap">
                   <h3 className="gba:m-0 gba:text-xl gba:font-bold gba:text-foreground">
-                    {jobPosting.jobTitle || 'Untitled Position'}
+                    {jobPosting.title || 'Untitled Position'}
                   </h3>
                   {jobPosting.department && (
                     <Badge variant="secondary" className="gba:text-xs">

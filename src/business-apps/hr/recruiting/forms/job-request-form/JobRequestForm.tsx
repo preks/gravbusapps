@@ -30,30 +30,34 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { JobPositionSelect } from '@/components/job-position-select'
 import { JobProfileSelect } from '@/components/job-profile-select'
 import { OrganizationalUnitSelect } from '@/components/organizational-unit-select'
+import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
 import {
-  RECRUITING_CATALOGS,
-  JOB_REQUISITION_REASON_VALUES
-} from '@/common/data/recruiting/constants/recruitingConstants'
-import { REQUISITION_STATUS_OPTIONS } from '@/common/data/recruiting/constants/requisitionStatus'
+  JobRequestType,
+  JobRequestStatus,
+  getJobRequestTypeOptions,
+  getJobRequestStatusOptions
+} from '@/common/data/recruiting/types/enums'
 
 const jobRequestSchema = z.object({
   id: z.string().optional(),
   version: z.number().optional(),
   code: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
-  note: z.string().optional(),
-  headcount: z.number().min(1, 'Headcount must be at least 1').default(1),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  requisitionStatus: z.string().optional(),
-  reasonRef: z.string().optional(),
+  description: z.string().optional(),
+  plannedHireDate: z.string().optional(),
+  plannedExitDate: z.string().optional(),
+  jobRequestType: z.nativeEnum(JobRequestType).optional(),
+  jobRequestStatus: z.nativeEnum(JobRequestStatus).optional(),
   contractTypeRef: z.string().optional(),
-  experienceLevelRef: z.string().optional(),
+  employmentTypeRef: z.string().optional(),
+  jobExperienceLevelRef: z.string().optional(),
   organizationalUnitId: z.string().optional(),
-  replacedPositionId: z.string().optional(),
-  requesterId: z.string().optional(),
-  jobProfileId: z.string().optional(),
+  companyId: z.string().optional(),
   costCenterId: z.string().optional(),
+  siteLocationId: z.string().optional(),
+  jobProfileId: z.string().optional(),
+  jobPositionId: z.string().optional(),
+  requesterEmployeeId: z.string().optional(),
   additionalProperties: z.any().optional()
 })
 
@@ -93,34 +97,23 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
     }
   }, [])
 
-  // Watch reasonRef to determine which fields to show
-  const reasonRef = form.watch('reasonRef')
+  // Watch jobRequestType to determine which fields to show
+  const jobRequestType = form.watch('jobRequestType')
 
-  // Extract the code part from catalog entry format: "CatalogName:Version:Code" -> "Code"
-  // This ensures it works even if the catalog name format varies slightly
-  const getReasonCode = (ref?: string | null): string | null => {
-    if (!ref) return null
-    const parts = ref.split(':')
-    return parts.length >= 3 ? parts[parts.length - 1] : null
-  }
+  // Check job request type
+  const isReplacement = jobRequestType === JobRequestType.REPLACEMENT
+  const isNew = jobRequestType === JobRequestType.NEW
 
-  const reasonCode = getReasonCode(reasonRef)
-
-  // Check reason using constants (exact match) or code extraction (fallback)
-  const isReplacement = reasonRef === JOB_REQUISITION_REASON_VALUES.REPLACEMENT || reasonCode === '1'
-  const isNew = reasonRef === JOB_REQUISITION_REASON_VALUES.NEW || reasonCode === '2'
-
-  // Clear fields when reason changes
+  // Clear fields when type changes
   useEffect(() => {
     if (isReplacement) {
-      // Clear job profile and headcount when switching to REPLACEMENT
+      // Clear job profile when switching to REPLACEMENT
       form.setValue('jobProfileId', undefined)
-      form.setValue('headcount', 1)
     } else if (isNew) {
-      // Clear replaced position when switching to NEW
-      form.setValue('replacedPositionId', undefined)
+      // Clear job position when switching to NEW
+      form.setValue('jobPositionId', undefined)
     }
-  }, [reasonRef, isReplacement, isNew, form])
+  }, [jobRequestType, isReplacement, isNew, form])
 
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
@@ -180,7 +173,7 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
 
               <FormField
                 control={form.control}
-                name="requesterId"
+                name="requesterEmployeeId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Requester</FormLabel>
@@ -200,40 +193,46 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
               />
             </div>
 
-            {/* Second line: Reason */}
+            {/* Second line: Job Request Type */}
             <FormField
               control={form.control}
-              name="reasonRef"
+              name="jobRequestType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Reason</FormLabel>
+                  <FormLabel>Request Type</FormLabel>
                   <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier={RECRUITING_CATALOGS.JOB_REQUISITION_REASON}
-                      value={field.value || null}
-                      onValueChange={(v: string | string[]) => field.onChange(Array.isArray(v) ? v[0] || '' : v || '')}
-                      data-testid={formatDataTestId('job-request-form', 'reason-select')}
-                    />
+                    <Select value={field.value || ''} onValueChange={value => field.onChange(value || '')}>
+                      <SelectTrigger data-testid={formatDataTestId('job-request-form', 'type-select')}>
+                        <SelectValue placeholder="Select request type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getJobRequestTypeOptions().map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Third line: Job Position (REPLACEMENT) OR Job Profile and Headcount (NEW) */}
+            {/* Third line: Job Position (REPLACEMENT) OR Job Profile (NEW) */}
             {isReplacement && (
               <FormField
                 control={form.control}
-                name="replacedPositionId"
+                name="jobPositionId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Job Position</FormLabel>
+                    <FormLabel>Job Position (Replacement)</FormLabel>
                     <FormControl>
                       <JobPositionSelect
                         value={field.value || null}
                         onValueChange={v => field.onChange(v || '')}
                         businessAppContext={{ accessToken, userInfo, additionalData }}
-                        placeholder="Select job position..."
+                        placeholder="Select job position to replace..."
                         data-testid={formatDataTestId('job-request-form', 'job-position-select')}
                       />
                     </FormControl>
@@ -244,52 +243,29 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
             )}
 
             {isNew && (
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                <FormField
-                  control={form.control}
-                  name="jobProfileId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Job Profile</FormLabel>
-                      <FormControl>
-                        <JobProfileSelect
-                          value={field.value || null}
-                          onValueChange={v => field.onChange(v || '')}
-                          businessAppContext={{ accessToken, userInfo, additionalData }}
-                          placeholder="Select job profile..."
-                          data-testid={formatDataTestId('job-request-form', 'job-profile-select')}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="headcount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Headcount</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          {...field}
-                          value={field.value || 1}
-                          onChange={e => field.onChange(Number.parseInt(e.target.value, 10) || 1)}
-                          data-testid={formatDataTestId('job-request-form', 'headcount-input')}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="jobProfileId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Job Profile (New Position)</FormLabel>
+                    <FormControl>
+                      <JobProfileSelect
+                        value={field.value || null}
+                        onValueChange={v => field.onChange(v || '')}
+                        businessAppContext={{ accessToken, userInfo, additionalData }}
+                        placeholder="Select job profile for new position..."
+                        data-testid={formatDataTestId('job-request-form', 'job-profile-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             )}
 
-            {/* Fourth line: Contract Type and Experience Level */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+            {/* Fourth line: Contract Type, Employment Type, and Experience Level */}
+            <div className="gba:grid gba:grid-cols-3 gba:gap-4">
               <FormField
                 control={form.control}
                 name="contractTypeRef"
@@ -313,13 +289,34 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
 
               <FormField
                 control={form.control}
-                name="experienceLevelRef"
+                name="employmentTypeRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employment Type</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier={RECRUITING_CATALOGS.EMPLOYMENT_TYPE}
+                        value={field.value || null}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-request-form', 'employment-type-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="jobExperienceLevelRef"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Experience Level</FormLabel>
                     <FormControl>
                       <CatalogSelect
-                        catalogIdentifier={RECRUITING_CATALOGS.EXPERIENCE_LEVEL}
+                        catalogIdentifier={RECRUITING_CATALOGS.JOB_EXPERIENCE_LEVEL}
                         value={field.value || null}
                         onValueChange={(v: string | string[]) =>
                           field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
@@ -336,24 +333,10 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
             {/* Additional fields */}
             <FormField
               control={form.control}
-              name="code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Code</FormLabel>
-                  <FormControl>
-                    <Input {...field} data-testid={formatDataTestId('job-request-form', 'code-input')} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Request Name</FormLabel>
                   <FormControl>
                     <Input {...field} data-testid={formatDataTestId('job-request-form', 'name-input')} />
                   </FormControl>
@@ -364,12 +347,12 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
 
             <FormField
               control={form.control}
-              name="note"
+              name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Note</FormLabel>
+                  <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea {...field} data-testid={formatDataTestId('job-request-form', 'note-input')} />
+                    <Textarea {...field} data-testid={formatDataTestId('job-request-form', 'description-input')} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -379,17 +362,17 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
-                name="startDate"
+                name="plannedHireDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Date</FormLabel>
+                    <FormLabel>Planned Hire Date</FormLabel>
                     <FormControl>
                       <DateInput
                         type="date"
                         value={field.value || ''}
                         onChange={value => field.onChange(value || '')}
-                        placeholder="Select start date..."
-                        data-testid={formatDataTestId('job-request-form', 'start-date-input')}
+                        placeholder="Select planned hire date..."
+                        data-testid={formatDataTestId('job-request-form', 'planned-hire-date-input')}
                         captionLayout="dropdown"
                         outputFormat="iso"
                       />
@@ -401,17 +384,17 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
 
               <FormField
                 control={form.control}
-                name="endDate"
+                name="plannedExitDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>End Date</FormLabel>
+                    <FormLabel>Planned Exit Date</FormLabel>
                     <FormControl>
                       <DateInput
                         type="date"
                         value={field.value || ''}
                         onChange={value => field.onChange(value || '')}
-                        placeholder="Select end date..."
-                        data-testid={formatDataTestId('job-request-form', 'end-date-input')}
+                        placeholder="Select planned exit date..."
+                        data-testid={formatDataTestId('job-request-form', 'planned-exit-date-input')}
                         captionLayout="dropdown"
                         outputFormat="iso"
                       />
@@ -424,20 +407,17 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
 
             <FormField
               control={form.control}
-              name="requisitionStatus"
+              name="jobRequestStatus"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status</FormLabel>
                   <FormControl>
-                    <Select
-                      value={field.value || ''}
-                      onValueChange={value => field.onChange(typeof value === 'string' ? value : value[0] || '')}
-                    >
+                    <Select value={field.value || ''} onValueChange={value => field.onChange(value || '')}>
                       <SelectTrigger data-testid={formatDataTestId('job-request-form', 'status-select')}>
                         <SelectValue placeholder="Select status..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {REQUISITION_STATUS_OPTIONS.map(option => (
+                        {getJobRequestStatusOptions().map(option => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>

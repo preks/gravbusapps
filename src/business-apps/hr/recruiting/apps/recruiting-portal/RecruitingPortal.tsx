@@ -98,7 +98,7 @@ export const RecruitingPortal: React.FC<RecruitingPortalProps> = ({
 
     const query = searchQuery.toLowerCase()
     return jobPostings.filter(posting => {
-      const matchesTitle = posting.jobTitle?.toLowerCase().includes(query)
+      const matchesTitle = posting.title?.toLowerCase().includes(query)
       const matchesDepartment = posting.department?.toLowerCase().includes(query)
       const matchesLocation = posting.location?.toLowerCase().includes(query)
       const matchesContract = posting.contractType?.toLowerCase().includes(query)
