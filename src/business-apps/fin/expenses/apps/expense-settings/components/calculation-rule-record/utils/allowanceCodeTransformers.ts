@@ -41,6 +41,27 @@ export interface AllowanceCodeSaveData {
 }
 
 /**
+ * Helper to get value based on edit restriction
+ */
+const getEditableValue = <T>(isRestricted: boolean, originalValue: T, formValue: T): T => {
+  return isRestricted ? originalValue : formValue
+}
+
+/**
+ * Helper to format active date
+ */
+const formatActiveFrom = (date: string | undefined): string | null => {
+  return date ? dayjs(date).startOf('day').toISOString() : null
+}
+
+/**
+ * Helper to format active to date
+ */
+const formatActiveTo = (date: string | undefined): string | null => {
+  return date ? dayjs(date).endOf('day').toISOString() : null
+}
+
+/**
  * Transforms form values to save data for UPDATE operation
  */
 export const transformAllowanceCodeForUpdate = (
@@ -49,6 +70,8 @@ export const transformAllowanceCodeForUpdate = (
   ruleId: string,
   isRestrictedEdit: boolean
 ): AllowanceCodeSaveData => {
+  const sourceDate = isRestrictedEdit ? editingItem.validFrom : formValues.validFrom
+
   return {
     id: editingItem.id,
     version: editingItem.version,
@@ -59,33 +82,39 @@ export const transformAllowanceCodeForUpdate = (
     travelLocation: editingItem.travelLocation,
     secondWageCode: editingItem.secondWageCode || null,
     // User-editable fields from form (or editingItem if restricted)
-    code: isRestrictedEdit ? editingItem.code : formValues.code,
-    name: isRestrictedEdit ? editingItem.name : formValues.name,
-    reimbursable: isRestrictedEdit ? editingItem.reimbursable : formValues.reimbursable,
-    amount: isRestrictedEdit ? (editingItem.amount ?? null) : (formValues.amount ?? null),
-    calculationRef: isRestrictedEdit ? editingItem.calculation || null : formValues.calculation || null,
+    code: getEditableValue(isRestrictedEdit, editingItem.code, formValues.code),
+    name: getEditableValue(isRestrictedEdit, editingItem.name, formValues.name),
+    reimbursable: getEditableValue(isRestrictedEdit, editingItem.reimbursable, formValues.reimbursable),
+    amount: getEditableValue(isRestrictedEdit, editingItem.amount ?? null, formValues.amount ?? null),
+    calculationRef: getEditableValue(isRestrictedEdit, editingItem.calculation || null, formValues.calculation || null),
     expenseGroupRef: 'ExpenseGroup:v1:ALLOWANCE',
-    firstAllowanceRegionRuleId: isRestrictedEdit
-      ? editingItem.firstAllowanceRegionRuleId || null
-      : formValues.firstAllowanceRegionRuleId || null,
-    firstAllowanceRegionRulePercent: isRestrictedEdit
-      ? (editingItem.firstAllowanceRegionRulePercent ?? 0)
-      : (formValues.firstAllowanceRegionRulePercent ?? 0),
-    secondAllowanceRegionRuleId: isRestrictedEdit
-      ? editingItem.secondAllowanceRegionRuleId || null
-      : formValues.secondAllowanceRegionRuleId || null,
-    secondAllowanceRegionRulePercent: isRestrictedEdit
-      ? (editingItem.secondAllowanceRegionRulePercent ?? 0)
-      : (formValues.secondAllowanceRegionRulePercent ?? 0),
-    firstWageCode: isRestrictedEdit ? editingItem.firstWageCode || null : formValues.firstWageCode || null,
-    activeFrom: isRestrictedEdit
-      ? editingItem.validFrom
-        ? dayjs(editingItem.validFrom).startOf('day').toISOString()
-        : null
-      : formValues.validFrom
-        ? dayjs(formValues.validFrom).startOf('day').toISOString()
-        : null,
-    activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
+    firstAllowanceRegionRuleId: getEditableValue(
+      isRestrictedEdit,
+      editingItem.firstAllowanceRegionRuleId || null,
+      formValues.firstAllowanceRegionRuleId || null
+    ),
+    firstAllowanceRegionRulePercent: getEditableValue(
+      isRestrictedEdit,
+      editingItem.firstAllowanceRegionRulePercent ?? 0,
+      formValues.firstAllowanceRegionRulePercent ?? 0
+    ),
+    secondAllowanceRegionRuleId: getEditableValue(
+      isRestrictedEdit,
+      editingItem.secondAllowanceRegionRuleId || null,
+      formValues.secondAllowanceRegionRuleId || null
+    ),
+    secondAllowanceRegionRulePercent: getEditableValue(
+      isRestrictedEdit,
+      editingItem.secondAllowanceRegionRulePercent ?? 0,
+      formValues.secondAllowanceRegionRulePercent ?? 0
+    ),
+    firstWageCode: getEditableValue(
+      isRestrictedEdit,
+      editingItem.firstWageCode || null,
+      formValues.firstWageCode || null
+    ),
+    activeFrom: formatActiveFrom(sourceDate),
+    activeTo: formatActiveTo(formValues.validTo)
   }
 }
 
@@ -110,8 +139,8 @@ export const transformAllowanceCodeForCreate = (
     secondAllowanceRegionRulePercent: formValues.secondAllowanceRegionRulePercent ?? 0,
     firstWageCode: formValues.firstWageCode || null,
     secondWageCode: null,
-    activeFrom: formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null,
-    activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
+    activeFrom: formatActiveFrom(formValues.validFrom),
+    activeTo: formatActiveTo(formValues.validTo)
   }
 }
 

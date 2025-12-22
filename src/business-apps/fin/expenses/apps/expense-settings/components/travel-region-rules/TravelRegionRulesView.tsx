@@ -17,7 +17,7 @@ interface SelectedSet {
 
 // Helper to get view state from URL
 const getViewStateFromUrl = (): { viewMode: ViewMode; selectedSet: SelectedSet | null } => {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
   const mode = urlParams.get('viewMode') as ViewMode
   const setId = urlParams.get('setId')
   const setName = urlParams.get('setName')
@@ -35,7 +35,7 @@ const getViewStateFromUrl = (): { viewMode: ViewMode; selectedSet: SelectedSet |
 
 // Helper to update URL with view state
 const updateUrlWithViewState = (viewMode: ViewMode, selectedSet: SelectedSet | null) => {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
 
   // Clear old parameters
   urlParams.delete('viewMode')
@@ -52,8 +52,8 @@ const updateUrlWithViewState = (viewMode: ViewMode, selectedSet: SelectedSet | n
   }
   // For 'sets' view, we don't set any parameters (clean URL)
 
-  const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-  window.history.replaceState({}, '', newUrl)
+  const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}`
+  globalThis.history.replaceState({}, '', newUrl)
 }
 
 const TravelRegionRulesView: React.FC<TravelRegionRulesViewProps> = context => {

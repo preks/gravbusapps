@@ -58,6 +58,93 @@ import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+/**
+ * Helper to determine default dates for new cell
+ */
+const getDefaultCellDates = (
+  existingCells: EditableCell[],
+  rule: EditableAllowanceRegionRule,
+  todayDate: string
+): { activeFrom: string; activeTo: string | undefined } => {
+  if (existingCells.length > 0) {
+    const lastCell = existingCells[existingCells.length - 1]
+    return {
+      activeFrom: lastCell.activeFrom,
+      activeTo: lastCell.activeTo
+    }
+  }
+
+  return {
+    activeFrom: rule.activeFrom || todayDate,
+    activeTo: rule.activeTo
+  }
+}
+
+/**
+ * Helper to create a new validity period
+ */
+const createNewValidityPeriod = (
+  rule: EditableAllowanceRegionRule,
+  region: EditableTravelRegion,
+  activeFrom: string,
+  activeTo: string | undefined
+): ValidityPeriod => {
+  const periodId = `new-${rule.id}-${region.id}-${Date.now()}`
+
+  return {
+    id: periodId,
+    activeFrom,
+    activeTo,
+    currencyCode: 'EUR',
+    hasConflict: false,
+    ruleId: rule.id
+  }
+}
+
+/**
+ * Helper to create a new editable cell
+ */
+const createNewEditableCell = (
+  rule: EditableAllowanceRegionRule,
+  region: EditableTravelRegion,
+  periodId: string,
+  activeFrom: string,
+  activeTo: string | undefined,
+  currencies: CurrencyOption[]
+): EditableCell => {
+  const countryRef = region.objectValue?.destination_country_ref || undefined
+  const eurCurrency = currencies.find(c => c.code === 'EUR')
+
+  return {
+    id: undefined,
+    travelRegionId: region.id,
+    allowanceRegionRuleId: rule.id,
+    amount: 0,
+    currencyCode: 'EUR',
+    currencyRef: eurCurrency?.id,
+    countryRef: countryRef,
+    activeFrom,
+    activeTo,
+    isNew: true,
+    isModified: false,
+    hasError: false,
+    validityPeriodId: periodId
+  }
+}
+
+/**
+ * Helper to determine cell CSS classes based on state
+ */
+const getCellClassName = (cell: EditableCell, isEditing: boolean): string => {
+  if (cell.isModified) {
+    return 'gba:bg-info-secondary gba:border-info'
+  }
+  if (isEditing) {
+    return 'gba:bg-accent gba:border-primary'
+  }
+  return 'gba:bg-white gba:border-border gba:cursor-pointer hover:gba:bg-accent'
+}
+
 interface TravelRegionMatrixViewProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   travelRegionSetId: string
@@ -639,13 +726,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                 return (
                                   <div
                                     key={cell.id || cell.validityPeriodId}
-                                    className={`gba:border gba:rounded gba:p-2 gba:relative ${
-                                      cell.isModified
-                                        ? 'gba:bg-info-secondary gba:border-info'
-                                        : isEditing
-                                          ? 'gba:bg-accent gba:border-primary'
-                                          : 'gba:bg-white gba:border-border gba:cursor-pointer hover:gba:bg-accent'
-                                    }`}
+                                    className={`gba:border gba:rounded gba:p-2 gba:relative ${getCellClassName(cell, isEditing)}`}
                                     onClick={() => {
                                       if (!isEditing && cell.id) {
                                         cellEditing.handleEnterCellEdit(cell.id)
@@ -950,37 +1031,17 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  const newPeriodId = `new-${rule.id}-${region.id}-${Date.now()}`
                                   const todayDate = `${dayjs().format('YYYY-MM-DD')}T00:00:00+00:00`
-
-                                  // Find existing cells for this rule to inherit dates
                                   const existingCellsForRule = editableCells.filter(
                                     c => c.allowanceRegionRuleId === rule.id && !c.isNew
                                   )
 
-                                  // Determine activeFrom and activeTo
-                                  let defaultActiveFrom: string
-                                  let defaultActiveTo: string | undefined
-
-                                  if (existingCellsForRule.length > 0) {
-                                    // Use dates from the most recently saved cell
-                                    const lastCell = existingCellsForRule[existingCellsForRule.length - 1]
-                                    defaultActiveFrom = lastCell.activeFrom
-                                    defaultActiveTo = lastCell.activeTo
-                                  } else {
-                                    // Inherit from the rule itself
-                                    defaultActiveFrom = rule.activeFrom || todayDate
-                                    defaultActiveTo = rule.activeTo
-                                  }
-
-                                  const newPeriod: ValidityPeriod = {
-                                    id: newPeriodId,
-                                    activeFrom: defaultActiveFrom,
-                                    activeTo: defaultActiveTo,
-                                    currencyCode: 'EUR',
-                                    hasConflict: false,
-                                    ruleId: rule.id
-                                  }
+                                  const { activeFrom, activeTo } = getDefaultCellDates(
+                                    existingCellsForRule,
+                                    rule,
+                                    todayDate
+                                  )
+                                  const newPeriod = createNewValidityPeriod(rule, region, activeFrom, activeTo)
 
                                   setAllowanceRegionRules(prev =>
                                     prev.map(r =>
@@ -990,25 +1051,14 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                     )
                                   )
 
-                                  const countryRef = region.objectValue?.destination_country_ref || undefined
-                                  const eurCurrency = currencies.find(c => c.code === 'EUR')
-
-                                  const newCell: EditableCell = {
-                                    id: undefined,
-                                    travelRegionId: region.id,
-                                    allowanceRegionRuleId: rule.id,
-                                    amount: 0,
-                                    currencyCode: 'EUR',
-                                    currencyRef: eurCurrency?.id,
-                                    countryRef: countryRef,
-                                    activeFrom: defaultActiveFrom,
-                                    activeTo: defaultActiveTo,
-                                    isNew: true,
-                                    isModified: false,
-                                    hasError: false,
-                                    validityPeriodId: newPeriodId
-                                  }
-
+                                  const newCell = createNewEditableCell(
+                                    rule,
+                                    region,
+                                    newPeriod.id,
+                                    activeFrom,
+                                    activeTo,
+                                    currencies
+                                  )
                                   setEditableCells(prev => [...prev, newCell])
                                 }}
                                 className="gba:w-full gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-accent gba:border gba:border-dashed"

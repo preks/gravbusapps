@@ -38,9 +38,7 @@ export const useGroupedDetails = ({ formData, countries, currencies }: UseGroupe
       // Add amounts to the group
       if (detail.amounts && Array.isArray(detail.amounts) && detail.amounts.length > 0) {
         detail.amounts.forEach((amount, amountIndex) => {
-          if (groups[groupKey].amounts[amountIndex] === undefined) {
-            groups[groupKey].amounts[amountIndex] = amount
-          }
+          groups[groupKey].amounts[amountIndex] ??= amount
         })
       } else if (detail.amounts && !Array.isArray(detail.amounts)) {
         if (groups[groupKey].amounts.length === 0) {

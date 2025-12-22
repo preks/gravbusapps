@@ -4,6 +4,74 @@ import { toast } from '@newwork/nw-design-system'
 import { EditableCell, EditableAllowanceRegionRule, CurrencyOption, UsageInfo } from '../types'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 
+/**
+ * Helper to validate cell amount
+ */
+const validateCellAmount = (amount: number): boolean => {
+  if (amount <= 0) {
+    toast.error('Amount must be greater than 0')
+    return false
+  }
+  return true
+}
+
+/**
+ * Helper to validate cell active from date
+ */
+const validateActiveFromDate = (activeFrom: string | undefined): boolean => {
+  if (!activeFrom) {
+    toast.error('Valid From date is required')
+    return false
+  }
+  return true
+}
+
+/**
+ * Helper to validate detail dates against rule dates
+ */
+const validateDetailDatesAgainstRule = (
+  detailFrom: dayjs.Dayjs,
+  detailTo: dayjs.Dayjs | null,
+  rule: EditableAllowanceRegionRule
+): boolean => {
+  const ruleFrom = rule.activeFrom ? dayjs(rule.activeFrom) : null
+  const ruleTo = rule.activeTo ? dayjs(rule.activeTo) : null
+
+  if (ruleFrom && detailFrom.isBefore(ruleFrom)) {
+    toast.error(
+      `Detail's "Valid From" (${detailFrom.format('DD/MM/YYYY')}) cannot be before the rule's "Valid From" (${ruleFrom.format('DD/MM/YYYY')})`
+    )
+    return false
+  }
+
+  if (ruleTo && detailTo && detailTo.isAfter(ruleTo)) {
+    toast.error(
+      `Detail's "Valid To" (${detailTo.format('DD/MM/YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD/MM/YYYY')})`
+    )
+    return false
+  }
+
+  if (ruleTo && detailFrom.isAfter(ruleTo)) {
+    toast.error(
+      `Detail's "Valid From" (${detailFrom.format('DD/MM/YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD/MM/YYYY')})`
+    )
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Helper to validate country reference
+ */
+const validateCountryRef = (countryRef: string | undefined): boolean => {
+  if (!countryRef) {
+    toast.error('Country reference is missing. Please ensure travel regions have country data.')
+    return false
+  }
+  return true
+}
+
 interface UseMatrixCellEditingProps {
   accessToken: string
   currencies: CurrencyOption[]
@@ -92,7 +160,6 @@ export const useMatrixCellEditing = ({
       }
 
       // CRITICAL: Get the LATEST cell from state to ensure we have the current version
-      // The 'cell' parameter might be stale if the modal stayed open after a previous save
       const latestCell = editableCells.find(
         c =>
           (cell.id ? c.id === cell.id : c.validityPeriodId === cell.validityPeriodId) &&
@@ -104,73 +171,34 @@ export const useMatrixCellEditing = ({
         return
       }
 
-      // Use latestCell for all operations to ensure we have the current version
-      const cellToSave = latestCell
-
-      // Validation: amount must be > 0
-      if (cellToSave.amount <= 0) {
-        toast.error('Amount must be greater than 0')
-        return
-      }
-
-      // Validation: activeFrom is required
-      if (!cellToSave.activeFrom) {
-        toast.error('Valid From date is required')
-        return
-      }
+      // Validate cell data
+      if (!validateCellAmount(latestCell.amount)) return
+      if (!validateActiveFromDate(latestCell.activeFrom)) return
 
       setIsSavingCell(true)
       try {
         const client = getExpenseSettingsClient()
-        const rule = allowanceRegionRules.find(r => r.id === cellToSave.allowanceRegionRuleId)
+        const rule = allowanceRegionRules.find(r => r.id === latestCell.allowanceRegionRuleId)
 
         if (!rule) {
           throw new Error('Rule not found')
         }
 
-        // Validation: Detail validity must be within Rule validity
-        const detailFrom = dayjs(cellToSave.activeFrom)
-        const detailTo = cellToSave.activeTo ? dayjs(cellToSave.activeTo) : null
-        const ruleFrom = rule.activeFrom ? dayjs(rule.activeFrom) : null
-        const ruleTo = rule.activeTo ? dayjs(rule.activeTo) : null
+        // Validate dates against rule
+        const detailFrom = dayjs(latestCell.activeFrom)
+        const detailTo = latestCell.activeTo ? dayjs(latestCell.activeTo) : null
 
-        // Check: Detail's activeFrom must be >= Rule's activeFrom
-        if (ruleFrom && detailFrom.isBefore(ruleFrom)) {
-          toast.error(
-            `Detail's "Valid From" (${detailFrom.format('DD/MM/YYYY')}) cannot be before the rule's "Valid From" (${ruleFrom.format('DD/MM/YYYY')})`
-          )
+        if (!validateDetailDatesAgainstRule(detailFrom, detailTo, rule)) {
           setIsSavingCell(false)
           return
         }
 
-        // Check: Detail's activeTo must be <= Rule's activeTo (if rule has an end date)
-        if (ruleTo && detailTo && detailTo.isAfter(ruleTo)) {
-          toast.error(
-            `Detail's "Valid To" (${detailTo.format('DD/MM/YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD/MM/YYYY')})`
-          )
-          setIsSavingCell(false)
-          return
-        }
+        // Get currency and country refs
+        const currency = currencies.find(c => c.code === latestCell.currencyCode)
+        const currencyRef = latestCell.currencyRef || currency?.id
+        const countryRef = latestCell.countryRef
 
-        // Check: Detail's activeFrom must be <= Rule's activeTo (if rule has an end date)
-        if (ruleTo && detailFrom.isAfter(ruleTo)) {
-          toast.error(
-            `Detail's "Valid From" (${detailFrom.format('DD/MM/YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD/MM/YYYY')})`
-          )
-          setIsSavingCell(false)
-          return
-        }
-
-        // Use stored refs or find them from catalogs
-        const currency = currencies.find(c => c.code === cellToSave.currencyCode)
-        const currencyRef = cellToSave.currencyRef || currency?.id
-
-        // For countryRef: must be provided in cell (from TravelRegion objectValue)
-        const countryRef = cellToSave.countryRef
-
-        // Validation: countryRef is required
-        if (!countryRef) {
-          toast.error('Country reference is missing. Please ensure travel regions have country data.')
+        if (!validateCountryRef(countryRef)) {
           setIsSavingCell(false)
           return
         }
@@ -178,17 +206,17 @@ export const useMatrixCellEditing = ({
         // Build the detail payload
         const detailPayload = {
           allowanceRegionRuleDetail: {
-            ...(cellToSave.id && { id: cellToSave.id }),
-            amount: cellToSave.amount,
+            ...(latestCell.id && { id: latestCell.id }),
+            amount: latestCell.amount,
             currencyRef: currencyRef,
-            activeFrom: cellToSave.activeFrom,
-            activeTo: cellToSave.activeTo || null,
-            travelRegionRef: cellToSave.travelRegionId,
+            activeFrom: latestCell.activeFrom,
+            activeTo: latestCell.activeTo || null,
+            travelRegionRef: latestCell.travelRegionId,
             countryRef: countryRef,
             allowanceRegionRule: rule.id,
-            ...(cellToSave.id && cellToSave.version !== undefined && { version: cellToSave.version })
+            ...(latestCell.id && latestCell.version !== undefined && { version: latestCell.version })
           },
-          changeMode: cellToSave.id ? 'UPDATE' : 'INSERT'
+          changeMode: latestCell.id ? 'UPDATE' : 'INSERT'
         }
 
         const response = await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
@@ -199,17 +227,15 @@ export const useMatrixCellEditing = ({
         setEditingCellId(null)
         setEditingCellUsageInfo(null)
 
-        // Update the cell with the data from response, but fetch the correct version separately
-        // We do a targeted update to avoid reloading all data and losing search/pagination state
+        // Update the cell with the data from response
         setEditableCells(prev =>
           prev.map(c => {
-            const isMatchingCell = cellToSave.id
-              ? c.id === cellToSave.id && c.validityPeriodId === cellToSave.validityPeriodId
-              : c.validityPeriodId === cellToSave.validityPeriodId
+            const isMatchingCell = latestCell.id
+              ? c.id === latestCell.id && c.validityPeriodId === latestCell.validityPeriodId
+              : c.validityPeriodId === latestCell.validityPeriodId
 
             if (isMatchingCell) {
-              // Use the data from the response
-              const updatedCell = {
+              return {
                 ...c,
                 id: c.id || response.allowanceRegionRuleDetail?.id,
                 amount: response.allowanceRegionRuleDetail?.amount ?? c.amount,
@@ -218,14 +244,10 @@ export const useMatrixCellEditing = ({
                 currencyCode: response.allowanceRegionRuleDetail?.currencyRef?.split(':').pop() ?? c.currencyCode,
                 isNew: false,
                 isModified: false,
-                // Backend returns OLD version in response, so we increment it
-                // This is a known backend quirk - it increments in DB but returns old version
                 version: response.allowanceRegionRuleDetail?.version
                   ? response.allowanceRegionRuleDetail.version + 1
                   : (c.version || 0) + 1
               }
-
-              return updatedCell
             }
             return c
           })

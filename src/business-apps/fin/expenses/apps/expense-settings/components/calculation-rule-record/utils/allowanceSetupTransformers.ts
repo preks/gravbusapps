@@ -53,7 +53,7 @@ export const transformAllowanceSetupForRestrictedUpdate = (
 export const transformAllowanceSetupForSave = (
   formValues: AllowanceSetupFormValues,
   ruleId: string,
-  editingItem: any | null,
+  editingItem: Record<string, unknown> | null,
   formatDate: (dateStr: string | undefined) => string | undefined
 ): AllowanceSetupSaveData => {
   const isUpdate = !!editingItem

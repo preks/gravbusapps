@@ -54,7 +54,7 @@ export const validateAllowanceCodeDates = (
   }
 
   // Valid To cannot be after rule's Valid To
-  if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
+  if (ruleTo?.isAfter && entryTo?.isAfter(ruleTo, 'day')) {
     errors.push({
       field: 'validTo',
       message: `Valid To must be on or before ${ruleTo.format('DD/MM/YYYY')} (rule end date)`
