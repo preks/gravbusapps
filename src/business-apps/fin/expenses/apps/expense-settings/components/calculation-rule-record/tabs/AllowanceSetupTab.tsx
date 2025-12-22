@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   Button,
   Badge,
@@ -793,7 +794,10 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                       <Input
                         {...field}
                         disabled={isRestrictedEdit}
-                        placeholder="there is no name to be entered"
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'expense-settings:allowance_setup_name_placeholder',
+                          'Enter allowance setup name'
+                        )}
                         data-testid="allowance-setup-name-input"
                       />
                     </FormControl>

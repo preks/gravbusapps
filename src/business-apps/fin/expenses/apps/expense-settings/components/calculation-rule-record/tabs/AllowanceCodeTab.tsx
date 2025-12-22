@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   Button,
   Badge,
@@ -158,6 +159,12 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     // Otherwise extract date portion using dayjs to handle ISO strings correctly
     return dayjs(dateStr).format('YYYY-MM-DD')
   }
+
+  // i18n translations
+  const amountPercentageHelperText = getTranslationFromI18nKeyAndLabel(
+    'expense-settings:amount_percentage_helper',
+    'Use either Amount or Percentage (not both)'
+  )
 
   const form = useForm<AllowanceCodeFormData>({
     defaultValues: {
@@ -979,9 +986,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           data-testid="allowance-code-amount-input"
                         />
                       </FormControl>
-                      <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                        Use either Amount or Percentage (not both)
-                      </div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{amountPercentageHelperText}</div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1086,9 +1091,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           data-testid="allowance-code-percentage-input"
                         />
                       </FormControl>
-                      <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                        Use either Amount or Percentage (not both)
-                      </div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{amountPercentageHelperText}</div>
                       <FormMessage />
                     </FormItem>
                   )}
