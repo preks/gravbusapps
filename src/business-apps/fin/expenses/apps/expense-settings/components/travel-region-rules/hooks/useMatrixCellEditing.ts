@@ -195,7 +195,9 @@ export const useMatrixCellEditing = ({
             if (isMatchingCell) {
               return {
                 ...c,
-                id: response.data?.id || c.id, // Update with new ID from INSERT
+                // Only set ID from response if cell doesn't have one (INSERT operation)
+                // For UPDATE operations, preserve the existing ID
+                id: c.id || response.data?.id,
                 isNew: false, // No longer a new cell after successful save
                 isModified: false,
                 version: response.data?.version || c.version
