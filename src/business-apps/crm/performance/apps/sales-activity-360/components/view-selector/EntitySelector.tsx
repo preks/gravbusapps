@@ -42,10 +42,22 @@ const EMPLOYEE_FIELDS = `
   }
 `
 
+// Sales Associate capability name for filtering (consistent with Sales Performance module)
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
 const EMPLOYEES_QUERY = `
   query GetEmployees($limit: Int, $offset: Int) {
     Employee(
-      where: { isDeleted: { _eq: false } }
+      where: { 
+        isDeleted: { _eq: false }
+        employeePosition: {
+          employeeCapabilities: {
+            capability: {
+              name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+            }
+          }
+        }
+      }
       orderBy: [{ fullName: ASC_NULLS_LAST }]
       limit: $limit
       offset: $offset
@@ -61,6 +73,15 @@ const EMPLOYEES_SEARCH_QUERY = `
       where: {
         _and: [
           { isDeleted: { _eq: false } }
+          {
+            employeePosition: {
+              employeeCapabilities: {
+                capability: {
+                  name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                }
+              }
+            }
+          }
           { _or: [
             { fullName: { _ilike: $search } }
             { firstName: { _ilike: $search } }
@@ -314,7 +335,7 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({ accessToken, ent
 
               return {
                 id: e.id,
-                name: e.fullName || `${e.firstName} ${e.lastName}`,
+                name: e.fullName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown',
                 subtitle,
                 avatar: e.pictureThumbnail
               }
