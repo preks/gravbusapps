@@ -52,6 +52,7 @@ export const DeactivateEmployeeBenefitProvider: React.FC<ProviderProps> = ({
       const benefit = extractSelectedBenefit(additionalData)
 
       // Set data with employee and selected benefit
+      // Currency comes from the benefit itself (benefit.currency)
       setData({
         employee: employeeData,
         selectedBenefit: benefit

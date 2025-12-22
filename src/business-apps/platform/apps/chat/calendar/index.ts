@@ -1,4 +1,13 @@
-export * from './Calendar'
+import Calendar from './Calendar'
+
+// Re-export as named exports
+export { Calendar }
+
+// Default export for wrapper compatibility
+export default {
+  Calendar
+}
+
 export * from './types'
 export * from './calendarApiClient'
 export * from './hooks/useCalendar'

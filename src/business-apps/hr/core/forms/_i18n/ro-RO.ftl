@@ -179,6 +179,14 @@ label-country = Țară
 label-city = Oraș
 label-currency = Monedă
 
+# Benefit Summary Card Translations
+benefit-provider = Furnizor
+benefit-value-yearly = Valoare anuală
+benefit-details-monthly-value = Valoare lunară
+current-annually = Anual
+current-monthly = Lunar
+modal-request-start-date-label = Dată de început
+
 # Deactivate Employee Benefit Review Form
 deactivate-benefit-review-title = Cerere dezactivare beneficiu
 deactivate-benefit-review-requested-by = Solicitat de { $initiatorName }
@@ -226,3 +234,13 @@ request-benefit-review-reject = Respinge
 request-benefit-review-loading = Se încarcă datele despre beneficiu...
 request-benefit-review-error-title = Nu se pot încărca datele
 request-benefit-review-error-description = Eroare la încărcarea datelor despre beneficiile angajatului
+
+# Deactivate Employee Benefit Form
+modal-deactivate-title = Dezactivare beneficiu angajat
+modal-deactivate-end-date-label = Dată de încheiere
+modal-deactivate-submit-button = Dezactivează beneficiu
+
+# Deactivate Employee Benefit Form - Validation Messages
+error-end-date-required = Data de încheiere este obligatorie. Vă rugăm să selectați o dată de încheiere.
+error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau ulterior.
+error-end-date-after-start-date = Data de încheiere nu poate fi înaintea datei de început a beneficiului.

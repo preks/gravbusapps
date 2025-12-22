@@ -12,7 +12,10 @@ import { ContentRole } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildFileUrl } from '@/common/utils/fileUtils'
-import { ArticleSegment, QuestionSegment, DocumentSegment, GlossarySegment } from './segments'
+import ArticleSegment from './segments/ArticleSegment'
+import QuestionSegment from './segments/QuestionSegment'
+import DocumentSegment from './segments/DocumentSegment'
+import GlossarySegment from './segments/GlossarySegment'
 import translations from './_i18n'
 
 export interface ContentEntryWindowProps extends BusinessAppContextProps {
