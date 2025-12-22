@@ -656,7 +656,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             <EmptyState type="inbox" message={getEmptyStateMessage(searchQuery, filterType)} />
           ) : (
             <>
-              <div className="gba:divide-y gba:divide-border/50" data-testid="inbox-task-list">
+              <div data-testid="inbox-task-list">
                 {filteredTasks.map(task => (
                   <TaskCard
                     key={task.id}
@@ -704,7 +704,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         className={`gba:flex gba:flex-col gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
           selectedTask
             ? 'gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
-            : 'gba:hidden gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
+            : 'gba:hidden gba:lg:flex gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
         }`}
       >
         {selectedTask && (
