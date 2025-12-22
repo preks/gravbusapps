@@ -235,9 +235,13 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
       const expenseRule = result.ExpenseRule?.[0]
       const setups = expenseRule?.expenseRuleAllowanceSetup || []
-      
-      console.log('🔍 Fetched allowance setups (should exclude isDeleted=true):', setups.length, setups.map((s: any) => ({ id: s.id, name: s.name })))
-      
+
+      console.log(
+        '🔍 Fetched allowance setups (should exclude isDeleted=true):',
+        setups.length,
+        setups.map((s: any) => ({ id: s.id, name: s.name }))
+      )
+
       const periods = expenseRule?.expenseRuleAllowancePeriod || []
       const codes = expenseRule?.expenseRuleAllowanceCode || []
 
@@ -353,7 +357,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     setIsDeleting(true)
     try {
       console.log('🗑️ Deleting allowance setup:', itemToDelete.id, itemToDelete.name)
-      
+
       const response = await expenseSettingsClient.deleteExpenseRuleAllowanceSetup(
         itemToDelete.id,
         itemToDelete.version
@@ -363,7 +367,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       toast.success('Allowance setup deleted successfully')
       setDeleteDialogOpen(false)
       setItemToDelete(null)
-      
+
       // Wait a bit for the backend to process the delete
       await new Promise(resolve => setTimeout(resolve, 500))
       console.log('🔄 Refreshing allowance setups...')
@@ -392,22 +396,22 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       }
 
       // Check if validFrom is within rule's validity period
-      if (activeFrom && dayjs(formValues.validFrom).isBefore(dayjs(activeFrom))) {
+      if (activeFrom && dayjs(formValues.validFrom).isBefore(dayjs(activeFrom), 'day')) {
         setValidityError(`Valid From must be on or after ${dayjs(activeFrom).format('DD/MM/YYYY')} (rule start date)`)
         setIsSaving(false)
         return
       }
 
       // Check if validTo is within rule's validity period
-      if (activeTo && formValues.validTo && dayjs(formValues.validTo).isAfter(dayjs(activeTo))) {
+      if (activeTo && formValues.validTo && dayjs(formValues.validTo).isAfter(dayjs(activeTo), 'day')) {
         setValidityError(`Valid To must be on or before ${dayjs(activeTo).format('DD/MM/YYYY')} (rule end date)`)
         setIsSaving(false)
         return
       }
 
       // Check if validFrom is before validTo
-      if (formValues.validTo && dayjs(formValues.validFrom).isAfter(dayjs(formValues.validTo))) {
-        setValidityError('Valid From must be before Valid To')
+      if (formValues.validTo && dayjs(formValues.validFrom).isAfter(dayjs(formValues.validTo), 'day')) {
+        setValidityError('Valid From must be on or before Valid To')
         setIsSaving(false)
         return
       }
@@ -798,7 +802,18 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                 render={({ field }) => (
                   <FormItem data-testid="allowance-setup-code-field">
                     <FormLabel data-testid="allowance-setup-code-label">Allowance Code *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                    <Select
+                      value={field.value}
+                      onValueChange={value => {
+                        field.onChange(value)
+                        // Auto-populate name field with selected allowance code's name
+                        const selectedCode = allowanceCodes.find(code => code.id === value)
+                        if (selectedCode && !editingItem) {
+                          form.setValue('name', selectedCode.name)
+                        }
+                      }}
+                      disabled={isRestrictedEdit}
+                    >
                       <FormControl>
                         <SelectTrigger data-testid="allowance-setup-code-select">
                           <SelectValue placeholder="Select allowance code" />
@@ -833,7 +848,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                       <Input
                         {...field}
                         disabled={isRestrictedEdit}
-                        placeholder="e.g., Full Day Setup"
+                        placeholder="there is no name to be entered"
                         data-testid="allowance-setup-name-input"
                       />
                     </FormControl>

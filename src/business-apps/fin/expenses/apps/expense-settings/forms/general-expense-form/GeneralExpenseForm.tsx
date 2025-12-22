@@ -28,6 +28,7 @@ import {
 } from '@newwork/nw-design-system'
 import { PiWarning } from 'react-icons/pi'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import { createGeneralExpenseFormSchema, type GeneralExpenseFormSchema } from '../../schemas'
 
@@ -82,6 +83,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
   onCancel
 }) => {
   const catalogClient = useCatalogManagerClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [isSaving, setIsSaving] = useState(false)
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
@@ -227,11 +229,74 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
       }
     }
 
+    // Check for code uniqueness in the validity period
     setIsSaving(true)
     try {
+      const codeExists = await checkCodeUniqueness(data.code, data.activeFrom, data.activeTo, editingItem?.id)
+      if (codeExists) {
+        form.setError('code', {
+          type: 'manual',
+          message: 'An expense with this code already exists in the specified validity period'
+        })
+        return
+      }
+
       await onSave({ ...data, additionalProperties })
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  // Check if code is unique within the validity period
+  const checkCodeUniqueness = async (
+    code: string,
+    activeFrom: string,
+    activeTo: string | undefined,
+    excludeId?: string
+  ): Promise<boolean> => {
+    try {
+      const query = `
+        query CheckCodeUniqueness($ruleId: uuid!, $code: String!, $activeFrom: timestamptz!, $activeTo: timestamptz, $excludeId: uuid) {
+          ExpenseRuleGeneralExpense(
+            where: {
+              expenseRuleId: { _eq: $ruleId }
+              code: { _eq: $code }
+              isDeleted: { _eq: false }
+              id: { _neq: $excludeId }
+              _and: [
+                # Check if periods overlap: new start <= existing end (or null) AND new end >= existing start
+                { activeFrom: { _lte: $activeTo } }
+                {
+                  _or: [
+                    { activeTo: { _is_null: true } }
+                    { activeTo: { _gte: $activeFrom } }
+                  ]
+                }
+              ]
+            }
+          ) {
+            id
+            code
+            activeFrom
+            activeTo
+          }
+        }
+      `
+
+      const result = await graphqlClient.request<{
+        ExpenseRuleGeneralExpense: { id: string; code: string; activeFrom: string; activeTo?: string }[]
+      }>(query, {
+        ruleId,
+        code,
+        activeFrom: dayjs(activeFrom).startOf('day').toISOString(),
+        activeTo: activeTo ? dayjs(activeTo).endOf('day').toISOString() : '9999-12-31T23:59:59.999Z',
+        excludeId: excludeId || null
+      })
+
+      return result.ExpenseRuleGeneralExpense.length > 0
+    } catch (error) {
+      console.error('Error checking code uniqueness:', error)
+      return false // Allow save on error for now
     }
   }
 
