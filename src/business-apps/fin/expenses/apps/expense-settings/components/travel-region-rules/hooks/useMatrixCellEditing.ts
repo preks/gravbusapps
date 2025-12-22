@@ -183,13 +183,26 @@ export const useMatrixCellEditing = ({
         setEditingCellId(null)
         setEditingCellUsageInfo(null)
 
-        // Update the cell in place with the new version from response (no full reload)
+        // Update the cell in place with the new ID and version from response
         setEditableCells(prev =>
-          prev.map(c =>
-            c.id === cell.id && c.validityPeriodId === cell.validityPeriodId
-              ? { ...c, isModified: false, version: response.data?.version || c.version }
-              : c
-          )
+          prev.map(c => {
+            // For new cells (INSERT), match by validityPeriodId since id is undefined
+            // For existing cells (UPDATE), match by both id and validityPeriodId
+            const isMatchingCell = cell.id
+              ? c.id === cell.id && c.validityPeriodId === cell.validityPeriodId
+              : c.validityPeriodId === cell.validityPeriodId
+
+            if (isMatchingCell) {
+              return {
+                ...c,
+                id: response.data?.id || c.id, // Update with new ID from INSERT
+                isNew: false, // No longer a new cell after successful save
+                isModified: false,
+                version: response.data?.version || c.version
+              }
+            }
+            return c
+          })
         )
       } catch (error) {
         console.error('Error saving cell:', error)
