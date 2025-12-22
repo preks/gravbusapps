@@ -136,6 +136,55 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   // Task inputs for passing to remote screen loaders
   const taskInputs = task?.sourceMetadata?.inputs || task?.inputs
 
+  // Memoize additionalData to prevent unnecessary re-renders of RemoteScreenLoader
+  // This prevents infinite GraphQL query loops in child components
+  const nativeScreenAdditionalData = React.useMemo(
+    () => ({
+      // Task-level data for forms like ScheduledTaskResult
+      message: task?.message,
+      title: task?.title || task?.name,
+      tags: task?.tags,
+      scheduledAt: task?.scheduledAt,
+      dueDate: task?.dueDate,
+      // Workflow metadata
+      psi_taskPayload: taskInputs,
+      psi_processMetadata: task?.sourceMetadata,
+      psi_taskStatus: task?.status,
+      psi_availableActions: task?.availableActions,
+      psi_flowStepData: currentStepData,
+      psi_flowOverview: flowOverview,
+      psi_currentStep: currentStep
+    }),
+    [
+      task?.message,
+      task?.title,
+      task?.name,
+      task?.tags,
+      task?.scheduledAt,
+      task?.dueDate,
+      taskInputs,
+      task?.sourceMetadata,
+      task?.status,
+      task?.availableActions,
+      currentStepData,
+      flowOverview,
+      currentStep
+    ]
+  )
+
+  const lowcoderScreenAdditionalData = React.useMemo(
+    () => ({
+      psi_taskPayload: taskInputs,
+      psi_processMetadata: task?.sourceMetadata,
+      psi_taskStatus: task?.status,
+      psi_availableActions: task?.availableActions,
+      psi_flowStepData: currentStepData,
+      psi_flowOverview: flowOverview,
+      psi_currentStep: currentStep
+    }),
+    [taskInputs, task?.sourceMetadata, task?.status, task?.availableActions, currentStepData, flowOverview, currentStep]
+  )
+
   // Check if this is a blink (quick-task) - MUST be before early return
   const isBlinkTask = task?.source === 'cflow' && task?.tags?.app === 'quick-task'
 
@@ -380,22 +429,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           version={screenMetadata.version}
           accessToken={accessToken}
           userInfo={userInfo}
-          additionalData={{
-            // Task-level data for forms like ScheduledTaskResult
-            message: task.message,
-            title: task.title || task.name,
-            tags: task.tags,
-            scheduledAt: task.scheduledAt,
-            dueDate: task.dueDate,
-            // Workflow metadata
-            psi_taskPayload: taskInputs,
-            psi_processMetadata: task.sourceMetadata,
-            psi_taskStatus: task.status,
-            psi_availableActions: task.availableActions,
-            psi_flowStepData: currentStepData,
-            psi_flowOverview: flowOverview,
-            psi_currentStep: currentStep
-          }}
+          additionalData={nativeScreenAdditionalData}
           onClose={onClose}
           onTaskCompleted={onTaskCompleted}
           onTaskUpdated={onTaskUpdated}
@@ -412,15 +446,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           appName={screenMetadata.appName || t('task-dialog-lowcoder-screen')}
           accessToken={accessToken}
           userInfo={userInfo}
-          additionalData={{
-            psi_taskPayload: taskInputs,
-            psi_processMetadata: task.sourceMetadata,
-            psi_taskStatus: task.status,
-            psi_availableActions: task.availableActions,
-            psi_flowStepData: currentStepData,
-            psi_flowOverview: flowOverview,
-            psi_currentStep: currentStep
-          }}
+          additionalData={lowcoderScreenAdditionalData}
           onClose={onClose}
           onTaskCompleted={onTaskCompleted}
           onTaskUpdated={onTaskUpdated}

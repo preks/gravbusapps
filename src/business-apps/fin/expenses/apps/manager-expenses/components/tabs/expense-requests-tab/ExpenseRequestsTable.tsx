@@ -8,7 +8,6 @@ import {
   TableRow,
   TableCell,
   TableHead,
-  Button,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -39,6 +38,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { useExpensePlanFileService } from '../../../../personal-expenses/utils/expensePlanFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { TablePagination } from '../../../../../components'
 
 // Use shared pill classes from StatusLegend to avoid duplication
 
@@ -124,6 +124,24 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       setCurrentPage(1)
     },
     [setSearchTerm]
+  )
+
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      setCurrentPage(pagination.current)
+      setPageSize(pagination.pageSize)
+      fetchRequests(
+        searchTerm,
+        pagination.current,
+        pagination.pageSize,
+        sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
+        selectedFilters,
+        undefined,
+        primaryCurrency
+      )
+    },
+    [searchTerm, sorting, selectedFilters, primaryCurrency, fetchRequests]
   )
 
   const handleSort = useCallback(
@@ -591,187 +609,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           </Table>
         </div>
 
-        {totalCount > pageSize ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-            data-testid="expense-requests-pagination"
-          >
-            <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_list.flows_button.expense_requests',
-                'Expense Requests'
-              )}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                </p>
-                <select
-                  value={pageSize}
-                  onChange={e => {
-                    const newPageSize = Number(e.target.value)
-                    setPageSize(newPageSize)
-                    setCurrentPage(1)
-                    fetchRequests(
-                      searchTerm,
-                      1,
-                      newPageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid="expense-requests-page-size-select"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div
-                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                data-testid="expense-requests-page-info"
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                {Math.ceil(totalCount / pageSize)}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => {
-                    setCurrentPage(1)
-                    fetchRequests(
-                      searchTerm,
-                      1,
-                      pageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  disabled={currentPage === 1}
-                  data-testid="expense-requests-first-page-button"
-                >
-                  <span className="gba:sr-only">Go to first page</span>⟪
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => {
-                    const newPage = currentPage - 1
-                    setCurrentPage(newPage)
-                    fetchRequests(
-                      searchTerm,
-                      newPage,
-                      pageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  disabled={currentPage === 1}
-                  data-testid="expense-requests-previous-page-button"
-                >
-                  <span className="gba:sr-only">Go to previous page</span>⟨
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => {
-                    const newPage = currentPage + 1
-                    setCurrentPage(newPage)
-                    fetchRequests(
-                      searchTerm,
-                      newPage,
-                      pageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid="expense-requests-next-page-button"
-                >
-                  <span className="gba:sr-only">Go to next page</span>⟩
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => {
-                    const lastPage = Math.ceil(totalCount / pageSize)
-                    setCurrentPage(lastPage)
-                    fetchRequests(
-                      searchTerm,
-                      lastPage,
-                      pageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid="expense-requests-last-page-button"
-                >
-                  <span className="gba:sr-only">Go to last page</span>⟫
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : totalCount > 0 ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-            data-testid="expense-requests-pagination-info-single-page"
-          >
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {`${totalCount} ${getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_list.flows_button.expense_requests',
-                'Expense Requests'
-              )}`}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-              </p>
-              <select
-                value={pageSize}
-                onChange={e => {
-                  const newPageSize = Number(e.target.value)
-                  setPageSize(newPageSize)
-                  setCurrentPage(1)
-                  fetchRequests(
-                    searchTerm,
-                    1,
-                    newPageSize,
-                    sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                    selectedFilters,
-                    undefined,
-                    primaryCurrency
-                  )
-                }}
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                data-testid="expense-requests-page-size-select-single"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-        ) : null}
+        <TablePagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={totalCount}
+          onPageChange={handleTablePaginationChange}
+          entityNamePlural={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_list.flows_button.expense_requests',
+            'Expense Requests'
+          )}
+          dataTestIdPrefix="expense-requests"
+        />
       </div>
     )
   }, [requests, isLoading, error, totalCount, pageSize, currentPage, hasActiveFilters])
