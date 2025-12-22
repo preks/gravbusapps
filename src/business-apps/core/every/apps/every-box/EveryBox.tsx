@@ -293,39 +293,39 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
           data-testid={`${prefixDataTestId}-container`}
         >
           {/* Max-width wrapper like PageLayout's layout-content */}
-          <div className="gba:max-w-[1440px] gba:w-full gba:mx-auto gba:h-full gba:px-4 md:gba:px-6">
+          <div className="gba:max-w-[1440px] gba:w-full gba:mx-auto gba:h-full gba:px-3 gba:sm:px-4 gba:lg:px-6">
             <div className="gba:h-full gba:flex gba:flex-col gba:relative">
               <Card className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:border-0 gba:shadow-none">
                 <CardContent className="gba:p-0 gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
                   {/* Floating Header - Absolute positioned to not take vertical space */}
-                  <div className="gba:absolute gba:top-2 gba:left-0 gba:right-0 gba:z-10 gba:flex gba:items-center gba:justify-between gba:px-6">
+                  <div className="gba:absolute gba:top-2 gba:left-0 gba:right-0 gba:z-10 gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-3 gba:sm:px-4 gba:lg:px-6">
                     <h1
-                      className="gba:text-lg gba:font-bold gba:text-foreground"
+                      className="gba:text-base gba:sm:text-lg gba:font-bold gba:text-foreground gba:truncate"
                       data-testid={`${prefixDataTestId}-title`}
                     >
                       {t('every-box-title')}
                     </h1>
 
-                    {/* Blink Button - Aligned with content right edge */}
+                    {/* Blink Button - Icon-only on mobile, with text on tablet+ */}
                     <Button
                       onClick={() => setIsQuickTaskModalOpen(true)}
-                      className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg"
+                      className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg gba:flex-shrink-0"
                       size="sm"
                       data-testid={`${prefixDataTestId}-blink-button`}
                     >
-                      <Zap className="gba:h-4 gba:w-4 gba:mr-2" />
-                      {t('every-box-blink-button')}
+                      <Zap className="gba:h-4 gba:w-4 gba:sm:mr-2" />
+                      <span className="gba:hidden gba:sm:inline">{t('every-box-blink-button')}</span>
                     </Button>
                   </div>
 
-                  {/* Tabs - Pill-shaped segmented control style */}
+                  {/* Tabs - Pill-shaped segmented control style, responsive */}
                   <Tabs
                     value={activeTab}
                     onValueChange={handleTabChange}
                     className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:pt-10"
                     data-testid={`${prefixDataTestId}-tabs`}
                   >
-                    <TabsList className="gba:mb-4 gba:flex-shrink-0 gba:ml-6">
+                    <TabsList className="gba:mb-4 gba:flex-shrink-0 gba:ml-3 gba:sm:ml-4 gba:lg:ml-6">
                       <TabsTrigger
                         value="inbox"
                         data-testid={`${prefixDataTestId}-inbox-tab`}

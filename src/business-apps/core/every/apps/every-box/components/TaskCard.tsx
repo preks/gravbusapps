@@ -359,9 +359,9 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             )}
           </Avatar>
 
-          {/* 3. Creator name - 2 lines allowed */}
+          {/* 3. Creator name - single line truncated */}
           <span
-            className="gba:text-xs gba:font-medium gba:text-foreground gba:w-[140px] gba:flex-shrink-0 gba:line-clamp-2 gba:leading-tight"
+            className="gba:text-xs gba:font-medium gba:text-foreground gba:w-[140px] gba:flex-shrink-0 gba:truncate"
             data-testid="task-creator-name"
           >
             {creatorName}

@@ -510,11 +510,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:gap-3 gba:h-full gba:overflow-hidden gba:px-6" data-testid="inbox-view">
-      {/* Master Panel - Task List */}
+    <div className="gba:flex gba:h-full gba:overflow-hidden" data-testid="inbox-view">
+      {/* Master Panel - Task List (hidden on mobile/tablet when task selected) */}
       <div
-        className={`gba:flex gba:flex-col gba:gap-3 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
-          selectedTask ? 'gba:w-[40%]' : 'gba:w-full'
+        className={`gba:gap-3 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
+          selectedTask
+            ? 'gba:hidden gba:lg:flex gba:lg:flex-col gba:lg:w-[calc(40%-12px)] gba:lg:flex-shrink-0'
+            : 'gba:flex gba:flex-col gba:w-full'
         }`}
       >
         {/* New Tasks Notification Banner */}
@@ -578,8 +580,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
 
         {/* Task Type Filters */}
-        <ScrollArea className="gba:-mx-3">
-          <div className="gba:px-3">
+        <div className="gba:px-3">
+          <ScrollArea className="gba:-mx-3">
             <TabSwitch value={filterType} onValueChange={value => setFilterType(value as TaskFilterType)}>
               <TabSwitchList data-testid="inbox-filter-buttons">
                 <TabSwitchTrigger
@@ -636,9 +638,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 </TabSwitchTrigger>
               </TabSwitchList>
             </TabSwitch>
-          </div>
-          <ScrollBar orientation="horizontal" className="gba:opacity-50" />
-        </ScrollArea>
+            <ScrollBar orientation="horizontal" className="gba:opacity-50" />
+          </ScrollArea>
+        </div>
 
         {/* Error Alert */}
         {currentError && (
@@ -697,12 +699,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
       </div>
 
-      {/* Detail Panel - Task Details */}
+      {/* Detail Panel - Task Details (full-width on mobile/tablet, 60% on desktop ≥1024px) */}
       <div
-        className={`gba:flex-1 gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
+        className={`gba:flex gba:flex-col gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
           selectedTask
-            ? 'gba:translate-x-0 gba:opacity-100 gba:w-[60%]'
-            : 'gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
+            ? 'gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
+            : 'gba:hidden gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
         }`}
       >
         {selectedTask && (

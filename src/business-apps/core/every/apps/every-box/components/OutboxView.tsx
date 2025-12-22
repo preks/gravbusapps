@@ -18,6 +18,8 @@ import {
   TabSwitchList,
   TabSwitchTrigger,
   TabSwitchBadge,
+  ScrollArea,
+  ScrollBar,
   useTranslation,
   useLocale
 } from '@newwork/nw-design-system'
@@ -269,11 +271,11 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
   }
 
   return (
-    <div className="gba:flex gba:gap-4 gba:h-full gba:overflow-hidden gba:px-6" data-testid="outbox-view">
-      {/* Master Panel - Flow List */}
+    <div className="gba:flex gba:h-full gba:overflow-hidden" data-testid="outbox-view">
+      {/* Master Panel - Flow List (hidden on mobile/tablet when flow selected) */}
       <div
         className={`gba:flex gba:flex-col gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
-          selectedFlow ? 'gba:w-[45%]' : 'gba:w-full'
+          selectedFlow ? 'gba:hidden gba:lg:flex gba:lg:w-[calc(40%-12px)]' : 'gba:w-full'
         }`}
       >
         {/* Search and Actions */}
@@ -312,40 +314,37 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         </div>
 
         {/* Flow Type Filters */}
-        <div
-          className="gba:overflow-x-auto gba:overflow-y-hidden gba:-mx-3 gba:px-3"
-          style={{
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'var(--nw-border) transparent'
-          }}
-        >
-          <TabSwitch value={filterType} onValueChange={value => setFilterType(value as FlowFilterType)}>
-            <TabSwitchList data-testid="outbox-filters">
-              <TabSwitchTrigger
-                value="all"
-                data-testid="outbox-filter-all"
-                endAdornment={<TabSwitchBadge>{flowCounts.all}</TabSwitchBadge>}
-              >
-                {t('outbox-filter-all')}
-              </TabSwitchTrigger>
-              <TabSwitchTrigger
-                value="blinks"
-                data-testid="outbox-filter-blinks"
-                startIcon={<Zap className="gba:h-4 gba:w-4" />}
-                endAdornment={<TabSwitchBadge>{flowCounts.blinks}</TabSwitchBadge>}
-              >
-                {t('outbox-filter-blinks')}
-              </TabSwitchTrigger>
-              <TabSwitchTrigger
-                value="requests"
-                data-testid="outbox-filter-requests"
-                startIcon={<FileText className="gba:h-4 gba:w-4" />}
-                endAdornment={<TabSwitchBadge>{flowCounts.requests}</TabSwitchBadge>}
-              >
-                {t('outbox-filter-requests')}
-              </TabSwitchTrigger>
-            </TabSwitchList>
-          </TabSwitch>
+        <div className="gba:px-3">
+          <ScrollArea className="gba:-mx-3">
+            <TabSwitch value={filterType} onValueChange={value => setFilterType(value as FlowFilterType)}>
+              <TabSwitchList data-testid="outbox-filters">
+                <TabSwitchTrigger
+                  value="all"
+                  data-testid="outbox-filter-all"
+                  endAdornment={<TabSwitchBadge>{flowCounts.all}</TabSwitchBadge>}
+                >
+                  {t('outbox-filter-all')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="blinks"
+                  data-testid="outbox-filter-blinks"
+                  startIcon={<Zap className="gba:h-4 gba:w-4" />}
+                  endAdornment={<TabSwitchBadge>{flowCounts.blinks}</TabSwitchBadge>}
+                >
+                  {t('outbox-filter-blinks')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="requests"
+                  data-testid="outbox-filter-requests"
+                  startIcon={<FileText className="gba:h-4 gba:w-4" />}
+                  endAdornment={<TabSwitchBadge>{flowCounts.requests}</TabSwitchBadge>}
+                >
+                  {t('outbox-filter-requests')}
+                </TabSwitchTrigger>
+              </TabSwitchList>
+            </TabSwitch>
+            <ScrollBar orientation="horizontal" className="gba:opacity-50" />
+          </ScrollArea>
         </div>
 
         {/* Error Alert */}
@@ -379,12 +378,12 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         </div>
       </div>
 
-      {/* Detail Panel - Flow Details */}
+      {/* Detail Panel - Flow Details (full-width on mobile/tablet, 60% on desktop ≥1024px) */}
       <div
-        className={`gba:flex-1 gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
+        className={`gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
           selectedFlow
-            ? 'gba:translate-x-0 gba:opacity-100 gba:w-[55%]'
-            : 'gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
+            ? 'gba:flex gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:translate-x-0 gba:opacity-100'
+            : 'gba:hidden gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
         }`}
       >
         {selectedFlow && <FlowDetailDialog flow={selectedFlow} onClose={handleCloseFlow} accessToken={accessToken} />}
