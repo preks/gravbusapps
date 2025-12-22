@@ -24,8 +24,8 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Custom toast function
-const toast = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`[${type.toUpperCase()}] ${message}`)
+const toast = () => {
+  // Placeholder for toast functionality
 }
 
 export interface TravelRegionSetFormData {
@@ -141,8 +141,6 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
           }
         ]
       }
-
-      console.log('🚀 Creating Travel Region Set:', catalogEntry)
 
       await catalogClient.createCatalogEntry('TravelRegionSet', 'v1', catalogEntry)
 

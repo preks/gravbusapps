@@ -104,12 +104,6 @@ export const useMatrixCellEditing = ({
         return
       }
 
-      console.log('🔍 [handleSaveSingleCell] Cell version check:', {
-        parameterCellVersion: cell.version,
-        latestCellVersion: latestCell.version,
-        usingLatest: true
-      })
-
       // Use latestCell for all operations to ensure we have the current version
       const cellToSave = latestCell
 
@@ -127,15 +121,6 @@ export const useMatrixCellEditing = ({
 
       setIsSavingCell(true)
       try {
-        console.log('💾 [handleSaveSingleCell] Starting save for cell:', {
-          cellId: cellToSave.id,
-          validityPeriodId: cellToSave.validityPeriodId,
-          amount: cellToSave.amount,
-          isNew: cellToSave.isNew,
-          isModified: cellToSave.isModified,
-          version: cellToSave.version
-        })
-
         const client = getExpenseSettingsClient()
         const rule = allowanceRegionRules.find(r => r.id === cellToSave.allowanceRegionRuleId)
 
@@ -190,8 +175,6 @@ export const useMatrixCellEditing = ({
           return
         }
 
-        console.log('💾 Saving cell with countryRef:', countryRef, 'derived from:', cellToSave.travelRegionId)
-
         // Build the detail payload
         const detailPayload = {
           allowanceRegionRuleDetail: {
@@ -209,13 +192,6 @@ export const useMatrixCellEditing = ({
         }
 
         const response = await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
-
-        console.log('✅ [handleSaveSingleCell] Full save response:', response)
-        console.log('✅ [handleSaveSingleCell] Save response:', {
-          responseId: response.allowanceRegionRuleDetail?.id,
-          responseVersion: response.allowanceRegionRuleDetail?.version,
-          cellIdBefore: cellToSave.id
-        })
 
         toast.success('Changes saved successfully')
 
@@ -248,16 +224,6 @@ export const useMatrixCellEditing = ({
                   ? response.allowanceRegionRuleDetail.version + 1
                   : (c.version || 0) + 1
               }
-
-              console.log('🔄 [handleSaveSingleCell] Updated cell in state:', {
-                oldId: c.id,
-                newId: updatedCell.id,
-                oldVersion: c.version,
-                responseVersion: response.allowanceRegionRuleDetail?.version,
-                calculatedNewVersion: updatedCell.version,
-                wasNew: c.isNew,
-                nowNew: updatedCell.isNew
-              })
 
               return updatedCell
             }

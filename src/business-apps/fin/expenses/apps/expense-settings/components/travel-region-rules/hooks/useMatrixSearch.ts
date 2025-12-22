@@ -12,13 +12,6 @@ export interface MatrixSearchActions {
   clearSearch: () => void
 }
 
-interface TravelRegion {
-  id: string
-  code: string
-  value: string
-  objectValue?: any
-}
-
 interface UseMatrixSearchOptions {
   loadTravelRegions: (page: number, limit: number, search: string) => Promise<any[]>
   loadData: () => Promise<void>
@@ -51,15 +44,11 @@ export const useMatrixSearch = (options: UseMatrixSearchOptions) => {
   // Handle search
   const handleSearch = useCallback(
     async (search: string) => {
-      console.log('🔍 handleSearch called with:', search)
       setCurrentPage(1) // Reset to first page when searching
       setIsSearching(true)
 
       try {
-        console.log('🔍 Loading regions with search term:', search)
         const regions = await loadTravelRegions(1, pageSize, search)
-
-        console.log('🔍 Searched regions:', regions.length)
 
         // Update the regions state
         const editableRegions = regions.map(region => ({

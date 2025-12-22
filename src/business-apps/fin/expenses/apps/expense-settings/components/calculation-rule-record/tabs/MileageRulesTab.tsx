@@ -969,12 +969,11 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                         <Select
                           value={field.value || ''}
                           onValueChange={value => {
-                            console.log('🔍 Mileage Rule selected:', value)
                             // Handle clearing selection
                             if (value === '__clear__') {
                               field.onChange('')
                               form.setValue('mileageRuleId', '')
-                              console.log('✅ Cleared mileage rule')
+
                               return
                             }
                             field.onChange(value)

@@ -128,19 +128,13 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
           { catalogIdentifier: 'TaxCode', version: 'v1' },
           { limit: 100, offset: 0, returnTotalRecords: true }
         )
-        console.log('[GeneralExpenseForm] Tax Code Catalog Response:', taxResponse?.data)
+
         if (taxResponse?.data) {
           const mappedTaxCodes = taxResponse.data.map((entry: any) => {
             // Extract percentage from value string (e.g., "Input tax 7%" -> 7)
             const percentMatch = entry.value.match(/(\d+(?:\.\d+)?)\s*%/)
             const taxPercentage = percentMatch ? parseFloat(percentMatch[1]) : 0
 
-            console.log('[GeneralExpenseForm] Tax Code Entry:', {
-              id: entry.id,
-              code: entry.code,
-              value: entry.value,
-              extractedPercentage: taxPercentage
-            })
             return {
               id: entry.id,
               value: entry.value,
@@ -148,7 +142,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
               taxPercentage // Store the extracted percentage
             }
           })
-          console.log('[GeneralExpenseForm] Mapped Tax Codes:', mappedTaxCodes)
+
           setTaxCodes(mappedTaxCodes as any)
         }
 
@@ -396,16 +390,13 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                     <Select
                       value={field.value}
                       onValueChange={value => {
-                        console.log('[GeneralExpenseForm] Tax Code Selected:', value)
                         field.onChange(value)
                         // Auto-populate tax value from extracted percentage
                         const selectedTaxCode = taxCodes.find(tc => tc.id === value) as any
-                        console.log('[GeneralExpenseForm] Selected Tax Code Object:', selectedTaxCode)
+
                         if (selectedTaxCode?.taxPercentage !== undefined) {
-                          console.log('[GeneralExpenseForm] Setting tax value to:', selectedTaxCode.taxPercentage)
                           form.setValue('taxValue', selectedTaxCode.taxPercentage)
                         } else {
-                          console.log('[GeneralExpenseForm] No tax percentage found, setting to 0')
                           form.setValue('taxValue', 0)
                         }
                       }}

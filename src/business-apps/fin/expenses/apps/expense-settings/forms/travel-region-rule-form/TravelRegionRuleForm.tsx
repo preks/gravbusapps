@@ -95,11 +95,10 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     const loadData = async () => {
       if (isEditing && initialData?.id) {
         // ✅ NEW: For editing, fetch fresh data from the server
-        console.log('🔄 TravelRegionRuleForm: Fetching FRESH data for ID:', initialData.id)
+
         try {
           const freshData = await fetchAllowanceRegionRuleById(initialData.id)
           if (freshData) {
-            console.log('✅ TravelRegionRuleForm: Using FRESH data from API:', freshData)
             setDataSource('fresh')
             const transformedData = {
               id: freshData.id,
@@ -132,7 +131,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
           }
         } catch (error) {
           console.error('❌ TravelRegionRuleForm: Failed to load fresh travel region rule data:', error)
-          console.log('⚠️ TravelRegionRuleForm: Falling back to STALE list data')
+
           setDataSource('stale')
           // Continue with fallback to initial data
         }
@@ -140,10 +139,6 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
       // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
-        console.log(
-          '📝 TravelRegionRuleForm: Using initial data (could be stale list data or new item data):',
-          initialData
-        )
         // Transform the initial data to ensure amounts are in the correct format
         const transformedDetails =
           initialData.details?.map(detail => {
