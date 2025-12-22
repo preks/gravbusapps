@@ -780,11 +780,13 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                           data-testid="austrian-abroad-checkbox"
                           checked={formData.austrianAbroad}
                           onCheckedChange={checked => {
-                            if (checked) {
-                              setFormData({ ...formData, austrianAbroad: true, romanianCalculation: false })
-                            } else {
-                              setFormData({ ...formData, austrianAbroad: false })
-                            }
+                            // When turning ON, turn OFF the other one (mutually exclusive)
+                            // When turning OFF, just turn OFF (both can be OFF)
+                            setFormData({
+                              ...formData,
+                              austrianAbroad: checked,
+                              romanianCalculation: checked ? false : formData.romanianCalculation
+                            })
                           }}
                         />
                         <Label htmlFor="austrianAbroad">Austrian Calculation</Label>
@@ -796,11 +798,13 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                           data-testid="romanian-calculation-checkbox"
                           checked={formData.romanianCalculation}
                           onCheckedChange={checked => {
-                            if (checked) {
-                              setFormData({ ...formData, romanianCalculation: true, austrianAbroad: false })
-                            } else {
-                              setFormData({ ...formData, romanianCalculation: false })
-                            }
+                            // When turning ON, turn OFF the other one (mutually exclusive)
+                            // When turning OFF, just turn OFF (both can be OFF)
+                            setFormData({
+                              ...formData,
+                              romanianCalculation: checked,
+                              austrianAbroad: checked ? false : formData.austrianAbroad
+                            })
                           }}
                         />
                         <Label htmlFor="romanianCalculation">Romanian Calculation</Label>
