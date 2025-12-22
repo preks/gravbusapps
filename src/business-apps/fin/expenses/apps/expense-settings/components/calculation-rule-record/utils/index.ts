@@ -1,7 +1,8 @@
 export { validateAmountAndPercentage, validateAllowanceCodeDates } from './allowanceCodeValidation'
 export type { DateValidationError } from './allowanceCodeValidation'
 export {
-  transformAllowanceCodeForUpdate,
+  transformAllowanceCodeForUnrestrictedUpdate,
+  transformAllowanceCodeForRestrictedUpdate,
   transformAllowanceCodeForCreate,
   transformAllowanceCodeFromAPI
 } from './allowanceCodeTransformers'

@@ -121,21 +121,6 @@ export const transformAllowanceCodeForRestrictedUpdate = (
 }
 
 /**
- * @deprecated Use transformAllowanceCodeForUnrestrictedUpdate or transformAllowanceCodeForRestrictedUpdate instead
- * Transforms form values to save data for UPDATE operation
- */
-export const transformAllowanceCodeForUpdate = (
-  formValues: AllowanceCodeFormValues,
-  editingItem: any,
-  ruleId: string,
-  isRestrictedEdit: boolean
-): AllowanceCodeSaveData => {
-  return isRestrictedEdit
-    ? transformAllowanceCodeForRestrictedUpdate(formValues, editingItem, ruleId)
-    : transformAllowanceCodeForUnrestrictedUpdate(formValues, editingItem, ruleId)
-}
-
-/**
  * Transforms form values to save data for CREATE operation
  */
 export const transformAllowanceCodeForCreate = (

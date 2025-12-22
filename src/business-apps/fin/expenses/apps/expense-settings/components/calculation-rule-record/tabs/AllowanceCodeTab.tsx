@@ -67,7 +67,8 @@ import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import {
   validateAmountAndPercentage,
   validateAllowanceCodeDates,
-  transformAllowanceCodeForUpdate,
+  transformAllowanceCodeForUnrestrictedUpdate,
+  transformAllowanceCodeForRestrictedUpdate,
   transformAllowanceCodeForCreate,
   transformAllowanceCodeFromAPI
 } from '../utils'
@@ -551,7 +552,9 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       // Build saveData based on edit mode
       const isUpdate = !!editingItem
       const saveData = isUpdate
-        ? transformAllowanceCodeForUpdate(formValues, editingItem, ruleId, isRestrictedEdit)
+        ? isRestrictedEdit
+          ? transformAllowanceCodeForRestrictedUpdate(formValues, editingItem, ruleId)
+          : transformAllowanceCodeForUnrestrictedUpdate(formValues, editingItem, ruleId)
         : transformAllowanceCodeForCreate(formValues, ruleId)
 
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
