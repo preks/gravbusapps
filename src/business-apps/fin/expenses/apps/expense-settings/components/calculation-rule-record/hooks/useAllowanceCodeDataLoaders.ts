@@ -76,14 +76,6 @@ export const useAllowanceCodeDataLoaders = ({ ruleId, accessToken }: UseAllowanc
 
       const transformedCodes = codes.map(transformAllowanceCodeFromAPI)
 
-      console.log(
-        '🔍 [AllowanceCodeTab] Fetched codes with percentage:',
-        transformedCodes.map(c => ({
-          code: c.code,
-          firstAllowanceRegionRulePercent: c.firstAllowanceRegionRulePercent
-        }))
-      )
-
       return transformedCodes
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load allowance codes'

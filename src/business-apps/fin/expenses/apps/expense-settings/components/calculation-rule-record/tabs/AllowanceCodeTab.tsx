@@ -350,14 +350,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
       const transformedCodes: AllowanceCode[] = codes.map(transformAllowanceCodeFromAPI)
 
-      console.log(
-        '🔍 [AllowanceCodeTab] Fetched codes with percentage:',
-        transformedCodes.map(c => ({
-          code: c.code,
-          firstAllowanceRegionRulePercent: c.firstAllowanceRegionRulePercent
-        }))
-      )
-
       setAllowanceCodes(transformedCodes)
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to load allowance codes')

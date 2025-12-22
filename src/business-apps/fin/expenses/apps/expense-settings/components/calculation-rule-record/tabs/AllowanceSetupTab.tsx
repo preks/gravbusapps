@@ -242,12 +242,6 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       const expenseRule = result.ExpenseRule?.[0]
       const setups = expenseRule?.expenseRuleAllowanceSetup || []
 
-      console.log(
-        '🔍 Fetched allowance setups (should exclude isDeleted=true):',
-        setups.length,
-        setups.map((s: any) => ({ id: s.id, name: s.name }))
-      )
-
       const periods = expenseRule?.expenseRuleAllowancePeriod || []
       const codes = expenseRule?.expenseRuleAllowanceCode || []
 
@@ -362,13 +356,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
     setIsDeleting(true)
     try {
-      console.log('🗑️ Deleting allowance setup:', itemToDelete.id, itemToDelete.name)
-
-      const response = await expenseSettingsClient.deleteExpenseRuleAllowanceSetup(
-        itemToDelete.id,
-        itemToDelete.version
-      )
-      console.log('🗑️ Delete response:', response)
+      await expenseSettingsClient.deleteExpenseRuleAllowanceSetup(itemToDelete.id, itemToDelete.version)
 
       toast.success('Allowance setup deleted successfully')
       setDeleteDialogOpen(false)
@@ -376,9 +364,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
       // Wait a bit for the backend to process the delete
       await new Promise(resolve => setTimeout(resolve, 500))
-      console.log('🔄 Refreshing allowance setups...')
       await fetchAllowanceSetups()
-      console.log('✅ Refresh complete')
     } catch (err) {
       toast.error('Failed to delete allowance setup')
       console.error('❌ Delete error:', err)
