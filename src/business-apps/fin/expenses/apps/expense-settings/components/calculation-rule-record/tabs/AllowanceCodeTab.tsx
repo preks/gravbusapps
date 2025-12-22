@@ -551,11 +551,15 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
       // Build saveData based on edit mode
       const isUpdate = !!editingItem
-      const saveData = isUpdate
-        ? isRestrictedEdit
+      let saveData: AllowanceCodeSaveData
+
+      if (isUpdate) {
+        saveData = isRestrictedEdit
           ? transformAllowanceCodeForRestrictedUpdate(formValues, editingItem, ruleId)
           : transformAllowanceCodeForUnrestrictedUpdate(formValues, editingItem, ruleId)
-        : transformAllowanceCodeForCreate(formValues, ruleId)
+      } else {
+        saveData = transformAllowanceCodeForCreate(formValues, ruleId)
+      }
 
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
       toast.success(`Allowance code ${editingItem ? 'updated' : 'created'} successfully`)
