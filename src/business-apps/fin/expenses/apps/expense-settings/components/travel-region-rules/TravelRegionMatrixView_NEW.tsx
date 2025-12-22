@@ -43,7 +43,13 @@ import {
   useMatrixModals,
   useDetailUsageValidation
 } from './hooks'
-import { EditableCell, EditableTravelRegion, EditableAllowanceRegionRule, ValidityPeriod, CurrencyOption } from './types'
+import {
+  EditableCell,
+  EditableTravelRegion,
+  EditableAllowanceRegionRule,
+  ValidityPeriod,
+  CurrencyOption
+} from './types'
 import { formatDate, formatPeriodShort } from './utils/matrixFormatters'
 import { convertToEditableCells, validateCurrencies } from './utils/matrixDataTransformers'
 import { regionHasSavedDetails as checkRegionHasSavedDetails } from './utils/matrixValidation'
@@ -51,13 +57,6 @@ import dayjs from 'dayjs'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-
-interface TravelRegion {
-  id: string
-  code: string
-  value: string
-  objectValue?: any
-}
 
 interface TravelRegionMatrixViewProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -154,8 +153,11 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   }, [accessToken])
 
   // Data loaders
-  const { loadCurrencies, loadTravelRegions: loadTravelRegionsFromHook, loadAllowanceRegionRules, fetchTravelRegionCount } =
-    useMatrixDataLoaders({ accessToken, travelRegionSetId })
+  const {
+    loadCurrencies,
+    loadTravelRegions: loadTravelRegionsFromHook,
+    loadAllowanceRegionRules
+  } = useMatrixDataLoaders({ accessToken, travelRegionSetId })
 
   // Wrapper for loadTravelRegions
   const loadTravelRegions = useCallback(
@@ -673,7 +675,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
                                             onChange={date => {
                                               const dateValue = date ? `${date}T00:00:00+00:00` : ''
-                                              cellEditing.updateCellField(cell.id!, cell.validityPeriodId!, 'activeFrom', dateValue)
+                                              cellEditing.updateCellField(
+                                                cell.id!,
+                                                cell.validityPeriodId!,
+                                                'activeFrom',
+                                                dateValue
+                                              )
                                             }}
                                             disabled={isUsedInTransactions && !cell.isNew}
                                             data-testid={`${prefixDataTestId}-cell-active-from-${rule.id}-${region.id}`}
@@ -689,7 +696,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
                                             onChange={date => {
                                               const dateValue = date ? `${date}T00:00:00+00:00` : undefined
-                                              cellEditing.updateCellField(cell.id!, cell.validityPeriodId!, 'activeTo', dateValue)
+                                              cellEditing.updateCellField(
+                                                cell.id!,
+                                                cell.validityPeriodId!,
+                                                'activeTo',
+                                                dateValue
+                                              )
                                             }}
                                             data-testid={`${prefixDataTestId}-cell-active-to-${rule.id}-${region.id}`}
                                           />
@@ -706,7 +718,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.amount || ''}
                                             onChange={e => {
                                               const value = parseFloat(e.target.value) || 0
-                                              cellEditing.updateCellField(cell.id!, cell.validityPeriodId!, 'amount', value)
+                                              cellEditing.updateCellField(
+                                                cell.id!,
+                                                cell.validityPeriodId!,
+                                                'amount',
+                                                value
+                                              )
                                             }}
                                             onClick={e => e.stopPropagation()}
                                             className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"
@@ -947,6 +964,47 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                   const countryRef = region.objectValue?.destination_country_ref || undefined
                                   const eurCurrency = currencies.find(c => c.code === 'EUR')
 
+                                  // Find existing cells for this rule to inherit dates
+                                  const existingCellsForRule = editableCells.filter(
+                                    c => c.allowanceRegionRuleId === rule.id && !c.isNew
+                                  )
+
+                                  // Determine activeFrom and activeTo
+                                  let defaultActiveFrom: string
+                                  let defaultActiveTo: string | undefined
+
+                                  if (existingCellsForRule.length > 0) {
+                                    // Prefer cells with both activeFrom and activeTo set
+                                    const cellsWithDates = existingCellsForRule.filter(c => c.activeFrom && c.activeTo)
+                                    const cellToInheritFrom =
+                                      cellsWithDates.length > 0
+                                        ? cellsWithDates[cellsWithDates.length - 1]
+                                        : existingCellsForRule[existingCellsForRule.length - 1]
+
+                                    defaultActiveFrom = cellToInheritFrom.activeFrom
+                                    defaultActiveTo = cellToInheritFrom.activeTo
+
+                                    console.log('🔄 Inheriting dates from existing cell:', {
+                                      from: defaultActiveFrom,
+                                      to: defaultActiveTo,
+                                      sourceCell: cellToInheritFrom.id
+                                    })
+                                  } else {
+                                    // Inherit from the rule itself
+                                    defaultActiveFrom = rule.activeFrom
+                                      ? dayjs(rule.activeFrom).format('YYYY-MM-DD')
+                                      : todayDate
+                                    defaultActiveTo = rule.activeTo
+                                      ? dayjs(rule.activeTo).format('YYYY-MM-DD')
+                                      : undefined
+
+                                    console.log('🔄 Inheriting dates from rule:', {
+                                      from: defaultActiveFrom,
+                                      to: defaultActiveTo,
+                                      ruleId: rule.id
+                                    })
+                                  }
+
                                   const newCell: EditableCell = {
                                     id: undefined,
                                     travelRegionId: region.id,
@@ -955,13 +1013,18 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                     currencyCode: 'EUR',
                                     currencyRef: eurCurrency?.id,
                                     countryRef: countryRef,
-                                    activeFrom: todayDate,
-                                    activeTo: undefined,
+                                    activeFrom: defaultActiveFrom,
+                                    activeTo: defaultActiveTo,
                                     isNew: true,
                                     isModified: false,
                                     hasError: false,
                                     validityPeriodId: newPeriodId
                                   }
+
+                                  console.log('➕ Creating new cell with dates:', {
+                                    activeFrom: newCell.activeFrom,
+                                    activeTo: newCell.activeTo
+                                  })
 
                                   setEditableCells(prev => [...prev, newCell])
                                 }}
@@ -1046,7 +1109,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       )}
 
       {/* Rule Creation Modal */}
-      <Dialog open={modals.state.isRuleModalOpen} onOpenChange={value => !value && modals.actions.handleRuleModalCancel()}>
+      <Dialog
+        open={modals.state.isRuleModalOpen}
+        onOpenChange={value => !value && modals.actions.handleRuleModalCancel()}
+      >
         <DialogContent
           className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-hidden gba:p-0"
           data-testid={`${prefixDataTestId}-rule-creation-modal`}
@@ -1093,12 +1159,15 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               <strong>{modals.state.deleteRegionConfirmation.region?.value}</strong>?
             </p>
             {modals.state.deleteRegionConfirmation.region &&
-              editableCells.some(cell => cell.travelRegionId === modals.state.deleteRegionConfirmation.region!.id && cell.id) && (
+              editableCells.some(
+                cell => cell.travelRegionId === modals.state.deleteRegionConfirmation.region!.id && cell.id
+              ) && (
                 <div className="gba:bg-destructive-secondary gba:text-destructive gba:p-3 gba:rounded gba:text-sm">
                   ⚠️ This region has{' '}
                   {
-                    editableCells.filter(cell => cell.travelRegionId === modals.state.deleteRegionConfirmation.region!.id && cell.id)
-                      .length
+                    editableCells.filter(
+                      cell => cell.travelRegionId === modals.state.deleteRegionConfirmation.region!.id && cell.id
+                    ).length
                   }{' '}
                   allowance details. Cannot delete.
                 </div>
@@ -1126,7 +1195,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       </Dialog>
 
       {/* Edit Rule Modal */}
-      <Dialog open={modals.state.isEditRuleModalOpen} onOpenChange={value => !value && modals.actions.handleEditRuleModalCancel()}>
+      <Dialog
+        open={modals.state.isEditRuleModalOpen}
+        onOpenChange={value => !value && modals.actions.handleEditRuleModalCancel()}
+      >
         <DialogContent
           className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-hidden gba:p-0"
           data-testid={`${prefixDataTestId}-edit-rule-modal`}

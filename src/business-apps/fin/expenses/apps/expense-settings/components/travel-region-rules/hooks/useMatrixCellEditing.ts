@@ -12,8 +12,6 @@ interface UseMatrixCellEditingProps {
   setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
   setAllowanceRegionRules: React.Dispatch<React.SetStateAction<EditableAllowanceRegionRule[]>>
   checkDetailUsage: (detailId: string) => Promise<UsageInfo>
-  loadData: (travelRegionSetId: string) => Promise<void>
-  travelRegionSetId: string
   getExpenseSettingsClient: () => ExpenseSettingsClient
 }
 
@@ -25,8 +23,6 @@ export const useMatrixCellEditing = ({
   setEditableCells,
   setAllowanceRegionRules,
   checkDetailUsage,
-  loadData,
-  travelRegionSetId,
   getExpenseSettingsClient
 }: UseMatrixCellEditingProps) => {
   const [editingCellId, setEditingCellId] = useState<string | null>(null)
@@ -78,7 +74,7 @@ export const useMatrixCellEditing = ({
     (cellId: string, validityPeriodId: string, field: keyof EditableCell, value: any) => {
       setEditableCells(prev =>
         prev.map(c =>
-          c.id === cellId || c.validityPeriodId === validityPeriodId ? { ...c, [field]: value, isModified: true } : c
+          c.id === cellId && c.validityPeriodId === validityPeriodId ? { ...c, [field]: value, isModified: true } : c
         )
       )
     },
@@ -179,7 +175,7 @@ export const useMatrixCellEditing = ({
           changeMode: cell.id ? 'UPDATE' : 'INSERT'
         }
 
-        await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
+        const response = await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
 
         toast.success('Changes saved successfully')
 
@@ -187,8 +183,14 @@ export const useMatrixCellEditing = ({
         setEditingCellId(null)
         setEditingCellUsageInfo(null)
 
-        // Reload data to get updated versions
-        await loadData(travelRegionSetId)
+        // Update the cell in place with the new version from response (no full reload)
+        setEditableCells(prev =>
+          prev.map(c =>
+            c.id === cell.id && c.validityPeriodId === cell.validityPeriodId
+              ? { ...c, isModified: false, version: response.data?.version || c.version }
+              : c
+          )
+        )
       } catch (error) {
         console.error('Error saving cell:', error)
         toast.error(`Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -196,7 +198,7 @@ export const useMatrixCellEditing = ({
         setIsSavingCell(false)
       }
     },
-    [accessToken, currencies, allowanceRegionRules, loadData, travelRegionSetId, getExpenseSettingsClient]
+    [accessToken, currencies, allowanceRegionRules, getExpenseSettingsClient, setEditableCells]
   )
 
   // Cancel cell editing
