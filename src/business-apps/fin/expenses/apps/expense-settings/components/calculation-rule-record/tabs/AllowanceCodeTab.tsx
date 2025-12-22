@@ -977,8 +977,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                             if (value === '') {
                               field.onChange(0)
                             } else {
-                              const numValue = parseFloat(value)
-                              if (!isNaN(numValue)) {
+                              const numValue = Number.parseFloat(value)
+                              if (!Number.isNaN(numValue)) {
                                 field.onChange(numValue)
                               }
                             }
@@ -1084,8 +1084,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                             if (value === '' || value === '-') {
                               field.onChange(0)
                             } else {
-                              const numValue = parseFloat(value)
-                              if (!isNaN(numValue)) {
+                              const numValue = Number.parseFloat(value)
+                              if (!Number.isNaN(numValue)) {
                                 field.onChange(numValue)
                               }
                             }

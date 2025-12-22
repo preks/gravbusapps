@@ -876,9 +876,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                 {cellEditing.isSavingCell ? 'Saving...' : 'Save'}
                                               </Button>
                                               {(() => {
-                                                const shouldShowDelete =
-                                                  !cellEditing.editingCellUsageInfo ||
-                                                  !cellEditing.editingCellUsageInfo.isUsed
+                                                const shouldShowDelete = !cellEditing.editingCellUsageInfo?.isUsed
                                                 return shouldShowDelete
                                               })() && (
                                                 <Button
