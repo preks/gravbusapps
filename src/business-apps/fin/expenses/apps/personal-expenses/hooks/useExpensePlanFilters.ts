@@ -7,6 +7,7 @@ import PlanDateRangeFilter from '../components/tabs/expense-plans-tab/PlanDateRa
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import EffectiveDateRangeFilter from '../components/tabs/expense-plans-tab/EffectiveDateRangeFilter'
+import { useDebounce } from '@/common/hooks/useDebounce'
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
@@ -16,6 +17,7 @@ export enum DataFilterType {
 
 export const useExpensePlanFilters = () => {
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 200) // Reduced from 300ms for faster search response
   const [selectedFilters, setSelectedFilters] = useState<string[]>([])
   const [startDateRange, setStartDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null)
@@ -179,8 +181,10 @@ export const useExpensePlanFilters = () => {
       return dayjs(date).endOf('day').format('YYYY-MM-DD HH:mm:ss')
     }
 
-    if (search) {
-      conditions.push({ _or: [{ code: { _ilike: `%${search}%` } }, { title: { _ilike: `%${search}%` } }] })
+    if (debouncedSearch) {
+      conditions.push({
+        _or: [{ code: { _ilike: `%${debouncedSearch}%` } }, { title: { _ilike: `%${debouncedSearch}%` } }]
+      })
     }
 
     // Process status filters: include ONLY known status values; ignore currency and other tokens
@@ -254,7 +258,7 @@ export const useExpensePlanFilters = () => {
     // Always exclude DISCARDED plans at backend level for correct pagination
     conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } })
     return { _and: conditions.length > 0 ? conditions : [{}] }
-  }, [search, selectedFilters, planDateRange, startDateRange, endDateRange, effectiveDateRange])
+  }, [debouncedSearch, selectedFilters, planDateRange, startDateRange, endDateRange, effectiveDateRange])
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     setSelectedFilters(prev => (selected ? [...prev, filterId] : prev.filter(id => id !== filterId)))
@@ -406,6 +410,7 @@ export const useExpensePlanFilters = () => {
   return {
     search,
     setSearch,
+    debouncedSearch,
     selectedFilters: getAllSelectedFilters, // Return the enhanced list including date ranges
     setFilters, // Use the enhanced setFilters function
     filterGroups,

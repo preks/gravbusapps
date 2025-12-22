@@ -38,6 +38,14 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   previousMonthClosedPlans = 0,
   currencyCode = 'EUR'
 }) => {
+  // If loading, show loading skeleton immediately - don't create widgets with 0 values
+  // This prevents the "0-then-data" flicker
+  if (statsLoading) {
+    return (
+      <WidgetGroup widgets={[]} isLoading={true} error={null} skeletonCount={4} data-testid="expense-plan-statistics" />
+    )
+  }
+
   // Calculate summary statistics with memoization
   const currentMonthName = getTranslatedMonthName(new Date())
 

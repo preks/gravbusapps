@@ -10,6 +10,7 @@ import { getPlanCardStrategies, preserveCurrencyAndResetPlans } from './cardStra
 // ExpenseStatus usage moved into strategies
 import { useExpensePlanCurrencies } from '../../../hooks/useExpensePlanCurrencies'
 import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { useDebounce } from '@/common/hooks/useDebounce'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
@@ -45,9 +46,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     removeFilter
   } = useExpensePlanFilters()
 
+  const debouncedSelectedFilters = useDebounce(selectedFilters, 200) // Reduced from 300ms for faster filter response
+
   const {
     data: overview,
     isLoading: overviewLoading,
+    isStatisticsLoading,
     error: overviewError,
     fetchOverview
   } = useExpensePlansOverview(props)
@@ -55,19 +59,15 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     () => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'),
     [selectedFilters]
   )
-  const statistics = useMemo(
-    () =>
-      overview?.statistics || {
-        currentMonthTotal: 0,
-        previousMonthTotal: 0,
-        totalEstimated: 0,
-        pendingApproval: 0,
-        topDestination: 'N/A',
-        currentMonthClosedPlans: 0,
-        previousMonthClosedPlans: 0
-      },
-    [overview]
-  )
+  // Statistics should be undefined until loaded - don't default to 0 values
+  // This prevents showing "0" values before real data loads
+  const statistics = overview?.statistics
+
+  // Determine if statistics should show loading skeleton
+  // Show loading skeleton if statistics haven't loaded yet (prevents showing 0 values)
+  // Always show loading when statistics are undefined, regardless of other loading states
+  // This ensures we never show 0 values before real data loads
+  const statisticsShouldShowLoading = !statistics || isStatisticsLoading || (overviewLoading && !statistics)
   // Only apply currency filter to table data when a currency is explicitly selected (like requests tab)
   const explicitSelectedCurrencyRef = useMemo(() => {
     const token = selectedFilters.find(f => f.startsWith('currency:'))
@@ -134,7 +134,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         setEffectiveDateRange,
         handleFilterChange,
         setDestinationFilter,
-        topDestination: statistics.topDestination
+        topDestination: statistics?.topDestination || 'N/A'
       })
 
       if (isDeactivating) {
@@ -156,7 +156,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       setEndDateRange,
       handleFilterChange,
       setDestinationFilter,
-      statistics.topDestination,
+      statistics?.topDestination,
       selectedFilters,
       clearFilters,
       setFilters
@@ -239,7 +239,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
-    const baseFilters = getFilters()
+    const baseFilters = getFilters() // This now uses debouncedSearch internally
     // Filter by currency only when explicitly selected
     if (explicitSelectedCurrencyRef) {
       baseFilters._and = baseFilters._and || []
@@ -260,19 +260,29 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     }
     const finalFilters = buildWidgetFilters(baseFilters)
     return finalFilters
-  }, [getFilters, buildWidgetFilters, explicitSelectedCurrencyRef])
+  }, [getFilters, buildWidgetFilters, explicitSelectedCurrencyRef, debouncedSelectedFilters])
 
   // Only fetch when filters, page, pageSize, or sorting changes and context is ready
   useEffect(() => {
-    // Avoid initial duplicate request: if auto-select will set a currency, wait for it
-    const canFetch =
-      props.accessToken &&
-      props.userInfo?.employeeDetails?.employeeId &&
-      currencyInit &&
-      (explicitSelectedCurrencyRef || suppressCurrencyAutoSelect)
+    // Check sessionStorage first for persisted currency (synchronous, no waiting)
+    const employeeId = props.userInfo?.employeeDetails?.employeeId
+    let persistedCurrency: string | null = null
+    if (employeeId) {
+      try {
+        const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`
+        persistedCurrency = sessionStorage.getItem(storageKey)
+      } catch {
+        // ignore storage errors
+      }
+    }
+
+    const hasCurrency = explicitSelectedCurrencyRef || persistedCurrency
+    const shouldWaitForCurrency = !hasCurrency && !suppressCurrencyAutoSelect && !currencyInit
+
+    const canFetch = props.accessToken && props.userInfo?.employeeDetails?.employeeId && !shouldWaitForCurrency // Wait if we need currencyInit to determine the correct currency
 
     if (canFetch) {
-      const statsCurrency = explicitSelectedCurrencyRef || 'Currency:v1:EUR'
+      const statsCurrency = explicitSelectedCurrencyRef || persistedCurrency || 'Currency:v1:EUR'
       fetchOverview(memoizedFilters, currentPage, pageSize, sortField, sortOrder, statsCurrency)
     }
   }, [
@@ -284,9 +294,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     sortOrder,
     props.accessToken,
     props.userInfo?.employeeDetails?.employeeId,
-    currencyInit,
     explicitSelectedCurrencyRef,
-    suppressCurrencyAutoSelect
+    suppressCurrencyAutoSelect,
+    currencyInit
   ])
 
   // Reset pagination when filters change (e.g., applying a status filter while on a later page).
@@ -310,7 +320,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           const canFetch =
             props.accessToken &&
             props.userInfo?.employeeDetails?.employeeId &&
-            currencyInit &&
             (explicitSelectedCurrencyRef || suppressCurrencyAutoSelect)
 
           // Refresh overview (items + statistics) using the same guards as the main fetch effect
@@ -368,30 +377,40 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     props.accessToken,
     props.userInfo?.employeeDetails?.employeeId,
     explicitSelectedCurrencyRef,
-    currencyInit,
     suppressCurrencyAutoSelect
   ])
 
   // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
+    // Only pass statistics if they're actually loaded (not undefined)
+    const hasStatistics = !!statistics
+
     return (
       <ExpensePlanStatistics
         plans={overview?.items || []}
-        currentMonthTotal={statistics.currentMonthTotal}
-        previousMonthTotal={statistics.previousMonthTotal}
-        totalEstimated={statistics.totalEstimated}
-        pendingApproval={statistics.pendingApproval}
-        topDestination={statistics.topDestination}
-        statsLoading={overviewLoading}
+        currentMonthTotal={hasStatistics ? statistics.currentMonthTotal : 0}
+        previousMonthTotal={hasStatistics ? statistics.previousMonthTotal : 0}
+        totalEstimated={hasStatistics ? statistics.totalEstimated : 0}
+        pendingApproval={hasStatistics ? statistics.pendingApproval : 0}
+        topDestination={hasStatistics ? statistics.topDestination : 'N/A'}
+        statsLoading={statisticsShouldShowLoading}
         statsError={overviewError ? new Error(overviewError) : null}
         onWidgetClick={handleWidgetClick}
         activeWidgetKey={activeWidget ?? undefined}
-        currentMonthClosedPlans={statistics.currentMonthClosedPlans}
-        previousMonthClosedPlans={statistics.previousMonthClosedPlans}
+        currentMonthClosedPlans={hasStatistics ? statistics.currentMonthClosedPlans : 0}
+        previousMonthClosedPlans={hasStatistics ? statistics.previousMonthClosedPlans : 0}
         currencyCode={selectedCurrencyRef?.split(':').pop() || 'EUR'}
       />
     )
-  }, [overview, statistics, overviewLoading, overviewError, handleWidgetClick, activeWidget, selectedCurrencyRef])
+  }, [
+    overview,
+    statistics,
+    statisticsShouldShowLoading,
+    overviewError,
+    handleWidgetClick,
+    activeWidget,
+    selectedCurrencyRef
+  ])
 
   useEffect(() => {
     if (props.onContentHeaderChange) {
