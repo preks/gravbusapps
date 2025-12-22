@@ -20,7 +20,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     handleDataFilterChange,
     filterLabelMap,
     addFilter,
-    removeFilter
+    removeFilter,
+    setFilters
   } = useExpenseRequestFilters({
     accessToken: props.accessToken,
     managerId,
@@ -178,8 +179,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
           requestStatsError={requestStatsError}
           fetchRequestStatistics={fetchRequestStatistics}
           currencyFilter={primaryCurrency}
-          addFilter={addFilter}
-          removeFilter={removeFilter}
+          setFilters={setFilters}
           selectedFilters={selectedFilters}
         />
       </div>
