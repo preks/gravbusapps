@@ -64,6 +64,12 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import {
+  validateAllowanceSetupDates,
+  formatDateToISO,
+  transformAllowanceSetupForRestrictedUpdate,
+  transformAllowanceSetupForSave
+} from '../utils'
 
 interface AllowanceSetupTabProps {
   ruleId: string
@@ -389,73 +395,26 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       const formValues = form.getValues()
 
       // Validate validity period
-      if (!formValues.validFrom) {
-        setValidityError('Valid From date is required')
+      const validationError = validateAllowanceSetupDates(
+        formValues.validFrom,
+        formValues.validTo,
+        activeFrom,
+        activeTo
+      )
+
+      if (validationError) {
+        setValidityError(validationError.message)
         setIsSaving(false)
         return
-      }
-
-      // Check if validFrom is within rule's validity period
-      if (activeFrom && dayjs(formValues.validFrom).isBefore(dayjs(activeFrom), 'day')) {
-        setValidityError(`Valid From must be on or after ${dayjs(activeFrom).format('DD/MM/YYYY')} (rule start date)`)
-        setIsSaving(false)
-        return
-      }
-
-      // Check if validTo is within rule's validity period
-      if (activeTo && formValues.validTo && dayjs(formValues.validTo).isAfter(dayjs(activeTo), 'day')) {
-        setValidityError(`Valid To must be on or before ${dayjs(activeTo).format('DD/MM/YYYY')} (rule end date)`)
-        setIsSaving(false)
-        return
-      }
-
-      // Check if validFrom is before validTo
-      if (formValues.validTo && dayjs(formValues.validFrom).isAfter(dayjs(formValues.validTo), 'day')) {
-        setValidityError('Valid From must be on or before Valid To')
-        setIsSaving(false)
-        return
-      }
-
-      // Convert dates to ISO format for backend (expects java.time.Instant)
-      const formatDateToISO = (dateStr: string | undefined): string | undefined => {
-        if (!dateStr) return undefined
-        return dayjs(dateStr).startOf('day').toISOString()
       }
 
       // IMPORTANT: Always use editingItem for id and version when updating
-      const isUpdate = !!editingItem
+      const saveData =
+        isRestrictedEdit && editingItem
+          ? transformAllowanceSetupForRestrictedUpdate(formValues, editingItem, ruleId, formatDateToISO)
+          : transformAllowanceSetupForSave(formValues, ruleId, editingItem, formatDateToISO)
 
-      // If restricted edit, only update validTo
-      if (isRestrictedEdit && editingItem) {
-        await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
-          id: editingItem.id,
-          version: editingItem.version,
-          expenseRuleId: ruleId,
-          name: editingItem.name,
-          issue: editingItem.issue,
-          onlyTax: editingItem.onlyTax,
-          activeFrom: formatDateToISO(editingItem.validFrom),
-          activeTo: formatDateToISO(formValues.validTo),
-          allowancePeriodId: editingItem.allowancePeriod.id,
-          allowanceCodeId: editingItem.allowanceCode.id
-        })
-      } else {
-        // Full save
-        await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
-          ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
-          expenseRuleId: ruleId,
-          businessKey: undefined,
-          activeTo: formatDateToISO(formValues.validTo),
-          additionalProperties: undefined,
-          name: formValues.name,
-          issue: formValues.issue,
-          onlyTax: formValues.onlyTax,
-          activeFrom: formatDateToISO(formValues.validFrom),
-          setupOrder: undefined,
-          allowancePeriodId: formValues.allowancePeriodId,
-          allowanceCodeId: formValues.allowanceCodeId
-        })
-      }
+      await expenseSettingsClient.saveExpenseRuleAllowanceSetup(saveData)
 
       toast.success(`Allowance setup ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
