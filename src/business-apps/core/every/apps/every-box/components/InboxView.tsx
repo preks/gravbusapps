@@ -499,7 +499,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:gap-3 gba:h-full gba:overflow-hidden" data-testid="inbox-view">
+    <div className="gba:flex gba:gap-3 gba:h-full gba:overflow-hidden gba:px-6" data-testid="inbox-view">
       {/* Master Panel - Task List */}
       <div
         className={`gba:flex gba:flex-col gba:gap-3 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${

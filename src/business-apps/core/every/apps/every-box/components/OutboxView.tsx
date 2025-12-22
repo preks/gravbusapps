@@ -258,7 +258,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
   }
 
   return (
-    <div className="gba:flex gba:gap-4 gba:h-full gba:overflow-hidden" data-testid="outbox-view">
+    <div className="gba:flex gba:gap-4 gba:h-full gba:overflow-hidden gba:px-6" data-testid="outbox-view">
       {/* Master Panel - Flow List */}
       <div
         className={`gba:flex gba:flex-col gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
