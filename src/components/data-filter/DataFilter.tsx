@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { PiCaretUp, PiCaretDown } from 'react-icons/pi'
-import { Tooltip } from 'antd'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { cn } from '../../common/utils/cn'
 import { DebouncedInput } from './DebouncedInput'
 import { getTranslationFromI18nKeyAndLabel } from '../../common/utils/windowUtils'
@@ -209,19 +209,21 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         className="gba:w-4 gba:h-4 gba:text-primary-600 gba:bg-gray-100 gba:border-gray-300 gba:rounded gba:focus:ring-primary-500 gba:focus:ring-2"
                       />
                     </div>
-                    <Tooltip
-                      title={filter.label + (typeof filter.count === 'number' ? ` (${filter.count})` : '')}
-                      placement="right"
-                    >
-                      <span
-                        className={`gba:text-sm gba:text-left gba:truncate gba:block gba:max-w-[280px] ${
-                          filter.selected ? 'gba:font-medium gba:text-primary-500' : 'gba:text-gray-700'
-                        }`}
-                        data-testid={`data-filter-label-${filter.id}`}
-                      >
-                        {filter.label}
-                        {typeof filter.count === 'number' ? ` (${filter.count})` : ''}
-                      </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className={`gba:text-sm gba:text-left gba:truncate gba:block gba:max-w-[280px] ${
+                            filter.selected ? 'gba:font-medium gba:text-primary-500' : 'gba:text-gray-700'
+                          }`}
+                          data-testid={`data-filter-label-${filter.id}`}
+                        >
+                          {filter.label}
+                          {typeof filter.count === 'number' ? ` (${filter.count})` : ''}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {filter.label + (typeof filter.count === 'number' ? ` (${filter.count})` : '')}
+                      </TooltipContent>
                     </Tooltip>
                   </button>
                 ))

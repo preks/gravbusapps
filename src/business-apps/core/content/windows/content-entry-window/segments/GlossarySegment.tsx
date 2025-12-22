@@ -217,3 +217,5 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({
     </div>
   )
 }
+
+export default GlossarySegment

@@ -66,7 +66,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [error, setError] = useState<string | null>(null)
 
   // Search removed per requirements
-  const [sortKey, setSortKey] = useState<keyof TimeEntry>('startTimeISO')
+  const [sortKey, setSortKey] = useState<keyof TimeEntry>('attendanceDateISO')
   const [sortDir, setSortDir] = useState<SortDirection>('desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)

@@ -260,6 +260,16 @@ async function main() {
     process.exit(1)
   }
 
+  // Normalize no-interaction flag (handle both camelCase and kebab-case)
+  const noInteraction = argv.noInteraction || argv['no-interaction'] || false
+  const resourceMode = argv.resource || argv.r || false
+
+  if (noInteraction) {
+    console.log('🤖 Running in no-interaction mode - all prompts will be skipped')
+  } else {
+    console.log('👤 Interactive mode - prompts may appear for new screens')
+  }
+
   console.log(`Original screenPathArg: ${screenPathArg}`)
 
   // Remove leading slash if present
@@ -412,7 +422,7 @@ async function main() {
   // Handle different publishing flows for forms vs regular screens
   if (isFormScreen(screenPathArg)) {
     // For forms, use form-specific publishing flow only on first-time publish or with --resource flag
-    if ((isFirstTimePublish || argv.resource) && !argv.noInteraction) {
+    if ((isFirstTimePublish || resourceMode) && !noInteraction) {
       console.log(
         isFirstTimePublish
           ? '🆕 First time publishing this form - prompting for screen type'
@@ -421,7 +431,7 @@ async function main() {
       await handleFormScreenPublishing(azureDestinationPath)
     } else {
       console.log(
-        argv.noInteraction
+        noInteraction
           ? '⏩ Skipping form screen configuration (no-interaction mode)'
           : '⏩ Skipping form screen configuration (not first-time publish and no --resource flag)'
       )
@@ -431,7 +441,7 @@ async function main() {
     // Handle resource URL addition based on flags and first-time publish
     let shouldAddResourceUrl = false
 
-    if ((argv.resource || isFirstTimePublish) && !argv.noInteraction) {
+    if ((resourceMode || isFirstTimePublish) && !noInteraction) {
       if (isFirstTimePublish) {
         console.log('🆕 First time publishing this screen - resource URL prompt enabled')
       }
@@ -449,7 +459,7 @@ async function main() {
       shouldAddResourceUrl = addResourceUrlAnswer.shouldAdd
     } else {
       console.log(
-        argv.noInteraction
+        noInteraction
           ? '⏩ Skipping resource URL addition (no-interaction mode)'
           : '⏩ Skipping resource URL addition (direct publish mode)'
       )
@@ -466,7 +476,7 @@ async function main() {
     // Handle custom URL addition on first-time publish or if resource flag is provided
     let shouldAddCustomUrl = false
 
-    if ((isFirstTimePublish || argv.resource) && !argv.noInteraction) {
+    if ((isFirstTimePublish || resourceMode) && !noInteraction) {
       // Ask user if they want to add a custom URL
       const addCustomUrlAnswer = await inquirer.prompt([
         {
@@ -479,7 +489,7 @@ async function main() {
       shouldAddCustomUrl = addCustomUrlAnswer.shouldAdd
     } else {
       console.log(
-        argv.noInteraction
+        noInteraction
           ? '⏩ Skipping custom URL addition (no-interaction mode)'
           : '⏩ Skipping custom URL addition (not first-time publish and no --resource flag)'
       )
@@ -489,14 +499,6 @@ async function main() {
       const customUrlInput = await inquirer.prompt([
         {
           type: 'input',
-          name: 'customUrl',
-          message: 'Please enter the custom URL path (e.g., "/hr/employee-directory"):',
-          validate: input => {
-            if (input.trim() === '') {
-              return 'Path cannot be empty'
-            }
-            return true
-          },
           name: 'customUrl',
           message: 'Please enter the custom URL path (e.g., "/hr/employee-directory"):',
           validate: input => {

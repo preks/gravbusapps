@@ -179,6 +179,14 @@ label-country = Land
 label-city = Stadt
 label-currency = Währung
 
+# Benefit Summary Card Translations
+benefit-provider = Anbieter
+benefit-value-yearly = Jahreswert
+benefit-details-monthly-value = Monatswert
+current-annually = Jährlich
+current-monthly = Monatlich
+modal-request-start-date-label = Startdatum
+
 # Deactivate Employee Benefit Review Form
 deactivate-benefit-review-title = Deaktivierungsanfrage für Zusatzleistung
 deactivate-benefit-review-requested-by = Angefordert von { $initiatorName }
@@ -226,3 +234,13 @@ request-benefit-review-reject = Ablehnen
 request-benefit-review-loading = Lade Zusatzleistungsdaten...
 request-benefit-review-error-title = Daten können nicht geladen werden
 request-benefit-review-error-description = Fehler beim Laden der Mitarbeiter-Zusatzleistungsdaten
+
+# Deactivate Employee Benefit Form
+modal-deactivate-title = Mitarbeiter-Zusatzleistung deaktivieren
+modal-deactivate-end-date-label = Enddatum
+modal-deactivate-submit-button = Zusatzleistung deaktivieren
+
+# Deactivate Employee Benefit Form - Validation Messages
+error-end-date-required = Enddatum ist erforderlich. Bitte wählen Sie ein Enddatum aus.
+error-end-date-today-or-later = Das Enddatum muss heute oder später sein.
+error-end-date-after-start-date = Das Enddatum kann nicht vor dem Startdatum der Zusatzleistung liegen.

@@ -30,6 +30,8 @@ interface BenefitDetailsFooterProps {
 /**
  * Benefit Details Footer Component
  * Displays action buttons and error messages in the sheet footer
+ *
+ * Shows request button only for available benefits (not active or scheduled)
  */
 const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
   benefit,
@@ -39,10 +41,11 @@ const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
   onClose
 }) => {
   const isEmployeeIdValid = Boolean(employeeId)
+  const isAvailableBenefit = !benefit.isActive && !benefit.isScheduled
 
   return (
     <SheetFooter className="gba:mt-auto gba:px-6 gba:flex-col gba:gap-2">
-      {!benefit.isActive && (
+      {isAvailableBenefit && (
         <>
           {!isEmployeeIdValid && (
             <div
