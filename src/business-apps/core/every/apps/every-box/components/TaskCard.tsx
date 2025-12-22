@@ -337,7 +337,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
               <Avatar className="gba:h-5 gba:w-5 gba:flex-shrink-0" data-testid="task-creator-avatar-mobile">
                 {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
                 {showAvatarFallback && (
-                  <AvatarFallback className="gba:text-[9px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                  <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
                     {generateInitials(creatorName)}
                   </AvatarFallback>
                 )}

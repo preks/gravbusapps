@@ -408,7 +408,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
       const nextIndex = getNextTaskIndex(currentIndex, direction, tasksToNavigate.length - 1)
       const nextTask = tasksToNavigate[nextIndex]
 
-      if (nextTask) {
+      // Don't call handleSelectTask if we're at a boundary and the task hasn't changed
+      // This prevents the toggle logic from deselecting the current task
+      if (nextTask && nextTask.id !== selectedTask.id) {
         handleSelectTask(nextTask)
       }
     }
