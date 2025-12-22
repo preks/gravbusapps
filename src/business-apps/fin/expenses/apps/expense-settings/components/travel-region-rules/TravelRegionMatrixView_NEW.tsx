@@ -983,12 +983,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
                                     defaultActiveFrom = cellToInheritFrom.activeFrom
                                     defaultActiveTo = cellToInheritFrom.activeTo
-
-                                    console.log('🔄 Inheriting dates from existing cell:', {
-                                      from: defaultActiveFrom,
-                                      to: defaultActiveTo,
-                                      sourceCell: cellToInheritFrom.id
-                                    })
                                   } else {
                                     // Inherit from the rule itself
                                     defaultActiveFrom = rule.activeFrom
@@ -1020,11 +1014,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                     hasError: false,
                                     validityPeriodId: newPeriodId
                                   }
-
-                                  console.log('➕ Creating new cell with dates:', {
-                                    activeFrom: newCell.activeFrom,
-                                    activeTo: newCell.activeTo
-                                  })
 
                                   setEditableCells(prev => [...prev, newCell])
                                 }}

@@ -880,12 +880,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                 const shouldShowDelete =
                                                   !cellEditing.editingCellUsageInfo ||
                                                   !cellEditing.editingCellUsageInfo.isUsed
-                                                console.log('Delete button visibility:', {
-                                                  cellId: cell.id,
-                                                  shouldShowDelete,
-                                                  editingCellUsageInfo: cellEditing.editingCellUsageInfo,
-                                                  isUsed: cellEditing.editingCellUsageInfo?.isUsed
-                                                })
                                                 return shouldShowDelete
                                               })() && (
                                                 <Button

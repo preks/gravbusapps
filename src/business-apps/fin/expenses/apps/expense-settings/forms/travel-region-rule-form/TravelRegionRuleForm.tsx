@@ -246,19 +246,14 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
   // Update amount in group
   const updateAmount = (groupKey: string, amountIndex: number, value: string) => {
-    console.log('🔍 updateAmount called with groupKey:', groupKey)
     setFormData(prev => {
       const updatedDetails = prev.details.map((detail, index) => {
         const uniqueId = detail.id || `temp-${index}`
         const detailGroupKey = `${uniqueId}-${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
-        console.log(
-          `  Detail ${index}: id="${detail.id}", uniqueId="${uniqueId}", travelRegion="${detail.travelRegion}", groupKey="${detailGroupKey}", match=${detailGroupKey === groupKey}`
-        )
         if (detailGroupKey === groupKey) {
           const newAmounts = [...(detail.amounts || [])]
           // Store as number but handle empty string case
           newAmounts[amountIndex] = value === '' ? 0 : parseFloat(value) || 0
-          console.log(`  ✅ Updating detail ${index} amount to:`, newAmounts)
           return { ...detail, amounts: newAmounts }
         }
         return detail

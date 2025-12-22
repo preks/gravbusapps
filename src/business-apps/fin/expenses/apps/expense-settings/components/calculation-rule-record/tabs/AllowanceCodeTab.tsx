@@ -531,12 +531,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       const isUsed = allowanceCodeUsageMap[record.id] || false
       setIsRestrictedEdit(isUsed)
 
-      console.log('🔍 [AllowanceCodeTab] Editing record:', {
-        code: record.code,
-        firstAllowanceRegionRulePercent: record.firstAllowanceRegionRulePercent,
-        secondAllowanceRegionRulePercent: record.secondAllowanceRegionRulePercent
-      })
-
       form.reset({
         id: record.id,
         code: record.code,
@@ -555,8 +549,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         validTo: formatDateForInput(record.validTo),
         version: record.version
       })
-
-      console.log('🔍 [AllowanceCodeTab] Form values after reset:', form.getValues())
 
       // If editing the only code, set the filter based on its region rule (editable)
       if (allowanceCodes.length === 1 && record.firstAllowanceRegionRuleId) {
@@ -679,11 +671,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       // The form may not reliably track these hidden fields
       const isUpdate = !!editingItem
 
-      console.log('[AllowanceCodeTab] formValues:', formValues)
-      console.log('[AllowanceCodeTab] editingItem:', editingItem)
-      console.log('[AllowanceCodeTab] isUpdate:', isUpdate)
-      console.log('[AllowanceCodeTab] isRestrictedEdit:', isRestrictedEdit)
-
       // Build saveData based on edit mode
       let saveData: any
 
@@ -747,8 +734,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
           activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
         }
       }
-
-      console.log('[AllowanceCodeTab] Final saveData:', saveData)
 
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
       toast.success(`Allowance code ${editingItem ? 'updated' : 'created'} successfully`)
