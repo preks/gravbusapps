@@ -320,7 +320,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
-  const { projects, accounts, isLoading, error, refetch, totalProjects, structureId } = useProjects(context, true)
+  const { projects, accounts, isLoading, error, refetch, structureId } = useProjects(context, true)
   const { teams, refetch: refretchTeams } = useTeams(context)
   const { getTeamEmployees, removeEmployeeFromTeam } = useTeamAssignments(context.accessToken)
 
@@ -799,7 +799,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     <Card data-testid={`${prefixDataTestId || ''}-ProjectAllocation`} className="gba:overflow-hidden">
       {!isLoading && (
         <CardTabHeaderComponent
-          cardTitle={`${t('hr.project_allocation', 'Project Allocation')} (${totalProjects})`}
+          cardTitle={`${t('hr.project_allocation', 'Project Allocation')} (${projects.length})`}
           cardDescription={getTranslationFromI18nKeyAndLabel(
             'lowcoder:smart_project.description',
             'Manage projects and their details'

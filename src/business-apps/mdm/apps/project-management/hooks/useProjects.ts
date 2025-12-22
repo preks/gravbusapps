@@ -472,6 +472,7 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
             ...project,
             manager: manager
               ? {
+                  id: manager.id,
                   firstName: manager.firstName,
                   lastName: manager.lastName,
                   displayName: manager.displayName,

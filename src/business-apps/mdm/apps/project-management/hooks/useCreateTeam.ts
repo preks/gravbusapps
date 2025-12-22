@@ -47,10 +47,35 @@ interface CreateTeamResult {
 /**
  * Hook for creating a matrix team for a project
  * Creates the team and updates the project with the new matrixUnitId
+ * If the project has a manager assigned, automatically adds them to the team
  */
 export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreateTeamProps): CreateTeamResult => {
   const restClient = useRestClient(ORGCHART_BASE_URL)
   const [isCreatingTeam, setIsCreatingTeam] = useState(false)
+
+  /**
+   * Assign an employee to a matrix team with 0% allocation
+   */
+  const assignEmployeeToTeam = useCallback(
+    async (employeeId: string, matrixUnitId: string) => {
+      const assignmentPayload = [
+        {
+          employeeId,
+          structureId,
+          matrixUnitId,
+          percentage: 0
+        }
+      ]
+
+      await restClient.post('/employee-assignments/matrix-unit', assignmentPayload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+    },
+    [restClient, accessToken, structureId]
+  )
 
   const createTeamForProject = useCallback(
     async (project: Project) => {
@@ -104,6 +129,16 @@ export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreate
           headers: { Authorization: `Bearer ${accessToken}` }
         })
 
+        // If project has a manager, automatically add them to the team
+        if (project.projectManagerId) {
+          try {
+            await assignEmployeeToTeam(project.projectManagerId, matrixUnitId)
+          } catch (assignError) {
+            // Log error but don't fail the entire operation
+            console.error('Error assigning project manager to team:', assignError)
+          }
+        }
+
         onSuccess?.()
       } catch (error) {
         console.error('Error creating team:', error)
@@ -112,7 +147,7 @@ export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreate
         setIsCreatingTeam(false)
       }
     },
-    [accessToken, structureId, restClient, onSuccess]
+    [accessToken, structureId, restClient, onSuccess, assignEmployeeToTeam]
   )
 
   return {

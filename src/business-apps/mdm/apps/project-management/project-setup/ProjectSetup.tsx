@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  EyeIcon,
   InfoIcon,
   LinkIcon,
   PlusIcon,
@@ -17,7 +16,8 @@ import {
   FileIcon,
   IdentificationCardIcon,
   DotsThreeIcon,
-  TrashIcon
+  TrashIcon,
+  MagnifyingGlassIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDebounce } from '@/common/hooks/useDebounce'
@@ -31,7 +31,6 @@ import {
   AlertDescription,
   Badge,
   Card,
-  Input,
   CardContent,
   Sheet,
   SheetContent,
@@ -56,7 +55,12 @@ import {
   DropdownMenuItem,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -68,6 +72,7 @@ import { VerticalTable, VerticalTableProps } from '../../generic-components/tabl
 import CardTabHeaderComponent from '../../generic-components/card'
 import { DeleteButton } from '../../generic-components/delete-button/DeleteButton'
 import { formatDateToISO, getClosureDate } from '@/business-apps/mdm/forms/project-form/ProjectForm'
+import { DebouncedInput } from '@/components/debounced-input'
 
 export interface ProjectSetupProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -127,6 +132,46 @@ const getProjectTimeStatus = (project: Project) => {
   return null
 }
 
+const showProjectManager = (project: Project) => {
+  const manager = project.manager as ProjectManager
+  const projectManagerName = project.projectManagerName
+  const managerPicture = project.managerPicture
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      {managerPicture ? (
+        <Avatar
+          size="default"
+          className="gba:h-10 gba:w-10"
+          data-testid={`manager-dashboard-direct-report-avatar-${projectManagerName}`}
+        >
+          <AvatarImage
+            src={
+              managerPicture && !managerPicture.startsWith('{') ? `data:image/jpeg;base64,${managerPicture}` : undefined
+            }
+            alt={projectManagerName}
+          />
+          <AvatarFallback>
+            {`${manager.firstName?.[0] || ''}${manager.lastName?.[0] || ''}`.toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      ) : projectManagerName ? (
+        <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
+          {projectManagerName
+            .split(' ')
+            .map((n: string) => n[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2)}
+        </div>
+      ) : null}
+      <span className="gba:font-semibold">
+        {projectManagerName || <span className="gba:text-muted-foreground">-</span>}
+      </span>
+    </div>
+  )
+}
+
 const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...context }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { t } = useTranslation()
@@ -158,6 +203,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false)
   const [isCloseProjectOpen, setIsCloseProjectOpen] = useState(false)
   const [isRemoveProjectOpen, setIsRemoveProjectOpen] = useState(false)
+  const [closeProjectStatus, setCloseProjectStatus] = useState<ProjectStatusBE>(ProjectStatusBE.CANCELLED)
 
   // Hook for creating team
   const { isCreatingTeam, createTeamForProject } = useCreateTeam({
@@ -206,8 +252,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
     }
   }, [projects])
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(e.target.value)
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value)
   }, [])
 
   const inactiveStatusIcon = useCallback((status: ProjectStatusUI) => {
@@ -228,12 +274,6 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
   const actions = useMemo(() => {
     return [
-      {
-        id: 'view',
-        label: 'View Project',
-        icon: EyeIcon,
-        onClick: (targetProject: Project) => handleView(targetProject)
-      },
       {
         id: 'edit',
         label: 'Edit Project',
@@ -262,7 +302,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         id: 'close',
         label: 'Close Project',
         icon: XCircleIcon,
-        disabled: (targetProject: Project) => targetProject.status === ProjectStatusUI.Canceled,
+        disabled: (targetProject: Project) =>
+          targetProject.status === ProjectStatusUI.Canceled || targetProject.status === ProjectStatusUI.Completed,
         onClick: (targetProject: Project) => {
           setSelectedProject(targetProject)
           setIsCloseProjectOpen(true)
@@ -342,44 +383,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         header: 'Project Manager',
         enableSorting: true,
         cell: ({ row }) => {
-          const manager = row.original.manager as ProjectManager
-          const projectManagerName = (row.original as any).projectManagerName
-          const managerPicture = (row.original as any).managerPicture
-          return (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              {managerPicture ? (
-                <Avatar
-                  size="default"
-                  className="gba:h-10 gba:w-10"
-                  data-testid={`manager-dashboard-direct-report-avatar-${projectManagerName}`}
-                >
-                  <AvatarImage
-                    src={
-                      managerPicture && !managerPicture.startsWith('{')
-                        ? `data:image/jpeg;base64,${managerPicture}`
-                        : undefined
-                    }
-                    alt={projectManagerName}
-                  />
-                  <AvatarFallback>
-                    {`${manager.firstName?.[0] || ''}${manager.lastName?.[0] || ''}`.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              ) : projectManagerName ? (
-                <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
-                  {projectManagerName
-                    .split(' ')
-                    .map((n: string) => n[0])
-                    .join('')
-                    .toUpperCase()
-                    .slice(0, 2)}
-                </div>
-              ) : null}
-              <span className="gba:font-semibold">
-                {projectManagerName || <span className="gba:text-muted-foreground">-</span>}
-              </span>
-            </div>
-          )
+          const project = row.original
+          return showProjectManager(project)
         }
       },
       {
@@ -527,7 +532,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                   return (
                     <DropdownMenuItem
                       key={action.id}
-                      onClick={() => {
+                      onClick={e => {
+                        e.stopPropagation()
                         if (!isDisabled) {
                           action.onClick(targetProject)
                         }
@@ -555,6 +561,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
         enableSorting
         enablePagination
+        onRowClick={handleView}
         sorting={sorting}
         onSortingChange={setSorting}
         totalCount={totalCount}
@@ -612,6 +619,13 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         ? `${selectedProject.matrixTeam.teamMembersCount} ${selectedProject.matrixTeam.teamMembersCount === 1 ? 'member' : 'members'}`
         : 'No team assigned'
     })
+
+    if (selectedProject.projectManagerId) {
+      items[0].items.push({
+        label: 'Project Manager',
+        value: showProjectManager(selectedProject)
+      })
+    }
 
     if (selectedProject.description) {
       items[0].items.push({
@@ -695,7 +709,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
     }
   }
 
-  const handleCloseProject = async (project: Project | undefined) => {
+  const handleCloseProject = async (project: Project | undefined, status: ProjectStatusBE) => {
     if (!project) return
 
     try {
@@ -713,11 +727,11 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
       const formattedValidFrom = formatDateToISO(project.validFrom)
       const formattedValidTo = formatDateToISO(project.validTo)
 
-      const closureDate = getClosureDate(ProjectStatusBE.CANCELLED)
+      const closureDate = getClosureDate(status)
 
       const projectData = {
         id: project.id,
-        status: ProjectStatusBE.CANCELLED,
+        status: status,
         closureDate: closureDate,
         validFrom: formattedValidFrom,
         validTo: formattedValidTo,
@@ -735,6 +749,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
       })
 
       setIsCloseProjectOpen(false)
+      setCloseProjectStatus(ProjectStatusBE.CANCELLED)
       setSelectedProject(null)
       refetch()
     } catch (error) {
@@ -808,12 +823,21 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
       <CardContent className="gba:overflow-auto">
         {/* Filters */}
         <div className="gba:mb-6 gba:relative gba:max-w-sm">
-          <Input
-            placeholder="Search projects..."
+          <DebouncedInput
+            key="search-input"
             value={searchInput}
             onChange={handleSearchChange}
-            className="gba:pl-10 gba:!w-80"
-            data-testid={`${prefixDataTestId || ''}-ProjectSetup-SearchInput`}
+            placeholder="Search projects..."
+            className="gba:w-full gba:pr-10"
+            debounceDelay={300}
+            ariaLabel="Search projects..."
+            data-testid="asset-search-input"
+            icon={
+              <MagnifyingGlassIcon
+                className="gba:w-4 gba:h-4 gba:text-muted-foreground"
+                data-testid="asset-search-icon"
+              />
+            }
           />
         </div>
 
@@ -891,15 +915,30 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                   <Icon icon={WarningIcon} className="gba:text-warning" />
                   Close Project
                 </DialogTitle>
-                <DialogDescription>{`Are you sure you want to close ${selectedProject?.name}?`}</DialogDescription>
+                <DialogDescription>
+                  Are you sure you want to close {selectedProject?.name}? Once closed, the project cannot be modified
+                  and this action cannot be undone.
+                </DialogDescription>
               </DialogHeader>
+              <Select
+                value={closeProjectStatus}
+                onValueChange={value => setCloseProjectStatus(value as ProjectStatusBE)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ProjectStatusBE.COMPLETED}>Completed</SelectItem>
+                  <SelectItem value={ProjectStatusBE.CANCELLED}>Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline" onClick={() => setIsCloseProjectOpen(false)}>
                     Cancel
                   </Button>
                 </DialogClose>
-                <Button onClick={() => handleCloseProject(selectedProject)}>Close Project</Button>
+                <Button onClick={() => handleCloseProject(selectedProject, closeProjectStatus)}>Close Project</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
