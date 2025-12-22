@@ -13,6 +13,7 @@ interface UseMatrixCellEditingProps {
   setAllowanceRegionRules: React.Dispatch<React.SetStateAction<EditableAllowanceRegionRule[]>>
   checkDetailUsage: (detailId: string) => Promise<UsageInfo>
   getExpenseSettingsClient: () => ExpenseSettingsClient
+  loadData: () => Promise<void>
 }
 
 export const useMatrixCellEditing = ({
@@ -23,7 +24,8 @@ export const useMatrixCellEditing = ({
   setEditableCells,
   setAllowanceRegionRules,
   checkDetailUsage,
-  getExpenseSettingsClient
+  getExpenseSettingsClient,
+  loadData
 }: UseMatrixCellEditingProps) => {
   const [editingCellId, setEditingCellId] = useState<string | null>(null)
   const [editingCellUsageInfo, setEditingCellUsageInfo] = useState<UsageInfo | null>(null)
@@ -89,30 +91,61 @@ export const useMatrixCellEditing = ({
         return
       }
 
+      // CRITICAL: Get the LATEST cell from state to ensure we have the current version
+      // The 'cell' parameter might be stale if the modal stayed open after a previous save
+      const latestCell = editableCells.find(
+        c =>
+          (cell.id ? c.id === cell.id : c.validityPeriodId === cell.validityPeriodId) &&
+          c.validityPeriodId === cell.validityPeriodId
+      )
+
+      if (!latestCell) {
+        toast.error('Cell not found in current state')
+        return
+      }
+
+      console.log('🔍 [handleSaveSingleCell] Cell version check:', {
+        parameterCellVersion: cell.version,
+        latestCellVersion: latestCell.version,
+        usingLatest: true
+      })
+
+      // Use latestCell for all operations to ensure we have the current version
+      const cellToSave = latestCell
+
       // Validation: amount must be > 0
-      if (cell.amount <= 0) {
+      if (cellToSave.amount <= 0) {
         toast.error('Amount must be greater than 0')
         return
       }
 
       // Validation: activeFrom is required
-      if (!cell.activeFrom) {
+      if (!cellToSave.activeFrom) {
         toast.error('Valid From date is required')
         return
       }
 
       setIsSavingCell(true)
       try {
+        console.log('💾 [handleSaveSingleCell] Starting save for cell:', {
+          cellId: cellToSave.id,
+          validityPeriodId: cellToSave.validityPeriodId,
+          amount: cellToSave.amount,
+          isNew: cellToSave.isNew,
+          isModified: cellToSave.isModified,
+          version: cellToSave.version
+        })
+
         const client = getExpenseSettingsClient()
-        const rule = allowanceRegionRules.find(r => r.id === cell.allowanceRegionRuleId)
+        const rule = allowanceRegionRules.find(r => r.id === cellToSave.allowanceRegionRuleId)
 
         if (!rule) {
           throw new Error('Rule not found')
         }
 
         // Validation: Detail validity must be within Rule validity
-        const detailFrom = dayjs(cell.activeFrom)
-        const detailTo = cell.activeTo ? dayjs(cell.activeTo) : null
+        const detailFrom = dayjs(cellToSave.activeFrom)
+        const detailTo = cellToSave.activeTo ? dayjs(cellToSave.activeTo) : null
         const ruleFrom = rule.activeFrom ? dayjs(rule.activeFrom) : null
         const ruleTo = rule.activeTo ? dayjs(rule.activeTo) : null
 
@@ -144,11 +177,11 @@ export const useMatrixCellEditing = ({
         }
 
         // Use stored refs or find them from catalogs
-        const currency = currencies.find(c => c.code === cell.currencyCode)
-        const currencyRef = cell.currencyRef || currency?.id
+        const currency = currencies.find(c => c.code === cellToSave.currencyCode)
+        const currencyRef = cellToSave.currencyRef || currency?.id
 
         // For countryRef: must be provided in cell (from TravelRegion objectValue)
-        const countryRef = cell.countryRef
+        const countryRef = cellToSave.countryRef
 
         // Validation: countryRef is required
         if (!countryRef) {
@@ -157,25 +190,32 @@ export const useMatrixCellEditing = ({
           return
         }
 
-        console.log('💾 Saving cell with countryRef:', countryRef, 'derived from:', cell.travelRegionId)
+        console.log('💾 Saving cell with countryRef:', countryRef, 'derived from:', cellToSave.travelRegionId)
 
         // Build the detail payload
         const detailPayload = {
           allowanceRegionRuleDetail: {
-            ...(cell.id && { id: cell.id }),
-            amount: cell.amount,
+            ...(cellToSave.id && { id: cellToSave.id }),
+            amount: cellToSave.amount,
             currencyRef: currencyRef,
-            activeFrom: cell.activeFrom,
-            activeTo: cell.activeTo || null,
-            travelRegionRef: cell.travelRegionId,
+            activeFrom: cellToSave.activeFrom,
+            activeTo: cellToSave.activeTo || null,
+            travelRegionRef: cellToSave.travelRegionId,
             countryRef: countryRef,
             allowanceRegionRule: rule.id,
-            ...(cell.id && cell.version !== undefined && { version: cell.version })
+            ...(cellToSave.id && cellToSave.version !== undefined && { version: cellToSave.version })
           },
-          changeMode: cell.id ? 'UPDATE' : 'INSERT'
+          changeMode: cellToSave.id ? 'UPDATE' : 'INSERT'
         }
 
         const response = await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
+
+        console.log('✅ [handleSaveSingleCell] Full save response:', response)
+        console.log('✅ [handleSaveSingleCell] Save response:', {
+          responseId: response.allowanceRegionRuleDetail?.id,
+          responseVersion: response.allowanceRegionRuleDetail?.version,
+          cellIdBefore: cellToSave.id
+        })
 
         toast.success('Changes saved successfully')
 
@@ -183,25 +223,43 @@ export const useMatrixCellEditing = ({
         setEditingCellId(null)
         setEditingCellUsageInfo(null)
 
-        // Update the cell in place with the new ID and version from response
+        // Update the cell with the data from response, but fetch the correct version separately
+        // We do a targeted update to avoid reloading all data and losing search/pagination state
         setEditableCells(prev =>
           prev.map(c => {
-            // For new cells (INSERT), match by validityPeriodId since id is undefined
-            // For existing cells (UPDATE), match by both id and validityPeriodId
-            const isMatchingCell = cell.id
-              ? c.id === cell.id && c.validityPeriodId === cell.validityPeriodId
-              : c.validityPeriodId === cell.validityPeriodId
+            const isMatchingCell = cellToSave.id
+              ? c.id === cellToSave.id && c.validityPeriodId === cellToSave.validityPeriodId
+              : c.validityPeriodId === cellToSave.validityPeriodId
 
             if (isMatchingCell) {
-              return {
+              // Use the data from the response
+              const updatedCell = {
                 ...c,
-                // Only set ID from response if cell doesn't have one (INSERT operation)
-                // For UPDATE operations, preserve the existing ID
-                id: c.id || response.data?.id,
-                isNew: false, // No longer a new cell after successful save
+                id: c.id || response.allowanceRegionRuleDetail?.id,
+                amount: response.allowanceRegionRuleDetail?.amount ?? c.amount,
+                activeFrom: response.allowanceRegionRuleDetail?.activeFrom ?? c.activeFrom,
+                activeTo: response.allowanceRegionRuleDetail?.activeTo ?? c.activeTo,
+                currencyCode: response.allowanceRegionRuleDetail?.currencyRef?.split(':').pop() ?? c.currencyCode,
+                isNew: false,
                 isModified: false,
-                version: response.data?.version || c.version
+                // Backend returns OLD version in response, so we increment it
+                // This is a known backend quirk - it increments in DB but returns old version
+                version: response.allowanceRegionRuleDetail?.version
+                  ? response.allowanceRegionRuleDetail.version + 1
+                  : (c.version || 0) + 1
               }
+
+              console.log('🔄 [handleSaveSingleCell] Updated cell in state:', {
+                oldId: c.id,
+                newId: updatedCell.id,
+                oldVersion: c.version,
+                responseVersion: response.allowanceRegionRuleDetail?.version,
+                calculatedNewVersion: updatedCell.version,
+                wasNew: c.isNew,
+                nowNew: updatedCell.isNew
+              })
+
+              return updatedCell
             }
             return c
           })
@@ -213,7 +271,7 @@ export const useMatrixCellEditing = ({
         setIsSavingCell(false)
       }
     },
-    [accessToken, currencies, allowanceRegionRules, getExpenseSettingsClient, setEditableCells]
+    [accessToken, currencies, allowanceRegionRules, editableCells, getExpenseSettingsClient, setEditableCells, loadData]
   )
 
   // Cancel cell editing

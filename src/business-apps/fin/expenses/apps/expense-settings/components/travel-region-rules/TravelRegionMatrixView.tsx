@@ -302,7 +302,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setAllowanceRegionRules,
     checkDetailUsage,
     loadData,
-    travelRegionSetId,
     getExpenseSettingsClient
   })
 
