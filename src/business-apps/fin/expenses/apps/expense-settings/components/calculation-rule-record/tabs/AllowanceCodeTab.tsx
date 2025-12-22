@@ -63,6 +63,14 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import {
+  validateAmountAndPercentage,
+  validateAllowanceCodeDates,
+  transformAllowanceCodeForUpdate,
+  transformAllowanceCodeForCreate,
+  transformAllowanceCodeFromAPI
+} from '../utils'
+import { useAllowanceCodeUsageCheck } from '../hooks'
 
 interface AllowanceCodeTabProps {
   ruleId: string
@@ -172,8 +180,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   // Filter state for travel region set (not saved, just for filtering region rules)
   const [filterTravelRegionSetId, setFilterTravelRegionSetId] = useState<string>('')
 
-  // Pre-loaded usage status for all allowance codes (id -> isUsed)
-  const [allowanceCodeUsageMap, setAllowanceCodeUsageMap] = useState<Record<string, boolean>>({})
+  // Usage check hook
+  const { allowanceCodeUsageMap } = useAllowanceCodeUsageCheck({ accessToken, allowanceCodes })
 
   // Restricted edit state
   const [isRestrictedEdit, setIsRestrictedEdit] = useState(false)
@@ -340,31 +348,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       const expenseRule = result.ExpenseRule?.[0]
       const codes = expenseRule?.expenseRuleAllowanceCode || []
 
-      const transformedCodes: AllowanceCode[] = codes.map((code: any) => ({
-        id: code.id,
-        code: code.code || '',
-        name: code.name || '',
-        reimbursable: code.reimbursable || false,
-        amount: code.amount ?? 0,
-        calculation: code.calculationRef || code.calculation?.id || '',
-        expenseGroup: code.expenseGroup || { id: '', value: '', code: '' },
-        firstAllowanceRegionRuleId: code.firstAllowanceRegionRuleId,
-        firstAllowanceRegionRulePercent: code.firstAllowanceRegionRulePercent,
-        firstAllowanceRegionRule: code.firstAllowanceRegionRule,
-        secondAllowanceRegionRuleId: code.secondAllowanceRegionRuleId,
-        secondAllowanceRegionRulePercent: code.secondAllowanceRegionRulePercent,
-        secondAllowanceRegionRule: code.secondAllowanceRegionRule,
-        firstWageCode: code.firstWageCode,
-        secondWageCode: code.secondWageCode,
-        validFrom: code.activeFrom,
-        validTo: code.activeTo,
-        version: code.version,
-        businessKey: code.businessKey,
-        additionalProperties: code.additionalProperties,
-        codeOrder: code.codeOrder,
-        travelLocation: code.travelLocation,
-        isDeleted: false
-      }))
+      const transformedCodes: AllowanceCode[] = codes.map(transformAllowanceCodeFromAPI)
 
       console.log(
         '🔍 [AllowanceCodeTab] Fetched codes with percentage:',
@@ -375,68 +359,12 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       )
 
       setAllowanceCodes(transformedCodes)
-
-      // Load usage status for all allowance codes
-      if (transformedCodes.length > 0) {
-        await loadAllowanceCodeUsageStatus(transformedCodes.map(c => c.id))
-      }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to load allowance codes')
     } finally {
       setIsLoading(false)
     }
   }, [ruleId, graphqlClient])
-
-  // Load usage status for all allowance codes in a single batched query
-  const loadAllowanceCodeUsageStatus = useCallback(
-    async (allowanceCodeIds: string[]) => {
-      if (allowanceCodeIds.length === 0) return
-
-      try {
-        const query = `
-        query CheckAllAllowanceCodeUsage($allowanceCodeIds: [uuid!]!) {
-          planItems: ExpensePlanItem(
-            where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
-          ) { expenseRuleAllowanceCodeId }
-          items: ExpenseItem(
-            where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
-          ) { expenseRuleAllowanceCodeId }
-          positions: ExpensePosition(
-            where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
-          ) { expenseRuleAllowanceCodeId }
-          setups: ExpenseRuleAllowanceSetup(
-            where: { allowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
-          ) { allowanceCodeId }
-        }
-      `
-
-        const result = await graphqlClient.request<{
-          planItems: { expenseRuleAllowanceCodeId: string }[]
-          items: { expenseRuleAllowanceCodeId: string }[]
-          positions: { expenseRuleAllowanceCodeId: string }[]
-          setups: { allowanceCodeId: string }[]
-        }>(query, { allowanceCodeIds })
-
-        // Build a set of used allowance code IDs
-        const usedIds = new Set<string>()
-        result.planItems?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
-        result.items?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
-        result.positions?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
-        result.setups?.forEach(item => usedIds.add(item.allowanceCodeId))
-
-        // Create usage map
-        const usageMap: Record<string, boolean> = {}
-        allowanceCodeIds.forEach(id => {
-          usageMap[id] = usedIds.has(id)
-        })
-
-        setAllowanceCodeUsageMap(usageMap)
-      } catch (error) {
-        console.error('Error loading allowance code usage status:', error)
-      }
-    },
-    [graphqlClient]
-  )
 
   useEffect(() => {
     if (ruleId && accessToken) {
@@ -598,142 +526,34 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       const formValues = form.getValues()
 
       // Validate mutual exclusivity: Amount and Percentage
-      const hasAmount = formValues.amount !== undefined && formValues.amount !== null && formValues.amount > 0
-      const hasPercentage =
-        formValues.firstAllowanceRegionRulePercent !== undefined &&
-        formValues.firstAllowanceRegionRulePercent !== null &&
-        formValues.firstAllowanceRegionRulePercent !== 0
+      const amountPercentageError = validateAmountAndPercentage(
+        formValues.amount,
+        formValues.firstAllowanceRegionRulePercent
+      )
 
-      if (hasAmount && hasPercentage) {
-        form.setError('amount', {
-          type: 'manual',
-          message: 'Cannot have both Amount and Percentage. Please use only one.'
-        })
-        form.setError('firstAllowanceRegionRulePercent', {
-          type: 'manual',
-          message: 'Cannot have both Amount and Percentage. Please use only one.'
-        })
+      if (amountPercentageError) {
+        form.setError('amount', { type: 'manual', message: amountPercentageError })
+        form.setError('firstAllowanceRegionRulePercent', { type: 'manual', message: amountPercentageError })
         setIsSaving(false)
         return
       }
 
       // Date validation
-      const ruleFrom = dayjs(activeFrom)
-      const ruleTo = activeTo ? dayjs(activeTo) : null
-      const entryFrom = dayjs(formValues.validFrom)
-      const entryTo = formValues.validTo ? dayjs(formValues.validTo) : null
+      const dateErrors = validateAllowanceCodeDates(formValues.validFrom, formValues.validTo, activeFrom, activeTo)
 
-      // Valid From cannot be before rule's Valid From
-      if (entryFrom.isBefore(ruleFrom, 'day')) {
-        form.setError('validFrom', {
-          type: 'manual',
-          message: `Valid From must be on or after ${ruleFrom.format('DD/MM/YYYY')} (rule start date)`
+      if (dateErrors.length > 0) {
+        dateErrors.forEach(err => {
+          form.setError(err.field, { type: 'manual', message: err.message })
         })
         setIsSaving(false)
         return
       }
-
-      // Valid From cannot be after rule's Valid To
-      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
-        form.setError('validFrom', {
-          type: 'manual',
-          message: `Valid From must be on or before ${ruleTo.format('DD/MM/YYYY')} (rule end date)`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // Valid To cannot be after rule's Valid To
-      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To must be on or before ${ruleTo.format('DD/MM/YYYY')} (rule end date)`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // Valid To cannot be before Valid From
-      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To must be on or after Valid From`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // Debug logging
-      console.log('[AllowanceCodeTab] formValues:', formValues)
-      console.log('[AllowanceCodeTab] editingItem:', editingItem)
-
-      // IMPORTANT: Always use editingItem for id and version when updating
-      // The form may not reliably track these hidden fields
-      const isUpdate = !!editingItem
 
       // Build saveData based on edit mode
-      let saveData: any
-
-      if (isUpdate) {
-        // UPDATE: Start with editingItem (has ALL database fields), override only user-editable fields
-        saveData = {
-          id: editingItem.id,
-          version: editingItem.version,
-          expenseRuleId: ruleId,
-          businessKey: editingItem.businessKey,
-          additionalProperties: editingItem.additionalProperties || {},
-          codeOrder: editingItem.codeOrder,
-          travelLocation: editingItem.travelLocation,
-          secondWageCode: editingItem.secondWageCode || null,
-          // User-editable fields from form (or editingItem if restricted)
-          code: isRestrictedEdit ? editingItem.code : formValues.code,
-          name: isRestrictedEdit ? editingItem.name : formValues.name,
-          reimbursable: isRestrictedEdit ? editingItem.reimbursable : formValues.reimbursable,
-          amount: isRestrictedEdit ? (editingItem.amount ?? null) : (formValues.amount ?? null),
-          calculationRef: isRestrictedEdit ? editingItem.calculation || null : formValues.calculation || null,
-          expenseGroupRef: 'ExpenseGroup:v1:ALLOWANCE', // Always ALLOWANCE for allowance codes
-          firstAllowanceRegionRuleId: isRestrictedEdit
-            ? editingItem.firstAllowanceRegionRuleId || null
-            : formValues.firstAllowanceRegionRuleId || null,
-          firstAllowanceRegionRulePercent: isRestrictedEdit
-            ? (editingItem.firstAllowanceRegionRulePercent ?? 0)
-            : (formValues.firstAllowanceRegionRulePercent ?? 0),
-          secondAllowanceRegionRuleId: isRestrictedEdit
-            ? editingItem.secondAllowanceRegionRuleId || null
-            : formValues.secondAllowanceRegionRuleId || null,
-          secondAllowanceRegionRulePercent: isRestrictedEdit
-            ? (editingItem.secondAllowanceRegionRulePercent ?? 0)
-            : (formValues.secondAllowanceRegionRulePercent ?? 0),
-          firstWageCode: isRestrictedEdit ? editingItem.firstWageCode || null : formValues.firstWageCode || null,
-          activeFrom: isRestrictedEdit
-            ? editingItem.validFrom
-              ? dayjs(editingItem.validFrom).startOf('day').toISOString()
-              : null
-            : formValues.validFrom
-              ? dayjs(formValues.validFrom).startOf('day').toISOString()
-              : null,
-          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
-        }
-      } else {
-        // CREATE: Use form values with defaults
-        saveData = {
-          expenseRuleId: ruleId,
-          code: formValues.code || '',
-          name: formValues.name || '',
-          reimbursable: formValues.reimbursable ?? true,
-          amount: formValues.amount ?? 0,
-          calculationRef: formValues.calculation || null,
-          expenseGroupRef: 'ExpenseGroup:v1:ALLOWANCE', // Always ALLOWANCE for allowance codes
-          firstAllowanceRegionRuleId: formValues.firstAllowanceRegionRuleId || null,
-          firstAllowanceRegionRulePercent: formValues.firstAllowanceRegionRulePercent ?? 0,
-          secondAllowanceRegionRuleId: formValues.secondAllowanceRegionRuleId || null,
-          secondAllowanceRegionRulePercent: formValues.secondAllowanceRegionRulePercent ?? 0,
-          firstWageCode: formValues.firstWageCode || null,
-          secondWageCode: null,
-          activeFrom: formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null,
-          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
-        }
-      }
+      const isUpdate = !!editingItem
+      const saveData = isUpdate
+        ? transformAllowanceCodeForUpdate(formValues, editingItem, ruleId, isRestrictedEdit)
+        : transformAllowanceCodeForCreate(formValues, ruleId)
 
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
       toast.success(`Allowance code ${editingItem ? 'updated' : 'created'} successfully`)
@@ -950,7 +770,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           className="gba:font-mono gba:font-medium"
                           data-testid={`allowance-code-amount-text-${record.id}`}
                         >
-                          {record.amount > 0 ? record.amount.toFixed(1) : '-'}
+                          {record.amount && record.amount > 0 ? record.amount.toFixed(1) : '-'}
                         </span>
                       </TableCell>
 
