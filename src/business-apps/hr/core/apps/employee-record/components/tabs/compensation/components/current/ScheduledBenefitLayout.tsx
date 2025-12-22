@@ -4,6 +4,7 @@ import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import BenefitInfoSection from './BenefitInfoSection'
+import { formatDate } from '@/common/utils/windowUtils'
 
 interface ScheduledBenefitLayoutProps {
   t: (key: string, params?: any) => string
@@ -40,18 +41,13 @@ const ScheduledBenefitLayout: React.FC<ScheduledBenefitLayoutProps> = ({
         {/* Scheduled-specific: Badge with Start Date */}
         {benefit.startDate && (
           <div
-            className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-info-foreground gba:bg-info-secondary gba:px-2 gba:py-1 gba:rounded-md gba:mt-2"
+            className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-foreground gba:bg-info-secondary gba:px-2 gba:py-1 gba:rounded-md gba:mt-2"
             data-testid={`benefit-scheduled-badge-${benefit.code}`}
           >
             <span className="gba:font-semibold">{t('benefit-scheduled-badge')}</span>
             <span>•</span>
             <span>
-              {t('benefit-starts-on')}{' '}
-              {new Date(benefit.startDate).toLocaleDateString(locale ?? 'en-US', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric'
-              })}
+              {t('benefit-starts-on')} {formatDate(benefit.startDate, 'date.short')}
             </span>
           </div>
         )}

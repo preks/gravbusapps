@@ -58,6 +58,7 @@ interface EmployeeSkill {
 
 interface ProfileHeaderProps {
   employee: Employee
+  isSelfView: boolean
 }
 
 interface ProfileInfoItemProps {
@@ -141,7 +142,12 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   )
 }
 
-const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({ userInfo, employee, accessToken }) => {
+const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
+  userInfo,
+  employee,
+  accessToken,
+  isSelfView
+}) => {
   // Translation helper
   const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key)
   const { t: tDesign } = useTranslation(hrTranslations)
@@ -300,44 +306,46 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   </div>
                 </div>
 
-                {/* Communication Actions - Always visible */}
-                <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3" data-testid="communication-buttons">
-                  {loading ? (
-                    <div className="gba:text-xs gba:text-muted-foreground" data-testid="loading-communications">
-                      Loading communications...
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        onClick={handleChat}
-                        className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                        title="Chat"
-                        aria-label="Chat"
-                        data-testid="employee-chat-button"
-                      >
-                        <PiChat className="gba:h-5 gba:w-5" />
-                      </button>
-                      <button
-                        onClick={handleAudioCall}
-                        className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                        title="Audio Call"
-                        aria-label="Audio Call"
-                        data-testid="employee-audio-call-button"
-                      >
-                        <PiPhone className="gba:h-5 gba:w-5" />
-                      </button>
-                      <button
-                        onClick={handleVideoCall}
-                        className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                        title="Video Call"
-                        aria-label="Video Call"
-                        data-testid="employee-video-call-button"
-                      >
-                        <PiVideoCamera className="gba:h-5 gba:w-5" />
-                      </button>
-                    </>
-                  )}
-                </div>
+                {/* Communication Actions - Only visible when viewing someone else's profile */}
+                {!isSelfView && (
+                  <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3" data-testid="communication-buttons">
+                    {loading ? (
+                      <div className="gba:text-xs gba:text-muted-foreground" data-testid="loading-communications">
+                        Loading communications...
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleChat}
+                          className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                          title="Chat"
+                          aria-label="Chat"
+                          data-testid="employee-chat-button"
+                        >
+                          <PiChat className="gba:h-5 gba:w-5" />
+                        </button>
+                        <button
+                          onClick={handleAudioCall}
+                          className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                          title="Audio Call"
+                          aria-label="Audio Call"
+                          data-testid="employee-audio-call-button"
+                        >
+                          <PiPhone className="gba:h-5 gba:w-5" />
+                        </button>
+                        <button
+                          onClick={handleVideoCall}
+                          className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                          title="Video Call"
+                          aria-label="Video Call"
+                          data-testid="employee-video-call-button"
+                        >
+                          <PiVideoCamera className="gba:h-5 gba:w-5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

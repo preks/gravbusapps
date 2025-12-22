@@ -1,12 +1,12 @@
 'use client'
 
 import React, { useCallback, useMemo } from 'react'
-import { Label, Input, useTranslation, LocalizationProvider, type SupportedLocale } from '@newwork/nw-design-system'
+import { Label, DateInput, useTranslation, LocalizationProvider, type SupportedLocale } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
-import BenefitSummaryCard from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/components/modals/BenefitSummaryCard'
-import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
+import { BenefitSummaryCard } from '../employee-benefit-review/components'
+import translations from '../_i18n'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { DeactivateEmployeeBenefitProvider, useDeactivateEmployeeBenefit } from './DeactivateEmployeeBenefitContext'
@@ -28,6 +28,20 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
 }) => {
   const { data } = useDeactivateEmployeeBenefit()
   const { t } = useTranslation(translations)
+
+  // Extract currency code from benefit's currency (catalog is the single source of truth)
+  const currencyCode = useMemo(() => {
+    // Use benefit's currency code directly from catalog
+    if (data?.selectedBenefit?.currency?.code) {
+      return data.selectedBenefit.currency.code
+    }
+    // Fallback: extract from currencyRef if currency object not available
+    if (data?.selectedBenefit?.currencyRef) {
+      const parts = data.selectedBenefit.currencyRef.split(':')
+      return parts[parts.length - 1] || 'EUR'
+    }
+    return 'EUR'
+  }, [data?.selectedBenefit?.currency?.code, data?.selectedBenefit?.currencyRef])
 
   const {
     employeeProfile,
@@ -101,17 +115,18 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="deactivate-employee-benefit-fields">
             {/* Benefit Summary Card */}
-            {selectedBenefit && <BenefitSummaryCard t={t} benefit={selectedBenefit} />}
+            {selectedBenefit && <BenefitSummaryCard t={t} benefit={selectedBenefit} currencyCode={currencyCode} />}
 
             {/* Effective End Date (Required) */}
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-foreground">
                 {t('modal-deactivate-end-date-label')} <span className="gba:text-destructive">*</span>
               </Label>
-              <Input
+              <DateInput
                 type="date"
+                outputFormat="iso"
                 value={endDate}
-                onChange={e => setEndDate(e.target.value)}
+                onChange={date => setEndDate(typeof date === 'string' ? date : '')}
                 min={minEndDate}
                 data-testid="deactivate-employee-benefit-end-date-input"
               />
