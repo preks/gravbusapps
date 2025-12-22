@@ -226,10 +226,21 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, [localTasks, localCompletedTasks])
 
   // Handler to select a task and update URL
-  const handleSelectTask = useCallback((task: UnifiedTask | null) => {
-    setSelectedTask(task)
-    updateTaskUrl(task?.id || null)
-  }, [])
+  // Toggle behavior: clicking on already selected task will deselect it
+  const handleSelectTask = useCallback(
+    (task: UnifiedTask | null) => {
+      // If clicking on the currently selected task, deselect it (close detail panel)
+      if (task && selectedTask?.id === task.id) {
+        setSelectedTask(null)
+        updateTaskUrl(null)
+      } else {
+        // Otherwise, select the new task
+        setSelectedTask(task)
+        updateTaskUrl(task?.id || null)
+      }
+    },
+    [selectedTask]
+  )
 
   // Handler to close task detail
   const handleCloseTask = useCallback(() => {

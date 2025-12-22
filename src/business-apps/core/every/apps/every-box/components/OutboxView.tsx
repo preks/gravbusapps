@@ -194,10 +194,21 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
   }, [flows])
 
   // Handler to select a flow and update URL
-  const handleSelectFlow = useCallback((flow: Flow | null) => {
-    setSelectedFlow(flow)
-    updateFlowUrl(flow?.id || null)
-  }, [])
+  // Toggle behavior: clicking on already selected flow will deselect it
+  const handleSelectFlow = useCallback(
+    (flow: Flow | null) => {
+      // If clicking on the currently selected flow, deselect it (close detail panel)
+      if (flow && selectedFlow?.id === flow.id) {
+        setSelectedFlow(null)
+        updateFlowUrl(null)
+      } else {
+        // Otherwise, select the new flow
+        setSelectedFlow(flow)
+        updateFlowUrl(flow?.id || null)
+      }
+    },
+    [selectedFlow]
+  )
 
   // Handler to close flow detail
   const handleCloseFlow = useCallback(() => {
