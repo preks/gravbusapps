@@ -469,15 +469,13 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   </div>
                 )}
 
-                {/* External ID (fallback to SAP Number) */}
-                {(employee?.externalId || employee?.additionalProperties?.SAPNumber) && (
+                {/* SAP Number (HR Reference Code) */}
+                {employee?.hrReferenceCode && (
                   <div className="gba:flex gba:items-center">
                     <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div>
                       <div className="gba:text-sm gba:font-medium gba:text-foreground">SAP Number</div>
-                      <div className="gba:text-sm gba:text-muted-foreground">
-                        {String(employee.externalId ?? employee.additionalProperties?.SAPNumber)}
-                      </div>
+                      <div className="gba:text-sm gba:text-muted-foreground">{String(employee.hrReferenceCode)}</div>
                     </div>
                   </div>
                 )}

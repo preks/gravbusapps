@@ -50,9 +50,9 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
           setEmployeePosition(res?.EmployeePosition?.[0] || null)
           if (!ignorePrefillAfterSubmitRef.current) {
             form.reset({
-              externalId: emp?.externalId || emp?.additionalProperties?.SAPNumber || ''
+              externalId: emp?.hrReferenceCode || ''
             })
-            initialRef.current = { externalId: emp?.externalId || emp?.additionalProperties?.SAPNumber || '' }
+            initialRef.current = { externalId: emp?.hrReferenceCode || '' }
           }
         } else {
           setEmployee(null)
@@ -162,12 +162,12 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
               employee: {
                 id: employeeId,
                 ...(employee?.version !== undefined ? { version: employee?.version } : {}),
-                externalId: values.externalId || ''
+                hrReferenceCode: values.externalId || ''
               },
               oldEmployee: {
                 id: employeeId,
                 ...(employee?.version !== undefined ? { version: employee?.version } : {}),
-                externalId: employee?.externalId || ''
+                hrReferenceCode: employee?.hrReferenceCode || ''
               }
             }
             return payload as any
