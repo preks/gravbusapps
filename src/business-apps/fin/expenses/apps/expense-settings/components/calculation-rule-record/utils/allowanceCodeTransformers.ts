@@ -41,13 +41,6 @@ export interface AllowanceCodeSaveData {
 }
 
 /**
- * Helper to get value based on edit restriction
- */
-const getEditableValue = <T>(isRestricted: boolean, originalValue: T, formValue: T): T => {
-  return isRestricted ? originalValue : formValue
-}
-
-/**
  * Helper to format active date
  */
 const formatActiveFrom = (date: string | undefined): string | null => {
@@ -62,16 +55,13 @@ const formatActiveTo = (date: string | undefined): string | null => {
 }
 
 /**
- * Transforms form values to save data for UPDATE operation
+ * Transforms form values to save data for unrestricted UPDATE operation
  */
-export const transformAllowanceCodeForUpdate = (
+export const transformAllowanceCodeForUnrestrictedUpdate = (
   formValues: AllowanceCodeFormValues,
   editingItem: any,
-  ruleId: string,
-  isRestrictedEdit: boolean
+  ruleId: string
 ): AllowanceCodeSaveData => {
-  const sourceDate = isRestrictedEdit ? editingItem.validFrom : formValues.validFrom
-
   return {
     id: editingItem.id,
     version: editingItem.version,
@@ -81,41 +71,68 @@ export const transformAllowanceCodeForUpdate = (
     codeOrder: editingItem.codeOrder,
     travelLocation: editingItem.travelLocation,
     secondWageCode: editingItem.secondWageCode || null,
-    // User-editable fields from form (or editingItem if restricted)
-    code: getEditableValue(isRestrictedEdit, editingItem.code, formValues.code),
-    name: getEditableValue(isRestrictedEdit, editingItem.name, formValues.name),
-    reimbursable: getEditableValue(isRestrictedEdit, editingItem.reimbursable, formValues.reimbursable),
-    amount: getEditableValue(isRestrictedEdit, editingItem.amount ?? null, formValues.amount ?? null),
-    calculationRef: getEditableValue(isRestrictedEdit, editingItem.calculation || null, formValues.calculation || null),
+    code: formValues.code,
+    name: formValues.name,
+    reimbursable: formValues.reimbursable,
+    amount: formValues.amount ?? null,
+    calculationRef: formValues.calculation || null,
     expenseGroupRef: 'ExpenseGroup:v1:ALLOWANCE',
-    firstAllowanceRegionRuleId: getEditableValue(
-      isRestrictedEdit,
-      editingItem.firstAllowanceRegionRuleId || null,
-      formValues.firstAllowanceRegionRuleId || null
-    ),
-    firstAllowanceRegionRulePercent: getEditableValue(
-      isRestrictedEdit,
-      editingItem.firstAllowanceRegionRulePercent ?? 0,
-      formValues.firstAllowanceRegionRulePercent ?? 0
-    ),
-    secondAllowanceRegionRuleId: getEditableValue(
-      isRestrictedEdit,
-      editingItem.secondAllowanceRegionRuleId || null,
-      formValues.secondAllowanceRegionRuleId || null
-    ),
-    secondAllowanceRegionRulePercent: getEditableValue(
-      isRestrictedEdit,
-      editingItem.secondAllowanceRegionRulePercent ?? 0,
-      formValues.secondAllowanceRegionRulePercent ?? 0
-    ),
-    firstWageCode: getEditableValue(
-      isRestrictedEdit,
-      editingItem.firstWageCode || null,
-      formValues.firstWageCode || null
-    ),
-    activeFrom: formatActiveFrom(sourceDate),
+    firstAllowanceRegionRuleId: formValues.firstAllowanceRegionRuleId || null,
+    firstAllowanceRegionRulePercent: formValues.firstAllowanceRegionRulePercent ?? 0,
+    secondAllowanceRegionRuleId: formValues.secondAllowanceRegionRuleId || null,
+    secondAllowanceRegionRulePercent: formValues.secondAllowanceRegionRulePercent ?? 0,
+    firstWageCode: formValues.firstWageCode || null,
+    activeFrom: formatActiveFrom(formValues.validFrom),
     activeTo: formatActiveTo(formValues.validTo)
   }
+}
+
+/**
+ * Transforms form values to save data for restricted UPDATE operation (only validTo editable)
+ */
+export const transformAllowanceCodeForRestrictedUpdate = (
+  formValues: AllowanceCodeFormValues,
+  editingItem: any,
+  ruleId: string
+): AllowanceCodeSaveData => {
+  return {
+    id: editingItem.id,
+    version: editingItem.version,
+    expenseRuleId: ruleId,
+    businessKey: editingItem.businessKey,
+    additionalProperties: editingItem.additionalProperties || {},
+    codeOrder: editingItem.codeOrder,
+    travelLocation: editingItem.travelLocation,
+    secondWageCode: editingItem.secondWageCode || null,
+    code: editingItem.code,
+    name: editingItem.name,
+    reimbursable: editingItem.reimbursable,
+    amount: editingItem.amount ?? null,
+    calculationRef: editingItem.calculation || null,
+    expenseGroupRef: 'ExpenseGroup:v1:ALLOWANCE',
+    firstAllowanceRegionRuleId: editingItem.firstAllowanceRegionRuleId || null,
+    firstAllowanceRegionRulePercent: editingItem.firstAllowanceRegionRulePercent ?? 0,
+    secondAllowanceRegionRuleId: editingItem.secondAllowanceRegionRuleId || null,
+    secondAllowanceRegionRulePercent: editingItem.secondAllowanceRegionRulePercent ?? 0,
+    firstWageCode: editingItem.firstWageCode || null,
+    activeFrom: formatActiveFrom(editingItem.validFrom),
+    activeTo: formatActiveTo(formValues.validTo)
+  }
+}
+
+/**
+ * @deprecated Use transformAllowanceCodeForUnrestrictedUpdate or transformAllowanceCodeForRestrictedUpdate instead
+ * Transforms form values to save data for UPDATE operation
+ */
+export const transformAllowanceCodeForUpdate = (
+  formValues: AllowanceCodeFormValues,
+  editingItem: any,
+  ruleId: string,
+  isRestrictedEdit: boolean
+): AllowanceCodeSaveData => {
+  return isRestrictedEdit
+    ? transformAllowanceCodeForRestrictedUpdate(formValues, editingItem, ruleId)
+    : transformAllowanceCodeForUnrestrictedUpdate(formValues, editingItem, ruleId)
 }
 
 /**

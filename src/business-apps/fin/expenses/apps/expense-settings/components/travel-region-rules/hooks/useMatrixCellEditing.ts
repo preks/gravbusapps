@@ -104,7 +104,7 @@ export const useMatrixCellEditing = ({
   const handleEnterCellEdit = useCallback(
     async (cellId: string) => {
       const cell = editableCells.find(c => c.id === cellId)
-      if (!cell || cell.isNew) return
+      if (!cell?.id || cell.isNew) return
 
       setEditingCellId(cellId)
 
