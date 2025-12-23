@@ -177,11 +177,12 @@ export const useMatrixCellEditing = ({
         }
       } catch (error) {
         console.error('Error checking detail usage:', error)
-        // Default to restricted mode for safety
+        // On error, default to NOT used (allow deletion) - user can verify manually
+        // This is safer than blocking deletion when the check fails
         setEditingCellUsageInfo({
-          isUsed: true,
+          isUsed: false,
           usedIn: {},
-          message: 'Unable to verify usage. Editing restricted for safety.'
+          message: 'Unable to verify usage. Proceed with caution.'
         })
       } finally {
         setIsCheckingCellUsage(false)

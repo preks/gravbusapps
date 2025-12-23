@@ -32,7 +32,8 @@ interface MatrixRegionRowProps {
     editableCells: EditableCell[],
     currencies: any[],
     setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>,
-    setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
+    setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>,
+    allowanceRegionRules: any[]
   ) => void
   onDeleteRegionClick: (region: any, e: React.MouseEvent) => void
   regionHasSavedDetails: (regionId: string) => boolean
@@ -133,6 +134,7 @@ export const MatrixRegionRow: React.FC<MatrixRegionRowProps> = ({
             editableCells={editableCells}
             setAllowanceRegionRules={setAllowanceRegionRules}
             setEditableCells={setEditableCells}
+            allowanceRegionRules={allowanceRegionRules}
             getExpenseSettingsClient={getExpenseSettingsClient}
             loadData={loadData}
             prefixDataTestId={prefixDataTestId}

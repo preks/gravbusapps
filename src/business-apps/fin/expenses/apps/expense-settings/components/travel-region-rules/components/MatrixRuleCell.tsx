@@ -33,13 +33,15 @@ interface MatrixRuleCellProps {
     editableCells: EditableCell[],
     currencies: any[],
     setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>,
-    setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
+    setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>,
+    allowanceRegionRules: any[]
   ) => void
   currencies: Array<{ id: string; code: string; value: string }>
   countries: Array<{ id: string; code: string; value: string }>
   editableCells: EditableCell[]
   setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>
   setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
+  allowanceRegionRules: any[]
   getExpenseSettingsClient: () => any
   loadData: () => Promise<void>
   prefixDataTestId: string
@@ -69,6 +71,7 @@ export const MatrixRuleCell: React.FC<MatrixRuleCellProps> = ({
   editableCells,
   setAllowanceRegionRules,
   setEditableCells,
+  allowanceRegionRules,
   getExpenseSettingsClient,
   loadData,
   prefixDataTestId
@@ -135,7 +138,15 @@ export const MatrixRuleCell: React.FC<MatrixRuleCellProps> = ({
           variant="ghost"
           size="sm"
           onClick={() =>
-            onAddNewCell(rule, region, editableCells, currencies, setAllowanceRegionRules, setEditableCells)
+            onAddNewCell(
+              rule,
+              region,
+              editableCells,
+              currencies,
+              setAllowanceRegionRules,
+              setEditableCells,
+              allowanceRegionRules
+            )
           }
           className="gba:w-full gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-accent gba:border gba:border-dashed"
           title="Add new allowance detail (validity periods must not overlap)"
