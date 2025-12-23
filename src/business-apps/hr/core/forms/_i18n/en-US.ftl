@@ -248,3 +248,19 @@ error-end-date-after-start-date = End date cannot be before the benefit start da
 # Update Working Conditions Form
 working-conditions-probation-period = Probation Period
 working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
+working-conditions-unit-day = { $count ->
+    [one] Day
+   *[other] Days
+}
+working-conditions-unit-week = { $count ->
+    [one] Week
+   *[other] Weeks
+}
+working-conditions-unit-month = { $count ->
+    [one] Month
+   *[other] Months
+}
+working-conditions-unit-year = { $count ->
+    [one] Year
+   *[other] Years
+}

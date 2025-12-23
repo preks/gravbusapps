@@ -248,3 +248,19 @@ error-end-date-after-start-date = Das Enddatum kann nicht vor dem Startdatum der
 # Update Working Conditions Form
 working-conditions-probation-period = Probezeit
 working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
+working-conditions-unit-day = { $count ->
+    [one] Tag
+   *[other] Tage
+}
+working-conditions-unit-week = { $count ->
+    [one] Woche
+   *[other] Wochen
+}
+working-conditions-unit-month = { $count ->
+    [one] Monat
+   *[other] Monate
+}
+working-conditions-unit-year = { $count ->
+    [one] Jahr
+   *[other] Jahre
+}

@@ -84,16 +84,16 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         let unitLabel = ''
         switch (unit) {
           case 'day':
-            unitLabel = value === 1 ? 'Day' : 'Days'
+            unitLabel = t('working-conditions-unit-day', { count: value })
             break
           case 'week':
-            unitLabel = value === 1 ? 'Week' : 'Weeks'
+            unitLabel = t('working-conditions-unit-week', { count: value })
             break
           case 'month':
-            unitLabel = value === 1 ? 'Month' : 'Months'
+            unitLabel = t('working-conditions-unit-month', { count: value })
             break
           case 'year':
-            unitLabel = value === 1 ? 'Year' : 'Years'
+            unitLabel = t('working-conditions-unit-year', { count: value })
             break
           default:
             unitLabel = unit
@@ -106,7 +106,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     }
 
     return null
-  }, [contractType, contractTypes])
+  }, [contractType, contractTypes, t])
 
   const calculateProbationEndDate = useCallback(
     (start: string, ctId: string): string | null => {
