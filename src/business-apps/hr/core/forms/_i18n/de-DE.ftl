@@ -244,3 +244,7 @@ modal-deactivate-submit-button = Zusatzleistung deaktivieren
 error-end-date-required = Enddatum ist erforderlich. Bitte wählen Sie ein Enddatum aus.
 error-end-date-today-or-later = Das Enddatum muss heute oder später sein.
 error-end-date-after-start-date = Das Enddatum kann nicht vor dem Startdatum der Zusatzleistung liegen.
+
+# Update Working Conditions Form
+working-conditions-probation-period = Probezeit
+working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.

@@ -244,3 +244,7 @@ modal-deactivate-submit-button = Deactivate Benefit
 error-end-date-required = End date is required. Please select an end date.
 error-end-date-today-or-later = End date must be today or later.
 error-end-date-after-start-date = End date cannot be before the benefit start date.
+
+# Update Working Conditions Form
+working-conditions-probation-period = Probation Period
+working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
