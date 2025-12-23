@@ -56,12 +56,29 @@ import { CSS } from '@dnd-kit/utilities'
 /**
  * Helper to determine default dates for new cell
  * Uses the FIRST detail entered for this rule/region combination
+ * Ensures dates are properly formatted and handles null/undefined/empty string values
  */
 const getDefaultCellDates = (
   existingCells: EditableCell[],
   rule: EditableAllowanceRegionRule,
   todayDate: string
 ): { activeFrom: string; activeTo: string | undefined } => {
+  // Default far future date for "no end date" (∞) - matches UI display pattern
+  const farFutureDate = '9999-12-31T00:00:00+00:00'
+
+  // Helper to normalize date: ensure it's in ISO format with time component
+  const normalizeDate = (date: string | null | undefined): string | undefined => {
+    if (!date || date.trim() === '') return undefined
+    // If date is already in ISO format with time, return as is
+    if (date.includes('T')) return date
+    // If date is just YYYY-MM-DD, add time component
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date}T00:00:00+00:00`
+    // Try to parse and format
+    const parsed = dayjs(date)
+    if (parsed.isValid()) return parsed.format('YYYY-MM-DD') + 'T00:00:00+00:00'
+    return undefined
+  }
+
   if (existingCells.length > 0) {
     // Sort by activeFrom date to get the first detail (oldest activeFrom)
     const sortedCells = [...existingCells].sort((a, b) => {
@@ -71,15 +88,21 @@ const getDefaultCellDates = (
       return dayjs(a.activeFrom).valueOf() - dayjs(b.activeFrom).valueOf()
     })
     const firstCell = sortedCells[0]
+    const normalizedActiveFrom = normalizeDate(firstCell.activeFrom) || todayDate
+    const normalizedActiveTo = normalizeDate(firstCell.activeTo) || farFutureDate
+
     return {
-      activeFrom: firstCell.activeFrom,
-      activeTo: firstCell.activeTo
+      activeFrom: normalizedActiveFrom,
+      activeTo: normalizedActiveTo
     }
   }
 
+  const normalizedRuleFrom = normalizeDate(rule.activeFrom) || todayDate
+  const normalizedRuleTo = normalizeDate(rule.activeTo) || farFutureDate
+
   return {
-    activeFrom: rule.activeFrom || todayDate,
-    activeTo: rule.activeTo
+    activeFrom: normalizedRuleFrom,
+    activeTo: normalizedRuleTo
   }
 }
 

@@ -90,9 +90,9 @@ export const MatrixRuleCell: React.FC<MatrixRuleCellProps> = ({
           const isUsedInTransactions = editingCellUsageInfo?.isUsed && editingCellId === cell.id
 
           // Create a truly unique key: use id if available, otherwise combine multiple fields to ensure uniqueness
+          // NOTE: Do NOT include cell.amount in the key as it changes during typing and causes input to lose focus
           const uniqueKey =
-            cell.id ||
-            `${cell.validityPeriodId || 'new'}-${cell.activeFrom}-${cell.activeTo || 'null'}-${index}-${cell.amount}`
+            cell.id || `${cell.validityPeriodId || 'new'}-${cell.activeFrom}-${cell.activeTo || 'null'}-${index}`
 
           return (
             <MatrixCellContent
