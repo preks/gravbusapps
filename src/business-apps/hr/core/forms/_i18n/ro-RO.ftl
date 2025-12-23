@@ -244,3 +244,31 @@ modal-deactivate-submit-button = Dezactivează beneficiu
 error-end-date-required = Data de încheiere este obligatorie. Vă rugăm să selectați o dată de încheiere.
 error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau ulterior.
 error-end-date-after-start-date = Data de încheiere nu poate fi înaintea datei de început a beneficiului.
+
+# ============================================
+# Pending Submission Status Messages
+# ============================================
+
+# Change Bank Account Form
+change-bank-account-process-title = Modificare cont bancar
+change-bank-account-pending-status = În așteptare
+
+# Change Address Form
+change-address-process-title = Modificare adresă
+change-address-pending-status = În așteptare
+
+# Change Personal Data Form
+change-personal-data-process-title = Modificare date personale
+change-personal-data-pending-status = În așteptare
+
+# Change Communication Form
+change-communication-process-title = Modificare comunicare
+change-communication-pending-status = În așteptare
+
+# Grant Bonus Form
+grant-bonus-process-title = Acordare bonus
+grant-bonus-pending-status = În așteptare
+
+# Adjust Salary Form
+adjust-salary-process-title = Ajustare salariu
+adjust-salary-pending-status = În așteptare

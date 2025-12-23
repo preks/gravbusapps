@@ -244,3 +244,31 @@ modal-deactivate-submit-button = Zusatzleistung deaktivieren
 error-end-date-required = Enddatum ist erforderlich. Bitte wählen Sie ein Enddatum aus.
 error-end-date-today-or-later = Das Enddatum muss heute oder später sein.
 error-end-date-after-start-date = Das Enddatum kann nicht vor dem Startdatum der Zusatzleistung liegen.
+
+# ============================================
+# Pending Submission Status Messages
+# ============================================
+
+# Change Bank Account Form
+change-bank-account-process-title = Bankkontoänderung
+change-bank-account-pending-status = Ausstehend
+
+# Change Address Form
+change-address-process-title = Adressänderung
+change-address-pending-status = Ausstehend
+
+# Change Personal Data Form
+change-personal-data-process-title = Persönliche Datenänderung
+change-personal-data-pending-status = Ausstehend
+
+# Change Communication Form
+change-communication-process-title = Kommunikationsänderung
+change-communication-pending-status = Ausstehend
+
+# Grant Bonus Form
+grant-bonus-process-title = Bonusgewährung
+grant-bonus-pending-status = Ausstehend
+
+# Adjust Salary Form
+adjust-salary-process-title = Gehaltsanpassung
+adjust-salary-pending-status = Ausstehend
