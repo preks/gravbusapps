@@ -14,15 +14,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
   Toaster,
   Checkbox,
-  Label,
-  DateInput
+  Label
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
 import { PiArrowLeft, PiPlus, PiMapPin, PiFloppyDisk, PiDotsSixVertical, PiTrash } from 'react-icons/pi'
@@ -50,9 +44,10 @@ import {
   ValidityPeriod,
   CurrencyOption
 } from './types'
-import { formatDate, formatPeriodShort } from './utils/matrixFormatters'
+import { formatDate } from './utils/matrixFormatters'
 import { convertToEditableCells, validateCurrencies } from './utils/matrixDataTransformers'
 import { regionHasSavedDetails as checkRegionHasSavedDetails } from './utils/matrixValidation'
+import { MatrixRegionRow } from './components/MatrixRegionRow'
 import dayjs from 'dayjs'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
@@ -60,6 +55,7 @@ import { CSS } from '@dnd-kit/utilities'
 
 /**
  * Helper to determine default dates for new cell
+ * Uses the FIRST detail entered for this rule/region combination
  */
 const getDefaultCellDates = (
   existingCells: EditableCell[],
@@ -67,10 +63,17 @@ const getDefaultCellDates = (
   todayDate: string
 ): { activeFrom: string; activeTo: string | undefined } => {
   if (existingCells.length > 0) {
-    const lastCell = existingCells[existingCells.length - 1]
+    // Sort by activeFrom date to get the first detail (oldest activeFrom)
+    const sortedCells = [...existingCells].sort((a, b) => {
+      if (!a.activeFrom && !b.activeFrom) return 0
+      if (!a.activeFrom) return 1
+      if (!b.activeFrom) return -1
+      return dayjs(a.activeFrom).valueOf() - dayjs(b.activeFrom).valueOf()
+    })
+    const firstCell = sortedCells[0]
     return {
-      activeFrom: lastCell.activeFrom,
-      activeTo: lastCell.activeTo
+      activeFrom: firstCell.activeFrom,
+      activeTo: firstCell.activeTo
     }
   }
 
@@ -133,19 +136,6 @@ const createNewEditableCell = (
 }
 
 /**
- * Helper to determine cell CSS classes based on state
- */
-const getCellClassName = (cell: EditableCell, isEditing: boolean): string => {
-  if (cell.isModified) {
-    return 'gba:bg-info-secondary gba:border-info'
-  }
-  if (isEditing) {
-    return 'gba:bg-accent gba:border-primary'
-  }
-  return 'gba:bg-white gba:border-border gba:cursor-pointer hover:gba:bg-accent'
-}
-
-/**
  * Helper to handle cell deletion with proper nesting avoidance
  */
 const handleCellDelete = async (
@@ -194,9 +184,12 @@ const handleAddNewCell = (
   setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
 ) => {
   const todayDate = `${dayjs().format('YYYY-MM-DD')}T00:00:00+00:00`
-  const existingCellsForRule = editableCells.filter(c => c.allowanceRegionRuleId === rule.id && !c.isNew)
+  // Filter by both rule AND region to get existing details for this specific rule/region combination
+  const existingCellsForRuleAndRegion = editableCells.filter(
+    c => c.allowanceRegionRuleId === rule.id && c.travelRegionId === region.id && !c.isNew
+  )
 
-  const { activeFrom, activeTo } = getDefaultCellDates(existingCellsForRule, rule, todayDate)
+  const { activeFrom, activeTo } = getDefaultCellDates(existingCellsForRuleAndRegion, rule, todayDate)
   const newPeriod = createNewValidityPeriod(rule, region, activeFrom, activeTo)
 
   setAllowanceRegionRules(prev =>
@@ -776,383 +769,32 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
                     {/* Data Rows */}
                     {paginatedRegions.map(region => (
-                      <TableRow key={region.id}>
-                        <TableCell className="gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r gba:w-48">
-                          <div className="gba:p-3">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <PiMapPin className="gba:text-primary gba:w-5 gba:h-5" />
-                              <div className="gba:flex-1">
-                                <div className="gba:mb-1">
-                                  <div className="gba:text-xs gba:text-muted-foreground gba:px-1 gba:py-0.5">
-                                    {region.code}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="gba:font-medium gba:text-sm gba:px-1 gba:py-0.5">{region.value}</div>
-                                </div>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={e => modals.actions.handleDeleteRegionClick(region, e)}
-                                className="gba:h-6 gba:w-6 gba:p-0 gba:text-destructive hover:gba:text-destructive hover:gba:bg-destructive-secondary"
-                                title={
-                                  regionHasSavedDetails(region.id)
-                                    ? 'Cannot delete - region has allowance details'
-                                    : 'Delete travel region'
-                                }
-                                disabled={regionHasSavedDetails(region.id)}
-                                data-testid={`${prefixDataTestId}-delete-region-button-${region.id}`}
-                              >
-                                <PiTrash className="gba:w-4 gba:h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </TableCell>
-                        {allowanceRegionRules.map(rule => {
-                          const ruleCells = editableCells.filter(
-                            c => c.allowanceRegionRuleId === rule.id && c.travelRegionId === region.id
-                          )
-
-                          return (
-                            <TableCell
-                              key={`${rule.id}-${region.id}`}
-                              className="gba:text-center gba:relative gba:p-2 gba:align-top"
-                            >
-                              <div className="gba:space-y-2">
-                                {/* Existing details */}
-                                {ruleCells.map(cell => {
-                                  const isEditing = cell.isNew || cellEditing.editingCellId === cell.id
-                                  const isUsedInTransactions =
-                                    cellEditing.editingCellUsageInfo?.isUsed && cellEditing.editingCellId === cell.id
-
-                                  // Cell content (same for both button and div)
-                                  const cellContent = (
-                                    <>
-                                      {cell.isModified && (
-                                        <div className="gba:absolute gba:top-1 gba:right-1">
-                                          <div className="gba:w-2 gba:h-2 gba:bg-info gba:rounded-full"></div>
-                                        </div>
-                                      )}
-
-                                      {isEditing ? (
-                                        <div className="gba:space-y-2">
-                                          {isUsedInTransactions && !cell.isNew && (
-                                            <div className="gba:text-xs gba:text-warning gba:bg-warning-secondary gba:p-1 gba:rounded gba:mb-2">
-                                              ⚠️ Used in transactions - only "To" date can be edited
-                                            </div>
-                                          )}
-
-                                          {cellEditing.isCheckingCellUsage && cellEditing.editingCellId === cell.id && (
-                                            <div className="gba:text-xs gba:text-muted-foreground gba:text-center">
-                                              Checking usage...
-                                            </div>
-                                          )}
-
-                                          {/* Active From */}
-                                          <div>
-                                            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
-                                              From:
-                                            </label>
-                                            <DateInput
-                                              value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
-                                              onChange={date => {
-                                                const dateValue = date ? `${date}T00:00:00+00:00` : ''
-                                                cellEditing.updateCellField(
-                                                  cell.id!,
-                                                  cell.validityPeriodId!,
-                                                  'activeFrom',
-                                                  dateValue
-                                                )
-                                              }}
-                                              disabled={isUsedInTransactions && !cell.isNew}
-                                              data-testid={`${prefixDataTestId}-cell-active-from-${rule.id}-${region.id}`}
-                                            />
-                                          </div>
-
-                                          {/* Active To */}
-                                          <div>
-                                            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
-                                              To:
-                                            </label>
-                                            <DateInput
-                                              value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
-                                              onChange={date => {
-                                                const dateValue = date ? `${date}T00:00:00+00:00` : undefined
-                                                cellEditing.updateCellField(
-                                                  cell.id!,
-                                                  cell.validityPeriodId!,
-                                                  'activeTo',
-                                                  dateValue
-                                                )
-                                              }}
-                                              data-testid={`${prefixDataTestId}-cell-active-to-${rule.id}-${region.id}`}
-                                            />
-                                          </div>
-
-                                          {/* Amount */}
-                                          <div>
-                                            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
-                                              Amount:
-                                            </label>
-                                            <Input
-                                              type="number"
-                                              step="0.01"
-                                              value={cell.amount || ''}
-                                              onChange={e => {
-                                                const value = parseFloat(e.target.value) || 0
-                                                cellEditing.updateCellField(
-                                                  cell.id!,
-                                                  cell.validityPeriodId!,
-                                                  'amount',
-                                                  value
-                                                )
-                                              }}
-                                              onClick={e => e.stopPropagation()}
-                                              className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"
-                                              placeholder="0.00"
-                                              disabled={isUsedInTransactions && !cell.isNew}
-                                              data-testid={`${prefixDataTestId}-cell-amount-${rule.id}-${region.id}`}
-                                            />
-                                          </div>
-
-                                          {/* Currency */}
-                                          <div>
-                                            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
-                                              Currency:
-                                            </label>
-                                            <Select
-                                              value={cell.currencyCode}
-                                              onValueChange={value => {
-                                                const selectedCurrency = currencies.find(c => c.code === value)
-                                                setEditableCells(prev =>
-                                                  prev.map(c =>
-                                                    c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
-                                                      ? {
-                                                          ...c,
-                                                          currencyCode: value,
-                                                          currencyRef: selectedCurrency?.id,
-                                                          isModified: true
-                                                        }
-                                                      : c
-                                                  )
-                                                )
-                                              }}
-                                              disabled={isUsedInTransactions && !cell.isNew}
-                                            >
-                                              <SelectTrigger
-                                                className="gba:w-full gba:h-7 gba:text-xs"
-                                                onClick={e => e.stopPropagation()}
-                                                data-testid={`${prefixDataTestId}-cell-currency-${rule.id}-${region.id}`}
-                                              >
-                                                <SelectValue />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                {currencies.map(currency => (
-                                                  <SelectItem key={currency.id} value={currency.code}>
-                                                    {currency.code} - {currency.value}
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
-                                          </div>
-
-                                          {/* Country */}
-                                          <div>
-                                            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
-                                              Country:
-                                            </label>
-                                            <Select
-                                              value={cell.countryRef}
-                                              onValueChange={value => {
-                                                setEditableCells(prev =>
-                                                  prev.map(c =>
-                                                    c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
-                                                      ? {
-                                                          ...c,
-                                                          countryRef: value,
-                                                          isModified: true
-                                                        }
-                                                      : c
-                                                  )
-                                                )
-                                              }}
-                                              disabled={isUsedInTransactions && !cell.isNew}
-                                            >
-                                              <SelectTrigger
-                                                className="gba:w-full gba:h-7 gba:text-xs"
-                                                onClick={e => e.stopPropagation()}
-                                                data-testid={`${prefixDataTestId}-cell-country-${rule.id}-${region.id}`}
-                                              >
-                                                <SelectValue placeholder="Select country" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                {countries.map(country => (
-                                                  <SelectItem key={country.id} value={country.id}>
-                                                    {country.code} - {country.value}
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
-                                          </div>
-
-                                          {/* Action buttons */}
-                                          <div className="gba:flex gba:gap-2 gba:mt-2">
-                                            {cell.isNew ? (
-                                              <div className="gba:flex gba:gap-1 gba:w-full">
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={e => {
-                                                    e.stopPropagation()
-                                                    cellEditing.handleRemoveNewCell(cell.validityPeriodId!, rule.id)
-                                                  }}
-                                                  className="gba:flex-1 gba:h-7 gba:text-xs"
-                                                  disabled={cellEditing.isSavingCell}
-                                                >
-                                                  Cancel
-                                                </Button>
-                                                <Button
-                                                  variant="default"
-                                                  size="sm"
-                                                  onClick={e => {
-                                                    e.stopPropagation()
-                                                    cellEditing.handleSaveSingleCell(cell)
-                                                  }}
-                                                  className="gba:flex-1 gba:h-7 gba:text-xs"
-                                                  disabled={cellEditing.isSavingCell || cell.amount <= 0}
-                                                >
-                                                  {cellEditing.isSavingCell ? 'Saving...' : 'Save'}
-                                                </Button>
-                                              </div>
-                                            ) : (
-                                              <div className="gba:flex gba:gap-1 gba:w-full">
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={e => {
-                                                    e.stopPropagation()
-                                                    cellEditing.setEditingCellId(null)
-                                                    cellEditing.setEditingCellUsageInfo(null)
-                                                  }}
-                                                  className="gba:flex-1 gba:h-7 gba:text-xs"
-                                                  disabled={cellEditing.isSavingCell}
-                                                >
-                                                  Cancel
-                                                </Button>
-                                                <Button
-                                                  variant="default"
-                                                  size="sm"
-                                                  onClick={e => {
-                                                    e.stopPropagation()
-                                                    cellEditing.handleSaveSingleCell(cell)
-                                                  }}
-                                                  className="gba:flex-1 gba:h-7 gba:text-xs"
-                                                  disabled={cellEditing.isSavingCell || cellEditing.isCheckingCellUsage}
-                                                >
-                                                  {cellEditing.isSavingCell ? 'Saving...' : 'Save'}
-                                                </Button>
-                                                {(() => {
-                                                  const shouldShowDelete = !cellEditing.editingCellUsageInfo?.isUsed
-                                                  return shouldShowDelete
-                                                })() && (
-                                                  <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    onClick={async e => {
-                                                      e.stopPropagation()
-                                                      await handleCellDelete(
-                                                        cell,
-                                                        getExpenseSettingsClient,
-                                                        cellEditing,
-                                                        loadData
-                                                      )
-                                                    }}
-                                                    className="gba:h-7 gba:px-2"
-                                                    disabled={
-                                                      cellEditing.isSavingCell || cellEditing.isCheckingCellUsage
-                                                    }
-                                                    title="Delete this detail"
-                                                  >
-                                                    <PiTrash className="gba:w-4 gba:h-4" />
-                                                  </Button>
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:text-center">
-                                            {formatPeriodShort(cell.activeFrom, cell.activeTo)}
-                                          </div>
-                                          <div className="gba:text-center gba:mb-2">
-                                            <div className="gba:text-lg gba:font-semibold gba:text-foreground">
-                                              {cell.amount.toFixed(2)}
-                                            </div>
-                                          </div>
-                                          <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:font-medium">
-                                            {cell.currencyCode}
-                                          </div>
-                                          <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-1 gba:opacity-0 hover:gba:opacity-100">
-                                            Click to edit
-                                          </div>
-                                        </>
-                                      )}
-                                    </>
-                                  )
-
-                                  // Render as button when not editing (for accessibility), div when editing
-                                  return isEditing ? (
-                                    <div
-                                      key={cell.id || cell.validityPeriodId}
-                                      className={`gba:border gba:rounded gba:p-2 gba:relative ${getCellClassName(cell, isEditing)}`}
-                                    >
-                                      {cellContent}
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      key={cell.id || cell.validityPeriodId}
-                                      className={`gba:w-full gba:border gba:rounded gba:p-2 gba:relative gba:text-left ${getCellClassName(cell, isEditing)}`}
-                                      onClick={() => {
-                                        if (cell.id) {
-                                          cellEditing.handleEnterCellEdit(cell.id)
-                                        }
-                                      }}
-                                    >
-                                      {cellContent}
-                                    </button>
-                                  )
-                                })}
-
-                                {/* Add new detail button */}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleAddNewCell(
-                                      rule,
-                                      region,
-                                      editableCells,
-                                      currencies,
-                                      setAllowanceRegionRules,
-                                      setEditableCells
-                                    )
-                                  }
-                                  className="gba:w-full gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-accent gba:border gba:border-dashed"
-                                  title="Add new allowance detail"
-                                  data-testid={`${prefixDataTestId}-add-cell-${rule.id}-${region.id}`}
-                                >
-                                  <PiPlus className="gba:w-4 gba:h-4 gba:mr-1" />
-                                  <span className="gba:text-xs">Add Detail</span>
-                                </Button>
-                              </div>
-                            </TableCell>
-                          )
-                        })}
-                        <TableCell className="gba:w-16 gba:text-center gba:text-muted"></TableCell>
-                      </TableRow>
+                      <MatrixRegionRow
+                        key={region.id}
+                        region={region}
+                        allowanceRegionRules={allowanceRegionRules}
+                        editableCells={editableCells}
+                        editingCellId={cellEditing.editingCellId}
+                        editingCellUsageInfo={cellEditing.editingCellUsageInfo}
+                        isCheckingCellUsage={cellEditing.isCheckingCellUsage}
+                        isSavingCell={cellEditing.isSavingCell}
+                        onEnterCellEdit={cellEditing.handleEnterCellEdit}
+                        onExitCellEdit={cellEditing.handleCancelCellEdit}
+                        onRemoveNewCell={cellEditing.handleRemoveNewCell}
+                        onUpdateCellField={cellEditing.updateCellField}
+                        onSaveSingleCell={cellEditing.handleSaveSingleCell}
+                        onDeleteCell={handleCellDelete}
+                        onAddNewCell={handleAddNewCell}
+                        onDeleteRegionClick={modals.actions.handleDeleteRegionClick}
+                        regionHasSavedDetails={regionHasSavedDetails}
+                        currencies={currencies}
+                        countries={countries}
+                        setAllowanceRegionRules={setAllowanceRegionRules}
+                        setEditableCells={setEditableCells}
+                        getExpenseSettingsClient={getExpenseSettingsClient}
+                        loadData={loadData}
+                        prefixDataTestId={prefixDataTestId}
+                      />
                     ))}
                   </TableBody>
                 </Table>

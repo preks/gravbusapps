@@ -62,6 +62,57 @@ const validateDetailDatesAgainstRule = (
 }
 
 /**
+ * Helper to validate that validity periods don't overlap for the same rule/region
+ */
+const validateNoOverlappingPeriods = (
+  detailFrom: dayjs.Dayjs,
+  detailTo: dayjs.Dayjs | null,
+  currentCellId: string | undefined,
+  currentValidityPeriodId: string,
+  editableCells: EditableCell[],
+  ruleId: string,
+  regionId: string
+): boolean => {
+  // Find all other details for the same rule/region (excluding the current one being saved)
+  const otherDetails = editableCells.filter(
+    c =>
+      c.allowanceRegionRuleId === ruleId &&
+      c.travelRegionId === regionId &&
+      (currentCellId ? c.id !== currentCellId : c.validityPeriodId !== currentValidityPeriodId) &&
+      !c.isNew // Exclude new unsaved cells
+  )
+
+  for (const otherDetail of otherDetails) {
+    if (!otherDetail.activeFrom) continue
+
+    const otherFrom = dayjs(otherDetail.activeFrom)
+    const otherTo = otherDetail.activeTo ? dayjs(otherDetail.activeTo) : null
+
+    // Check for overlap
+    // Two periods overlap if:
+    // - detailFrom is between otherFrom and otherTo (or otherTo is null)
+    // - detailTo is between otherFrom and otherTo (or otherTo is null)
+    // - detailFrom <= otherFrom and detailTo >= otherTo (or detailTo is null)
+    // - otherFrom <= detailFrom and otherTo >= detailTo (or otherTo is null)
+
+    const detailEndsBeforeOtherStarts = detailTo && detailTo.isBefore(otherFrom, 'day')
+    const detailStartsAfterOtherEnds = otherTo && detailFrom.isAfter(otherTo, 'day')
+
+    if (!detailEndsBeforeOtherStarts && !detailStartsAfterOtherEnds) {
+      // There's an overlap
+      const otherPeriodStr = `${otherFrom.format('DD/MM/YYYY')} - ${otherTo ? otherTo.format('DD/MM/YYYY') : '∞'}`
+      const newPeriodStr = `${detailFrom.format('DD/MM/YYYY')} - ${detailTo ? detailTo.format('DD/MM/YYYY') : '∞'}`
+      toast.error(
+        `Validity period overlaps with existing detail: ${otherPeriodStr}. New period: ${newPeriodStr}. Periods for the same region and rule cannot overlap.`
+      )
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
  * Helper to validate country reference
  */
 const validateCountryRef = (countryRef: string | undefined): boolean => {
@@ -189,6 +240,22 @@ export const useMatrixCellEditing = ({
         const detailTo = latestCell.activeTo ? dayjs(latestCell.activeTo) : null
 
         if (!validateDetailDatesAgainstRule(detailFrom, detailTo, rule)) {
+          setIsSavingCell(false)
+          return
+        }
+
+        // Validate no overlapping periods for the same rule/region
+        if (
+          !validateNoOverlappingPeriods(
+            detailFrom,
+            detailTo,
+            latestCell.id,
+            latestCell.validityPeriodId,
+            editableCells,
+            latestCell.allowanceRegionRuleId,
+            latestCell.travelRegionId
+          )
+        ) {
           setIsSavingCell(false)
           return
         }
