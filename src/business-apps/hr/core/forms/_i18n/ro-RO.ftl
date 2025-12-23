@@ -272,3 +272,23 @@ grant-bonus-pending-status = În așteptare
 # Adjust Salary Form
 adjust-salary-process-title = Ajustare salariu
 adjust-salary-pending-status = În așteptare
+
+# Update Working Conditions Form
+working-conditions-probation-period = Perioadă de probă
+working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
+working-conditions-unit-day = { $count ->
+    [one] Zi
+   *[other] Zile
+}
+working-conditions-unit-week = { $count ->
+    [one] Săptămână
+   *[other] Săptămâni
+}
+working-conditions-unit-month = { $count ->
+    [one] Lună
+   *[other] Luni
+}
+working-conditions-unit-year = { $count ->
+    [one] An
+   *[other] Ani
+}

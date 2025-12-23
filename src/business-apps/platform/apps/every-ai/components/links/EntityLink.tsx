@@ -2,6 +2,7 @@ import React from 'react'
 import EmployeeLinkChip from './EmployeeLinkChip'
 import SandboxFileLinkChip from './SandboxFileLinkChip'
 import { BaseEntityLinkChip } from './BaseEntityLinkChip'
+import IrmDocumentLinkChip from './IrmDocumentLinkChip'
 
 export const SUPPORTED_PROTOCOLS = [
   'employee',
@@ -35,7 +36,9 @@ export const SUPPORTED_PROTOCOLS = [
   'employee_attendance',
   'employee_feedback_request',
   'employee_feedback_review',
-  'sandbox'
+  'sandbox',
+  'investment_document',
+  'investment_report'
 ]
 
 export function markdownUrlTransform(url: string): string {
@@ -299,6 +302,15 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
       <SandboxFileLinkChip filePath={url} token={accessToken}>
         {children}
       </SandboxFileLinkChip>
+    )
+  }
+
+  // IRM investment document: resolve to actual file download URL and show it to the user
+  if (protocol === 'investment_document' && url) {
+    return (
+      <IrmDocumentLinkChip documentId={url} token={accessToken} fallbackHref={href}>
+        {children}
+      </IrmDocumentLinkChip>
     )
   }
 
