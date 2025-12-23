@@ -25,7 +25,7 @@ interface MatrixRegionRowProps {
   onRemoveNewCell: (validityPeriodId: string, ruleId: string) => void
   onUpdateCellField: (cellId: string, validityPeriodId: string, field: string, value: any) => void
   onSaveSingleCell: (cell: EditableCell) => void
-  onDeleteCell: (cellId: string, getExpenseSettingsClient: () => any, loadData: () => Promise<void>) => Promise<void>
+  onDeleteCell: (cellId: string, getExpenseSettingsClient: () => any) => Promise<void>
   onAddNewCell: (
     rule: any,
     region: any,
@@ -42,7 +42,6 @@ interface MatrixRegionRowProps {
   setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>
   setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
   getExpenseSettingsClient: () => any
-  loadData: () => Promise<void>
   prefixDataTestId: string
 }
 
@@ -72,7 +71,6 @@ export const MatrixRegionRow: React.FC<MatrixRegionRowProps> = ({
   setAllowanceRegionRules,
   setEditableCells,
   getExpenseSettingsClient,
-  loadData,
   prefixDataTestId
 }) => {
   return (
@@ -136,7 +134,6 @@ export const MatrixRegionRow: React.FC<MatrixRegionRowProps> = ({
             setEditableCells={setEditableCells}
             allowanceRegionRules={allowanceRegionRules}
             getExpenseSettingsClient={getExpenseSettingsClient}
-            loadData={loadData}
             prefixDataTestId={prefixDataTestId}
           />
         )

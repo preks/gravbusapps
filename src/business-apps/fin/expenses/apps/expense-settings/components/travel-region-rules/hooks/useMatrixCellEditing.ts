@@ -295,7 +295,8 @@ export const useMatrixCellEditing = ({
         setEditingCellId(null)
         setEditingCellUsageInfo(null)
 
-        // Update the cell with the data from response
+        // Update the cell with the data from response, but fetch the correct version separately
+        // We do a targeted update to avoid reloading all data and losing search/pagination state
         setEditableCells(prev =>
           prev.map(c => {
             const isMatchingCell = latestCell.id
@@ -303,7 +304,8 @@ export const useMatrixCellEditing = ({
               : c.validityPeriodId === latestCell.validityPeriodId
 
             if (isMatchingCell) {
-              return {
+              // Use the data from the response
+              const updatedCell = {
                 ...c,
                 id: c.id || response.allowanceRegionRuleDetail?.id,
                 amount: response.allowanceRegionRuleDetail?.amount ?? c.amount,
@@ -312,10 +314,14 @@ export const useMatrixCellEditing = ({
                 currencyCode: response.allowanceRegionRuleDetail?.currencyRef?.split(':').pop() ?? c.currencyCode,
                 isNew: false,
                 isModified: false,
+                // Backend returns OLD version in response, so we increment it
+                // This is a known backend quirk - it increments in DB but returns old version
                 version: response.allowanceRegionRuleDetail?.version
                   ? response.allowanceRegionRuleDetail.version + 1
                   : (c.version || 0) + 1
               }
+
+              return updatedCell
             }
             return c
           })

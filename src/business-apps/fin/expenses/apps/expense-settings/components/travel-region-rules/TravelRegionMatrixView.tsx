@@ -627,6 +627,84 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setCurrentPage: pagination.actions.setCurrentPage
   })
 
+  // Reload data while preserving search, pagination, and filter state (without showing loading)
+  const reloadDataPreservingState = useCallback(async () => {
+    // Save current state before reloading
+    const currentSearchTerm = search.state.searchTerm
+    const currentPage = pagination.state.currentPage
+
+    try {
+      // Reload data without showing loading state
+      const [allRegions, rulesData, currenciesData, countriesData] = await Promise.all([
+        loadTravelRegions(1, 9999, ''),
+        loadAllowanceRegionRules(),
+        loadCurrencies(),
+        catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'Country', version: 'v1' },
+          { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
+        )
+      ])
+
+      const { rules, regionsWithDetails } = rulesData
+      setAllowanceRegionRules(rules)
+      setCurrencies(currenciesData)
+      setCountries(
+        countriesData.data.map((item: any) => ({
+          id: item.id,
+          code: item.code,
+          value: item.value
+        }))
+      )
+
+      const allRegionsForCells = [...allRegions, ...regionsWithDetails]
+      const uniqueRegionsForCells = Array.from(new Map(allRegionsForCells.map(r => [r.id, r])).values())
+      const cells = convertToEditableCells(rules, uniqueRegionsForCells)
+      const validatedCells = validateCurrencies(cells)
+      setEditableCells(validatedCells)
+
+      // Re-apply search if there was one
+      if (currentSearchTerm) {
+        await search.actions.handleSearch(currentSearchTerm)
+      } else {
+        // Otherwise, restore pagination with updated data
+        const allRegionsForDisplay = [...allRegions, ...regionsWithDetails]
+        const uniqueRegionsForDisplay = Array.from(new Map(allRegionsForDisplay.map(r => [r.id, r])).values())
+
+        setEditableTravelRegions(
+          uniqueRegionsForDisplay.map(region => ({
+            ...region,
+            isEditing: false,
+            editingCode: region.code,
+            editingValue: region.value,
+            isModified: false,
+            isNew: false
+          }))
+        )
+
+        // Restore pagination
+        await pagination.actions.handlePageChange(currentPage)
+      }
+    } catch (err) {
+      console.error('Error reloading data:', err)
+      // If reload fails, fall back to full loadData
+      await loadData()
+    }
+  }, [
+    loadTravelRegions,
+    loadAllowanceRegionRules,
+    loadCurrencies,
+    catalogClient,
+    search,
+    pagination,
+    setAllowanceRegionRules,
+    setCurrencies,
+    setCountries,
+    setEditableCells,
+    setEditableTravelRegions,
+    convertToEditableCells,
+    validateCurrencies
+  ])
+
   // Sorting
   const sorting = useMatrixSorting({
     showRegionsWithDetailsFirst,
@@ -674,7 +752,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setEditableCells,
     setAllowanceRegionRules,
     checkDetailUsage,
-    loadData,
+    loadData: reloadDataPreservingState,
     getExpenseSettingsClient
   })
 
@@ -684,7 +762,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     editableCells,
     allowanceRegionRules,
     currencies,
-    loadData,
+    loadData: reloadDataPreservingState,
     getExpenseSettingsClient
   })
 
@@ -1014,7 +1092,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                         onRemoveNewCell={cellEditing.handleRemoveNewCell}
                         onUpdateCellField={cellEditing.updateCellField}
                         onSaveSingleCell={cellEditing.handleSaveSingleCell}
-                        onDeleteCell={(cellId, getExpenseSettingsClient, loadData) => {
+                        onDeleteCell={(cellId, getExpenseSettingsClient) => {
                           const cell = editableCells.find(c => c.id === cellId)
                           if (!cell) {
                             toast.error('Detail not found')
@@ -1053,7 +1131,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                         setAllowanceRegionRules={setAllowanceRegionRules}
                         setEditableCells={setEditableCells}
                         getExpenseSettingsClient={getExpenseSettingsClient}
-                        loadData={loadData}
                         prefixDataTestId={prefixDataTestId}
                       />
                     ))}

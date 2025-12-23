@@ -26,7 +26,7 @@ interface MatrixRuleCellProps {
   onRemoveNewCell: (validityPeriodId: string, ruleId: string) => void
   onUpdateCellField: (cellId: string, validityPeriodId: string, field: string, value: any) => void
   onSaveSingleCell: (cell: EditableCell) => void
-  onDeleteCell: (cellId: string, getExpenseSettingsClient: () => any, loadData: () => Promise<void>) => Promise<void>
+  onDeleteCell: (cellId: string, getExpenseSettingsClient: () => any) => Promise<void>
   onAddNewCell: (
     rule: any,
     region: any,
@@ -43,7 +43,6 @@ interface MatrixRuleCellProps {
   setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
   allowanceRegionRules: any[]
   getExpenseSettingsClient: () => any
-  loadData: () => Promise<void>
   prefixDataTestId: string
 }
 
@@ -73,7 +72,6 @@ export const MatrixRuleCell: React.FC<MatrixRuleCellProps> = ({
   setEditableCells,
   allowanceRegionRules,
   getExpenseSettingsClient,
-  loadData,
   prefixDataTestId
 }) => {
   // Sort cells by activeFrom date (newest first) to ensure consistent display
@@ -121,7 +119,7 @@ export const MatrixRuleCell: React.FC<MatrixRuleCellProps> = ({
               }}
               onSaveCell={() => onSaveSingleCell(cell)}
               onDeleteCell={async () => {
-                await onDeleteCell(cell.id || '', getExpenseSettingsClient, loadData)
+                await onDeleteCell(cell.id || '', getExpenseSettingsClient)
               }}
               currencies={currencies}
               countries={countries}
