@@ -56,10 +56,13 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [holidayDates, setHolidayDates] = useState<string[]>([])
   const graphqlClient = useGraphQLClient(accessToken)
 
-  console.log('intranet-absence-calendar-holidayDates', holidayDates)
-
   const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFormatted = selectedEndDate?.format('YYYY-MM-DD') ?? ''
+  const baseRequestText = getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')
+  const requestAbsenceLabel =
+    startDateFormatted && endDateFormatted
+      ? `${baseRequestText} (${startDateFormatted} - ${endDateFormatted})`
+      : baseRequestText
 
   const { absenceList, entitlements, loading, error, refetch } = useAbsenceData(
     employee?.id,
@@ -240,15 +243,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
           <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
             {(() => {
-              const baseRequestText = getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_hub.request_absence',
-                'Request Absence'
-              )
-              const requestAbsenceLabel =
-                startDateFormatted && endDateFormatted
-                  ? `${baseRequestText} (${startDateFormatted} - ${endDateFormatted})`
-                  : baseRequestText
-
               return (
                 <AppAction
                   variant="update-primary"
@@ -330,15 +324,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             prefixDataTestId="employee-absence-request-inline"
             accessToken={accessToken}
           >
-            {(() => {
-              const baseRequestText = getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_hub.request_absence',
-                'Request Absence'
-              )
-              return startDateFormatted && endDateFormatted
-                ? `${baseRequestText} (${startDateFormatted} - ${endDateFormatted})`
-                : baseRequestText
-            })()}
+            {requestAbsenceLabel}
           </AppAction>
         </div>
       )}
