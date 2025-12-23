@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -49,7 +49,6 @@ export interface ExpenseFilter {
   expenseClass?: { value: string }
   totalAmountMin?: number
   totalAmountMax?: number
-  noReceipt?: boolean
   currencyRef?: string
 }
 
@@ -64,8 +63,10 @@ export interface ExpenseItemsResult {
     pageSize?: number,
     filter?: ExpenseFilter,
     sortField?: string | null,
-    sortOrder?: 'ascend' | 'descend' | null
+    sortOrder?: 'ascend' | 'descend' | null,
+    options?: { force?: boolean }
   ) => Promise<void>
+  invalidateCache: () => void
 }
 
 export interface ExpenseItemResult {
@@ -89,6 +90,42 @@ export const useGetExpenseItems = (
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState<number>(0)
+  const abortControllerRef = useRef<AbortController | null>(null) // For request cancellation
+  // Page cache: stores results by cache key (search, filters, page, pageSize, sortField, sortOrder)
+  const pageCacheRef = useRef<Map<string, { items: ExpenseItem[]; totalCount: number }>>(new Map())
+  const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
+
+  // Helper to normalize objects for stable cache keys
+  const normalize = useCallback((val: any): any => {
+    if (Array.isArray(val)) {
+      return val.map(normalize)
+    }
+    if (val && typeof val === 'object') {
+      const sorted: any = {}
+      Object.keys(val)
+        .sort()
+        .forEach(k => {
+          sorted[k] = normalize(val[k])
+        })
+      return sorted
+    }
+    return val
+  }, [])
+
+  // Generate cache key for a specific page (includes all parameters that affect the query)
+  const generateCacheKey = useCallback(
+    (
+      searchTerm: string,
+      page: number,
+      pageSize: number,
+      filter: ExpenseFilter | undefined,
+      sortField: string | null,
+      sortOrder: 'ascend' | 'descend' | null
+    ) => {
+      return `cache:${JSON.stringify(normalize({ searchTerm, page, pageSize, filter, sortField, sortOrder }))}`
+    },
+    [normalize]
+  )
 
   /**
    * Helper function to build GraphQL variables for the query
@@ -116,7 +153,15 @@ export const useGetExpenseItems = (
         status: { _nin: ['DISCARDED'] }
       }
 
-      if (trimmedSearch) {
+      // Add expenseClass filter to server-side query if provided
+      if (filter?.expenseClass && filter.expenseClass.value) {
+        where.expenseClass = {
+          _and: [{ value: { _eq: filter.expenseClass.value } }, { _not: { code: { _eq: 'ALLOWANCE' } } }]
+        }
+      }
+
+      // Only add search filter if there's an actual search term (not '%' which means "all items")
+      if (trimmedSearch && trimmedSearch !== '%') {
         const pattern = `%${trimmedSearch}%`
         where._or = [
           { title: { _ilike: pattern } },
@@ -222,7 +267,8 @@ export const useGetExpenseItems = (
       pageSize = 20,
       filter?: ExpenseFilter,
       sortField?: string | null,
-      sortOrder?: 'ascend' | 'descend' | null
+      sortOrder?: 'ascend' | 'descend' | null,
+      options?: { force?: boolean }
     ): Promise<void> => {
       const employeeId = context?.userInfo?.employeeDetails?.employeeId
       const accessToken = context?.accessToken
@@ -243,6 +289,53 @@ export const useGetExpenseItems = (
         return
       }
 
+      // Generate cache key
+      const cacheKey = generateCacheKey(searchTerm, page, pageSize, filter, sortField || null, sortOrder || null)
+
+      // Check cache first - if page is cached and not forcing refresh, return immediately
+      const cachedData = pageCacheRef.current.get(cacheKey)
+      if (cachedData && !options?.force) {
+        // Return cached data immediately - no loading state
+        setItems(cachedData.items)
+        setTotalCount(cachedData.totalCount)
+        setIsLoading(false)
+        setError(null)
+        return
+      }
+
+      // Cancel previous request if it exists
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      // Create new AbortController for this request
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
+      // Check for in-flight request - reuse existing request to avoid duplicates
+      const requestKey = `request:${cacheKey}`
+      if (inflightRef.current.has(requestKey)) {
+        try {
+          const result = await inflightRef.current.get(requestKey)
+          const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
+          const mappedItems = mapResponseToItems(result)
+
+          // Total count is now accurate from server since all filtering is server-side
+          const finalCount = count
+
+          // Cache the result
+          pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
+
+          setItems(mappedItems)
+          setTotalCount(finalCount)
+          setIsLoading(false)
+          setError(null)
+          return
+        } catch {
+          // If in-flight request failed, continue with new request
+        }
+      }
+
       setIsLoading(true)
       setError(null)
 
@@ -250,35 +343,31 @@ export const useGetExpenseItems = (
         // Build query variables with helper function
         const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter, sortField, sortOrder)
 
-        const result = await graphqlClient.request<any>(GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, variables)
-        const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
-        setTotalCount(count)
-
-        // Map the items using helper function
-        let mappedItems = mapResponseToItems(result)
-
-        // Apply client-side filtering for expenseClass
-        if (filter?.expenseClass && filter.expenseClass.value) {
-          mappedItems = mappedItems.filter(item => item.expenseClass?.value === filter.expenseClass?.value)
-        }
-
-        // Apply client-side filtering for items with no receipts
-        if (filter?.noReceipt) {
-          // Apply the filter with stronger type checking
-          mappedItems = mappedItems.filter(item => {
-            // More robust check for no attachments
-            const hasNoAttachments = !Array.isArray(item.expenseItemFile) || item.expenseItemFile.length === 0
-            return hasNoAttachments
+        const requestPromise = graphqlClient
+          .request<any>(GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, variables, { signal: controller.signal })
+          .finally(() => {
+            inflightRef.current.delete(requestKey)
           })
-        }
 
-        // Update total count based on filtered results if any client-side filtering was applied
-        if (filter?.expenseClass || filter?.noReceipt) {
-          setTotalCount(mappedItems.length)
-        }
+        inflightRef.current.set(requestKey, requestPromise)
+        const result = await requestPromise
+
+        const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
+        const mappedItems = mapResponseToItems(result)
+
+        // Total count is now accurate from server since all filtering is server-side
+        const finalCount = count
+
+        // Cache the result
+        pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
 
         setItems(mappedItems)
+        setTotalCount(finalCount)
       } catch (err) {
+        // Ignore AbortError - it means the request was cancelled intentionally
+        if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
         setError(err instanceof Error ? err : new Error(String(err)))
         setItems([]) // Clear items on error
         setTotalCount(0)
@@ -291,7 +380,8 @@ export const useGetExpenseItems = (
       context?.accessToken,
       buildQueryVariables,
       mapResponseToItems,
-      graphqlClient
+      graphqlClient,
+      generateCacheKey
     ]
   )
 
@@ -302,7 +392,19 @@ export const useGetExpenseItems = (
     }
   }, [fetchItems, options?.autoFetch])
 
-  return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems }
+  // Manual cache invalidation (for manual refresh or mutations)
+  const invalidateAllCache = useCallback(() => {
+    pageCacheRef.current.clear()
+  }, [])
+
+  return {
+    items,
+    isLoading,
+    error: error?.message ?? null,
+    totalCount,
+    fetchItems,
+    invalidateCache: invalidateAllCache // Expose for manual refresh
+  }
 }
 
 /**
