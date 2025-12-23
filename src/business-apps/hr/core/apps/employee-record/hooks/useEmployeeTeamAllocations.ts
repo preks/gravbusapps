@@ -192,10 +192,6 @@ const GET_EMPLOYEE_PROJECT_WORKING_HOURS = `
   }
 `
 
-/**
- * Hook to fetch employee's team allocations (matrix units)
- * In the future, this will also filter by projectAssignmentId when team-project relationship is implemented
- */
 export interface HistoricalProject {
   projectId: string
   projectName: string
@@ -298,7 +294,14 @@ export const useEmployeeTeamAllocations = ({
    */
   const fetchBookedHours = useCallback(
     async (weekDays: Date[], currentAllocations: TeamAllocation[]) => {
+      // Validate employeeId before making any requests
+      if (!employeeId || employeeId === '') {
+        setError('Employee ID is missing')
+        return
+      }
+
       setIsLoadingWeekData(true)
+      setError(null)
       // Reset old data immediately to prevent flicker with stale data
       setBookedHours({})
       setRecordedHoursByDate({})
@@ -396,7 +399,9 @@ export const useEmployeeTeamAllocations = ({
           setHistoricalProjects([])
         }
       } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load week data'
         console.error('Error fetching booked hours:', err)
+        setError(errorMessage)
         setBookedHours({})
         setHistoricalProjects([])
         setRecordedHoursByDate({})
@@ -408,7 +413,7 @@ export const useEmployeeTeamAllocations = ({
   )
 
   useEffect(() => {
-    if (employeeId && structureId) {
+    if (structureId) {
       fetchTeamAllocations()
     }
   }, [employeeId, structureId, fetchTeamAllocations])

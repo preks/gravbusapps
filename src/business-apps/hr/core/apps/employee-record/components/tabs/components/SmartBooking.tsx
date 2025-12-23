@@ -32,7 +32,9 @@ import { getWeekStart, getWeekEnd, getWeekdays } from '../../../utils/weekUtils'
 import { WeekBooking, DayHours } from '../../../types'
 import CardTabHeaderComponent from '@/business-apps/mdm/apps/generic-components/card'
 import dayjs from 'dayjs'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import 'dayjs/locale/de'
+import 'dayjs/locale/ro'
+import { getTranslationFromI18nKeyAndLabel, formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useEmployeeTeamAllocations } from '../../../hooks/useEmployeeTeamAllocations'
 import SubmitConfirmationDialog, { HoursDiscrepancy, DiscrepancyType } from './SubmitConfirmationDialog'
 
@@ -58,6 +60,15 @@ const timeStringToHours = (time: string): number => {
   const [h, m] = time.split(':').map(Number)
   if (Number.isNaN(h) || Number.isNaN(m)) return 0
   return h + m / 60
+}
+
+/**
+ * Get dayjs instance with user's locale
+ */
+const getLocalizedDayjs = (date: Date | string) => {
+  const locale = getCurrentActiveUserLocale()
+  const dayjsLocale = locale.startsWith('de') ? 'de' : locale.startsWith('ro') ? 'ro' : 'en'
+  return dayjs(date).locale(dayjsLocale)
 }
 
 export interface SmartBookingProps {
@@ -97,6 +108,9 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     Array<{ teamId: string; projectId: string; days: Array<{ date: string; timeString: string }> }>
   >([])
 
+  // Track which week the form is initialized for (to prevent showing stale data)
+  const [formInitializedForWeek, setFormInitializedForWeek] = useState<string | null>(null)
+
   // Form type: key = "teamId-dayIndex", value = time string "HH:MM"
   type FormValues = Record<string, string>
 
@@ -110,6 +124,12 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   const weekEnd = useMemo(() => getWeekEnd(selectedDate), [selectedDate])
   const weekDays = useMemo(() => getWeekdays(weekStart), [weekStart])
   const weekKey = useMemo(() => dayjs(weekStart).format('YYYY-MM-DD'), [weekStart])
+
+  // Reset form state when week changes to prevent flicker with old values
+  useEffect(() => {
+    setFormInitializedForWeek(null)
+    form.reset({})
+  }, [weekKey, form])
 
   // Fetch booked hours when week changes
   useEffect(() => {
@@ -232,6 +252,9 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       }
     }
     form.reset(formValues)
+
+    // Mark form as initialized for this week
+    setFormInitializedForWeek(weekKey)
   }, [weekKey, weekDays, allocations, historicalProjects, recordedHoursByDate, bookedHours, form])
 
   // Create a serialized key from recordedHoursByDate and bookedHours to detect changes
@@ -447,7 +470,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
         hasUnder = true
         allDiscrepancies.push({
           date: dateKey,
-          dateFormatted: dayjs(dateKey).format('ddd, D MMM'),
+          dateFormatted: `${getLocalizedDayjs(dateKey).format('ddd')}, ${formatDate(dateKey, 'date.short') || dateKey}`,
           allocatedHours: hoursToTimeString(allocatedTotal),
           recordedHours: hoursToTimeString(recordedTotal),
           type: 'under'
@@ -456,7 +479,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
         hasOver = true
         allDiscrepancies.push({
           date: dateKey,
-          dateFormatted: dayjs(dateKey).format('ddd, D MMM'),
+          dateFormatted: `${getLocalizedDayjs(dateKey).format('ddd')}, ${formatDate(dateKey, 'date.short') || dateKey}`,
           allocatedHours: hoursToTimeString(allocatedTotal),
           recordedHours: hoursToTimeString(recordedTotal),
           type: 'over'
@@ -513,24 +536,20 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   // Show error state
   if (allocationsError) {
     return (
-      <Card data-testid={dataTestId} className="gba:overflow-hidden">
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.smart_booking.error_loading_team_allocations',
-                'Error Loading Team Allocations'
-              )}
-            </AlertTitle>
-            <AlertDescription>
-              {allocationsError}
-              <Button size="sm" variant="destructive" onClick={refetch} className="gba:mt-2">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.retry', 'Retry')}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      <Alert variant="destructive" data-testid={dataTestId}>
+        <AlertTitle>
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:time_tracking.smart_booking.error_loading_team_allocations',
+            'Error Loading Team Allocations'
+          )}
+        </AlertTitle>
+        <AlertDescription>
+          {allocationsError}
+          <Button size="sm" variant="destructive" onClick={refetch} className="gba:mt-2">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.retry', 'Retry')}
+          </Button>
+        </AlertDescription>
+      </Alert>
     )
   }
 
@@ -612,7 +631,8 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
               >
                 <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                 <span>
-                  {dayjs(weekStart).format('D')} - {dayjs(weekEnd).format('D MMM YYYY')}
+                  {dayjs(weekStart).date()} -{' '}
+                  {formatDate(weekEnd, 'date.medium') || dayjs(weekEnd).format('D MMM YYYY')}
                 </span>
               </Button>
             </PopoverTrigger>
@@ -630,7 +650,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       </div>
 
       {/* Time Booking Table */}
-      {isLoadingWeekData ? (
+      {isLoadingWeekData || formInitializedForWeek !== weekKey ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
           <Spinner size="lg" />
         </div>
@@ -665,7 +685,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
                     </TableHead>
                     {weekDays.map(day => (
                       <TableHead key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:min-w-[100px]">
-                        <span className="gba:text-sm gba:font-normal">{dayjs(day).format('ddd')}</span>
+                        <span className="gba:text-sm gba:font-normal">{getLocalizedDayjs(day).format('ddd')}</span>
                       </TableHead>
                     ))}
                     <TableHead className="gba:text-center">
