@@ -292,92 +292,95 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
           className="gba:h-full gba:flex gba:flex-col gba:overflow-hidden"
           data-testid={`${prefixDataTestId}-container`}
         >
-          <div className="gba:h-full gba:flex gba:flex-col gba:relative">
-            <Card className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:border-0 gba:shadow-none">
-              <CardContent className="gba:p-0 gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
-                {/* Floating Header - Absolute positioned to not take vertical space */}
-                <div className="gba:absolute gba:top-2 gba:left-0 gba:right-0 gba:z-10 gba:flex gba:items-center gba:justify-between gba:pl-[42px] gba:pr-[46px]">
-                  <h1
-                    className="gba:text-lg gba:font-bold gba:text-foreground"
-                    data-testid={`${prefixDataTestId}-title`}
-                  >
-                    {t('every-box-title')}
-                  </h1>
-
-                  {/* Blink Button - Aligned with content right edge */}
-                  <Button
-                    onClick={() => setIsQuickTaskModalOpen(true)}
-                    className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg"
-                    size="sm"
-                    data-testid={`${prefixDataTestId}-blink-button`}
-                  >
-                    <Zap className="gba:h-4 gba:w-4 gba:mr-2" />
-                    {t('every-box-blink-button')}
-                  </Button>
-                </div>
-
-                {/* Tabs - Pill-shaped segmented control style */}
-                <Tabs
-                  value={activeTab}
-                  onValueChange={handleTabChange}
-                  className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:pt-10"
-                  data-testid={`${prefixDataTestId}-tabs`}
-                >
-                  <TabsList className="gba:mb-4 gba:flex-shrink-0 gba:ml-3">
-                    <TabsTrigger
-                      value="inbox"
-                      data-testid={`${prefixDataTestId}-inbox-tab`}
-                      startIcon={<Inbox className="gba:h-4 gba:w-4" />}
-                      endAdornment={totalTaskCount > 0 && <TabsBadge>{totalTaskCount}</TabsBadge>}
+          {/* Max-width wrapper like PageLayout's layout-content */}
+          <div className="gba:max-w-[1440px] gba:w-full gba:mx-auto gba:h-full gba:px-3 gba:sm:px-4 gba:lg:px-6">
+            <div className="gba:h-full gba:flex gba:flex-col gba:relative">
+              <Card className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:border-0 gba:shadow-none">
+                <CardContent className="gba:p-0 gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
+                  {/* Floating Header - Absolute positioned to not take vertical space */}
+                  <div className="gba:absolute gba:top-2 gba:left-0 gba:right-0 gba:z-10 gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-3 gba:sm:px-4 gba:lg:px-6">
+                    <h1
+                      className="gba:text-base gba:sm:text-lg gba:font-bold gba:text-foreground gba:truncate"
+                      data-testid={`${prefixDataTestId}-title`}
                     >
-                      {t('every-box-tab-inflows')}
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="outbox"
-                      data-testid={`${prefixDataTestId}-outbox-tab`}
-                      startIcon={<Send className="gba:h-4 gba:w-4" />}
-                      endAdornment={flows.length > 0 && <TabsBadge>{flows.length}</TabsBadge>}
+                      {t('every-box-title')}
+                    </h1>
+
+                    {/* Blink Button - Icon-only on mobile, with text on tablet+ */}
+                    <Button
+                      onClick={() => setIsQuickTaskModalOpen(true)}
+                      className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg gba:flex-shrink-0"
+                      size="sm"
+                      data-testid={`${prefixDataTestId}-blink-button`}
                     >
-                      {t('every-box-tab-outflows')}
-                    </TabsTrigger>
-                  </TabsList>
+                      <Zap className="gba:h-4 gba:w-4 gba:sm:mr-2" />
+                      <span className="gba:hidden gba:sm:inline">{t('every-box-blink-button')}</span>
+                    </Button>
+                  </div>
 
-                  <TabsContent value="inbox" className="gba:flex-1 gba:overflow-hidden gba:px-6">
-                    <InboxView
-                      {...context}
-                      tasks={tasks}
-                      totalCount={totalTaskCount}
-                      isLoading={tasksLoading}
-                      error={tasksError}
-                      onRefresh={refetchTasks}
-                      onLoadMore={loadMoreTasks}
-                      hasMore={hasMoreTasks}
-                      hasNewTasks={hasNewInboxTasks}
-                      onLoadNewTasks={clearNewInboxTasksFlag}
-                      completedTasks={completedTasks}
-                      completedTotalCount={totalCompletedCount}
-                      completedIsLoading={completedLoading}
-                      completedError={completedError}
-                      onCompletedRefresh={refetchCompleted}
-                      onCompletedLoadMore={loadMoreCompleted}
-                      completedHasMore={hasMoreCompleted}
-                      hasNewCompletedTasks={hasNewCompletedTasks}
-                      onLoadNewCompletedTasks={clearNewCompletedTasksFlag}
-                    />
-                  </TabsContent>
+                  {/* Tabs - Pill-shaped segmented control style, responsive */}
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={handleTabChange}
+                    className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:pt-10"
+                    data-testid={`${prefixDataTestId}-tabs`}
+                  >
+                    <TabsList className="gba:mb-4 gba:flex-shrink-0 gba:ml-3 gba:sm:ml-4 gba:lg:ml-6">
+                      <TabsTrigger
+                        value="inbox"
+                        data-testid={`${prefixDataTestId}-inbox-tab`}
+                        startIcon={<Inbox className="gba:h-4 gba:w-4" />}
+                        endAdornment={totalTaskCount > 0 && <TabsBadge>{totalTaskCount}</TabsBadge>}
+                      >
+                        {t('every-box-tab-inflows')}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="outbox"
+                        data-testid={`${prefixDataTestId}-outbox-tab`}
+                        startIcon={<Send className="gba:h-4 gba:w-4" />}
+                        endAdornment={flows.length > 0 && <TabsBadge>{flows.length}</TabsBadge>}
+                      >
+                        {t('every-box-tab-outflows')}
+                      </TabsTrigger>
+                    </TabsList>
 
-                  <TabsContent value="outbox" className="gba:flex-1 gba:overflow-hidden gba:px-6">
-                    <OutboxView
-                      flows={flows}
-                      isLoading={flowsLoading}
-                      error={flowsError}
-                      onRefresh={refetchFlows}
-                      accessToken={context.accessToken}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+                    <TabsContent value="inbox" className="gba:flex-1 gba:overflow-hidden">
+                      <InboxView
+                        {...context}
+                        tasks={tasks}
+                        totalCount={totalTaskCount}
+                        isLoading={tasksLoading}
+                        error={tasksError}
+                        onRefresh={refetchTasks}
+                        onLoadMore={loadMoreTasks}
+                        hasMore={hasMoreTasks}
+                        hasNewTasks={hasNewInboxTasks}
+                        onLoadNewTasks={clearNewInboxTasksFlag}
+                        completedTasks={completedTasks}
+                        completedTotalCount={totalCompletedCount}
+                        completedIsLoading={completedLoading}
+                        completedError={completedError}
+                        onCompletedRefresh={refetchCompleted}
+                        onCompletedLoadMore={loadMoreCompleted}
+                        completedHasMore={hasMoreCompleted}
+                        hasNewCompletedTasks={hasNewCompletedTasks}
+                        onLoadNewCompletedTasks={clearNewCompletedTasksFlag}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="outbox" className="gba:flex-1 gba:overflow-hidden">
+                      <OutboxView
+                        flows={flows}
+                        isLoading={flowsLoading}
+                        error={flowsError}
+                        onRefresh={refetchFlows}
+                        accessToken={context.accessToken}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Blink Modal */}

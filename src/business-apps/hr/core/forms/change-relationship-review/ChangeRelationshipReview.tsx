@@ -207,7 +207,7 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
   }
 
   const displayName = employeeData
-    ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
+    ? employeeData.displayName || `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
     : 'Employee'
 
   const relationshipName =

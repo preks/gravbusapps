@@ -227,7 +227,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   }
 
   const displayName = employeeData
-    ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
+    ? employeeData.displayName || `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
     : 'Employee'
 
   return (
