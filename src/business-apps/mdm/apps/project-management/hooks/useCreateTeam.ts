@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { Project, ProjectStatusUI } from '../types'
+import { toast } from '@newwork/nw-design-system'
 
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
@@ -136,6 +137,7 @@ export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreate
           } catch (assignError) {
             // Log error but don't fail the entire operation
             console.error('Error assigning project manager to team:', assignError)
+            toast.error('Error assigning project manager to team')
           }
         }
 

@@ -290,7 +290,8 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const structureId = useRef<string>(context.additionalData?.structureId || 'active')
+  const structureId = useRef<string>(context.additionalData?.structureId || '')
+  const accountsFetched = useRef<boolean>(false)
   const [searchTerm, setSearchTerm] = useState<string>('')
 
   // Pagination state
@@ -300,22 +301,34 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
 
   const graphqlClient = useGraphqlClient(context.accessToken)
 
+  // Fetch structure ID only if not already cached
+  const fetchStructureId = useCallback(async (): Promise<string> => {
+    // If we already have a valid structureId, return it
+    if (structureId.current && structureId.current.length > 0) {
+      return structureId.current
+    }
+
+    // Fetch active structure ID using GraphQL
+    const structureQuery = GET_ACTIVE_STRUCTURE()
+    const structureResult = await graphqlClient.request<ActiveStructureResponse>(structureQuery)
+
+    if (!structureResult.Structure || structureResult.Structure.length === 0) {
+      throw new Error('No active structure found')
+    }
+
+    structureId.current = structureResult.Structure[0].id
+    return structureId.current
+  }, [graphqlClient])
+
   // Fetch projects using GraphQL with pagination
   const fetchProjects = useCallback(
     async (limit: number, offset: number, search?: string): Promise<{ projects: Project[]; totalCount: number }> => {
       try {
-        // Fetch active structure ID using GraphQL
-        const structureQuery = GET_ACTIVE_STRUCTURE()
-        const structureResult = await graphqlClient.request<ActiveStructureResponse>(structureQuery)
-
-        if (!structureResult.Structure || structureResult.Structure.length === 0) {
-          throw new Error('No active structure found')
-        }
-
-        structureId.current = structureResult.Structure[0].id
+        // Get structure ID (cached or fetched)
+        const activeStructureId = await fetchStructureId()
 
         const query = buildProjectsQuery(Boolean(search), onlyActiveProjects)
-        const variables = buildProjectsQueryVariables(structureId.current, limit, offset, search, onlyActiveProjects)
+        const variables = buildProjectsQueryVariables(activeStructureId, limit, offset, search, onlyActiveProjects)
         const result = await graphqlClient.request<ProjectsGraphQLResponse>(query, variables)
 
         if (result.Project) {
@@ -327,7 +340,7 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
               description: project.description,
               validFrom: project.validFrom,
               validTo: project.validTo,
-              structureId: structureId.current,
+              structureId: activeStructureId,
               projectType: project.projectType,
               customerId: project.customerId,
               projectManagerId: project.projectManagerId,
@@ -355,7 +368,7 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
         throw new Error('Failed to fetch projects')
       }
     },
-    [graphqlClient]
+    [graphqlClient, fetchStructureId]
   )
 
   // Fetch accounts using GraphQL
@@ -441,11 +454,18 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
         // Calculate offset based on current page and page size
         const offset = (currentPage - 1) * pageSize
 
-        // Step 1: Fetch projects and accounts in parallel
+        // Step 1: Fetch projects (always) and accounts (only if not already fetched)
+        const shouldFetchAccounts = !accountsFetched.current || accounts.length === 0
+
         const [projectsResult, accountsResult] = await Promise.all([
           fetchProjects(pageSize, offset, search),
-          fetchAccounts()
+          shouldFetchAccounts ? fetchAccounts() : Promise.resolve(accounts)
         ])
+
+        // Mark accounts as fetched
+        if (shouldFetchAccounts && accountsResult.length > 0) {
+          accountsFetched.current = true
+        }
 
         // Step 2: Extract unique IDs for batch queries
         const managerIds = [
@@ -499,7 +519,7 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
         setIsLoading(false)
       }
     },
-    [fetchProjects, fetchAccounts, fetchEmployeesByIds, fetchMatrixMemberCounts, currentPage, pageSize]
+    [fetchProjects, fetchAccounts, fetchEmployeesByIds, fetchMatrixMemberCounts, currentPage, pageSize, accounts]
   )
 
   // Search projects - triggers BE query

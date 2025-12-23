@@ -60,7 +60,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Toaster
 } from '@newwork/nw-design-system'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -72,7 +73,7 @@ import { VerticalTable, VerticalTableProps } from '../../generic-components/tabl
 import CardTabHeaderComponent from '../../generic-components/card'
 import { DeleteButton } from '../../generic-components/delete-button/DeleteButton'
 import { formatDateToISO, getClosureDate } from '@/business-apps/mdm/forms/project-form/ProjectForm'
-import { DebouncedInput } from '@/components/debounced-input'
+import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 
 export interface ProjectSetupProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -152,7 +153,7 @@ const showProjectManager = (project: Project) => {
             alt={projectManagerName}
           />
           <AvatarFallback>
-            {`${manager.firstName?.[0] || ''}${manager.lastName?.[0] || ''}`.toUpperCase()}
+            {`${manager?.firstName?.[0] || ''}${manager?.lastName?.[0] || ''}`.toUpperCase()}
           </AvatarFallback>
         </Avatar>
       ) : projectManagerName ? (
@@ -1099,6 +1100,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
           </Sheet>
         )}
       </CardContent>
+      <Toaster />
     </Card>
   )
 }
