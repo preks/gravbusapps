@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react'
-import { Input, Label } from '@newwork/nw-design-system'
+import { Input, Label, Button } from '@newwork/nw-design-system'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import {
@@ -274,6 +274,134 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
             </Label>
           </div>
         )
+      case 'array': {
+        const arrayValue = Array.isArray(value) ? value : []
+        const itemsSchema = schema.items || { type: 'string' }
+        const itemType = extractFieldType(itemsSchema)
+
+        // Handle arrays of strings (most common case like addressLine)
+        if (itemType === 'string') {
+          return (
+            <div className="gba:space-y-2">
+              {arrayValue.map((item: any, index: number) => (
+                <div key={index} className="gba:flex gba:gap-2">
+                  <Input
+                    id={`${controlId}-${index}`}
+                    type="text"
+                    placeholder={`${label} ${index + 1}`}
+                    value={String(item ?? '')}
+                    onChange={e => {
+                      const newArray = [...arrayValue]
+                      newArray[index] = e.target.value
+                      onChange(newArray)
+                    }}
+                    disabled={disabled}
+                    className="gba:flex-1"
+                  />
+                  {!disabled && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        const newArray = arrayValue.filter((_: any, i: number) => i !== index)
+                        onChange(newArray)
+                      }}
+                      aria-label={`Remove ${label} ${index + 1}`}
+                    >
+                      ×
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {!disabled && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onChange([...arrayValue, ''])
+                  }}
+                >
+                  + Add {label}
+                </Button>
+              )}
+            </div>
+          )
+        }
+
+        // Handle arrays of objects (nested structures)
+        if (itemType === 'object' && itemsSchema.properties) {
+          return (
+            <div className="gba:space-y-4">
+              {arrayValue.map((item: any, index: number) => (
+                <div key={index} className="gba:border gba:border-border gba:rounded-md gba:p-4 gba:space-y-4">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <p className="gba:text-sm gba:font-medium">
+                      {String(label)} {index + 1}
+                    </p>
+                    {!disabled && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          const newArray = arrayValue.filter((_: any, i: number) => i !== index)
+                          onChange(newArray)
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  {Object.entries(itemsSchema.properties).map(([propName, propSchema]: [string, any]) => (
+                    <SchemaField
+                      key={`${fieldPath}.${index}.${propName}`}
+                      name={propName}
+                      path={`${fieldPath}.${index}`}
+                      schema={propSchema}
+                      required={itemsSchema.required?.includes(propName) || false}
+                      disabled={disabled}
+                      value={item?.[propName]}
+                      onChange={newValue => {
+                        const newArray = [...arrayValue]
+                        newArray[index] = { ...item, [propName]: newValue }
+                        onChange(newArray)
+                      }}
+                      formData={formData}
+                      onFieldValueChange={onFieldValueChange}
+                      accessToken={accessToken}
+                    />
+                  ))}
+                </div>
+              ))}
+              {!disabled && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newItem: any = {}
+                    Object.keys(itemsSchema.properties || {}).forEach(key => {
+                      newItem[key] = undefined
+                    })
+                    onChange([...arrayValue, newItem])
+                  }}
+                >
+                  + Add {label}
+                </Button>
+              )}
+            </div>
+          )
+        }
+
+        // Fallback for other array types
+        return (
+          <div className="gba:text-sm gba:text-muted-foreground">
+            Array type not fully supported: {toDisplayString(itemType)}
+          </div>
+        )
+      }
       case 'object': {
         if (!schema.properties) {
           return <div className="gba:text-sm gba:text-muted-foreground">No fields available</div>
