@@ -48,8 +48,17 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
 
-  const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading, attachFiles } =
-    useFlowBot(accessToken)
+  const {
+    conversation,
+    isLoading,
+    sendMessage,
+    editMessage,
+    clearConversation,
+    nextStepProposals,
+    isPrechatLoading,
+    sessionId,
+    attachFiles
+  } = useFlowBot(accessToken)
 
   // Fetch current user's picture
   const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)
@@ -656,9 +665,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               turns={extendedConversation}
               accessToken={accessToken}
               sendMessage={sendMessage}
+              onEditMessage={editMessage}
               userInfo={userInfo}
               pictureThumbnail={pictureThumbnail}
               isVoiceMode={isSpeechMode}
+              sessionId={sessionId ?? undefined}
             />
           )}
         </div>
