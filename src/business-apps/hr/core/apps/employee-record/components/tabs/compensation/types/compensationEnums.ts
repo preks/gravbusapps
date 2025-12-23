@@ -226,6 +226,49 @@ export const isBenefitActive = (benefit: {
 }
 
 /**
+ * Check if a benefit is scheduled to start in the future
+ * (has approved status but startDate hasn't been reached yet)
+ *
+ * This is critical for preventing duplicate benefit requests for benefits
+ * that are already approved but haven't started yet.
+ *
+ * A benefit is scheduled if:
+ * 1. It has APPROVED_COMPENSATION status
+ * 2. It has a valid startDate in the future
+ * 3. It's not currently active (per isBenefitActive logic)
+ *
+ * @param benefit - The employee benefit object with status and startDate
+ * @returns true if benefit is approved and scheduled for future start, false otherwise
+ */
+export const isBenefitScheduledForStart = (benefit: {
+  status?: string
+  benefitStatus: BenefitStatus | string
+  startDate?: string | null
+  endDate?: string | null
+}): boolean => {
+  // Must have APPROVED status
+  if (benefit.status !== CompensationStatus.APPROVED) {
+    return false
+  }
+
+  // Parse and validate startDate
+  const start = parseDate(benefit.startDate)
+  if (!start) {
+    return false // No valid start date means not scheduled
+  }
+
+  // Check if start date is in the future
+  const now = new Date()
+  if (start <= now) {
+    return false // Already started or starting today
+  }
+
+  // Additional safety check: ensure it's not currently active
+  // (though logically it shouldn't be if start date is future)
+  return !isBenefitActive(benefit)
+}
+
+/**
  * Check if a benefit is scheduled for deactivation
  * (has a valid endDate in the future while having ACTIVE_BENEFIT status)
  *

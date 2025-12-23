@@ -19,22 +19,9 @@ import type { ConversationTurn } from '../types/models'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import DynamicFormDisplay from './DynamicFormDisplay'
-import EmployeeDisplay from './entities/EmployeeDisplay'
-import LeadDisplay from './entities/LeadDisplay'
-import ContactDisplay from './entities/ContactDisplay'
-import OpportunityDisplay from './entities/OpportunityDisplay'
-import CompanyDisplay from './entities/CompanyDisplay'
-import ExpenseDisplay from './entities/ExpenseDisplay'
-import AbsenceDisplay from './entities/AbsenceDisplay'
-import BlinkDisplay from './entities/BlinkDisplay'
-import ServiceTicketDisplay from './entities/ServiceTicketDisplay'
-import CrmNoteDisplay from './entities/CrmNoteDisplay'
-import CrmDocumentDisplay from './entities/CrmDocumentDisplay'
-import IrmNoteDisplay from './entities/IrmNoteDisplay'
-import IrmDocumentDisplay from './entities/IrmDocumentDisplay'
-import SalesActivityDisplay from './entities/SalesActivityDisplay'
+// Standardized entity card
+import GenericEntityDisplay from './entities/GenericEntityDisplay'
 import WorkflowDisplay from './entities/WorkflowDisplay'
-import ContentEntryDisplay from './entities/ContentEntryDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
@@ -376,146 +363,8 @@ export const BarGraphDisplay: React.FC<{ data: BarGraphData }> = ({ data }) => {
 function renderEntity(item: EntityData, accessToken: string) {
   const entity = item.entity as string
   switch (entity) {
-    case 'employee':
-      return <EmployeeDisplay key={item.id} employeeId={item.id} accessToken={accessToken} operation={item.operation} />
-    case 'lead':
-      return (
-        <LeadDisplay
-          key={item.id}
-          leadId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-          textHuman={item.text_human}
-          textTitle={item.text_title}
-        />
-      )
-    case 'contact':
-      return (
-        <ContactDisplay
-          key={item.id}
-          contactId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-          textHuman={item.text_human}
-          textTitle={item.text_title}
-        />
-      )
-    case 'opportunity':
-    case 'investment_opportunity':
-      return (
-        <OpportunityDisplay
-          key={item.id}
-          opportunityId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-          textHuman={item.text_human}
-          textTitle={item.text_title}
-        />
-      )
-    case 'company':
-    case 'account':
-    case 'investment_company':
-    case 'investment_account':
-      return (
-        <CompanyDisplay
-          key={item.id}
-          companyId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-          textHuman={item.text_human}
-          textTitle={item.text_title}
-        />
-      )
-    case 'expense_request':
-    case 'expense_plan':
-    case 'expense_item':
-      return (
-        <ExpenseDisplay
-          key={item.id}
-          expenseId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-          entityType={entity as 'expense_request' | 'expense_plan' | 'expense_item'}
-        />
-      )
-    case 'investment_lead':
-      return (
-        <LeadDisplay
-          key={item.id}
-          leadId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-          textHuman={item.text_human}
-          textTitle={item.text_title}
-        />
-      )
-    case 'investment_contact':
-      return (
-        <ContactDisplay
-          key={item.id}
-          contactId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-          textHuman={item.text_human}
-          textTitle={item.text_title}
-        />
-      )
-    case 'absence':
-    case 'employee_absence':
-      return (
-        <AbsenceDisplay
-          key={item.id}
-          absenceId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-          textHuman={item.text_human}
-          textTitle={item.text_title}
-        />
-      )
-    case 'sales_activity':
-    case 'salesActivity':
-      return (
-        <SalesActivityDisplay key={item.id} activityId={item.id} accessToken={accessToken} operation={item.operation} />
-      )
-    case 'blink':
-    case 'quick_task':
-      return <BlinkDisplay key={item.id} blinkId={item.id} accessToken={accessToken} operation={item.operation} />
     case 'reminder':
       return <ReminderDisplay key={item.id} entity={item} accessToken={accessToken} />
-    case 'service_ticket':
-      return (
-        <ServiceTicketDisplay
-          key={item.id}
-          serviceTicketId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-          textHuman={item.text_human}
-          textTitle={item.text_title}
-        />
-      )
-    case 'content_entry':
-      return (
-        <ContentEntryDisplay
-          key={item.id}
-          contentEntryId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-        />
-      )
-    case 'crm_note':
-      return <CrmNoteDisplay key={item.id} noteId={item.id} accessToken={accessToken} operation={item.operation} />
-    case 'crm_document':
-      return (
-        <CrmDocumentDisplay key={item.id} documentId={item.id} accessToken={accessToken} operation={item.operation} />
-      )
-    case 'irm_note':
-    case 'investment_note':
-      return <IrmNoteDisplay key={item.id} noteId={item.id} accessToken={accessToken} operation={item.operation} />
-    case 'irm_document':
-    case 'investment_document':
-      return (
-        <IrmDocumentDisplay key={item.id} documentId={item.id} accessToken={accessToken} operation={item.operation} />
-      )
     case 'service_workflow':
       return (
         <WorkflowDisplay
@@ -527,29 +376,17 @@ function renderEntity(item: EntityData, accessToken: string) {
         />
       )
     default: {
-      // Fallback for any unhandled entity types (should never happen with current types)
-      const entityType = entity
+      // Standard generic display for all other entity types
       return (
-        <Card key={item.id} data-testid="entity-display-fallback">
-          <CardContent className="gba:p-4">
-            <div className="gba:flex gba:items-start gba:gap-3">
-              <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-primary-secondary gba:flex gba:items-center gba:justify-center">
-                <span className="gba:text-sm gba:font-medium gba:text-primary">
-                  {entityType.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="gba:flex-1">
-                <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                  {entityType.replace(/_/g, ' ').toUpperCase()}
-                </p>
-                <p className="gba:text-xs gba:text-muted-foreground">ID: {item.id}</p>
-                {item.operation && (
-                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">Operation: {item.operation}</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <GenericEntityDisplay
+          key={item.id}
+          entity={entity}
+          id={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+          textHuman={item.text_human}
+          textTitle={item.text_title}
+        />
       )
     }
   }

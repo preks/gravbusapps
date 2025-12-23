@@ -132,8 +132,8 @@ definitions:
         artifacts:
           - changed-tsx.txt
 
-    - step: &build-validate-screens
-        name: Build Validate Changed Screens
+    - step: &build-screens
+        name: Build Screens
         size: 2x
         caches:
           - nodecustom
@@ -146,7 +146,7 @@ definitions:
               echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
               node scripts/build-changed-screens.js manual-screens.txt
             else
-              echo "No screens specified, using change detection to build screens"
+              echo "No screens specified, building all screens in batches"
               node scripts/build-changed-screens.js
             fi
         artifacts:
@@ -254,7 +254,7 @@ pipelines:
       - step: *check-hash-file-change
       - step: *install_dependencies
       - parallel:
-        - step: *build-validate-screens
+        - step: *build-screens
         - step: *sonar_scan
 
   branches:
@@ -283,7 +283,7 @@ pipelines:
           - name: SCREENS_TO_PUBLISH
             default: ''
       - step: *install_dependencies
-      - step: *build-validate-screens
+      - step: *build-screens
 
     publish-manual:
       - variables:

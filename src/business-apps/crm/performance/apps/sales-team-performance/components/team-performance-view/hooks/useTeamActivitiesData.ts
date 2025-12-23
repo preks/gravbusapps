@@ -10,6 +10,8 @@ export interface TeamSalesActivity extends Omit<SalesActivity, 'ownerEmployee'> 
   ownerEmployeeId: string | null
   ownerEmployee: {
     fullName: string
+    firstName?: string | null
+    lastName?: string | null
     pictureThumbnail?: string | null
   } | null
   accountId: string | null
@@ -101,6 +103,8 @@ const buildTeamActivitiesQuery = (orderByClause: string) => `
       ownerEmployeeId
       ownerEmployee {
         fullName
+        firstName
+        lastName
         pictureThumbnail
       }
       title
@@ -196,7 +200,9 @@ export const useTeamActivitiesData = ({
           { contact: { lastName: searchPattern } },
           { lead: { name: searchPattern } },
           { opportunity: { name: searchPattern } },
-          { ownerEmployee: { fullName: searchPattern } }
+          { ownerEmployee: { fullName: searchPattern } },
+          { ownerEmployee: { firstName: searchPattern } },
+          { ownerEmployee: { lastName: searchPattern } }
         ]
       })
     }

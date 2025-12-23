@@ -66,7 +66,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [error, setError] = useState<string | null>(null)
 
   // Search removed per requirements
-  const [sortKey, setSortKey] = useState<keyof TimeEntry>('startTimeISO')
+  const [sortKey, setSortKey] = useState<keyof TimeEntry>('attendanceDateISO')
   const [sortDir, setSortDir] = useState<SortDirection>('desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -288,8 +288,15 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         employeeId,
         activeUserLocale: activeLocale
       })
-      const regionCode: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
-      if (regionCode) {
+      const regionCodeRaw: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
+      if (regionCodeRaw) {
+        let regionCode = regionCodeRaw
+        try {
+          const seg = String(regionCodeRaw).split(':').pop() || ''
+          if (seg.startsWith('RO') && seg !== 'ROU') {
+            regionCode = 'EmploymentRegion:v1:ROU'
+          }
+        } catch {}
         const holidaysRes = await graphqlClient.request<any>(employmentRegionHolidaysQuery, {
           activeUserLocale: activeLocale,
           regionId: regionCode

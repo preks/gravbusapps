@@ -24,18 +24,52 @@ import {
   FormField,
   FormItem,
   FormControl,
-  FormMessage
+  FormMessage,
+  Toaster
 } from '@newwork/nw-design-system'
 import { CalendarIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import { getWeekStart, getWeekEnd, getWeekdays } from '../../../utils/weekUtils'
 import { WeekBooking, DayHours } from '../../../types'
 import CardTabHeaderComponent from '@/business-apps/mdm/apps/generic-components/card'
 import dayjs from 'dayjs'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import 'dayjs/locale/de'
+import 'dayjs/locale/ro'
+import { getTranslationFromI18nKeyAndLabel, formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useEmployeeTeamAllocations } from '../../../hooks/useEmployeeTeamAllocations'
+import SubmitConfirmationDialog, { HoursDiscrepancy, DiscrepancyType } from './SubmitConfirmationDialog'
 
 const DATA_TEST_ID_PREFIX = 'SmartBooking'
-const HOURS_PER_DAY = 8
+
+/**
+ * Convert decimal hours to HH:MM time string
+ * Example: 4.5 -> "04:30", 8.75 -> "08:45"
+ */
+const hoursToTimeString = (hours: number): string => {
+  if (hours <= 0) return '00:00'
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+}
+
+/**
+ * Convert HH:MM time string to decimal hours
+ * Example: "04:30" -> 4.5, "08:45" -> 8.75
+ */
+const timeStringToHours = (time: string): number => {
+  if (!time || !time.includes(':')) return 0
+  const [h, m] = time.split(':').map(Number)
+  if (Number.isNaN(h) || Number.isNaN(m)) return 0
+  return h + m / 60
+}
+
+/**
+ * Get dayjs instance with user's locale
+ */
+const getLocalizedDayjs = (date: Date | string) => {
+  const locale = getCurrentActiveUserLocale()
+  const dayjsLocale = locale.startsWith('de') ? 'de' : locale.startsWith('ro') ? 'ro' : 'en'
+  return dayjs(date).locale(dayjsLocale)
+}
 
 export interface SmartBookingProps {
   prefixDataTestId?: string
@@ -49,9 +83,11 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   // Fetch employee's team allocations and recorded hours
   const {
     allocations,
+    historicalProjects,
     recordedHoursByDate,
     bookedHours,
     isLoading: isLoadingAllocations,
+    isLoadingWeekData,
     isSubmitting,
     error: allocationsError,
     refetch,
@@ -63,10 +99,20 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [weekBookings, setWeekBookings] = useState<Record<string, WeekBooking[]>>({})
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
-  const PROJECT_ID = 'c9e04233-02bd-46f9-90b2-b2a72e017371'
 
-  // Form type: key = "teamId-dayIndex", value = hours
-  type FormValues = Record<string, number>
+  // State for confirmation dialog
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [discrepancies, setDiscrepancies] = useState<HoursDiscrepancy[]>([])
+  const [discrepancyType, setDiscrepancyType] = useState<DiscrepancyType>('under')
+  const [pendingBookings, setPendingBookings] = useState<
+    Array<{ teamId: string; projectId: string; days: Array<{ date: string; timeString: string }> }>
+  >([])
+
+  // Track which week the form is initialized for (to prevent showing stale data)
+  const [formInitializedForWeek, setFormInitializedForWeek] = useState<string | null>(null)
+
+  // Form type: key = "teamId-dayIndex", value = time string "HH:MM"
+  type FormValues = Record<string, string>
 
   // Initialize form with default values
   const form = useForm<FormValues>({
@@ -79,27 +125,51 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   const weekDays = useMemo(() => getWeekdays(weekStart), [weekStart])
   const weekKey = useMemo(() => dayjs(weekStart).format('YYYY-MM-DD'), [weekStart])
 
+  // Reset form state when week changes to prevent flicker with old values
+  useEffect(() => {
+    setFormInitializedForWeek(null)
+    form.reset({})
+  }, [weekKey, form])
+
   // Fetch booked hours when week changes
   useEffect(() => {
-    if (allocations.length > 0) {
-      fetchBookedHours(weekDays)
-    }
-  }, [weekDays, allocations.length, fetchBookedHours])
+    fetchBookedHours(weekDays, allocations)
+  }, [weekDays, allocations, fetchBookedHours])
 
   // Initialize week bookings with pre-filled hours based on recorded hours, booked hours, and allocation percentage
   const initializeWeekBookings = useCallback(() => {
-    if (allocations.length === 0) {
-      return // No allocations available
-    }
+    const allBookings: WeekBooking[] = []
 
-    // Calculate total allocation percentage for distribution
-    const totalPercentage = allocations.reduce((sum, alloc) => sum + alloc.percentage, 0)
+    // Process current allocations
+    for (const allocation of allocations) {
+      // Check if at least one day of the week is >= assignedAt
+      const hasValidDayInWeek = weekDays.some(day => {
+        if (!allocation.assignedAt) return true // No assignment date = all days valid
+        return !dayjs(day).isBefore(dayjs(allocation.assignedAt), 'day')
+      })
 
-    const bookings: WeekBooking[] = allocations.map(allocation => {
+      // Skip allocation if entire week is before assignment date
+      if (!hasValidDayInWeek) continue
+
       const days: DayHours[] = weekDays.map(day => {
         const dateKey = dayjs(day).format('YYYY-MM-DD')
-        const bookedKey = `${PROJECT_ID}-${dateKey}`
-        const bookedData = bookedHours[bookedKey]
+
+        // Check if day is before employee was assigned to this team/project
+        const isBeforeAssignment = allocation.assignedAt
+          ? dayjs(day).isBefore(dayjs(allocation.assignedAt), 'day')
+          : false
+
+        // If day is before assignment, set hours to 0 (employee wasn't on this project yet)
+        if (isBeforeAssignment) {
+          return {
+            date: dayjs(day).toISOString(),
+            hours: 0
+          }
+        }
+
+        // Use projectId from allocation for booked hours lookup
+        const bookedKey = allocation.projectId ? `${allocation.projectId}-${dateKey}` : ''
+        const bookedData = bookedKey ? bookedHours[bookedKey] : undefined
 
         // If booked hours exist, use them (already submitted)
         if (bookedData) {
@@ -120,56 +190,147 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
           }
         }
 
-        // Distribute recorded hours proportionally based on allocation percentage
-        // Formula: (allocation.percentage / totalPercentage) * recordedHoursForDay
-        const distributedHours =
-          totalPercentage > 0 ? (allocation.percentage / totalPercentage) * recordedHoursForDay : 0
+        // Distribute recorded hours based on absolute allocation percentage
+        const distributedHours = (allocation.percentage / 100) * recordedHoursForDay
 
         return {
           date: dayjs(day).toISOString(),
-          hours: Number.parseFloat(distributedHours.toFixed(2))
+          hours: Number.parseFloat(distributedHours.toFixed(1))
         }
       })
 
-      return {
+      allBookings.push({
         teamId: allocation.teamId,
         teamName: allocation.teamName,
         percentage: allocation.percentage,
         projectId: allocation.projectId,
         projectName: allocation.projectName,
+        assignedAt: allocation.assignedAt,
         days
+      })
+    }
+
+    // Process historical projects (projects with booked hours but no current allocation)
+    for (const historicalProject of historicalProjects) {
+      const days: DayHours[] = weekDays.map(day => {
+        const dateKey = dayjs(day).format('YYYY-MM-DD')
+        const bookedKey = `${historicalProject.projectId}-${dateKey}`
+        const bookedData = bookedHours[bookedKey]
+
+        return {
+          date: dayjs(day).toISOString(),
+          hours: bookedData?.hours || 0
+        }
+      })
+
+      // Only add if there are any booked hours for this week
+      const hasBookedHours = days.some(d => d.hours > 0)
+      if (hasBookedHours) {
+        allBookings.push({
+          teamId: `historical-${historicalProject.projectId}`, // Unique ID for historical entries
+          teamName: historicalProject.projectName,
+          percentage: 0, // No allocation percentage for historical
+          projectId: historicalProject.projectId,
+          projectName: historicalProject.projectName,
+          assignedAt: undefined, // Historical - no assignment date relevant
+          days
+        })
       }
-    })
+    }
 
     setWeekBookings(prev => ({
       ...prev,
-      [weekKey]: bookings
+      [weekKey]: allBookings
     }))
 
-    // Update form default values
+    // Update form default values (convert decimal hours to HH:MM strings)
     const formValues: FormValues = {}
-    for (const booking of bookings) {
-      for (let dayIndex = 0; dayIndex < booking.days.length; dayIndex++) {
+    for (const booking of allBookings) {
+      for (const [dayIndex, day] of booking.days.entries()) {
         const fieldKey = `${booking.teamId}-${dayIndex}`
-        formValues[fieldKey] = booking.days[dayIndex].hours
+        formValues[fieldKey] = hoursToTimeString(day.hours)
       }
     }
     form.reset(formValues)
-  }, [weekKey, weekDays, allocations, recordedHoursByDate, bookedHours, PROJECT_ID, form])
+
+    // Mark form as initialized for this week
+    setFormInitializedForWeek(weekKey)
+  }, [weekKey, weekDays, allocations, historicalProjects, recordedHoursByDate, bookedHours, form])
 
   // Create a serialized key from recordedHoursByDate and bookedHours to detect changes
   const recordedHoursKey = React.useMemo(() => JSON.stringify(recordedHoursByDate), [recordedHoursByDate])
   const bookedHoursKey = React.useMemo(() => JSON.stringify(bookedHours), [bookedHours])
+  const historicalProjectsKey = React.useMemo(() => JSON.stringify(historicalProjects), [historicalProjects])
 
-  // Initialize on mount or when allocations/week/recorded hours/booked hours change
+  // Initialize on mount or when allocations/week/recorded hours/booked hours/historical projects change
   React.useEffect(() => {
-    if (allocations.length > 0) {
+    // Initialize if we have current allocations OR historical projects with booked hours
+    if (allocations.length > 0 || historicalProjects.length > 0) {
       initializeWeekBookings()
     }
-  }, [initializeWeekBookings, allocations.length, recordedHoursKey, bookedHoursKey])
+  }, [
+    initializeWeekBookings,
+    allocations.length,
+    historicalProjects.length,
+    recordedHoursKey,
+    bookedHoursKey,
+    historicalProjectsKey
+  ])
 
   // Get current week bookings
   const currentBookings = weekBookings[weekKey] || []
+
+  // Helper function to check day editability status
+  const getDayEditStatus = useCallback(
+    (day: DayHours, booking: WeekBooking) => {
+      const currentMonth = dayjs().month()
+      const currentYear = dayjs().year()
+      const dateKey = dayjs(day.date).format('YYYY-MM-DD')
+      const bookedKey = booking.projectId ? `${booking.projectId}-${dateKey}` : ''
+
+      const isSubmitted = bookedKey ? !!bookedHours[bookedKey] : false
+      const isBeforeAssignment = booking.assignedAt ? dayjs(day.date).isBefore(dayjs(booking.assignedAt), 'day') : false
+      const dayMonth = dayjs(day.date).month()
+      const dayYear = dayjs(day.date).year()
+      const isNotCurrentMonth = dayMonth !== currentMonth || dayYear !== currentYear
+      const isEditable = !isSubmitted && !isBeforeAssignment && !isNotCurrentMonth
+
+      return { isSubmitted, isBeforeAssignment, isNotCurrentMonth, isEditable, dateKey, bookedKey }
+    },
+    [bookedHours]
+  )
+
+  // Check if there are any unsubmitted hours (to enable/disable submit button)
+  const hasUnsubmittedHours = useMemo(() => {
+    for (const booking of currentBookings) {
+      // Skip bookings without projectId or historical bookings
+      if (!booking.projectId || booking.teamId.startsWith('historical-')) continue
+
+      for (const day of booking.days) {
+        const { isEditable } = getDayEditStatus(day, booking)
+        if (isEditable) {
+          return true
+        }
+      }
+    }
+    return false
+  }, [currentBookings, getDayEditStatus])
+
+  // Check if there are any submitted hours for this week (to show "Submitted" label)
+  const hasSubmittedHours = useMemo(() => {
+    for (const booking of currentBookings) {
+      if (!booking.projectId) continue
+
+      for (const day of booking.days) {
+        const dateKey = dayjs(day.date).format('YYYY-MM-DD')
+        const bookedKey = `${booking.projectId}-${dateKey}`
+        if (bookedHours[bookedKey]) {
+          return true
+        }
+      }
+    }
+    return false
+  }, [currentBookings, bookedHours])
 
   // Handle date selection from calendar
   const handleCalendarDateSelect = (date: Date | undefined) => {
@@ -211,8 +372,9 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     (dayIndex: number): number => {
       return currentBookings.reduce((sum, booking) => {
         const fieldKey = `${booking.teamId}-${dayIndex}`
-        const hours = formValues[fieldKey] || 0
-        return sum + hours
+        const rawValue = formValues[fieldKey]
+        const timeStr = typeof rawValue === 'string' ? rawValue : '00:00'
+        return sum + timeStringToHours(timeStr)
       }, 0)
     },
     [currentBookings, formValues]
@@ -224,58 +386,139 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       let total = 0
       for (let dayIndex = 0; dayIndex < booking.days.length; dayIndex++) {
         const fieldKey = `${booking.teamId}-${dayIndex}`
-        const hours = formValues[fieldKey] || 0
-        total += hours
+        const rawValue = formValues[fieldKey]
+        const timeStr = typeof rawValue === 'string' ? rawValue : '00:00'
+        total += timeStringToHours(timeStr)
       }
       return total
     },
     [formValues]
   )
 
-  // Handle submit - must be before early returns to follow Rules of Hooks
-  const handleSubmit = useCallback(async () => {
-    try {
-      const formValues = form.getValues()
-      const modifiedBookings: Array<{ teamId: string; days: Array<{ date: string; hours: number }> }> = []
-
-      // Only include bookings that have been modified (not already submitted)
-      for (const booking of currentBookings) {
-        const modifiedDays: Array<{ date: string; hours: number }> = []
-        for (let dayIndex = 0; dayIndex < booking.days.length; dayIndex++) {
-          const day = booking.days[dayIndex]
-          const fieldKey = `${booking.teamId}-${dayIndex}`
-          const formValue = formValues[fieldKey] || 0
-          const dateKey = dayjs(day.date).format('YYYY-MM-DD')
-          const bookedKey = `${PROJECT_ID}-${dateKey}`
-          const isSubmitted = !!bookedHours[bookedKey]
-
-          // Only include if not already submitted (modified)
-          if (!isSubmitted) {
-            modifiedDays.push({
-              date: day.date,
-              hours: formValue
-            })
-          }
+  // Perform actual submit (called directly or after confirmation)
+  const performSubmit = useCallback(
+    async (
+      bookingsToSubmit: Array<{ teamId: string; projectId: string; days: Array<{ date: string; timeString: string }> }>
+    ) => {
+      try {
+        if (bookingsToSubmit.length > 0) {
+          await submitWorkingHours(bookingsToSubmit)
+          // Refetch booked hours after successful submit
+          await fetchBookedHours(weekDays, allocations)
         }
+        // Clear pending state
+        setPendingBookings([])
+        setShowConfirmDialog(false)
+      } catch (err) {
+        console.error('Failed to submit working hours:', err)
+      }
+    },
+    [submitWorkingHours, fetchBookedHours, weekDays, allocations]
+  )
 
-        if (modifiedDays.length > 0) {
-          modifiedBookings.push({
-            teamId: booking.teamId,
-            days: modifiedDays
-          })
+  // Handle submit - check for discrepancies and show dialog if needed
+  const handleSubmit = useCallback(() => {
+    const formValues = form.getValues()
+    const dailyTotals: Record<string, number> = {}
+    const editableDates = new Set<string>()
+    const modifiedBookings: Array<{
+      teamId: string
+      projectId: string
+      days: Array<{ date: string; timeString: string }>
+    }> = []
+
+    for (const booking of currentBookings) {
+      // Skip bookings without projectId or historical bookings
+      if (!booking.projectId || booking.teamId.startsWith('historical-')) continue
+
+      const modifiedDays: Array<{ date: string; timeString: string }> = []
+
+      for (const [dayIndex, day] of booking.days.entries()) {
+        const { isEditable, dateKey } = getDayEditStatus(day, booking)
+        const fieldKey = `${booking.teamId}-${dayIndex}`
+        const rawValue = formValues[fieldKey]
+        const timeStr = typeof rawValue === 'string' ? rawValue : '00:00'
+        const hoursValue = timeStringToHours(timeStr)
+
+        if (isEditable) {
+          editableDates.add(dateKey)
+          dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + hoursValue
+          modifiedDays.push({ date: day.date, timeString: timeStr })
         }
       }
 
-      if (modifiedBookings.length > 0) {
-        await submitWorkingHours(modifiedBookings)
-        // Refetch booked hours after successful submit
-        await fetchBookedHours(weekDays)
+      if (modifiedDays.length > 0) {
+        modifiedBookings.push({
+          teamId: booking.teamId,
+          projectId: booking.projectId,
+          days: modifiedDays
+        })
       }
-    } catch (err) {
-      // Error is already handled in the hook
-      console.error('Failed to submit working hours:', err)
     }
-  }, [form, submitWorkingHours, currentBookings, bookedHours, PROJECT_ID, fetchBookedHours, weekDays])
+
+    // Check for discrepancies (under or over distributed hours)
+    const allDiscrepancies: HoursDiscrepancy[] = []
+    let hasUnder = false
+    let hasOver = false
+
+    for (const dateKey of editableDates) {
+      const allocatedTotal = dailyTotals[dateKey] || 0
+      const recordedTotal = recordedHoursByDate[dateKey] || 0
+      const tolerance = 0.01 // Small floating point tolerance
+
+      if (allocatedTotal < recordedTotal - tolerance) {
+        hasUnder = true
+        allDiscrepancies.push({
+          date: dateKey,
+          dateFormatted: `${getLocalizedDayjs(dateKey).format('ddd')}, ${formatDate(dateKey, 'date.short') || dateKey}`,
+          allocatedHours: hoursToTimeString(allocatedTotal),
+          recordedHours: hoursToTimeString(recordedTotal),
+          type: 'under'
+        })
+      } else if (allocatedTotal > recordedTotal + tolerance) {
+        hasOver = true
+        allDiscrepancies.push({
+          date: dateKey,
+          dateFormatted: `${getLocalizedDayjs(dateKey).format('ddd')}, ${formatDate(dateKey, 'date.short') || dateKey}`,
+          allocatedHours: hoursToTimeString(allocatedTotal),
+          recordedHours: hoursToTimeString(recordedTotal),
+          type: 'over'
+        })
+      }
+    }
+
+    // If there are discrepancies, show confirmation dialog
+    if (allDiscrepancies.length > 0) {
+      // Determine discrepancy type: mixed if both under and over exist
+      let type: DiscrepancyType = 'under'
+      if (hasUnder && hasOver) {
+        type = 'mixed'
+      } else if (hasOver) {
+        type = 'over'
+      }
+
+      setDiscrepancies(allDiscrepancies)
+      setDiscrepancyType(type)
+      setPendingBookings(modifiedBookings)
+      setShowConfirmDialog(true)
+      return
+    }
+
+    // No discrepancies - submit directly
+    performSubmit(modifiedBookings)
+  }, [form, currentBookings, getDayEditStatus, recordedHoursByDate, performSubmit])
+
+  // Handle dialog cancel
+  const handleDialogCancel = useCallback(() => {
+    setShowConfirmDialog(false)
+    setPendingBookings([])
+    setDiscrepancies([])
+  }, [])
+
+  // Handle dialog confirm
+  const handleDialogConfirm = useCallback(() => {
+    performSubmit(pendingBookings)
+  }, [pendingBookings, performSubmit])
 
   // Show loading state
   if (isLoadingAllocations) {
@@ -293,29 +536,25 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   // Show error state
   if (allocationsError) {
     return (
-      <Card data-testid={dataTestId} className="gba:overflow-hidden">
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.smart_booking.error_loading_team_allocations',
-                'Error Loading Team Allocations'
-              )}
-            </AlertTitle>
-            <AlertDescription>
-              {allocationsError}
-              <Button size="sm" variant="destructive" onClick={refetch} className="gba:mt-2">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.retry', 'Retry')}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      <Alert variant="destructive" data-testid={dataTestId}>
+        <AlertTitle>
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:time_tracking.smart_booking.error_loading_team_allocations',
+            'Error Loading Team Allocations'
+          )}
+        </AlertTitle>
+        <AlertDescription>
+          {allocationsError}
+          <Button size="sm" variant="destructive" onClick={refetch} className="gba:mt-2">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.retry', 'Retry')}
+          </Button>
+        </AlertDescription>
+      </Alert>
     )
   }
 
-  // Show empty state
-  if (allocations.length === 0) {
+  // Show empty state only if no allocations AND no historical projects with booked hours
+  if (allocations.length === 0 && currentBookings.length === 0) {
     return (
       <Card data-testid={dataTestId} className="gba:overflow-hidden">
         <CardTabHeaderComponent
@@ -348,6 +587,20 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     )
   }
 
+  // Determine submit button text based on state
+  const getSubmitButtonText = () => {
+    if (isSubmitting) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitting', 'Submitting...')
+    }
+    if (isLoadingWeekData) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.loading', 'Loading...')
+    }
+    if (hasSubmittedHours && !hasUnsubmittedHours) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitted', 'Submitted')
+    }
+    return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submit_hours', 'Submit Hours')
+  }
+
   return (
     <div data-testid={dataTestId} className="gba:overflow-hidden gba:flex gba:flex-col gba:gap-4">
       <div className="gba:flex gba:items-center gba:justify-between">
@@ -357,12 +610,10 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
         <Button
           variant="default"
           onClick={handleSubmit}
-          disabled={isSubmitting || currentBookings.length === 0}
+          disabled={isSubmitting || isLoadingWeekData || !hasUnsubmittedHours}
           data-testid={`${dataTestId}-submit-button`}
         >
-          {isSubmitting
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitting', 'Submitting...')
-            : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submit_hours', 'Submit Hours')}
+          {getSubmitButtonText()}
         </Button>
       </div>
       {/* Week Navigation */}
@@ -380,7 +631,8 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
               >
                 <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                 <span>
-                  {dayjs(weekStart).format('D')} - {dayjs(weekEnd).format('D MMM YYYY')}
+                  {dayjs(weekStart).date()} -{' '}
+                  {formatDate(weekEnd, 'date.medium') || dayjs(weekEnd).format('D MMM YYYY')}
                 </span>
               </Button>
             </PopoverTrigger>
@@ -398,9 +650,24 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       </div>
 
       {/* Time Booking Table */}
-      {currentBookings.length === 0 ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+      {isLoadingWeekData || formInitializedForWeek !== weekKey ? (
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
           <Spinner size="lg" />
+        </div>
+      ) : currentBookings.length === 0 ? (
+        <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:py-12 gba:text-center">
+          <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_tracking.smart_booking.no_projects_for_period',
+              'No projects for this period'
+            )}
+          </div>
+          <div className="gba:text-muted-foreground gba:text-sm">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_tracking.smart_booking.no_projects_for_period_description',
+              'You were not assigned to any projects during this week, and there are no recorded hours.'
+            )}
+          </div>
         </div>
       ) : (
         <Form {...form}>
@@ -418,7 +685,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
                     </TableHead>
                     {weekDays.map(day => (
                       <TableHead key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:min-w-[100px]">
-                        <span className="gba:text-sm gba:font-normal">{dayjs(day).format('ddd')}</span>
+                        <span className="gba:text-sm gba:font-normal">{getLocalizedDayjs(day).format('ddd')}</span>
                       </TableHead>
                     ))}
                     <TableHead className="gba:text-center">
@@ -440,70 +707,100 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
                       const recordedHours = getRecordedHoursForDay(day)
                       return (
                         <TableCell key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:font-semibold">
-                          {recordedHours.toFixed(1)}h
+                          {hoursToTimeString(recordedHours)}
                         </TableCell>
                       )
                     })}
                     <TableCell className="gba:text-center gba:font-semibold">
-                      {weekDays.reduce((sum, day) => sum + getRecordedHoursForDay(day), 0).toFixed(1)}h
+                      {hoursToTimeString(weekDays.reduce((sum, day) => sum + getRecordedHoursForDay(day), 0))}
                     </TableCell>
                   </TableRow>
                   {/* Team/Project rows */}
-                  {currentBookings.map(booking => (
-                    <TableRow key={booking.teamId}>
-                      <TableCell className="gba:font-medium">
-                        <div>
-                          <div>{booking.teamName}</div>
-                          {booking.projectName && (
-                            <div className="gba:text-xs gba:text-muted-foreground">{booking.projectName}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-center">{booking.percentage}%</TableCell>
-                      {booking.days.map((day, dayIndex) => {
-                        const fieldKey = `${booking.teamId}-${dayIndex}`
-                        const dateKey = dayjs(day.date).format('YYYY-MM-DD')
-                        const bookedKey = `${PROJECT_ID}-${dateKey}`
-                        const isSubmitted = !!bookedHours[bookedKey]
+                  {currentBookings.map(booking => {
+                    // Check if this is a historical booking (from booked hours, not current allocation)
+                    const isHistoricalBooking = booking.teamId.startsWith('historical-')
 
-                        return (
-                          <TableCell key={day.date} className="gba:text-center">
-                            <FormField
-                              control={form.control}
-                              name={fieldKey}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <div className="gba:flex gba:justify-center">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        max={HOURS_PER_DAY}
-                                        step="0.5"
-                                        disabled={isSubmitted}
-                                        className="gba:w-20 gba:text-center"
-                                        data-testid={`${dataTestId}-hours-${booking.teamId}-${dayIndex}`}
-                                        {...field}
-                                        value={field.value ?? 0}
-                                        onChange={e => {
-                                          const numValue = Number.parseFloat(e.target.value) || 0
-                                          field.onChange(numValue)
-                                        }}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
+                    return (
+                      <TableRow key={booking.teamId} className={isHistoricalBooking ? 'gba:bg-muted/30' : ''}>
+                        <TableCell className="gba:font-medium">
+                          <div>
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              {booking.teamName}
+                              {isHistoricalBooking && (
+                                <span className="gba:text-xs gba:bg-muted gba:text-muted-foreground gba:px-1.5 gba:py-0.5 gba:rounded">
+                                  Removed
+                                </span>
                               )}
-                            />
-                          </TableCell>
-                        )
-                      })}
-                      <TableCell className="gba:text-center gba:font-semibold">
-                        {getTotalHoursForTeam(booking).toFixed(1)}h
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            </div>
+                            {booking.projectName && !isHistoricalBooking && (
+                              <div className="gba:text-xs gba:text-muted-foreground">{booking.projectName}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="gba:text-center">
+                          {isHistoricalBooking ? '—' : `${booking.percentage}%`}
+                        </TableCell>
+                        {booking.days.map((day, dayIndex) => {
+                          const fieldKey = `${booking.teamId}-${dayIndex}`
+                          const { isSubmitted, isBeforeAssignment, isNotCurrentMonth } = getDayEditStatus(day, booking)
+
+                          return (
+                            <TableCell key={day.date} className="gba:text-center">
+                              {isBeforeAssignment ? (
+                                // Show dash for days before assignment
+                                <div className="gba:flex gba:justify-center">
+                                  <span className="gba:text-muted-foreground gba:w-20 gba:text-center">—</span>
+                                </div>
+                              ) : isHistoricalBooking || isSubmitted ? (
+                                // Historical or submitted: show value as HH:MM text
+                                <div className="gba:flex gba:justify-center">
+                                  <span className="gba:text-muted-foreground gba:w-20 gba:text-center">
+                                    {day.hours > 0 ? hoursToTimeString(day.hours) : '—'}
+                                  </span>
+                                </div>
+                              ) : isNotCurrentMonth ? (
+                                // Not current month: show disabled input with HH:MM value
+                                <div className="gba:flex gba:justify-center">
+                                  <Input
+                                    type="time"
+                                    disabled
+                                    className="gba:w-24 gba:text-center"
+                                    value={hoursToTimeString(day.hours)}
+                                  />
+                                </div>
+                              ) : (
+                                <FormField
+                                  control={form.control}
+                                  name={fieldKey}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormControl>
+                                        <div className="gba:flex gba:justify-center">
+                                          <Input
+                                            type="time"
+                                            className="gba:w-24 gba:text-center"
+                                            data-testid={`${dataTestId}-hours-${booking.teamId}-${dayIndex}`}
+                                            value={field.value || '00:00'}
+                                            onChange={e => {
+                                              field.onChange(e.target.value)
+                                            }}
+                                          />
+                                        </div>
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
+                            </TableCell>
+                          )
+                        })}
+                        <TableCell className="gba:text-center gba:font-semibold">
+                          {hoursToTimeString(getTotalHoursForTeam(booking))}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                   {/* Total row */}
                   <TableRow className="gba:bg-muted">
                     <TableCell colSpan={2} className="gba:font-semibold">
@@ -512,33 +809,18 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
                         'Daily Total'
                       )}
                     </TableCell>
-                    {weekDays.map(day => {
-                      const dayIndex = weekDays.indexOf(day)
+                    {weekDays.map((day, dayIndex) => {
                       const total = getTotalHoursForDay(dayIndex)
-                      const isComplete = Math.abs(total - HOURS_PER_DAY) < 0.01 // Allow small floating point differences
-                      const difference = total - HOURS_PER_DAY
-                      let differenceText = ''
-                      if (Math.abs(difference) >= 0.01) {
-                        const sign = difference > 0 ? '+' : '-'
-                        const absDifference = Math.abs(difference)
-                        differenceText = `${sign}${absDifference.toFixed(1)}h`
-                      }
                       return (
-                        <TableCell
-                          key={dayjs(day).format('YYYY-MM-DD')}
-                          className={`gba:text-center gba:font-semibold ${isComplete ? '' : 'gba:text-destructive'}`}
-                        >
-                          <div>{total.toFixed(1)}h</div>
-                          {differenceText && (
-                            <div className={`gba:text-xs ${isComplete ? '' : 'gba:text-destructive'}`}>
-                              {differenceText}
-                            </div>
-                          )}
+                        <TableCell key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:font-semibold">
+                          {hoursToTimeString(total)}
                         </TableCell>
                       )
                     })}
                     <TableCell className="gba:text-center gba:font-semibold">
-                      {currentBookings.reduce((sum, booking) => sum + getTotalHoursForTeam(booking), 0).toFixed(1)}h
+                      {hoursToTimeString(
+                        currentBookings.reduce((sum, booking) => sum + getTotalHoursForTeam(booking), 0)
+                      )}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -547,6 +829,18 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
           </form>
         </Form>
       )}
+      <Toaster />
+
+      {/* Confirmation dialog for hours discrepancies */}
+      <SubmitConfirmationDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        discrepancies={discrepancies}
+        discrepancyType={discrepancyType}
+        onCancel={handleDialogCancel}
+        onConfirm={handleDialogConfirm}
+        isSubmitting={isSubmitting}
+      />
     </div>
   )
 }

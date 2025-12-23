@@ -18,6 +18,7 @@ interface EmployeeData {
   id: string
   firstName: string
   lastName: string
+  displayName?: string
   pictureThumbnail?: string
   employeePosition?: {
     jobPosition?: {
@@ -56,6 +57,7 @@ const GET_EMPLOYEE_DATA = `
       id
       firstName
       lastName
+      displayName
       pictureThumbnail
       employeePosition {
         jobPosition {
@@ -72,6 +74,7 @@ const GET_EMPLOYEE_BY_USER_ID = `
       id
       firstName
       lastName
+      displayName
       pictureThumbnail
       employeePosition {
         jobPosition {

@@ -87,6 +87,9 @@ const getEntityConfig = (type: ActivityViewFilter) => {
 
 // GraphQL queries for each entity type - use correct entity names (Account, Contact, Lead, Opportunity)
 const buildQuery = (type: ActivityViewFilter, search?: string) => {
+  // Sales Associate capability name for filtering (consistent with Sales Performance module)
+  const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
   switch (type) {
     case 'by-employee':
       return search?.trim()
@@ -96,6 +99,15 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
             where: {
               _and: [
                 { isDeleted: { _eq: false } }
+                {
+                  employeePosition: {
+                    employeeCapabilities: {
+                      capability: {
+                        name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                      }
+                    }
+                  }
+                }
                 { _or: [
                   { fullName: { _ilike: "%${search}%" } }
                   { firstName: { _ilike: "%${search}%" } }
@@ -122,7 +134,16 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
         : `
         query GetEmployees {
           Employee(
-            where: { isDeleted: { _eq: false } }
+            where: { 
+              isDeleted: { _eq: false }
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
             limit: 50
             orderBy: { fullName: ASC_NULLS_LAST }
           ) {

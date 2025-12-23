@@ -60,9 +60,7 @@ rewards-package-description = Ihr Gesamtvergütungspaket umfasst Grundgehalt, Bo
 
 # Benefits & Perks
 benefits-catalog-title = Zusatzleistungs-Katalog
-benefits-active-count = { $count } aktiv
-benefits-available-count = { $count } verfügbar
-benefits-total-count = { $count } gesamt
+benefits-catalog-no-results = Keine Ergebnisse
 benefits-search-placeholder = Zusatzleistungen suchen...
 benefits-loading = Zusatzleistungs-Katalog wird geladen...
 benefits-error-title = Fehler beim Laden der Zusatzleistungen
@@ -74,14 +72,17 @@ benefits-catalog-no-results-title = Keine Zusatzleistungen gefunden
 benefits-catalog-no-results-description = Keine Zusatzleistungen entsprechen Ihren Suchkriterien.
 benefits-catalog-clear-search = Suche löschen
 benefits-active-section-title = Aktive Zusatzleistungen ({ $count })
+benefits-scheduled-section-title = Geplante Zusatzleistungen ({ $count })
 benefits-available-section-title = Verfügbare Zusatzleistungen ({ $count })
 
 # Benefit Card
 benefit-status-active = Aktiv
+benefit-status-scheduled = Geplant
 benefit-status-pending = Ausstehend
 benefit-status-available = Verfügbar
 benefit-request-button = Anfordern
 benefit-request-employee-id-missing = Mitarbeiter-ID nicht verfügbar. Kann Leistungsanfrage nicht initiieren.
+benefit-already-scheduled = Geplant
 benefit-deactivate-button = Deaktivieren
 benefit-view-details = Details anzeigen
 benefit-provider = Anbieter
@@ -89,6 +90,8 @@ benefit-value-yearly = Jahreswert
 benefit-no-provider = Kein Anbieter angegeben
 benefit-since = Seit
 benefit-starts-in = Beginnt im
+benefit-starts-on = Beginnt am
+benefit-scheduled-badge = Geplant
 benefit-ends = Endet
 
 # Benefit Details Modal
@@ -247,11 +250,6 @@ action-enter-placeholder = Bitte eingeben
 # Benefits Catalog Section
 benefit-per-year = /Jahr
 benefit-per-month = /Monat
-benefits-catalog-summary = {$active} aktiv · {$available} verfügbar · {$total} gesamt
-benefits-catalog-search-placeholder = Zusatzleistungen suchen...
-benefits-catalog-loading = Zusatzleistungs-Katalog wird geladen...
-benefits-catalog-error-title = Fehler beim Laden der Zusatzleistungen
-benefits-catalog-retry = Wiederholen
 
 # Payslip Section
 payslip-no-data = Keine Gehaltsabrechnungen verfügbar

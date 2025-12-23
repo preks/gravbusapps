@@ -179,6 +179,14 @@ label-country = Country
 label-city = City
 label-currency = Currency
 
+# Benefit Summary Card Translations
+benefit-provider = Provider
+benefit-value-yearly = Yearly Value
+benefit-details-monthly-value = Monthly Value
+current-annually = Annually
+current-monthly = Monthly
+modal-request-start-date-label = Start Date
+
 # Deactivate Employee Benefit Review Form
 deactivate-benefit-review-title = Benefit Deactivation Request
 deactivate-benefit-review-requested-by = Requested by { $initiatorName }
@@ -226,3 +234,33 @@ request-benefit-review-reject = Reject
 request-benefit-review-loading = Loading benefit review data...
 request-benefit-review-error-title = Unable to Load Data
 request-benefit-review-error-description = Failed to load employee benefit data
+
+# Deactivate Employee Benefit Form
+modal-deactivate-title = Deactivate Employee Benefit
+modal-deactivate-end-date-label = End Date
+modal-deactivate-submit-button = Deactivate Benefit
+
+# Deactivate Employee Benefit Form - Validation Messages
+error-end-date-required = End date is required. Please select an end date.
+error-end-date-today-or-later = End date must be today or later.
+error-end-date-after-start-date = End date cannot be before the benefit start date.
+
+# Update Working Conditions Form
+working-conditions-probation-period = Probation Period
+working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
+working-conditions-unit-day = { $count ->
+    [one] Day
+   *[other] Days
+}
+working-conditions-unit-week = { $count ->
+    [one] Week
+   *[other] Weeks
+}
+working-conditions-unit-month = { $count ->
+    [one] Month
+   *[other] Months
+}
+working-conditions-unit-year = { $count ->
+    [one] Year
+   *[other] Years
+}

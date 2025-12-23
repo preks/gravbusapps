@@ -56,7 +56,8 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     clearConversation,
     nextStepProposals,
     isPrechatLoading,
-    sessionId
+    sessionId,
+    attachFiles
   } = useFlowBot(accessToken)
 
   // Fetch current user's picture
@@ -446,6 +447,8 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     isSearching: boolean,
     mentions?: Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
   ) => {
+    // Keep passing files for backwards compatibility.
+    // useFlowBot.sendMessage will decide whether to use /add_files or direct upload.
     sendMessage(text, files, isThinking, isSearching, mentions)
   }
 
@@ -688,6 +691,8 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             voiceVolume={voiceInput.volume}
             onToggleVoiceMode={toggleSpeechMode}
             onStopSpeaking={voiceSynthesis.stop}
+            // Pre-upload files as soon as they are attached for faster first answers.
+            onFilesAttached={files => attachFiles(files)}
           />
         </div>
       </FormSubmissionProvider>

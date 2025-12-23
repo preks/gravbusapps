@@ -262,7 +262,7 @@ export const FlowCard: React.FC<FlowCardProps> = memo(
                 </Badge>
               </div>
 
-              <h3 className="gba:font-semibold gba:text-sm gba:mb-1 gba:truncate" data-testid="flow-title">
+              <h3 className="gba:font-semibold gba:text-sm gba:mb-1 gba:line-clamp-2" data-testid="flow-title">
                 {flow.templateName}
               </h3>
 
@@ -296,15 +296,15 @@ export const FlowCard: React.FC<FlowCardProps> = memo(
                 </div>
               )}
 
-              <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
+              <div className="gba:flex gba:flex-col sm:gba:flex-row gba:items-start sm:gba:items-center gba:gap-1 sm:gba:gap-4 gba:text-xs gba:text-muted-foreground">
                 <div className="gba:flex gba:items-center gba:gap-1">
-                  <Calendar className="gba:h-3 gba:w-3" />
-                  <span data-testid="flow-started-at">
+                  <Calendar className="gba:h-3 gba:w-3 gba:flex-shrink-0" />
+                  <span data-testid="flow-started-at" className="gba:break-words">
                     {t('flow-card-started', { date: formatRelativeTime(flow.startedAt) })}
                   </span>
                 </div>
                 {flow.completedAt && (
-                  <span data-testid="flow-completed-at">
+                  <span data-testid="flow-completed-at" className="gba:break-words">
                     {t('flow-card-completed', { date: formatDateTime(flow.completedAt) })}
                   </span>
                 )}

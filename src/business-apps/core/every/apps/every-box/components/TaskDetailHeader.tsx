@@ -95,6 +95,9 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
 }) => {
   const { t } = useTranslation(translations)
 
+  // NOTE: We don't use TaskHeaderContext here because this component is bundled separately
+  // and deployed to CDN. Instead, we just add a data attribute that RemoteScreenLoader can detect.
+
   // Auto-fetch employee data if IDs are provided and no manual data exists
   const shouldAutoFetch = showEmployeeInfo && !manualEmployeeData && (employeeId || userId) && accessToken
 
@@ -166,7 +169,10 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
   const showAvatarFallback = !isLoadingEmployee && (!employeeData?.avatarUrl || avatarStatus === 'error')
 
   return (
-    <div className="gba:z-40 gba:bg-card/95 gba:backdrop-blur-sm gba:border-b gba:shadow-sm gba:py-0 gba:mb-2 gba:sticky gba:top-0 gba:-mx-6 gba:w-[calc(100%+3rem)]">
+    <div
+      className="gba:z-40 gba:bg-card/95 gba:backdrop-blur-sm gba:border-b gba:shadow-sm gba:py-0 gba:mb-2 gba:sticky gba:top-0 gba:-mx-6 gba:w-[calc(100%+3rem)]"
+      data-task-detail-header="true"
+    >
       <div className="gba:px-6 gba:py-4 gba:flex gba:items-center gba:justify-between gba:gap-4">
         {/* Left: Employee Context (if exists) */}
         {shouldShowEmployee && (

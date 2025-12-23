@@ -192,6 +192,41 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
   }
 }
 
+/**
+ * Upload files to FlowBot using the async /add_files endpoint.
+ * Returns the (possibly new) sessionId that should be used for subsequent chat calls.
+ * This is used both for "upload early" flows and as a fallback inside sendMessage.
+ */
+async function uploadFilesToFlowbotSession(
+  files: File[],
+  sessionId: string | null,
+  accessToken: string
+): Promise<string> {
+  if (!files.length) return sessionId ?? ''
+
+  const baseUrl = resolveFlowbotBaseUrl()
+  const url = `${baseUrl}/flowbot/api/agent/add_files`
+
+  const form = new FormData()
+  files.forEach(file => form.append('files', file))
+  form.append('session_id', sessionId ?? '')
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: form
+  })
+
+  if (!res.ok) {
+    throw new Error(`add_files failed: ${res.status} ${res.statusText}`)
+  }
+
+  const data = await res.json()
+  return (data?.sessionId as string | undefined) ?? sessionId ?? ''
+}
+
 type AnalyticsEntityInput = {
   type: string
   id: string
@@ -236,6 +271,7 @@ export function useFlowBot(accessToken: string) {
 
   const [state, setState] = useState<ConversationState>(loadState)
   const [isLoading, setIsLoading] = useState(false)
+  const sessionIdRef = useRef<string | null>(null)
   const lastFetchedSessionIdRef = useRef<string | null>(null)
   const [prechatSuggestions, setPrechatSuggestions] = useState<string[]>([])
   const [isPrechatLoading, setIsPrechatLoading] = useState(false)
@@ -255,6 +291,10 @@ export function useFlowBot(accessToken: string) {
   })
 
   useEffect(() => saveState(state), [state])
+
+  useEffect(() => {
+    sessionIdRef.current = state.sessionId
+  }, [state.sessionId])
 
   useEffect(() => {
     if (!accessToken) return
@@ -288,6 +328,7 @@ export function useFlowBot(accessToken: string) {
 
   const updateSessionId = useCallback(
     (newSessionId: string) => {
+      sessionIdRef.current = newSessionId
       setState(prev => ({ ...prev, sessionId: newSessionId }))
       resetAnalytics(newSessionId)
     },
@@ -456,8 +497,20 @@ export function useFlowBot(accessToken: string) {
 
         pushTurn({ side: 'agent', outputs: [{ type: 'loading' }] })
 
+        // Prefer using /add_files when there is no active session yet.
+        // This enables async parsing for the very first message in a new chat.
+        let effectiveSessionId = sessionIdRef.current ?? state.sessionId ?? ''
+        if (!effectiveSessionId && files.length > 0) {
+          try {
+            effectiveSessionId = await uploadFilesToFlowbotSession(files, effectiveSessionId, accessToken)
+          } catch (error) {
+            console.error('⚠️ [FlowBot] add_files failed, falling back to direct file upload:', error)
+            // If add_files fails we keep effectiveSessionId empty and will send files directly with the chat request.
+          }
+        }
+
         const form = new FormData()
-        form.append('session_id', state.sessionId ?? '')
+        form.append('session_id', effectiveSessionId)
         form.append('user_input_text', userInputText)
         form.append('llm_model', isThinking ? 'o4-mini' : LLM_MODEL)
         form.append('use_web_search_tool', (isSearching ?? false).toString())
@@ -555,6 +608,7 @@ export function useFlowBot(accessToken: string) {
       accessToken,
       pushTurn,
       state.sessionId,
+      sessionIdRef,
       appendOutputItemToLastAgentTurn,
       pruneEphemeralOutputsFromLastAgentTurn,
       updateSessionId,
@@ -660,11 +714,33 @@ export function useFlowBot(accessToken: string) {
     [state.conversation.length, sendMessage]
   )
 
+  /**
+   * Pre-upload files for the current EveryAI session using /add_files.
+   * This is called as soon as the user attaches files in the UI (before pressing Send).
+   * If a new sessionId is created by the backend, we persist it via updateSessionId.
+   */
+  const attachFiles = useCallback(
+    async (files: File[]) => {
+      if (!files.length) return
+      try {
+        const newSessionId = await uploadFilesToFlowbotSession(files, sessionIdRef.current, accessToken)
+        if (newSessionId && newSessionId !== state.sessionId) {
+          updateSessionId(newSessionId)
+        }
+      } catch (error) {
+        // Do not block the UI if pre-upload fails; sendMessage will still work via fallback.
+        console.error('⚠️ [FlowBot] Failed to pre-upload files via add_files:', error)
+      }
+    },
+    [accessToken, state.sessionId, updateSessionId, sessionIdRef]
+  )
+
   return {
     conversation: state.conversation,
     isLoading,
     sendMessage,
     editMessage,
+    attachFiles,
     clearConversation,
     nextStepProposals,
     isPrechatLoading,

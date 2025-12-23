@@ -22,8 +22,8 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
 import { env } from '@/common/env/EnvUtils'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { CongratulationsModal } from './CongratulationsModal'
+import { PhoneInput } from './components/PhoneInput'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
 
@@ -116,7 +116,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   // Field validations
   const validatePhoneForEmergency = (receivedValue: string): string => {
     if (!isEmergencyContact) return ''
-    const regexTest = /^\+?\d+$/
     const trimmed = (receivedValue || '').trim()
     if (trimmed.length === 0) {
       return getTranslationFromI18nKeyAndLabel(
@@ -124,10 +123,12 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
         'The Phone Number field is required. Please enter a phone number.'
       )
     }
+    // Allow international format: +countrycode followed by digits
+    const regexTest = /^\+?\d{6,}$/
     if (!regexTest.test(trimmed)) {
       return getTranslationFromI18nKeyAndLabel(
         'lowcoder:change_relationship.container_relationship.phone_only_numbers_error',
-        'The Phone Number field is invalid. Please use only numbers.'
+        'The Phone Number field is invalid. Please enter a valid phone number.'
       )
     }
     return ''
@@ -358,7 +359,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       onSubmit={data => data}
       // Prevent platform hooks here; let outer flow listen to pse events
       submitEventType={undefined as any}
-      cancelEventType={undefined as any}
+      cancelEventType="pse_abort"
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
@@ -367,19 +368,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      onCancel={() => {
-        dispatchProcessContinueEvent('pse_abort', {
-          event: 'pse_abort',
-          pso_exitStrategy: 'abort',
-          pso_completeNotification: {
-            type: 'error',
-            messageKey: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_module.toast_notification_cancel_create_absence',
-              'The action has been canceled.'
-            )
-          }
-        })
-      }}
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
         <FormHeader
@@ -544,22 +532,15 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               {isEmergencyContact ? '*' : ''}
             </Label>
             <div className="gba:mt-2">
-              <Input
+              <PhoneInput
                 value={phoneNumber}
-                onChange={e => setPhoneNumber(e.target.value)}
+                onChange={setPhoneNumber}
                 onBlur={() => setPhoneTouched(true)}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:relationship_form.phone_number_placeholder',
-                  'Enter Phone Number'
-                )}
+                error={isEmergencyContact ? phoneError : undefined}
+                touched={phoneTouched}
                 data-testid="flw_changeRelationship_currentPhoneNumber"
               />
             </div>
-            {isEmergencyContact && phoneTouched && phoneError && (
-              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_phoneNumberError">
-                {phoneError}
-              </div>
-            )}
           </div>
 
           {/* Emergency Contact */}
