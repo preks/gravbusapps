@@ -67,7 +67,6 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
   const [selectedType, setSelectedType] = useState<ContractType | null>(null)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
-  console.log(contractTypes, 'contractTypes')
 
   const loadContractTypes = async () => {
     try {

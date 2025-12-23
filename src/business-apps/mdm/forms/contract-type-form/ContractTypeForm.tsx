@@ -31,7 +31,8 @@ export interface ProbationPeriod {
 const PROBATION_UNIT_OPTIONS = [
   { value: 'day', label: 'Day(s)' },
   { value: 'week', label: 'Week(s)' },
-  { value: 'month', label: 'Month(s)' }
+  { value: 'month', label: 'Month(s)' },
+  { value: '', label: 'None' }
 ] as const
 
 export interface ContractTypeFormProps extends BusinessAppContextProps {
