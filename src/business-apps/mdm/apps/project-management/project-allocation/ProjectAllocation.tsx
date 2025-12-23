@@ -26,10 +26,11 @@ import {
   DialogFooter,
   DialogClose,
   Icon,
-  Sheet,
+  SheetPrimitive,
   SheetContent,
   SheetHeader,
   SheetTitle,
+  ScrollArea,
   Progress,
   CardHeader,
   Toaster
@@ -56,6 +57,7 @@ import { VerticalTable, VerticalTableProps } from '../../generic-components/tabl
 import CardTabHeaderComponent from '../../generic-components/card'
 import { useTeams } from '../../organizational-data/hooks'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { showProjectManager } from '../project-setup/ProjectSetup'
 
 export interface ProjectAllocationProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -756,6 +758,20 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
       })
     }
 
+    items[0].items.push({
+      label: 'Team Members',
+      value: selectedProject.matrixTeam?.teamMembersCount
+        ? `${selectedProject.matrixTeam.teamMembersCount} ${selectedProject.matrixTeam.teamMembersCount === 1 ? 'member' : 'members'}`
+        : 'No team assigned'
+    })
+
+    if (selectedProject.projectManagerId) {
+      items[0].items.push({
+        label: 'Project Manager',
+        value: showProjectManager(selectedProject)
+      })
+    }
+
     if (selectedProject.description) {
       items[0].items.push({
         label: getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.label.description', 'Description'),
@@ -828,8 +844,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         />
 
         {selectedProject && (
-          <Sheet
-            title={getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.project_details', 'Project Details')}
+          <SheetPrimitive
             open={drawerVisible}
             onOpenChange={openStatus => {
               if (!openStatus) {
@@ -862,7 +877,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                 </div>
               </SheetHeader>
 
-              <div className="gba:flex-1 gba:overflow-auto gba:px-4 gba:pb-4">
+              <ScrollArea className="gba:flex-1 gba:px-4 gba:pb-4">
                 <div className="gba:space-y-6">
                   <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                     <Card className="gba:!gap-2 gba:text-lg">
@@ -925,9 +940,9 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                     )
                   })}
                 </div>
-              </div>
+              </ScrollArea>
             </SheetContent>
-          </Sheet>
+          </SheetPrimitive>
         )}
 
         {selectedEmployeeForRemove && isRemoveEmployeeOpen && (

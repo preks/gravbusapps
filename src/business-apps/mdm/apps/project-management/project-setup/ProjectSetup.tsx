@@ -32,12 +32,13 @@ import {
   Badge,
   Card,
   CardContent,
-  Sheet,
+  SheetPrimitive,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetFooter,
   SheetClose,
+  ScrollArea,
   Spinner,
   Progress,
   CardHeader,
@@ -133,10 +134,14 @@ const getProjectTimeStatus = (project: Project) => {
   return null
 }
 
-const showProjectManager = (project: Project) => {
+export const showProjectManager = (project: Project) => {
   const manager = project.manager as ProjectManager
-  const projectManagerName = project.projectManagerName
-  const managerPicture = project.managerPicture
+  const projectManagerName =
+    project.manager?.displayName ??
+    (project.manager?.firstName || project.manager?.lastName
+      ? `${project.manager.firstName || ''} ${project.manager.lastName || ''}`.trim()
+      : undefined)
+  const managerPicture = project.manager?.pictureThumbnail
 
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
@@ -327,9 +332,10 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
       projects.map(project => {
         const account = accounts.find(account => account.id === project.customerId)
         const projectManagerName =
-          project.manager?.displayName || project.manager?.firstName || project.manager?.lastName
+          project.manager?.displayName ??
+          (project.manager?.firstName || project.manager?.lastName
             ? `${project.manager.firstName || ''} ${project.manager.lastName || ''}`.trim()
-            : undefined
+            : undefined)
 
         // Get team members count or undefined if no matrix team assigned
         const teamMembersCount = project.matrixTeam?.matrixId ? project.matrixTeam.teamMembersCount : undefined
@@ -960,8 +966,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         )}
 
         {selectedProject && (
-          <Sheet
-            title="Project Details"
+          <SheetPrimitive
             open={drawerVisible}
             onOpenChange={openStatus => {
               if (!openStatus) {
@@ -983,9 +988,9 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
               [data-slot='popover-content'] {
                 z-index: 1002 !important;
               }
-                [data-slot='dialog-content'] {
+              [data-slot='dialog-content'] {
                 z-index: 1002 !important;
-        }
+              }
             `}</style>
             <SheetContent side="right" data-testid={`${dataTestId}-details-sheet`}>
               <SheetHeader>
@@ -995,7 +1000,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                 </div>
               </SheetHeader>
 
-              <div className="gba:flex-1 gba:overflow-auto gba:px-4 gba:pb-4">
+              <ScrollArea className="gba:flex-1 gba:overflow-auto gba:px-4 gba:pb-4">
                 <div className="gba:space-y-6">
                   <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                     <Card className="gba:!gap-2 gba:text-lg">
@@ -1068,7 +1073,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                     </div>
                   </div>
                 )}
-              </div>
+              </ScrollArea>
               <SheetFooter>
                 <div className="gba:flex gba:justify-end gba:gap-2">
                   <ProjectForm
@@ -1097,7 +1102,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                 </div>
               </SheetFooter>
             </SheetContent>
-          </Sheet>
+          </SheetPrimitive>
         )}
       </CardContent>
       <Toaster />
