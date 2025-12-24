@@ -21,8 +21,7 @@ async function uploadFilesToFlowbotSession(
 ): Promise<string> {
   if (!files || files.length === 0) return sessionId ?? ''
 
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  const baseUrl = isLocalhost ? 'https://newwork-dev.newwork.com' : resolveFlowbotBaseUrl()
+  const baseUrl = resolveFlowbotBaseUrl()
   const url = `${baseUrl}/flowbot/api/agent/add_files`
 
   const form = new FormData()
