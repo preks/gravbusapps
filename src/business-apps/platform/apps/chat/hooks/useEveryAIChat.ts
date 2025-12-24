@@ -8,6 +8,7 @@ import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 const LLM_MODEL = 'gpt-4.1'
 const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
+
 /**
  * Upload files to FlowBot using the async /add_files endpoint.
  * Returns the (possibly new) sessionId that should be used for subsequent chat calls.
@@ -21,42 +22,6 @@ async function uploadFilesToFlowbotSession(
   if (!files || files.length === 0) return sessionId ?? ''
 
   const baseUrl = resolveFlowbotBaseUrl()
-  const url = `${baseUrl}/flowbot/api/agent/add_files`
-
-  const form = new FormData()
-  files.forEach(file => form.append('files', file))
-  form.append('session_id', sessionId ?? '')
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    },
-    body: form
-  })
-
-  if (!res.ok) {
-    throw new Error(`add_files failed: ${res.status} ${res.statusText}`)
-  }
-
-  const data = await res.json()
-  return (data?.sessionId as string | undefined) ?? sessionId ?? ''
-}
-
-/**
- * Upload files to FlowBot using the async /add_files endpoint.
- * Returns the (possibly new) sessionId that should be used for subsequent chat calls.
- * This is shared between EveryAI app and employee chat to enable "upload now, ask later" behaviour.
- */
-async function uploadFilesToFlowbotSession(
-  files: File[] | undefined,
-  sessionId: string | undefined,
-  accessToken: string
-): Promise<string> {
-  if (!files || files.length === 0) return sessionId ?? ''
-
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  const baseUrl = isLocalhost ? 'https://newwork-dev.newwork.com' : resolveFlowbotBaseUrl()
   const url = `${baseUrl}/flowbot/api/agent/add_files`
 
   const form = new FormData()
