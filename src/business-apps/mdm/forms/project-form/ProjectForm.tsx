@@ -391,6 +391,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         const account = accounts.find(acc => acc.id === project.customerId)
         setSelectedAccountId(account?.id || null)
       }
+      // Set the project manager ID when editing
+      if (project.projectManagerId) {
+        setSelectedUserId(project.projectManagerId)
+      }
     }
   }, [project, accounts])
 
@@ -543,15 +547,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         name="projectManagerId"
         render={() => (
           <FormItem>
-            <FormLabel>
-              {t('forms.project.fields.projectManager.label', { defaultValue: 'Select Project Manager' })}
-            </FormLabel>
+            <FormLabel>{t('forms.project.fields.projectManager.label', { defaultValue: 'Project Manager' })}</FormLabel>
             <FormControl>
               <EmployeeSelect
                 value={selectedUserId}
                 employees={employees}
                 onValueChange={setSelectedUserId}
                 onSearch={search}
+                initialEmployee={project?.manager}
                 loading={searchLoading}
                 hasMore={hasMore}
                 onLoadMore={loadMore}
@@ -568,7 +571,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         name="hoursBudget"
         render={({ field }) => (
           <FormItem className="gba:w-1/2">
-            <FormLabel>{t('forms.project.fields.effort.label', { defaultValue: 'Effort (Hours)' })}</FormLabel>
+            <FormLabel>
+              {t('forms.project.fields.effort.label', { defaultValue: 'Estimated Effort (Hours)' })}
+            </FormLabel>
             <FormControl>
               <Input
                 type="text"
