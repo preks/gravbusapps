@@ -1,92 +1,20 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { KogitoProcessClient, type KogitoProcessInstance } from '@/common/network/kogito-process/KogitoProcessClient'
+import type { PendingProcessCheckConfig, PendingProcessMetadata } from './usePendingProcessCheck.types'
+import {
+  shouldAbortRequest,
+  filterRealSubmissions,
+  warnMultipleSubmissions,
+  isAbortError,
+  getErrorMessage
+} from './usePendingProcessCheckUtils'
 
-/**
- * Extract known keys from KogitoProcessInstance (excluding index signature)
- */
-export type KogitoProcessKnownKeys = 'id' | 'employeeId' | 'createdAt' | 'startedAt' | 'state'
-
-/**
- * Configuration for checking pending process submissions
- * @template TEntityField - The entity field key to check (must be a valid key of KogitoProcessInstance)
- */
-export interface PendingProcessCheckConfig<TEntityField extends string = string> {
-  /** Kogito process REST endpoint path (e.g., 'changeBankAccount') */
-  processPath: string
-
-  /** Entity field name to check for data (e.g., 'bankAccount') */
-  entityField: TEntityField
-
-  /** Employee UUID */
-  employeeId: string
-
-  /** JWT access token for API authentication */
-  accessToken: string
-
-  /** Enable/disable the check (default: true) */
-  enabled?: boolean
-
-  /** Optional display configuration for UI rendering */
-  displayConfig?: {
-    /** Human-readable process type name (e.g., 'Bank Account Change') */
-    processType: string
-    /** Status message to display (e.g., 'Pending', 'Awaiting Approval') */
-    statusMessage: string
-  }
-}
-
-/**
- * Metadata about a pending process submission
- */
-export interface PendingProcessMetadata {
-  /** Process instance ID */
-  processId: string
-  /** Human-readable process type name (if provided) */
-  processType?: string
-  /** Status message to display (if provided) */
-  statusMessage?: string
-}
-
-/**
- * Predefined process configurations for common employee self-service processes
- * These are convenience constants - consumers can create their own configs
- */
-export const EMPLOYEE_PROCESS_CONFIGS = {
-  CHANGE_BANK_ACCOUNT: {
-    processPath: 'changeBankAccount',
-    entityField: 'bankAccount'
-  } satisfies Pick<PendingProcessCheckConfig<'bankAccount'>, 'processPath' | 'entityField'>,
-  CHANGE_ADDRESS: {
-    processPath: 'changeAddress',
-    entityField: 'address'
-  } satisfies Pick<PendingProcessCheckConfig<'address'>, 'processPath' | 'entityField'>,
-  CHANGE_PERSONAL_DATA: {
-    processPath: 'changePersonalData',
-    entityField: 'personalData'
-  } satisfies Pick<PendingProcessCheckConfig<'personalData'>, 'processPath' | 'entityField'>,
-  CHANGE_COMMUNICATION: {
-    processPath: 'changeCommunication',
-    entityField: 'communication'
-  } satisfies Pick<PendingProcessCheckConfig<'communication'>, 'processPath' | 'entityField'>,
-  GRANT_BONUS: {
-    processPath: 'grantBonus',
-    entityField: 'bonus'
-  } satisfies Pick<PendingProcessCheckConfig<'bonus'>, 'processPath' | 'entityField'>,
-  ADJUST_SALARY: {
-    processPath: 'adjustSalary',
-    entityField: 'salary'
-  } satisfies Pick<PendingProcessCheckConfig<'salary'>, 'processPath' | 'entityField'>
-} as const
-
-/**
- * Type guard to check if a property exists on a KogitoProcessInstance
- */
-const hasEntityField = <TEntityField extends string>(
-  process: KogitoProcessInstance,
-  entityField: TEntityField
-): process is KogitoProcessInstance & Record<TEntityField, unknown> => {
-  return entityField in process
-}
+export type {
+  PendingProcessCheckConfig,
+  PendingProcessMetadata,
+  KogitoProcessKnownKeys
+} from './usePendingProcessCheck.types'
+export { EMPLOYEE_PROCESS_CONFIGS } from './pendingProcessConfigs'
 
 /**
  * Hook to check if there's a pending process submission for a specific employee
@@ -180,55 +108,28 @@ export const usePendingProcessCheck = <TEntityField extends string = string>(
         const allProcesses = await kogitoClient.getProcessInstances(processPath, { signal })
 
         // Check if request was aborted or a newer request has been made
-        if (signal?.aborted || requestId !== requestIdRef.current) return
+        if (shouldAbortRequest(signal, requestId, requestIdRef.current)) return
 
-        // Filter for processes that:
-        // 1. Belong to this specific employee
-        // 2. Have actual entity data (not orphan processes)
-        const realSubmissions = allProcesses.filter(process => {
-          const isForEmployee = process.employeeId === employeeId
-
-          // Type-safe property access using type guard
-          if (!hasEntityField(process, entityField)) {
-            return false
-          }
-
-          const hasEntityData = process[entityField] !== null && process[entityField] !== undefined
-
-          return isForEmployee && hasEntityData
-        })
-
+        // Filter for real submissions (not orphan processes)
+        const realSubmissions = filterRealSubmissions(allProcesses, employeeId, entityField)
         const hasPending = realSubmissions.length > 0
 
         // Warn if multiple pending processes exist (indicates potential data issue)
-        if (realSubmissions.length > 1) {
-          console.warn(`[usePendingProcessCheck] Multiple pending processes found for employee ${employeeId}`, {
-            employeeId,
-            processPath,
-            count: realSubmissions.length,
-            processIds: realSubmissions.map(p => p.id),
-            submissions: realSubmissions
-          })
-        }
+        warnMultipleSubmissions(realSubmissions, employeeId, processPath)
 
         // Check again before setting state
-        if (signal?.aborted || requestId !== requestIdRef.current) return
+        if (shouldAbortRequest(signal, requestId, requestIdRef.current)) return
 
         setHasPendingProcess(hasPending)
         setPendingProcess(hasPending ? realSubmissions[0] : null)
       } catch (err) {
         // Don't update state if request was aborted
-        if (err instanceof Error && err.name === 'AbortError') {
-          return
-        }
+        if (isAbortError(err)) return
 
-        // Ignore if a newer request has been made
-        if (requestId !== requestIdRef.current) return
+        // Ignore if a newer request has been made or aborted
+        if (shouldAbortRequest(signal, requestId, requestIdRef.current)) return
 
-        // Check if aborted before setting error state
-        if (signal?.aborted) return
-
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error checking pending processes'
+        const errorMessage = getErrorMessage(err)
         setError(errorMessage)
         console.error('[usePendingProcessCheck] Failed to check for pending processes:', err)
 
@@ -236,7 +137,7 @@ export const usePendingProcessCheck = <TEntityField extends string = string>(
         setPendingProcess(null)
       } finally {
         // Only update loading state if not aborted and this is still the current request
-        if (!signal?.aborted && requestId === requestIdRef.current) {
+        if (!shouldAbortRequest(signal, requestId, requestIdRef.current)) {
           setIsLoading(false)
         }
       }
