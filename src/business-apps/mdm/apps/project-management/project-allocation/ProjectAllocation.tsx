@@ -759,16 +759,16 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     }
 
     items[0].items.push({
-      label: 'Team Members',
       value: selectedProject.matrixTeam?.teamMembersCount
-        ? `${selectedProject.matrixTeam.teamMembersCount} ${selectedProject.matrixTeam.teamMembersCount === 1 ? 'member' : 'members'}`
-        : 'No team assigned'
+        ? `${selectedProject.matrixTeam.teamMembersCount} ${selectedProject.matrixTeam.teamMembersCount > 1 ? 'members' : 'member'}`
+        : 'No team assigned',
+      label: 'Team Members'
     })
 
     if (selectedProject.projectManagerId) {
       items[0].items.push({
-        label: 'Project Manager',
-        value: showProjectManager(selectedProject)
+        value: showProjectManager(selectedProject),
+        label: 'Project Manager'
       })
     }
 
@@ -896,11 +896,11 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                     </Card>
 
                     <Card className="gba:!gap-2 gba:text-lg">
-                      <CardHeader className="gba:text-sm gba:text-gray-400">
+                      <CardHeader className="gba:text-gray-400 gba:text-sm">
                         {getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.status', 'Status')}
                       </CardHeader>
                       <CardContent
-                        className={`${selectedProject.status === ProjectStatusUI.InProgress ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
+                        className={`${selectedProject.status === ProjectStatusUI.InProgress ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:items-center gba:!pt-0 gba:flex gba:gap-2`}
                       >
                         {selectedProject.status === ProjectStatusUI.InProgress ? (
                           <CheckCircleIcon />
@@ -917,9 +917,9 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
 
                     return (
                       <div className="gba:mt-4">
-                        <div className="gba:flex gba:items-center gba:justify-between">
+                        <div className="gba:flex gba:justify-between gba:items-center">
                           <h1 className="gba:font-medium">{timeStatus.title}</h1>
-                          <h1 className={`gba:text-sm gba:font-medium ${timeStatus.textColor}`}>
+                          <h1 className={`gba:font-medium gba:text-sm ${timeStatus.textColor}`}>
                             {timeStatus.daysText}
                           </h1>
                         </div>
@@ -931,11 +931,11 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                   {drawerItems.map((item, index) => {
                     return (
                       <VerticalTable
-                        key={`${item.title}-${index}`}
                         icon={item.icon}
+                        key={`${item.title}-${index}`}
                         title={item.title}
-                        items={item.items}
                         verticalTable={item.verticalTable}
+                        items={item.items}
                       />
                     )
                   })}
