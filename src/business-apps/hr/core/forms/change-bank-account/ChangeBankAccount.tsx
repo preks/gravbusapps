@@ -4,7 +4,15 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { useForm } from 'react-hook-form'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Textarea,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { ChangeBankAccountProvider, useChangeBankAccount } from './ChangeBankAccountContext'
 import DefaultFields from './components/DefaultFields'
@@ -14,7 +22,6 @@ import { buildBankAccountPayload, isUnchangedExistingBankAccount } from './utils
 import { usePendingProcessCheck, EMPLOYEE_PROCESS_CONFIGS } from '@/common/hooks/usePendingProcessCheck'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { PendingSubmissionMessage } from '@/components/pending-submission-message'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 
 interface BankAccountFormValues {
