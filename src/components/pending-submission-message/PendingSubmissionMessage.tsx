@@ -1,94 +1,15 @@
-import React, { useState } from 'react'
-import { Button, Badge, LocalizationProvider, useTranslation } from '@newwork/nw-design-system'
+import React from 'react'
+import { Button, LocalizationProvider, useTranslation } from '@newwork/nw-design-system'
 import { InfoIcon } from 'lucide-react'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import type { SupportedLocale } from '@newwork/nw-design-system'
 import translations from '@/components/_i18n'
+import type { PendingSubmissionMessageProps } from './PendingSubmissionMessage.types'
+import { formatSubmissionDate, getEmbeddedStatus } from './pendingMessageUtils'
+import { SubmissionDetailsCard } from './SubmissionDetailsCard'
+import { ProcessIdSection } from './ProcessIdSection'
 
-/**
- * Props for the PendingSubmissionMessage component
- */
-export interface PendingSubmissionMessageProps {
-  /** Display name of the process type (e.g., "Bank Account Change", "Bonus Grant") */
-  processType: string
-  /** When the submission was made (optional - will show "Recently" if not provided) */
-  submissionDate?: string | Date
-  /** Optional process instance ID for debugging */
-  processId?: string
-  /**
-   * Status message describing what's happening (e.g., "Awaiting Approval", "awaiting acknowledgment")
-   * If not provided, defaults to localized "Pending" status via translation key 'pending-status-pending'
-   */
-  statusMessage?: string
-  /** Optional callback when close button is clicked */
-  onClose?: () => void
-  /** Optional locale override */
-  locale?: SupportedLocale
-  /** Optional test id for testing */
-  'data-testid'?: string
-}
-
-/**
- * Formats a date to a human-readable string with date and time
- * @param date - Date string or Date object
- * @param locale - Optional locale(s) for formatting (e.g., 'en-US', ['en-US', 'en'])
- * @returns Formatted date string (e.g., "December 22, 2025 at 3:45 PM")
- */
-const formatSubmissionDate = (date: string | Date, locale?: string | string[]): string => {
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date
-
-    if (isNaN(dateObj.getTime())) {
-      return 'Unknown date'
-    }
-
-    const dateOptions: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }
-
-    const timeOptions: Intl.DateTimeFormatOptions = {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    }
-
-    const datePart = dateObj.toLocaleDateString(locale, dateOptions)
-    const timePart = dateObj.toLocaleTimeString(locale, timeOptions)
-
-    return `${datePart} at ${timePart}`
-  } catch {
-    return 'Unknown date'
-  }
-}
-
-/**
- * Maps a status message to its embedded translation key for use in sentences
- * @param status - The status message to map
- * @param t - Translation function
- * @returns The embedded (adjective) form of the status for use in sentences
- */
-const getEmbeddedStatus = (status: string, t: ReturnType<typeof useTranslation>['t']): string => {
-  // Get localized versions of known statuses
-  const statusPending = t('pending-status-pending')
-  const statusAwaitingApproval = t('pending-status-awaiting-approval')
-  const statusAwaitingAcknowledgment = t('pending-status-awaiting-acknowledgment')
-
-  // Map to embedded variants for grammatical correctness
-  if (status === statusPending) {
-    return t('pending-status-pending-embedded')
-  }
-  if (status === statusAwaitingApproval) {
-    return t('pending-status-awaiting-approval-embedded')
-  }
-  if (status === statusAwaitingAcknowledgment) {
-    return t('pending-status-awaiting-acknowledgment-embedded')
-  }
-
-  // For unknown statuses, return as-is (fallback for custom status messages)
-  return status
-}
+export type { PendingSubmissionMessageProps } from './PendingSubmissionMessage.types'
 
 /**
  * Internal component with translations
@@ -99,17 +20,15 @@ const PendingSubmissionMessageContent: React.FC<PendingSubmissionMessageProps> =
   processId,
   statusMessage,
   onClose,
-  locale,
   'data-testid': dataTestId = 'pending-submission-message'
 }) => {
   const { t } = useTranslation(translations)
-  const [showProcessId, setShowProcessId] = useState(false)
 
   // Use localized "Pending" as default if statusMessage is not provided
   const displayStatus = statusMessage || t('pending-status-pending')
   // Get the embedded (adjective) form for use in the description sentence
   const embeddedStatus = getEmbeddedStatus(displayStatus, t)
-  const formattedDate = submissionDate ? formatSubmissionDate(submissionDate, locale) : undefined
+  const formattedDate = submissionDate ? formatSubmissionDate(submissionDate) : undefined
 
   return (
     <div className="gba:flex gba:items-center gba:justify-center gba:min-h-[300px] gba:py-8" data-testid={dataTestId}>
@@ -139,53 +58,14 @@ const PendingSubmissionMessageContent: React.FC<PendingSubmissionMessageProps> =
               {t('pending-description', { processType, status: embeddedStatus })}
             </p>
 
-            {/* Submission Details Card */}
-            <div className="gba:bg-muted gba:rounded-lg gba:p-4 gba:space-y-3 gba:mt-4">
-              {formattedDate && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                    {t('pending-submitted-label')}:
-                  </span>
-                  <span className="gba:text-sm gba:text-foreground gba:text-right" data-testid={`${dataTestId}-date`}>
-                    {formattedDate}
-                  </span>
-                </div>
-              )}
+            <SubmissionDetailsCard
+              formattedDate={formattedDate}
+              displayStatus={displayStatus}
+              dataTestId={dataTestId}
+            />
 
-              <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                  {t('pending-status-label')}:
-                </span>
-                <Badge variant="secondary" className="gba:text-xs" data-testid={`${dataTestId}-status-badge`}>
-                  {displayStatus}
-                </Badge>
-              </div>
-            </div>
+            {processId && <ProcessIdSection processId={processId} dataTestId={dataTestId} />}
 
-            {/* Process ID (Collapsible) */}
-            {processId && (
-              <div className="gba:pt-2">
-                <button
-                  onClick={() => setShowProcessId(!showProcessId)}
-                  className="gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:underline gba:cursor-pointer"
-                  data-testid={`${dataTestId}-toggle-process-id`}
-                  type="button"
-                >
-                  {showProcessId ? t('pending-hide-details') : t('pending-show-details')}
-                </button>
-
-                {showProcessId && (
-                  <div
-                    className="gba:mt-2 gba:p-2 gba:bg-muted gba:rounded gba:text-xs gba:font-mono gba:text-muted-foreground gba:break-all"
-                    data-testid={`${dataTestId}-process-id`}
-                  >
-                    {t('pending-process-id-label')}: {processId}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Close Button */}
             {onClose && (
               <div className="gba:pt-4">
                 <Button
