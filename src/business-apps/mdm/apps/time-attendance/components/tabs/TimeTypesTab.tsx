@@ -227,12 +227,12 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
               {totalPages > 1
                 ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, filteredTimeTypes.length)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.time_attendance.time_types.title',
-                    'time types'
-                  ).toLowerCase()}`
+                    'Time Types'
+                  )}`
                 : `${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.time_attendance.time_types.title',
-                    'time types'
-                  ).toLowerCase()}`}
+                    'Time Types'
+                  )}`}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
@@ -513,7 +513,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
             <div className="gba:text-sm gba:text-gray-600">
               {`${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${timeTypes.length} ${getTranslationFromI18nKeyAndLabel(
                 'master-data:hr.time_attendance.time_types.title',
-                'time types'
+                'Time Types'
               )}`}
             </div>
           </div>
@@ -546,13 +546,13 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
                 )}
               </DialogTitle>
               <DialogDescription>
-                {systemTimeTypes.length > 1
+                {systemTimeTypes.length < 1
                   ? getTranslationFromI18nKeyAndLabel(
                       'master-data:hr.time_attendance.time_types.create_system_time_types_confirmation_one',
                       `Are you sure you want to create the missing system time type?`
                     )
                   : getTranslationFromI18nKeyAndLabel(
-                      'master-data:hr.time_attendance.time_types.actions.create_system_types_message',
+                      'master-data:hr.time_attendance.time_types.create_system_time_types_confirmation',
                       `Are you sure you want to create all ${systemTimeTypes.length} missing system time types?`,
                       { systemTimeTypesCount: systemTimeTypes.length }
                     )}
