@@ -173,6 +173,7 @@ export interface AdvancePaymentsDataView {
     currencyRef?: string | null,
     options?: { force?: boolean }
   ) => Promise<void>
+  invalidateCache?: () => void
 }
 
 export const useGetAdvancePayments = (context?: BusinessAppContextProps): AdvancePaymentsDataView => {
@@ -183,6 +184,59 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const graphqlClient = useGraphQLClient(context?.accessToken || '')
   // Prevent duplicate in-flight calls with the exact same parameters (e.g., StrictMode)
   const lastCallSignatureRef = useRef<string>('')
+  const abortControllerRef = useRef<AbortController | null>(null) // For request cancellation
+  // Page cache: stores results by cache key (search, filters, page, pageSize, sortField, sortOrder, currencyRef)
+  const pageCacheRef = useRef<Map<string, { items: AdvancePayment[]; totalCount: number }>>(new Map())
+  const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
+
+  // Helper to normalize objects for stable cache keys
+  const normalize = useCallback((val: any): any => {
+    if (Array.isArray(val)) {
+      return val.map(normalize)
+    }
+    if (val && typeof val === 'object') {
+      const sorted: any = {}
+      Object.keys(val)
+        .sort()
+        .forEach(k => {
+          sorted[k] = normalize(val[k])
+        })
+      return sorted
+    }
+    return val
+  }, [])
+
+  // Generate cache key for a specific page (includes all parameters that affect the query)
+  // Cache key includes all filters, so different filters = different key = automatic cache miss
+  // No need for explicit cache invalidation - cache key mismatch handles it naturally
+  const generateCacheKey = useCallback(
+    (
+      searchTerm: string,
+      page: number,
+      pageSize: number,
+      statusFilter: string[],
+      amountRange: { min?: number; max?: number } | null,
+      advanceRange: { min?: number; max?: number } | null,
+      sortField: string | null,
+      sortOrder: 'ascend' | 'descend' | null,
+      currencyRef: string | null
+    ) => {
+      return `cache:${JSON.stringify(
+        normalize({
+          searchTerm,
+          page,
+          pageSize,
+          statusFilter,
+          amountRange,
+          advanceRange,
+          sortField,
+          sortOrder,
+          currencyRef
+        })
+      )}`
+    },
+    [normalize]
+  )
 
   const fetchItems = useCallback(
     async (
@@ -205,6 +259,33 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         return
       }
 
+      // Generate cache key (includes all parameters that affect the query)
+      // Note: The existing duplicate call signature check (lastCallSignatureRef) can be kept
+      // for extra safety, but caching and in-flight request deduplication handle this efficiently
+      const cacheKey = generateCacheKey(
+        searchTerm,
+        page,
+        pageSize,
+        statusFilter,
+        amountRange,
+        advanceRange,
+        sortField || null,
+        sortOrder || null,
+        currencyRef || null
+      )
+
+      // Check cache first - if page is cached and not forcing refresh, return immediately
+      // Cache key includes all filters, so different filters = different key = automatic cache miss
+      const cachedData = pageCacheRef.current.get(cacheKey)
+      if (cachedData && !options?.force) {
+        // Return cached data immediately - no loading state
+        setItems(cachedData.items)
+        setTotalCount(cachedData.totalCount)
+        setIsLoading(false)
+        setError(null)
+        return
+      }
+
       const callSignature = JSON.stringify({
         searchTerm,
         page,
@@ -222,6 +303,36 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         return
       }
       lastCallSignatureRef.current = callSignature
+
+      // Cancel previous request if it exists (only cancel if we're making a new request)
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      // Create new AbortController for this request
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
+      // Check for in-flight request - reuse existing request to avoid duplicates
+      const requestKey = `request:${cacheKey}`
+      if (inflightRef.current.has(requestKey)) {
+        try {
+          const result = await inflightRef.current.get(requestKey)
+          const fetchedItems = result?.AdvancePayment ?? []
+          const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
+
+          // Cache the result
+          pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
+
+          setItems(fetchedItems)
+          setTotalCount(count)
+          setIsLoading(false)
+          setError(null)
+          return
+        } catch {
+          // If in-flight request failed, continue with new request
+        }
+      }
 
       setIsLoading(true)
       setError(null)
@@ -302,13 +413,28 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           variables.currencyRef = filters.currencyRef
         }
 
-        const result = await graphqlClient.request<any>(query, variables)
+        const requestPromise = graphqlClient
+          .request<any>(query, variables, { signal: controller.signal })
+          .finally(() => {
+            inflightRef.current.delete(requestKey)
+          })
+
+        inflightRef.current.set(requestKey, requestPromise)
+        const result = await requestPromise
+
         const fetchedItems = result?.AdvancePayment ?? []
         const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
+
+        // Cache the result
+        pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
 
         setTotalCount(count)
         setItems(fetchedItems)
       } catch (err) {
+        // Ignore AbortError - it means the request was cancelled intentionally
+        if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
         console.error('Error fetching advance payments:', err)
         setError(err instanceof Error ? err : new Error(String(err)))
         setItems([]) // Clear items on error
@@ -317,14 +443,20 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         setIsLoading(false)
       }
     },
-    [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, graphqlClient]
+    [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, graphqlClient, generateCacheKey]
   )
+
+  // Manual cache invalidation (for manual refresh or mutations)
+  const invalidateAllCache = useCallback(() => {
+    pageCacheRef.current.clear()
+  }, [])
 
   return {
     items,
     isLoading,
     error: error?.message || null,
     totalCount,
-    fetchItems
+    fetchItems,
+    invalidateCache: invalidateAllCache // Expose for manual refresh
   }
 }
