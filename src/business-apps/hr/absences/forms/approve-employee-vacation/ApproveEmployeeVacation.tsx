@@ -16,11 +16,13 @@ import {
   Spinner,
   Alert,
   useTranslation,
-  useLocale
+  useLocale,
+  Button
 } from '@newwork/nw-design-system'
-import { ThumbsUp, XCircle, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react'
+import { ThumbsUp, XCircle, MessageSquare, CheckCircle, AlertCircle, ExternalLink, Users } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useVacationApprovalData } from './hooks/useVacationApprovalData'
 import { env } from '@/common/env/EnvUtils'
 import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/components/TeamAbsenceCalendar'
@@ -35,6 +37,9 @@ import { ExtendedAdditionalData } from '@/business-apps/hr/absences/types/taskTy
 import { useApprovalData } from '@/business-apps/hr/absences/hooks/useApprovalData'
 import dayjs from 'dayjs'
 import translations from './_i18n'
+import { useVacationMetrics } from './hooks/useVacationMetrics'
+import { VacationHistory } from './components/VacationHistory'
+import { EmployeeYearlyCalendar } from './components/EmployeeYearlyCalendar'
 
 interface ApproveEmployeeVacationProps extends BusinessAppContextProps {
   // Additional props from task payload
@@ -241,9 +246,6 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
     absenceTypeRef: employeeAbsence?.typeRef
   })
 
-  // Determine if this is a business trip (A101)
-  const isBusinessTrip = employeeAbsence?.typeRef?.includes('A101')
-
   // Get supervisor ID for TeamAbsenceCalendar
   const supervisorId = userInfo?.employeeDetails?.employeeId
 
@@ -269,6 +271,25 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
     completedAt,
     fallbackStatus: employeeAbsence?.status,
     fallbackNote: employeeAbsence?.approvalNote
+  })
+
+  // Use vacation metrics hook for comprehensive vacation data
+  const {
+    entitlement,
+    approvedAbsences,
+    pendingAbsences,
+    totalApprovedDays,
+    totalPendingDays,
+    remainingBeforeRequest,
+    remainingAfterApproval,
+    isLoading: isLoadingVacationMetrics,
+    error: vacationMetricsError
+  } = useVacationMetrics({
+    accessToken,
+    employeeId: employeeAbsence?.employeeId,
+    currentAbsenceId: employeeAbsence?.id,
+    currentRequestDays: employeeAbsence?.workingDays || 0,
+    balanceAfterRequest: employeeAbsence?.balance // Use balance from payload
   })
 
   const handleApprove = async () => {
@@ -416,6 +437,11 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
           {dataError}
         </Alert>
       )}
+      {vacationMetricsError && (
+        <Alert variant="destructive" data-testid="vacation-metrics-error-message">
+          {vacationMetricsError}
+        </Alert>
+      )}
 
       {/* Vacation Request Details */}
       {employeeAbsence && typeof employeeAbsence === 'object' && (
@@ -430,6 +456,18 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                     {t('label-type')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">{absenceTypeName}</span>
+                </div>
+              )}
+
+              {/* Request Created - Show when available */}
+              {requestCreatedAt && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    {t('label-request-created')}:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">
+                    {isLoadingRequestDate ? <Spinner size="sm" /> : dayjs(requestCreatedAt).format('MMM D, YYYY')}
+                  </span>
                 </div>
               )}
 
@@ -466,18 +504,6 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                 </div>
               )}
 
-              {/* Remaining Balance (not for business trips) */}
-              {employeeAbsence.balance !== undefined && !isBusinessTrip && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    {t('label-remaining-balance')}:
-                  </span>
-                  <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-success">
-                    {t('balance-days', { balance: employeeAbsence.balance })}
-                  </span>
-                </div>
-              )}
-
               {/* Substitute Employee - Only show if there is a substitute */}
               {employeeAbsence.substituteEmployee && (
                 <div className="gba:flex gba:items-start gba:gap-3">
@@ -501,15 +527,76 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                   </span>
                 </div>
               )}
+            </div>
+          </div>
+          <Separator />
+        </>
+      )}
 
-              {/* Request Created - Show when available */}
-              {requestCreatedAt && (
+      {/* Vacation Balance - Only for non-completed tasks */}
+      {!isTaskCompleted && employeeAbsence && entitlement && (
+        <>
+          <div data-testid="vacation-balance-section">
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">{t('section-vacation-balance')}</h4>
+            <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
+              {/* Entitlement */}
+              <div className="gba:flex gba:items-start gba:gap-3">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                  {t('vacation-balance-entitlement')}:
+                </span>
+                <span className="gba:text-sm gba:flex-1 gba:font-medium">
+                  {entitlement.total} {t('days-unit')}
+                </span>
+              </div>
+
+              {/* Taken */}
+              <div className="gba:flex gba:items-start gba:gap-3">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                  {t('vacation-balance-taken')}:
+                </span>
+                <span className="gba:text-sm gba:flex-1">
+                  {totalApprovedDays} {t('days-unit')}
+                </span>
+              </div>
+
+              {/* Current balance */}
+              <div className="gba:flex gba:items-start gba:gap-3">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                  {t('vacation-balance-current')}:
+                </span>
+                <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-success">
+                  {remainingBeforeRequest} {t('days-unit')}
+                </span>
+              </div>
+
+              {/* Requested */}
+              <div className="gba:flex gba:items-start gba:gap-3">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                  {t('vacation-balance-requested')}:
+                </span>
+                <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-info">
+                  {employeeAbsence.workingDays || 0} {t('days-unit')}
+                </span>
+              </div>
+
+              {/* After approval */}
+              <div className="gba:flex gba:items-start gba:gap-3">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                  {t('vacation-balance-after-approval')}:
+                </span>
+                <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-primary">
+                  {remainingAfterApproval} {t('days-unit')}
+                </span>
+              </div>
+
+              {/* Other pending */}
+              {totalPendingDays > 0 && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    {t('label-request-created')}:
+                    {t('vacation-balance-pending')}:
                   </span>
-                  <span className="gba:text-sm gba:flex-1">
-                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt, locale)}
+                  <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-warning">
+                    {totalPendingDays} {t('days-unit')}
                   </span>
                 </div>
               )}
@@ -613,22 +700,77 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
         </>
       )}
 
-      {/* Team Absence Calendar - Show team coverage during this absence period */}
+      {/* Vacation History - NEW */}
+      {!isTaskCompleted && employeeAbsence && (
+        <>
+          <VacationHistory
+            approvedAbsences={approvedAbsences}
+            pendingAbsences={pendingAbsences}
+            totalApprovedDays={totalApprovedDays}
+            totalPendingDays={totalPendingDays}
+            isLoading={isLoadingVacationMetrics}
+            error={vacationMetricsError}
+          />
+          <Separator />
+        </>
+      )}
+
+      {/* Employee Yearly Calendar - NEW */}
+      {!isTaskCompleted && employeeAbsence && (
+        <>
+          <EmployeeYearlyCalendar
+            accessToken={accessToken}
+            employeeId={employeeAbsence.employeeId}
+            currentRequestStartDate={employeeAbsence.startDate}
+            currentRequestEndDate={employeeAbsence.endDate}
+          />
+          <Separator />
+        </>
+      )}
+
+      {/* Team Absence Calendar with Dashboard Link */}
       {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && !isLoadingEmployee && (
         <>
-          <TeamAbsenceCalendar
-            accessToken={accessToken}
-            supervisorId={supervisorId}
-            startDate={employeeAbsence.startDate}
-            endDate={employeeAbsence.endDate}
-            currentAbsence={{
-              employeeId: employeeAbsence.employeeId || employeeData?.id || '',
-              employeeName: employeeData?.displayName || creatorName || t('unknown'),
-              position: employeeData?.position || undefined,
-              type: absenceTypeName,
-              status: 'PENDING_APPROVAL'
-            }}
-          />
+          <div data-testid="team-absence-calendar-section">
+            {/* Quick access link to full dashboard */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Users className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                <span className="gba:text-sm gba:text-muted-foreground">{t('team-absences-need-details')}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Use proper navigation utilities with URL mapping
+                  const url = buildPlatformUrl('/platform/hr/absences/manager-absences', {
+                    tab: 'team-calendar'
+                  })
+                  // Open in new window with security attributes
+                  window.open(url, '_blank', 'noopener,noreferrer')
+                }}
+                data-testid="open-full-dashboard-button"
+              >
+                <span>{t('team-absences-full-dashboard')}</span>
+                <ExternalLink className="gba:h-4 gba:w-4 gba:ml-2" />
+              </Button>
+            </div>
+
+            {/* Team calendar component with its own header */}
+            <TeamAbsenceCalendar
+              accessToken={accessToken}
+              supervisorId={supervisorId}
+              startDate={employeeAbsence.startDate}
+              endDate={employeeAbsence.endDate}
+              currentAbsence={{
+                employeeId: employeeAbsence.employeeId || employeeData?.id || '',
+                employeeName: employeeData?.displayName || creatorName || t('unknown'),
+                position: employeeData?.position || undefined,
+                type: absenceTypeName,
+                status: 'PENDING_APPROVAL'
+              }}
+            />
+          </div>
           <Separator />
         </>
       )}
