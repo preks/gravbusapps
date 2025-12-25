@@ -9,6 +9,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 
 import dayjs from 'dayjs'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCatalogValue } from '@/common/utils/windowUtils'
+import { usePublicHolidays } from '../../../hooks/usePublicHolidays'
 import translations from '../_i18n'
 
 interface EmployeeYearlyCalendarProps {
@@ -23,6 +24,16 @@ interface DayAbsence {
   status: string
   color: string
   isCurrentRequest?: boolean
+  isHoliday?: boolean
+  isHolidayAndAbsence?: boolean
+  isHalfDay?: boolean
+  halfDayPeriod?: 'morning' | 'afternoon'
+  hasMultipleHalves?: boolean
+  // For split rendering
+  morningData?: DayAbsence | null
+  afternoonData?: DayAbsence | null
+  // NEW: Flag for full-day overlap (vacation + holiday both full-day)
+  isFullDayOverlap?: boolean
 }
 
 interface CalendarDay {
@@ -72,6 +83,16 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
   // Initialize month index - use function to ensure it's only calculated once
   const [currentMonthIndex, setCurrentMonthIndex] = useState(() => {
     return currentRequestStartDate ? dayjs(currentRequestStartDate).month() : dayjs().month()
+  })
+
+  // Fetch public holidays for the employee
+  const {
+    holidayDateSet,
+    holidays,
+    isLoading: holidaysLoading
+  } = usePublicHolidays({
+    accessToken,
+    employeeId
   })
 
   const graphqlClient = useGraphqlClient(accessToken)
@@ -124,6 +145,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
               endDate
               status
               typeRef
+              workingHours
               type {
                 id
                 value
@@ -154,10 +176,100 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     fetchYearlyAbsences()
   }, [accessToken, employeeId, graphqlClient])
 
-  // Build absence map by date
-  const absenceMap = useMemo(() => {
-    const map: Record<string, DayAbsence> = {}
+  // Helper function to determine if an absence is half-day and which period
+  const getAbsenceHalfDayInfo = (absence: any): { isHalfDay: boolean; period?: 'morning' | 'afternoon' } => {
+    // If workingHours is approximately 4 hours (half of 8-hour day), it's a half-day
+    // Typical values: 4h = morning or afternoon half-day
+    if (absence.workingHours && absence.workingHours > 0 && absence.workingHours <= 4.5) {
+      // For now, we'll need additional logic or data to determine morning vs afternoon
+      // This could come from start time or additional fields
+      // Default to morning for now
+      return { isHalfDay: true, period: 'morning' }
+    }
+    return { isHalfDay: false }
+  }
 
+  // Helper function to check if holiday is half-day and determine period
+  const getHolidayHalfDayInfo = (holiday: any): { isHalfDay: boolean; period?: 'morning' | 'afternoon' } => {
+    const isHalfDay = holiday.additionalValue1 === '05H'
+    if (!isHalfDay) return { isHalfDay: false }
+
+    // Check holiday name for common afternoon holidays
+    const holidayName = (holiday.value || '').toLowerCase()
+
+    // Common afternoon half-day holidays in Germany
+    const afternoonHolidays = [
+      'eve',
+      'heiligabend',
+      'silvester',
+      'christmas eve',
+      "new year's eve",
+      'holy eve',
+      'new years eve'
+    ]
+
+    // Check if this is a known afternoon holiday
+    const isAfternoonHoliday = afternoonHolidays.some(pattern => holidayName.includes(pattern))
+
+    if (isAfternoonHoliday) {
+      return { isHalfDay: true, period: 'afternoon' }
+    }
+
+    // Check additionalValue2 or additionalValue3 for period information
+    const value2 = holiday.additionalValue2?.toLowerCase() || ''
+    const value3 = holiday.additionalValue3?.toLowerCase() || ''
+
+    // Try to detect afternoon from additional values
+    if (
+      value2.includes('afternoon') ||
+      value2.includes('pm') ||
+      value2.includes('13:') ||
+      value2.includes('14:') ||
+      value3.includes('afternoon') ||
+      value3.includes('pm') ||
+      value3.includes('13:') ||
+      value3.includes('14:')
+    ) {
+      return { isHalfDay: true, period: 'afternoon' }
+    }
+
+    // Default to morning for other half-day holidays
+    return { isHalfDay: true, period: 'morning' }
+  }
+
+  // Build absence map by date with half-day support
+  const absenceMap = useMemo(() => {
+    // Use a more complex structure to track both halves of each day
+    const dayData: Record<
+      string,
+      {
+        morning: DayAbsence | null
+        afternoon: DayAbsence | null
+      }
+    > = {}
+
+    // Helper to set half or full day
+    const setDayAbsence = (
+      dateKey: string,
+      absenceData: DayAbsence,
+      isHalfDay: boolean,
+      period?: 'morning' | 'afternoon'
+    ) => {
+      if (!dayData[dateKey]) {
+        dayData[dateKey] = { morning: null, afternoon: null }
+      }
+
+      if (isHalfDay && period) {
+        // Set specific half
+        dayData[dateKey][period] = absenceData
+      } else {
+        // Set both halves
+        dayData[dateKey].morning = absenceData
+        dayData[dateKey].afternoon = absenceData
+      }
+    }
+
+    // Add employee absences
     absences.forEach(absence => {
       if (!absence.startDate || !absence.endDate) return
 
@@ -165,21 +277,163 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
       const end = dayjs(absence.endDate)
       const color = getAbsenceColor(absence.typeRef, absence.status)
       const typeName = getCatalogValue(absence.type) || absence.type?.value || 'Absence'
+      const halfDayInfo = getAbsenceHalfDayInfo(absence)
 
       let current = start
       while (current.isBefore(end) || current.isSame(end, 'day')) {
         const dateKey = current.format('YYYY-MM-DD')
-        map[dateKey] = {
+
+        const absenceData: DayAbsence = {
           type: typeName,
           status: absence.status,
           color,
-          isCurrentRequest: false
+          isCurrentRequest: false,
+          isHoliday: false,
+          isHolidayAndAbsence: false,
+          isHalfDay: halfDayInfo.isHalfDay,
+          halfDayPeriod: halfDayInfo.period
         }
+
+        setDayAbsence(dateKey, absenceData, halfDayInfo.isHalfDay, halfDayInfo.period)
         current = current.add(1, 'day')
       }
     })
 
-    // Mark current request days (override with distinct styling)
+    // Add public holidays and mark overlaps
+    if (holidayDateSet && holidays) {
+      holidays.forEach(holiday => {
+        const code = holiday.alternativeCode || holiday.code || ''
+        if (!code) return
+
+        const match = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
+        if (!match) return
+
+        const year = parseInt(match[1], 10)
+        const month = parseInt(match[2], 10)
+        const day = parseInt(match[3], 10)
+
+        if (year !== currentYear) return
+
+        const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
+        const holidayHalfDayInfo = getHolidayHalfDayInfo(holiday)
+        const isHalfDayHoliday = holidayHalfDayInfo.isHalfDay
+
+        const holidayData: DayAbsence = {
+          type: holiday.value || 'Public Holiday',
+          status: 'HOLIDAY',
+          color: 'gba:bg-purple-500',
+          isCurrentRequest: false,
+          isHoliday: true,
+          isHolidayAndAbsence: false,
+          isHalfDay: isHalfDayHoliday,
+          halfDayPeriod: holidayHalfDayInfo.period // Use detected period
+        }
+
+        const existingDay = dayData[dateKey]
+
+        if (existingDay) {
+          // Day already has absence(s) - need to show split view
+          if (isHalfDayHoliday) {
+            // Half-day holiday - check if the period is free
+            const period = holidayData.halfDayPeriod!
+            if (!existingDay[period]) {
+              // Period is free - add holiday to that half
+              existingDay[period] = holidayData
+            } else {
+              // Period occupied - check if both halves have the SAME full-day item
+              if (existingDay.morning && existingDay.afternoon && existingDay.morning === existingDay.afternoon) {
+                // Full-day vacation + half-day holiday = create overlap on that half ONLY
+                // Keep vacation in BOTH halves, but add diagonal overlay to the holiday half
+                const fullDayItem = existingDay.morning
+
+                // Create overlapped version for the holiday's half
+                const overlappedHalf: DayAbsence = {
+                  ...fullDayItem,
+                  isFullDayOverlap: true, // Mark this half as having overlap
+                  isHolidayAndAbsence: true,
+                  morningData: fullDayItem, // Keep vacation as primary
+                  afternoonData: holidayData // Keep holiday as secondary
+                }
+
+                // The holiday's period gets the overlay, other period stays as vacation
+                existingDay[period] = overlappedHalf
+                const otherPeriod = period === 'morning' ? 'afternoon' : 'morning'
+                existingDay[otherPeriod] = { ...fullDayItem } // Keep vacation solid in other half
+              } else {
+                // Period has different item (half-day vacation/absence)
+                // Create OVERLAP for this half - show both with diagonal stripes
+                const existingItem = existingDay[period]!
+
+                // Create overlapped half-day indicator
+                const overlappedHalfDay: DayAbsence = {
+                  ...existingItem,
+                  isFullDayOverlap: true, // Reuse this flag for half-day overlaps
+                  isHolidayAndAbsence: true,
+                  morningData: existingItem, // Keep absence as primary
+                  afternoonData: holidayData // Keep holiday as secondary
+                }
+
+                existingDay[period] = overlappedHalfDay
+              }
+            }
+          } else {
+            // Full-day holiday overlapping with ANY full-day absence
+            // Check if existing absence is also full-day (both halves same)
+            if (
+              existingDay.morning &&
+              existingDay.afternoon &&
+              existingDay.morning === existingDay.afternoon &&
+              !existingDay.morning.isHoliday
+            ) {
+              // FULL-DAY absence + FULL-DAY holiday = show both with diagonal stripe overlay
+              const absenceData = existingDay.morning
+              // Create a full-day overlap indicator
+              const overlappedData: DayAbsence = {
+                ...absenceData,
+                isFullDayOverlap: true,
+                isHolidayAndAbsence: true,
+                morningData: absenceData, // Keep absence as primary
+                afternoonData: holidayData // Keep holiday as secondary
+              }
+              existingDay.morning = overlappedData
+              existingDay.afternoon = overlappedData
+            } else if (existingDay.morning && !existingDay.afternoon) {
+              // Only morning occupied - put holiday in afternoon
+              existingDay.afternoon = holidayData
+            } else if (!existingDay.morning && existingDay.afternoon) {
+              // Only afternoon occupied - put holiday in morning
+              existingDay.morning = holidayData
+            } else if (existingDay.morning && existingDay.afternoon) {
+              // Both halves occupied but different - force holiday visibility
+              // Check if we can create a full-day overlap for either half
+              const morningIsSameAsAfternoon = existingDay.morning === existingDay.afternoon
+              if (!morningIsSameAsAfternoon) {
+                // Different items in morning/afternoon - this shouldn't happen for full-day holiday
+                // But if it does, try to show holiday in whichever half doesn't have one
+                if (!existingDay.morning.isHoliday && !existingDay.afternoon.isHoliday) {
+                  // Neither half is holiday - create overlap with morning absence
+                  const overlappedData: DayAbsence = {
+                    ...existingDay.morning,
+                    isFullDayOverlap: true,
+                    isHolidayAndAbsence: true,
+                    morningData: existingDay.morning,
+                    afternoonData: holidayData
+                  }
+                  existingDay.morning = overlappedData
+                  existingDay.afternoon = overlappedData
+                }
+              }
+            }
+          }
+        } else {
+          // No existing absence, add the holiday
+          setDayAbsence(dateKey, holidayData, isHalfDayHoliday, holidayData.halfDayPeriod)
+        }
+      })
+    }
+
+    // Mark current request days and preserve holiday information
     if (currentRequestStartDate && currentRequestEndDate) {
       const start = dayjs(currentRequestStartDate)
       const end = dayjs(currentRequestEndDate)
@@ -187,18 +441,124 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
       let current = start
       while (current.isBefore(end) || current.isSame(end, 'day')) {
         const dateKey = current.format('YYYY-MM-DD')
-        map[dateKey] = {
+        const existingDay = dayData[dateKey]
+
+        // Check if current request overlaps with holiday
+        const wasHoliday =
+          existingDay?.morning?.isHoliday ||
+          existingDay?.afternoon?.isHoliday ||
+          existingDay?.morning?.isHolidayAndAbsence ||
+          existingDay?.afternoon?.isHolidayAndAbsence
+
+        const requestData: DayAbsence = {
           type: t('vacation-calendar-current-request'),
           status: 'PENDING',
           color: 'gba:bg-yellow-400',
-          isCurrentRequest: true
+          isCurrentRequest: true,
+          isHoliday: false,
+          isHolidayAndAbsence: wasHoliday,
+          isHalfDay: false
         }
+
+        setDayAbsence(dateKey, requestData, false)
         current = current.add(1, 'day')
       }
     }
 
-    return map
-  }, [absences, currentRequestStartDate, currentRequestEndDate, t])
+    // Convert to final map format
+    // Preserve morning and afternoon data for split rendering
+    const finalMap: Record<string, DayAbsence> = {}
+
+    Object.keys(dayData).forEach(dateKey => {
+      const day = dayData[dateKey]
+      const morning = day.morning
+      const afternoon = day.afternoon
+
+      if (!morning && !afternoon) return
+
+      // Debug logging for problematic dates
+      if (
+        dateKey === '2025-12-24' ||
+        dateKey === '2025-12-25' ||
+        dateKey === '2025-12-26' ||
+        dateKey === '2025-12-31'
+      ) {
+      }
+
+      if (morning && afternoon) {
+        // Check if BOTH halves have full-day overlap (full-day vacation + full-day holiday)
+        const isBothHalvesOverlap = morning.isFullDayOverlap && afternoon.isFullDayOverlap
+        // Check if ONLY ONE half has overlap (full-day vacation + half-day holiday)
+        const isOneHalfOverlap =
+          (morning.isFullDayOverlap && !afternoon.isFullDayOverlap) ||
+          (!morning.isFullDayOverlap && afternoon.isFullDayOverlap)
+
+        // Check if both halves are EXACTLY the same object (not just similar)
+        // Compare all properties including isHoliday to detect overlaps
+        // IMPORTANT: Exclude cases where there's ANY overlap marker on either half
+        const areSameType =
+          morning.type === afternoon.type &&
+          morning.status === afternoon.status &&
+          morning.color === afternoon.color &&
+          morning.isHoliday === afternoon.isHoliday &&
+          !morning.isFullDayOverlap && // Morning doesn't have overlap marker
+          !afternoon.isFullDayOverlap && // Afternoon doesn't have overlap marker
+          !isOneHalfOverlap // Neither half has overlap
+
+        // CRITICAL: Check overlaps FIRST before checking areSameType
+        if (isBothHalvesOverlap) {
+          // Both halves have overlap (full-day vacation + full-day holiday)
+          // Show as single item with diagonal overlay
+          finalMap[dateKey] = {
+            ...morning,
+            hasMultipleHalves: false, // Not split, just overlaid
+            isFullDayOverlap: true, // Full-day overlap
+            morningData: morning.morningData, // Vacation
+            afternoonData: morning.afternoonData, // Holiday
+            isHolidayAndAbsence: true
+          }
+        } else if (isOneHalfOverlap) {
+          // One half has overlap (full-day vacation + half-day holiday)
+          // Need split rendering with overlay on the overlapping half
+          finalMap[dateKey] = {
+            ...morning,
+            hasMultipleHalves: true, // Split required
+            morningData: morning,
+            afternoonData: afternoon,
+            isHolidayAndAbsence: true,
+            isFullDayOverlap: false // Not a full-day overlap, just half-day
+          }
+
+          if (dateKey === '2025-12-24' || dateKey === '2025-12-31') {
+          }
+        } else if (areSameType) {
+          // Truly same item in both halves - show as full day
+          // This check comes AFTER overlaps because overlaps take precedence
+          finalMap[dateKey] = morning
+        } else {
+          // Different halves (half-day vacation + half-day holiday, or morning/afternoon different items)
+          // Show split for better UX
+          finalMap[dateKey] = {
+            ...morning,
+            hasMultipleHalves: true,
+            morningData: morning,
+            afternoonData: afternoon,
+            isHolidayAndAbsence: morning.isHoliday || afternoon.isHoliday
+          }
+        }
+      } else {
+        // Only one half filled - show as half-day
+        const singleHalf = morning || afternoon!
+        finalMap[dateKey] = {
+          ...singleHalf,
+          morningData: morning,
+          afternoonData: afternoon
+        }
+      }
+    })
+
+    return finalMap
+  }, [absences, currentRequestStartDate, currentRequestEndDate, holidayDateSet, holidays, currentYear, t])
 
   // Generate current month data
   const currentMonth = useMemo(() => {
@@ -278,7 +638,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     : currentMonthIndex === dayjs().month()
 
   // Early returns AFTER all hooks
-  if (isLoading) {
+  if (isLoading || holidaysLoading) {
     return (
       <Card data-testid="yearly-calendar-card" className="gba:shadow-sm">
         <CardContent className="gba:flex gba:justify-center gba:items-center gba:py-8">
@@ -341,6 +701,10 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
               <div className="gba:flex gba:items-center gba:gap-1.5">
                 <div className="gba:w-2.5 gba:h-2.5 gba:rounded-sm gba:bg-red-500" />
                 <span>{t('vacation-calendar-legend-sick')}</span>
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-1.5">
+                <div className="gba:w-2.5 gba:h-2.5 gba:rounded-sm gba:bg-purple-500" />
+                <span>{t('vacation-calendar-legend-holiday')}</span>
               </div>
               <div className="gba:flex gba:items-center gba:gap-1.5">
                 <div className="gba:w-2.5 gba:h-2.5 gba:rounded-sm gba:bg-orange-400" />
@@ -421,33 +785,274 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                 const isCurrentMonthDay = day.date.month() === currentMonth.monthIndex
                 const hasAbsence = !!day.absence
                 const isCurrentRequest = day.absence?.isCurrentRequest
+                const hasMultipleHalves = day.absence?.hasMultipleHalves
+                const isFullDayOverlap = day.absence?.isFullDayOverlap
+                const morningData = day.absence?.morningData
+                const afternoonData = day.absence?.afternoonData
 
-                const dayClasses = [
-                  'gba:h-10 gba:flex gba:items-center gba:justify-center gba:text-xs gba:rounded-md gba:relative gba:transition-all gba:font-medium',
+                // Build tooltip text
+                let tooltipText = ''
+                if (hasAbsence && day.absence) {
+                  if (isFullDayOverlap && morningData && afternoonData) {
+                    // Full-day vacation + full-day holiday
+                    tooltipText = `${morningData.type} + ${afternoonData.type} (Full Day)`
+                  } else if (hasMultipleHalves && morningData && afternoonData) {
+                    tooltipText = `Morning: ${morningData.type} | Afternoon: ${afternoonData.type}`
+                  } else if (morningData && !afternoonData) {
+                    tooltipText = `Morning: ${morningData.type}`
+                  } else if (!morningData && afternoonData) {
+                    tooltipText = `Afternoon: ${afternoonData.type}`
+                  } else {
+                    tooltipText = day.absence.type
+                    if (isCurrentRequest) tooltipText += ' (Current Request)'
+                  }
+                }
+
+                // Determine if we need split rendering
+                const needsSplitRender = hasMultipleHalves && morningData && afternoonData && !isFullDayOverlap
+                const needsHalfRender =
+                  hasAbsence && ((morningData && !afternoonData) || (!morningData && afternoonData))
+                const needsOverlayRender = isFullDayOverlap && morningData && afternoonData && !hasMultipleHalves
+                // NEW: Check if one half has overlay and other doesn't (full-day vacation + half-day holiday)
+                const needsHalfOverlayRender =
+                  hasMultipleHalves &&
+                  morningData &&
+                  afternoonData &&
+                  (morningData.isFullDayOverlap || afternoonData.isFullDayOverlap)
+
+                const containerClasses = [
+                  'gba:h-10 gba:flex gba:items-center gba:justify-center gba:text-xs gba:rounded-md gba:relative gba:transition-all gba:font-medium gba:overflow-hidden',
                   !isCurrentMonthDay && 'gba:opacity-25 gba:pointer-events-none',
                   isCurrentMonthDay && !hasAbsence && 'gba:cursor-pointer hover:gba:bg-muted/50',
                   day.isToday && !hasAbsence && 'gba:ring-2 gba:ring-primary/30 gba:bg-primary/5',
                   day.isWeekend && !hasAbsence && 'gba:bg-muted/70',
                   !day.isWeekend && !hasAbsence && 'gba:bg-muted/30',
-                  hasAbsence && day.absence?.color,
+                  !needsSplitRender &&
+                    !needsHalfRender &&
+                    !needsOverlayRender &&
+                    !needsHalfOverlayRender &&
+                    hasAbsence &&
+                    day.absence?.color,
                   hasAbsence && 'gba:text-white gba:shadow-sm',
                   isCurrentRequest &&
+                    !needsSplitRender &&
+                    !needsOverlayRender &&
+                    !needsHalfOverlayRender &&
                     'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background gba:scale-105 gba:z-10'
                 ]
                   .filter(Boolean)
                   .join(' ')
 
                 return (
-                  <div
-                    key={dayIndex}
-                    className={dayClasses}
-                    title={
-                      hasAbsence && day.absence
-                        ? `${day.absence.type}${isCurrentRequest ? ' (Current Request)' : ''}`
-                        : undefined
-                    }
-                  >
-                    <span className={hasAbsence ? 'gba:font-semibold' : ''}>{day.dayOfMonth}</span>
+                  <div key={dayIndex} className={containerClasses} title={tooltipText || undefined}>
+                    {/* Full-day overlap: Vacation + Holiday (diagonal stripe pattern) */}
+                    {needsOverlayRender && morningData && afternoonData && (
+                      <>
+                        {/* Base vacation color */}
+                        <div className={`gba:absolute gba:inset-0 ${morningData.color}`} />
+                        {/* Diagonal stripes for holiday */}
+                        <div
+                          className="gba:absolute gba:inset-0"
+                          style={{
+                            background: `repeating-linear-gradient(
+                              45deg,
+                              transparent,
+                              transparent 6px,
+                              rgb(168 85 247 / 0.8) 6px,
+                              rgb(168 85 247 / 0.8) 12px
+                            )`
+                          }}
+                        />
+                      </>
+                    )}
+
+                    {/* Split background for different morning/afternoon */}
+                    {needsSplitRender && morningData && afternoonData && (
+                      <>
+                        {/* Morning half */}
+                        <div
+                          className={`gba:absolute gba:inset-0 gba:w-1/2 ${morningData.color}`}
+                          style={{ left: 0 }}
+                        />
+                        {/* Afternoon half */}
+                        <div
+                          className={`gba:absolute gba:inset-0 gba:w-1/2 ${afternoonData.color}`}
+                          style={{ left: '50%' }}
+                        />
+                        {/* Vertical divider */}
+                        <div className="gba:absolute gba:inset-y-0 gba:left-1/2 gba:w-px gba:bg-white/30" />
+                      </>
+                    )}
+
+                    {/* NEW: Half-day overlay (one half solid, other half with diagonal overlay) */}
+                    {needsHalfOverlayRender && morningData && afternoonData && (
+                      <>
+                        {/* Morning half - check if it has overlay */}
+                        {morningData.isFullDayOverlap ? (
+                          <>
+                            {/* Base color for morning (vacation) */}
+                            <div
+                              className={`gba:absolute gba:inset-0 gba:w-1/2 ${morningData.morningData?.color || morningData.color}`}
+                              style={{ left: 0 }}
+                            />
+                            {/* Diagonal stripes overlay for morning (holiday) */}
+                            <div
+                              className="gba:absolute gba:inset-0 gba:w-1/2"
+                              style={{
+                                left: 0,
+                                background: `repeating-linear-gradient(
+                                  45deg,
+                                  transparent,
+                                  transparent 6px,
+                                  rgb(168 85 247 / 0.8) 6px,
+                                  rgb(168 85 247 / 0.8) 12px
+                                )`
+                              }}
+                            />
+                          </>
+                        ) : (
+                          <div
+                            className={`gba:absolute gba:inset-0 gba:w-1/2 ${morningData.color}`}
+                            style={{ left: 0 }}
+                          />
+                        )}
+
+                        {/* Afternoon half - check if it has overlay */}
+                        {afternoonData.isFullDayOverlap ? (
+                          <>
+                            {/* Base color for afternoon (vacation) */}
+                            <div
+                              className={`gba:absolute gba:inset-0 gba:w-1/2 ${afternoonData.morningData?.color || afternoonData.color}`}
+                              style={{ left: '50%' }}
+                            />
+                            {/* Diagonal stripes overlay for afternoon (holiday) */}
+                            <div
+                              className="gba:absolute gba:inset-0 gba:w-1/2"
+                              style={{
+                                left: '50%',
+                                background: `repeating-linear-gradient(
+                                  45deg,
+                                  transparent,
+                                  transparent 6px,
+                                  rgb(168 85 247 / 0.8) 6px,
+                                  rgb(168 85 247 / 0.8) 12px
+                                )`
+                              }}
+                            />
+                          </>
+                        ) : (
+                          <div
+                            className={`gba:absolute gba:inset-0 gba:w-1/2 ${afternoonData.color}`}
+                            style={{ left: '50%' }}
+                          />
+                        )}
+
+                        {/* Vertical divider */}
+                        <div className="gba:absolute gba:inset-y-0 gba:left-1/2 gba:w-px gba:bg-white/30" />
+                      </>
+                    )}
+
+                    {/* Half-day background (only morning or only afternoon) */}
+                    {needsHalfRender && (
+                      <>
+                        {morningData && !afternoonData && (
+                          <>
+                            {/* Check if morning has overlap */}
+                            {morningData.isFullDayOverlap ? (
+                              <>
+                                {/* Morning half with diagonal overlay */}
+                                <div
+                                  className={`gba:absolute gba:inset-0 gba:w-1/2 ${morningData.morningData?.color || morningData.color}`}
+                                  style={{ left: 0 }}
+                                />
+                                <div
+                                  className="gba:absolute gba:inset-0 gba:w-1/2"
+                                  style={{
+                                    left: 0,
+                                    background: `repeating-linear-gradient(
+                                      45deg,
+                                      transparent,
+                                      transparent 6px,
+                                      rgb(168 85 247 / 0.8) 6px,
+                                      rgb(168 85 247 / 0.8) 12px
+                                    )`
+                                  }}
+                                />
+                              </>
+                            ) : (
+                              /* Morning half solid color */
+                              <div
+                                className={`gba:absolute gba:inset-0 gba:w-1/2 ${morningData.color}`}
+                                style={{ left: 0 }}
+                              />
+                            )}
+                            {/* Afternoon half muted */}
+                            <div
+                              className="gba:absolute gba:inset-0 gba:w-1/2 gba:bg-muted/30"
+                              style={{ left: '50%' }}
+                            />
+                          </>
+                        )}
+                        {!morningData && afternoonData && (
+                          <>
+                            {/* Morning half muted */}
+                            <div className="gba:absolute gba:inset-0 gba:w-1/2 gba:bg-muted/30" style={{ left: 0 }} />
+                            {/* Check if afternoon has overlap */}
+                            {afternoonData.isFullDayOverlap ? (
+                              <>
+                                {/* Afternoon half with diagonal overlay */}
+                                <div
+                                  className={`gba:absolute gba:inset-0 gba:w-1/2 ${afternoonData.morningData?.color || afternoonData.color}`}
+                                  style={{ left: '50%' }}
+                                />
+                                <div
+                                  className="gba:absolute gba:inset-0 gba:w-1/2"
+                                  style={{
+                                    left: '50%',
+                                    background: `repeating-linear-gradient(
+                                      45deg,
+                                      transparent,
+                                      transparent 6px,
+                                      rgb(168 85 247 / 0.8) 6px,
+                                      rgb(168 85 247 / 0.8) 12px
+                                    )`
+                                  }}
+                                />
+                              </>
+                            ) : (
+                              /* Afternoon half solid color */
+                              <div
+                                className={`gba:absolute gba:inset-0 gba:w-1/2 ${afternoonData.color}`}
+                                style={{ left: '50%' }}
+                              />
+                            )}
+                          </>
+                        )}
+                        {/* Vertical divider */}
+                        <div className="gba:absolute gba:inset-y-0 gba:left-1/2 gba:w-px gba:bg-white/30" />
+                      </>
+                    )}
+
+                    {/* Day number - always on top with shadow for visibility */}
+                    <span
+                      className={`gba:relative gba:z-10 gba:font-bold gba:text-sm ${
+                        hasAbsence ? 'gba:text-white' : 'gba:text-foreground'
+                      }`}
+                      style={
+                        hasAbsence
+                          ? {
+                              textShadow: '0 0 3px rgba(0,0,0,0.5), 0 0 6px rgba(0,0,0,0.3)'
+                            }
+                          : undefined
+                      }
+                    >
+                      {day.dayOfMonth}
+                    </span>
+
+                    {/* Current request ring indicator */}
+                    {isCurrentRequest && (
+                      <div className="gba:absolute gba:inset-0 gba:rounded-md gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background gba:pointer-events-none" />
+                    )}
                   </div>
                 )
               })}

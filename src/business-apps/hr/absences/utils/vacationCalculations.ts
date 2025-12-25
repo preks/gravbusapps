@@ -8,6 +8,20 @@ interface Entitlement {
   total: number
 }
 
+/**
+ * Holiday entry from EmploymentRegionHoliday catalog
+ */
+export interface HolidayEntry {
+  id: string
+  value: string
+  code: string
+  alternativeCode?: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
+  objectValue?: any
+}
+
 interface Absence {
   startDate: string
   endDate: string
@@ -153,19 +167,133 @@ export const formatDateRange = (startDate: string, endDate: string, locale: stri
 }
 
 /**
- * Calculate working days between two dates
- * Simple implementation - counts all days excluding weekends
+ * Parse holiday code to date
+ * Holiday codes are in format: YYYYMMDD (e.g., "20241225" for Dec 25, 2024)
  */
-export const calculateWorkingDays = (startDate: string, endDate: string): number => {
+const parseHolidayDate = (code: string): Date | null => {
+  if (!code || typeof code !== 'string') {
+    return null
+  }
+
+  const trimmedCode = code.trim()
+  const dateCodeRegex = /^(\d{4})(\d{2})(\d{2})$/
+  const parts = dateCodeRegex.exec(trimmedCode)
+
+  if (!parts) {
+    return null
+  }
+
+  const y = parseInt(parts[1], 10)
+  const m = parseInt(parts[2], 10)
+  const d = parseInt(parts[3], 10)
+
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) {
+    return null
+  }
+
+  if (d < 1 || d > 31 || m < 1 || m > 12) {
+    return null
+  }
+
+  const date = new Date(y, m - 1, d)
+  if (date.getMonth() !== m - 1 || date.getFullYear() !== y || date.getDate() !== d) {
+    return null
+  }
+
+  return date
+}
+
+/**
+ * Normalize date to ISO date string (YYYY-MM-DD) for consistent comparison
+ */
+const normalizeToISODate = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Convert HolidayEntry array to Set of ISO date strings
+ * Filters out half-day holidays (additionalValue1 === '05H')
+ */
+export const convertHolidaysToDateSet = (holidays: HolidayEntry[]): Set<string> => {
+  const dateSet = new Set<string>()
+
+  holidays.forEach(holiday => {
+    // Skip half-day holidays
+    if (holiday.additionalValue1 === '05H') {
+      return
+    }
+
+    const code = holiday.alternativeCode || holiday.code || ''
+    if (!code) {
+      return
+    }
+
+    const holidayDate = parseHolidayDate(code)
+    if (!holidayDate) {
+      return
+    }
+
+    const isoDate = normalizeToISODate(holidayDate)
+    dateSet.add(isoDate)
+  })
+
+  return dateSet
+}
+
+/**
+ * Calculate working days between two dates
+ * Excludes weekends (Saturday and Sunday) and public holidays
+ *
+ * @param startDate - Start date in ISO format (YYYY-MM-DD)
+ * @param endDate - End date in ISO format (YYYY-MM-DD)
+ * @param holidays - Optional set/array of holiday dates in ISO format (YYYY-MM-DD), or callback function
+ * @returns Number of working days (excluding weekends and holidays)
+ *
+ * @example
+ * // Using with HolidayEntry from EmploymentRegionHoliday catalog (recommended)
+ * const holidays = await fetchEmploymentRegionHolidays(regionIds)
+ * const holidayDateSet = convertHolidaysToDateSet(holidays)
+ * const workingDays = calculateWorkingDays('2024-01-01', '2024-01-31', holidayDateSet)
+ *
+ * @example
+ * // Using with array of ISO date strings
+ * const holidays = ['2024-01-01', '2024-12-25', '2024-12-26']
+ * const workingDays = calculateWorkingDays('2024-01-01', '2024-12-31', holidays)
+ *
+ * @example
+ * // Using with callback function for dynamic lookup
+ * const isHoliday = (date: Date) => checkHolidayInDatabase(date)
+ * const workingDays = calculateWorkingDays('2024-01-01', '2024-12-31', isHoliday)
+ */
+export const calculateWorkingDays = (
+  startDate: string,
+  endDate: string,
+  holidays?: Set<string> | string[] | ((date: Date) => boolean)
+): number => {
   const start = new Date(startDate)
   const end = new Date(endDate)
   let workingDays = 0
 
+  // Convert array to Set for O(1) lookup, or keep as callback
+  let isHoliday: (date: Date) => boolean
+
+  if (typeof holidays === 'function') {
+    isHoliday = holidays
+  } else if (holidays) {
+    const holidaySet = holidays instanceof Set ? holidays : new Set(holidays)
+    isHoliday = (date: Date) => holidaySet.has(normalizeToISODate(date))
+  } else {
+    isHoliday = () => false
+  }
+
   const currentDate = new Date(start)
   while (currentDate <= end) {
     const dayOfWeek = currentDate.getDay()
-    // Count days that are not Saturday (6) or Sunday (0)
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+    // Count days that are not Saturday (6), Sunday (0), or holidays
+    if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isHoliday(currentDate)) {
       workingDays++
     }
     currentDate.setDate(currentDate.getDate() + 1)

@@ -17,6 +17,9 @@ vacation-balance-requested = Solicitat
 vacation-balance-after-approval = După aprobare
 vacation-balance-pending = Alte solicitări în așteptare
 days-unit = zile
+label-working-days = Zile lucrătoare
+label-excluding-holidays = fără sărbătorile legale
+label-public-holidays = Sărbători legale
 
 # Legacy Vacation Overview Card (keeping for backward compatibility)
 vacation-overview-title = Privire de ansamblu concediu
@@ -63,6 +66,7 @@ vacation-calendar-description = Navigați prin luni pentru a vizualiza absențel
 vacation-calendar-legend-present = Prezent
 vacation-calendar-legend-vacation = Concediu (Aprobat)
 vacation-calendar-legend-sick = Concediu medical (Aprobat)
+vacation-calendar-legend-holiday = Sărbătoare legală
 vacation-calendar-legend-pending = Cereri în așteptare
 vacation-calendar-legend-other = Alte absențe (Aprobate)
 vacation-calendar-legend-weekend = Weekend/Sărbători

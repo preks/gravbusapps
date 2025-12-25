@@ -36,10 +36,18 @@ import { formatDateTime } from '@/common/utils/dateFormatter'
 import { ExtendedAdditionalData } from '@/business-apps/hr/absences/types/taskTypes'
 import { useApprovalData } from '@/business-apps/hr/absences/hooks/useApprovalData'
 import dayjs from 'dayjs'
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import translations from './_i18n'
+
+// Extend dayjs with plugins
+dayjs.extend(isSameOrAfter)
+dayjs.extend(isSameOrBefore)
 import { useVacationMetrics } from './hooks/useVacationMetrics'
 import { VacationHistory } from './components/VacationHistory'
 import { EmployeeYearlyCalendar } from './components/EmployeeYearlyCalendar'
+import { usePublicHolidays } from '../../hooks/usePublicHolidays'
+import { calculateWorkingDays } from '../../utils/vacationCalculations'
 
 interface ApproveEmployeeVacationProps extends BusinessAppContextProps {
   // Additional props from task payload
@@ -292,6 +300,54 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
     balanceAfterRequest: employeeAbsence?.balance // Use balance from payload
   })
 
+  // Fetch public holidays for accurate working days calculation
+  const {
+    holidayDateSet,
+    holidays,
+    isLoading: holidaysLoading
+  } = usePublicHolidays({
+    accessToken,
+    employeeId: employeeAbsence?.employeeId
+  })
+
+  // Calculate accurate working days excluding public holidays
+  const workingDaysWithHolidays = useMemo(() => {
+    if (!employeeAbsence?.startDate || !employeeAbsence?.endDate || holidaysLoading) {
+      return employeeAbsence?.workingDays || 0
+    }
+
+    return calculateWorkingDays(employeeAbsence.startDate, employeeAbsence.endDate, holidayDateSet)
+  }, [
+    employeeAbsence?.startDate,
+    employeeAbsence?.endDate,
+    employeeAbsence?.workingDays,
+    holidayDateSet,
+    holidaysLoading
+  ])
+
+  // Find holidays that fall within the request period
+  const holidaysInPeriod = useMemo(() => {
+    if (!employeeAbsence?.startDate || !employeeAbsence?.endDate || !holidays || holidays.length === 0) {
+      return []
+    }
+
+    const start = dayjs(employeeAbsence.startDate)
+    const end = dayjs(employeeAbsence.endDate)
+
+    return holidays.filter(holiday => {
+      const code = holiday.alternativeCode || holiday.code || ''
+      const match = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
+      if (!match) return false
+
+      const holidayDate = dayjs(`${match[1]}-${match[2]}-${match[3]}`)
+
+      // Ensure the holiday date is valid before calling methods
+      if (!holidayDate.isValid()) return false
+
+      return holidayDate.isSameOrAfter(start, 'day') && holidayDate.isSameOrBefore(end, 'day')
+    })
+  }, [employeeAbsence?.startDate, employeeAbsence?.endDate, holidays])
+
   const handleApprove = async () => {
     setIsApproving(true)
     setErrorMessage(null)
@@ -500,7 +556,35 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                   </span>
                   <span className="gba:text-sm gba:flex-1">
                     {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours, t)}
+                    {!holidaysLoading && workingDaysWithHolidays !== employeeAbsence.workingDays && (
+                      <span className="gba:text-xs gba:text-muted-foreground gba:ml-2">
+                        ({workingDaysWithHolidays} {t('days-unit')} {t('label-excluding-holidays')})
+                      </span>
+                    )}
                   </span>
+                </div>
+              )}
+
+              {/* Public Holidays in Period */}
+              {holidaysInPeriod.length > 0 && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    {t('label-public-holidays')}:
+                  </span>
+                  <div className="gba:text-sm gba:flex-1 gba:space-y-1">
+                    {holidaysInPeriod.map((holiday, index) => {
+                      const code = holiday.alternativeCode || holiday.code || ''
+                      const match = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
+                      const dateStr = match ? `${match[1]}-${match[2]}-${match[3]}` : ''
+                      return (
+                        <div key={holiday.id || index} className="gba:flex gba:items-center gba:gap-2">
+                          <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-purple-500" />
+                          <span>{dayjs(dateStr).format('MMM D, YYYY')}</span>
+                          <span className="gba:text-muted-foreground">- {holiday.value}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 

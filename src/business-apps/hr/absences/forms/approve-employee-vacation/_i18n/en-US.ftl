@@ -17,6 +17,9 @@ vacation-balance-requested = Requested
 vacation-balance-after-approval = After approval
 vacation-balance-pending = Other pending
 days-unit = days
+label-working-days = Working Days
+label-excluding-holidays = excluding public holidays
+label-public-holidays = Public Holidays
 
 # Legacy Vacation Overview Card (keeping for backward compatibility)
 vacation-overview-title = Vacation Overview
@@ -63,6 +66,7 @@ vacation-calendar-description = Navigate through months to view approved absence
 vacation-calendar-legend-present = Present
 vacation-calendar-legend-vacation = Vacation (Approved)
 vacation-calendar-legend-sick = Sick Leave (Approved)
+vacation-calendar-legend-holiday = Public Holiday
 vacation-calendar-legend-pending = Pending Requests
 vacation-calendar-legend-other = Other Absences (Approved)
 vacation-calendar-legend-weekend = Weekend/Holiday
