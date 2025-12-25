@@ -244,3 +244,23 @@ modal-deactivate-submit-button = Dezactivează beneficiu
 error-end-date-required = Data de încheiere este obligatorie. Vă rugăm să selectați o dată de încheiere.
 error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau ulterior.
 error-end-date-after-start-date = Data de încheiere nu poate fi înaintea datei de început a beneficiului.
+
+# Update Working Conditions Form
+working-conditions-probation-period = Perioadă de probă
+working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
+working-conditions-unit-day = { $count ->
+    [one] Zi
+   *[other] Zile
+}
+working-conditions-unit-week = { $count ->
+    [one] Săptămână
+   *[other] Săptămâni
+}
+working-conditions-unit-month = { $count ->
+    [one] Lună
+   *[other] Luni
+}
+working-conditions-unit-year = { $count ->
+    [one] An
+   *[other] Ani
+}

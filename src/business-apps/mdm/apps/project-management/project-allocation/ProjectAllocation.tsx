@@ -26,10 +26,11 @@ import {
   DialogFooter,
   DialogClose,
   Icon,
-  Sheet,
+  SheetPrimitive,
   SheetContent,
   SheetHeader,
   SheetTitle,
+  ScrollArea,
   Progress,
   CardHeader,
   Toaster
@@ -56,6 +57,7 @@ import { VerticalTable, VerticalTableProps } from '../../generic-components/tabl
 import CardTabHeaderComponent from '../../generic-components/card'
 import { useTeams } from '../../organizational-data/hooks'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { showProjectManager } from '../project-setup/ProjectSetup'
 
 export interface ProjectAllocationProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -320,7 +322,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
-  const { projects, accounts, isLoading, error, refetch, totalProjects, structureId } = useProjects(context, true)
+  const { projects, accounts, isLoading, error, refetch, structureId } = useProjects(context, true)
   const { teams, refetch: refretchTeams } = useTeams(context)
   const { getTeamEmployees, removeEmployeeFromTeam } = useTeamAssignments(context.accessToken)
 
@@ -756,6 +758,20 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
       })
     }
 
+    items[0].items.push({
+      value: selectedProject.matrixTeam?.teamMembersCount
+        ? `${selectedProject.matrixTeam.teamMembersCount} ${selectedProject.matrixTeam.teamMembersCount > 1 ? 'members' : 'member'}`
+        : 'No team assigned',
+      label: 'Team Members'
+    })
+
+    if (selectedProject.projectManagerId) {
+      items[0].items.push({
+        value: showProjectManager(selectedProject),
+        label: 'Project Manager'
+      })
+    }
+
     if (selectedProject.description) {
       items[0].items.push({
         label: getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.label.description', 'Description'),
@@ -799,7 +815,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     <Card data-testid={`${prefixDataTestId || ''}-ProjectAllocation`} className="gba:overflow-hidden">
       {!isLoading && (
         <CardTabHeaderComponent
-          cardTitle={`${t('hr.project_allocation', 'Project Allocation')} (${totalProjects})`}
+          cardTitle={`${t('hr.project_allocation', 'Project Allocation')} (${projects.length})`}
           cardDescription={getTranslationFromI18nKeyAndLabel(
             'lowcoder:smart_project.description',
             'Manage projects and their details'
@@ -828,8 +844,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         />
 
         {selectedProject && (
-          <Sheet
-            title={getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.project_details', 'Project Details')}
+          <SheetPrimitive
             open={drawerVisible}
             onOpenChange={openStatus => {
               if (!openStatus) {
@@ -862,7 +877,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                 </div>
               </SheetHeader>
 
-              <div className="gba:flex-1 gba:overflow-auto gba:px-4 gba:pb-4">
+              <ScrollArea className="gba:flex-1 gba:px-4 gba:pb-4">
                 <div className="gba:space-y-6">
                   <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                     <Card className="gba:!gap-2 gba:text-lg">
@@ -881,11 +896,11 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                     </Card>
 
                     <Card className="gba:!gap-2 gba:text-lg">
-                      <CardHeader className="gba:text-sm gba:text-gray-400">
+                      <CardHeader className="gba:text-gray-400 gba:text-sm">
                         {getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.status', 'Status')}
                       </CardHeader>
                       <CardContent
-                        className={`${selectedProject.status === ProjectStatusUI.InProgress ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
+                        className={`${selectedProject.status === ProjectStatusUI.InProgress ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:items-center gba:!pt-0 gba:flex gba:gap-2`}
                       >
                         {selectedProject.status === ProjectStatusUI.InProgress ? (
                           <CheckCircleIcon />
@@ -902,9 +917,9 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
 
                     return (
                       <div className="gba:mt-4">
-                        <div className="gba:flex gba:items-center gba:justify-between">
+                        <div className="gba:flex gba:justify-between gba:items-center">
                           <h1 className="gba:font-medium">{timeStatus.title}</h1>
-                          <h1 className={`gba:text-sm gba:font-medium ${timeStatus.textColor}`}>
+                          <h1 className={`gba:font-medium gba:text-sm ${timeStatus.textColor}`}>
                             {timeStatus.daysText}
                           </h1>
                         </div>
@@ -916,18 +931,18 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                   {drawerItems.map((item, index) => {
                     return (
                       <VerticalTable
-                        key={`${item.title}-${index}`}
                         icon={item.icon}
+                        key={`${item.title}-${index}`}
                         title={item.title}
-                        items={item.items}
                         verticalTable={item.verticalTable}
+                        items={item.items}
                       />
                     )
                   })}
                 </div>
-              </div>
+              </ScrollArea>
             </SheetContent>
-          </Sheet>
+          </SheetPrimitive>
         )}
 
         {selectedEmployeeForRemove && isRemoveEmployeeOpen && (

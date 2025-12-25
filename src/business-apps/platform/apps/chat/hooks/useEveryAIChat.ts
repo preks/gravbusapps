@@ -1,18 +1,13 @@
 import { useCallback, useRef, useState, useMemo } from 'react'
-import { env } from '@/common/env/EnvUtils'
 import type { MessageEntityReference } from '../types'
 import type { OutputItem } from '../../every-ai/types/models'
 import { getCurrentPageContext } from '../../every-ai/utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
-const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
 const LLM_MODEL = 'gpt-4.1'
 const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
-
-function resolveFlowbotBaseUrl(): string {
-  return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
-}
 
 /**
  * Upload files to FlowBot using the async /add_files endpoint.
@@ -26,8 +21,7 @@ async function uploadFilesToFlowbotSession(
 ): Promise<string> {
   if (!files || files.length === 0) return sessionId ?? ''
 
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  const baseUrl = isLocalhost ? 'https://newwork-dev.newwork.com' : resolveFlowbotBaseUrl()
+  const baseUrl = resolveFlowbotBaseUrl()
   const url = `${baseUrl}/flowbot/api/agent/add_files`
 
   const form = new FormData()

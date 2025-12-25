@@ -4,18 +4,11 @@ import type { ConversationTurn, OutputItem, FileMeta, CurrentPageContext } from 
 import { getCurrentPageContext } from '../utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
-import { env } from '@/common/env/EnvUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 const STORAGE_KEY = 'newwork_every_ai'
 const LLM_MODEL = 'gpt-4.1'
 const SUBMITTING_FORM_MESSAGE = 'Submitting form data...'
-const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
-
-function resolveFlowbotBaseUrl(): string {
-  return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
-}
-
-const FLOWBOT_BASE_URL = resolveFlowbotBaseUrl()
 
 type ConversationState = {
   conversation: ConversationTurn[]
@@ -85,7 +78,8 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
   if (!sessionId) return { conversation: [], sessionId: null }
 
   try {
-    const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/session/${sessionId}/history`, {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -210,8 +204,7 @@ async function uploadFilesToFlowbotSession(
 ): Promise<string> {
   if (!files.length) return sessionId ?? ''
 
-  const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  const baseUrl = isLocalDev ? 'http://localhost:8000' : FLOWBOT_BASE_URL
+  const baseUrl = resolveFlowbotBaseUrl()
   const url = `${baseUrl}/flowbot/api/agent/add_files`
 
   const form = new FormData()
@@ -278,6 +271,7 @@ export function useFlowBot(accessToken: string) {
 
   const [state, setState] = useState<ConversationState>(loadState)
   const [isLoading, setIsLoading] = useState(false)
+  const sessionIdRef = useRef<string | null>(null)
   const lastFetchedSessionIdRef = useRef<string | null>(null)
   const [prechatSuggestions, setPrechatSuggestions] = useState<string[]>([])
   const [isPrechatLoading, setIsPrechatLoading] = useState(false)
@@ -297,6 +291,10 @@ export function useFlowBot(accessToken: string) {
   })
 
   useEffect(() => saveState(state), [state])
+
+  useEffect(() => {
+    sessionIdRef.current = state.sessionId
+  }, [state.sessionId])
 
   useEffect(() => {
     if (!accessToken) return
@@ -330,6 +328,7 @@ export function useFlowBot(accessToken: string) {
 
   const updateSessionId = useCallback(
     (newSessionId: string) => {
+      sessionIdRef.current = newSessionId
       setState(prev => ({ ...prev, sessionId: newSessionId }))
       resetAnalytics(newSessionId)
     },
@@ -500,7 +499,7 @@ export function useFlowBot(accessToken: string) {
 
         // Prefer using /add_files when there is no active session yet.
         // This enables async parsing for the very first message in a new chat.
-        let effectiveSessionId = state.sessionId ?? ''
+        let effectiveSessionId = sessionIdRef.current ?? state.sessionId ?? ''
         if (!effectiveSessionId && files.length > 0) {
           try {
             effectiveSessionId = await uploadFilesToFlowbotSession(files, effectiveSessionId, accessToken)
@@ -533,15 +532,8 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
-        // Use local FlowBot in development
-        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        const baseUrl = isLocalDev ? 'http://localhost:8000' : FLOWBOT_BASE_URL
+        const baseUrl = resolveFlowbotBaseUrl()
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
-
-        // Debug log only in development
-        if (isLocalDev) {
-          console.log('📤 [FlowBot] Sending to local:', userInputText.substring(0, 50))
-        }
 
         const res = await fetch(url, {
           method: 'POST',
@@ -616,6 +608,7 @@ export function useFlowBot(accessToken: string) {
       accessToken,
       pushTurn,
       state.sessionId,
+      sessionIdRef,
       appendOutputItemToLastAgentTurn,
       pruneEphemeralOutputsFromLastAgentTurn,
       updateSessionId,
@@ -655,7 +648,8 @@ export function useFlowBot(accessToken: string) {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
 
-      const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/prechat-suggestions`, {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -703,6 +697,23 @@ export function useFlowBot(accessToken: string) {
     }
   }, [state.conversation.length, accessToken, currentPageContext, fetchPrechatSuggestions])
 
+  const editMessage = useCallback(
+    async (turnIndex: number, newText: string) => {
+      if (turnIndex < 0 || turnIndex >= state.conversation.length) return
+      if (!newText.trim()) return
+
+      // Delete old message and all messages after it
+      setState(prev => ({
+        ...prev,
+        conversation: prev.conversation.slice(0, turnIndex)
+      }))
+
+      // Add new message (resend)
+      await sendMessage(newText, [], false, false, undefined)
+    },
+    [state.conversation.length, sendMessage]
+  )
+
   /**
    * Pre-upload files for the current EveryAI session using /add_files.
    * This is called as soon as the user attaches files in the UI (before pressing Send).
@@ -712,7 +723,7 @@ export function useFlowBot(accessToken: string) {
     async (files: File[]) => {
       if (!files.length) return
       try {
-        const newSessionId = await uploadFilesToFlowbotSession(files, state.sessionId, accessToken)
+        const newSessionId = await uploadFilesToFlowbotSession(files, sessionIdRef.current, accessToken)
         if (newSessionId && newSessionId !== state.sessionId) {
           updateSessionId(newSessionId)
         }
@@ -721,16 +732,18 @@ export function useFlowBot(accessToken: string) {
         console.error('⚠️ [FlowBot] Failed to pre-upload files via add_files:', error)
       }
     },
-    [accessToken, state.sessionId, updateSessionId]
+    [accessToken, state.sessionId, updateSessionId, sessionIdRef]
   )
 
   return {
     conversation: state.conversation,
     isLoading,
     sendMessage,
+    editMessage,
     attachFiles,
     clearConversation,
     nextStepProposals,
-    isPrechatLoading
+    isPrechatLoading,
+    sessionId: state.sessionId
   }
 }
