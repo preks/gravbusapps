@@ -819,6 +819,8 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
             employeeId={employeeAbsence.employeeId}
             currentRequestStartDate={employeeAbsence.startDate}
             currentRequestEndDate={employeeAbsence.endDate}
+            entitlementValidFrom={entitlement?.validFrom}
+            entitlementValidTo={entitlement?.validTo}
           />
           <Separator />
         </>

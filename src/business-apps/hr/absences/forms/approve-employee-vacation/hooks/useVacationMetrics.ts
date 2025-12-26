@@ -105,16 +105,16 @@ export const useVacationMetrics = ({
           }
         `
 
-        // Query 2: Fetch approved vacation absences for current year (A001 only)
+        // Query 2: Fetch approved vacation absences for the ENTITLEMENT PERIOD (not calendar year)
         const approvedAbsencesQuery = `
-          query GetApprovedAbsences($employeeId: uuid!, $yearStart: timestamp!, $yearEnd: timestamp!) {
+          query GetApprovedAbsences($employeeId: uuid!, $entitlementStart: timestamp!, $entitlementEnd: timestamp!) {
             EmployeeAbsence(
               where: {
                 employeeId: { _eq: $employeeId }
                 status: { _eq: "APPROVED" }
                 typeRef: { _ilike: "%A001%" }
-                startDate: { _gte: $yearStart }
-                endDate: { _lte: $yearEnd }
+                startDate: { _gte: $entitlementStart }
+                endDate: { _lte: $entitlementEnd }
                 isDeleted: { _eq: false }
               }
               orderBy: { startDate: DESC }
@@ -170,10 +170,24 @@ export const useVacationMetrics = ({
           }
         `
 
-        // Execute all three queries in parallel for better performance
-        const [entitlementResponse, approvedResponse, pendingResponse] = await Promise.all([
-          graphqlClient.request<{ EmployeeAbsenceEntitlement: any[] }>(entitlementQuery, { employeeId, today }),
-          graphqlClient.request<{ EmployeeAbsence: any[] }>(approvedAbsencesQuery, { employeeId, yearStart, yearEnd }),
+        // First, fetch the entitlement to get validFrom/validTo dates
+        const entitlementResponse = await graphqlClient.request<{ EmployeeAbsenceEntitlement: any[] }>(
+          entitlementQuery,
+          { employeeId, today }
+        )
+
+        // Get entitlement period or fallback to current calendar year
+        const entitlementPeriod = entitlementResponse.EmployeeAbsenceEntitlement?.[0]
+        const entitlementStart = entitlementPeriod?.validFrom || yearStart
+        const entitlementEnd = entitlementPeriod?.validTo || yearEnd
+
+        // Then fetch absences using the entitlement period
+        const [approvedResponse, pendingResponse] = await Promise.all([
+          graphqlClient.request<{ EmployeeAbsence: any[] }>(approvedAbsencesQuery, {
+            employeeId,
+            entitlementStart,
+            entitlementEnd
+          }),
           graphqlClient.request<{ EmployeeAbsence: any[] }>(pendingAbsencesQuery, { employeeId, currentAbsenceId })
         ])
 

@@ -22,6 +22,12 @@ interface EmployeeYearlyCalendarProps {
    * e.g., ['eve', 'heiligabend', 'silvester'] for German
    */
   afternoonHolidayPatterns?: string[]
+  /**
+   * Optional entitlement period dates to filter absences
+   * If not provided, defaults to current calendar year
+   */
+  entitlementValidFrom?: string
+  entitlementValidTo?: string
 }
 
 interface DayAbsence {
@@ -80,7 +86,9 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
   employeeId,
   currentRequestStartDate,
   currentRequestEndDate,
-  afternoonHolidayPatterns
+  afternoonHolidayPatterns,
+  entitlementValidFrom,
+  entitlementValidTo
 }) => {
   const { t } = useTranslation(translations)
   const [absences, setAbsences] = useState<any[]>([])
@@ -135,8 +143,9 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
       setError(null)
 
       try {
-        const yearStart = dayjs().startOf('year').format('YYYY-MM-DD')
-        const yearEnd = dayjs().endOf('year').format('YYYY-MM-DD')
+        // Use entitlement period if provided, otherwise default to calendar year
+        const yearStart = entitlementValidFrom || dayjs().startOf('year').format('YYYY-MM-DD')
+        const yearEnd = entitlementValidTo || dayjs().endOf('year').format('YYYY-MM-DD')
 
         const query = `
           query GetEmployeeYearlyAbsences($employeeId: uuid!, $yearStart: timestamp!, $yearEnd: timestamp!) {
@@ -200,7 +209,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     return () => {
       isMounted = false
     }
-  }, [accessToken, employeeId, graphqlClient])
+  }, [accessToken, employeeId, entitlementValidFrom, entitlementValidTo, graphqlClient])
 
   /**
    * Helper function to determine if an absence is half-day and which period (morning vs afternoon)
