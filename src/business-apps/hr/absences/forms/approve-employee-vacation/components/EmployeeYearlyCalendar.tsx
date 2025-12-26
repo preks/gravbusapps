@@ -17,6 +17,11 @@ interface EmployeeYearlyCalendarProps {
   employeeId?: string
   currentRequestStartDate?: string
   currentRequestEndDate?: string
+  /**
+   * Optional locale-specific patterns to match against holiday names for afternoon detection
+   * e.g., ['eve', 'heiligabend', 'silvester'] for German
+   */
+  afternoonHolidayPatterns?: string[]
 }
 
 interface DayAbsence {
@@ -68,11 +73,14 @@ const getAbsenceColor = (typeRef: string, status: string): string => {
   return 'gba:bg-teal-500'
 }
 
+const HOLIDAY_OVERLAY_COLOR = 'rgb(168 85 247 / 0.8)' // purple-500 with opacity
+
 export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
   accessToken,
   employeeId,
   currentRequestStartDate,
-  currentRequestEndDate
+  currentRequestEndDate,
+  afternoonHolidayPatterns
 }) => {
   const { t } = useTranslation(translations)
   const [absences, setAbsences] = useState<any[]>([])
@@ -116,7 +124,6 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
   }
 
   useEffect(() => {
-    const abortController = new AbortController()
     let isMounted = true
 
     const fetchYearlyAbsences = async () => {
@@ -149,6 +156,8 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
               status
               typeRef
               workingHours
+              cutHalfDayStart
+              cutHalfDayEnd
               type {
                 id
                 value
@@ -161,24 +170,19 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
           }
         `
 
-        // Check if already aborted before making request
-        if (abortController.signal.aborted) {
-          return
-        }
-
         const response = await graphqlClient.request<{ EmployeeAbsence: any[] }>(query, {
           employeeId,
           yearStart,
           yearEnd
         })
 
-        // Only update state if component is still mounted and not aborted
-        if (isMounted && !abortController.signal.aborted) {
+        // Only update state if component is still mounted
+        if (isMounted) {
           setAbsences(response.EmployeeAbsence || [])
         }
       } catch (err) {
-        // Only set error if component is still mounted and not aborted
-        if (isMounted && !abortController.signal.aborted) {
+        // Only set error if component is still mounted
+        if (isMounted) {
           console.error('Error fetching yearly absences:', err)
           setError('Failed to load yearly calendar')
         }
@@ -192,24 +196,81 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
 
     fetchYearlyAbsences()
 
-    // Cleanup function to abort request and prevent state updates on unmounted component
+    // Cleanup function to prevent state updates on unmounted component
     return () => {
       isMounted = false
-      abortController.abort()
     }
-  }, [accessToken, employeeId])
+  }, [accessToken, employeeId, graphqlClient])
 
-  // Helper function to determine if an absence is half-day and which period
-  const getAbsenceHalfDayInfo = (absence: any): { isHalfDay: boolean; period?: 'morning' | 'afternoon' } => {
+  /**
+   * Helper function to determine if an absence is half-day and which period (morning vs afternoon)
+   *
+   * Detection logic:
+   * 1. Check if workingHours <= 4.5 (indicates half-day: 4 hours is half of 8-hour day)
+   * 2. Check explicit half-day flags: cutHalfDayStart (morning) or cutHalfDayEnd (afternoon)
+   * 3. Parse hour from startDate timestamp: < 12:00 = morning, >= 12:00 = afternoon
+   * 4. Fallback to endDate if startDate is missing
+   * 5. Default to 'morning' only if no time information exists
+   */
+  const getAbsenceHalfDayInfo = (absence: {
+    workingHours?: number | null
+    cutHalfDayStart?: boolean | null
+    cutHalfDayEnd?: boolean | null
+    startDate?: string | null
+    endDate?: string | null
+  }): { isHalfDay: boolean; period?: 'morning' | 'afternoon' } => {
+    // First check: Is this a half-day based on working hours?
     // If workingHours is approximately 4 hours (half of 8-hour day), it's a half-day
-    // Typical values: 4h = morning or afternoon half-day
-    if (absence.workingHours && absence.workingHours > 0 && absence.workingHours <= 4.5) {
-      // For now, we'll need additional logic or data to determine morning vs afternoon
-      // This could come from start time or additional fields
-      // Default to morning for now
+    const isHalfDay = absence.workingHours != null && absence.workingHours > 0 && absence.workingHours <= 4.5
+
+    if (!isHalfDay) {
+      return { isHalfDay: false }
+    }
+
+    // Determine morning vs afternoon period
+
+    // Strategy 1: Check explicit half-day indicator flags
+    if (absence.cutHalfDayStart) {
+      // cutHalfDayStart indicates the first half of the day is cut (morning absence)
       return { isHalfDay: true, period: 'morning' }
     }
-    return { isHalfDay: false }
+
+    if (absence.cutHalfDayEnd) {
+      // cutHalfDayEnd indicates the second half of the day is cut (afternoon absence)
+      return { isHalfDay: true, period: 'afternoon' }
+    }
+
+    // Strategy 2: Parse hour from startDate timestamp
+    if (absence.startDate) {
+      try {
+        const startDateTime = dayjs(absence.startDate)
+        if (startDateTime.isValid()) {
+          const hour = startDateTime.hour()
+          // Before or at 12:00 (noon) = morning, after 12:00 = afternoon
+          return { isHalfDay: true, period: hour < 12 ? 'morning' : 'afternoon' }
+        }
+      } catch (error) {
+        console.debug('Failed to parse startDate for half-day detection:', error)
+      }
+    }
+
+    // Strategy 3: Fallback to endDate if startDate is missing
+    if (absence.endDate) {
+      try {
+        const endDateTime = dayjs(absence.endDate)
+        if (endDateTime.isValid()) {
+          const hour = endDateTime.hour()
+          // If end time is before noon, it was a morning absence
+          // If end time is at or after noon, it was an afternoon absence
+          return { isHalfDay: true, period: hour <= 12 ? 'morning' : 'afternoon' }
+        }
+      } catch (error) {
+        console.debug('Failed to parse endDate for half-day detection:', error)
+      }
+    }
+
+    // Strategy 4: Default to morning if no time information is available
+    return { isHalfDay: true, period: 'morning' }
   }
 
   // Helper: Process holiday overlap with existing full-day absence
@@ -317,46 +378,44 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     const isHalfDay = holiday.additionalValue1 === '05H'
     if (!isHalfDay) return { isHalfDay: false }
 
-    // Check holiday name for common afternoon holidays
-    const holidayName = (holiday.value || '').toLowerCase()
+    // --- Step 1: Check additionalValue2/additionalValue3 for explicit period indicators ---
+    const value2 = (holiday.additionalValue2 || '').toLowerCase().trim()
+    const value3 = (holiday.additionalValue3 || '').toLowerCase().trim()
 
-    // Common afternoon half-day holidays in Germany
-    const afternoonHolidays = [
-      'eve',
-      'heiligabend',
-      'silvester',
-      'christmas eve',
-      "new year's eve",
-      'holy eve',
-      'new years eve'
-    ]
+    // Afternoon indicators (case-insensitive, normalized)
+    const afternoonIndicators = ['afternoon', 'pm', 'p.m.', '13:', '14:']
 
-    // Check if this is a known afternoon holiday
-    const isAfternoonHoliday = afternoonHolidays.some(pattern => holidayName.includes(pattern))
-
-    if (isAfternoonHoliday) {
-      return { isHalfDay: true, period: 'afternoon' }
+    for (const indicator of afternoonIndicators) {
+      if (value2.includes(indicator) || value3.includes(indicator)) {
+        return { isHalfDay: true, period: 'afternoon' }
+      }
     }
 
-    // Check additionalValue2 or additionalValue3 for period information
-    const value2 = holiday.additionalValue2?.toLowerCase() || ''
-    const value3 = holiday.additionalValue3?.toLowerCase() || ''
+    // Morning indicators (case-insensitive, normalized)
+    const morningIndicators = ['morning', 'am', 'a.m.', '08:', '09:']
 
-    // Try to detect afternoon from additional values
-    if (
-      value2.includes('afternoon') ||
-      value2.includes('pm') ||
-      value2.includes('13:') ||
-      value2.includes('14:') ||
-      value3.includes('afternoon') ||
-      value3.includes('pm') ||
-      value3.includes('13:') ||
-      value3.includes('14:')
-    ) {
-      return { isHalfDay: true, period: 'afternoon' }
+    for (const indicator of morningIndicators) {
+      if (value2.includes(indicator) || value3.includes(indicator)) {
+        return { isHalfDay: true, period: 'morning' }
+      }
     }
 
-    // Default to morning for other half-day holidays
+    // --- Step 2: Check holiday name against configurable patterns ---
+    if (afternoonHolidayPatterns && afternoonHolidayPatterns.length > 0) {
+      const holidayName = (holiday.value || '').toLowerCase().trim()
+
+      // Check if any pattern matches the holiday name
+      const matchesAfternoonPattern = afternoonHolidayPatterns.some(pattern => {
+        const normalizedPattern = pattern.toLowerCase().trim()
+        return holidayName.includes(normalizedPattern)
+      })
+
+      if (matchesAfternoonPattern) {
+        return { isHalfDay: true, period: 'afternoon' }
+      }
+    }
+
+    // --- Step 3: Conservative default - return morning if no period info is present ---
     return { isHalfDay: true, period: 'morning' }
   }
 
@@ -953,8 +1012,8 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                               45deg,
                               transparent,
                               transparent 6px,
-                              rgb(168 85 247 / 0.8) 6px,
-                              rgb(168 85 247 / 0.8) 12px
+                              ${HOLIDAY_OVERLAY_COLOR} 6px,
+                              ${HOLIDAY_OVERLAY_COLOR} 12px
                             )`
                           }}
                         />
@@ -999,8 +1058,8 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                                   45deg,
                                   transparent,
                                   transparent 6px,
-                                  rgb(168 85 247 / 0.8) 6px,
-                                  rgb(168 85 247 / 0.8) 12px
+                                  ${HOLIDAY_OVERLAY_COLOR} 6px,
+                                  ${HOLIDAY_OVERLAY_COLOR} 12px
                                 )`
                               }}
                             />
@@ -1029,8 +1088,8 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                                   45deg,
                                   transparent,
                                   transparent 6px,
-                                  rgb(168 85 247 / 0.8) 6px,
-                                  rgb(168 85 247 / 0.8) 12px
+                                  ${HOLIDAY_OVERLAY_COLOR} 6px,
+                                  ${HOLIDAY_OVERLAY_COLOR} 12px
                                 )`
                               }}
                             />
@@ -1068,8 +1127,8 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                                       45deg,
                                       transparent,
                                       transparent 6px,
-                                      rgb(168 85 247 / 0.8) 6px,
-                                      rgb(168 85 247 / 0.8) 12px
+                                      ${HOLIDAY_OVERLAY_COLOR} 6px,
+                                      ${HOLIDAY_OVERLAY_COLOR} 12px
                                     )`
                                   }}
                                 />
@@ -1108,8 +1167,8 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                                       45deg,
                                       transparent,
                                       transparent 6px,
-                                      rgb(168 85 247 / 0.8) 6px,
-                                      rgb(168 85 247 / 0.8) 12px
+                                      ${HOLIDAY_OVERLAY_COLOR} 6px,
+                                      ${HOLIDAY_OVERLAY_COLOR} 12px
                                     )`
                                   }}
                                 />

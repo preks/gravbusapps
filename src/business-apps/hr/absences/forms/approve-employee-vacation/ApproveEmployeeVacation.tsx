@@ -20,34 +20,34 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, MessageSquare, CheckCircle, AlertCircle, ExternalLink, Users } from 'lucide-react'
+import dayjs from 'dayjs'
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { useVacationApprovalData } from './hooks/useVacationApprovalData'
 import { env } from '@/common/env/EnvUtils'
-import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/components/TeamAbsenceCalendar'
-import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
-import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import { formatWorkingDaysAndHours } from '@/business-apps/hr/absences/utils/absenceDurationFormatter'
 import { formatDateTime } from '@/common/utils/dateFormatter'
 import { ExtendedAdditionalData } from '@/business-apps/hr/absences/types/taskTypes'
 import { useApprovalData } from '@/business-apps/hr/absences/hooks/useApprovalData'
-import dayjs from 'dayjs'
-import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
-import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
-import translations from './_i18n'
-
-// Extend dayjs with plugins
-dayjs.extend(isSameOrAfter)
-dayjs.extend(isSameOrBefore)
+import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/components/TeamAbsenceCalendar'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import { useVacationApprovalData } from './hooks/useVacationApprovalData'
 import { useVacationMetrics } from './hooks/useVacationMetrics'
 import { VacationHistory } from './components/VacationHistory'
 import { EmployeeYearlyCalendar } from './components/EmployeeYearlyCalendar'
 import { usePublicHolidays } from '../../hooks/usePublicHolidays'
 import { calculateWorkingDays } from '../../utils/vacationCalculations'
+import translations from './_i18n'
+
+// Extend dayjs with plugins
+dayjs.extend(isSameOrAfter)
+dayjs.extend(isSameOrBefore)
 
 interface ApproveEmployeeVacationProps extends BusinessAppContextProps {
   // Additional props from task payload
@@ -586,12 +586,12 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                   <div className="gba:text-sm gba:flex-1 gba:space-y-1">
                     {holidaysInPeriod.map((holiday, index) => {
                       const code = holiday.alternativeCode || holiday.code || ''
-                      const match = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
-                      const dateStr = match ? `${match[1]}-${match[2]}-${match[3]}` : ''
+                      const parsedDate = parseHolidayDateCode(code)
+                      const formattedDate = parsedDate ? parsedDate.format('MMM D, YYYY') : ''
                       return (
                         <div key={holiday.id || index} className="gba:flex gba:items-center gba:gap-2">
                           <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-purple-500" />
-                          <span>{dayjs(dateStr).format('MMM D, YYYY')}</span>
+                          <span>{formattedDate}</span>
                           <span className="gba:text-muted-foreground">- {holiday.value}</span>
                         </div>
                       )

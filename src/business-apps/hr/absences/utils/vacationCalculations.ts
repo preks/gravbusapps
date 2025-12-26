@@ -205,8 +205,19 @@ const parseHolidayDate = (code: string): Date | null => {
 
 /**
  * Normalize date to ISO date string (YYYY-MM-DD) for consistent comparison
+ * @throws {Error} If the input is not a valid Date object
  */
 const normalizeToISODate = (date: Date): string => {
+  // Validate input is a Date object
+  if (!(date instanceof Date)) {
+    throw new Error('normalizeToISODate: Input must be a Date object')
+  }
+
+  // Validate date is not invalid (NaN timestamp)
+  if (isNaN(date.getTime())) {
+    throw new Error('normalizeToISODate: Input is an invalid Date')
+  }
+
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')

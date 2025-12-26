@@ -18,7 +18,14 @@ import {
 } from '@newwork/nw-design-system'
 import { History, ChevronDown, ChevronUp, Calendar, Clock } from 'lucide-react'
 import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import 'dayjs/locale/en'
+import 'dayjs/locale/de'
+import 'dayjs/locale/ro'
 import translations from '../_i18n'
+
+// Initialize dayjs localizedFormat plugin once at module level
+dayjs.extend(localizedFormat)
 
 interface AbsenceRecord {
   id: string
@@ -48,7 +55,7 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
   isLoading,
   error
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
   const [showApproved, setShowApproved] = useState(false)
   const [showPending, setShowPending] = useState(false)
 
@@ -71,26 +78,32 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
   }
 
   const formatDateRange = (startDate: string, endDate: string) => {
-    const start = dayjs(startDate)
-    const end = dayjs(endDate)
+    const start = dayjs(startDate).locale(locale)
+    const end = dayjs(endDate).locale(locale)
 
     if (!start.isValid() || !end.isValid()) {
       return t('vacation-history-invalid-date')
     }
 
+    // Same day: show single date in long format (e.g., "January 15, 2024")
     if (start.isSame(end, 'day')) {
-      return start.format('MMM D, YYYY')
+      return start.format('LL')
     }
 
+    // Same month: show abbreviated start and full end (e.g., "Jan 15 - 20, 2024")
     if (start.isSame(end, 'month')) {
       return `${start.format('MMM D')} - ${end.format('D, YYYY')}`
     }
 
-    return `${start.format('MMM D, YYYY')} - ${end.format('MMM D, YYYY')}`
+    // Different months: show both dates in long format (e.g., "Jan 15, 2024 - Feb 10, 2024")
+    return `${start.format('LL')} - ${end.format('LL')}`
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status.toUpperCase()) {
+    // Normalize the value to prevent runtime errors from null/undefined
+    const normalized = status ? status.toUpperCase() : ''
+
+    switch (normalized) {
       case 'APPROVED':
         return (
           <Badge variant="default" className="gba:bg-success gba:text-white">
@@ -107,7 +120,8 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
       case 'REJECTED':
         return <Badge variant="destructive">{t('status-rejected')}</Badge>
       default:
-        return <Badge variant="outline">{status}</Badge>
+        // Handle empty/default case with safe fallback
+        return <Badge variant="outline">{status || 'Unknown'}</Badge>
     }
   }
 

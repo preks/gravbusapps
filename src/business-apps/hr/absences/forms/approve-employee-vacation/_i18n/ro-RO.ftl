@@ -22,7 +22,7 @@ label-excluding-holidays = Fără sărbătorile legale
 label-public-holidays = Sărbători legale
 
 # Legacy Vacation Overview Card (keeping for backward compatibility)
-vacation-overview-title = Privire de ansamblu concediu
+vacation-overview-title = Privire de ansamblu asupra concediului
 vacation-overview-description = Rezumat complet al dreptului și utilizării concediului
 vacation-overview-no-entitlement = Nicio informație despre dreptul de concediu disponibilă
 vacation-overview-total-entitlement = Drept anual total

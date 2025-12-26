@@ -19,7 +19,7 @@ vacation-balance-pending = Andere ausstehend
 days-unit = Tage
 
 # Legacy Vacation Overview Card (keeping for backward compatibility)
-vacation-overview-title = Urlaubsübersicht
+vacation-overview-title = Übersicht über den Urlaub
 vacation-overview-description = Vollständige Zusammenfassung des Urlaubsanspruchs und der Nutzung
 vacation-overview-no-entitlement = Keine Urlaubsanspruchsinformationen verfügbar
 vacation-overview-total-entitlement = Gesamt Jahresanspruch
@@ -84,7 +84,7 @@ status-rejected = Abgelehnt
 
 # Team Information Links
 team-absences-link-title = Team-Abwesenheiten Dashboard anzeigen
-team-absences-link-description = Zugriff auf umfassende Team-Abwesenheitsinformationen, Statistiken und Kalenderansichten
+team-absences-link-description = Zugriff auf umfassende Team-Abwesenheiten, Statistiken und Kalenderansichten
 team-absences-link-button = Team-Abwesenheiten Hub öffnen
 team-absences-need-details = Benötigen Sie weitere Details zu Team-Abwesenheiten?
 team-absences-full-dashboard = Vollständiges Dashboard

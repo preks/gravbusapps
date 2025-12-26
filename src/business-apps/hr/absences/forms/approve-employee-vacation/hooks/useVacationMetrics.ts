@@ -41,8 +41,8 @@ interface VacationMetrics {
   pendingAbsences: AbsenceRecord[]
   totalApprovedDays: number
   totalPendingDays: number
-  remainingBeforeRequest: number // Calculated: balance + current request
-  remainingAfterApproval: number // From payload balance
+  remainingBeforeRequest: number // Equals currentBalance
+  remainingAfterApproval: number // Equals currentBalance - currentRequestDays
   isLoading: boolean
   error: string | null
 }
@@ -62,10 +62,16 @@ export const useVacationMetrics = ({
   const graphqlClient = useGraphqlClient(accessToken)
 
   useEffect(() => {
+    // Use isMounted flag for cleanup
+    let isMounted = true
+
     const fetchVacationData = async () => {
       if (!accessToken || !employeeId) {
         return
       }
+
+      // Check if still mounted before setting state
+      if (!isMounted) return
 
       setIsLoading(true)
       setError(null)
@@ -98,22 +104,6 @@ export const useVacationMetrics = ({
             }
           }
         `
-
-        const entitlementResponse = await graphqlClient.request<{
-          EmployeeAbsenceEntitlement: any[]
-        }>(entitlementQuery, { employeeId, today })
-
-        if (entitlementResponse.EmployeeAbsenceEntitlement?.length > 0) {
-          const ent = entitlementResponse.EmployeeAbsenceEntitlement[0]
-          setEntitlement({
-            total: ent.total || 0,
-            approved: ent.approved || 0,
-            pending: ent.pending || 0,
-            available: ent.available || 0,
-            validFrom: ent.validFrom,
-            validTo: ent.validTo
-          })
-        }
 
         // Query 2: Fetch approved vacation absences for current year (A001 only)
         const approvedAbsencesQuery = `
@@ -148,24 +138,6 @@ export const useVacationMetrics = ({
           }
         `
 
-        const approvedResponse = await graphqlClient.request<{
-          EmployeeAbsence: any[]
-        }>(approvedAbsencesQuery, { employeeId, yearStart, yearEnd })
-
-        if (approvedResponse.EmployeeAbsence) {
-          const approved = approvedResponse.EmployeeAbsence.map((absence: any) => ({
-            id: absence.id,
-            startDate: absence.startDate,
-            endDate: absence.endDate,
-            workingDays: absence.workingDays || 0,
-            status: absence.status,
-            typeRef: absence.typeRef,
-            typeName: absence.type?.value || 'Vacation',
-            description: absence.description
-          }))
-          setApprovedAbsences(approved)
-        }
-
         // Query 3: Fetch pending vacation absences (excluding current request, A001 only)
         const pendingAbsencesQuery = `
           query GetPendingAbsences($employeeId: uuid!, $currentAbsenceId: uuid) {
@@ -198,10 +170,45 @@ export const useVacationMetrics = ({
           }
         `
 
-        const pendingResponse = await graphqlClient.request<{
-          EmployeeAbsence: any[]
-        }>(pendingAbsencesQuery, { employeeId, currentAbsenceId })
+        // Execute all three queries in parallel for better performance
+        const [entitlementResponse, approvedResponse, pendingResponse] = await Promise.all([
+          graphqlClient.request<{ EmployeeAbsenceEntitlement: any[] }>(entitlementQuery, { employeeId, today }),
+          graphqlClient.request<{ EmployeeAbsence: any[] }>(approvedAbsencesQuery, { employeeId, yearStart, yearEnd }),
+          graphqlClient.request<{ EmployeeAbsence: any[] }>(pendingAbsencesQuery, { employeeId, currentAbsenceId })
+        ])
 
+        // Check if still mounted before updating state
+        if (!isMounted) return
+
+        // Process entitlement response
+        if (entitlementResponse.EmployeeAbsenceEntitlement?.length > 0) {
+          const ent = entitlementResponse.EmployeeAbsenceEntitlement[0]
+          setEntitlement({
+            total: ent.total || 0,
+            approved: ent.approved || 0,
+            pending: ent.pending || 0,
+            available: ent.available || 0,
+            validFrom: ent.validFrom,
+            validTo: ent.validTo
+          })
+        }
+
+        // Process approved absences response
+        if (approvedResponse.EmployeeAbsence) {
+          const approved = approvedResponse.EmployeeAbsence.map((absence: any) => ({
+            id: absence.id,
+            startDate: absence.startDate,
+            endDate: absence.endDate,
+            workingDays: absence.workingDays || 0,
+            status: absence.status,
+            typeRef: absence.typeRef,
+            typeName: absence.type?.value || 'Vacation',
+            description: absence.description
+          }))
+          setApprovedAbsences(approved)
+        }
+
+        // Process pending absences response
         if (pendingResponse.EmployeeAbsence) {
           const pending = pendingResponse.EmployeeAbsence.map((absence: any) => ({
             id: absence.id,
@@ -216,24 +223,35 @@ export const useVacationMetrics = ({
           setPendingAbsences(pending)
         }
       } catch (err) {
-        console.error('Error fetching vacation metrics:', err)
-        setError('Failed to load vacation data')
+        // Only log and update state for errors if still mounted
+        if (isMounted) {
+          console.error('Error fetching vacation metrics:', err)
+          setError('Failed to load vacation data')
+        }
       } finally {
-        setIsLoading(false)
+        // Only update loading state if still mounted
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     fetchVacationData()
-  }, [accessToken, employeeId, currentAbsenceId])
+
+    // Cleanup function - set isMounted to false to prevent state updates
+    return () => {
+      isMounted = false
+    }
+  }, [accessToken, employeeId, currentAbsenceId, graphqlClient])
 
   // Calculate totals
   const totalApprovedDays = approvedAbsences.reduce((sum, absence) => sum + absence.workingDays, 0)
   const totalPendingDays = pendingAbsences.reduce((sum, absence) => sum + absence.workingDays, 0)
 
   // Calculate current balance and projections
-  // Current balance = Total entitlement - Taken (approved) days
-  // This represents the balance BEFORE considering this specific request
-  const currentBalance = (entitlement?.total ?? 0) - (entitlement?.approved ?? 0)
+  // Current balance = Total entitlement - Taken (approved) days ONLY
+  // This represents the balance BEFORE considering any pending requests
+  const currentBalance = (entitlement?.total ?? 0) - totalApprovedDays
 
   // Remaining before request = Current balance (same value, for clarity in UI)
   const remainingBeforeRequest = currentBalance

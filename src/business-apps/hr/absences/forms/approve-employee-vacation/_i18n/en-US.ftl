@@ -88,7 +88,7 @@ status-rejected = Rejected
 
 # Team Information Links
 team-absences-link-title = View Team Absences Dashboard
-team-absences-link-description = Access comprehensive team absence information, statistics and calendar views
+team-absences-link-description = Access comprehensive team absences, statistics, and calendar views
 team-absences-link-button = Open Team Absences Hub
 team-absences-need-details = Need more details about team absences?
 team-absences-full-dashboard = Full Dashboard
