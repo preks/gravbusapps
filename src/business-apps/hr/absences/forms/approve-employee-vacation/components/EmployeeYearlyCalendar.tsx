@@ -78,7 +78,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
   const [absences, setAbsences] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isExpanded, setIsExpanded] = useState(false) // Start collapsed
+  const [isExpanded, setIsExpanded] = useState(true) // Start expanded
 
   // Initialize month index - use function to ensure it's only calculated once
   const [currentMonthIndex, setCurrentMonthIndex] = useState(() => {
@@ -726,9 +726,9 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
       </CardHeader>
 
       {isExpanded && (
-        <CardContent className="gba:pt-3 gba:pb-4">
+        <CardContent className="gba:pt-3 gba:pb-4 gba:px-4">
           {/* Compact Month View */}
-          <div className="gba:max-w-md gba:mx-auto">
+          <div className="gba:max-w-2xl gba:mx-auto gba:w-full">
             {/* Navigation Bar with Month Name */}
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
               <Button
@@ -825,8 +825,8 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                   !isCurrentMonthDay && 'gba:opacity-25 gba:pointer-events-none',
                   isCurrentMonthDay && !hasAbsence && 'gba:cursor-pointer hover:gba:bg-muted/50',
                   day.isToday && !hasAbsence && 'gba:ring-2 gba:ring-primary/30 gba:bg-primary/5',
-                  day.isWeekend && !hasAbsence && 'gba:bg-muted/70',
-                  !day.isWeekend && !hasAbsence && 'gba:bg-muted/30',
+                  day.isWeekend && !hasAbsence && 'gba:bg-muted/85',
+                  !day.isWeekend && !hasAbsence && 'gba:bg-muted/50',
                   !needsSplitRender &&
                     !needsHalfRender &&
                     !needsOverlayRender &&
@@ -988,7 +988,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                             )}
                             {/* Afternoon half muted */}
                             <div
-                              className="gba:absolute gba:inset-0 gba:w-1/2 gba:bg-muted/30"
+                              className="gba:absolute gba:inset-0 gba:w-1/2 gba:bg-muted/50"
                               style={{ left: '50%' }}
                             />
                           </>
@@ -996,7 +996,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                         {!morningData && afternoonData && (
                           <>
                             {/* Morning half muted */}
-                            <div className="gba:absolute gba:inset-0 gba:w-1/2 gba:bg-muted/30" style={{ left: 0 }} />
+                            <div className="gba:absolute gba:inset-0 gba:w-1/2 gba:bg-muted/50" style={{ left: 0 }} />
                             {/* Check if afternoon has overlap */}
                             {afternoonData.isFullDayOverlap ? (
                               <>
