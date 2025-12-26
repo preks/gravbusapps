@@ -159,6 +159,30 @@ const submitToKogitoApi = async (
   )
 }
 
+// Helper: Parse holiday date from code format YYYYMMDD
+const parseHolidayDateCode = (code: string): dayjs.Dayjs | null => {
+  const match = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
+  if (!match) return null
+
+  const holidayDate = dayjs(`${match[1]}-${match[2]}-${match[3]}`)
+  return holidayDate.isValid() ? holidayDate : null
+}
+
+// Helper: Check if holiday falls within date range
+const isHolidayInRange = (
+  holiday: { alternativeCode?: string; code?: string },
+  start: dayjs.Dayjs,
+  end: dayjs.Dayjs
+): boolean => {
+  const code = holiday.alternativeCode || holiday.code || ''
+  if (!code) return false
+
+  const holidayDate = parseHolidayDateCode(code)
+  if (!holidayDate) return false
+
+  return holidayDate.isSameOrAfter(start, 'day') && holidayDate.isSameOrBefore(end, 'day')
+}
+
 const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
   accessToken,
   additionalData,
@@ -333,18 +357,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
     const start = dayjs(employeeAbsence.startDate)
     const end = dayjs(employeeAbsence.endDate)
 
-    return holidays.filter(holiday => {
-      const code = holiday.alternativeCode || holiday.code || ''
-      const match = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
-      if (!match) return false
-
-      const holidayDate = dayjs(`${match[1]}-${match[2]}-${match[3]}`)
-
-      // Ensure the holiday date is valid before calling methods
-      if (!holidayDate.isValid()) return false
-
-      return holidayDate.isSameOrAfter(start, 'day') && holidayDate.isSameOrBefore(end, 'day')
-    })
+    return holidays.filter(holiday => isHolidayInRange(holiday, start, end))
   }, [employeeAbsence?.startDate, employeeAbsence?.endDate, holidays])
 
   const handleApprove = async () => {

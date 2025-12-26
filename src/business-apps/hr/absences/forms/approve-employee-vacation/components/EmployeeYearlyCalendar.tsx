@@ -212,6 +212,106 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     return { isHalfDay: false }
   }
 
+  // Helper: Process holiday overlap with existing full-day absence
+  const processFullDayHolidayOverlap = (
+    existingDay: { morning: DayAbsence | null; afternoon: DayAbsence | null },
+    holidayData: DayAbsence
+  ) => {
+    const hasBothHalvesSameAbsence =
+      existingDay.morning &&
+      existingDay.afternoon &&
+      existingDay.morning === existingDay.afternoon &&
+      !existingDay.morning.isHoliday
+
+    if (hasBothHalvesSameAbsence) {
+      // FULL-DAY absence + FULL-DAY holiday = show both with diagonal stripe overlay
+      const absenceData = existingDay.morning!
+      const overlappedData: DayAbsence = {
+        ...absenceData,
+        isFullDayOverlap: true,
+        isHolidayAndAbsence: true,
+        morningData: absenceData,
+        afternoonData: holidayData
+      }
+      existingDay.morning = overlappedData
+      existingDay.afternoon = overlappedData
+    } else if (existingDay.morning && !existingDay.afternoon) {
+      existingDay.afternoon = holidayData
+    } else if (!existingDay.morning && existingDay.afternoon) {
+      existingDay.morning = holidayData
+    } else if (existingDay.morning && existingDay.afternoon) {
+      const morningIsSameAsAfternoon = existingDay.morning === existingDay.afternoon
+      if (!morningIsSameAsAfternoon && !existingDay.morning.isHoliday && !existingDay.afternoon.isHoliday) {
+        const overlappedData: DayAbsence = {
+          ...existingDay.morning,
+          isFullDayOverlap: true,
+          isHolidayAndAbsence: true,
+          morningData: existingDay.morning,
+          afternoonData: holidayData
+        }
+        existingDay.morning = overlappedData
+        existingDay.afternoon = overlappedData
+      }
+    }
+  }
+
+  // Helper: Process half-day holiday overlap
+  const processHalfDayHolidayOverlap = (
+    existingDay: { morning: DayAbsence | null; afternoon: DayAbsence | null },
+    holidayData: DayAbsence,
+    period: 'morning' | 'afternoon'
+  ) => {
+    if (existingDay[period]) {
+      // Period occupied - check if both halves have the SAME full-day item
+      const hasSameFullDayItem =
+        existingDay.morning && existingDay.afternoon && existingDay.morning === existingDay.afternoon
+
+      if (hasSameFullDayItem) {
+        // Full-day vacation + half-day holiday = create overlap on that half ONLY
+        const fullDayItem = existingDay.morning!
+        const overlappedHalf: DayAbsence = {
+          ...fullDayItem,
+          isFullDayOverlap: true,
+          isHolidayAndAbsence: true,
+          morningData: fullDayItem,
+          afternoonData: holidayData
+        }
+        existingDay[period] = overlappedHalf
+        const otherPeriod = period === 'morning' ? 'afternoon' : 'morning'
+        existingDay[otherPeriod] = { ...fullDayItem }
+      } else {
+        // Period has different item (half-day vacation/absence)
+        const existingItem = existingDay[period]
+        const overlappedHalfDay: DayAbsence = {
+          ...existingItem,
+          isFullDayOverlap: true,
+          isHolidayAndAbsence: true,
+          morningData: existingItem,
+          afternoonData: holidayData
+        }
+        existingDay[period] = overlappedHalfDay
+      }
+    } else {
+      // Period is free - add holiday to that half
+      existingDay[period] = holidayData
+    }
+  }
+
+  // Helper: Parse holiday code to date components
+  const parseHolidayCode = (code: string, currentYear: number) => {
+    const match = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
+    if (!match) return null
+
+    const year = Number.parseInt(match[1], 10)
+    const month = Number.parseInt(match[2], 10)
+    const day = Number.parseInt(match[3], 10)
+
+    if (year !== currentYear) return null
+
+    const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    return { dateKey, year, month, day }
+  }
+
   // Helper function to check if holiday is half-day and determine period
   const getHolidayHalfDayInfo = (holiday: any): { isHalfDay: boolean; period?: 'morning' | 'afternoon' } => {
     const isHalfDay = holiday.additionalValue1 === '05H'
@@ -328,17 +428,10 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
         const code = holiday.alternativeCode || holiday.code || ''
         if (!code) return
 
-        const match = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
-        if (!match) return
+        const parsedDate = parseHolidayCode(code, currentYear)
+        if (!parsedDate) return
 
-        const year = parseInt(match[1], 10)
-        const month = parseInt(match[2], 10)
-        const day = parseInt(match[3], 10)
-
-        if (year !== currentYear) return
-
-        const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-
+        const { dateKey } = parsedDate
         const holidayHalfDayInfo = getHolidayHalfDayInfo(holiday)
         const isHalfDayHoliday = holidayHalfDayInfo.isHalfDay
 
@@ -350,104 +443,17 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
           isHoliday: true,
           isHolidayAndAbsence: false,
           isHalfDay: isHalfDayHoliday,
-          halfDayPeriod: holidayHalfDayInfo.period // Use detected period
+          halfDayPeriod: holidayHalfDayInfo.period
         }
 
         const existingDay = dayData[dateKey]
 
         if (existingDay) {
-          // Day already has absence(s) - need to show split view
+          // Day already has absence(s)
           if (isHalfDayHoliday) {
-            // Half-day holiday - check if the period is free
-            const period = holidayData.halfDayPeriod!
-            if (!existingDay[period]) {
-              // Period is free - add holiday to that half
-              existingDay[period] = holidayData
-            } else {
-              // Period occupied - check if both halves have the SAME full-day item
-              if (existingDay.morning && existingDay.afternoon && existingDay.morning === existingDay.afternoon) {
-                // Full-day vacation + half-day holiday = create overlap on that half ONLY
-                // Keep vacation in BOTH halves, but add diagonal overlay to the holiday half
-                const fullDayItem = existingDay.morning
-
-                // Create overlapped version for the holiday's half
-                const overlappedHalf: DayAbsence = {
-                  ...fullDayItem,
-                  isFullDayOverlap: true, // Mark this half as having overlap
-                  isHolidayAndAbsence: true,
-                  morningData: fullDayItem, // Keep vacation as primary
-                  afternoonData: holidayData // Keep holiday as secondary
-                }
-
-                // The holiday's period gets the overlay, other period stays as vacation
-                existingDay[period] = overlappedHalf
-                const otherPeriod = period === 'morning' ? 'afternoon' : 'morning'
-                existingDay[otherPeriod] = { ...fullDayItem } // Keep vacation solid in other half
-              } else {
-                // Period has different item (half-day vacation/absence)
-                // Create OVERLAP for this half - show both with diagonal stripes
-                const existingItem = existingDay[period]!
-
-                // Create overlapped half-day indicator
-                const overlappedHalfDay: DayAbsence = {
-                  ...existingItem,
-                  isFullDayOverlap: true, // Reuse this flag for half-day overlaps
-                  isHolidayAndAbsence: true,
-                  morningData: existingItem, // Keep absence as primary
-                  afternoonData: holidayData // Keep holiday as secondary
-                }
-
-                existingDay[period] = overlappedHalfDay
-              }
-            }
+            processHalfDayHolidayOverlap(existingDay, holidayData, holidayData.halfDayPeriod!)
           } else {
-            // Full-day holiday overlapping with ANY full-day absence
-            // Check if existing absence is also full-day (both halves same)
-            if (
-              existingDay.morning &&
-              existingDay.afternoon &&
-              existingDay.morning === existingDay.afternoon &&
-              !existingDay.morning.isHoliday
-            ) {
-              // FULL-DAY absence + FULL-DAY holiday = show both with diagonal stripe overlay
-              const absenceData = existingDay.morning
-              // Create a full-day overlap indicator
-              const overlappedData: DayAbsence = {
-                ...absenceData,
-                isFullDayOverlap: true,
-                isHolidayAndAbsence: true,
-                morningData: absenceData, // Keep absence as primary
-                afternoonData: holidayData // Keep holiday as secondary
-              }
-              existingDay.morning = overlappedData
-              existingDay.afternoon = overlappedData
-            } else if (existingDay.morning && !existingDay.afternoon) {
-              // Only morning occupied - put holiday in afternoon
-              existingDay.afternoon = holidayData
-            } else if (!existingDay.morning && existingDay.afternoon) {
-              // Only afternoon occupied - put holiday in morning
-              existingDay.morning = holidayData
-            } else if (existingDay.morning && existingDay.afternoon) {
-              // Both halves occupied but different - force holiday visibility
-              // Check if we can create a full-day overlap for either half
-              const morningIsSameAsAfternoon = existingDay.morning === existingDay.afternoon
-              if (!morningIsSameAsAfternoon) {
-                // Different items in morning/afternoon - this shouldn't happen for full-day holiday
-                // But if it does, try to show holiday in whichever half doesn't have one
-                if (!existingDay.morning.isHoliday && !existingDay.afternoon.isHoliday) {
-                  // Neither half is holiday - create overlap with morning absence
-                  const overlappedData: DayAbsence = {
-                    ...existingDay.morning,
-                    isFullDayOverlap: true,
-                    isHolidayAndAbsence: true,
-                    morningData: existingDay.morning,
-                    afternoonData: holidayData
-                  }
-                  existingDay.morning = overlappedData
-                  existingDay.afternoon = overlappedData
-                }
-              }
-            }
+            processFullDayHolidayOverlap(existingDay, holidayData)
           }
         } else {
           // No existing absence, add the holiday
@@ -642,6 +648,92 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     return { vacation, sick, other, total: absences.length }
   }, [absences])
 
+  // Helper: Build tooltip text for day absences
+  const buildTooltipText = (
+    day: CalendarDay,
+    morningData: DayAbsence | null | undefined,
+    afternoonData: DayAbsence | null | undefined,
+    isFullDayOverlap: boolean,
+    hasMultipleHalves: boolean,
+    isCurrentRequest: boolean
+  ): string => {
+    if (!day.absence) return ''
+
+    if (isFullDayOverlap && morningData && afternoonData) {
+      return `${morningData.type} + ${afternoonData.type} ${t('vacation-calendar-tooltip-full-day')}`
+    }
+
+    if (hasMultipleHalves && morningData && afternoonData) {
+      return `${t('vacation-calendar-tooltip-morning')} ${morningData.type} | ${t('vacation-calendar-tooltip-afternoon')} ${afternoonData.type}`
+    }
+
+    if (morningData && !afternoonData) {
+      return `${t('vacation-calendar-tooltip-morning')} ${morningData.type}`
+    }
+
+    if (!morningData && afternoonData) {
+      return `${t('vacation-calendar-tooltip-afternoon')} ${afternoonData.type}`
+    }
+
+    let text = day.absence.type
+    if (isCurrentRequest) text += ` ${t('vacation-calendar-tooltip-current-request')}`
+    return text
+  }
+
+  // Helper: Determine render mode for calendar day
+  const getDayRenderMode = (
+    hasAbsence: boolean,
+    hasMultipleHalves: boolean,
+    morningData: DayAbsence | null | undefined,
+    afternoonData: DayAbsence | null | undefined,
+    isFullDayOverlap: boolean
+  ) => {
+    const needsSplitRender = hasMultipleHalves && morningData && afternoonData && !isFullDayOverlap
+    const needsHalfRender = hasAbsence && ((morningData && !afternoonData) || (!morningData && afternoonData))
+    const needsOverlayRender = isFullDayOverlap && morningData && afternoonData && !hasMultipleHalves
+    const needsHalfOverlayRender =
+      hasMultipleHalves &&
+      morningData &&
+      afternoonData &&
+      (morningData.isFullDayOverlap || afternoonData.isFullDayOverlap)
+
+    return { needsSplitRender, needsHalfRender, needsOverlayRender, needsHalfOverlayRender }
+  }
+
+  // Helper: Build CSS classes for calendar day container
+  const buildDayContainerClasses = (
+    day: CalendarDay,
+    isCurrentMonthDay: boolean,
+    hasAbsence: boolean,
+    isCurrentRequest: boolean,
+    renderMode: ReturnType<typeof getDayRenderMode>
+  ): string => {
+    const { needsSplitRender, needsHalfRender, needsOverlayRender, needsHalfOverlayRender } = renderMode
+
+    return [
+      'gba:h-10 gba:flex gba:items-center gba:justify-center gba:text-xs gba:rounded-md gba:relative gba:transition-all gba:font-medium gba:overflow-hidden',
+      !isCurrentMonthDay && 'gba:opacity-25 gba:pointer-events-none',
+      isCurrentMonthDay && !hasAbsence && 'gba:cursor-pointer hover:gba:bg-muted/50',
+      day.isToday && !hasAbsence && 'gba:ring-2 gba:ring-primary/30 gba:bg-primary/5',
+      day.isWeekend && !hasAbsence && 'gba:bg-muted/85',
+      !day.isWeekend && !hasAbsence && 'gba:bg-muted/50',
+      !needsSplitRender &&
+        !needsHalfRender &&
+        !needsOverlayRender &&
+        !needsHalfOverlayRender &&
+        hasAbsence &&
+        day.absence?.color,
+      hasAbsence && 'gba:text-white gba:shadow-sm',
+      isCurrentRequest &&
+        !needsSplitRender &&
+        !needsOverlayRender &&
+        !needsHalfOverlayRender &&
+        'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background gba:scale-105 gba:z-10'
+    ]
+      .filter(Boolean)
+      .join(' ')
+  }
+
   // Generate localized weekday names using Intl.DateTimeFormat
   const weekDays = useMemo(() => {
     const locale = getCurrentActiveUserLocale() || 'en-US'
@@ -815,62 +907,41 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                 const afternoonData = day.absence?.afternoonData
 
                 // Build tooltip text
-                let tooltipText = ''
-                if (hasAbsence && day.absence) {
-                  if (isFullDayOverlap && morningData && afternoonData) {
-                    // Full-day vacation + full-day holiday
-                    tooltipText = `${morningData.type} + ${afternoonData.type} ${t('vacation-calendar-tooltip-full-day')}`
-                  } else if (hasMultipleHalves && morningData && afternoonData) {
-                    tooltipText = `${t('vacation-calendar-tooltip-morning')} ${morningData.type} | ${t('vacation-calendar-tooltip-afternoon')} ${afternoonData.type}`
-                  } else if (morningData && !afternoonData) {
-                    tooltipText = `${t('vacation-calendar-tooltip-morning')} ${morningData.type}`
-                  } else if (!morningData && afternoonData) {
-                    tooltipText = `${t('vacation-calendar-tooltip-afternoon')} ${afternoonData.type}`
-                  } else {
-                    tooltipText = day.absence.type
-                    if (isCurrentRequest) tooltipText += ` ${t('vacation-calendar-tooltip-current-request')}`
-                  }
-                }
+                const tooltipText = buildTooltipText(
+                  day,
+                  morningData,
+                  afternoonData,
+                  isFullDayOverlap || false,
+                  hasMultipleHalves || false,
+                  isCurrentRequest || false
+                )
 
-                // Determine if we need split rendering
-                const needsSplitRender = hasMultipleHalves && morningData && afternoonData && !isFullDayOverlap
-                const needsHalfRender =
-                  hasAbsence && ((morningData && !afternoonData) || (!morningData && afternoonData))
-                const needsOverlayRender = isFullDayOverlap && morningData && afternoonData && !hasMultipleHalves
-                // NEW: Check if one half has overlay and other doesn't (full-day vacation + half-day holiday)
-                const needsHalfOverlayRender =
-                  hasMultipleHalves &&
-                  morningData &&
-                  afternoonData &&
-                  (morningData.isFullDayOverlap || afternoonData.isFullDayOverlap)
+                // Determine render mode
+                const renderMode = getDayRenderMode(
+                  hasAbsence,
+                  hasMultipleHalves || false,
+                  morningData,
+                  afternoonData,
+                  isFullDayOverlap || false
+                )
 
-                const containerClasses = [
-                  'gba:h-10 gba:flex gba:items-center gba:justify-center gba:text-xs gba:rounded-md gba:relative gba:transition-all gba:font-medium gba:overflow-hidden',
-                  !isCurrentMonthDay && 'gba:opacity-25 gba:pointer-events-none',
-                  isCurrentMonthDay && !hasAbsence && 'gba:cursor-pointer hover:gba:bg-muted/50',
-                  day.isToday && !hasAbsence && 'gba:ring-2 gba:ring-primary/30 gba:bg-primary/5',
-                  day.isWeekend && !hasAbsence && 'gba:bg-muted/85',
-                  !day.isWeekend && !hasAbsence && 'gba:bg-muted/50',
-                  !needsSplitRender &&
-                    !needsHalfRender &&
-                    !needsOverlayRender &&
-                    !needsHalfOverlayRender &&
-                    hasAbsence &&
-                    day.absence?.color,
-                  hasAbsence && 'gba:text-white gba:shadow-sm',
-                  isCurrentRequest &&
-                    !needsSplitRender &&
-                    !needsOverlayRender &&
-                    !needsHalfOverlayRender &&
-                    'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background gba:scale-105 gba:z-10'
-                ]
-                  .filter(Boolean)
-                  .join(' ')
+                // Build container classes
+                const containerClasses = buildDayContainerClasses(
+                  day,
+                  isCurrentMonthDay,
+                  hasAbsence,
+                  isCurrentRequest || false,
+                  renderMode
+                )
 
                 return (
-                  <div key={dayIndex} className={containerClasses} title={tooltipText || undefined}>
+                  <div
+                    key={`${day.date.format('YYYY-MM-DD')}-${dayIndex}`}
+                    className={containerClasses}
+                    title={tooltipText || undefined}
+                  >
                     {/* Full-day overlap: Vacation + Holiday (diagonal stripe pattern) */}
-                    {needsOverlayRender && morningData && afternoonData && (
+                    {renderMode.needsOverlayRender && morningData && afternoonData && (
                       <>
                         {/* Base vacation color */}
                         <div className={`gba:absolute gba:inset-0 ${morningData.color}`} />
@@ -891,7 +962,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                     )}
 
                     {/* Split background for different morning/afternoon */}
-                    {needsSplitRender && morningData && afternoonData && (
+                    {renderMode.needsSplitRender && morningData && afternoonData && (
                       <>
                         {/* Morning half */}
                         <div
@@ -909,7 +980,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                     )}
 
                     {/* NEW: Half-day overlay (one half solid, other half with diagonal overlay) */}
-                    {needsHalfOverlayRender && morningData && afternoonData && (
+                    {renderMode.needsHalfOverlayRender && morningData && afternoonData && (
                       <>
                         {/* Morning half - check if it has overlay */}
                         {morningData.isFullDayOverlap ? (
@@ -977,7 +1048,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                     )}
 
                     {/* Half-day background (only morning or only afternoon) */}
-                    {needsHalfRender && (
+                    {renderMode.needsHalfRender && (
                       <>
                         {morningData && !afternoonData && (
                           <>

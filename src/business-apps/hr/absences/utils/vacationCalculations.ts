@@ -183,9 +183,9 @@ const parseHolidayDate = (code: string): Date | null => {
     return null
   }
 
-  const y = parseInt(parts[1], 10)
-  const m = parseInt(parts[2], 10)
-  const d = parseInt(parts[3], 10)
+  const y = Number.parseInt(parts[1], 10)
+  const m = Number.parseInt(parts[2], 10)
+  const d = Number.parseInt(parts[3], 10)
 
   if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) {
     return null
