@@ -26,7 +26,6 @@ vacation-overview-title = Vacation Overview
 vacation-overview-description = Complete vacation entitlement and usage summary
 vacation-overview-no-entitlement = No vacation entitlement information available
 vacation-overview-total-entitlement = Total Annual Entitlement
-vacation-overview-taken = Vacation Already Taken
 vacation-overview-already-taken = Vacation Already Taken
 vacation-overview-remaining-open = Remaining/Open Vacation
 vacation-overview-currently-available = Currently Available
@@ -56,9 +55,8 @@ vacation-history-approved-section = Approved Absences
 vacation-history-pending-section = Pending Requests
 vacation-history-no-approved = No approved absences this year
 vacation-history-no-data = No vacation history available
-vacation-history-days = days
 vacation-history-day = day
-vacation-history-days-plural = days
+vacation-history-days = days
 
 # Yearly Employee Calendar
 vacation-calendar-title = Employee Yearly Calendar
@@ -75,6 +73,13 @@ vacation-calendar-current-request = Current Request
 vacation-calendar-today = Today
 vacation-calendar-this-month = This Month
 vacation-calendar-request-month = Request Month
+vacation-calendar-tooltip-morning = Morning:
+vacation-calendar-tooltip-afternoon = Afternoon:
+vacation-calendar-tooltip-full-day = (Full Day)
+vacation-calendar-tooltip-current-request = (Current Request)
+vacation-calendar-summary-vacation = vacation
+vacation-calendar-summary-sick = sick
+vacation-calendar-summary-other = other
 
 # Status Labels
 status-approved = Approved

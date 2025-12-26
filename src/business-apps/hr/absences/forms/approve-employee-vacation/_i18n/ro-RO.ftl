@@ -18,7 +18,7 @@ vacation-balance-after-approval = După aprobare
 vacation-balance-pending = Alte solicitări în așteptare
 days-unit = zile
 label-working-days = Zile lucrătoare
-label-excluding-holidays = fără sărbătorile legale
+label-excluding-holidays = Fără sărbătorile legale
 label-public-holidays = Sărbători legale
 
 # Legacy Vacation Overview Card (keeping for backward compatibility)
@@ -26,7 +26,6 @@ vacation-overview-title = Privire de ansamblu concediu
 vacation-overview-description = Rezumat complet al dreptului și utilizării concediului
 vacation-overview-no-entitlement = Nicio informație despre dreptul de concediu disponibilă
 vacation-overview-total-entitlement = Drept anual total
-vacation-overview-taken = Concediu deja consumat
 vacation-overview-already-taken = Concediu deja consumat
 vacation-overview-remaining-open = Concediu rămas/Deschis
 vacation-overview-currently-available = Disponibil în prezent
@@ -56,9 +55,8 @@ vacation-history-approved-section = Absențe aprobate
 vacation-history-pending-section = Cereri în așteptare
 vacation-history-no-approved = Nicio absență aprobată în acest an
 vacation-history-no-data = Niciun istoric de concediu disponibil
-vacation-history-days = zile
 vacation-history-day = zi
-vacation-history-days-plural = zile
+vacation-history-days = zile
 
 # Yearly Employee Calendar
 vacation-calendar-title = Calendar anual angajat
@@ -75,6 +73,13 @@ vacation-calendar-current-request = Cerere curentă
 vacation-calendar-today = Astăzi
 vacation-calendar-this-month = Luna aceasta
 vacation-calendar-request-month = Luna cererii
+vacation-calendar-tooltip-morning = Dimineață:
+vacation-calendar-tooltip-afternoon = După-amiază:
+vacation-calendar-tooltip-full-day = (Toată ziua)
+vacation-calendar-tooltip-current-request = (Cerere curentă)
+vacation-calendar-summary-vacation = concediu
+vacation-calendar-summary-sick = medical
+vacation-calendar-summary-other = altele
 
 # Status Labels
 status-approved = Aprobat

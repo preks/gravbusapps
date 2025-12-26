@@ -8,7 +8,7 @@ import { Card, CardHeader, CardContent, Spinner, Alert, Button, useTranslation }
 import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import dayjs from 'dayjs'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getCatalogValue } from '@/common/utils/windowUtils'
+import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { usePublicHolidays } from '../../../hooks/usePublicHolidays'
 import translations from '../_i18n'
 
@@ -116,6 +116,9 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
   }
 
   useEffect(() => {
+    const abortController = new AbortController()
+    let isMounted = true
+
     const fetchYearlyAbsences = async () => {
       if (!accessToken || !employeeId) {
         return
@@ -158,23 +161,43 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
           }
         `
 
+        // Check if already aborted before making request
+        if (abortController.signal.aborted) {
+          return
+        }
+
         const response = await graphqlClient.request<{ EmployeeAbsence: any[] }>(query, {
           employeeId,
           yearStart,
           yearEnd
         })
 
-        setAbsences(response.EmployeeAbsence || [])
+        // Only update state if component is still mounted and not aborted
+        if (isMounted && !abortController.signal.aborted) {
+          setAbsences(response.EmployeeAbsence || [])
+        }
       } catch (err) {
-        console.error('Error fetching yearly absences:', err)
-        setError('Failed to load yearly calendar')
+        // Only set error if component is still mounted and not aborted
+        if (isMounted && !abortController.signal.aborted) {
+          console.error('Error fetching yearly absences:', err)
+          setError('Failed to load yearly calendar')
+        }
       } finally {
-        setIsLoading(false)
+        // Only update loading state if component is still mounted
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     fetchYearlyAbsences()
-  }, [accessToken, employeeId, graphqlClient])
+
+    // Cleanup function to abort request and prevent state updates on unmounted component
+    return () => {
+      isMounted = false
+      abortController.abort()
+    }
+  }, [accessToken, employeeId])
 
   // Helper function to determine if an absence is half-day and which period
   const getAbsenceHalfDayInfo = (absence: any): { isHalfDay: boolean; period?: 'morning' | 'afternoon' } => {
@@ -476,15 +499,6 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
 
       if (!morning && !afternoon) return
 
-      // Debug logging for problematic dates
-      if (
-        dateKey === '2025-12-24' ||
-        dateKey === '2025-12-25' ||
-        dateKey === '2025-12-26' ||
-        dateKey === '2025-12-31'
-      ) {
-      }
-
       if (morning && afternoon) {
         // Check if BOTH halves have full-day overlap (full-day vacation + full-day holiday)
         const isBothHalvesOverlap = morning.isFullDayOverlap && afternoon.isFullDayOverlap
@@ -527,9 +541,6 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
             afternoonData: afternoon,
             isHolidayAndAbsence: true,
             isFullDayOverlap: false // Not a full-day overlap, just half-day
-          }
-
-          if (dateKey === '2025-12-24' || dateKey === '2025-12-31') {
           }
         } else if (areSameType) {
           // Truly same item in both halves - show as full day
@@ -631,7 +642,20 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     return { vacation, sick, other, total: absences.length }
   }, [absences])
 
-  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  // Generate localized weekday names using Intl.DateTimeFormat
+  const weekDays = useMemo(() => {
+    const locale = getCurrentActiveUserLocale() || 'en-US'
+    const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' })
+
+    // Create dates for each weekday (starting from Monday)
+    // Using a known Monday date: 2024-01-01 is a Monday
+    const weekdayDates = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(2024, 0, 1 + i) // Jan 1-7, 2024 (Mon-Sun)
+      return formatter.format(date)
+    })
+
+    return weekdayDates
+  }, [])
 
   const isRequestMonth = currentRequestStartDate
     ? currentMonthIndex === dayjs(currentRequestStartDate).month()
@@ -673,9 +697,9 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
               {!isExpanded && absenceStats.total > 0 && (
                 <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
                   {[
-                    absenceStats.vacation > 0 && `${absenceStats.vacation} vacation`,
-                    absenceStats.sick > 0 && `${absenceStats.sick} sick`,
-                    absenceStats.other > 0 && `${absenceStats.other} other`
+                    absenceStats.vacation > 0 && `${absenceStats.vacation} ${t('vacation-calendar-summary-vacation')}`,
+                    absenceStats.sick > 0 && `${absenceStats.sick} ${t('vacation-calendar-summary-sick')}`,
+                    absenceStats.other > 0 && `${absenceStats.other} ${t('vacation-calendar-summary-other')}`
                   ]
                     .filter(Boolean)
                     .join(' • ')}
@@ -795,16 +819,16 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                 if (hasAbsence && day.absence) {
                   if (isFullDayOverlap && morningData && afternoonData) {
                     // Full-day vacation + full-day holiday
-                    tooltipText = `${morningData.type} + ${afternoonData.type} (Full Day)`
+                    tooltipText = `${morningData.type} + ${afternoonData.type} ${t('vacation-calendar-tooltip-full-day')}`
                   } else if (hasMultipleHalves && morningData && afternoonData) {
-                    tooltipText = `Morning: ${morningData.type} | Afternoon: ${afternoonData.type}`
+                    tooltipText = `${t('vacation-calendar-tooltip-morning')} ${morningData.type} | ${t('vacation-calendar-tooltip-afternoon')} ${afternoonData.type}`
                   } else if (morningData && !afternoonData) {
-                    tooltipText = `Morning: ${morningData.type}`
+                    tooltipText = `${t('vacation-calendar-tooltip-morning')} ${morningData.type}`
                   } else if (!morningData && afternoonData) {
-                    tooltipText = `Afternoon: ${afternoonData.type}`
+                    tooltipText = `${t('vacation-calendar-tooltip-afternoon')} ${afternoonData.type}`
                   } else {
                     tooltipText = day.absence.type
-                    if (isCurrentRequest) tooltipText += ' (Current Request)'
+                    if (isCurrentRequest) tooltipText += ` ${t('vacation-calendar-tooltip-current-request')}`
                   }
                 }
 

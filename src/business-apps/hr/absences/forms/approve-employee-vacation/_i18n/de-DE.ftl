@@ -23,7 +23,6 @@ vacation-overview-title = Urlaubsübersicht
 vacation-overview-description = Vollständige Zusammenfassung des Urlaubsanspruchs und der Nutzung
 vacation-overview-no-entitlement = Keine Urlaubsanspruchsinformationen verfügbar
 vacation-overview-total-entitlement = Gesamt Jahresanspruch
-vacation-overview-taken = Bereits genommener Urlaub
 vacation-overview-already-taken = Bereits genommener Urlaub
 vacation-overview-remaining-open = Verbleibender/Offener Urlaub
 vacation-overview-currently-available = Aktuell verfügbar
@@ -53,9 +52,8 @@ vacation-history-approved-section = Genehmigte Abwesenheiten
 vacation-history-pending-section = Ausstehende Anträge
 vacation-history-no-approved = Keine genehmigten Abwesenheiten dieses Jahr
 vacation-history-no-data = Keine Urlaubshistorie verfügbar
-vacation-history-days = Tage
 vacation-history-day = Tag
-vacation-history-days-plural = Tage
+vacation-history-days = Tage
 
 # Yearly Employee Calendar
 vacation-calendar-title = Mitarbeiter Jahreskalender
@@ -71,6 +69,13 @@ vacation-calendar-current-request = Aktueller Antrag
 vacation-calendar-today = Heute
 vacation-calendar-this-month = Dieser Monat
 vacation-calendar-request-month = Antragsmonat
+vacation-calendar-tooltip-morning = Vormittag:
+vacation-calendar-tooltip-afternoon = Nachmittag:
+vacation-calendar-tooltip-full-day = (Ganztägig)
+vacation-calendar-tooltip-current-request = (Aktueller Antrag)
+vacation-calendar-summary-vacation = Urlaub
+vacation-calendar-summary-sick = Krank
+vacation-calendar-summary-other = Andere
 
 # Status Labels
 status-approved = Genehmigt

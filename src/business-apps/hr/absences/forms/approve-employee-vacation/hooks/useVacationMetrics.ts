@@ -13,7 +13,6 @@ interface UseVacationMetricsProps {
   employeeId?: string
   currentAbsenceId?: string
   currentRequestDays?: number
-  balanceAfterRequest?: number // Balance from payload (remaining after this request)
 }
 
 interface VacationEntitlement {
@@ -30,7 +29,6 @@ interface AbsenceRecord {
   startDate: string
   endDate: string
   workingDays: number
-  effectiveDays: number
   status: string
   typeRef: string
   typeName: string
@@ -53,8 +51,7 @@ export const useVacationMetrics = ({
   accessToken,
   employeeId,
   currentAbsenceId,
-  currentRequestDays = 0,
-  balanceAfterRequest
+  currentRequestDays = 0
 }: UseVacationMetricsProps): VacationMetrics => {
   const [entitlement, setEntitlement] = useState<VacationEntitlement | null>(null)
   const [approvedAbsences, setApprovedAbsences] = useState<AbsenceRecord[]>([])
@@ -136,7 +133,6 @@ export const useVacationMetrics = ({
               startDate
               endDate
               workingDays
-              effectiveDays
               status
               typeRef
               description
@@ -161,8 +157,7 @@ export const useVacationMetrics = ({
             id: absence.id,
             startDate: absence.startDate,
             endDate: absence.endDate,
-            workingDays: absence.workingDays || absence.effectiveDays || 0,
-            effectiveDays: absence.effectiveDays || 0,
+            workingDays: absence.workingDays || 0,
             status: absence.status,
             typeRef: absence.typeRef,
             typeName: absence.type?.value || 'Vacation',
@@ -188,7 +183,6 @@ export const useVacationMetrics = ({
               startDate
               endDate
               workingDays
-              effectiveDays
               status
               typeRef
               description
@@ -213,8 +207,7 @@ export const useVacationMetrics = ({
             id: absence.id,
             startDate: absence.startDate,
             endDate: absence.endDate,
-            workingDays: absence.workingDays || absence.effectiveDays || 0,
-            effectiveDays: absence.effectiveDays || 0,
+            workingDays: absence.workingDays || 0,
             status: absence.status,
             typeRef: absence.typeRef,
             typeName: absence.type?.value || 'Vacation',
@@ -231,18 +224,22 @@ export const useVacationMetrics = ({
     }
 
     fetchVacationData()
-  }, [accessToken, employeeId, currentAbsenceId, graphqlClient])
+  }, [accessToken, employeeId, currentAbsenceId])
 
   // Calculate totals
   const totalApprovedDays = approvedAbsences.reduce((sum, absence) => sum + absence.workingDays, 0)
   const totalPendingDays = pendingAbsences.reduce((sum, absence) => sum + absence.workingDays, 0)
 
-  // Use balance from payload (more reliable than calculating)
-  // Balance represents remaining AFTER this request is approved
-  const remainingAfterApproval = balanceAfterRequest ?? 0
+  // Calculate current balance and projections
+  // Current balance = Total entitlement - Taken (approved) days
+  // This represents the balance BEFORE considering this specific request
+  const currentBalance = (entitlement?.total ?? 0) - (entitlement?.approved ?? 0)
 
-  // Calculate remaining BEFORE this request (balance + current request)
-  const remainingBeforeRequest = remainingAfterApproval + currentRequestDays
+  // Remaining before request = Current balance (same value, for clarity in UI)
+  const remainingBeforeRequest = currentBalance
+
+  // After approval = Current balance - This request
+  const remainingAfterApproval = currentBalance - currentRequestDays
 
   return {
     entitlement,

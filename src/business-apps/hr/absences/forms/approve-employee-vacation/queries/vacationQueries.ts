@@ -57,7 +57,6 @@ export const GET_EMPLOYEE_ABSENCES_BY_YEAR = `
       startDate
       endDate
       workingDays
-      effectiveDays
       calendarDays
       status
       typeRef
@@ -93,7 +92,6 @@ export const GET_EMPLOYEE_PENDING_ABSENCES = `
       startDate
       endDate
       workingDays
-      effectiveDays
       calendarDays
       status
       typeRef
@@ -227,7 +225,6 @@ export const GET_APPROVED_ABSENCES_CURRENT_YEAR = `
       startDate
       endDate
       workingDays
-      effectiveDays
       status
       typeRef
       description

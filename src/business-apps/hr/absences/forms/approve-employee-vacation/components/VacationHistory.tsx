@@ -25,7 +25,6 @@ interface AbsenceRecord {
   startDate: string
   endDate: string
   workingDays: number
-  effectiveDays: number
   status: string
   typeRef: string
   typeName: string
@@ -143,7 +142,7 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
                 <div className="gba:flex gba:items-baseline gba:gap-1">
                   <div className="gba:text-2xl gba:font-bold gba:text-success">{totalApprovedDays}</div>
                   <div className="gba:text-sm gba:text-muted-foreground">
-                    {totalApprovedDays === 1 ? t('vacation-history-day') : t('vacation-history-days-plural')}
+                    {totalApprovedDays === 1 ? t('vacation-history-day') : t('vacation-history-days')}
                   </div>
                 </div>
                 <div className="gba:text-xs gba:text-muted-foreground">
@@ -158,7 +157,7 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
                 <div className="gba:flex gba:items-baseline gba:gap-1">
                   <div className="gba:text-2xl gba:font-bold gba:text-warning">{totalPendingDays}</div>
                   <div className="gba:text-sm gba:text-muted-foreground">
-                    {totalPendingDays === 1 ? t('vacation-history-day') : t('vacation-history-days-plural')}
+                    {totalPendingDays === 1 ? t('vacation-history-day') : t('vacation-history-days')}
                   </div>
                 </div>
                 <div className="gba:text-xs gba:text-muted-foreground">
@@ -213,7 +212,8 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
                           <div className="gba:flex gba:flex-col gba:items-end gba:gap-1">
                             {getStatusBadge(absence.status)}
                             <div className="gba:text-sm gba:font-semibold gba:text-success">
-                              {absence.workingDays} {t('vacation-history-days')}
+                              {absence.workingDays}{' '}
+                              {absence.workingDays === 1 ? t('vacation-history-day') : t('vacation-history-days')}
                             </div>
                           </div>
                         </div>
@@ -269,7 +269,8 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
                           <div className="gba:flex gba:flex-col gba:items-end gba:gap-1">
                             {getStatusBadge(absence.status)}
                             <div className="gba:text-sm gba:font-semibold gba:text-warning">
-                              {absence.workingDays} {t('vacation-history-days')}
+                              {absence.workingDays}{' '}
+                              {absence.workingDays === 1 ? t('vacation-history-day') : t('vacation-history-days')}
                             </div>
                           </div>
                         </div>

@@ -296,8 +296,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
     accessToken,
     employeeId: employeeAbsence?.employeeId,
     currentAbsenceId: employeeAbsence?.id,
-    currentRequestDays: employeeAbsence?.workingDays || 0,
-    balanceAfterRequest: employeeAbsence?.balance // Use balance from payload
+    currentRequestDays: employeeAbsence?.workingDays || 0
   })
 
   // Fetch public holidays for accurate working days calculation
@@ -515,8 +514,8 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                 </div>
               )}
 
-              {/* Request Created - Show when available */}
-              {requestCreatedAt && (
+              {/* Request Created - Show during loading or when available */}
+              {(isLoadingRequestDate || requestCreatedAt) && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                     {t('label-request-created')}:
