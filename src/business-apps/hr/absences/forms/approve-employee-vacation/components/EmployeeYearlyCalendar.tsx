@@ -378,7 +378,26 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     const isHalfDay = holiday.additionalValue1 === '05H'
     if (!isHalfDay) return { isHalfDay: false }
 
-    // --- Step 1: Check additionalValue2/additionalValue3 for explicit period indicators ---
+    // --- Step 1: Check holiday name against common afternoon holiday patterns (Christmas Eve, New Year's Eve, etc.) ---
+    const holidayName = (holiday.value || '').toLowerCase().trim()
+
+    // Default afternoon holiday name patterns (eve holidays are typically afternoon)
+    const defaultAfternoonPatterns = [
+      'eve', // Matches "Christmas Eve", "New Year's Eve", etc.
+      'heiligabend', // German Christmas Eve
+      'silvester', // German New Year's Eve
+      'vigilia', // Christmas Eve in Romance languages
+      'ajun' // Eve in Catalan/Romanian
+    ]
+
+    // Check if holiday name matches default afternoon patterns
+    const matchesDefaultAfternoonPattern = defaultAfternoonPatterns.some(pattern => holidayName.includes(pattern))
+
+    if (matchesDefaultAfternoonPattern) {
+      return { isHalfDay: true, period: 'afternoon' }
+    }
+
+    // --- Step 2: Check additionalValue2/additionalValue3 for explicit period indicators ---
     const value2 = (holiday.additionalValue2 || '').toLowerCase().trim()
     const value3 = (holiday.additionalValue3 || '').toLowerCase().trim()
 
@@ -400,10 +419,8 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
       }
     }
 
-    // --- Step 2: Check holiday name against configurable patterns ---
+    // --- Step 3: Check holiday name against configurable patterns (if provided) ---
     if (afternoonHolidayPatterns && afternoonHolidayPatterns.length > 0) {
-      const holidayName = (holiday.value || '').toLowerCase().trim()
-
       // Check if any pattern matches the holiday name
       const matchesAfternoonPattern = afternoonHolidayPatterns.some(pattern => {
         const normalizedPattern = pattern.toLowerCase().trim()
@@ -415,7 +432,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
       }
     }
 
-    // --- Step 3: Conservative default - return morning if no period info is present ---
+    // --- Step 4: Conservative default - return morning if no period info is present ---
     return { isHalfDay: true, period: 'morning' }
   }
 
