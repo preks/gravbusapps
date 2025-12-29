@@ -62,7 +62,6 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
   const [isDeleting, setIsDeleting] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
 
-  console.log(incrementTypeVersions, 'incrementTypeVersions')
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
   }, [])
