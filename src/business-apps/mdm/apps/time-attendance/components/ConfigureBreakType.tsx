@@ -148,7 +148,7 @@ const ConfigureBreakType: React.FC<ConfigureBreakTypeProps> = ({
     const isValid = form.formState.isValid
     const isDirty = form.formState.isDirty
 
-    const isNewVersion = !currentBreakTypeVersion || !currentBreakTypeVersion.id || currentBreakTypeVersion.id === ''
+    const isNewVersion = !currentBreakTypeVersion?.id
 
     if (isNewVersion) {
       return !isValid

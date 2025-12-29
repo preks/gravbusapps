@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, DataTable, Badge } from '@newwork/nw-design-system'
-import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { ColumnDef, SortingState, CellContext } from '@tanstack/react-table'
 import { PlusIcon, PencilSimpleLineIcon, TrashIcon, CheckIcon } from '@phosphor-icons/react'
 import { DeleteDialog } from './DeleteDialog'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -17,6 +17,76 @@ export interface BreakTypeDetailsProps {
   breakTypeVersionId: string | null
   accessToken: string
   prefixDataTestId?: string
+}
+
+// Cell renderer components - moved outside to avoid recreation on each render
+const TypeCell = ({ row }: CellContext<TransformedBreakTypeVersionDetail, unknown>) => {
+  const option = BREAK_TYPE_OPTIONS.find(opt => opt.code === row.original.type)
+  return <Badge variant="outline">{option?.displayValue || row.original.type}</Badge>
+}
+
+const MandatoryCell = ({ row }: CellContext<TransformedBreakTypeVersionDetail, unknown>) => {
+  return row.original.mandatory ? <CheckIcon className="gba:h-4 gba:w-4" /> : <>-</>
+}
+
+const PayOptionCell = ({ row }: CellContext<TransformedBreakTypeVersionDetail, unknown>) => {
+  const option = PAY_OPTIONS.find(opt => opt.code === row.original.payOption)
+  return option ? <Badge variant="outline">{option.displayValue}</Badge> : <>-</>
+}
+
+interface ActionsCellProps {
+  row: CellContext<TransformedBreakTypeVersionDetail, unknown>['row']
+  breakTypeVersionDetails: TransformedBreakTypeVersionDetail[]
+  breakTypeVersionId: string | null
+  accessToken: string
+  dataTestId: string
+  refetch: () => void
+  onDeleteClick: (detail: TransformedBreakTypeVersionDetail | null) => void
+}
+
+const ActionsCell: React.FC<ActionsCellProps> = ({
+  row,
+  breakTypeVersionDetails,
+  breakTypeVersionId,
+  accessToken,
+  dataTestId,
+  refetch,
+  onDeleteClick
+}) => {
+  const targetDetail = breakTypeVersionDetails.find(detail => detail.id === row.original.id)
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <BreakTypeDetailsForm
+        breakTypeVersionId={breakTypeVersionId || ''}
+        accessToken={accessToken}
+        prefixDataTestId={dataTestId}
+        childAddButton={
+          <Button
+            onClick={event => event.stopPropagation()}
+            variant="ghost"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <PencilSimpleLineIcon />
+          </Button>
+        }
+        refetch={refetch}
+        breakTypeDetails={targetDetail}
+        availableBreakTypeDetails={breakTypeVersionDetails}
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={event => {
+          event.stopPropagation()
+          onDeleteClick(targetDetail || null)
+        }}
+        data-testid={formatDataTestId(dataTestId, `delete-row-button-${row.original.id}`)}
+      >
+        <TrashIcon className="gba:h-4 gba:w-4" />
+      </Button>
+    </div>
+  )
 }
 
 const DATA_TEST_ID_PREFIX = 'BreakTypeDetails'
@@ -38,15 +108,6 @@ export const BreakTypeDetails: React.FC<BreakTypeDetailsProps> = ({
     accessToken,
     breakTypeVersionId: breakTypeVersionId || null
   })
-
-  const findBreakTypeOption = useCallback((code: string) => {
-    return BREAK_TYPE_OPTIONS.find(option => option.code === code)
-  }, [])
-
-  const findPayOption = useCallback((code: string | null) => {
-    if (!code) return null
-    return PAY_OPTIONS.find(option => option.code === code)
-  }, [])
 
   // Handle delete break type version detail
   const handleDeleteBreakTypeVersionDetail = useCallback(
@@ -83,126 +144,84 @@ export const BreakTypeDetails: React.FC<BreakTypeDetailsProps> = ({
     [restClient, accessToken, refetch]
   )
 
+  const handleDeleteClick = useCallback((detail: TransformedBreakTypeVersionDetail | null) => {
+    setSelectedDetail(detail)
+    setIsDeleteDialogOpen(true)
+  }, [])
+
   // Table columns
   const breakTypeDetailsColumns: ColumnDef<TransformedBreakTypeVersionDetail>[] = useMemo(
     () => [
       {
         accessorKey: 'displayOrder',
         header: 'Order',
-        enableSorting: true,
-        cell: ({ row }) => {
-          return <span>{row.original.displayOrder}</span>
-        }
+        enableSorting: true
       },
       {
         accessorKey: 'type',
         header: 'Kind',
         enableSorting: true,
-        cell: ({ row }) => {
-          const option = findBreakTypeOption(row.original.type)
-          return <Badge variant="outline">{option?.displayValue || row.original.type}</Badge>
-        }
+        cell: TypeCell
       },
       {
         accessorKey: 'startTime',
         header: 'Start',
         enableSorting: true,
-        cell: ({ row }) => {
-          return row.original.startTime || '-'
-        }
+        cell: info => info.getValue() || '-'
       },
       {
         accessorKey: 'endTime',
         header: 'End',
         enableSorting: true,
-        cell: ({ row }) => {
-          return row.original.endTime || '-'
-        }
+        cell: info => info.getValue() || '-'
       },
       {
         accessorKey: 'hours',
         header: 'Hours',
         enableSorting: true,
-        cell: ({ row }) => {
-          return row.original.hours || '-'
-        }
+        cell: info => info.getValue() || '-'
       },
       {
         accessorKey: 'length',
         header: 'Length',
         enableSorting: true,
-        cell: ({ row }) => {
-          return row.original.length || '-'
-        }
+        cell: info => info.getValue() || '-'
       },
       {
         accessorKey: 'mandatory',
         header: 'Mandatory',
         enableSorting: true,
-        cell: ({ row }) => {
-          return row.original.mandatory ? <CheckIcon className="gba:h-4 gba:w-4" /> : '-'
-        }
+        cell: MandatoryCell
       },
       {
         accessorKey: 'payOption',
         header: 'Setting',
         enableSorting: true,
-        cell: ({ row }) => {
-          const option = findPayOption(row.original.payOption)
-          return option ? <Badge variant="outline">{option.displayValue}</Badge> : '-'
-        }
+        cell: PayOptionCell
       },
       {
         accessorKey: 'combinedWithBreakTypeVersionDetailId',
         header: 'Combine',
         enableSorting: true,
-        cell: ({ row }) => {
-          return row.original.combinedWithBreakTypeVersionDetailId || 'None'
-        }
+        cell: info => info.getValue() || 'None'
       },
       {
         id: 'actions',
         header: 'Actions',
-        cell: ({ row }) => {
-          const targetDetail = breakTypeVersionDetails.find(detail => detail.id === row.original.id)
-
-          return (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <BreakTypeDetailsForm
-                breakTypeVersionId={breakTypeVersionId || ''}
-                accessToken={accessToken}
-                prefixDataTestId={dataTestId}
-                childAddButton={
-                  <Button
-                    onClick={event => event.stopPropagation()}
-                    variant="ghost"
-                    className="gba:flex gba:items-center gba:gap-2"
-                  >
-                    <PencilSimpleLineIcon />
-                  </Button>
-                }
-                refetch={refetch}
-                breakTypeDetails={targetDetail}
-                availableBreakTypeDetails={breakTypeVersionDetails}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={event => {
-                  event.stopPropagation()
-                  setSelectedDetail(targetDetail || null)
-                  setIsDeleteDialogOpen(true)
-                }}
-                data-testid={formatDataTestId(dataTestId, `delete-row-button-${row.original.id}`)}
-              >
-                <TrashIcon className="gba:h-4 gba:w-4" />
-              </Button>
-            </div>
-          )
-        }
+        cell: ({ row }) => (
+          <ActionsCell
+            row={row}
+            breakTypeVersionDetails={breakTypeVersionDetails}
+            breakTypeVersionId={breakTypeVersionId}
+            accessToken={accessToken}
+            dataTestId={dataTestId}
+            refetch={refetch}
+            onDeleteClick={handleDeleteClick}
+          />
+        )
       }
     ],
-    [dataTestId, breakTypeVersionDetails, breakTypeVersionId, accessToken, refetch]
+    [dataTestId, breakTypeVersionDetails, breakTypeVersionId, accessToken, refetch, handleDeleteClick]
   )
 
   if (error) {

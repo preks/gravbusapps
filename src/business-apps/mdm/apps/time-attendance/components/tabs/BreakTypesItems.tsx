@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { DataTable, Button } from '@newwork/nw-design-system'
-import { ColumnDef } from '@tanstack/react-table'
+import { ColumnDef, CellContext } from '@tanstack/react-table'
 import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon, GearIcon } from '@phosphor-icons/react'
 import { DeleteDialog } from '../DeleteDialog'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
@@ -18,6 +18,69 @@ interface BreakTypesItemsProps {
   accessToken: string
   prefixDataTestId?: string
   onConfigure: (breakTypeVersion: TransformedBreakTypeVersion) => void
+}
+
+// Actions cell component - moved outside to avoid recreation on each render
+interface ActionsCellProps {
+  row: CellContext<SimpleBreakType, unknown>['row']
+  breakTypes: SimpleBreakType[]
+  refetch: () => Promise<void>
+  accessToken: string
+  prefixDataTestId: string
+  onConfigure: (breakType: SimpleBreakType) => void
+  onDeleteClick: (breakType: SimpleBreakType | null) => void
+}
+
+const ActionsCell: React.FC<ActionsCellProps> = ({
+  row,
+  breakTypes,
+  refetch,
+  accessToken,
+  prefixDataTestId,
+  onConfigure,
+  onDeleteClick
+}) => {
+  const targetBreakType = breakTypes.find(breakType => breakType.id === row.original.id)
+
+  return (
+    <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
+      <BreakTypeForm
+        childAddButton={
+          <Button variant="ghost" onClick={event => event.stopPropagation()}>
+            <PencilSimpleLineIcon />
+          </Button>
+        }
+        refetch={refetch}
+        accessToken={accessToken}
+        prefixDataTestId={prefixDataTestId}
+        breakType={targetBreakType || undefined}
+        usedCodes={breakTypes.map(bt => bt.code).filter((code, index, self) => self.indexOf(code) === index)}
+        key={targetBreakType?.id}
+      />
+      <Button
+        variant="ghost"
+        onClick={event => {
+          event.stopPropagation()
+          if (targetBreakType) {
+            onConfigure(targetBreakType)
+          }
+        }}
+        data-testid={formatDataTestId(prefixDataTestId, `configure-button-${targetBreakType?.id}`)}
+      >
+        <GearIcon />
+      </Button>
+      <Button
+        variant="ghost"
+        onClick={event => {
+          event.stopPropagation()
+          onDeleteClick(targetBreakType ?? null)
+        }}
+        data-testid={formatDataTestId(prefixDataTestId, `delete-button-${targetBreakType?.id}`)}
+      >
+        <TrashIcon />
+      </Button>
+    </div>
+  )
 }
 
 const DATA_TEST_ID_PREFIX = 'BreakTypesItems'
@@ -140,68 +203,43 @@ export const BreakTypesItems: React.FC<BreakTypesItemsProps> = ({
     [restClient, accessToken, refetch]
   )
 
-  const columns: ColumnDef<SimpleBreakType>[] = [
-    {
-      accessorKey: 'code',
-      header: 'Code',
-      enableSorting: true
-    },
-    {
-      accessorKey: 'name',
-      header: 'Name',
-      enableSorting: true
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      enableSorting: false,
-      enableHiding: true,
-      cell: ({ row }) => {
-        const targetBreakType = breakTypes.find(breakType => breakType.id === row.original.id)
+  const handleDeleteClick = useCallback((breakType: SimpleBreakType | null) => {
+    setSelectedBreakType(breakType)
+    setIsDeleteDialogOpen(true)
+  }, [])
 
-        return (
-          <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
-            <BreakTypeForm
-              childAddButton={
-                <Button variant="ghost" onClick={event => event.stopPropagation()}>
-                  <PencilSimpleLineIcon />
-                </Button>
-              }
-              refetch={refetch}
-              accessToken={accessToken}
-              prefixDataTestId={prefixDataTestId}
-              breakType={targetBreakType || undefined}
-              usedCodes={breakTypes.map(bt => bt.code).filter((code, index, self) => self.indexOf(code) === index)}
-              key={targetBreakType?.id}
-            />
-            <Button
-              variant="ghost"
-              onClick={event => {
-                event.stopPropagation()
-                if (targetBreakType) {
-                  handleConfigure(targetBreakType)
-                }
-              }}
-              data-testid={formatDataTestId(prefixDataTestId, `configure-button-${targetBreakType?.id}`)}
-            >
-              <GearIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={event => {
-                event.stopPropagation()
-                setSelectedBreakType(targetBreakType ?? null)
-                setIsDeleteDialogOpen(true)
-              }}
-              data-testid={formatDataTestId(prefixDataTestId, `delete-button-${targetBreakType?.id}`)}
-            >
-              <TrashIcon />
-            </Button>
-          </div>
+  const columns: ColumnDef<SimpleBreakType>[] = useMemo(
+    () => [
+      {
+        accessorKey: 'code',
+        header: 'Code',
+        enableSorting: true
+      },
+      {
+        accessorKey: 'name',
+        header: 'Name',
+        enableSorting: true
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        enableHiding: true,
+        cell: ({ row }) => (
+          <ActionsCell
+            row={row}
+            breakTypes={breakTypes}
+            refetch={refetch}
+            accessToken={accessToken}
+            prefixDataTestId={prefixDataTestId}
+            onConfigure={handleConfigure}
+            onDeleteClick={handleDeleteClick}
+          />
         )
       }
-    }
-  ]
+    ],
+    [breakTypes, refetch, accessToken, prefixDataTestId, handleConfigure, handleDeleteClick]
+  )
 
   return (
     <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'break-types-items')}>
