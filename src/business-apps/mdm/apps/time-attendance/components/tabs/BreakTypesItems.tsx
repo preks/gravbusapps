@@ -14,7 +14,7 @@ import { env } from '@/common/env/EnvUtils'
 interface BreakTypesItemsProps {
   breakTypes: SimpleBreakType[]
   breakTypeVersions: TransformedBreakTypeVersion[]
-  refetch: () => void
+  refetch: () => Promise<void>
   accessToken: string
   prefixDataTestId?: string
   onConfigure: (breakTypeVersion: TransformedBreakTypeVersion) => void

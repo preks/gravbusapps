@@ -396,7 +396,7 @@ const BreakTypeDetailsForm: React.FC<BreakTypeDetailsFormProps> = ({
                 <Input
                   {...field}
                   type="number"
-                  onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                  onChange={e => field.onChange(Number(parseInt(e.target.value)) || 0)}
                   value={field.value}
                   placeholder="0"
                 />
