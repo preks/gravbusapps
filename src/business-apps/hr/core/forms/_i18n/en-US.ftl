@@ -245,6 +245,34 @@ error-end-date-required = End date is required. Please select an end date.
 error-end-date-today-or-later = End date must be today or later.
 error-end-date-after-start-date = End date cannot be before the benefit start date.
 
+# ============================================
+# Pending Submission Status Messages
+# ============================================
+
+# Change Bank Account Form
+change-bank-account-process-title = Bank Account Change
+change-bank-account-pending-status = Pending
+
+# Change Address Form
+change-address-process-title = Address Change
+change-address-pending-status = Pending
+
+# Change Personal Data Form
+change-personal-data-process-title = Personal Data Change
+change-personal-data-pending-status = Pending
+
+# Change Communication Form
+change-communication-process-title = Communication Change
+change-communication-pending-status = Pending
+
+# Grant Bonus Form
+grant-bonus-process-title = Bonus Grant
+grant-bonus-pending-status = Pending
+
+# Adjust Salary Form
+adjust-salary-process-title = Salary Adjustment
+adjust-salary-pending-status = Pending
+
 # Update Working Conditions Form
 working-conditions-probation-period = Probation Period
 working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
