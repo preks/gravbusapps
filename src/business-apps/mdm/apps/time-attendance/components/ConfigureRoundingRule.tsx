@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -33,6 +33,7 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { TransformedRoundingRuleVersion } from '../types/rounding-rule-versions'
 import RoundingRuleSetup from './RoundingRuleSetup'
+import { useVersionOverlapCheck } from '../hooks/useVersionOverlapCheck'
 
 export interface ConfigureRoundingRuleProps {
   roundingRuleVersion: TransformedRoundingRuleVersion | null
@@ -49,7 +50,7 @@ const roundingRuleConfigSchema = z
   .object({
     roundingRule: z.string().min(1, 'Rounding Rule is required'),
     validFrom: z.string().min(1, 'Valid From is required'),
-    validTo: z.string().min(1, 'Valid To is required'),
+    validTo: z.string().optional(),
     activeVersion: z.string().min(1, 'Version is required')
   })
   .refine(
@@ -79,7 +80,6 @@ const ConfigureRoundingRule: React.FC<ConfigureRoundingRuleProps> = ({
   const [currentRoundingRuleVersion, setCurrentRoundingRuleVersion] = useState<TransformedRoundingRuleVersion | null>(
     roundingRuleVersion
   )
-  const [overlapWarning, setOverlapWarning] = useState<string | null>(null)
 
   // Update currentRoundingRuleVersion when roundingRuleVersion prop changes
   useEffect(() => {
@@ -109,10 +109,24 @@ const ConfigureRoundingRule: React.FC<ConfigureRoundingRuleProps> = ({
     }
   }, [currentRoundingRuleVersion, form])
 
+  // Check for date overlap when creating or editing a version
+  const { overlapWarning } = useVersionOverlapCheck({
+    currentVersion: currentRoundingRuleVersion,
+    allVersions: roundingRuleVersions,
+    watch: form.watch,
+    entityIdFieldName: 'roundingRule',
+    activeFromFieldName: 'validFrom',
+    activeToFieldName: 'validTo',
+    getEntityIdFromVersion: version => version.roundingRule?.id || null
+  })
+
   // Check if save button should be disabled
   const isSaveDisabled = useMemo(() => {
     // Disable during loading
     if (loading) return true
+
+    // Disable if there are overlap warnings
+    if (overlapWarning) return true
 
     // Check if form is valid
     const isValid = form.formState.isValid
@@ -127,76 +141,15 @@ const ConfigureRoundingRule: React.FC<ConfigureRoundingRuleProps> = ({
 
     // For edit: must have changes (isDirty) and form must be valid
     return !isDirty || !isValid
-  }, [loading, form.formState.isValid, form.formState.isDirty, currentRoundingRuleVersion])
+  }, [loading, overlapWarning, form.formState.isValid, form.formState.isDirty, currentRoundingRuleVersion])
 
-  // Find the latest version for a given roundingRule
-  const findLatestVersion = useCallback(
-    (roundingRuleId: string): TransformedRoundingRuleVersion | null => {
-      if (!roundingRuleId) return null
-
-      // Filter versions for this roundingRule
-      const versionsForRoundingRule = roundingRuleVersions.filter(
-        version => version.roundingRule?.id === roundingRuleId && version.id !== currentRoundingRuleVersion?.id
-      )
-
-      if (versionsForRoundingRule.length === 0) return null
-
-      // Sort by activeTo descending (most recent first) or by activeFrom if activeTo is null
-      const sortedVersions = [...versionsForRoundingRule].sort((a, b) => {
-        const dateA = a.activeTo ? new Date(a.activeTo).getTime() : new Date(a.activeFrom || '').getTime()
-        const dateB = b.activeTo ? new Date(b.activeTo).getTime() : new Date(b.activeFrom || '').getTime()
-        return dateB - dateA // Descending order
-      })
-
-      return sortedVersions[0] || null
-    },
-    [roundingRuleVersions, currentRoundingRuleVersion]
-  )
-
-  // Check for date overlap when creating a new version
-  useEffect(() => {
-    const isNewVersion =
-      !currentRoundingRuleVersion || !currentRoundingRuleVersion.id || currentRoundingRuleVersion.id === ''
-    if (!isNewVersion) {
-      setOverlapWarning(null)
-      return
-    }
-
-    const roundingRuleId = form.watch('roundingRule')
-    const validFrom = form.watch('validFrom')
-
-    if (!roundingRuleId || !validFrom) {
-      setOverlapWarning(null)
-      return
-    }
-
-    const latestVersion = findLatestVersion(roundingRuleId)
-    if (!latestVersion || !latestVersion.activeTo) {
-      setOverlapWarning(null)
-      return
-    }
-
-    const newValidFrom = new Date(validFrom)
-    const latestValidTo = new Date(latestVersion.activeTo)
-
-    // Check if new validFrom is before or equal to latest validTo (overlap)
-    if (newValidFrom <= latestValidTo) {
-      // Calculate suggested start date (one day after latest validTo)
-      const suggestedDate = new Date(latestValidTo)
-      suggestedDate.setDate(suggestedDate.getDate() + 1)
-      const suggestedDateStr = suggestedDate.toISOString().split('T')[0]
-
-      setOverlapWarning(
-        `A version already exists for this period. The existing version ends on ${latestValidTo.toLocaleDateString()}. ` +
-          `Please either modify the existing version or create the new version starting from ${suggestedDateStr}.`
-      )
-    } else {
-      setOverlapWarning(null)
-    }
-  }, [form.watch('roundingRule'), form.watch('validFrom'), currentRoundingRuleVersion, findLatestVersion])
+  // Helper function to convert empty strings to null
+  const toNullIfEmpty = (value: string | undefined | null): string | null => {
+    return value === '' || value === undefined ? null : value
+  }
 
   // Helper function to convert date string (YYYY-MM-DD) to ISO 8601 Instant format
-  const convertDateToInstant = (dateString: string): string => {
+  const convertDateToInstant = (dateString: string | undefined): string => {
     if (!dateString) return ''
     // If it's already in ISO format, return as is
     if (dateString.includes('T')) return dateString
@@ -206,6 +159,12 @@ const ConfigureRoundingRule: React.FC<ConfigureRoundingRuleProps> = ({
 
   const handleSaveChanges = async (data: RoundingRuleConfigFormData) => {
     try {
+      // Prevent save if there are overlap warnings
+      if (overlapWarning) {
+        console.warn('Cannot save: Date overlap detected', overlapWarning)
+        return
+      }
+
       setLoading(true)
 
       // Check if this is an update (has valid id) or create (no id or empty id)
@@ -218,7 +177,7 @@ const ConfigureRoundingRule: React.FC<ConfigureRoundingRuleProps> = ({
           roundingRule: data.roundingRule,
           activeVersion: data.activeVersion,
           activeFrom: convertDateToInstant(data.validFrom),
-          activeTo: convertDateToInstant(data.validTo)
+          activeTo: toNullIfEmpty(convertDateToInstant(data.validTo))
         }
       }
 
@@ -274,7 +233,7 @@ const ConfigureRoundingRule: React.FC<ConfigureRoundingRuleProps> = ({
           <div>
             <h1 className="gba:text-2xl gba:font-semibold gba:leading-none gba:tracking-tight">
               {currentRoundingRuleVersion?.id && currentRoundingRuleVersion.id !== ''
-                ? `Rounding Rule Configuration: ${currentRoundingRuleVersion.roundingRule?.code || currentRoundingRuleVersion.id} - ${currentRoundingRuleVersion.roundingRule?.name || ''}`
+                ? `Rounding Rule Configuration: ${currentRoundingRuleVersion.activeVersion ?? currentRoundingRuleVersion.id}`
                 : 'Create Rounding Rule Version Configuration'}
             </h1>
             <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
@@ -310,7 +269,7 @@ const ConfigureRoundingRule: React.FC<ConfigureRoundingRuleProps> = ({
           <CardTitle>Rounding Rule Configuration</CardTitle>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
+          <Form {...form} schema={roundingRuleConfigSchema}>
             <form onSubmit={form.handleSubmit(handleSaveChanges)} className="gba:space-y-6">
               <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-4 gba:gap-4">
                 <FormField

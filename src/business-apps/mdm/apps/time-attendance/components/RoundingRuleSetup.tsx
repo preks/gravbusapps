@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, DataTable, Badge } from '@newwork/nw-design-system'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { PlusIcon, PencilSimpleLineIcon, TrashIcon, CheckIcon } from '@phosphor-icons/react'
@@ -11,6 +11,7 @@ import RoundingRuleDetailsForm, {
 import { TransformedRoundingRuleVersionDetail } from '../types/rounding-rule-version-details'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { DeleteDialog } from './DeleteDialog'
 
 export interface RoundingRuleSetupProps {
   roundingRuleVersionId: string | null
@@ -27,6 +28,10 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const [sorting, setSorting] = useState<SortingState>([])
+  const [selectedRoundingRuleDetail, setSelectedRoundingRuleDetail] =
+    useState<TransformedRoundingRuleVersionDetail | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
@@ -36,35 +41,45 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
     roundingRuleVersionId: roundingRuleVersionId || null
   })
 
-  const findClockingTypeOption = (code: string) => {
+  const findClockingTypeOption = useCallback((code: string) => {
     return CLOCKING_TYPE_OPTIONS.find(option => option.code === code)
-  }
+  }, [])
 
-  const findRoundingTypeOption = (code: string) => {
+  const findRoundingTypeOption = useCallback((code: string) => {
     return ROUNDING_TYPE_OPTIONS.find(option => option.code === code)
-  }
+  }, [])
 
-  const handleDeleteDetail = async (detail: TransformedRoundingRuleVersionDetail) => {
-    try {
-      await restClient.post(
-        '/employee-time/deleteRoundingRuleVersionDetail',
-        {
-          changeMode: 'DELETE',
-          roundingRuleVersionDetail: {
-            id: detail.id,
-            version: detail.version
+  const handleDeleteDetail = useCallback(
+    async (detail?: TransformedRoundingRuleVersionDetail | null) => {
+      if (!detail) return
+      setIsDeleting(true)
+
+      try {
+        await restClient.post(
+          '/employee-time/deleteRoundingRuleVersionDetail',
+          {
+            changeMode: 'DELETE',
+            roundingRuleVersionDetail: {
+              id: detail.id,
+              version: detail.version
+            }
+          },
+          {
+            headers: { Authorization: `Bearer ${accessToken}` }
           }
-        },
-        {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        }
-      )
+        )
 
-      await refetch()
-    } catch (error) {
-      console.error('Error deleting rounding rule detail:', error)
-    }
-  }
+        await refetch()
+      } catch (error) {
+        console.error('Error deleting rounding rule detail:', error)
+      } finally {
+        setIsDeleting(false)
+        setIsDeleteDialogOpen(false)
+        setSelectedRoundingRuleDetail(null)
+      }
+    },
+    [restClient, accessToken, refetch]
+  )
 
   // Table columns
   const roundingRuleSetupColumns: ColumnDef<TransformedRoundingRuleVersionDetail>[] = useMemo(
@@ -141,7 +156,6 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
                     className="gba:flex gba:items-center gba:gap-2"
                   >
                     <PencilSimpleLineIcon />
-                    Edit
                   </Button>
                 }
                 refetch={refetch}
@@ -165,7 +179,8 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
                 size="sm"
                 onClick={event => {
                   event.stopPropagation()
-                  handleDeleteDetail(detail)
+                  setSelectedRoundingRuleDetail(detail)
+                  setIsDeleteDialogOpen(true)
                 }}
                 data-testid={formatDataTestId(dataTestId, `delete-row-button-${detail.id}`)}
               >
@@ -194,20 +209,22 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
       <CardHeader>
         <div className="gba:flex gba:justify-between gba:items-center">
           <CardTitle>Rounding Rules</CardTitle>
-          {roundingRuleVersionId && (
-            <RoundingRuleDetailsForm
-              roundingRuleVersionId={roundingRuleVersionId}
-              childAddButton={
-                <Button onClick={event => event.stopPropagation()} className="gba:flex gba:items-center gba:gap-2">
-                  <PlusIcon className="gba:h-4 gba:w-4" />
-                  Add Rule
-                </Button>
-              }
-              refetch={refetch}
-              accessToken={accessToken}
-              prefixDataTestId={dataTestId}
-            />
-          )}
+          <RoundingRuleDetailsForm
+            roundingRuleVersionId={roundingRuleVersionId || ''}
+            childAddButton={
+              <Button
+                onClick={event => event.stopPropagation()}
+                disabled={!roundingRuleVersionId || loading}
+                className="gba:flex gba:items-center gba:gap-2"
+              >
+                <PlusIcon className="gba:h-4 gba:w-4" />
+                Add Rule
+              </Button>
+            }
+            refetch={refetch}
+            accessToken={accessToken}
+            prefixDataTestId={dataTestId}
+          />
         </div>
       </CardHeader>
       <CardContent>
@@ -231,6 +248,15 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
           </div>
         )}
       </CardContent>
+
+      <DeleteDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={() => handleDeleteDetail(selectedRoundingRuleDetail)}
+        isDeleting={isDeleting}
+        titleKey="Delete Rounding Rule Detail"
+        description="Are you sure you want to delete this rounding rule detail?"
+      />
     </Card>
   )
 }

@@ -21,6 +21,7 @@ export interface TransformedRoundingRuleVersion {
   activeFrom: string | null
   activeTo: string | null
   version: number
+  status: 'active' | 'expired' | 'inactive' | 'planned'
   roundingRule: {
     id: string
     name: string

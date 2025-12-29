@@ -1,17 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import {
-  DataTable,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose
-} from '@newwork/nw-design-system'
+import { DataTable, Button } from '@newwork/nw-design-system'
 import { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@newwork/nw-design-system'
-import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
+import { GearIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react'
+import { DeleteDialog } from '../DeleteDialog'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import RoundingRuleForm from '@/business-apps/mdm/forms/time-attendance/RoundingRuleForm'
@@ -23,7 +14,7 @@ import { env } from '@/common/env/EnvUtils'
 interface RoundingRulesItemsProps {
   roundingRules: SimpleRoundingRule[]
   roundingRuleVersions: TransformedRoundingRuleVersion[]
-  refetch: () => void
+  refetch: () => Promise<void>
   accessToken: string
   prefixDataTestId?: string
   onConfigure: (roundingRuleVersion: TransformedRoundingRuleVersion) => void
@@ -46,20 +37,6 @@ export const RoundingRulesItems: React.FC<RoundingRulesItemsProps> = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const filteredRoundingRules = useMemo(() => {
-    if (!searchTerm.trim()) return roundingRules
-
-    return roundingRules.filter(
-      roundingRule =>
-        roundingRule.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        roundingRule.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  }, [roundingRules, searchTerm])
-
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value)
-  }, [])
-
   // Find the latest active roundingRuleVersion for a given roundingRule
   const getLatestRoundingRuleVersion = useCallback(
     (roundingRule: SimpleRoundingRule): TransformedRoundingRuleVersion | null => {
@@ -76,9 +53,10 @@ export const RoundingRulesItems: React.FC<RoundingRulesItemsProps> = ({
     [roundingRuleVersions]
   )
 
-  // Handle row click to configure the latest roundingRuleVersion
-  const handleRowClick = useCallback(
-    (roundingRule: SimpleRoundingRule) => {
+  // Handle configure button click
+  const handleConfigureClick = useCallback(
+    (roundingRule: SimpleRoundingRule, event: React.MouseEvent) => {
+      event.stopPropagation()
       const latestVersion = getLatestRoundingRuleVersion(roundingRule)
 
       if (latestVersion) {
@@ -90,6 +68,7 @@ export const RoundingRulesItems: React.FC<RoundingRulesItemsProps> = ({
           activeFrom: null,
           activeTo: null,
           version: 0,
+          status: 'inactive',
           roundingRule: {
             id: roundingRule.id,
             name: roundingRule.name,
@@ -101,6 +80,20 @@ export const RoundingRulesItems: React.FC<RoundingRulesItemsProps> = ({
     },
     [getLatestRoundingRuleVersion, onConfigure]
   )
+
+  const filteredRoundingRules = useMemo(() => {
+    if (!searchTerm.trim()) return roundingRules
+
+    return roundingRules.filter(
+      roundingRule =>
+        roundingRule.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        roundingRule.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [roundingRules, searchTerm])
+
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value)
+  }, [])
 
   // Handle delete rounding rule
   const handleDeleteRoundingRule = useCallback(
@@ -124,8 +117,6 @@ export const RoundingRulesItems: React.FC<RoundingRulesItemsProps> = ({
         )
 
         await refetch()
-        setIsDeleteDialogOpen(false)
-        setSelectedRoundingRule(null)
       } catch (error) {
         console.error('Error deleting rounding rule:', error)
       } finally {
@@ -173,6 +164,13 @@ export const RoundingRulesItems: React.FC<RoundingRulesItemsProps> = ({
             />
             <Button
               variant="ghost"
+              onClick={event => targetRoundingRule && handleConfigureClick(targetRoundingRule, event)}
+              data-testid={formatDataTestId(prefixDataTestId, `configure-button-${targetRoundingRule?.id}`)}
+            >
+              <GearIcon />
+            </Button>
+            <Button
+              variant="ghost"
               onClick={event => {
                 event.stopPropagation()
                 setSelectedRoundingRule(targetRoundingRule ?? null)
@@ -209,28 +207,16 @@ export const RoundingRulesItems: React.FC<RoundingRulesItemsProps> = ({
         columns={columns}
         data={filteredRoundingRules}
         data-testid={formatDataTestId(prefixDataTestId, 'rounding-rules-items-table')}
-        onRowClick={handleRowClick}
       />
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-              <WarningIcon className="gba:text-destructive" />
-              Delete Rounding Rule
-            </DialogTitle>
-            <DialogDescription>{`Are you sure you want to delete ${selectedRoundingRule?.name ?? ''}?`}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button variant="destructive" onClick={() => handleDeleteRoundingRule(selectedRoundingRule)}>
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={() => handleDeleteRoundingRule(selectedRoundingRule)}
+        isDeleting={isDeleting}
+        titleKey="Delete Rounding Rule"
+        description={`Are you sure you want to delete ${selectedRoundingRule?.name ?? ''}?`}
+      />
     </div>
   )
 }

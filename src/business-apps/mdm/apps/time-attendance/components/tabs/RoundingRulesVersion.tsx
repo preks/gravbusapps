@@ -1,17 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import {
-  DataTable,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose
-} from '@newwork/nw-design-system'
-import { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@newwork/nw-design-system'
-import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
+import { DataTable, Badge, Button } from '@newwork/nw-design-system'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react'
+import { DeleteDialog } from '../DeleteDialog'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import dayjs from 'dayjs'
@@ -29,6 +21,31 @@ interface RoundingRulesVersionProps {
 
 const DATA_TEST_ID_PREFIX = 'RoundingRulesVersion'
 
+const StatusCell: React.FC<{ status: 'active' | 'expired' | 'inactive' | 'planned' }> = ({ status }) => {
+  let translationKey: string
+  let defaultLabel: string
+  if (status === 'active') {
+    translationKey = 'master-data:forms.capability.fields.status.options.active'
+    defaultLabel = 'Active'
+  } else if (status === 'expired') {
+    translationKey = 'lowcoder:hr_assets.expired'
+    defaultLabel = 'Expired'
+  } else if (status === 'planned') {
+    translationKey = 'lowcoder:absence_management_hub_backoffice.planned'
+    defaultLabel = 'Planned'
+  } else {
+    translationKey = 'flow.flow_start_page.inactive'
+    defaultLabel = 'Inactive'
+  }
+  return <Badge variant="outline">{getTranslationFromI18nKeyAndLabel(translationKey, defaultLabel)}</Badge>
+}
+
+const createStatusCellRenderer = () => {
+  return ({ getValue }: { getValue: () => unknown }) => (
+    <StatusCell status={getValue() as 'active' | 'expired' | 'inactive' | 'planned'} />
+  )
+}
+
 export const RoundingRulesVersion: React.FC<RoundingRulesVersionProps> = ({
   roundingRuleVersions,
   refetch,
@@ -44,6 +61,7 @@ export const RoundingRulesVersion: React.FC<RoundingRulesVersionProps> = ({
   )
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
@@ -121,6 +139,11 @@ export const RoundingRulesVersion: React.FC<RoundingRulesVersionProps> = ({
       cell: ({ getValue }) => getValue() as string
     },
     {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: createStatusCellRenderer()
+    },
+    {
       id: 'actions',
       header: 'Actions',
       enableSorting: false,
@@ -177,27 +200,19 @@ export const RoundingRulesVersion: React.FC<RoundingRulesVersionProps> = ({
         columns={columns}
         data={filteredRoundingRuleVersions}
         data-testid={formatDataTestId(dataTestId, 'rounding-rules-version-table')}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        enableSorting
       />
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-              <WarningIcon className="gba:text-destructive" />
-              Delete Rounding Rule Version
-            </DialogTitle>
-            <DialogDescription>{`Are you sure you want to delete ${`${selectedRoundingRuleVersion?.roundingRule?.name} Version`}?`}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button variant="destructive" onClick={() => handleDeleteRoundingRuleVersion(selectedRoundingRuleVersion)}>
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={() => handleDeleteRoundingRuleVersion(selectedRoundingRuleVersion)}
+        isDeleting={isDeleting}
+        titleKey="Delete Rounding Rule Version"
+        description={`Are you sure you want to delete ${selectedRoundingRuleVersion?.roundingRule?.name ?? ''} Version?`}
+      />
     </div>
   )
 }

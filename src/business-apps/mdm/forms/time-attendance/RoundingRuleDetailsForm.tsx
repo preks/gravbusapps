@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import {
@@ -17,18 +17,21 @@ import {
 } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 
 export const CLOCKING_TYPE_OPTIONS = [
-  { code: 'CLOCKING_IN', displayValue: 'Clocking In' },
-  { code: 'CLOCKING_OUT', displayValue: 'Clocking Out' }
+  { code: 'IN_CLOCKING_TYPE', displayValue: 'Clocking In' },
+  { code: 'OUT_CLOCKING_TYPE', displayValue: 'Clocking Out' },
+  { code: 'ALL_CLOCKING_TYPE', displayValue: 'All' }
 ]
 
 export const ROUNDING_TYPE_OPTIONS = [
-  { code: 'ROUND_UP', displayValue: 'Round Up' },
-  { code: 'ROUND_DOWN', displayValue: 'Round Down' },
-  { code: 'ROUND_NONE', displayValue: 'No Rounding' }
+  { code: 'UP_ROUNDING_TYPE', displayValue: 'Round Up' },
+  { code: 'DOWN_ROUNDING_TYPE', displayValue: 'Round Down' },
+  { code: 'START_ROUNDING_TYPE', displayValue: 'Start Rounding' },
+  { code: 'END_ROUNDING_TYPE', displayValue: 'End Rounding' }
 ]
 
 // Validation schema
@@ -78,25 +81,26 @@ export const RoundingRuleDetailsForm: React.FC<RoundingRuleDetailsFormProps> = (
 
   const isEditMode = !!roundingRuleDetail
 
-  const defaultValues: RoundingRuleDetailsFormData = {
-    displayOrder: roundingRuleDetail?.displayOrder ?? 0,
-    clockingType: roundingRuleDetail?.clockingType ?? '',
-    roundingType: roundingRuleDetail?.roundingType ?? '',
-    startTime: roundingRuleDetail?.startTime ?? '',
-    endTime: roundingRuleDetail?.endTime ?? '',
-    gracePeriod: roundingRuleDetail?.gracePeriod ?? '',
-    roundingValue: roundingRuleDetail?.roundingValue ?? '',
-    onlyFirstLast: roundingRuleDetail?.onlyFirstLast ?? false
-  }
+  const defaultValues = useMemo<RoundingRuleDetailsFormData>(
+    () => ({
+      displayOrder: roundingRuleDetail?.displayOrder ?? 0,
+      clockingType: roundingRuleDetail?.clockingType ?? '',
+      roundingType: roundingRuleDetail?.roundingType ?? '',
+      startTime: roundingRuleDetail?.startTime ?? '',
+      endTime: roundingRuleDetail?.endTime ?? '',
+      gracePeriod: roundingRuleDetail?.gracePeriod ?? '',
+      roundingValue: roundingRuleDetail?.roundingValue ?? '',
+      onlyFirstLast: roundingRuleDetail?.onlyFirstLast ?? false
+    }),
+    [roundingRuleDetail]
+  )
 
-  const handleSubmit = async (data: RoundingRuleDetailsFormData) => {
+  const handleSubmit = async (data: any) => {
     try {
       const payload = {
         changeMode: 'INSERT',
         roundingRuleVersionDetail: {
-          ...(isEditMode
-            ? { id: roundingRuleDetail.id, version: roundingRuleDetail.version }
-            : { roundingRuleVersionId }),
+          ...(isEditMode ? { id: roundingRuleDetail.id, version: roundingRuleDetail.version } : {}),
           displayOrder: data.displayOrder,
           clockingType: data.clockingType,
           roundingType: data.roundingType,
@@ -104,7 +108,8 @@ export const RoundingRuleDetailsForm: React.FC<RoundingRuleDetailsFormProps> = (
           endTime: data.endTime,
           gracePeriod: data.gracePeriod || null,
           roundingValue: data.roundingValue,
-          onlyFirstLast: data.onlyFirstLast
+          onlyFirstLast: data.onlyFirstLast,
+          roundingRuleVersion: roundingRuleVersionId
         }
       }
 
@@ -128,10 +133,12 @@ export const RoundingRuleDetailsForm: React.FC<RoundingRuleDetailsFormProps> = (
       title={isEditMode ? 'Edit Rounding Rule Detail' : 'Add Rounding Rule Detail'}
       description={isEditMode ? 'Update rounding rule detail configuration' : 'Create a new rounding rule detail'}
       defaultValues={defaultValues}
-      schema={roundingRuleDetailsSchema}
       onSubmit={handleSubmit}
       childAddButton={childAddButton}
       dataTestId={dataTestId}
+      resolver={zodResolver(roundingRuleDetailsSchema) as any}
+      isEditing={isEditMode}
+      schema={roundingRuleDetailsSchema}
     >
       <FormField
         name="displayOrder"

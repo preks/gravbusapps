@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { IncrementTypeVersionResponse, TransformedIncrementTypeVersion } from '../types/increment-type-versions'
+import { calculateVersionStatus } from '../utils/calculateVersionStatus'
 
 // GraphQL Query for Increment Type Versions
 const GET_INCREMENT_TYPE_VERSIONS_QUERY = `
@@ -41,33 +42,6 @@ export const useIncrementTypeVersionsData = (context: BusinessAppContextProps): 
 
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  // Calculate status based on activeFrom and activeTo dates
-  const calculateStatus = useCallback(
-    (activeFrom: string | null, activeTo: string | null): 'active' | 'expired' | 'inactive' | 'planned' => {
-      // If either date is missing, consider it inactive
-      if (!activeFrom || !activeTo) {
-        return 'inactive'
-      }
-      const currentDate = new Date()
-      const fromDate = new Date(activeFrom)
-      const toDate = new Date(activeTo)
-
-      // If activeFrom is in the future, it's planned
-      if (currentDate < fromDate) {
-        return 'planned'
-      }
-
-      // If current date is within the range, it's active
-      if (currentDate >= fromDate && currentDate <= toDate) {
-        return 'active'
-      }
-
-      // Otherwise, it's expired
-      return 'expired'
-    },
-    []
-  )
-
   // Transform GraphQL data to final format
   const transformIncrementTypeVersions = useCallback(
     (rawData: IncrementTypeVersionResponse['IncrementTypeVersion']): TransformedIncrementTypeVersion[] => {
@@ -77,12 +51,12 @@ export const useIncrementTypeVersionsData = (context: BusinessAppContextProps): 
         activeVersion: item.activeVersion,
         activeFrom: item.activeFrom,
         activeTo: item.activeTo,
-        status: calculateStatus(item.activeFrom, item.activeTo),
+        status: calculateVersionStatus(item.activeFrom, item.activeTo),
         incrementType: item.incrementType,
         version: item.version
       }))
     },
-    [calculateStatus]
+    []
   )
 
   const fetchIncrementTypeVersionsData = useCallback(async () => {
