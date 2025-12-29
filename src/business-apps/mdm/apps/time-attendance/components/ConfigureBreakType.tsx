@@ -314,8 +314,8 @@ const ConfigureBreakType: React.FC<ConfigureBreakTypeProps> = ({
                   )}
                 />
                 <FormField
-                  control={form.control}
                   name="validFrom"
+                  control={form.control}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valid From</FormLabel>
@@ -332,8 +332,8 @@ const ConfigureBreakType: React.FC<ConfigureBreakTypeProps> = ({
                   )}
                 />
                 <FormField
-                  control={form.control}
                   name="validTo"
+                  control={form.control}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valid To</FormLabel>
@@ -350,8 +350,8 @@ const ConfigureBreakType: React.FC<ConfigureBreakTypeProps> = ({
                   )}
                 />
                 <FormField
-                  control={form.control}
                   name="activeVersion"
+                  control={form.control}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Version</FormLabel>

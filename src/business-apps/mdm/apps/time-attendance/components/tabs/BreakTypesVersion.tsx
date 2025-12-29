@@ -167,23 +167,23 @@ export const BreakTypesVersion: React.FC<BreakTypesVersionProps> = ({
         return (
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
             <Button
+              data-testid={formatDataTestId(dataTestId, `edit-version-button-${version.id}`)}
               variant="ghost"
               onClick={event => {
                 event.stopPropagation()
                 onEdit?.(version)
               }}
-              data-testid={formatDataTestId(dataTestId, `edit-version-button-${version.id}`)}
             >
               <PencilSimpleLineIcon />
             </Button>
             <Button
+              data-testid={formatDataTestId(dataTestId, `delete-version-button-${version.id}`)}
               variant="ghost"
               onClick={event => {
                 event.stopPropagation()
                 setSelectedBreakTypeVersion(version ?? null)
                 setIsDeleteDialogOpen(true)
               }}
-              data-testid={formatDataTestId(dataTestId, `delete-version-button-${version.id}`)}
             >
               <TrashIcon />
             </Button>
