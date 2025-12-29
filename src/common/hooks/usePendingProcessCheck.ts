@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { KogitoProcessClient, type KogitoProcessInstance } from '@/common/network/kogito-process/KogitoProcessClient'
+import {
+  KogitoProcessClient,
+  type KogitoProcessInstance,
+  ACTIVE_PROCESS_STATUSES
+} from '@/common/network/kogito-process/KogitoProcessClient'
 import type { PendingProcessCheckConfig, PendingProcessMetadata } from './usePendingProcessCheck.types'
 import { shouldAbortRequest, isAbortError, getErrorMessage } from './usePendingProcessCheckUtils'
 
@@ -103,14 +107,13 @@ export const usePendingProcessCheck = (config: PendingProcessCheckConfig) => {
         // Check if request was aborted or a newer request has been made
         if (shouldAbortRequest(signal, requestId, requestIdRef.current)) return
 
-        // Find any process with PENDING or PROCESSING status
-        const pendingProcesses = processes.filter(p => p.status === 'PENDING' || p.status === 'PROCESSING')
+        // Find any process with PENDING or PROCESSING status using constants
+        const pendingProcesses = processes.filter(p => ACTIVE_PROCESS_STATUSES.includes(p.status))
         const hasPending = pendingProcesses.length > 0
 
         // Warn if multiple pending processes exist (indicates potential data issue)
         if (pendingProcesses.length > 1) {
           console.warn(`[usePendingProcessCheck] Multiple pending processes found`, {
-            employeeId,
             processPath,
             count: pendingProcesses.length,
             processIds: pendingProcesses.map(p => p.id)

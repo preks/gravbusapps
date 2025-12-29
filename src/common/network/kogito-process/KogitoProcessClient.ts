@@ -2,6 +2,27 @@ import { RestClient } from '../rest/RestClient'
 import { env } from '@/common/env/EnvUtils'
 
 /**
+ * Process status constants for type safety and consistency
+ */
+export const PROCESS_STATUS = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED'
+} as const
+
+/**
+ * Process status type derived from constants
+ */
+export type ProcessStatus = (typeof PROCESS_STATUS)[keyof typeof PROCESS_STATUS]
+
+/**
+ * Status values that indicate a process is still active/pending
+ */
+export const ACTIVE_PROCESS_STATUSES = [PROCESS_STATUS.PENDING, PROCESS_STATUS.PROCESSING] as const
+
+/**
  * Generic Kogito process instance response (NEW BACKEND - with status field!)
  * Each process has its own specific fields, but they all have:
  * - id: process instance ID
@@ -14,7 +35,7 @@ import { env } from '@/common/env/EnvUtils'
 export interface KogitoProcessInstance {
   id: string
   employeeId: string
-  status: 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  status: ProcessStatus
   supervisorId: string | null
   createdAt?: string // ISO date string (e.g., "2025-12-22T15:45:13.036Z")
   startedAt?: string // ISO date string
@@ -63,9 +84,9 @@ export class KogitoProcessClient extends RestClient {
    *   employeeId: '123-456-789'
    * })
    *
-   * // Check for pending processes
+   * // Check for pending processes using constants
    * const pending = processes.filter(p =>
-   *   p.status === 'PENDING' || p.status === 'PROCESSING'
+   *   ACTIVE_PROCESS_STATUSES.includes(p.status)
    * )
    * ```
    */
@@ -73,8 +94,15 @@ export class KogitoProcessClient extends RestClient {
     processPath: string,
     options?: { employeeId?: string; signal?: AbortSignal }
   ): Promise<KogitoProcessInstance[]> {
-    const queryParams = options?.employeeId ? `?employeeId=${encodeURIComponent(options.employeeId)}` : ''
-    return this.get<KogitoProcessInstance[]>(`/${processPath}${queryParams}`, { signal: options?.signal })
+    // Use URLSearchParams for proper query string construction
+    const params = new URLSearchParams()
+    if (options?.employeeId) {
+      params.set('employeeId', options.employeeId)
+    }
+    const queryString = params.toString()
+    const url = queryString ? `/${processPath}?${queryString}` : `/${processPath}`
+
+    return this.get<KogitoProcessInstance[]>(url, { signal: options?.signal })
   }
 
   /**
