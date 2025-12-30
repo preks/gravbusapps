@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { UseFormReturn, FieldValues } from 'react-hook-form'
 import { ZodType } from 'zod'
 import { Form, Table, TableBody, TableHeader, TableRow } from '@newwork/nw-design-system'
@@ -7,25 +7,25 @@ import { TableFormContext, TableFormContextValue } from './TableFormContext'
 
 export interface TableFormProps<TFormValues extends FieldValues> {
   /** React Hook Form instance */
-  form: UseFormReturn<TFormValues>
+  readonly form: UseFormReturn<TFormValues>
   /** Optional Zod schema for validation */
-  schema?: ZodType<TFormValues>
+  readonly schema?: ZodType<TFormValues>
   /** Handler called on form submit (when using type="submit" button) */
-  onSubmit?: (data: TFormValues) => void | Promise<void>
+  readonly onSubmit?: (data: TFormValues) => void | Promise<void>
   /** Content rendered above the table (title, actions, etc.) */
-  header?: React.ReactNode
+  readonly header?: React.ReactNode
   /** Column headers - should be TableHead elements */
-  columns?: React.ReactNode
+  readonly columns?: React.ReactNode
   /** Content rendered below the table (submit buttons, totals, etc.) */
-  footer?: React.ReactNode
+  readonly footer?: React.ReactNode
   /** Table body content - should be TableRow elements */
-  children: React.ReactNode
+  readonly children: React.ReactNode
   /** Additional class names for the form container */
-  className?: string
+  readonly className?: string
   /** Test ID for the form */
-  dataTestId?: string
+  readonly dataTestId?: string
   /** Whether to wrap children in overflow container */
-  enableOverflow?: boolean
+  readonly enableOverflow?: boolean
 }
 
 /**
@@ -67,15 +67,18 @@ export function TableForm<TFormValues extends FieldValues>({
 }: TableFormProps<TFormValues>) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = async (data: TFormValues) => {
-    if (!onSubmit) return
-    setIsSubmitting(true)
-    try {
-      await onSubmit(data)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  const handleSubmit = useCallback(
+    async (data: TFormValues) => {
+      if (!onSubmit) return
+      setIsSubmitting(true)
+      try {
+        await onSubmit(data)
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [onSubmit]
+  )
 
   const contextValue: TableFormContextValue = useMemo(
     () => ({
@@ -84,6 +87,11 @@ export function TableForm<TFormValues extends FieldValues>({
       isDirty: form.formState.isDirty
     }),
     [form.formState.isValid, form.formState.isDirty, isSubmitting]
+  )
+
+  const formSubmitHandler = useMemo(
+    () => (onSubmit ? form.handleSubmit(handleSubmit) : undefined),
+    [onSubmit, form.handleSubmit, handleSubmit]
   )
 
   const tableContent = (
@@ -101,7 +109,7 @@ export function TableForm<TFormValues extends FieldValues>({
     <TableFormContext.Provider value={contextValue}>
       <Form {...form} schema={schema}>
         <form
-          onSubmit={onSubmit ? form.handleSubmit(handleSubmit) : undefined}
+          onSubmit={formSubmitHandler}
           className={cn('gba:flex gba:flex-col gba:gap-4', className)}
           data-testid={dataTestId}
         >
