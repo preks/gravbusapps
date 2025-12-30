@@ -1,20 +1,18 @@
-import type { KogitoProcessInstance } from '@/common/network/kogito-process/KogitoProcessClient'
-
 /**
  * Extract known keys from KogitoProcessInstance (excluding index signature)
  */
 export type KogitoProcessKnownKeys = 'id' | 'employeeId' | 'createdAt' | 'startedAt' | 'state'
 
 /**
- * Configuration for checking pending process submissions
- * @template TEntityField - The entity field key to check (must be a valid key of KogitoProcessInstance)
+ * Configuration for checking pending process submissions (NEW BACKEND - Simplified!)
+ *
+ * With the new backend, we no longer need to check entity fields.
+ * The backend now returns a status field (PENDING, PROCESSING, etc.)
+ * and supports filtering by employeeId query parameter.
  */
-export interface PendingProcessCheckConfig<TEntityField extends string = string> {
+export interface PendingProcessCheckConfig {
   /** Kogito process REST endpoint path (e.g., 'changeBankAccount') */
   processPath: string
-
-  /** Entity field name to check for data (e.g., 'bankAccount') */
-  entityField: TEntityField
 
   /** Employee UUID */
   employeeId: string
@@ -44,14 +42,4 @@ export interface PendingProcessMetadata {
   processType?: string
   /** Status message to display (if provided) */
   statusMessage?: string
-}
-
-/**
- * Type guard to check if a property exists on a KogitoProcessInstance
- */
-export const hasEntityField = <TEntityField extends string>(
-  process: KogitoProcessInstance,
-  entityField: TEntityField
-): process is KogitoProcessInstance & Record<TEntityField, unknown> => {
-  return entityField in process
 }
