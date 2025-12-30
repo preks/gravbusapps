@@ -9,7 +9,8 @@ export const PROCESS_STATUS = {
   PROCESSING: 'PROCESSING',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
-  CANCELLED: 'CANCELLED'
+  CANCELLED: 'CANCELLED',
+  ACKNOWLEDGE: 'ACKNOWLEDGE'
 } as const
 
 /**
@@ -27,7 +28,7 @@ export const ACTIVE_PROCESS_STATUSES = [PROCESS_STATUS.PENDING, PROCESS_STATUS.P
  * Each process has its own specific fields, but they all have:
  * - id: process instance ID
  * - employeeId: employee who initiated the process
- * - status: current status (PENDING, PROCESSING, APPROVED, REJECTED, CANCELLED)
+ * - status: current status (PENDING, PROCESSING, APPROVED, REJECTED, CANCELLED, ACKNOWLEDGE)
  * - supervisorId: supervisor assigned for approval
  * - createdAt: when the process was created (ISO date string)
  * - [entityField]: the actual entity data (bankAccount, bonus, etc.)
