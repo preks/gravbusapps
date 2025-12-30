@@ -90,6 +90,28 @@ export const useDayTypeDetailRows = ({
   // Check if a row is saving
   const isRowSaving = useCallback((rowId: string) => savingRows.has(rowId), [savingRows])
 
+  // Check if a row has been modified (dirty) compared to original values
+  const isRowDirty = useCallback(
+    (rowId: string, originalDetail?: TransformedDayTypeVersionDetail) => {
+      const values = editingRows[rowId]
+      if (!values) return false
+
+      // For new rows, check if any field has been filled
+      if (rowId === NEW_ROW_KEY) {
+        return values.fieldType !== '' || values.appliedDay !== '' || values.timeValue !== ''
+      }
+
+      // For existing rows, compare with original values
+      if (!originalDetail) return false
+      return (
+        values.fieldType !== originalDetail.fieldType ||
+        values.appliedDay !== originalDetail.appliedDay ||
+        values.timeValue !== originalDetail.timeValue
+      )
+    },
+    [editingRows]
+  )
+
   // Start editing a row
   const handleStartEdit = useCallback((detail: TransformedDayTypeVersionDetail) => {
     setEditingRows(prev => ({
@@ -227,6 +249,7 @@ export const useDayTypeDetailRows = ({
       const isEditing = isRowEditing(rowId)
       const isSaving = isRowSaving(rowId)
       const isValid = isRowValid(rowId)
+      const isDirty = isRowDirty(rowId, detail)
       const values = editingRows[rowId]
 
       return (
@@ -294,7 +317,7 @@ export const useDayTypeDetailRows = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => handleSaveRow(rowId, detail)}
-                  disabled={!isValid || isSaving}
+                  disabled={!isValid || !isDirty || isSaving}
                   data-testid={formatDataTestId(dataTestId, `save-row-button-${rowId}`)}
                 >
                   <CheckIcon className="gba:h-4 gba:w-4" />
@@ -341,6 +364,7 @@ export const useDayTypeDetailRows = ({
       isRowEditing,
       isRowSaving,
       isRowValid,
+      isRowDirty,
       fieldTypeOptions,
       findFieldTypeOption,
       findAppliedDayOption,
