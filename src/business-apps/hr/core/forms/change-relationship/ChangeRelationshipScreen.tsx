@@ -315,6 +315,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     } as any
 
     const relationshipChange = {
+      event: 'pse_submit',
       employeeRelationship,
       oldEmployeeRelationship: selectedExisting
         ? {
