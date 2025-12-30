@@ -357,14 +357,12 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       processType={initialPayload?.relationship?.id ? 'update' : 'create'}
       formData={{}}
       onSubmit={data => data}
-      // Prevent platform hooks here; let outer flow listen to pse events
-      submitEventType={undefined as any}
+      submitEventType="pse_submit"
       cancelEventType="pse_abort"
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={isSubmitDisabled}
-      // Pre-submit modal controls the flow; no need for post success modal
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
