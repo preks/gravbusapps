@@ -205,6 +205,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
   const handlePreSubmit = async () => {
     return {
+      event: 'pse_submit',
       employeeWorkingCondition: {
         id: current?.id,
         version: typeof current?.version === 'number' ? current?.version : undefined,
@@ -231,11 +232,12 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={!isValid || !hasChanges}
+      submitEventType="pse_submit"
+      cancelEventType="pse_abort"
       submitButtonTestId="flw_updateWorkingConditions_submitBtn"
       cancelButtonTestId="flw_updateWorkingConditions_cancelBtn"
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
-      cancelEventType="pse_abort"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
       <div className="gba:bg-white gba:max-w-3xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
