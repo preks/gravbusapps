@@ -182,14 +182,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState(0)
   const graphqlClient = useGraphQLClient(context?.accessToken || '')
-  // Prevent duplicate in-flight calls with the exact same parameters (e.g., StrictMode)
   const lastCallSignatureRef = useRef<string>('')
-  const abortControllerRef = useRef<AbortController | null>(null) // For request cancellation
-  // Page cache: stores results by cache key (search, filters, page, pageSize, sortField, sortOrder, currencyRef)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const pageCacheRef = useRef<Map<string, { items: AdvancePayment[]; totalCount: number }>>(new Map())
-  const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
+  const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
 
-  // Helper to normalize objects for stable cache keys
   const normalize = useCallback((val: any): any => {
     if (Array.isArray(val)) {
       return val.map(normalize)
@@ -206,9 +203,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     return val
   }, [])
 
-  // Generate cache key for a specific page (includes all parameters that affect the query)
-  // Cache key includes all filters, so different filters = different key = automatic cache miss
-  // No need for explicit cache invalidation - cache key mismatch handles it naturally
   const generateCacheKey = useCallback(
     (
       searchTerm: string,
@@ -259,9 +253,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         return
       }
 
-      // Generate cache key (includes all parameters that affect the query)
-      // Note: The existing duplicate call signature check (lastCallSignatureRef) can be kept
-      // for extra safety, but caching and in-flight request deduplication handle this efficiently
       const cacheKey = generateCacheKey(
         searchTerm,
         page,
@@ -274,11 +265,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         currencyRef || null
       )
 
-      // Check cache first - if page is cached and not forcing refresh, return immediately
-      // Cache key includes all filters, so different filters = different key = automatic cache miss
       const cachedData = pageCacheRef.current.get(cacheKey)
       if (cachedData && !options?.force) {
-        // Return cached data immediately - no loading state
         setItems(cachedData.items)
         setTotalCount(cachedData.totalCount)
         setIsLoading(false)
@@ -299,21 +287,17 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         employeeId
       })
       if (!options?.force && callSignature === lastCallSignatureRef.current) {
-        // Skip duplicate identical request unless force-refresh is requested
         return
       }
       lastCallSignatureRef.current = callSignature
 
-      // Cancel previous request if it exists (only cancel if we're making a new request)
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
 
-      // Create new AbortController for this request
       const controller = new AbortController()
       abortControllerRef.current = controller
 
-      // Check for in-flight request - reuse existing request to avoid duplicates
       const requestKey = `request:${cacheKey}`
       if (inflightRef.current.has(requestKey)) {
         try {
@@ -321,7 +305,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           const fetchedItems = result?.AdvancePayment ?? []
           const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
 
-          // Cache the result
           pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
 
           setItems(fetchedItems)
@@ -330,7 +313,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           setError(null)
           return
         } catch {
-          // If in-flight request failed, continue with new request
+          // Continue with new request if in-flight request failed
         }
       }
 
@@ -338,11 +321,9 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       setError(null)
 
       try {
-        // Add % wildcard for LIKE query if not already present
         const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`
         const offset = (page - 1) * pageSize
 
-        // Create filters object
         const filters: AdvancePaymentFilters = {
           statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
           amountRange: amountRange || undefined,
@@ -350,10 +331,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           currencyRef: currencyRef || undefined
         }
 
-        // Get active filters using utility function
         const filterState = validateFilters(filters)
-
-        // Use dynamic query builder for better error handling
         const query = buildAdvancePaymentsQuery(filters)
 
         const variables: any = {
@@ -363,9 +341,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           offset: offset
         }
 
-        // Add orderBy for server-side sorting
         if (sortField && sortOrder) {
-          // Map UI sort field to GraphQL field names - only include fields that exist directly on AdvancePayment
           const fieldMap: Record<string, string> = {
             status: 'status',
             amount: 'amount',
@@ -376,15 +352,12 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
             currencyRef: 'currencyRef'
           }
           const gqlField = fieldMap[sortField] || sortField
-          // Use proper null handling for better sorting, especially for numeric fields that can be null
           const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
           variables.orderBy = [{ [gqlField]: direction }]
         } else {
-          // Default sorting by creation date descending
           variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }]
         }
 
-        // Add filter variables only if they exist
         if (filterState.hasStatusFilter && filters.statusFilter) {
           variables.statusFilter = filters.statusFilter
         }
@@ -425,19 +398,17 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         const fetchedItems = result?.AdvancePayment ?? []
         const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
 
-        // Cache the result
         pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
 
         setTotalCount(count)
         setItems(fetchedItems)
       } catch (err) {
-        // Ignore AbortError - it means the request was cancelled intentionally
         if (err instanceof Error && err.name === 'AbortError') {
           return
         }
         console.error('Error fetching advance payments:', err)
         setError(err instanceof Error ? err : new Error(String(err)))
-        setItems([]) // Clear items on error
+        setItems([])
         setTotalCount(0)
       } finally {
         setIsLoading(false)
@@ -446,7 +417,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, graphqlClient, generateCacheKey]
   )
 
-  // Manual cache invalidation (for manual refresh or mutations)
   const invalidateAllCache = useCallback(() => {
     pageCacheRef.current.clear()
   }, [])
@@ -457,6 +427,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     error: error?.message || null,
     totalCount,
     fetchItems,
-    invalidateCache: invalidateAllCache // Expose for manual refresh
+    invalidateCache: invalidateAllCache
   }
 }

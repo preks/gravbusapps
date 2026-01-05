@@ -51,7 +51,6 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
 }
 
 const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
       accessToken: props.accessToken,
@@ -71,19 +70,14 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null)
   const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null)
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  // Preserve the page before search to restore after clearing
   const savedPageBeforeSearchRef = useRef<number | null>(null)
-  // Track current page in ref to avoid stale closures
   const currentPageRef = useRef<number>(1)
 
-  // Server-side sorting state - managed by parent component
   const [sortField, setSortField] = useState<string>('createdAt')
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
 
-  // Use filter props from parent with stable references
   const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter])
   const currentAmountRange = useMemo(() => props.amountRange || null, [props.amountRange])
   const currentAdvanceRange = useMemo(() => props.advanceRange || null, [props.advanceRange])
@@ -103,11 +97,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     return map
   }, [currencyStats])
 
-  // Track previous filter signature so we can reset pagination when filters change.
   const prevFilterSignatureRef = useRef<string | null>(null)
 
-  // Track if any filters are active to show conditional messages
-  // Use debounced values to match the actual filters being used for API calls
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (debouncedSearchText || '').trim() !== ''
     const hasAmountRange =
@@ -115,7 +106,6 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     const hasAdvanceRange =
       debouncedAdvanceRange && (debouncedAdvanceRange.min !== undefined || debouncedAdvanceRange.max !== undefined)
 
-    // Treat the initial default status filter (PREPARED + PENDING) as "no active filters"
     const hasNonDefaultStatusFilter = (() => {
       const statuses = debouncedStatusFilter || []
       if (statuses.length === 0) return false
@@ -126,7 +116,6 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     return hasSearch || hasNonDefaultStatusFilter || !!hasAmountRange || !!hasAdvanceRange
   }, [debouncedSearchText, debouncedStatusFilter, debouncedAmountRange, debouncedAdvanceRange])
 
-  // Reset to first page when filters change (status, amount, advance, or DataContainer filter chips).
   useEffect(() => {
     const signature = JSON.stringify({
       status: currentStatusFilter,
@@ -143,48 +132,36 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     prevFilterSignatureRef.current = signature
   }, [currentStatusFilter, currentAmountRange, currentAdvanceRange, props.selectedFilters])
 
-  // Keep currentPageRef in sync with currentPage state
   useEffect(() => {
     currentPageRef.current = currentPage
   }, [currentPage])
 
-  // Track previous debounced search to detect transitions and reset pagination
   const prevDebouncedSearchRef = useRef<string>('')
 
-  // Reset pagination when debounced search transitions (empty ↔ non-empty)
-  // This ensures pagination is reset when debounced search actually changes,
-  // preventing race conditions where page changes before debounce completes.
-  // This effect runs before the fetch effect, ensuring pagination is correct when fetch happens.
   useEffect(() => {
     const trimmedDebounced = (debouncedSearchText || '').trim()
     const trimmedPrev = (prevDebouncedSearchRef.current || '').trim()
 
-    // Only reset if debounced search actually changed
     if (trimmedPrev === trimmedDebounced) {
       prevDebouncedSearchRef.current = debouncedSearchText
       return
     }
 
-    // Detect transition: empty → non-empty or non-empty → empty
     if (trimmedPrev === '' && trimmedDebounced !== '') {
-      // Starting search → save current page and go to 1
       if (savedPageBeforeSearchRef.current === null) {
         savedPageBeforeSearchRef.current = currentPageRef.current
       }
       setCurrentPage(1)
     } else if (trimmedPrev !== '' && trimmedDebounced === '') {
-      // Clearing search → restore saved page
       setCurrentPage(savedPageBeforeSearchRef.current || 1)
       savedPageBeforeSearchRef.current = null
     } else if (trimmedDebounced !== '' && trimmedPrev !== trimmedDebounced) {
-      // Refining search → stay on page 1
       setCurrentPage(1)
     }
 
     prevDebouncedSearchRef.current = debouncedSearchText
   }, [debouncedSearchText])
 
-  // Build fetch parameters using debounced values to reduce API calls
   const fetchParams = useMemo(
     () => ({
       searchText: debouncedSearchText,
@@ -210,21 +187,14 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     ]
   )
 
-  // Sync search with parent prop
   useEffect(() => {
     if (props.search !== undefined && props.search !== searchText) {
       setSearchText(props.search)
     }
   }, [props.search, searchText])
 
-  // Trigger fetch when dependencies change
   useEffect(() => {
-    if (
-      contextProps.accessToken &&
-      contextProps.userInfo?.employeeDetails?.employeeId &&
-      // wait until currency preselection settled to avoid double fetch with/without currencyRef
-      isCurrencyReady
-    ) {
+    if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId && isCurrencyReady) {
       fetchItems(
         fetchParams.searchText,
         fetchParams.currentPage,
@@ -247,10 +217,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     isCurrencyReady
   ])
 
-  // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      // Force refresh to bypass cache and get fresh data after process completion
       if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
         fetchItems(
           fetchParams.searchText,
