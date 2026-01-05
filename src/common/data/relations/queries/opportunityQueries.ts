@@ -236,7 +236,7 @@ export const buildOpportunityByIdQuery = (
   const commonRelations =
     relationBuilders && relationFields
       ? `
-    # Account relation (only for IRM - CRM uses opportunityAccounts junction table)
+    # Account relation (legacy - both IRM and CRM now use opportunityAccounts junction table)
     ${
       entityFields.account
         ? `

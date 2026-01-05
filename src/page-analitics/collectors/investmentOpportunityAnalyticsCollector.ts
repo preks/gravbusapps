@@ -17,7 +17,7 @@ type InvestmentOpportunityRecord = Record<string, any>
 const GET_INVESTMENT_OPPORTUNITY_ANALYTICS = buildInvestmentOpportunityByIdQuery()
 
 function buildInvestmentOpportunitySummary(opportunity: InvestmentOpportunityRecord): AnalyticsSummary {
-  const account = opportunity.account
+  const primaryAccount = opportunity.opportunityAccounts?.[0]?.account
   const contact = opportunity.contact
 
   return compactRecord({
@@ -38,12 +38,12 @@ function buildInvestmentOpportunitySummary(opportunity: InvestmentOpportunityRec
             [opportunity.ownerEmployee.firstName, opportunity.ownerEmployee.lastName].filter(Boolean).join(' ').trim()
         })
       : undefined,
-    account: account?.id
+    account: primaryAccount?.id
       ? compactRecord({
-          id: account.id,
-          name: account.name,
-          industry: account.industryClass?.value ?? account.industry?.value,
-          website: account.website
+          id: primaryAccount.id,
+          name: primaryAccount.name,
+          industry: primaryAccount.industryClass?.value ?? primaryAccount.industry?.value,
+          website: primaryAccount.website
         })
       : undefined,
     contact: contact?.id
@@ -318,12 +318,13 @@ function buildInvestmentOpportunityActivities(params: {
 
 function buildInvestmentOpportunityLinks(opportunity: InvestmentOpportunityRecord): AnalyticsLink[] {
   const links: AnalyticsLink[] = []
+  const primaryAccount = opportunity.opportunityAccounts?.[0]?.account
 
-  if (opportunity.account?.website) {
+  if (primaryAccount?.website) {
     links.push({
       id: 'investment_opportunity.account.website',
-      title: opportunity.account.name ? `${opportunity.account.name} website` : 'Account website',
-      url: opportunity.account.website,
+      title: primaryAccount.name ? `${primaryAccount.name} website` : 'Account website',
+      url: primaryAccount.website,
       type: 'website'
     })
   }
@@ -338,6 +339,8 @@ function buildInvestmentOpportunityRaw(
   tasks: any[],
   notes: any[]
 ): AnalyticsRawSnapshot {
+  const primaryAccount = opportunity.opportunityAccounts?.[0]?.account
+
   const rawOpportunity = compactRecord({
     id: opportunity.id,
     name: opportunity.name,
@@ -356,12 +359,12 @@ function buildInvestmentOpportunityRaw(
           lastName: opportunity.ownerEmployee.lastName
         })
       : undefined,
-    account: opportunity.account?.id
+    account: primaryAccount?.id
       ? compactRecord({
-          id: opportunity.account.id,
-          name: opportunity.account.name,
-          industryClass: opportunity.account.industryClass?.value,
-          website: opportunity.account.website
+          id: primaryAccount.id,
+          name: primaryAccount.name,
+          industryClass: primaryAccount.industryClass?.value,
+          website: primaryAccount.website
         })
       : undefined,
     contact: opportunity.contact?.id
