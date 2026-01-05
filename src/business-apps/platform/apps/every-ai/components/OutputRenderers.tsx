@@ -139,10 +139,10 @@ class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, Fl
 }
 
 // Premium Loading Display with AI animation
-export const LoadingDisplay: React.FC = () => {
+export const LoadingDisplay: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
   return (
     <div
-      className="gba:flex gba:items-center gba:gap-4 gba:p-6 gba:rounded-2xl gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border gba:border-border"
+      className="gba:flex gba:items-center gba:justify-between gba:gap-4 gba:p-6 gba:rounded-2xl gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border gba:border-border"
       data-testid="loading-display"
     >
       <div className="gba:flex gba:items-center gba:gap-2">
@@ -159,6 +159,25 @@ export const LoadingDisplay: React.FC = () => {
       <span className="gba:text-sm gba:text-muted-foreground gba:font-medium gba:animate-pulse">
         EveryAI is thinking...
       </span>
+      {onCancel && (
+        <button
+          onClick={onCancel}
+          className="gba:flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:bg-destructive/10 hover:gba:bg-destructive/20 gba:transition-colors gba:flex-shrink-0"
+          data-testid="cancel-generation-button"
+          title="Cancel generation"
+          aria-label="Cancel generation"
+        >
+          <svg
+            className="gba:h-4 gba:w-4 gba:text-destructive"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
@@ -1040,14 +1059,25 @@ export const OutputItemRenderer: React.FC<{
   conversation?: ConversationTurn[]
   isVoiceMode?: boolean
   sessionId?: string
-}> = ({ item, accessToken, sendMessage, conversation, isVoiceMode = false, sessionId }) => {
+  onCancelGeneration?: () => void
+  isAgentGenerating?: boolean
+}> = ({
+  item,
+  accessToken,
+  sendMessage,
+  conversation,
+  isVoiceMode = false,
+  sessionId,
+  onCancelGeneration,
+  isAgentGenerating
+}) => {
   switch (item.type) {
     case 'answer':
       return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
     case 'loading':
-      return <LoadingDisplay />
+      return <LoadingDisplay onCancel={onCancelGeneration} />
     case 'error':
       return <ErrorDisplay text={item.text} />
     case 'flow_proposal':
@@ -1067,6 +1097,7 @@ export const OutputItemRenderer: React.FC<{
             accessToken={accessToken}
             conversation={conversation}
             isVoiceMode={isVoiceMode}
+            isAgentGenerating={isAgentGenerating}
           />
         </FlowProposalBoundary>
       )
