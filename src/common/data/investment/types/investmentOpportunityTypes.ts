@@ -88,6 +88,9 @@ export interface InvestmentOpportunityStageCondition extends OpportunityStageCon
  */
 export const InvestmentOpportunityFields = {
   ...OpportunityFields,
+  // Remove direct account fields - use opportunityAccounts junction table instead
+  account: undefined,
+  accountId: undefined,
   // Override IRM-specific field names
   leads: 'investmentLead',
   opportunityContacts: 'investmentOpportunityContact',
