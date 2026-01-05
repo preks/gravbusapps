@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import type { ConversationTurn, UserTurn, AgentTurn } from '../types/models'
+import type { ConversationTurn, UserTurn, AgentTurn, AnswerOutput } from '../types/models'
 import { OutputItemRenderer } from './OutputRenderers'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -38,6 +38,8 @@ interface UserMessageProps {
   onEditCancel: () => void
   onEditSave: (newText: string) => void
   onEditTextChange: (text: string) => void
+  turns: ConversationTurn[]
+  turnIndex: number
 }
 
 // Build text with mentions
@@ -62,6 +64,33 @@ function buildTextWithMentions(text: string, mentions?: UserTurn['mentions']): s
   return result
 }
 
+function hasEntityCardsAfterTurn(turns: ConversationTurn[], turnIndex: number): boolean {
+  // Check all turns after the current user turn
+  for (let i = turnIndex + 1; i < turns.length; i++) {
+    const turn = turns[i]
+
+    // Only check agent turns
+    if (turn.side === 'agent') {
+      const agentTurn = turn as AgentTurn
+
+      // Check if any output contains entity cards
+      const hasEntityCards = agentTurn.outputs?.some(output => {
+        if (output.type === 'answer') {
+          const answerOutput = output as AnswerOutput
+          return answerOutput.displayData?.some(data => data.type === 'entity')
+        }
+        return false
+      })
+
+      if (hasEntityCards) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
 // User Message with Copy and Edit functionality
 const UserMessage: React.FC<UserMessageProps> = ({
   turn,
@@ -73,9 +102,14 @@ const UserMessage: React.FC<UserMessageProps> = ({
   onEditStart,
   onEditCancel,
   onEditSave,
-  onEditTextChange
+  onEditTextChange,
+  turns,
+  turnIndex
 }) => {
   const [copied, setCopied] = useState(false)
+
+  // Check if editing is allowed (disabled if entity cards exist in history after this turn)
+  const canEdit = !hasEntityCardsAfterTurn(turns, turnIndex)
 
   // Parse JSON messages to show user-friendly text
   let displayText = turn.text || ''
@@ -245,7 +279,15 @@ const UserMessage: React.FC<UserMessageProps> = ({
                       className="gba:h-7 gba:w-7 gba:p-0"
                       onClick={handleEdit}
                       data-testid="user-message-edit-button"
-                      aria-label={getTranslationFromI18nKeyAndLabel('everyAI.message.edit.label', 'Edit message')}
+                      disabled={!canEdit}
+                      aria-label={
+                        canEdit
+                          ? getTranslationFromI18nKeyAndLabel('everyAI.message.edit.label', 'Edit message')
+                          : getTranslationFromI18nKeyAndLabel(
+                              'everyAI.message.edit.disabled',
+                              'Cannot edit - entity cards in history'
+                            )
+                      }
                     >
                       <PencilSimple className="gba:h-4 gba:w-4" />
                     </Button>
@@ -327,6 +369,8 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
               onEditCancel={handleEditCancel}
               onEditSave={newText => handleEditSave(newText)}
               onEditTextChange={setEditText}
+              turns={turns}
+              turnIndex={idx}
             />
           )
         }
