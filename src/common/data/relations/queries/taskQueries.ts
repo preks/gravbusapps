@@ -392,8 +392,8 @@ export const buildTaskWhereCondition = (
     })
 
     // Remove assignedEmployeeIds from variables to prevent it from being processed by base builder
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { assignedEmployeeIds, ...restVariables } = modifiedVariables
-    void assignedEmployeeIds // Mark as intentionally unused
     Object.assign(modifiedVariables, restVariables)
   }
 

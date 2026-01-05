@@ -53,6 +53,7 @@ export interface InvestmentTaskQueryVariables extends CommonTaskQueryVariables {
 /**
  * Build Task Assignee Fragment
  * Fragment for querying task assignees (multiple assignees support)
+ * NOTE: Must be defined before constants that use it
  */
 export const buildTaskAssigneeFragment = (): string => `
   id
@@ -65,6 +66,39 @@ export const buildTaskAssigneeFragment = (): string => `
   taskStatus
   completedAt
   ${AUDIT_FIELDS}
+`
+
+/**
+ * Shared constants for all Investment Task queries
+ * These are reused across all query builders to avoid duplication
+ */
+const INVESTMENT_TASK_RELATION_BUILDERS: Partial<TaskRelationBuilders> = {
+  buildDocumentFragment,
+  buildAccountFragment,
+  buildContactFragment,
+  buildLeadFragment,
+  buildOpportunityFragment
+}
+
+const INVESTMENT_TASK_RELATION_FIELDS: Partial<TaskRelationFields> = {
+  documentFields: InvestmentDocumentFields,
+  accountFields: InvestmentAccountFields,
+  contactFields: InvestmentContactFields,
+  leadFields: InvestmentLeadFields,
+  opportunityFields: InvestmentOpportunityFields
+}
+
+const INVESTMENT_TASK_ENTITY_FIELDS = `
+  # Investment relation (only in IRM, not in CRM)
+  investment{
+    ${INVESTMENT_REF}
+  }
+  investmentId
+  
+  # Task Assignees (multiple assignees support - NEW)
+  taskAssignees(where: { isDeleted: { _eq: false } }) {
+    ${buildTaskAssigneeFragment()}
+  }
 `
 
 /**
@@ -116,63 +150,46 @@ export const buildInvestmentTaskFragmentForRelations = (): string => {
  * NOTE: assignedEmployee fields removed - replaced by taskAssignees (multiple assignees)
  */
 export const buildInvestmentTaskQuery = (): string => {
-  // Build relation builders and fields for references
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
   // Build optional relations (documents, account, contact, lead, opportunity)
   const references = `
     # Common entity relations
     ${
-      relationBuilders.buildDocumentFragment && relationFields.documentFields
+      INVESTMENT_TASK_RELATION_BUILDERS.buildDocumentFragment && INVESTMENT_TASK_RELATION_FIELDS.documentFields
         ? `documents(where: { isDeleted: { _eq: false } }) {
-      ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
+      ${INVESTMENT_TASK_RELATION_BUILDERS.buildDocumentFragment(INVESTMENT_TASK_RELATION_FIELDS.documentFields)}
     }`
         : ''
     }
     
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields
+      INVESTMENT_TASK_RELATION_BUILDERS.buildAccountFragment && INVESTMENT_TASK_RELATION_FIELDS.accountFields
         ? `accountId
       account {
-        ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
+        ${INVESTMENT_TASK_RELATION_BUILDERS.buildAccountFragment(INVESTMENT_TASK_RELATION_FIELDS.accountFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields
+      INVESTMENT_TASK_RELATION_BUILDERS.buildContactFragment && INVESTMENT_TASK_RELATION_FIELDS.contactFields
         ? `contactId
       contact {
-        ${relationBuilders.buildContactFragment(relationFields.contactFields)}
+        ${INVESTMENT_TASK_RELATION_BUILDERS.buildContactFragment(INVESTMENT_TASK_RELATION_FIELDS.contactFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields
+      INVESTMENT_TASK_RELATION_BUILDERS.buildLeadFragment && INVESTMENT_TASK_RELATION_FIELDS.leadFields
         ? `leadId
       lead {
-        ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
+        ${INVESTMENT_TASK_RELATION_BUILDERS.buildLeadFragment(INVESTMENT_TASK_RELATION_FIELDS.leadFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields
+      INVESTMENT_TASK_RELATION_BUILDERS.buildOpportunityFragment && INVESTMENT_TASK_RELATION_FIELDS.opportunityFields
         ? `opportunityId
       opportunity {
-        ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
+        ${INVESTMENT_TASK_RELATION_BUILDERS.buildOpportunityFragment(INVESTMENT_TASK_RELATION_FIELDS.opportunityFields)}
       }`
         : ''
     }
@@ -220,16 +237,7 @@ export const buildInvestmentTaskQuery = (): string => {
         taskTypeRef
         templateStartDate
         
-        # Investment relation (only in IRM, not in CRM)
-        investment{
-          ${INVESTMENT_REF}
-        }
-        investmentId
-        
-        # Task Assignees (multiple assignees support - NEW, replaces assignedEmployee)
-        taskAssignees(where: { isDeleted: { _eq: false } }) {
-          ${buildTaskAssigneeFragment()}
-        }
+        ${INVESTMENT_TASK_ENTITY_FIELDS}
         
         ${references}
       }
@@ -247,39 +255,14 @@ export const buildInvestmentTaskByIdQuery = (
   fields: typeof InvestmentTaskFields = InvestmentTaskFields,
   id: string
 ): string => {
-  // Build relation builders and fields for common relations
-  const relationBuilders: TaskRelationBuilders = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: TaskRelationFields = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  // Domain-specific entity fields (investment)
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    # Required for reference column mapping (investment.name)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-    
-    # Task Assignees (multiple assignees support - NEW)
-    taskAssignees(where: { isDeleted: { _eq: false } }) {
-      ${buildTaskAssigneeFragment()}
-    }
-  `
-
-  return buildTaskByIdQuery('InvestmentTask', id, fields, relationBuilders, relationFields, entityFields)
+  return buildTaskByIdQuery(
+    'InvestmentTask',
+    id,
+    fields,
+    INVESTMENT_TASK_RELATION_BUILDERS as TaskRelationBuilders,
+    INVESTMENT_TASK_RELATION_FIELDS as TaskRelationFields,
+    INVESTMENT_TASK_ENTITY_FIELDS
+  )
 }
 
 /**
@@ -308,8 +291,8 @@ export const buildInvestmentTaskWhereCondition = (
       }
     })
     // Remove assignedEmployeeIds from variables to prevent it from being processed by base builder
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { assignedEmployeeIds, ...restVariables } = variables
-    void assignedEmployeeIds // Explicitly mark as intentionally unused
     variables = restVariables as InvestmentTaskQueryVariables
   }
 
@@ -339,36 +322,13 @@ export const buildInvestmentTaskOrderBy = (
  * Uses common buildTaskByLeadIdQuery with Investment-specific fields and relations
  */
 export const buildInvestmentTaskByLeadIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-    
-    # Task Assignees (multiple assignees support - NEW)
-    taskAssignees(where: { isDeleted: { _eq: false } }) {
-      ${buildTaskAssigneeFragment()}
-    }
-  `
-
-  return buildTaskByLeadIdQuery('InvestmentTask', InvestmentTaskFields, relationBuilders, relationFields, entityFields)
+  return buildTaskByLeadIdQuery(
+    'InvestmentTask',
+    InvestmentTaskFields,
+    INVESTMENT_TASK_RELATION_BUILDERS,
+    INVESTMENT_TASK_RELATION_FIELDS,
+    INVESTMENT_TASK_ENTITY_FIELDS
+  )
 }
 
 /**
@@ -376,41 +336,12 @@ export const buildInvestmentTaskByLeadIdQuery = (): string => {
  * Uses common buildTaskByAccountIdQuery with Investment-specific fields and relations
  */
 export const buildInvestmentTaskByAccountIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-    
-    # Task Assignees (multiple assignees support - NEW)
-    taskAssignees(where: { isDeleted: { _eq: false } }) {
-      ${buildTaskAssigneeFragment()}
-    }
-  `
-
   return buildTaskByAccountIdQuery(
     'InvestmentTask',
     InvestmentTaskFields,
-    relationBuilders,
-    relationFields,
-    entityFields
+    INVESTMENT_TASK_RELATION_BUILDERS,
+    INVESTMENT_TASK_RELATION_FIELDS,
+    INVESTMENT_TASK_ENTITY_FIELDS
   )
 }
 
@@ -419,168 +350,22 @@ export const buildInvestmentTaskByAccountIdQuery = (): string => {
  * Uses common buildTaskByContactIdQuery with Investment-specific fields and relations
  */
 export const buildInvestmentTaskByContactIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-    
-    # Task Assignees (multiple assignees support - NEW)
-    taskAssignees(where: { isDeleted: { _eq: false } }) {
-      ${buildTaskAssigneeFragment()}
-    }
-  `
-
   return buildTaskByContactIdQuery(
     'InvestmentTask',
     InvestmentTaskFields,
-    relationBuilders,
-    relationFields,
-    entityFields
+    INVESTMENT_TASK_RELATION_BUILDERS,
+    INVESTMENT_TASK_RELATION_FIELDS,
+    INVESTMENT_TASK_ENTITY_FIELDS
   )
 }
 
 /**
  * Build Investment Task query filtered by Opportunity ID
- * Custom implementation for IRM (does not use common buildTaskByOpportunityIdQuery)
- * NOTE: assignedEmployee fields removed - replaced by taskAssignees (multiple assignees)
+ * Note: This is identical to buildInvestmentTaskQuery - use WHERE clause to filter by opportunityId
  */
 export const buildInvestmentTaskByOpportunityIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  // Build optional relations (documents, account, contact, lead, opportunity)
-  const references = `
-    # Common entity relations
-    ${
-      relationBuilders.buildDocumentFragment && relationFields.documentFields
-        ? `documents(where: { isDeleted: { _eq: false } }) {
-      ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
-    }`
-        : ''
-    }
-    
-    ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields
-        ? `accountId
-      account {
-        ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
-      }`
-        : ''
-    }
-    ${
-      relationBuilders.buildContactFragment && relationFields.contactFields
-        ? `contactId
-      contact {
-        ${relationBuilders.buildContactFragment(relationFields.contactFields)}
-      }`
-        : ''
-    }
-    ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields
-        ? `leadId
-      lead {
-        ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
-      }`
-        : ''
-    }
-    ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields
-        ? `opportunityId
-      opportunity {
-        ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
-      }`
-        : ''
-    }
-  `
-
-  return `
-    query GetInvestmentTasks(
-      $limit: Int
-      $offset: Int
-      $where: InvestmentTaskBoolExp
-      $orderBy: [InvestmentTaskOrderBy!]
-    ) {
-      InvestmentTask(
-        limit: $limit
-        offset: $offset
-        orderBy: $orderBy
-        where: $where
-      ) {
-        ${AUDIT_FIELDS}
-        code
-        creatorEmployee {
-          ${EMPLOYEE_REF}
-        }
-        creatorEmployeeId
-        creatorUserId
-        description
-        dueDate
-        endDate
-        id
-        name
-        source
-        startDate
-        taskPriority {
-          ${CATALOG_ENTRY}
-        }
-        taskPriorityRef
-        taskStatus {
-          ${CATALOG_ENTRY}
-        }
-        taskStatusRef
-        taskTiming
-        taskType {
-          ${CATALOG_ENTRY}
-        }
-        taskTypeRef
-        templateStartDate
-        
-        # Investment relation (only in IRM, not in CRM)
-        investment{
-          ${INVESTMENT_REF}
-        }
-        investmentId
-        
-        # Task Assignees (multiple assignees support - NEW)
-        taskAssignees(where: { isDeleted: { _eq: false } }) {
-          ${buildTaskAssigneeFragment()}
-        }
-        
-        ${references}
-      }
-    }
-  `
+  // Reuse the main query builder - filtering is done via WHERE clause
+  return buildInvestmentTaskQuery()
 }
 
 /**
@@ -588,35 +373,12 @@ export const buildInvestmentTaskByOpportunityIdQuery = (): string => {
  * IRM-specific query builder
  */
 export const buildInvestmentTaskByInvestmentIdQuery = (): string => {
-  const relationBuilders: Partial<TaskRelationBuilders> = {
-    buildDocumentFragment,
-    buildAccountFragment,
-    buildContactFragment,
-    buildLeadFragment,
-    buildOpportunityFragment
-  }
-
-  const relationFields: Partial<TaskRelationFields> = {
-    documentFields: InvestmentDocumentFields,
-    accountFields: InvestmentAccountFields,
-    contactFields: InvestmentContactFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
-  }
-
-  const entityFields = `
-    # Investment relation (only in IRM, not in CRM)
-    investment{
-      ${INVESTMENT_REF}
-    }
-    investmentId
-    
-    # Task Assignees (multiple assignees support - NEW)
-    taskAssignees(where: { isDeleted: { _eq: false } }) {
-      ${buildTaskAssigneeFragment()}
-    }
-  `
-
   // Use buildTaskQuery directly since there's no common builder for investment
-  return buildTaskQuery('InvestmentTask', InvestmentTaskFields, relationBuilders, relationFields, entityFields)
+  return buildTaskQuery(
+    'InvestmentTask',
+    InvestmentTaskFields,
+    INVESTMENT_TASK_RELATION_BUILDERS,
+    INVESTMENT_TASK_RELATION_FIELDS,
+    INVESTMENT_TASK_ENTITY_FIELDS
+  )
 }
