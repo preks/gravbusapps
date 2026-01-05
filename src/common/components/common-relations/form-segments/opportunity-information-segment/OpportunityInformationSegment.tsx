@@ -55,6 +55,9 @@ interface OpportunityInformationSegmentProps {
   hideRelatedEntities?: boolean
   // Catalog identifier for opportunity forecast (context-specific)
   opportunityForecastCatalogIdentifier?: string
+  // Catalog identifier for account type (context-specific)
+  // e.g., 'CustomerAccountType:v1' for CRM, 'InvestmentAccountType:v1' for IRM
+  accountTypeCatalogIdentifier?: string
   // Currency catalog identifier
   currencyCatalogIdentifier?: string
   // Company from opportunity data (to display immediately)
@@ -73,6 +76,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
   customFields,
   hideRelatedEntities = false,
   opportunityForecastCatalogIdentifier,
+  accountTypeCatalogIdentifier,
   currencyCatalogIdentifier = CURRENCY
 }) => {
   const form = useFormContext<any>()
@@ -313,6 +317,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
               fieldArrayName="opportunityAccounts"
               accountIdFieldName="accountId"
               accountTypeFieldName="accountTypeRef"
+              accountTypeCatalogIdentifier={accountTypeCatalogIdentifier}
               accounts={accountOptions}
               accountsLoading={useAccounts.loading}
               accountsError={useAccounts.error}

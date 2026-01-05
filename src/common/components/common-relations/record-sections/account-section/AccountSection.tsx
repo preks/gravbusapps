@@ -276,7 +276,9 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
 
                         // Extract account type (from junction tables for Opportunity/Investment Records)
                         const accountTypeValue =
-                          typeof accountType === 'object' ? accountType.value || accountType.code : accountType
+                          accountType && typeof accountType === 'object'
+                            ? accountType.value || accountType.code
+                            : accountType
 
                         const items = [legalForm, accountTypeValue].filter(Boolean)
 
@@ -294,7 +296,9 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                       {(() => {
                         const legalForm = account?.legalForm?.value || account?.legalForm
                         const accountTypeValue =
-                          typeof accountType === 'object' ? accountType.value || accountType.code : accountType
+                          accountType && typeof accountType === 'object'
+                            ? accountType.value || accountType.code
+                            : accountType
                         const items = [legalForm, accountTypeValue].filter(Boolean)
 
                         if (items.length > 0) {

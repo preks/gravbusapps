@@ -121,11 +121,17 @@ export const buildOpportunityQuery = (
         }
         ${entityFields.ownerEmployeeId}
         ${entityFields.winningChance}
-        # Account relation
+        # Account relation (only for IRM - CRM uses opportunityAccounts junction table)
+        ${
+          entityFields.account
+            ? `
         ${entityFields.accountId}
         ${entityFields.account} {
           id
           name
+        }
+        `
+            : ''
         }
         # Company relation
         ${entityFields.companyId}
@@ -230,9 +236,15 @@ export const buildOpportunityByIdQuery = (
   const commonRelations =
     relationBuilders && relationFields
       ? `
-    # Account relation
+    # Account relation (only for IRM - CRM uses opportunityAccounts junction table)
+    ${
+      entityFields.account
+        ? `
     ${entityFields.accountId}
     ${buildAccountRelation(entityFields.account, relationBuilders, relationFields.accountFields)}
+    `
+        : ''
+    }
     
     # Company relation
     ${entityFields.companyId}

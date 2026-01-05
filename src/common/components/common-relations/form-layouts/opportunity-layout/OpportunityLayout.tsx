@@ -34,6 +34,7 @@ interface OpportunityLayoutProps {
   stageCatalogIdentifier?: string
   opportunityStatusCatalogIdentifier?: string
   opportunityForecastCatalogIdentifier?: string
+  accountTypeCatalogIdentifier?: string
   currencyCatalogIdentifier?: string
   opportunityInformationCustomFields?: React.ReactNode
   opportunityPipelineCustomFields?: React.ReactNode
@@ -61,6 +62,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   stageCatalogIdentifier,
   opportunityStatusCatalogIdentifier,
   opportunityForecastCatalogIdentifier,
+  accountTypeCatalogIdentifier,
   currencyCatalogIdentifier = CURRENCY,
   opportunityInformationCustomFields,
   opportunityPipelineCustomFields,
@@ -107,6 +109,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         customFields={opportunityInformationCustomFields}
         hideRelatedEntities={hideRelatedEntities}
         opportunityForecastCatalogIdentifier={opportunityForecastCatalogIdentifier}
+        accountTypeCatalogIdentifier={accountTypeCatalogIdentifier}
         currencyCatalogIdentifier={currencyCatalogIdentifier}
       />
       <FormSection title={t('pipeline-title')} value="pipeline-stage">

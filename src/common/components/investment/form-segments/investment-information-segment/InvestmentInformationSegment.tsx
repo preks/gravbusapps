@@ -8,6 +8,7 @@ import { AccountSegment } from '@/common/components/common-relations/form-segmen
 import type { AccountSegmentOption } from '@/common/components/common-relations/form-segments/account-segment'
 import { CompanySelect } from '@/components/company-select'
 import { CURRENCY } from '@/common/constants/commonCatalogs'
+import { INVESTMENT_ACCOUNT_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -233,6 +234,7 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
                 fieldArrayName="investment.investmentAccounts"
                 accountIdFieldName="investmentAccountId"
                 accountTypeFieldName="investmentAccountTypeRef"
+                accountTypeCatalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
                 accounts={accountOptions}
                 accountsLoading={useAccounts.loading}
                 accountsError={useAccounts.error}
