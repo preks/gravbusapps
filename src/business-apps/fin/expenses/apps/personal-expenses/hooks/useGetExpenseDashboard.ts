@@ -68,7 +68,8 @@ export interface ExpenseDashboardDataView {
   stats: ExpenseDashboard | null
   isLoading: boolean
   error: string | null
-  refetch: () => void
+  refetch: (options?: { force?: boolean }) => void
+  invalidateCache: () => void
 }
 
 export const useGetExpenseDashboard = (
@@ -80,9 +81,11 @@ export const useGetExpenseDashboard = (
   const [error, setError] = useState<Error | null>(null)
   const graphqlClient = useGraphQLClient(context?.accessToken || '')
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
+  const pageCacheRef = useRef<Map<string, ExpenseDashboard>>(new Map())
+  const abortControllerRef = useRef<AbortController | null>(null)
   const depsRef = useRef({ context, filters })
 
-  const fetchStats = async () => {
+  const fetchStats = async (options?: { force?: boolean }) => {
     const employeeId = depsRef.current.context?.userInfo?.employeeDetails?.employeeId
 
     // Validate auth; missing currency is not an error (wait for preselect)
@@ -99,26 +102,57 @@ export const useGetExpenseDashboard = (
       return
     }
 
+    const now = dayjs()
+    const selectedCurrency = depsRef.current.filters?.currency
+    if (!selectedCurrency) {
+      setError(new Error('Currency is required'))
+      setStats(null)
+      setIsLoading(false)
+      return
+    }
+    const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = depsRef.current.filters?.period || 'monthly'
+
+    const cacheKey = JSON.stringify({ employeeId, selectedCurrency, selectedPeriod, date: now.format('YYYY-MM') })
+
+    const cachedData = pageCacheRef.current.get(cacheKey)
+    if (cachedData && !options?.force) {
+      setStats(cachedData)
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     setIsLoading(true)
     setError(null)
     try {
-      const now = dayjs()
-      const selectedCurrency = depsRef.current.filters?.currency
-      if (!selectedCurrency) {
-        throw new Error('Currency is required')
-      }
-      const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = depsRef.current.filters?.period || 'monthly'
-
       const variables = buildDashboardVariables(employeeId, selectedCurrency, now, selectedPeriod)
       const key = JSON.stringify({ employeeId, selectedCurrency, selectedPeriod, date: now.format('YYYY-MM') })
 
       if (inflightRef.current.has(key)) {
-        await inflightRef.current.get(key)
+        try {
+          const result = await inflightRef.current.get(key)
+          const expenseDashboard = transformDashboardResponse(result, selectedPeriod)
+          pageCacheRef.current.set(cacheKey, expenseDashboard as ExpenseDashboard)
+          setStats(expenseDashboard as ExpenseDashboard)
+          setIsLoading(false)
+          setError(null)
+        } catch (err) {
+          if (err instanceof Error && err.name !== 'AbortError') {
+            throw err
+          }
+        }
         return
       }
 
       const p = graphqlClient
-        .request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables)
+        .request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables, { signal: controller.signal })
         .then(res => res)
         .finally(() => {
           inflightRef.current.delete(key)
@@ -126,13 +160,21 @@ export const useGetExpenseDashboard = (
       inflightRef.current.set(key, p)
       const data = await p
       const expenseDashboard = transformDashboardResponse(data, selectedPeriod)
+      pageCacheRef.current.set(cacheKey, expenseDashboard as ExpenseDashboard)
       setStats(expenseDashboard as ExpenseDashboard)
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return
+      }
       setError(err instanceof Error ? err : new Error(String(err)))
       setStats(null)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const invalidateAllCache = () => {
+    pageCacheRef.current.clear()
   }
 
   useEffect(() => {
@@ -146,5 +188,5 @@ export const useGetExpenseDashboard = (
     filters?.period
   ])
 
-  return { stats, isLoading, error: error?.message ?? null, refetch: fetchStats }
+  return { stats, isLoading, error: error?.message ?? null, refetch: fetchStats, invalidateCache: invalidateAllCache }
 }
