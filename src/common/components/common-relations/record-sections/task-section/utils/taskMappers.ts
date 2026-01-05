@@ -21,6 +21,17 @@ export interface TaskOrApprovalSource {
     fullName?: string
     pictureThumbnail?: string
   }
+  // NEW: Support for multiple assignees (IRM)
+  taskAssignees?: Array<{
+    assignedEmployee?: {
+      id: string
+      displayName?: string
+      firstName?: string
+      lastName?: string
+      fullName?: string
+      pictureThumbnail?: string
+    }
+  }>
   taskStatus?: any // CatalogEntry
   taskPriority?: any // CatalogEntry
   taskType?: any // CatalogEntry
@@ -110,13 +121,32 @@ export const transformTaskOrApproval = (
   item: TaskOrApprovalSource,
   untitledFallback: string = 'Untitled Task'
 ): TaskItem => {
+  // Extract assignees - support both single (CRM) and multiple (IRM)
+  let assigneeEmployee: any
+  let assignee: string | undefined
+
+  if (item.taskAssignees && item.taskAssignees.length > 0) {
+    // IRM: Multiple assignees
+    const assignees = item.taskAssignees.map(ta => ta.assignedEmployee).filter(Boolean)
+
+    assigneeEmployee = assignees.length > 0 ? assignees : undefined
+    assignee = assignees
+      .map(emp => emp?.displayName || emp?.fullName)
+      .filter(Boolean)
+      .join(', ')
+  } else if (item.assignedEmployee) {
+    // CRM: Single assignee (backward compatibility)
+    assigneeEmployee = item.assignedEmployee
+    assignee = item.assignedEmployee?.displayName || item.assignedEmployee?.fullName
+  }
+
   return {
     id: item.id,
     title: item.name || item.displayName || untitledFallback,
     description: item.description,
     createdAt: item.createdAt,
     due: item.dueDate,
-    assignee: item.assignedEmployee?.displayName || item.assignedEmployee?.fullName,
+    assignee,
     statusCode: (item.taskStatus?.value?.toUpperCase() || undefined) as
       | 'PENDING'
       | 'IN_PROGRESS'
@@ -126,7 +156,7 @@ export const transformTaskOrApproval = (
     taskStatus: item.taskStatus,
     taskPriority: item.taskPriority,
     taskType: item.taskType,
-    assigneeEmployee: item.assignedEmployee,
+    assigneeEmployee, // Can be single object or array
     taskTiming: item.taskTiming,
     startDate: item.startDate,
     creatorEmployee: item.creatorEmployee,

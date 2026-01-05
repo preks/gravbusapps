@@ -141,44 +141,93 @@ interface TaskDetailContentProps {
 
 // Helper component: Assignee Field
 interface AssigneeFieldProps {
-  assignedTo?: TaskEmployee
+  assignedTo?: TaskEmployee | TaskEmployee[] // Support both single and array
   dataTestId?: string
-  onEmployeeClick: () => void
   getInitials: (firstName: string, lastName: string) => string
 }
 
-const AssigneeField: React.FC<AssigneeFieldProps> = ({ assignedTo, dataTestId, onEmployeeClick, getInitials }) => {
-  if (!assignedTo) {
+const AssigneeField: React.FC<AssigneeFieldProps> = ({ assignedTo, dataTestId, getInitials }) => {
+  // Handle array of assignees (IRM) or single assignee (CRM)
+  const assignees = Array.isArray(assignedTo) ? assignedTo : assignedTo ? [assignedTo] : []
+
+  if (assignees.length === 0) {
     return <span className="gba:text-sm gba:text-muted-foreground gba:px-2 gba:py-1">Unassigned</span>
   }
 
+  // Single assignee - show as before
+  if (assignees.length === 1) {
+    const employee = assignees[0]
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+            onClick={() => {
+              if (employee.id) {
+                const url = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id })
+                navigateTo(url)
+              }
+            }}
+            data-testid={`${dataTestId}-assignee-link`}
+          >
+            <Avatar size="sm" className="gba:size-6">
+              {employee.pictureThumbnail && (
+                <AvatarImage
+                  src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+                  alt={employee.displayName || 'Employee'}
+                />
+              )}
+              <AvatarFallback className="gba:text-xs">
+                {employee.firstName && employee.lastName ? getInitials(employee.firstName, employee.lastName) : 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <span className="gba:text-sm gba:font-medium">{employee.displayName || 'Unknown'}</span>
+            <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>View employee profile</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  // Multiple assignees - show as compact badges
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div
-          className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
-          onClick={onEmployeeClick}
-          data-testid={`${dataTestId}-assignee-link`}
-        >
-          <Avatar size="sm" className="gba:size-6">
-            {assignedTo.pictureThumbnail && (
-              <AvatarImage
-                src={`data:image/gif;base64,${assignedTo.pictureThumbnail}`}
-                alt={assignedTo.displayName || 'Employee'}
-              />
-            )}
-            <AvatarFallback className="gba:text-xs">
-              {assignedTo.firstName && assignedTo.lastName
-                ? getInitials(assignedTo.firstName, assignedTo.lastName)
-                : 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <span className="gba:text-sm gba:font-medium">{assignedTo.displayName || 'Unknown'}</span>
-          <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
-        </div>
-      </TooltipTrigger>
-      <TooltipContent>View employee profile</TooltipContent>
-    </Tooltip>
+    <div className="gba:flex gba:flex-wrap gba:gap-1.5">
+      {assignees.map((employee, index) => {
+        const initials =
+          employee.firstName && employee.lastName ? getInitials(employee.firstName, employee.lastName) : 'U'
+
+        return (
+          <Tooltip key={employee.id || index}>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="secondary"
+                className="gba:flex gba:items-center gba:gap-1.5 gba:pr-2 gba:pl-1 gba:py-0.5 gba:h-6 gba:cursor-pointer hover:gba:bg-accent"
+                onClick={() => {
+                  if (employee.id) {
+                    const url = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id })
+                    navigateTo(url)
+                  }
+                }}
+                data-testid={`${dataTestId}-assignee-${index}`}
+              >
+                <Avatar size="xs" className="gba:h-4 gba:w-4">
+                  {employee.pictureThumbnail && (
+                    <AvatarImage
+                      src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+                      alt={employee.displayName || 'Employee'}
+                    />
+                  )}
+                  <AvatarFallback className="gba:text-[9px]">{initials}</AvatarFallback>
+                </Avatar>
+                <span className="gba:text-xs gba:leading-none">{employee.displayName || 'Unknown'}</span>
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>View {employee.displayName || 'employee'} profile</TooltipContent>
+          </Tooltip>
+        )
+      })}
+    </div>
   )
 }
 
@@ -345,12 +394,6 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
   const isOverdue = !!taskDate && dayjs().isAfter(dayjs(taskDate)) && taskStatus?.type !== 'COMPLETED'
 
-  const handleEmployeeClick = () => {
-    if (!task.assignedTo?.id) return
-    const url = buildPlatformUrl('/platform/employee-record', { employeeId: task.assignedTo.id })
-    navigateTo(url)
-  }
-
   const handleReferenceClick = () => {
     if (!task.reference || !buildReferenceUrl) return
 
@@ -412,7 +455,6 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               <AssigneeField
                 assignedTo={task.assignedTo}
                 dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
-                onEmployeeClick={handleEmployeeClick}
                 getInitials={getInitials}
               />
             </FieldRow>

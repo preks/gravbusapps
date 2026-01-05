@@ -69,14 +69,23 @@ export type TaskItem = {
   taskStatus?: CatalogEntry
   taskPriority?: CatalogEntry
   taskType?: CatalogEntry
-  assigneeEmployee?: {
-    id: string
-    displayName?: string
-    firstName?: string
-    lastName?: string
-    pictureThumbnail?: string
-    userId?: string
-  }
+  assigneeEmployee?:
+    | {
+        id: string
+        displayName?: string
+        firstName?: string
+        lastName?: string
+        pictureThumbnail?: string
+        userId?: string
+      }
+    | Array<{
+        id: string
+        displayName?: string
+        firstName?: string
+        lastName?: string
+        pictureThumbnail?: string
+        userId?: string
+      }> // Support both single (CRM) and multiple (IRM) assignees
   creatorEmployee?: {
     id: string
     displayName?: string
@@ -372,6 +381,36 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     return emp.displayName || 'Unknown User'
   }
 
+  // Helper: Get first assignee from single or array
+  const getFirstAssignee = (assigneeEmployee: any) => {
+    if (!assigneeEmployee) return undefined
+    return Array.isArray(assigneeEmployee) ? assigneeEmployee[0] : assigneeEmployee
+  }
+
+  // Helper: Check if user is assignee (handles both single and array)
+  const isUserAssignee = (assigneeEmployee: any, userId?: string) => {
+    if (!assigneeEmployee || !userId) return false
+
+    if (Array.isArray(assigneeEmployee)) {
+      return assigneeEmployee.some(emp => emp?.userId === userId)
+    }
+
+    return assigneeEmployee?.userId === userId
+  }
+
+  // Helper: Get assignee display name (handles both single and array)
+  const getAssigneeDisplayName = (assigneeEmployee: any, fallback?: string) => {
+    if (!assigneeEmployee) return fallback
+
+    if (Array.isArray(assigneeEmployee)) {
+      if (assigneeEmployee.length === 0) return fallback
+      if (assigneeEmployee.length === 1) return getEmployeeDisplayName(assigneeEmployee[0])
+      return 'Multiple'
+    }
+
+    return getEmployeeDisplayName(assigneeEmployee)
+  }
+
   // Map task priority type to badge variant
   const getPriorityBadgeVariant = (priority?: CatalogEntry): 'offline' | 'secondary' | 'warning' => {
     const type = priority?.type?.toUpperCase()
@@ -434,8 +473,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({
 
                 const { color, icon } = getStatusColorAndIcon(code, t.due)
 
-                const assigneeName = t.assigneeEmployee ? getEmployeeDisplayName(t.assigneeEmployee) : t.assignee
-                const assigneeId = t.assigneeEmployee?.id
+                const assigneeName = getAssigneeDisplayName(t.assigneeEmployee, t.assignee)
+                const assigneeId = getFirstAssignee(t.assigneeEmployee)?.id
 
                 // Get timing type icon and tooltip once to avoid duplicate function calls
                 const timingTypeData = t.taskTiming ? getTimingTypeIcon(t.taskTiming) : null
@@ -461,11 +500,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                   </AppActionMenu>
                 ) : null
                 const documentsForTask = (t.documents as TaskDocument[]) || []
-                const isAssigneeItem = Boolean(
-                  (t as any).assigneeEmployee?.userId &&
-                    userInfo?.id &&
-                    (t as any).assigneeEmployee?.userId === userInfo?.id
-                )
+                const isAssigneeItem = isUserAssignee(t.assigneeEmployee, userInfo?.id)
                 const { hasSignableDocs: hasSignableDocs, label: docuSignButtonLabel } = getDocuSignButtonState(
                   documentsForTask,
                   isAssigneeItem
@@ -505,7 +540,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                               const formData = buildInvestmentTaskFormDataFromTask(commonTask)
                               setDocuSignTaskFormData(formData)
                               setDocuSignDocs(documentsForTask)
-                              setDocuSignAssignedUserId((t as any).assigneeEmployee?.userId)
+                              setDocuSignAssignedUserId(getFirstAssignee(t.assigneeEmployee)?.userId)
                               setIsDocuSignOpen(true)
                             }}
                           >
@@ -593,7 +628,9 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         buildReferenceUrl={buildReferenceUrl}
         data-testid="task-section-detail-sheet"
         accessToken={accessToken}
-        assignedUserId={(tasks || []).find(x => x.id === selectedTask?.id)?.assigneeEmployee?.userId as any}
+        assignedUserId={
+          getFirstAssignee((tasks || []).find(x => x.id === selectedTask?.id)?.assigneeEmployee)?.userId as any
+        }
         currentUserId={userInfo?.id as any}
         businessAppContext={businessAppContext}
       />

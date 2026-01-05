@@ -1,5 +1,6 @@
 import React from 'react'
 import { EmployeeSelect } from '@/components/employee-select'
+import { MultiEmployeeSelect } from '@/components/multi-employee-select'
 import { EntitySelect } from '../../selects/reference-select'
 import { CatalogSelect } from '@/components/catalog-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -40,6 +41,10 @@ export interface TaskSegmentProps {
 
   // Assigned employee from task entity (to display without extra request)
   assignedEmployee?: Employee | null
+
+  // Multi-assignee support (IRM)
+  multiAssigneeMode?: boolean
+  assignedEmployees?: Employee[]
 
   // Entity ID to determine if new entity (for auto-select)
   entityId?: string
@@ -93,6 +98,8 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   accessToken,
   businessAppContext,
   assignedEmployee,
+  multiAssigneeMode = false,
+  assignedEmployees = [],
   entityId,
   typeCatalog,
   priorityCatalog,
@@ -381,41 +388,71 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         />
       )}
 
-      {/* Assigned To */}
-      <FormField
-        control={form.control as any}
-        name="assignedEmployeeId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('task-assignee-label')}</FormLabel>
-            <FormControl>
-              <EmployeeSelect
-                accessToken={accessToken}
-                businessAppContext={businessAppContext}
-                initialEmployee={assignedEmployee}
-                autoSelect={isNewEntity ? 'current-user' : undefined}
-                value={field.value || ''}
-                onValueChange={(v: string | null) => {
-                  field.onChange(v || '')
-                }}
-                onEmployeeChange={(employee: any) => {
-                  // Set both assignedEmployeeId and assignedEmployee
-                  form.setValue('assignedEmployeeId', employee?.id || '')
-                  form.setValue('assignedEmployee', employee)
-                  // Also set assignedUserId directly when employee changes
-                  if (employee?.userId) {
-                    form.setValue('assignedUserId', employee.userId)
-                  } else {
-                    form.setValue('assignedUserId', undefined)
-                  }
-                }}
-                data-testid={`${dataTestId}-assignee`}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {/* Assigned To - Single or Multiple */}
+      {multiAssigneeMode ? (
+        <FormField
+          control={form.control as any}
+          name="assignedEmployeeIds"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Assignees</FormLabel>
+              <FormControl>
+                <MultiEmployeeSelect
+                  accessToken={accessToken}
+                  initialEmployees={assignedEmployees}
+                  value={field.value || []}
+                  onValueChange={employeeIds => {
+                    field.onChange(employeeIds)
+                    form.setValue('assignedEmployeeIds', employeeIds)
+                  }}
+                  onEmployeesChange={employees => {
+                    form.setValue('assignedEmployees', employees)
+                  }}
+                  placeholder="Add assignees..."
+                  searchPlaceholder="Search employees..."
+                  data-testid={`${dataTestId}-assignees`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ) : (
+        <FormField
+          control={form.control as any}
+          name="assignedEmployeeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('task-assignee-label')}</FormLabel>
+              <FormControl>
+                <EmployeeSelect
+                  accessToken={accessToken}
+                  businessAppContext={businessAppContext}
+                  initialEmployee={assignedEmployee}
+                  autoSelect={isNewEntity ? 'current-user' : undefined}
+                  value={field.value || ''}
+                  onValueChange={(v: string | null) => {
+                    field.onChange(v || '')
+                  }}
+                  onEmployeeChange={(employee: any) => {
+                    // Set both assignedEmployeeId and assignedEmployee
+                    form.setValue('assignedEmployeeId', employee?.id || '')
+                    form.setValue('assignedEmployee', employee)
+                    // Also set assignedUserId directly when employee changes
+                    if (employee?.userId) {
+                      form.setValue('assignedUserId', employee.userId)
+                    } else {
+                      form.setValue('assignedUserId', undefined)
+                    }
+                  }}
+                  data-testid={`${dataTestId}-assignee`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Related Entity */}
       {showEntitySelection && (
@@ -513,11 +550,14 @@ const buildTaskSegmentSchema = (options?: {
   requireAssignee?: boolean
   requireEntity?: boolean
   requireType?: boolean
+  multiAssigneeMode?: boolean
 }) => {
   const requireAssignee = options?.requireAssignee !== false
   const requireEntity = options?.requireEntity !== false
   const requireType = options?.requireType !== false
-  return z.object({
+  const multiAssigneeMode = options?.multiAssigneeMode || false
+
+  const baseSchema = {
     name: z.string().min(1, 'Name is required'),
     taskTiming: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
       message: 'Timing is required'
@@ -525,12 +565,27 @@ const buildTaskSegmentSchema = (options?: {
     taskTypeRef: requireType ? z.string().min(1, 'Type is required') : z.string().optional(),
     taskPriorityRef: z.string().min(1, 'Priority is required'),
     taskStatusRef: z.string().min(1, 'Status is required'),
-    assignedEmployeeId: requireAssignee ? z.string().min(1, 'Assigned employee is required') : z.string().optional(),
     relatedEntityId: requireEntity ? z.string().min(1, 'Related entity is required') : z.string().optional(),
     description: z.string().optional(),
     dueDate: z.preprocess(val => (val == null ? '' : val), z.string().min(1, 'Deadline is required')),
     files: z.any().optional()
-  })
+  }
+
+  // Add assignee fields based on mode
+  if (multiAssigneeMode) {
+    return z.object({
+      ...baseSchema,
+      assignedEmployeeIds: requireAssignee
+        ? z.array(z.string()).min(1, 'At least one assignee is required')
+        : z.array(z.string()).optional(),
+      assignedEmployees: z.array(z.any()).optional()
+    })
+  } else {
+    return z.object({
+      ...baseSchema,
+      assignedEmployeeId: requireAssignee ? z.string().min(1, 'Assigned employee is required') : z.string().optional()
+    })
+  }
 }
 
 export type TaskSegmentSchema = z.infer<ReturnType<typeof buildTaskSegmentSchema>>
@@ -542,4 +597,5 @@ export const createTaskSegmentResolver = (options?: {
   requireAssignee?: boolean
   requireEntity?: boolean
   requireType?: boolean
+  multiAssigneeMode?: boolean
 }) => zodResolver(buildTaskSegmentSchema(options))

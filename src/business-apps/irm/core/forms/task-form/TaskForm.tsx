@@ -19,7 +19,10 @@ import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/inv
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 
 const investmentTaskSchema = taskSchema.extend({
-  investmentId: z.string().nullable().optional()
+  investmentId: z.string().nullable().optional(),
+  // IRM-specific: Multi-assignee support
+  assignedEmployeeIds: z.array(z.string()).optional(),
+  assignedEmployees: z.array(z.any()).optional()
 })
 
 export interface TaskFormProps extends BusinessAppContextProps {
@@ -241,7 +244,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           // Required props
           accessToken={accessToken}
           businessAppContext={{ accessToken, userInfo, additionalData }}
-          assignedEmployee={task?.assignedEmployee}
+          // Multi-assignee mode for IRM
+          multiAssigneeMode={true}
+          assignedEmployees={task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter(Boolean) || []}
           entityId={task?.id}
           // Catalogs
           typeCatalog={'InvestmentTaskType:v1'}

@@ -408,6 +408,48 @@ export const useOverviewData = (
         }
       })
 
+      // Helper: Get task assignee display name (handles multi-assignee for IRM)
+      const getTaskAssigneeDisplay = (task: any): string => {
+        // IRM: Check taskAssignees array first
+        if (task.taskAssignees && task.taskAssignees.length > 0) {
+          const assignees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter(Boolean)
+
+          if (assignees.length === 0) {
+            return 'Unassigned'
+          }
+
+          if (assignees.length === 1) {
+            const emp = assignees[0]
+            return emp.fullName || emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown'
+          }
+
+          // Multiple assignees - show generic text
+          return 'Multiple'
+        }
+
+        // CRM: Single assignedEmployee (backward compatibility)
+        if (task.assignedEmployee) {
+          return (
+            task.assignedEmployee.fullName ||
+            task.assignedEmployee.displayName ||
+            `${task.assignedEmployee.firstName || ''} ${task.assignedEmployee.lastName || ''}`.trim() ||
+            'Unknown'
+          )
+        }
+
+        // Fallback to creator
+        if (task.creatorEmployee) {
+          return (
+            task.creatorEmployee.fullName ||
+            task.creatorEmployee.displayName ||
+            `${task.creatorEmployee.firstName || ''} ${task.creatorEmployee.lastName || ''}`.trim() ||
+            'Unassigned'
+          )
+        }
+
+        return 'Unassigned'
+      }
+
       // Process active tasks (tasks without end date)
       const processedTodaysTasks = todaysTasks.map((task: any) => {
         const dueDate = task.dueDate ? new Date(task.dueDate) : null
@@ -442,14 +484,7 @@ export const useOverviewData = (
           dueDate: task.dueDate,
           status: task.taskStatus?.value || task.taskStatusRef?.split(':').pop() || 'Active',
           priority: task.taskPriority?.value || task.taskPriorityRef?.split(':').pop() || 'Normal',
-          assignedTo:
-            task.assignedEmployee?.fullName ||
-            task.assignedEmployee?.displayName ||
-            `${task.assignedEmployee?.firstName || ''} ${task.assignedEmployee?.lastName || ''}`.trim() ||
-            task.creatorEmployee?.fullName ||
-            task.creatorEmployee?.displayName ||
-            `${task.creatorEmployee?.firstName || ''} ${task.creatorEmployee?.lastName || ''}`.trim() ||
-            'Unassigned',
+          assignedTo: getTaskAssigneeDisplay(task),
           relatedTo: relatedEntity?.name || getTranslationFromI18nKeyAndLabel('overview.noRelation', 'No relation'),
           relatedEntity: relatedEntity, // Add the full entity info
           isOverdue
