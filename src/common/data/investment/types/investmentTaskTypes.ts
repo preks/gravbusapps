@@ -55,7 +55,7 @@ export interface InvestmentTask extends Task {
   source?: SourceTable
   taskTemplate?: InvestmentTaskTemplate
 
-  // NEW: Multiple assignees support (replaces single assignedEmployee in base Task)
+  // Multiple assignees (inherited from Task, extended with IRM-specific InvestmentTaskAssignee type)
   taskAssignees?: InvestmentTaskAssignee[]
   taskAssigneesAggregate?: {
     aggregate: { count: number }
@@ -151,24 +151,18 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
 
 /**
  * Build Investment Task Payload
- * Uses buildPayload utility with InvestmentTaskFormFields mapping
- * IRM-SPECIFIC: Transforms assignee data to multiple assignees array
- * Supports both multi-assignee mode (assignedEmployeeIds) and single-assignee mode (assignedEmployeeId)
- * NOTE: This is ONLY for IRM - CRM still uses single assignee structure
+ * Uses common buildTaskPayload with IRM-specific wrapper
  */
 export const buildInvestmentTaskPayload = (task: Partial<InvestmentTask> & Record<string, any>) => {
-  // Build base payload using buildPayload utility
+  // Use common buildTaskPayload utility (handles taskAssignees transformation)
   const payload = buildPayload(task, InvestmentTaskFormFields)
 
-  // IRM-SPECIFIC: Transform assignee data to multiple assignees array
-  // Backend expects taskAssignees array instead of assignedEmployee fields
-
-  // Check if we have multi-assignee data (new form format)
-  const hasMultiAssignees = payload.assignedEmployeeIds && Array.isArray(payload.assignedEmployeeIds)
-  const hasSingleAssignee = payload.assignedEmployee || payload.assignedEmployeeId || payload.assignedUserId
-
-  if (hasMultiAssignees && payload.assignedEmployeeIds.length > 0) {
-    // Create taskAssignees from assignedEmployeeIds array
+  // Transform assignee data to taskAssignees array
+  if (
+    payload.assignedEmployeeIds &&
+    Array.isArray(payload.assignedEmployeeIds) &&
+    payload.assignedEmployeeIds.length > 0
+  ) {
     payload.taskAssignees = payload.assignedEmployeeIds.map((employeeId: string, index: number) => {
       const employee = payload.assignedEmployees?.[index]
       return {
@@ -178,24 +172,9 @@ export const buildInvestmentTaskPayload = (task: Partial<InvestmentTask> & Recor
       }
     })
 
-    // Remove form-specific fields
     delete payload.assignedEmployeeIds
     delete payload.assignedEmployees
-  } else if (hasSingleAssignee) {
-    // Backward compatibility: Single assignee to array
-    payload.taskAssignees = [
-      {
-        assignedEmployee: payload.assignedEmployee,
-        assignedEmployeeId: payload.assignedEmployeeId,
-        assignedUserId: payload.assignedUserId
-      }
-    ]
   }
-
-  // Remove old single-assignee fields (backend doesn't accept these anymore for IRM)
-  delete payload.assignedEmployee
-  delete payload.assignedEmployeeId
-  delete payload.assignedUserId
 
   return {
     investmentTask: payload

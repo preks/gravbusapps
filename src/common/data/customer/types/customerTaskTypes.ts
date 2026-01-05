@@ -104,10 +104,30 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
 /**
  * Build Customer Task Payload
  * Uses buildPayload utility with CustomerTaskFormFields mapping
+ * Transforms assignee data to taskAssignees array
  */
 export const buildCustomerTaskPayload = (task: Partial<CustomerTask> & Record<string, any>) => {
   // Build base payload using buildPayload utility
   const payload = buildPayload(task, CustomerTaskFormFields)
+
+  // Transform assignee data to taskAssignees array
+  if (
+    payload.assignedEmployeeIds &&
+    Array.isArray(payload.assignedEmployeeIds) &&
+    payload.assignedEmployeeIds.length > 0
+  ) {
+    payload.taskAssignees = payload.assignedEmployeeIds.map((employeeId: string, index: number) => {
+      const employee = payload.assignedEmployees?.[index]
+      return {
+        assignedEmployeeId: employeeId,
+        assignedEmployee: employee,
+        assignedUserId: employee?.userId
+      }
+    })
+
+    delete payload.assignedEmployeeIds
+    delete payload.assignedEmployees
+  }
 
   return {
     salesTask: payload

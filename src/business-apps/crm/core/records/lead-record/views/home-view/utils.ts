@@ -47,18 +47,31 @@ export const buildTaskReference = (item: any): TaskReference | undefined => {
  * @returns Mapped task item ready for UI consumption
  */
 export const transformTaskOrApproval = (item: any, untitledFallback: string) => {
+  // Extract assignees from taskAssignees array (can be 0, 1, or many)
+  const assignees = item.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter(Boolean) || []
+  const assigneeEmployee = assignees.length > 0 ? assignees : undefined
+  const assignee =
+    assignees.length === 0
+      ? undefined
+      : assignees.length === 1
+        ? assignees[0]?.displayName || assignees[0]?.fullName
+        : assignees
+            .map((emp: any) => emp?.displayName || emp?.fullName)
+            .filter(Boolean)
+            .join(', ') || undefined
+
   return {
     id: item.id,
     title: item.name || item.displayName || untitledFallback,
     description: item.description,
     createdAt: item.createdAt,
     due: item.dueDate,
-    assignee: item.assignedEmployee?.displayName || item.assignedEmployee?.fullName,
+    assignee,
     statusCode: item.status?.value?.toUpperCase() as 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED' | undefined,
     taskStatus: item.status,
     taskType: item.taskType,
     taskPriority: item.priority,
-    assigneeEmployee: item.assignedEmployee,
+    assigneeEmployee, // Array of employees (or undefined)
     taskTiming: item.taskTiming,
     startDate: item.startDate,
     creatorEmployee: item.creatorEmployee,

@@ -127,15 +127,27 @@ export const buildActivityFragment = (fields: Record<keyof typeof ActivityFields
 
 /**
  * Build Task fragment using fields mapping (REF fields only, no relations)
+ * Updated to support multiple assignees via taskAssignees relationship
  */
 export const buildTaskFragment = (fields: Record<keyof typeof TaskFields, string> = TaskFields): string => {
   return `
   ${AUDIT_FIELDS}
-  ${fields.assignedEmployee} {
-    ${EMPLOYEE_REF}
+  # Multiple assignees (many-to-many via TaskAssignee)
+  ${fields.taskAssignees}(where: { isDeleted: { _eq: false } }) {
+    id
+    taskId
+    assignedEmployee {
+      ${EMPLOYEE_REF}
+    }
+    assignedEmployeeId
+    assignedUserId
+    ${AUDIT_FIELDS}
   }
-  ${fields.assignedEmployeeId}
-  ${fields.assignedUserId}
+  ${fields.taskAssigneesAggregate}(where: { isDeleted: { _eq: false } }) {
+    aggregate {
+      count
+    }
+  }
   ${fields.code}
   # TODO: comments missing
   ${fields.creatorEmployee} {

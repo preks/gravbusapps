@@ -114,7 +114,7 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
 
         const tsk = result.InvestmentTask[0]
 
-        // Extract first assignee for backward compatibility (mapper handles this too)
+        // Extract first assignee for display
         const firstAssignee = tsk.taskAssignees?.[0]?.assignedEmployee
         let assignedEmployee = firstAssignee
 

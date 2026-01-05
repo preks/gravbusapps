@@ -2,13 +2,29 @@ import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/c
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { TaskTiming } from '../constants/taskConstants'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+
+/**
+ * Task Assignee Junction Table
+ * Supports multiple assignees per task (many-to-many relationship)
+ */
+export interface TaskAssignee extends BaseEntity {
+  id?: string
+  taskId?: string
+  assignedEmployee?: Employee
+  assignedEmployeeId?: string
+  assignedUserId?: string
+  isDeleted?: boolean
+}
 
 export interface Task extends BaseEntity {
   account?: any // IRM | CRM
   accountId?: string // IRM | CRM
-  assignedEmployee?: Employee // IRM | CRM
-  assignedEmployeeId?: string // IRM | CRM
-  assignedUserId?: string // IRM | CRM
+
+  // Multiple assignees (many-to-many relationship via TaskAssignee)
+  taskAssignees?: TaskAssignee[]
+  taskAssigneesAggregate?: { aggregate: { count: number } }
+
   code?: string // IRM | CRM
   comments?: any[] // IRM | TODO
   contact?: any // IRM | CRM
@@ -46,9 +62,11 @@ export interface Task extends BaseEntity {
 export const TaskFields = {
   account: 'account',
   accountId: 'accountId',
-  assignedEmployee: 'assignedEmployee',
-  assignedEmployeeId: 'assignedEmployeeId',
-  assignedUserId: 'assignedUserId',
+
+  // Multiple assignees fields
+  taskAssignees: 'taskAssignees',
+  taskAssigneesAggregate: 'taskAssigneesAggregate',
+
   code: 'code',
   comments: 'comments',
   contact: 'contact',
@@ -83,8 +101,11 @@ export const TaskFields = {
 
 export const TaskFormFields = {
   accountId: 'account',
-  assignedEmployeeId: 'assignedEmployee',
-  assignedUserId: 'assignedUserId',
+
+  // Multiple assignees fields
+  assignedEmployeeIds: 'taskAssignees',
+  assignedEmployees: 'taskAssignees',
+
   code: 'code',
   contactId: 'contact',
   creatorEmployeeId: 'creatorEmployee',
@@ -120,13 +141,13 @@ export const createTaskDescriptors = (fields: Record<keyof typeof TaskFields, st
     type: 'text'
   },
   {
-    key: 'assignedEmployee',
+    key: 'taskAssignees',
     searchPaths: [
-      `${fields.assignedEmployee}.displayName`,
-      `${fields.assignedEmployee}.firstName`,
-      `${fields.assignedEmployee}.lastName`
+      `${fields.taskAssignees}.assignedEmployee.displayName`,
+      `${fields.taskAssignees}.assignedEmployee.firstName`,
+      `${fields.taskAssignees}.assignedEmployee.lastName`
     ],
-    sortPath: `${fields.assignedEmployee}.displayName`,
+    sortPath: `${fields.taskAssignees}.assignedEmployee.displayName`,
     type: 'text'
   },
   { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
@@ -219,15 +240,18 @@ export const createTaskDescriptors = (fields: Record<keyof typeof TaskFields, st
   { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
   {
     key: 'assignedEmployeeIds',
-    path: fields.assignedEmployeeId,
+    path: `${fields.taskAssignees}.assignedEmployeeId`,
     filterLabel: 'Assigned To',
-    optionSelectPaths: [`${fields.assignedEmployee}.id`, `${fields.assignedEmployee}.displayName`],
-    optionSearchPaths: [
-      `${fields.assignedEmployee}.displayName`,
-      `${fields.assignedEmployee}.firstName`,
-      `${fields.assignedEmployee}.lastName`
+    optionSelectPaths: [
+      `${fields.taskAssignees}.assignedEmployee.id`,
+      `${fields.taskAssignees}.assignedEmployee.displayName`
     ],
-    optionDistinctOn: [fields.assignedEmployeeId],
+    optionSearchPaths: [
+      `${fields.taskAssignees}.assignedEmployee.displayName`,
+      `${fields.taskAssignees}.assignedEmployee.firstName`,
+      `${fields.taskAssignees}.assignedEmployee.lastName`
+    ],
+    optionDistinctOn: [`${fields.taskAssignees}.assignedEmployeeId`],
     kind: 'inIds'
   },
   { key: 'contactIds', path: fields.contactId, kind: 'inIds' },
@@ -277,11 +301,11 @@ export const createTaskDescriptors = (fields: Record<keyof typeof TaskFields, st
   {
     key: 'assignedTo',
     searchPaths: [
-      `${fields.assignedEmployee}.displayName`,
-      `${fields.assignedEmployee}.firstName`,
-      `${fields.assignedEmployee}.lastName`
+      `${fields.taskAssignees}.assignedEmployee.displayName`,
+      `${fields.taskAssignees}.assignedEmployee.firstName`,
+      `${fields.taskAssignees}.assignedEmployee.lastName`
     ],
-    sortPath: `${fields.assignedEmployee}.displayName`,
+    sortPath: `${fields.taskAssignees}.assignedEmployee.displayName`,
     type: 'text'
   },
   {
@@ -345,4 +369,37 @@ export interface TaskReference {
   name: string
   pictureThumbnail?: string
   type: string // Entity type (e.g., 'opportunity', 'account', 'lead', 'contact', 'investment')
+}
+
+/**
+ * Build Task Payload (Unified for IRM & CRM)
+ * Transforms form data to backend format with multiple assignees
+ */
+export const buildTaskPayload = (task: Partial<Task> & Record<string, any>) => {
+  // Build base payload using buildPayload utility
+  const payload = buildPayload(task, TaskFormFields)
+
+  // Transform assignee data to taskAssignees array
+  // Backend expects taskAssignees array (can be empty, 1, or many)
+  if (
+    payload.assignedEmployeeIds &&
+    Array.isArray(payload.assignedEmployeeIds) &&
+    payload.assignedEmployeeIds.length > 0
+  ) {
+    // Create taskAssignees from assignedEmployeeIds array
+    payload.taskAssignees = payload.assignedEmployeeIds.map((employeeId: string, index: number) => {
+      const employee = payload.assignedEmployees?.[index]
+      return {
+        assignedEmployeeId: employeeId,
+        assignedEmployee: employee,
+        assignedUserId: employee?.userId
+      }
+    })
+
+    // Remove form-specific fields
+    delete payload.assignedEmployeeIds
+    delete payload.assignedEmployees
+  }
+
+  return payload
 }

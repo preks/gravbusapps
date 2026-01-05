@@ -64,23 +64,10 @@ export function toInvestmentTask(base: InvestmentTask): InvestmentTask {
   // Map IRM-specific field names
   const opportunityStageCondition = (base as any).investmentOpportunityStageCondition
 
-  // Map first assignee to legacy fields for backward compatibility
-  // NOTE: InvestmentTask now supports multiple assignees via taskAssignees array
-  const firstAssignee = base.taskAssignees?.[0]
-  const assignedEmployee = firstAssignee?.assignedEmployee || base.assignedEmployee
-  const assignedEmployeeId = firstAssignee?.assignedEmployeeId || base.assignedEmployeeId
-  const assignedUserId = firstAssignee?.assignedUserId || base.assignedUserId
-
   return {
     ...base,
     opportunityStageCondition,
     reference: taskReference,
-    // Map first assignee for backward compatibility
-    assignedEmployee,
-    assignedEmployeeId,
-    assignedUserId,
-    // Alias for task columns compatibility (assignedEmployee → assignedTo)
-    assignedTo: assignedEmployee,
     creatorEmployee: base.creatorEmployee
-  } as any
+  } as InvestmentTask
 }

@@ -38,7 +38,7 @@ export interface Task {
   name: string
   code?: string
   description?: string
-  assignedTo?: TaskEmployee | TaskEmployee[] // Optional - single (CRM) or multiple (IRM) assignees
+  assignedTo?: TaskEmployee | TaskEmployee[] // Optional - can be single or array of assignees
   type?: string // Optional - may not always have a type
   priority?: 'high' | 'medium' | 'urgent' | 'low' // Optional
   status?: 'in_progress' | 'pending' | 'completed' | 'overdue' // Optional

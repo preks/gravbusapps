@@ -408,9 +408,9 @@ export const useOverviewData = (
         }
       })
 
-      // Helper: Get task assignee display name (handles multi-assignee for IRM)
+      // Helper: Get task assignee display name (handles multi-assignee)
       const getTaskAssigneeDisplay = (task: any): string => {
-        // IRM: Check taskAssignees array first
+        // Check taskAssignees array
         if (task.taskAssignees && task.taskAssignees.length > 0) {
           const assignees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter(Boolean)
 
@@ -423,18 +423,8 @@ export const useOverviewData = (
             return emp.fullName || emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown'
           }
 
-          // Multiple assignees - show generic text
+          // Multiple assignees
           return 'Multiple'
-        }
-
-        // CRM: Single assignedEmployee (backward compatibility)
-        if (task.assignedEmployee) {
-          return (
-            task.assignedEmployee.fullName ||
-            task.assignedEmployee.displayName ||
-            `${task.assignedEmployee.firstName || ''} ${task.assignedEmployee.lastName || ''}`.trim() ||
-            'Unknown'
-          )
         }
 
         // Fallback to creator

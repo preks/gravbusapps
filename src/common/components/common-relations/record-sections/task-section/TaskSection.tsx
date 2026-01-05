@@ -35,7 +35,7 @@ import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Task as BaseTask } from '@/common/data/relations/types/taskTypes'
 import { transformTaskOrApproval } from './utils/taskMappers'
 import { DocuSignSignatureModal } from '@/common/components/docusign/DocuSignSignatureModal'
-import { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads'
+import { type InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
@@ -155,7 +155,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           description: task.description,
           createdAt: task.createdAt,
           dueDate: task.dueDate,
-          assignedEmployee: task.assignedEmployee,
+          taskAssignees: task.taskAssignees,
           taskStatus: task.taskStatus,
           taskPriority: task.taskPriority,
           taskType: task.taskType,
@@ -199,7 +199,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   const [docuSignDocs, setDocuSignDocs] = useState<TaskDocument[]>([])
   const [docuSignAssignedUserId, setDocuSignAssignedUserId] = useState<string | undefined>(undefined)
   const [docuSignTask, setDocuSignTask] = useState<Task | null>(null)
-  const [docuSignTaskFormData, setDocuSignTaskFormData] = useState<InvestmentTaskFormData | null>(null)
+  const [docuSignTaskFormData, setDocuSignTaskFormData] = useState<Partial<InvestmentTask> | null>(null)
   const businessAppContext = useMemo(
     () => ({
       accessToken,
@@ -300,8 +300,25 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   const convertToCommonTask = (taskItem: TaskItem): Task => {
     const rawTask = taskItem.rawTask as BaseTask | undefined
 
-    const assignedEmployee = taskItem.assigneeEmployee || rawTask?.assignedEmployee
+    // assigneeEmployee is already an array (or undefined) from transformTaskOrApproval
+    const assigneeEmployee = taskItem.assigneeEmployee
     const creatorEmployee = taskItem.creatorEmployee || rawTask?.creatorEmployee
+
+    // Convert assignee array to Task format (can be single or array)
+    let assignedTo: TaskEmployee | TaskEmployee[] | undefined
+    if (assigneeEmployee && Array.isArray(assigneeEmployee)) {
+      assignedTo = assigneeEmployee.map(emp => ({
+        id: emp.id,
+        firstName: emp.firstName || '',
+        lastName: emp.lastName || '',
+        displayName: getEmployeeDisplayName(emp),
+        pictureThumbnail: emp.pictureThumbnail
+      }))
+      // If single assignee, unwrap from array for cleaner detail sheet display
+      if (assignedTo.length === 1) {
+        assignedTo = assignedTo[0]
+      }
+    }
 
     const documentsSource =
       (taskItem.documents as TaskDocument[] | undefined)?.map(doc => ({
@@ -313,15 +330,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       name: taskItem.title,
       code: rawTask?.code,
       description: taskItem.description || rawTask?.description || '',
-      assignedTo: assignedEmployee
-        ? {
-            id: assignedEmployee.id,
-            firstName: assignedEmployee.firstName || '',
-            lastName: assignedEmployee.lastName || '',
-            displayName: getEmployeeDisplayName(assignedEmployee),
-            pictureThumbnail: assignedEmployee.pictureThumbnail
-          }
-        : undefined,
+      assignedTo,
       creatorEmployee: creatorEmployee
         ? {
             id: creatorEmployee.id,
@@ -353,8 +362,6 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       version: rawTask?.version,
       creatorEmployeeId: rawTask?.creatorEmployeeId,
       creatorUserId: rawTask?.creatorUserId,
-      assignedEmployeeId: rawTask?.assignedEmployeeId,
-      assignedUserId: rawTask?.assignedUserId,
       investmentId: (rawTask as any)?.investmentId || (rawTask as any)?.investment?.id,
       accountId: rawTask?.accountId,
       contactId: rawTask?.contactId,

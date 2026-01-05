@@ -42,7 +42,7 @@ export interface TaskSegmentProps {
   // Assigned employee from task entity (to display without extra request)
   assignedEmployee?: Employee | null
 
-  // Multi-assignee support (IRM)
+  // Multi-assignee support (enabled by default)
   multiAssigneeMode?: boolean
   assignedEmployees?: Employee[]
 
@@ -98,7 +98,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   accessToken,
   businessAppContext,
   assignedEmployee,
-  multiAssigneeMode = false,
+  multiAssigneeMode = true, // Multi-assignee support is now the default
   assignedEmployees = [],
   entityId,
   typeCatalog,
@@ -555,7 +555,7 @@ const buildTaskSegmentSchema = (options?: {
   const requireAssignee = options?.requireAssignee !== false
   const requireEntity = options?.requireEntity !== false
   const requireType = options?.requireType !== false
-  const multiAssigneeMode = options?.multiAssigneeMode || false
+  const multiAssigneeMode = options?.multiAssigneeMode !== false // Multi-assignee is now the default
 
   const baseSchema = {
     name: z.string().min(1, 'Name is required'),

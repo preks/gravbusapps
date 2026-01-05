@@ -105,16 +105,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         delete data.files
         delete data._pendingFiles
         delete data.relatedEntityId
+        // Delete form-specific fields - buildCustomerTaskPayload handles transformation
+        delete (data as any).assignedEmployeeIds
+        delete (data as any).assignedEmployees
 
-        // Build payload (buildPayload will include creator fields from taskData)
+        // Build payload (buildPayload will include creator fields and transform taskAssignees)
         const { salesTask } = buildCustomerTaskPayload(data as Partial<CustomerTask>)
-
-        // assignedUserId from assignedEmployee
-        if (data.assignedEmployee?.userId) {
-          salesTask.assignedUserId = data.assignedEmployee.userId
-        } else if (data.assignedEmployeeId && data.assignedEmployeeId === userInfo?.employeeDetails?.employeeId) {
-          salesTask.assignedUserId = userInfo.id
-        }
 
         return {
           salesTask
@@ -178,12 +174,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     if (taskRef.current?.id !== task?.id) {
       form.reset(mapToFormValues(task || {}, taskSchema) as any)
       taskRef.current = task
-
-      // Sync assignedUserId from assignedEmployee after reset
-      const assignedEmployee = form.getValues('assignedEmployee')
-      if (assignedEmployee?.userId) {
-        form.setValue('assignedUserId', assignedEmployee.userId)
-      }
 
       // Hydrate first found entity
       const entity = [
@@ -278,7 +268,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           // Required props
           accessToken={accessToken}
           businessAppContext={{ accessToken, userInfo, additionalData }}
-          assignedEmployee={task?.assignedEmployee}
+          assignedEmployees={task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter(Boolean) || []}
           entityId={task?.id}
           // Catalogs
           typeCatalog={TASK_TYPE_CATALOG}
