@@ -338,15 +338,19 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
   const handleEditSave = async (newText: string) => {
     if (editingTurnIndex === null || !newText.trim()) return
 
+    // Close edit mode immediately before async operation
+    const savedIndex = editingTurnIndex
+    setEditingTurnIndex(null)
+    setEditText('')
+
     try {
       if (onEditMessage) {
-        await onEditMessage(editingTurnIndex, newText)
+        await onEditMessage(savedIndex, newText)
       } else if (sendMessage) {
         await sendMessage(newText, [], false, false, undefined)
       }
-    } finally {
-      setEditingTurnIndex(null)
-      setEditText('')
+    } catch (error) {
+      console.error('Failed to save edit:', error)
     }
   }
 
