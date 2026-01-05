@@ -277,6 +277,8 @@ export function useFlowBot(accessToken: string) {
   const [isPrechatLoading, setIsPrechatLoading] = useState(false)
   const isPrechatLoadingRef = useRef(false)
   const inFlightRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const [cancelledMessageText, setCancelledMessageText] = useState<string | null>(null)
 
   const analyticsEntity = useMemo(() => resolveAnalyticsEntity(currentPageContext), [currentPageContext])
   const analyticsHookEntity = useMemo<AnalyticsEntityInput>(
@@ -535,13 +537,17 @@ export function useFlowBot(accessToken: string) {
         const baseUrl = resolveFlowbotBaseUrl()
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
 
+        // Create abort controller for this request
+        abortControllerRef.current = new AbortController()
+
         const res = await fetch(url, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${accessToken}`,
             Accept: 'text/event-stream'
           },
-          body: form
+          body: form,
+          signal: abortControllerRef.current.signal
         })
 
         if (!res.ok) throw new Error(res.statusText)
@@ -595,6 +601,11 @@ export function useFlowBot(accessToken: string) {
         }
         pruneEphemeralOutputsFromLastAgentTurn()
       } catch (error) {
+        // Don't show error if request was aborted (user cancelled)
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('Request was cancelled by user')
+          return
+        }
         console.error('Error sending message:', error)
 
         appendOutputItemToLastAgentTurn({ type: 'error' })
@@ -602,6 +613,7 @@ export function useFlowBot(accessToken: string) {
         pruneEphemeralOutputsFromLastAgentTurn()
         inFlightRef.current = false
         setIsLoading(false)
+        abortControllerRef.current = null
       }
     },
     [
@@ -615,6 +627,111 @@ export function useFlowBot(accessToken: string) {
       buildCurrentPageContextPayload
     ]
   )
+
+  const cancelGeneration = useCallback(async () => {
+    // Abort the ongoing fetch request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+
+    let cancelApiMessageText: string | null = null // Fallback for when cancel API fails
+    let cancelOutput: OutputItem | null = null // Cancel API response
+
+    // Call the cancel API endpoint if we have a session
+    if (state.sessionId && accessToken) {
+      try {
+        const baseUrl = resolveFlowbotBaseUrl()
+
+        const form = new FormData()
+        form.append('session_id', state.sessionId)
+
+        const res = await fetch(`${baseUrl}/flowbot/api/agent/chat/cancel`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: form
+        })
+
+        if (res.ok) {
+          const payload: any = await res.json().catch(() => null)
+          // Backend contract: if message is non-null, it's always an OutputItem.
+          cancelOutput = (payload?.message ?? null) as OutputItem | null
+        } else {
+          const text = await res.text().catch(() => '')
+          cancelApiMessageText = text ? `Cancel failed (${res.status}): ${text}` : `Cancel failed (${res.status})`
+        }
+      } catch (error) {
+        console.error('Failed to call cancel API:', error)
+        cancelApiMessageText = 'Cancel request failed (network error)'
+      }
+    }
+
+    // Read the user message text BEFORE updating state (since setState is async)
+    const currentConversation = state.conversation
+    let userMessageText: string | null = null
+
+    // Find the last user turn (typically second to last if last is agent loading)
+    for (let i = currentConversation.length - 1; i >= 0; i--) {
+      const turn = currentConversation[i]
+      if (turn.side === 'user') {
+        userMessageText = turn.text || null
+        break
+      }
+    }
+
+    // Restore last user message to input so it can be edited
+    if (userMessageText && userMessageText !== SUBMITTING_FORM_MESSAGE) {
+      setCancelledMessageText(userMessageText)
+    }
+
+    // Update lastFetchedSessionIdRef to prevent history reload after cancel
+    // This ensures that if conversation becomes empty, we don't reload the cancelled message
+    if (state.sessionId) {
+      lastFetchedSessionIdRef.current = state.sessionId
+    }
+
+    // Now update the conversation state to remove the turns
+    setState(prevState => {
+      const newConversation = [...prevState.conversation]
+
+      // Remove the last agent turn (with loading/streaming response)
+      if (newConversation.length > 0 && newConversation[newConversation.length - 1]?.side === 'agent') {
+        newConversation.pop()
+      }
+
+      // Remove the last user turn
+      if (newConversation.length > 0 && newConversation[newConversation.length - 1]?.side === 'user') {
+        newConversation.pop()
+      }
+
+      // Show cancel response returned by the API as a new agent turn
+      if (cancelOutput) {
+        newConversation.push({ side: 'agent', outputs: [cancelOutput] })
+      } else if (cancelApiMessageText) {
+        // Fallback for when cancel API fails, show it as a tool output
+        newConversation.push({
+          side: 'agent',
+          outputs: [{ type: 'tool', name: 'cancel', reason: cancelApiMessageText }]
+        })
+      }
+
+      const newState = { ...prevState, conversation: newConversation }
+      saveState(newState)
+      return newState
+    })
+
+    // Reset loading state
+    inFlightRef.current = false
+    setIsLoading(false)
+
+    return userMessageText
+  }, [accessToken, state.sessionId, state.conversation])
+
+  const clearCancelledMessage = useCallback(() => {
+    setCancelledMessageText(null)
+  }, [])
 
   const fetchPrechatSuggestions = useCallback(async () => {
     if (state.conversation.length > 0 || isPrechatLoadingRef.current) return
@@ -744,6 +861,9 @@ export function useFlowBot(accessToken: string) {
     clearConversation,
     nextStepProposals,
     isPrechatLoading,
-    sessionId: state.sessionId
+    sessionId: state.sessionId,
+    cancelGeneration,
+    cancelledMessageText,
+    clearCancelledMessage
   }
 }

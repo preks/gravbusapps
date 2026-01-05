@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useId } from 'react'
+import React, { useState, useRef, useCallback, useId, useEffect } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
@@ -33,6 +33,9 @@ interface ChatInputProps {
    * Used for "upload early" behaviour where files are pre-uploaded before pressing Send.
    */
   onFilesAttached?: (files: File[]) => void
+  // Cancel restoration props
+  cancelledMessageText?: string | null
+  onClearCancelledMessage?: () => void
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -51,7 +54,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   voiceVolume = 0,
   onToggleVoiceMode,
   onStopSpeaking,
-  onFilesAttached
+  onFilesAttached,
+  cancelledMessageText,
+  onClearCancelledMessage
 }) => {
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -110,6 +115,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Check if voice mode is supported (has the callback)
   const voiceModeSupported = !!onToggleVoiceMode
+
+  // Restore cancelled message to input when cancelledMessageText changes
+  useEffect(() => {
+    if (cancelledMessageText) {
+      setValue(cancelledMessageText)
+      onClearCancelledMessage?.()
+      // Focus the textarea after restoring the message
+      setTimeout(() => {
+        textareaRef.current?.focus()
+        // Move cursor to end of text
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = textareaRef.current.value.length
+          textareaRef.current.selectionEnd = textareaRef.current.value.length
+        }
+      }, 0)
+    }
+  }, [cancelledMessageText, onClearCancelledMessage])
 
   return (
     <>
