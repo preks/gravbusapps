@@ -70,7 +70,8 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
     async (search: string, limit: number, offset: number) => {
       const structureId = getCurrentActiveStructureId()
       if (!structureId) {
-        throw new Error('No active structure ID')
+        console.error('[UserSearch] No active structure ID available from platform context')
+        throw new Error('No active structure ID available. Please refresh the page or contact support.')
       }
 
       const searchPattern = search ? `%${search}%` : '%'

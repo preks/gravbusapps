@@ -1,8 +1,20 @@
-export function getCurrentActiveStructureId(): string {
+export function getCurrentActiveStructureId(): string | null {
+  // Try primary source: activeStructureId
   if (window?.lowcoder?.activeStructureId) {
     return window.lowcoder.activeStructureId
   }
-  return '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+
+  // Try fallback: platformContext.structureId
+  if (window?.lowcoder?.platformContext?.structureId) {
+    return window.lowcoder.platformContext.structureId
+  }
+
+  // No valid structure ID available - return null instead of a hardcoded value
+  // This forces proper handling by the caller
+  console.warn(
+    '[getCurrentActiveStructureId] No active structure ID available. Check that window.lowcoder.activeStructureId or window.lowcoder.platformContext.structureId is set by the platform.'
+  )
+  return null
 }
 
 /**
@@ -92,7 +104,11 @@ export function getDateFormat(format: string): string {
   return 'DD.MM.YYYY'
 }
 
-export function getTranslationFromI18nKeyAndLabel(key: string, defaultValue: string, translationVariables?: {}) {
+export function getTranslationFromI18nKeyAndLabel(
+  key: string,
+  defaultValue: string,
+  translationVariables?: Record<string, unknown>
+) {
   if (globalThis.window === undefined) {
     return defaultValue
   }

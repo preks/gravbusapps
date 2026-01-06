@@ -25,10 +25,12 @@ import {
   buildContactFragment,
   buildDocumentFragment,
   buildNoteFragment,
-  buildTaskFragment,
   buildLeadFragment,
   buildOpportunityFragment
 } from '@/common/data/relations/queries/relationFragments'
+
+// Import IRM-specific task fragment (uses taskAssignees instead of assignedEmployee)
+import { buildInvestmentTaskFragmentForRelations } from './investmentTaskQueries'
 
 // Import Investment Fields
 import { InvestmentActivityFields } from '../types/investmentActivityTypes'
@@ -89,7 +91,7 @@ export const buildInvestmentAccountByIdQuery = (
     buildContactFragment,
     buildDocumentFragment,
     buildNoteFragment,
-    buildTaskFragment,
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations, // Use IRM-specific version (taskAssignees)
     buildLeadFragment,
     buildOpportunityFragment
   }

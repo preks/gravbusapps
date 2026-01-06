@@ -58,6 +58,29 @@ export interface CommonTaskQueryVariables extends BaseQueryVariables {
   templateStartDateTo?: string
 }
 
+// =====================================================
+// TASK ASSIGNEE FRAGMENT
+// =====================================================
+
+/**
+ * Build Task Assignee Fragment
+ * Used for querying multiple assignees per task
+ */
+export const buildTaskAssigneeFragment = (): string => {
+  return `
+    id
+    taskId
+    assignedEmployee {
+      ${EMPLOYEE_REF}
+    }
+    assignedEmployeeId
+    assignedUserId
+    taskStatus
+    completedAt
+    ${AUDIT_FIELDS}
+  `
+}
+
 /**
  * Build Task query with fields mapping
  * @param entityName - GraphQL entity name (REQUIRED)
@@ -142,11 +165,17 @@ export const buildTaskQuery = (
         where: $where
       ) {
         ${AUDIT_FIELDS}
-        ${entityFields.assignedEmployee} {
-          ${EMPLOYEE_REF}
+        
+        # Multiple assignees (many-to-many via TaskAssignee)
+        ${entityFields.taskAssignees}(where: { isDeleted: { _eq: false } }) {
+          ${buildTaskAssigneeFragment()}
         }
-        ${entityFields.assignedEmployeeId}
-        ${entityFields.assignedUserId}
+        ${entityFields.taskAssigneesAggregate}(where: { isDeleted: { _eq: false } }) {
+          aggregate {
+            count
+          }
+        }
+        
         ${entityFields.code}
         ${entityFields.creatorEmployee} {
           ${EMPLOYEE_REF}
@@ -205,11 +234,15 @@ export const buildTaskByIdQuery = (
   // Base fields inline
   const baseFields = `
         ${AUDIT_FIELDS}
-        ${entityFields.assignedEmployee} {
-          ${EMPLOYEE_REF}
+        # Multiple assignees (many-to-many via TaskAssignee)
+        ${entityFields.taskAssignees}(where: { isDeleted: { _eq: false } }) {
+          ${buildTaskAssigneeFragment()}
         }
-        ${entityFields.assignedEmployeeId}
-        ${entityFields.assignedUserId}
+        ${entityFields.taskAssigneesAggregate}(where: { isDeleted: { _eq: false } }) {
+          aggregate {
+            count
+          }
+        }
         ${entityFields.code}
         ${entityFields.creatorEmployee} {
           ${EMPLOYEE_REF}
@@ -341,11 +374,36 @@ export const buildTaskWhereCondition = (
   if (descriptors.length === 0) {
     throw new Error('Query Descriptor is missing')
   }
+
+  // Handle multiple assignees filter (NEW)
+  // When assignedEmployeeIds is provided, filter by taskAssignees relationship
+  const modifiedVariables = { ...variables }
+  const modifiedCustomConditions = [...customConditions]
+
+  if (
+    variables.assignedEmployeeIds &&
+    Array.isArray(variables.assignedEmployeeIds) &&
+    variables.assignedEmployeeIds.length > 0
+  ) {
+    // Add taskAssignees filter condition
+    modifiedCustomConditions.push({
+      taskAssignees: {
+        assignedEmployeeId: { _in: variables.assignedEmployeeIds },
+        isDeleted: { _eq: false }
+      }
+    })
+
+    // Remove assignedEmployeeIds from variables to prevent it from being processed by base builder
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { assignedEmployeeIds, ...restVariables } = modifiedVariables
+    Object.assign(modifiedVariables, restVariables)
+  }
+
   return buildWhere({
-    variables,
+    variables: modifiedVariables,
     descriptors,
-    ids: variables.ids,
-    customConditions,
+    ids: modifiedVariables.ids,
+    customConditions: modifiedCustomConditions,
     isDeleted: true
   })
 }

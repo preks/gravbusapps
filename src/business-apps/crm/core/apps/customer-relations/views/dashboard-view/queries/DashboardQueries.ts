@@ -394,7 +394,10 @@ export const GET_TODAYS_TASKS = (): string => {
         where: {
           isDeleted: {_eq: false}
           endDate: {_isNull: true}
-          assignedEmployeeId: {_eq: $employeeId}
+          taskAssignees: {
+            assignedEmployeeId: {_eq: $employeeId}
+            isDeleted: {_eq: false}
+          }
         }
         limit: 10
         orderBy: {createdAt: DESC}
@@ -424,12 +427,16 @@ export const GET_TODAYS_TASKS = (): string => {
           value
           code
         }
-        assignedEmployee {
-          id
-          firstName
-          lastName
-          fullName
-          displayName
+        taskAssignees(where: { isDeleted: { _eq: false } }) {
+          assignedEmployee {
+            id
+            firstName
+            lastName
+            fullName
+            displayName
+          }
+          assignedEmployeeId
+          assignedUserId
         }
         creatorEmployee {
           id
