@@ -20,11 +20,15 @@ import {
   FileUpload,
   type FileMetadata,
   DateInput,
-  useTranslation
+  useTranslation,
+  Badge,
+  Alert,
+  AlertTitle,
+  AlertDescription
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
-import { Clock3, CalendarClock } from 'lucide-react'
+import { Clock3, CalendarClock, Info } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import {
@@ -32,6 +36,7 @@ import {
   createCommonEntitySelectHandler,
   type CommonEntityContext
 } from '../../selects/reference-select/entityHandlingUtils'
+import { computeTaskStatus, formatTaskProgress } from '../../utils/taskStatusUtils'
 import translations from './_i18n'
 
 export interface TaskSegmentProps {
@@ -103,7 +108,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   entityId,
   typeCatalog,
   priorityCatalog,
-  statusCatalog,
+  // statusCatalog kept in props for backwards compatibility, backend now computes status
   initialTypeRef,
   hideTypeSelection = false,
   showEntitySelection = false,
@@ -242,8 +247,42 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
     }
   }, [initialEntityFromContext, form, onAdditionalEntityChange])
 
+  // Compute overall task status from assignees (only for existing tasks in update mode)
+  const taskAssignees = form.watch('taskAssignees')
+  const computedStatus = React.useMemo(() => {
+    if (!entityId || !taskAssignees || taskAssignees.length === 0) return null
+    return computeTaskStatus(taskAssignees)
+  }, [entityId, taskAssignees])
+
   return (
     <>
+      {/* Overall Task Status Display (Update Mode Only) */}
+      {computedStatus && (
+        <Alert className="gba:mb-4" data-testid={`${dataTestId}-computed-status-alert`}>
+          <Info className="gba:h-4 gba:w-4" />
+          <AlertTitle className="gba:flex gba:items-center gba:gap-2">
+            Task Status (Computed from Assignees)
+            <Badge variant={computedStatus.statusColor as any} data-testid={`${dataTestId}-status-badge`}>
+              {computedStatus.overallStatus}
+            </Badge>
+          </AlertTitle>
+          <AlertDescription>
+            <span className="gba:text-sm">{formatTaskProgress(computedStatus.progress)}</span>
+            {computedStatus.progress.total > 0 && (
+              <div className="gba:mt-2 gba:flex gba:gap-4 gba:text-xs">
+                <span>✅ Completed: {computedStatus.progress.completed}</span>
+                <span>⏳ In Progress: {computedStatus.progress.inProgress}</span>
+                <span>⏸️ Pending: {computedStatus.progress.pending}</span>
+              </div>
+            )}
+            <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground">
+              Task status is automatically computed from individual assignee statuses. Assignees can update their status
+              from the Task Section or Task Detail Sheet.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Name */}
       <FormField
         control={form.control as any}
@@ -366,27 +405,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         )}
       </div>
 
-      {/* Status */}
-      {statusCatalog && (
-        <FormField
-          control={form.control as any}
-          name="taskStatusRef"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('task-status-label')}</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogIdentifier={statusCatalog}
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
-                  data-testid={`${dataTestId}-status`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
+      {/* Status - Backend computed, no manual selection needed */}
 
       {/* Assigned To - Single or Multiple */}
       {multiAssigneeMode ? (
@@ -399,7 +418,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
               <FormControl>
                 <MultiEmployeeSelect
                   accessToken={accessToken}
-                  initialEmployees={assignedEmployees}
+                  initialEmployees={assignedEmployees as any}
                   value={field.value || []}
                   onValueChange={employeeIds => {
                     field.onChange(employeeIds)
@@ -564,7 +583,7 @@ const buildTaskSegmentSchema = (options?: {
     }),
     taskTypeRef: requireType ? z.string().min(1, 'Type is required') : z.string().optional(),
     taskPriorityRef: z.string().min(1, 'Priority is required'),
-    taskStatusRef: z.string().min(1, 'Status is required'),
+    taskStatusRef: z.string().optional(), // Backend computed, not required from user
     relatedEntityId: requireEntity ? z.string().min(1, 'Related entity is required') : z.string().optional(),
     description: z.string().optional(),
     dueDate: z.preprocess(val => (val == null ? '' : val), z.string().min(1, 'Deadline is required')),

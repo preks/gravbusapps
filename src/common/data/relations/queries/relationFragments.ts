@@ -137,8 +137,8 @@ export const buildTaskFragment = (fields: Record<keyof typeof TaskFields, string
     id
     taskId
     assignedEmployee {
-      ${EMPLOYEE_REF}
-    }
+    ${EMPLOYEE_REF}
+  }
     assignedEmployeeId
     assignedUserId
     ${AUDIT_FIELDS}

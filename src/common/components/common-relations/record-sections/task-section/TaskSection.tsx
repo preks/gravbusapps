@@ -40,6 +40,8 @@ import { type InvestmentTask } from '@/common/data/investment/types/investmentTa
 import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
+import { computeTaskStatus, formatTaskProgress } from '../../utils/taskStatusUtils'
+import type { TaskAssignee } from '@/common/data/relations/types/taskTypes'
 
 export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
 export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
@@ -87,6 +89,7 @@ export type TaskItem = {
         pictureThumbnail?: string
         userId?: string
       }> // Support both single (CRM) and multiple (IRM) assignees
+  taskAssignees?: TaskAssignee[] // Full junction table data with individual statuses
   creatorEmployee?: {
     id: string
     displayName?: string
@@ -413,7 +416,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     if (Array.isArray(assigneeEmployee)) {
       if (assigneeEmployee.length === 0) return fallback
       if (assigneeEmployee.length === 1) return getEmployeeDisplayName(assigneeEmployee[0])
-      return 'Multiple'
+      return `${assigneeEmployee.length} assignees`
     }
 
     return getEmployeeDisplayName(assigneeEmployee)
@@ -525,10 +528,44 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                         data-testid={`task-item-${t.id}`}
                       >
                         <span className="gba:truncate">{t.title}</span>
-                        {t.taskStatus && (
-                          <Badge variant={getStatusBadgeVariant(t.taskStatus, t.due, t.statusCode)} size="sm">
-                            {isTaskOverdue(t.due, t.statusCode) ? 'Overdue' : t.taskStatus.value || t.taskStatus.code}
-                          </Badge>
+                        {/* Show computed status for multi-assignee tasks */}
+                        {t.taskAssignees && t.taskAssignees.length > 1 ? (
+                          <>
+                            {(() => {
+                              const { overallStatus, progress } = computeTaskStatus(t.taskAssignees as any)
+                              const statusLabel =
+                                overallStatus === 'COMPLETED'
+                                  ? 'Completed'
+                                  : overallStatus === 'IN_PROGRESS'
+                                    ? 'In Progress'
+                                    : 'Pending'
+                              const variant =
+                                overallStatus === 'COMPLETED'
+                                  ? 'success'
+                                  : overallStatus === 'IN_PROGRESS'
+                                    ? 'info'
+                                    : 'warning'
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant={variant} size="sm">
+                                      {statusLabel} ({progress.completed}/{progress.total})
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{formatTaskProgress(progress)}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )
+                            })()}
+                          </>
+                        ) : (
+                          /* Show regular status for single or no assignee tasks */
+                          t.taskStatus && (
+                            <Badge variant={getStatusBadgeVariant(t.taskStatus, t.due, t.statusCode)} size="sm">
+                              {isTaskOverdue(t.due, t.statusCode) ? 'Overdue' : t.taskStatus.value || t.taskStatus.code}
+                            </Badge>
+                          )
                         )}
                         {t.taskPriority && (
                           <Badge variant={getPriorityBadgeVariant(t.taskPriority)} size="sm">

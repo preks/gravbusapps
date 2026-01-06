@@ -92,11 +92,11 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
                 value
               }
               taskAssignees(where: { isDeleted: { _eq: false } }) {
-                assignedEmployee {
-                  id
-                  firstName
-                  lastName
-                  displayName
+              assignedEmployee {
+                id
+                firstName
+                lastName
+                displayName
                 }
                 assignedEmployeeId
                 assignedUserId

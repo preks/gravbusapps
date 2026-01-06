@@ -15,6 +15,11 @@ export interface TaskOrApprovalSource {
   dueDate?: string
   // Multiple assignees (many-to-many via TaskAssignee)
   taskAssignees?: Array<{
+    id?: string
+    version?: number
+    taskStatus?: string | null
+    completedAt?: string | null
+    assignedUserId?: string | null
     assignedEmployee?: {
       id: string
       displayName?: string
@@ -22,6 +27,7 @@ export interface TaskOrApprovalSource {
       lastName?: string
       fullName?: string
       pictureThumbnail?: string
+      userId?: string
     }
   }>
   taskStatus?: any // CatalogEntry
@@ -139,10 +145,12 @@ export const transformTaskOrApproval = (
     taskPriority: item.taskPriority,
     taskType: item.taskType,
     assigneeEmployee, // Array of employees (or undefined)
+    taskAssignees: item.taskAssignees, // Full junction table data with statuses
     taskTiming: item.taskTiming,
     startDate: item.startDate,
     creatorEmployee: item.creatorEmployee,
     documents: item.documents,
-    reference: buildTaskReference(item)
+    reference: buildTaskReference(item),
+    rawTask: item as any // Pass through for detail sheet
   }
 }

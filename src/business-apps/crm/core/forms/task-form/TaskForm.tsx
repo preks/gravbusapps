@@ -127,7 +127,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         ...(existing?.version !== undefined && { version: existing.version }),
         assignedEmployeeId: employeeId,
         assignedUserId: employee?.userId || null,
-        taskStatus: existing?.taskStatus || null,
+        taskStatus: existing?.taskStatus || 'SCHEDULED_TASK_STATUS', // Set default to SCHEDULED for new instances
         completedAt: existing?.completedAt || null
       }
     })

@@ -64,7 +64,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
   const isApprovalTask = typeRef?.toUpperCase()?.includes('APPROVAL') ?? false
   const form = useForm<z.infer<typeof investmentTaskSchema>>({
     resolver: zodResolver(investmentTaskSchema) as any,
-    defaultValues: mapToFormValues(task || {}, investmentTaskSchema) as Partial<InvestmentTask>,
+    defaultValues: mapToFormValues(task || {}, investmentTaskSchema) as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -108,7 +108,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
         ...(existing?.version !== undefined && { version: existing.version }),
         assignedEmployeeId: employeeId,
         assignedUserId: employee?.userId || null,
-        taskStatus: existing?.taskStatus || null,
+        taskStatus: existing?.taskStatus || 'SCHEDULED_TASK_STATUS', // Set default to SCHEDULED for new instances
         completedAt: existing?.completedAt || null
       }
     })
@@ -120,7 +120,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
   const taskRef = useRef(task)
   useEffect(() => {
     if (taskRef.current?.id !== task?.id) {
-      form.reset(mapToFormValues(task || {}, investmentTaskSchema) as Partial<InvestmentTask>)
+      form.reset(mapToFormValues(task || {}, investmentTaskSchema) as any)
       taskRef.current = task
 
       // Manually set assignee fields when task loads (prevents infinite loop in MultiEmployeeSelect)
@@ -164,12 +164,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
 
   const handleSubmit = useCallback(async (data: z.infer<typeof investmentTaskSchema>) => {
     try {
-      delete data.files
-      delete data._pendingFiles
-      delete data.relatedEntityId
       // Delete helper fields (not sent to backend)
-      delete data.assignedEmployeeIds
-      delete data.assignedEmployees
+      delete (data as any).files
+      delete (data as any)._pendingFiles
+      delete (data as any).relatedEntityId
+      delete (data as any).assignedEmployeeIds
+      delete (data as any).assignedEmployees
 
       // Build payload (returns { employeeDetails, investmentTask })
       return buildInvestmentTaskPayload(data as Partial<InvestmentTask>)
@@ -290,7 +290,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
         onSuccess={handleSuccess}
         onCancel={handleCancel}
         formData={form.getValues()}
-        form={form}
+        form={form as any}
         schema={investmentTaskSchema}
         submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
         cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}

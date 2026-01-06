@@ -119,7 +119,7 @@ export const buildCustomerTaskPayload = (task: Partial<CustomerTask> & Record<st
       ...(ta.version !== undefined && { version: ta.version }),
       assignedEmployee: ta.assignedEmployeeId, // Transform assignedEmployeeId → assignedEmployee
       assignedUserId: ta.assignedUserId, // Preserve assignedUserId field name (don't transform!)
-      taskStatus: ta.taskStatus || null,
+      taskStatus: ta.taskStatus || 'SCHEDULED_TASK_STATUS', // Default to SCHEDULED for new instances
       completedAt: ta.completedAt || null
     }))
   }

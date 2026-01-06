@@ -89,11 +89,11 @@ const INVESTMENT_TASK_RELATION_FIELDS: Partial<TaskRelationFields> = {
 }
 
 const INVESTMENT_TASK_ENTITY_FIELDS = `
-  # Investment relation (only in IRM, not in CRM)
-  investment{
-    ${INVESTMENT_REF}
-  }
-  investmentId
+    # Investment relation (only in IRM, not in CRM)
+    investment{
+      ${INVESTMENT_REF}
+    }
+    investmentId
   
   # Task Assignees (multiple assignees support - NEW)
   taskAssignees(where: { isDeleted: { _eq: false } }) {

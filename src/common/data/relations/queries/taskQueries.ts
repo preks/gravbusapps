@@ -75,6 +75,8 @@ export const buildTaskAssigneeFragment = (): string => {
     }
     assignedEmployeeId
     assignedUserId
+    taskStatus
+    completedAt
     ${AUDIT_FIELDS}
   `
 }
