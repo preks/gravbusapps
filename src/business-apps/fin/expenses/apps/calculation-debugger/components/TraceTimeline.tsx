@@ -18,9 +18,23 @@ import {
   AlertTriangle,
   ChevronDown,
   MapPin,
-  Code
+  Code,
+  PlayCircle
 } from 'lucide-react'
 import { CalculationStep, StepCategory } from '../hooks/useCalculationTrace'
+
+/**
+ * Check if a step is a "phase marker" - a step that marks a phase in the calculation
+ * but doesn't compute anything itself (no outputs, no calculatedValue)
+ */
+const isPhaseMarker = (step: CalculationStep): boolean => {
+  const hasCalculatedValue = step.calculatedValue !== undefined && step.calculatedValue !== null
+  const hasOutputs = step.outputs && Object.keys(step.outputs).length > 0
+  const hasFormula = !!step.formula
+
+  // If it has no computed result, it's a phase marker
+  return !hasCalculatedValue && !hasOutputs && !hasFormula
+}
 
 interface TraceTimelineProps {
   steps: CalculationStep[]
@@ -221,6 +235,7 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
     <div className="gba:space-y-2">
       {steps.map((step, index) => {
         const isExpanded = expandedSteps.has(step.stepId)
+        const isPhase = isPhaseMarker(step)
         const hasDetails =
           Object.keys(step.inputs || {}).length > 0 ||
           Object.keys(step.outputs || {}).length > 0 ||
@@ -228,10 +243,46 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
           step.errorMessage
         const styles = getStyles(step.category, step.success)
 
+        // Render phase markers as section headers
+        if (isPhase) {
+          return (
+            <div key={step.stepId} className="gba:relative gba:my-4">
+              {/* Phase header with gradient */}
+              <div className="gba:flex gba:items-center gba:gap-3">
+                {/* Left line */}
+                <div className="gba:flex-1 gba:h-px gba:bg-gradient-to-r gba:from-transparent gba:via-gray-300 gba:to-gray-300" />
+
+                {/* Phase badge */}
+                <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:bg-gradient-to-r gba:from-slate-100 gba:to-gray-100 gba:rounded-full gba:border gba:border-gray-200 gba:shadow-sm">
+                  <div className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-gradient-to-br gba:from-slate-400 gba:to-gray-500 gba:flex gba:items-center gba:justify-center">
+                    <PlayCircle className="gba:w-3 gba:h-3 gba:text-white" />
+                  </div>
+                  <span className="gba:text-xs gba:font-semibold gba:text-gray-600 gba:uppercase gba:tracking-wider">
+                    Phase {step.stepOrder}
+                  </span>
+                  <span className="gba:text-gray-400">·</span>
+                  <span className="gba:text-sm gba:font-medium gba:text-gray-700">{step.stepName}</span>
+                </div>
+
+                {/* Right line */}
+                <div className="gba:flex-1 gba:h-px gba:bg-gradient-to-l gba:from-transparent gba:via-gray-300 gba:to-gray-300" />
+              </div>
+
+              {/* Optional description */}
+              {step.description && (
+                <div className="gba:text-center gba:mt-1">
+                  <span className="gba:text-xs gba:text-gray-400 gba:italic">{step.description}</span>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        // Regular computation steps
         return (
           <div key={step.stepId} className={`gba:relative gba:pl-8 ${index < steps.length - 1 ? 'gba:pb-2' : ''}`}>
             {/* Timeline connector */}
-            {index < steps.length - 1 && (
+            {index < steps.length - 1 && !isPhaseMarker(steps[index + 1]) && (
               <div className="gba:absolute gba:left-[11px] gba:top-7 gba:w-0.5 gba:h-[calc(100%-4px)] gba:bg-gray-200" />
             )}
 
@@ -246,7 +297,7 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
 
             {/* Step card */}
             <div
-              className={`gba:border gba:rounded-lg gba:overflow-hidden gba:cursor-pointer gba:transition-all hover:gba:shadow-sm ${styles.border} ${isExpanded ? styles.bg : 'gba:bg-white'}`}
+              className={`gba:border gba:rounded-lg gba:overflow-hidden gba:transition-all ${hasDetails ? 'gba:cursor-pointer hover:gba:shadow-sm' : ''} ${styles.border} ${isExpanded ? styles.bg : 'gba:bg-white'}`}
               onClick={() => {
                 if (hasDetails) toggleStep(step.stepId)
                 onStepClick?.(step)
@@ -270,20 +321,124 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
                     <div className="gba:text-sm gba:text-gray-700 gba:mt-1">{step.stepName}</div>
                     {step.description && <p className="gba:text-xs gba:text-gray-500 gba:mt-1">{step.description}</p>}
                     {/* Show calculated value or result from outputs */}
-                    {(step.calculatedValue !== undefined || step.outputs?.result) && (
-                      <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-white gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-gray-200 gba:text-sm">
-                        <span className="gba:text-gray-500">Result:</span>
-                        <span className="gba:font-semibold gba:text-emerald-600">
-                          {step.calculatedValue !== undefined
-                            ? typeof step.calculatedValue === 'number'
-                              ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
-                                  step.calculatedValue
-                                )
-                              : String(step.calculatedValue)
-                            : String(step.outputs?.result || '')}
-                        </span>
-                      </div>
-                    )}
+                    {(() => {
+                      // For travel breakdown steps, show key outputs as summary
+                      if (step.category === 'TRAVEL_BREAKDOWN' && step.outputs && !step.outputs.result) {
+                        const { amountCode, percentCode, allowanceCode, amountRegionRule } = step.outputs as Record<
+                          string,
+                          any
+                        >
+                        // Calculate the actual amount (amountRegionRule * percentCode / 100) or use amountCode
+                        const displayAmount =
+                          amountRegionRule && percentCode
+                            ? (Number(amountRegionRule) * Number(percentCode)) / 100
+                            : amountCode || amountRegionRule
+
+                        if (amountCode || percentCode || allowanceCode || amountRegionRule) {
+                          return (
+                            <div className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-2">
+                              {allowanceCode && (
+                                <span className="gba:inline-flex gba:items-center gba:gap-1 gba:bg-blue-50 gba:text-blue-700 gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium">
+                                  Code: {allowanceCode}
+                                </span>
+                              )}
+                              {displayAmount !== undefined && displayAmount !== 0 && (
+                                <span className="gba:inline-flex gba:items-center gba:gap-1 gba:bg-emerald-50 gba:text-emerald-700 gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium gba:font-semibold">
+                                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                    Number(displayAmount)
+                                  )}
+                                </span>
+                              )}
+                              {percentCode !== undefined && percentCode !== 0 && (
+                                <span className="gba:inline-flex gba:items-center gba:gap-1 gba:bg-amber-50 gba:text-amber-700 gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium">
+                                  {percentCode}%
+                                </span>
+                              )}
+                              {amountRegionRule !== undefined && amountRegionRule !== 0 && percentCode && (
+                                <span className="gba:inline-flex gba:items-center gba:gap-1 gba:bg-gray-100 gba:text-gray-600 gba:px-2 gba:py-0.5 gba:rounded gba:text-xs">
+                                  (base:{' '}
+                                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                    Number(amountRegionRule)
+                                  )}
+                                  )
+                                </span>
+                              )}
+                            </div>
+                          )
+                        }
+                        return null
+                      }
+
+                      // For deduction steps, show the deduction amount prominently
+                      if (step.category === 'DEDUCTION' && step.outputs) {
+                        const { deductionAmount } = step.outputs as Record<string, any>
+                        if (deductionAmount !== undefined && deductionAmount !== 0) {
+                          return (
+                            <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-red-50 gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-red-200 gba:text-sm">
+                              <span className="gba:text-red-500">Deduction:</span>
+                              <span className="gba:font-semibold gba:text-red-600">
+                                -
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                  Math.abs(Number(deductionAmount))
+                                )}
+                              </span>
+                            </div>
+                          )
+                        }
+                        return null
+                      }
+
+                      // For country rule steps, show the applied rules summary
+                      if (step.category === 'COUNTRY_RULE' && step.outputs) {
+                        const outputs = step.outputs as Record<string, any>
+                        const { result, midnightRule, mealDeductions, calculationMethod } = outputs
+                        return (
+                          <div className="gba:mt-2 gba:space-y-1.5">
+                            {result && (
+                              <div className="gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-indigo-50 gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-indigo-200 gba:text-sm">
+                                <span className="gba:font-semibold gba:text-indigo-700">{result}</span>
+                              </div>
+                            )}
+                            <div className="gba:flex gba:flex-wrap gba:gap-1.5">
+                              {midnightRule && (
+                                <span className="gba:text-xs gba:bg-purple-50 gba:text-purple-700 gba:px-2 gba:py-0.5 gba:rounded gba:border gba:border-purple-200">
+                                  Midnight Rule: Active
+                                </span>
+                              )}
+                              {mealDeductions && (
+                                <span className="gba:text-xs gba:bg-orange-50 gba:text-orange-700 gba:px-2 gba:py-0.5 gba:rounded gba:border gba:border-orange-200">
+                                  Meal Deductions: Percentage-based
+                                </span>
+                              )}
+                              {calculationMethod && (
+                                <span className="gba:text-xs gba:bg-teal-50 gba:text-teal-700 gba:px-2 gba:py-0.5 gba:rounded gba:border gba:border-teal-200">
+                                  Method: {calculationMethod}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      // Default result display
+                      if (step.calculatedValue !== undefined || step.outputs?.result) {
+                        return (
+                          <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-white gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-gray-200 gba:text-sm">
+                            <span className="gba:text-gray-500">Result:</span>
+                            <span className="gba:font-semibold gba:text-emerald-600">
+                              {step.calculatedValue !== undefined
+                                ? typeof step.calculatedValue === 'number'
+                                  ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                      step.calculatedValue
+                                    )
+                                  : String(step.calculatedValue)
+                                : String(step.outputs?.result || '')}
+                            </span>
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
 
                   {hasDetails && (
