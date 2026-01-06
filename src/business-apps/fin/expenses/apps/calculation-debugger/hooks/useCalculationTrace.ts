@@ -300,6 +300,75 @@ export function useCalculationTrace(accessToken: string): UseCalculationTraceRet
   )
 
   /**
+   * Check if a value looks like a catalog ref (e.g., "Country:v1:DE")
+   */
+  const isCatalogRef = useCallback((value: any): boolean => {
+    if (typeof value !== 'string') return false
+    // Match pattern like "CatalogName:version:code"
+    const parts = value.split(':')
+    if (parts.length < 3) return false
+    // First part should be a catalog name (capital letter start)
+    if (!/^[A-Z][a-zA-Z]*$/.test(parts[0])) return false
+    // Second part should be a version like "v1"
+    if (!/^v\d+$/.test(parts[1])) return false
+    return true
+  }, [])
+
+  /**
+   * Resolve catalog refs in trace step inputs/outputs
+   */
+  const resolveTraceStepCatalogs = useCallback(
+    async (steps: CalculationStep[]): Promise<CalculationStep[]> => {
+      // Collect all unique refs from steps
+      const refsToResolve = new Set<string>()
+
+      steps.forEach(step => {
+        // Check inputs
+        Object.values(step.inputs || {}).forEach(value => {
+          if (isCatalogRef(value)) refsToResolve.add(value)
+        })
+        // Check outputs
+        Object.values(step.outputs || {}).forEach(value => {
+          if (isCatalogRef(value)) refsToResolve.add(value)
+        })
+      })
+
+      if (refsToResolve.size === 0) return steps
+
+      console.log(`[CatalogResolver] Resolving ${refsToResolve.size} refs in trace steps`)
+
+      // Batch resolve all refs
+      const resolvedMap = new Map<string, string>()
+      await Promise.all(
+        Array.from(refsToResolve).map(async ref => {
+          const resolved = await resolveCatalogRef(ref)
+          resolvedMap.set(ref, resolved)
+        })
+      )
+
+      console.log(`[CatalogResolver] Step refs resolved:`, Object.fromEntries(resolvedMap))
+
+      // Apply resolved names to steps
+      return steps.map(step => ({
+        ...step,
+        inputs: Object.fromEntries(
+          Object.entries(step.inputs || {}).map(([key, value]) => [
+            key,
+            isCatalogRef(value) ? resolvedMap.get(value) || value : value
+          ])
+        ),
+        outputs: Object.fromEntries(
+          Object.entries(step.outputs || {}).map(([key, value]) => [
+            key,
+            isCatalogRef(value) ? resolvedMap.get(value) || value : value
+          ])
+        )
+      }))
+    },
+    [isCatalogRef, resolveCatalogRef]
+  )
+
+  /**
    * Resolve all catalog refs in an analysis response
    */
   const resolveAnalysisCatalogs = useCallback(
@@ -541,7 +610,18 @@ export function useCalculationTrace(accessToken: string): UseCalculationTraceRet
             status: resolvedData.calculationTrace.status,
             stepsCount: resolvedData.calculationTrace.steps?.length || 0
           })
-          setCurrentTrace(resolvedData.calculationTrace)
+
+          // Resolve catalog refs in trace steps
+          if (resolvedData.calculationTrace.steps?.length) {
+            console.log('[CalculationDebugger] Resolving catalog refs in trace steps...')
+            const resolvedSteps = await resolveTraceStepCatalogs(resolvedData.calculationTrace.steps)
+            setCurrentTrace({
+              ...resolvedData.calculationTrace,
+              steps: resolvedSteps
+            })
+          } else {
+            setCurrentTrace(resolvedData.calculationTrace)
+          }
         } else {
           console.warn(
             '[CalculationDebugger] No calculationTrace in response - keys available:',
@@ -557,7 +637,7 @@ export function useCalculationTrace(accessToken: string): UseCalculationTraceRet
         setLoading(false)
       }
     },
-    [baseUrl, headers, resolveAnalysisCatalogs]
+    [baseUrl, headers, resolveAnalysisCatalogs, resolveTraceStepCatalogs]
   )
 
   const debugRuleAssignment = useCallback(

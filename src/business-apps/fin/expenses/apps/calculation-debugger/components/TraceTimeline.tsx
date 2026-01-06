@@ -18,9 +18,23 @@ import {
   AlertTriangle,
   ChevronDown,
   MapPin,
-  Code
+  Code,
+  PlayCircle
 } from 'lucide-react'
 import { CalculationStep, StepCategory } from '../hooks/useCalculationTrace'
+
+/**
+ * Check if a step is a "phase marker" - a step that marks a phase in the calculation
+ * but doesn't compute anything itself (no outputs, no calculatedValue)
+ */
+const isPhaseMarker = (step: CalculationStep): boolean => {
+  const hasCalculatedValue = step.calculatedValue !== undefined && step.calculatedValue !== null
+  const hasOutputs = step.outputs && Object.keys(step.outputs).length > 0
+  const hasFormula = !!step.formula
+
+  // If it has no computed result, it's a phase marker
+  return !hasCalculatedValue && !hasOutputs && !hasFormula
+}
 
 interface TraceTimelineProps {
   steps: CalculationStep[]
@@ -221,6 +235,7 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
     <div className="gba:space-y-2">
       {steps.map((step, index) => {
         const isExpanded = expandedSteps.has(step.stepId)
+        const isPhase = isPhaseMarker(step)
         const hasDetails =
           Object.keys(step.inputs || {}).length > 0 ||
           Object.keys(step.outputs || {}).length > 0 ||
@@ -228,10 +243,46 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
           step.errorMessage
         const styles = getStyles(step.category, step.success)
 
+        // Render phase markers as section headers
+        if (isPhase) {
+          return (
+            <div key={step.stepId} className="gba:relative gba:my-4">
+              {/* Phase header with gradient */}
+              <div className="gba:flex gba:items-center gba:gap-3">
+                {/* Left line */}
+                <div className="gba:flex-1 gba:h-px gba:bg-gradient-to-r gba:from-transparent gba:via-gray-300 gba:to-gray-300" />
+
+                {/* Phase badge */}
+                <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:bg-gradient-to-r gba:from-slate-100 gba:to-gray-100 gba:rounded-full gba:border gba:border-gray-200 gba:shadow-sm">
+                  <div className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-gradient-to-br gba:from-slate-400 gba:to-gray-500 gba:flex gba:items-center gba:justify-center">
+                    <PlayCircle className="gba:w-3 gba:h-3 gba:text-white" />
+                  </div>
+                  <span className="gba:text-xs gba:font-semibold gba:text-gray-600 gba:uppercase gba:tracking-wider">
+                    Phase {step.stepOrder}
+                  </span>
+                  <span className="gba:text-gray-400">·</span>
+                  <span className="gba:text-sm gba:font-medium gba:text-gray-700">{step.stepName}</span>
+                </div>
+
+                {/* Right line */}
+                <div className="gba:flex-1 gba:h-px gba:bg-gradient-to-l gba:from-transparent gba:via-gray-300 gba:to-gray-300" />
+              </div>
+
+              {/* Optional description */}
+              {step.description && (
+                <div className="gba:text-center gba:mt-1">
+                  <span className="gba:text-xs gba:text-gray-400 gba:italic">{step.description}</span>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        // Regular computation steps
         return (
           <div key={step.stepId} className={`gba:relative gba:pl-8 ${index < steps.length - 1 ? 'gba:pb-2' : ''}`}>
             {/* Timeline connector */}
-            {index < steps.length - 1 && (
+            {index < steps.length - 1 && !isPhaseMarker(steps[index + 1]) && (
               <div className="gba:absolute gba:left-[11px] gba:top-7 gba:w-0.5 gba:h-[calc(100%-4px)] gba:bg-gray-200" />
             )}
 
@@ -246,7 +297,7 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
 
             {/* Step card */}
             <div
-              className={`gba:border gba:rounded-lg gba:overflow-hidden gba:cursor-pointer gba:transition-all hover:gba:shadow-sm ${styles.border} ${isExpanded ? styles.bg : 'gba:bg-white'}`}
+              className={`gba:border gba:rounded-lg gba:overflow-hidden gba:transition-all ${hasDetails ? 'gba:cursor-pointer hover:gba:shadow-sm' : ''} ${styles.border} ${isExpanded ? styles.bg : 'gba:bg-white'}`}
               onClick={() => {
                 if (hasDetails) toggleStep(step.stepId)
                 onStepClick?.(step)
