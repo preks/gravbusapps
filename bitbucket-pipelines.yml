@@ -322,19 +322,6 @@ pipelines:
       - step: *install_dependencies
       - step: *publish-manual-prod-screens
 
-    check-cursor-rules-update:
-      - step:
-          name: Check for cursor-rules updates
-          size: 1x
-          script:
-            - set -e
-            - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
-            - apt-get update && apt-get install -y curl jq
-            - git config --global user.email "ci-bot@newwork.com"
-            - git config --global user.name "CI Bot"
-            - chmod +x scripts/check-cursor-rules-update.sh
-            - bash scripts/check-cursor-rules-update.sh
-
     calculate-hashes:
       - variables:
           - name: HASH_ENV
