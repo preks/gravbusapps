@@ -211,7 +211,7 @@ const AssigneeField: React.FC<AssigneeFieldProps> = ({ assignedTo, dataTestId, g
                 }}
                 data-testid={`${dataTestId}-assignee-${index}`}
               >
-                <Avatar size="xs" className="gba:h-4 gba:w-4">
+                <Avatar size="sm" className="gba:h-4 gba:w-4">
                   {employee.pictureThumbnail && (
                     <AvatarImage
                       src={`data:image/gif;base64,${employee.pictureThumbnail}`}

@@ -14,7 +14,6 @@ export interface TaskAssignee extends BaseEntity {
   assignedEmployee?: Employee
   assignedEmployeeId?: string
   assignedUserId?: string
-  isDeleted?: boolean
 }
 
 export interface Task extends BaseEntity {
@@ -102,9 +101,8 @@ export const TaskFields = {
 export const TaskFormFields = {
   accountId: 'account',
 
-  // Multiple assignees fields
+  // Multiple assignees field (assignedEmployees kept as form-only data for userId extraction)
   assignedEmployeeIds: 'taskAssignees',
-  assignedEmployees: 'taskAssignees',
 
   code: 'code',
   contactId: 'contact',
@@ -381,24 +379,16 @@ export const buildTaskPayload = (task: Partial<Task> & Record<string, any>) => {
 
   // Transform assignee data to taskAssignees array
   // Backend expects taskAssignees array (can be empty, 1, or many)
-  if (
-    payload.assignedEmployeeIds &&
-    Array.isArray(payload.assignedEmployeeIds) &&
-    payload.assignedEmployeeIds.length > 0
-  ) {
+  // Check original task parameter since buildPayload doesn't copy these fields
+  if (task.assignedEmployeeIds && Array.isArray(task.assignedEmployeeIds) && task.assignedEmployeeIds.length > 0) {
     // Create taskAssignees from assignedEmployeeIds array
-    payload.taskAssignees = payload.assignedEmployeeIds.map((employeeId: string, index: number) => {
-      const employee = payload.assignedEmployees?.[index]
+    payload.taskAssignees = task.assignedEmployeeIds.map((employeeId: string, index: number) => {
+      const employee = task.assignedEmployees?.[index]
       return {
-        assignedEmployeeId: employeeId,
-        assignedEmployee: employee,
-        assignedUserId: employee?.userId
+        assignedEmployee: employeeId,
+        assignedUserId: employee?.userId || null
       }
     })
-
-    // Remove form-specific fields
-    delete payload.assignedEmployeeIds
-    delete payload.assignedEmployees
   }
 
   return payload

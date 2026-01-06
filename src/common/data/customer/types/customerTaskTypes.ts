@@ -111,22 +111,15 @@ export const buildCustomerTaskPayload = (task: Partial<CustomerTask> & Record<st
   const payload = buildPayload(task, CustomerTaskFormFields)
 
   // Transform assignee data to taskAssignees array
-  if (
-    payload.assignedEmployeeIds &&
-    Array.isArray(payload.assignedEmployeeIds) &&
-    payload.assignedEmployeeIds.length > 0
-  ) {
-    payload.taskAssignees = payload.assignedEmployeeIds.map((employeeId: string, index: number) => {
-      const employee = payload.assignedEmployees?.[index]
+  // Check original task parameter since buildPayload doesn't copy these fields
+  if (task.assignedEmployeeIds && Array.isArray(task.assignedEmployeeIds) && task.assignedEmployeeIds.length > 0) {
+    payload.taskAssignees = task.assignedEmployeeIds.map((employeeId: string, index: number) => {
+      const employee = task.assignedEmployees?.[index]
       return {
-        assignedEmployeeId: employeeId,
-        assignedEmployee: employee,
-        assignedUserId: employee?.userId
+        assignedEmployee: employeeId,
+        assignedUserId: employee?.userId || null
       }
     })
-
-    delete payload.assignedEmployeeIds
-    delete payload.assignedEmployees
   }
 
   return {

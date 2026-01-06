@@ -143,7 +143,7 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
                   className="gba:flex gba:items-center gba:gap-1.5 gba:pr-1.5 gba:pl-1 gba:py-0.5 gba:h-7"
                   data-testid={`${dataTestId}-badge-${employee.id}`}
                 >
-                  <Avatar size="xs" className="gba:h-5 gba:w-5">
+                  <Avatar size="sm" className="gba:h-5 gba:w-5">
                     {employee.pictureThumbnail ? (
                       <AvatarImage
                         src={`data:image/jpeg;base64,${employee.pictureThumbnail}`}

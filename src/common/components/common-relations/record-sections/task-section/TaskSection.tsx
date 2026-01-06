@@ -15,7 +15,8 @@ import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   TaskDetailSheet,
   Task,
-  TaskReference
+  TaskReference,
+  TaskEmployee
 } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import dayjs from 'dayjs'
 import {
