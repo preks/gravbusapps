@@ -57,7 +57,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     nextStepProposals,
     isPrechatLoading,
     sessionId,
-    attachFiles
+    attachFiles,
+    cancelGeneration,
+    cancelledMessageText,
+    clearCancelledMessage
   } = useFlowBot(accessToken)
 
   // Fetch current user's picture
@@ -665,11 +668,13 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               turns={extendedConversation}
               accessToken={accessToken}
               sendMessage={sendMessage}
-              onEditMessage={editMessage}
+              editMessage={editMessage}
               userInfo={userInfo}
               pictureThumbnail={pictureThumbnail}
               isVoiceMode={isSpeechMode}
               sessionId={sessionId ?? undefined}
+              onCancelGeneration={cancelGeneration}
+              isAgentGenerating={isLoading}
             />
           )}
         </div>
@@ -693,6 +698,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             onStopSpeaking={voiceSynthesis.stop}
             // Pre-upload files as soon as they are attached for faster first answers.
             onFilesAttached={files => attachFiles(files)}
+            // Cancel restoration props
+            cancelledMessageText={cancelledMessageText}
+            onClearCancelledMessage={clearCancelledMessage}
           />
         </div>
       </FormSubmissionProvider>

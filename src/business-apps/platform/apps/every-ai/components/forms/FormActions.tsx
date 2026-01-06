@@ -4,10 +4,16 @@ import { Button } from '@newwork/nw-design-system'
 interface FormActionsProps {
   isDeleteOperation: boolean
   isLoading: boolean
+  isAgentGenerating?: boolean
   onCancel?: () => void
 }
 
-export const FormActions: React.FC<FormActionsProps> = ({ isDeleteOperation, isLoading, onCancel }) => {
+export const FormActions: React.FC<FormActionsProps> = ({
+  isDeleteOperation,
+  isLoading,
+  isAgentGenerating = false,
+  onCancel
+}) => {
   const buttonClassName = isDeleteOperation
     ? 'gba:bg-gradient-to-r gba:from-destructive gba:to-destructive/80'
     : 'gba:bg-gradient-to-r gba:from-success gba:to-success/80'
@@ -16,9 +22,11 @@ export const FormActions: React.FC<FormActionsProps> = ({ isDeleteOperation, isL
     ? isDeleteOperation
       ? 'Deleting...'
       : 'Submitting...'
-    : isDeleteOperation
-      ? 'Delete'
-      : 'Submit'
+    : isAgentGenerating
+      ? 'Waiting...'
+      : isDeleteOperation
+        ? 'Delete'
+        : 'Submit'
 
   return (
     <div className="gba:flex gba:justify-end gba:gap-3 gba:mt-6 gba:pt-4 gba:border-t-2 gba:border-border">
@@ -26,9 +34,10 @@ export const FormActions: React.FC<FormActionsProps> = ({ isDeleteOperation, isL
         type="submit"
         className={`${buttonClassName} hover:gba:shadow-lg gba:transition-all`}
         variant={isDeleteOperation ? 'destructive' : 'default'}
-        disabled={isLoading}
+        disabled={isAgentGenerating || isLoading}
+        data-testid="dynamic-form-submit-button"
       >
-        {isLoading ? (
+        {isLoading || isAgentGenerating ? (
           <span className="gba:flex gba:items-center gba:gap-2">
             <div
               className={`gba:h-4 gba:w-4 gba:border-2 gba:border-t-transparent gba:rounded-full gba:animate-spin ${spinnerClassName}`}
@@ -46,6 +55,7 @@ export const FormActions: React.FC<FormActionsProps> = ({ isDeleteOperation, isL
           className="hover:gba:shadow-lg gba:transition-all"
           onClick={onCancel}
           disabled={isLoading}
+          data-testid="dynamic-form-cancel-button"
         >
           Cancel
         </Button>

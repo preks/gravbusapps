@@ -20,11 +20,13 @@ interface ConversationRendererProps {
     isSearching?: boolean,
     mentions?: any
   ) => Promise<void>
-  onEditMessage?: (turnIndex: number, newText: string) => Promise<void>
+  editMessage?: (turnIndex: number, newText: string) => Promise<void>
   userInfo?: UserInfoProps
   pictureThumbnail: string | null
   isVoiceMode?: boolean
   sessionId?: string
+  onCancelGeneration?: () => void
+  isAgentGenerating?: boolean
 }
 
 interface UserMessageProps {
@@ -316,11 +318,13 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
   turns,
   accessToken,
   sendMessage,
-  onEditMessage,
+  editMessage,
   userInfo,
   pictureThumbnail,
   isVoiceMode = false,
-  sessionId
+  sessionId,
+  onCancelGeneration,
+  isAgentGenerating = false
 }) => {
   const [editingTurnIndex, setEditingTurnIndex] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
@@ -344,9 +348,10 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
     setEditText('')
 
     try {
-      if (onEditMessage) {
-        await onEditMessage(savedIndex, newText)
+      if (editMessage) {
+        await editMessage(savedIndex, newText)
       } else if (sendMessage) {
+        // Fallback to sending new message if editMessage is not available
         await sendMessage(newText, [], false, false, undefined)
       }
     } catch (error) {
@@ -388,8 +393,9 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
             </div>
             {/* Message content */}
             <div className="gba:flex-1 gba:flex gba:flex-col gba:gap-4">
-              {agentTurn.outputs?.map((output, outputIdx) => {
-                const outputKey = `output-${idx}-${outputIdx}-${output.type}`
+              {(agentTurn.outputs || []).filter(Boolean).map((output: any, outputIdx: number) => {
+                const outputType = output?.type ?? 'unknown'
+                const outputKey = `output-${idx}-${outputIdx}-${outputType}`
                 return (
                   <OutputItemRenderer
                     key={outputKey}
@@ -399,6 +405,8 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
                     conversation={turns}
                     isVoiceMode={isVoiceMode}
                     sessionId={sessionId}
+                    onCancelGeneration={onCancelGeneration}
+                    isAgentGenerating={isAgentGenerating}
                   />
                 )
               })}
