@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { CheckCircleIcon, CopyIcon, PencilSimple, SparkleIcon } from '@phosphor-icons/react'
+import { CheckCircleIcon, CopyIcon, SparkleIcon } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
 
 interface ConversationProps {
@@ -145,17 +145,6 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
                   ) : (
                     <CopyIcon className="gba:h-4 gba:w-4" />
                   )}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gba:h-7 gba:w-7 gba:p-0"
-                  onClick={e => e.stopPropagation()}
-                  data-testid="user-message-edit-button"
-                  aria-label="Edit message"
-                >
-                  <PencilSimple className="gba:h-4 gba:w-4" />
                 </Button>
               </div>
             </div>

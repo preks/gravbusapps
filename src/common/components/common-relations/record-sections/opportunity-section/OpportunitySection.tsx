@@ -95,8 +95,8 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
           bVal = b.opportunityStatus?.value || b.opportunityStatus?.code || ''
           break
         case 'account':
-          aVal = a.account?.name || ''
-          bVal = b.account?.name || ''
+          aVal = a.opportunityAccounts?.[0]?.account?.name || ''
+          bVal = b.opportunityAccounts?.[0]?.account?.name || ''
           break
         case 'owner':
           aVal = `${a.ownerEmployee?.firstName || ''} ${a.ownerEmployee?.lastName || ''}`.trim()

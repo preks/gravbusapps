@@ -78,11 +78,16 @@ export const useTopAccountsByRevenue = (accessToken: string, config: TopAccounts
 
         const accountAggregates = accounts
           .map((account, index: number) => {
+            // Build correct where condition based on junction table vs direct relationship
+            const whereCondition = config.isJunctionTable
+              ? `opportunityAccounts: { accountId: { _eq: "${account.id}" } }`
+              : `accountId: { _eq: "${account.id}" }`
+
             return `
             acc_${index}_revenue: ${config.opportunityEntity}Aggregate(
               where: {
                 isDeleted: {_eq: false}
-                accountId: {_eq: "${account.id}"}
+                ${whereCondition}
                 opportunityStatus: {code: {_eq: "WON"}}${currencyFilter}
               }
             ) {
