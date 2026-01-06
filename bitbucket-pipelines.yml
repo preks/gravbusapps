@@ -230,7 +230,7 @@ definitions:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_SCANNER_OPTS: -Xmx10240m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=9216']
+              EXTRA_ARGS: ["-Dsonar.javascript.node.maxspace=9216"]
 
     - step: &sonar_scan_main
         name: Sonar scan (main)
@@ -246,32 +246,16 @@ definitions:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_SCANNER_OPTS: -Xmx14336m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=13312']
+              EXTRA_ARGS: ["-Dsonar.javascript.node.maxspace=13312"]
 
 pipelines:
-  schedules:
-    - cron: '0 9 * * 1'  # Every Monday at 9 AM UTC
-      branches:
-        develop:
-          - step:
-              name: Check cursor-rules updates
-              size: 1x
-              script:
-                - set -e
-                - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
-                - apt-get update && apt-get install -y curl jq
-                - git config --global user.email "pipeline@newwork.se"
-                - git config --global user.name "Bitbucket Pipeline"
-                - chmod +x scripts/check-cursor-rules-update.sh
-                - bash scripts/check-cursor-rules-update.sh
-
   pull-requests:
-    '**':
+    "**":
       - step: *check-hash-file-change
       - step: *install_dependencies
       - parallel:
-        - step: *build-screens
-        - step: *sonar_scan
+          - step: *build-screens
+          - step: *sonar_scan
 
   branches:
     develop:
@@ -297,36 +281,36 @@ pipelines:
     build-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ''
+            default: ""
       - step: *install_dependencies
       - step: *build-screens
 
     publish-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ''
+            default: ""
           - name: PUBLISH_ALL_SCREENS
-            default: 'false'
+            default: "false"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
       - step: *install_dependencies
       - step: *publish-manual-screens
 
     publish-manual-prod:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ''
+            default: ""
           - name: PUBLISH_ALL_SCREENS
-            default: 'false'
+            default: "false"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
           - name: SKIP_RESOURCE_URL_SYNC
-            default: 'true'
+            default: "true"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
       - step:
           name: Enforce develop/main branches for production publish
           script:
@@ -346,36 +330,36 @@ pipelines:
             - set -e
             - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
             - apt-get update && apt-get install -y curl jq
-            - git config --global user.email "pipeline@newwork.se"
-            - git config --global user.name "Bitbucket Pipeline"
+            - git config --global user.email "ci-bot@newwork.com"
+            - git config --global user.name "CI Bot"
             - chmod +x scripts/check-cursor-rules-update.sh
             - bash scripts/check-cursor-rules-update.sh
 
     calculate-hashes:
       - variables:
           - name: HASH_ENV
-            default: 'dev'
+            default: "dev"
             allowed-values:
-              - 'dev'
-              - 'prod'
+              - "dev"
+              - "prod"
           - name: SCREENS
-            default: ''
+            default: ""
           - name: COMMIT_CHANGES
-            default: 'false'
+            default: "false"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
           - name: DRY_RUN
-            default: 'true'
+            default: "true"
             allowed-values:
-              - 'true'
-              - 'false'
+              - "true"
+              - "false"
       - step: *install_dependencies
       - step:
           name: Calculate screen hashes
           size: 2x
           caches:
-          - nodecustom
+            - nodecustom
           script:
             - echo "🔧 Calculating hashes for $HASH_ENV environment"
             - |
