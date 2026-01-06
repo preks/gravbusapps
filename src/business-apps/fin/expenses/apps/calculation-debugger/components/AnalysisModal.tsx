@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Activity
+  Activity,
 } from 'lucide-react'
 import { CalculationTrace, RequestAnalysis } from '../hooks/useCalculationTrace'
 import { TraceTimeline } from './TraceTimeline'
@@ -25,21 +25,25 @@ interface AnalysisModalProps {
   loading: boolean
 }
 
-export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, analysis, currentTrace, loading }) => {
+export const AnalysisModal: React.FC<AnalysisModalProps> = ({
+  isOpen,
+  onClose,
+  analysis,
+  currentTrace,
+  loading,
+}) => {
   // Debug logging - can be removed after issue is resolved
   if (isOpen) {
-    console.log(
-      `[AnalysisModal] Open with: hasAnalysis=${!!analysis}, hasCurrentTrace=${!!currentTrace}, traceSteps=${currentTrace?.steps?.length || 0}`
-    )
+    console.log(`[AnalysisModal] Open with: hasAnalysis=${!!analysis}, hasCurrentTrace=${!!currentTrace}, traceSteps=${currentTrace?.steps?.length || 0}`)
   }
-
+  
   if (!isOpen) return null
 
   const formatCurrency = (value?: number | null, currency?: string | null) => {
     if (value === undefined || value === null) return '—'
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
-      currency: currency || 'EUR'
+      currency: currency || 'EUR',
     }).format(value)
   }
 
@@ -48,23 +52,23 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
       COMPLETED: {
         bg: 'gba:bg-emerald-100',
         text: 'gba:text-emerald-700',
-        icon: <CheckCircle className="gba:w-3.5 gba:h-3.5" />
+        icon: <CheckCircle className="gba:w-3.5 gba:h-3.5" />,
       },
       COMPLETED_WITH_WARNINGS: {
         bg: 'gba:bg-amber-100',
         text: 'gba:text-amber-700',
-        icon: <AlertTriangle className="gba:w-3.5 gba:h-3.5" />
+        icon: <AlertTriangle className="gba:w-3.5 gba:h-3.5" />,
       },
       FAILED: {
         bg: 'gba:bg-red-100',
         text: 'gba:text-red-700',
-        icon: <AlertCircle className="gba:w-3.5 gba:h-3.5" />
+        icon: <AlertCircle className="gba:w-3.5 gba:h-3.5" />,
       },
       IN_PROGRESS: {
         bg: 'gba:bg-blue-100',
         text: 'gba:text-blue-700',
-        icon: <Activity className="gba:w-3.5 gba:h-3.5" />
-      }
+        icon: <Activity className="gba:w-3.5 gba:h-3.5" />,
+      },
     }
     return styles[status] || { bg: 'gba:bg-gray-100', text: 'gba:text-gray-700', icon: null }
   }
@@ -72,7 +76,10 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
   return (
     <div className="gba:fixed gba:inset-0 gba:z-50 gba:flex gba:items-center gba:justify-center">
       {/* Backdrop */}
-      <div className="gba:absolute gba:inset-0 gba:bg-black/40 gba:backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="gba:absolute gba:inset-0 gba:bg-black/40 gba:backdrop-blur-sm"
+        onClick={onClose}
+      />
 
       {/* Modal */}
       <div className="gba:relative gba:w-full gba:max-w-6xl gba:h-[95vh] gba:bg-white gba:rounded-2xl gba:shadow-2xl gba:overflow-hidden gba:flex gba:flex-col gba:m-4">
@@ -200,22 +207,16 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                             <div className="gba:bg-gray-50 gba:rounded-lg gba:px-3 gba:py-2">
                               <div className="gba:text-xs gba:text-gray-500">Calc Type</div>
                               <div className="gba:font-medium gba:text-gray-900 gba:text-sm">
-                                {analysis.appliedRule.calculationTypeName ||
-                                  analysis.appliedRule.calculationType ||
-                                  '—'}
+                                {analysis.appliedRule.calculationTypeName || analysis.appliedRule.calculationType || '—'}
                               </div>
                             </div>
                             <div className="gba:bg-gray-50 gba:rounded-lg gba:px-3 gba:py-2">
                               <div className="gba:text-xs gba:text-gray-500">Use Last Country</div>
-                              <div className="gba:font-medium gba:text-gray-900 gba:text-sm">
-                                {analysis.appliedRule.useLastCountry ? 'Yes' : 'No'}
-                              </div>
+                              <div className="gba:font-medium gba:text-gray-900 gba:text-sm">{analysis.appliedRule.useLastCountry ? 'Yes' : 'No'}</div>
                             </div>
                             <div className="gba:bg-gray-50 gba:rounded-lg gba:px-3 gba:py-2">
                               <div className="gba:text-xs gba:text-gray-500">Deduction Limit</div>
-                              <div className="gba:font-medium gba:text-gray-900 gba:text-sm">
-                                {analysis.appliedRule.deductionLimit ? 'Yes' : 'No'}
-                              </div>
+                              <div className="gba:font-medium gba:text-gray-900 gba:text-sm">{analysis.appliedRule.deductionLimit ? 'Yes' : 'No'}</div>
                             </div>
                           </div>
                         </div>
@@ -241,7 +242,9 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                     <div className="gba:bg-white gba:rounded-xl gba:border gba:border-gray-200 gba:shadow-sm">
                       <div className="gba:bg-gray-50 gba:px-5 gba:py-3 gba:border-b gba:border-gray-200 gba:flex gba:items-center gba:gap-2">
                         <Plane className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                        <span className="gba:font-medium gba:text-gray-900 gba:text-sm">Trip Segments</span>
+                        <span className="gba:font-medium gba:text-gray-900 gba:text-sm">
+                          Trip Segments
+                        </span>
                         <span className="gba:text-gray-400 gba:text-sm">({analysis.trips.length})</span>
                       </div>
                       <div className="gba:p-4">
@@ -273,10 +276,10 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                             // Prefer resolved names over refs
                             const country = trip.countryName || trip.countryRef || '—'
                             const region = trip.travelRegionName || trip.travelRegionRef || '—'
-
+                            
                             return (
-                              <div
-                                key={tripId}
+                              <div 
+                                key={tripId} 
                                 className="gba:grid gba:grid-cols-6 gba:gap-2 gba:px-3 gba:py-3 gba:bg-gray-50/50 gba:rounded-lg gba:text-sm hover:gba:bg-gray-100 gba:transition-colors"
                               >
                                 <div className="gba:text-gray-400 gba:font-mono gba:text-xs">{tripOrder}</div>
@@ -313,9 +316,7 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                         {(() => {
                           const statusStyle = getTraceStatusStyle(currentTrace.status)
                           return (
-                            <span
-                              className={`gba:px-2.5 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:flex gba:items-center gba:gap-1.5 ${statusStyle.bg} ${statusStyle.text}`}
-                            >
+                            <span className={`gba:px-2.5 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:flex gba:items-center gba:gap-1.5 ${statusStyle.bg} ${statusStyle.text}`}>
                               {statusStyle.icon}
                               {currentTrace.status.replace(/_/g, ' ')}
                             </span>
@@ -334,27 +335,19 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                     {currentTrace.summary && (
                       <div className="gba:grid gba:grid-cols-4 gba:gap-3">
                         <div className="gba:bg-white gba:rounded-lg gba:p-3 gba:text-center gba:border gba:border-gray-200">
-                          <div className="gba:text-xl gba:font-semibold gba:text-gray-900">
-                            {currentTrace.summary.totalSteps}
-                          </div>
+                          <div className="gba:text-xl gba:font-semibold gba:text-gray-900">{currentTrace.summary.totalSteps}</div>
                           <div className="gba:text-xs gba:text-gray-500">Total</div>
                         </div>
                         <div className="gba:bg-white gba:rounded-lg gba:p-3 gba:text-center gba:border gba:border-gray-200">
-                          <div className="gba:text-xl gba:font-semibold gba:text-emerald-600">
-                            {currentTrace.summary.successfulSteps}
-                          </div>
+                          <div className="gba:text-xl gba:font-semibold gba:text-emerald-600">{currentTrace.summary.successfulSteps}</div>
                           <div className="gba:text-xs gba:text-gray-500">Success</div>
                         </div>
                         <div className="gba:bg-white gba:rounded-lg gba:p-3 gba:text-center gba:border gba:border-gray-200">
-                          <div className="gba:text-xl gba:font-semibold gba:text-amber-500">
-                            {currentTrace.summary.warningSteps}
-                          </div>
+                          <div className="gba:text-xl gba:font-semibold gba:text-amber-500">{currentTrace.summary.warningSteps}</div>
                           <div className="gba:text-xs gba:text-gray-500">Warnings</div>
                         </div>
                         <div className="gba:bg-white gba:rounded-lg gba:p-3 gba:text-center gba:border gba:border-gray-200">
-                          <div className="gba:text-xl gba:font-semibold gba:text-red-500">
-                            {currentTrace.summary.failedSteps}
-                          </div>
+                          <div className="gba:text-xl gba:font-semibold gba:text-red-500">{currentTrace.summary.failedSteps}</div>
                           <div className="gba:text-xs gba:text-gray-500">Failed</div>
                         </div>
                       </div>
@@ -369,14 +362,13 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                       </div>
                       <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-3">
                         {Object.entries(currentTrace.finalAmounts).map(([key, value]) => (
-                          <div
-                            key={key}
-                            className="gba:bg-white gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-emerald-200"
-                          >
+                          <div key={key} className="gba:bg-white gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-emerald-200">
                             <div className="gba:text-xs gba:text-gray-500 gba:capitalize">
                               {key.replace(/([A-Z])/g, ' $1').trim()}
                             </div>
-                            <div className="gba:font-semibold gba:text-emerald-700">{formatCurrency(value)}</div>
+                            <div className="gba:font-semibold gba:text-emerald-700">
+                              {formatCurrency(value)}
+                            </div>
                           </div>
                         ))}
                       </div>

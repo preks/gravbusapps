@@ -150,12 +150,16 @@ export function useExpenseDataLoader(accessToken: string): UseExpenseDataLoaderR
         if (search && search.trim()) {
           const searchTerm = search.trim()
           // Check if it looks like a UUID
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchTerm)
+          const isUuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchTerm)
           if (isUuid) {
             whereConditions.push({ id: { _eq: searchTerm } })
           } else {
             whereConditions.push({
-              _or: [{ code: { _ilike: `%${searchTerm}%` } }, { title: { _ilike: `%${searchTerm}%` } }]
+              _or: [
+                { code: { _ilike: `%${searchTerm}%` } },
+                { title: { _ilike: `%${searchTerm}%` } },
+              ],
             })
           }
         }
@@ -166,24 +170,28 @@ export function useExpenseDataLoader(accessToken: string): UseExpenseDataLoaderR
           where,
           orderBy: [{ createdAt: 'DESC' }],
           limit,
-          offset: 0
+          offset: 0,
         })
 
-        const mappedRequests: ExpenseRequestItem[] = (data.ExpenseRequest || []).map((req: any) => ({
-          id: req.id,
-          code: req.code || '',
-          title: req.title || '',
-          status: req.status || '',
-          totalAmount: req.totalAmount,
-          currencyCode: req.currency?.code || null,
-          startDate: req.startDate,
-          endDate: req.endDate,
-          requestDate: req.requestDate,
-          employeeName: req.employee ? `${req.employee.firstName || ''} ${req.employee.lastName || ''}`.trim() : null,
-          employeeId: req.employeeId,
-          requestType: req.requestType?.value || null,
-          planCode: req.expensePlan?.code || null
-        }))
+        const mappedRequests: ExpenseRequestItem[] = (data.ExpenseRequest || []).map(
+          (req: any) => ({
+            id: req.id,
+            code: req.code || '',
+            title: req.title || '',
+            status: req.status || '',
+            totalAmount: req.totalAmount,
+            currencyCode: req.currency?.code || null,
+            startDate: req.startDate,
+            endDate: req.endDate,
+            requestDate: req.requestDate,
+            employeeName: req.employee
+              ? `${req.employee.firstName || ''} ${req.employee.lastName || ''}`.trim()
+              : null,
+            employeeId: req.employeeId,
+            requestType: req.requestType?.value || null,
+            planCode: req.expensePlan?.code || null,
+          }),
+        )
 
         setRequests(mappedRequests)
         setRequestsTotal(data.total?.aggregate?.count || mappedRequests.length)
@@ -194,7 +202,7 @@ export function useExpenseDataLoader(accessToken: string): UseExpenseDataLoaderR
         setLoading(false)
       }
     },
-    [graphQLClient]
+    [graphQLClient],
   )
 
   const loadPlans = useCallback(
@@ -208,12 +216,16 @@ export function useExpenseDataLoader(accessToken: string): UseExpenseDataLoaderR
         if (search && search.trim()) {
           const searchTerm = search.trim()
           // Check if it looks like a UUID
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchTerm)
+          const isUuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchTerm)
           if (isUuid) {
             whereConditions.push({ id: { _eq: searchTerm } })
           } else {
             whereConditions.push({
-              _or: [{ code: { _ilike: `%${searchTerm}%` } }, { title: { _ilike: `%${searchTerm}%` } }]
+              _or: [
+                { code: { _ilike: `%${searchTerm}%` } },
+                { title: { _ilike: `%${searchTerm}%` } },
+              ],
             })
           }
         }
@@ -224,7 +236,7 @@ export function useExpenseDataLoader(accessToken: string): UseExpenseDataLoaderR
           where,
           orderBy: [{ createdAt: 'DESC' }],
           limit,
-          offset: 0
+          offset: 0,
         })
 
         const mappedPlans: ExpensePlanItem[] = (data.ExpensePlan || []).map((plan: any) => ({
@@ -242,7 +254,7 @@ export function useExpenseDataLoader(accessToken: string): UseExpenseDataLoaderR
             : null,
           employeeId: plan.employeeId,
           requestType: plan.requestType?.value || null,
-          hasRequests: (plan.expenseRequest?.length || 0) > 0
+          hasRequests: (plan.expenseRequest?.length || 0) > 0,
         }))
 
         setPlans(mappedPlans)
@@ -254,7 +266,7 @@ export function useExpenseDataLoader(accessToken: string): UseExpenseDataLoaderR
         setLoading(false)
       }
     },
-    [graphQLClient]
+    [graphQLClient],
   )
 
   const loadAll = useCallback(
@@ -270,20 +282,20 @@ export function useExpenseDataLoader(accessToken: string): UseExpenseDataLoaderR
         setLoading(false)
       }
     },
-    [loadRequests, loadPlans]
+    [loadRequests, loadPlans],
   )
 
   const searchById = useCallback(
     (id: string): ExpenseRequestItem | ExpensePlanItem | null => {
-      const request = requests.find(r => r.id === id || r.code === id)
+      const request = requests.find((r) => r.id === id || r.code === id)
       if (request) return request
 
-      const plan = plans.find(p => p.id === id || p.code === id)
+      const plan = plans.find((p) => p.id === id || p.code === id)
       if (plan) return plan
 
       return null
     },
-    [requests, plans]
+    [requests, plans],
   )
 
   return {
@@ -296,6 +308,7 @@ export function useExpenseDataLoader(accessToken: string): UseExpenseDataLoaderR
     loadRequests,
     loadPlans,
     loadAll,
-    searchById
+    searchById,
   }
 }
+

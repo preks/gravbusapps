@@ -12,7 +12,7 @@ import {
   User,
   Clock,
   AlertCircle,
-  Microscope
+  Microscope,
 } from 'lucide-react'
 import { useCalculationTrace } from './hooks/useCalculationTrace'
 import { useExpenseDataLoader } from './hooks/useExpenseDataLoader'
@@ -37,10 +37,10 @@ const statusColors: Record<string, string> = {
   PAID: 'gba:bg-emerald-100 gba:text-emerald-700',
   CLOSED: 'gba:bg-gray-100 gba:text-gray-600',
   DISCARDED: 'gba:bg-gray-100 gba:text-gray-500',
-  TRANSFERRED: 'gba:bg-purple-100 gba:text-purple-700'
+  TRANSFERRED: 'gba:bg-purple-100 gba:text-purple-700',
 }
 
-const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
+const CalculationDebugger: React.FC<CalculationDebuggerProps> = (props) => {
   const { accessToken } = props
   const [activeTab, setActiveTab] = useState<'requests' | 'plans' | 'rule'>('requests')
   const [searchTerm, setSearchTerm] = useState('')
@@ -60,7 +60,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
     triggerTraceForPlan,
     analyzeRequest,
     debugRuleAssignment,
-    clearTraces
+    clearTraces,
   } = useCalculationTrace(accessToken)
 
   const {
@@ -72,7 +72,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
     error: dataError,
     loadRequests,
     loadPlans,
-    loadAll
+    loadAll,
   } = useExpenseDataLoader(accessToken)
 
   const loading = traceLoading || dataLoading
@@ -91,7 +91,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
         loadPlans(value, 100)
       }
     },
-    [activeTab, loadRequests, loadPlans]
+    [activeTab, loadRequests, loadPlans],
   )
 
   const handleAnalyzeRequest = async (requestId: string) => {
@@ -125,7 +125,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
     if (value === undefined || value === null) return '—'
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
-      currency: currency || 'EUR'
+      currency: currency || 'EUR',
     }).format(value)
   }
 
@@ -134,7 +134,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
     return new Date(dateStr).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
     })
   }
 
@@ -155,7 +155,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
           )}
         </div>
       ) : (
-        requests.map(req => (
+        requests.map((req) => (
           <div
             key={req.id}
             className={`gba:p-4 gba:rounded-lg gba:border gba:cursor-pointer gba:transition-all ${
@@ -168,14 +168,16 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
               <div className="gba:flex-1 gba:min-w-0">
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:font-semibold gba:text-sm gba:text-gray-900">{req.code || 'No Code'}</span>
-                  <span
-                    className={`gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium ${getStatusBadge(req.status)}`}
-                  >
+                  <span className="gba:font-semibold gba:text-sm gba:text-gray-900">
+                    {req.code || 'No Code'}
+                  </span>
+                  <span className={`gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium ${getStatusBadge(req.status)}`}>
                     {req.status}
                   </span>
                 </div>
-                <p className="gba:text-sm gba:text-gray-500 gba:truncate gba:mt-1">{req.title || 'Untitled'}</p>
+                <p className="gba:text-sm gba:text-gray-500 gba:truncate gba:mt-1">
+                  {req.title || 'Untitled'}
+                </p>
                 <div className="gba:flex gba:items-center gba:gap-3 gba:mt-2 gba:text-xs gba:text-gray-400">
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <Calendar className="gba:w-3 gba:h-3" />
@@ -193,14 +195,16 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
                 <div className="gba:font-semibold gba:text-sm gba:text-gray-900">
                   {formatCurrency(req.totalAmount, req.currencyCode)}
                 </div>
-                {req.planCode && <div className="gba:text-xs gba:text-gray-400 gba:mt-1">Plan: {req.planCode}</div>}
+                {req.planCode && (
+                  <div className="gba:text-xs gba:text-gray-400 gba:mt-1">Plan: {req.planCode}</div>
+                )}
               </div>
             </div>
 
             {selectedRequestId === req.id && (
               <div className="gba:mt-4 gba:pt-4 gba:border-t gba:border-gray-100">
                 <button
-                  onClick={e => {
+                  onClick={(e) => {
                     e.stopPropagation()
                     handleAnalyzeRequest(req.id)
                   }}
@@ -235,7 +239,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
           )}
         </div>
       ) : (
-        plans.map(plan => (
+        plans.map((plan) => (
           <div
             key={plan.id}
             className={`gba:p-4 gba:rounded-lg gba:border gba:cursor-pointer gba:transition-all ${
@@ -248,10 +252,10 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
               <div className="gba:flex-1 gba:min-w-0">
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:font-semibold gba:text-sm gba:text-gray-900">{plan.code || 'No Code'}</span>
-                  <span
-                    className={`gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium ${getStatusBadge(plan.status)}`}
-                  >
+                  <span className="gba:font-semibold gba:text-sm gba:text-gray-900">
+                    {plan.code || 'No Code'}
+                  </span>
+                  <span className={`gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium ${getStatusBadge(plan.status)}`}>
                     {plan.status}
                   </span>
                   {plan.hasRequests && (
@@ -260,7 +264,9 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
                     </span>
                   )}
                 </div>
-                <p className="gba:text-sm gba:text-gray-500 gba:truncate gba:mt-1">{plan.title || 'Untitled'}</p>
+                <p className="gba:text-sm gba:text-gray-500 gba:truncate gba:mt-1">
+                  {plan.title || 'Untitled'}
+                </p>
                 <div className="gba:flex gba:items-center gba:gap-3 gba:mt-2 gba:text-xs gba:text-gray-400">
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <Calendar className="gba:w-3 gba:h-3" />
@@ -278,14 +284,16 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
                 <div className="gba:font-semibold gba:text-sm gba:text-gray-900">
                   {formatCurrency(plan.totalAmount, plan.currencyCode)}
                 </div>
-                {plan.requestType && <div className="gba:text-xs gba:text-gray-400 gba:mt-1">{plan.requestType}</div>}
+                {plan.requestType && (
+                  <div className="gba:text-xs gba:text-gray-400 gba:mt-1">{plan.requestType}</div>
+                )}
               </div>
             </div>
 
             {selectedPlanId === plan.id && (
               <div className="gba:mt-4 gba:pt-4 gba:border-t gba:border-gray-100">
                 <button
-                  onClick={e => {
+                  onClick={(e) => {
                     e.stopPropagation()
                     handleDebugPlan(plan.id)
                   }}
@@ -314,7 +322,9 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
             </div>
             <div>
               <h1 className="gba:text-xl gba:font-semibold gba:text-gray-900">Calculation Debugger</h1>
-              <p className="gba:text-sm gba:text-gray-500">Trace expense calculations step-by-step</p>
+              <p className="gba:text-sm gba:text-gray-500">
+                Trace expense calculations step-by-step
+              </p>
             </div>
           </div>
         </div>
@@ -336,9 +346,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
           >
             <FileText className="gba:w-4 gba:h-4" />
             <span>Requests</span>
-            <span
-              className={`gba:px-2 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${activeTab === 'requests' ? 'gba:bg-white/20' : 'gba:bg-gray-100'}`}
-            >
+            <span className={`gba:px-2 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${activeTab === 'requests' ? 'gba:bg-white/20' : 'gba:bg-gray-100'}`}>
               {requestsTotal}
             </span>
           </button>
@@ -355,9 +363,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
           >
             <LayoutGrid className="gba:w-4 gba:h-4" />
             <span>Plans</span>
-            <span
-              className={`gba:px-2 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${activeTab === 'plans' ? 'gba:bg-white/20' : 'gba:bg-gray-100'}`}
-            >
+            <span className={`gba:px-2 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${activeTab === 'plans' ? 'gba:bg-white/20' : 'gba:bg-gray-100'}`}>
               {plansTotal}
             </span>
           </button>
@@ -398,7 +404,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
                     <input
                       type="text"
                       value={searchTerm}
-                      onChange={e => handleSearch(e.target.value)}
+                      onChange={(e) => handleSearch(e.target.value)}
                       placeholder="Search by code, title, or ID..."
                       className="gba:w-full gba:pl-10 gba:pr-4 gba:py-2.5 gba:border gba:border-gray-200 gba:rounded-lg gba:text-sm gba:bg-gray-50 focus:gba:bg-white focus:gba:ring-2 focus:gba:ring-indigo-500/20 focus:gba:border-indigo-500 gba:transition-all gba:outline-none"
                     />
@@ -459,7 +465,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
                     <input
                       type="date"
                       value={debugDate}
-                      onChange={e => setDebugDate(e.target.value)}
+                      onChange={(e) => setDebugDate(e.target.value)}
                       className="gba:w-full gba:px-3 gba:py-2.5 gba:border gba:border-gray-200 gba:rounded-lg gba:text-sm gba:bg-gray-50 focus:gba:bg-white focus:gba:ring-2 focus:gba:ring-amber-500/20 focus:gba:border-amber-500 gba:transition-all gba:outline-none"
                     />
                   </div>
@@ -518,29 +524,25 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
                 <div className="gba:w-16 gba:h-16 gba:bg-gray-100 gba:rounded-2xl gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-6">
                   <Microscope className="gba:w-8 gba:h-8 gba:text-gray-400" />
                 </div>
-                <h3 className="gba:text-lg gba:font-medium gba:text-gray-900 gba:mb-2">Ready to Debug</h3>
+                <h3 className="gba:text-lg gba:font-medium gba:text-gray-900 gba:mb-2">
+                  Ready to Debug
+                </h3>
                 <p className="gba:text-gray-500 gba:max-w-sm gba:mx-auto gba:mb-8 gba:text-sm">
                   Select an expense request or plan to analyze how its amounts were calculated.
                 </p>
                 <div className="gba:flex gba:items-center gba:justify-center gba:gap-8 gba:text-sm gba:text-gray-400">
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-gray-100 gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
-                      1
-                    </div>
+                    <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-gray-100 gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">1</div>
                     <span>Select item</span>
                   </div>
                   <ChevronRight className="gba:w-4 gba:h-4" />
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-gray-100 gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
-                      2
-                    </div>
+                    <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-gray-100 gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">2</div>
                     <span>Click Analyze</span>
                   </div>
                   <ChevronRight className="gba:w-4 gba:h-4" />
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-gray-100 gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
-                      3
-                    </div>
+                    <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-gray-100 gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">3</div>
                     <span>Review trace</span>
                   </div>
                 </div>
@@ -551,7 +553,9 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
             {loading && (
               <div className="gba:bg-white gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-200 gba:p-16 gba:text-center">
                 <div className="gba:w-12 gba:h-12 gba:border-3 gba:border-gray-200 gba:border-t-indigo-500 gba:rounded-full gba:animate-spin gba:mx-auto gba:mb-4" />
-                <h3 className="gba:text-lg gba:font-medium gba:text-gray-900">Analyzing...</h3>
+                <h3 className="gba:text-lg gba:font-medium gba:text-gray-900">
+                  Analyzing...
+                </h3>
                 <p className="gba:text-gray-500 gba:mt-1 gba:text-sm">Tracing calculation steps</p>
               </div>
             )}
@@ -564,7 +568,7 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
                   Recent Traces ({traces.length})
                 </h3>
                 <div className="gba:space-y-2 gba:max-h-[300px] gba:overflow-y-auto">
-                  {traces.slice(0, 10).map(trace => (
+                  {traces.slice(0, 10).map((trace) => (
                     <div
                       key={trace.traceId}
                       className="gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:text-sm gba:cursor-pointer hover:gba:bg-gray-100 gba:transition-colors gba:border gba:border-gray-100"
@@ -572,19 +576,15 @@ const CalculationDebugger: React.FC<CalculationDebuggerProps> = props => {
                       <div className="gba:flex gba:items-center gba:justify-between">
                         <div>
                           <span className="gba:font-medium gba:text-gray-900">{trace.entityType}</span>
-                          <span className="gba:text-gray-400 gba:ml-2 gba:font-mono gba:text-xs">
-                            {trace.entityId.substring(0, 8)}...
-                          </span>
+                          <span className="gba:text-gray-400 gba:ml-2 gba:font-mono gba:text-xs">{trace.entityId.substring(0, 8)}...</span>
                         </div>
-                        <span
-                          className={`gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium ${
-                            trace.status === 'COMPLETED'
-                              ? 'gba:bg-emerald-100 gba:text-emerald-700'
-                              : trace.status === 'FAILED'
-                                ? 'gba:bg-red-100 gba:text-red-700'
-                                : 'gba:bg-gray-100 gba:text-gray-600'
-                          }`}
-                        >
+                        <span className={`gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium ${
+                          trace.status === 'COMPLETED'
+                            ? 'gba:bg-emerald-100 gba:text-emerald-700'
+                            : trace.status === 'FAILED'
+                              ? 'gba:bg-red-100 gba:text-red-700'
+                              : 'gba:bg-gray-100 gba:text-gray-600'
+                        }`}>
                           {trace.status}
                         </span>
                       </div>
