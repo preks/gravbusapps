@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   X,
@@ -13,10 +13,13 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Activity
+  Activity,
+  List,
+  BarChart3
 } from 'lucide-react'
 import { CalculationTrace, RequestAnalysis } from '../hooks/useCalculationTrace'
 import { TraceTimeline } from './TraceTimeline'
+import { TraceChart } from './TraceChart'
 
 interface AnalysisModalProps {
   isOpen: boolean
@@ -27,6 +30,8 @@ interface AnalysisModalProps {
 }
 
 export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, analysis, currentTrace, loading }) => {
+  const [traceView, setTraceView] = useState<'timeline' | 'chart'>('timeline')
+
   // Debug logging - can be removed after issue is resolved
   if (isOpen) {
     console.log(
@@ -431,14 +436,52 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                     </div>
                   )}
 
-                  {/* Timeline */}
+                  {/* Timeline / Chart */}
                   <div className="gba:p-5">
-                    <div className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wide gba:mb-4">
-                      Step-by-Step Trace ({currentTrace.steps.length} steps)
+                    {/* View Toggle */}
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+                      <div>
+                        <div className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wide">
+                          Step-by-Step Trace ({currentTrace.steps.length} steps)
+                        </div>
+                        <p className="gba:text-xs gba:text-gray-400 gba:mt-0.5">
+                          Allowances, deductions, mileage, and expense items
+                        </p>
+                      </div>
+                      <div className="gba:flex gba:items-center gba:bg-gray-100 gba:rounded-lg gba:p-1">
+                        <button
+                          onClick={() => setTraceView('timeline')}
+                          className={`gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1.5 gba:rounded-md gba:text-xs gba:font-medium gba:transition-all ${
+                            traceView === 'timeline'
+                              ? 'gba:bg-white gba:text-gray-900 gba:shadow-sm'
+                              : 'gba:text-gray-500 hover:gba:text-gray-700'
+                          }`}
+                        >
+                          <List className="gba:w-3.5 gba:h-3.5" />
+                          Timeline
+                        </button>
+                        <button
+                          onClick={() => setTraceView('chart')}
+                          className={`gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1.5 gba:rounded-md gba:text-xs gba:font-medium gba:transition-all ${
+                            traceView === 'chart'
+                              ? 'gba:bg-white gba:text-gray-900 gba:shadow-sm'
+                              : 'gba:text-gray-500 hover:gba:text-gray-700'
+                          }`}
+                        >
+                          <BarChart3 className="gba:w-3.5 gba:h-3.5" />
+                          Flow Chart
+                        </button>
+                      </div>
                     </div>
-                    <div className="gba:max-h-[500px] gba:overflow-y-auto gba:pr-2">
-                      <TraceTimeline steps={currentTrace.steps} />
-                    </div>
+
+                    {/* Content based on view */}
+                    {traceView === 'timeline' ? (
+                      <div className="gba:max-h-[500px] gba:overflow-y-auto gba:pr-2">
+                        <TraceTimeline steps={currentTrace.steps} />
+                      </div>
+                    ) : (
+                      <TraceChart steps={currentTrace.steps} />
+                    )}
                   </div>
                 </div>
               )}

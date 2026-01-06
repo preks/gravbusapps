@@ -321,20 +321,124 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
                     <div className="gba:text-sm gba:text-gray-700 gba:mt-1">{step.stepName}</div>
                     {step.description && <p className="gba:text-xs gba:text-gray-500 gba:mt-1">{step.description}</p>}
                     {/* Show calculated value or result from outputs */}
-                    {(step.calculatedValue !== undefined || step.outputs?.result) && (
-                      <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-white gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-gray-200 gba:text-sm">
-                        <span className="gba:text-gray-500">Result:</span>
-                        <span className="gba:font-semibold gba:text-emerald-600">
-                          {step.calculatedValue !== undefined
-                            ? typeof step.calculatedValue === 'number'
-                              ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
-                                  step.calculatedValue
-                                )
-                              : String(step.calculatedValue)
-                            : String(step.outputs?.result || '')}
-                        </span>
-                      </div>
-                    )}
+                    {(() => {
+                      // For travel breakdown steps, show key outputs as summary
+                      if (step.category === 'TRAVEL_BREAKDOWN' && step.outputs && !step.outputs.result) {
+                        const { amountCode, percentCode, allowanceCode, amountRegionRule } = step.outputs as Record<
+                          string,
+                          any
+                        >
+                        // Calculate the actual amount (amountRegionRule * percentCode / 100) or use amountCode
+                        const displayAmount =
+                          amountRegionRule && percentCode
+                            ? (Number(amountRegionRule) * Number(percentCode)) / 100
+                            : amountCode || amountRegionRule
+
+                        if (amountCode || percentCode || allowanceCode || amountRegionRule) {
+                          return (
+                            <div className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-2">
+                              {allowanceCode && (
+                                <span className="gba:inline-flex gba:items-center gba:gap-1 gba:bg-blue-50 gba:text-blue-700 gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium">
+                                  Code: {allowanceCode}
+                                </span>
+                              )}
+                              {displayAmount !== undefined && displayAmount !== 0 && (
+                                <span className="gba:inline-flex gba:items-center gba:gap-1 gba:bg-emerald-50 gba:text-emerald-700 gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium gba:font-semibold">
+                                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                    Number(displayAmount)
+                                  )}
+                                </span>
+                              )}
+                              {percentCode !== undefined && percentCode !== 0 && (
+                                <span className="gba:inline-flex gba:items-center gba:gap-1 gba:bg-amber-50 gba:text-amber-700 gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium">
+                                  {percentCode}%
+                                </span>
+                              )}
+                              {amountRegionRule !== undefined && amountRegionRule !== 0 && percentCode && (
+                                <span className="gba:inline-flex gba:items-center gba:gap-1 gba:bg-gray-100 gba:text-gray-600 gba:px-2 gba:py-0.5 gba:rounded gba:text-xs">
+                                  (base:{' '}
+                                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                    Number(amountRegionRule)
+                                  )}
+                                  )
+                                </span>
+                              )}
+                            </div>
+                          )
+                        }
+                        return null
+                      }
+
+                      // For deduction steps, show the deduction amount prominently
+                      if (step.category === 'DEDUCTION' && step.outputs) {
+                        const { deductionAmount } = step.outputs as Record<string, any>
+                        if (deductionAmount !== undefined && deductionAmount !== 0) {
+                          return (
+                            <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-red-50 gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-red-200 gba:text-sm">
+                              <span className="gba:text-red-500">Deduction:</span>
+                              <span className="gba:font-semibold gba:text-red-600">
+                                -
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                  Math.abs(Number(deductionAmount))
+                                )}
+                              </span>
+                            </div>
+                          )
+                        }
+                        return null
+                      }
+
+                      // For country rule steps, show the applied rules summary
+                      if (step.category === 'COUNTRY_RULE' && step.outputs) {
+                        const outputs = step.outputs as Record<string, any>
+                        const { result, midnightRule, mealDeductions, calculationMethod } = outputs
+                        return (
+                          <div className="gba:mt-2 gba:space-y-1.5">
+                            {result && (
+                              <div className="gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-indigo-50 gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-indigo-200 gba:text-sm">
+                                <span className="gba:font-semibold gba:text-indigo-700">{result}</span>
+                              </div>
+                            )}
+                            <div className="gba:flex gba:flex-wrap gba:gap-1.5">
+                              {midnightRule && (
+                                <span className="gba:text-xs gba:bg-purple-50 gba:text-purple-700 gba:px-2 gba:py-0.5 gba:rounded gba:border gba:border-purple-200">
+                                  Midnight Rule: Active
+                                </span>
+                              )}
+                              {mealDeductions && (
+                                <span className="gba:text-xs gba:bg-orange-50 gba:text-orange-700 gba:px-2 gba:py-0.5 gba:rounded gba:border gba:border-orange-200">
+                                  Meal Deductions: Percentage-based
+                                </span>
+                              )}
+                              {calculationMethod && (
+                                <span className="gba:text-xs gba:bg-teal-50 gba:text-teal-700 gba:px-2 gba:py-0.5 gba:rounded gba:border gba:border-teal-200">
+                                  Method: {calculationMethod}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      // Default result display
+                      if (step.calculatedValue !== undefined || step.outputs?.result) {
+                        return (
+                          <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-white gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-gray-200 gba:text-sm">
+                            <span className="gba:text-gray-500">Result:</span>
+                            <span className="gba:font-semibold gba:text-emerald-600">
+                              {step.calculatedValue !== undefined
+                                ? typeof step.calculatedValue === 'number'
+                                  ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                      step.calculatedValue
+                                    )
+                                  : String(step.calculatedValue)
+                                : String(step.outputs?.result || '')}
+                            </span>
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
 
                   {hasDetails && (
