@@ -407,7 +407,6 @@ export const TaskInstanceUpdatePopup: React.FC<TaskInstanceUpdatePopupProps> = (
       onSubmit={handleSubmit}
       formData={form.getValues()}
       submitButtonText={getTranslationFromI18nKeyAndLabel('task.instance.update', 'Update Status')}
-      businessAppContext={{ ...props, accessToken }}
       onSuccess={handleFormSuccess}
       data-testid={formatDataTestId(dataTestId, 'form')}
     >

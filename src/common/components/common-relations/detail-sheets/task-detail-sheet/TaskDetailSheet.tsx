@@ -52,7 +52,7 @@ import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusig
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
 import { computeTaskStatus, formatTaskProgress, getTaskStatusLabel } from '../../utils/taskStatusUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface TaskDetailSheetProps {
@@ -140,6 +140,126 @@ interface TaskDetailContentProps {
   assignedUserId?: string
   currentUserId?: string
   businessAppContext?: BusinessAppContextProps
+}
+
+// Helper component: Task Instance Card
+interface TaskInstanceCardProps {
+  taskAssignee: {
+    id?: string
+    version?: number
+    assignedEmployee?: {
+      id: string
+      displayName?: string
+      firstName?: string
+      lastName?: string
+      pictureThumbnail?: string
+    }
+    assignedUserId?: string
+    taskStatus?: string
+    completedAt?: string | null
+  }
+  index: number
+  currentUserId?: string
+  dataTestId?: string
+  accessToken?: string
+  taskId: string
+  entityType: 'investment' | 'customer'
+}
+
+const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
+  taskAssignee,
+  index,
+  currentUserId,
+  dataTestId,
+  accessToken,
+  taskId,
+  entityType
+}) => {
+  const employee = taskAssignee.assignedEmployee
+  const isCurrentUser = currentUserId && taskAssignee.assignedUserId === currentUserId
+  const statusLabel = getTaskStatusLabel(taskAssignee.taskStatus) || 'No Status'
+
+  return (
+    <div
+      key={taskAssignee.id || index}
+      className={`gba:p-3 gba:rounded-lg gba:border ${
+        isCurrentUser ? 'gba:border-primary gba:bg-accent/10' : 'gba:bg-muted'
+      }`}
+      data-testid={`${dataTestId}-instance-${index}`}
+    >
+      <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
+        <Avatar
+          size="default"
+          className="gba:cursor-pointer"
+          onClick={() => {
+            if (employee?.id) {
+              const url = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id })
+              navigateTo(url)
+            }
+          }}
+        >
+          {employee?.pictureThumbnail && (
+            <AvatarImage
+              src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+              alt={employee?.displayName || 'Unknown'}
+            />
+          )}
+          <AvatarFallback>
+            {employee?.firstName?.charAt(0) || '?'}
+            {employee?.lastName?.charAt(0) || '?'}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="gba:flex-1 gba:min-w-0">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+            <span className="gba:text-sm gba:font-medium">{employee?.displayName || 'Unknown Assignee'}</span>
+            {isCurrentUser && (
+              <Badge variant="outline" size="sm">
+                You
+              </Badge>
+            )}
+          </div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+            Instance ID: {taskAssignee.id?.substring(0, 8)}...
+            {taskAssignee.version !== undefined && ` • Version: ${taskAssignee.version}`}
+          </div>
+        </div>
+
+        <div className="gba:text-right">
+          <Badge
+            variant={taskAssignee.taskStatus ? getTaskStatusBadgeVariant(taskAssignee.taskStatus) : 'secondary'}
+            size="sm"
+          >
+            {statusLabel}
+          </Badge>
+          {taskAssignee.completedAt && (
+            <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+              {dayjs(taskAssignee.completedAt).format('MMM D, YYYY')}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isCurrentUser && accessToken && (
+        <div className="gba:pt-3 gba:border-t gba:mt-3">
+          <AppAction
+            mode="action-button"
+            size="sm"
+            variant="outline"
+            contexts={[
+              entityType === 'investment' ? FlowContextName.investmentTaskEntity : FlowContextName.customerTaskEntity
+            ]}
+            externalContextData={{ taskId }}
+            accessToken={accessToken}
+            emptyState="enable"
+            data-testid={`${dataTestId}-update-button-${index}`}
+          >
+            Update My Status
+          </AppAction>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Helper component: Reference Field
@@ -582,109 +702,18 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               <div className="gba:space-y-2">
                 {task.taskAssignees && task.taskAssignees.length > 0 ? (
                   // Show full task assignee instances with status
-                  task.taskAssignees.map((taskAssignee, index) => {
-                    const employee = taskAssignee.assignedEmployee
-                    const isCurrentUser = currentUserId && taskAssignee.assignedUserId === currentUserId
-                    const statusLabel = getTaskStatusLabel(taskAssignee.taskStatus) || 'No Status'
-
-                    return (
-                      <div
-                        key={taskAssignee.id || index}
-                        className={`gba:p-3 gba:rounded-lg gba:border ${
-                          isCurrentUser ? 'gba:border-primary gba:bg-accent/10' : 'gba:bg-muted'
-                        }`}
-                        data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-instance-${index}`}
-                      >
-                        <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
-                          {/* Avatar */}
-                          <Avatar
-                            size="default"
-                            className="gba:cursor-pointer"
-                            onClick={() => {
-                              if (employee?.id) {
-                                const url = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id })
-                                navigateTo(url)
-                              }
-                            }}
-                          >
-                            {employee?.pictureThumbnail && (
-                              <AvatarImage
-                                src={`data:image/gif;base64,${employee.pictureThumbnail}`}
-                                alt={employee?.displayName || 'Unknown'}
-                              />
-                            )}
-                            <AvatarFallback>
-                              {employee?.firstName?.charAt(0) || '?'}
-                              {employee?.lastName?.charAt(0) || '?'}
-                            </AvatarFallback>
-                          </Avatar>
-
-                          {/* Assignee Info */}
-                          <div className="gba:flex-1 gba:min-w-0">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-                              <span className="gba:text-sm gba:font-medium">
-                                {employee?.displayName || 'Unknown Assignee'}
-                              </span>
-                              {isCurrentUser && (
-                                <Badge variant="outline" size="sm">
-                                  You
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                              Instance ID: {taskAssignee.id?.substring(0, 8)}...
-                              {taskAssignee.version !== undefined && ` • Version: ${taskAssignee.version}`}
-                            </div>
-                          </div>
-
-                          {/* Status */}
-                          <div className="gba:text-right">
-                            <Badge
-                              variant={
-                                taskAssignee.taskStatus
-                                  ? getTaskStatusBadgeVariant(taskAssignee.taskStatus)
-                                  : 'secondary'
-                              }
-                              size="sm"
-                            >
-                              {statusLabel}
-                            </Badge>
-                            {taskAssignee.completedAt && (
-                              <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                                {dayjs(taskAssignee.completedAt).format('MMM D, YYYY')}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Status Update Button for Current User */}
-                        {isCurrentUser && accessToken && (
-                          <div className="gba:pt-3 gba:border-t gba:mt-3">
-                            <AppActionButton
-                              size="sm"
-                              variant="outline"
-                              contexts={[
-                                task.investmentId
-                                  ? FlowContextName.investmentTaskEntity
-                                  : FlowContextName.customerTaskEntity
-                              ]}
-                              externalContextData={{
-                                taskId: task.id
-                              }}
-                              accessToken={accessToken}
-                              emptyStateBehavior="enable"
-                              onSuccess={() => {
-                                // Parent should handle refresh
-                              }}
-                              data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-update-button-${index}`}
-                            >
-                              Update My Status
-                            </AppActionButton>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })
+                  task.taskAssignees.map((taskAssignee, index) => (
+                    <TaskInstanceCard
+                      key={taskAssignee.id || index}
+                      taskAssignee={taskAssignee}
+                      index={index}
+                      currentUserId={currentUserId}
+                      dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
+                      accessToken={accessToken}
+                      taskId={task.id}
+                      entityType={task.investmentId ? 'investment' : 'customer'}
+                    />
+                  ))
                 ) : (
                   // Fallback: Show basic assignee info without status
                   <>

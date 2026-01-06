@@ -50,15 +50,18 @@ export const transformTaskOrApproval = (item: any, untitledFallback: string) => 
   // Extract assignees from taskAssignees array (can be 0, 1, or many)
   const assignees = item.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter(Boolean) || []
   const assigneeEmployee = assignees.length > 0 ? assignees : undefined
-  const assignee =
-    assignees.length === 0
-      ? undefined
-      : assignees.length === 1
-        ? assignees[0]?.displayName || assignees[0]?.fullName
-        : assignees
-            .map((emp: any) => emp?.displayName || emp?.fullName)
-            .filter(Boolean)
-            .join(', ') || undefined
+  let assignee: string | undefined
+  if (assignees.length === 0) {
+    assignee = undefined
+  } else if (assignees.length === 1) {
+    assignee = assignees[0]?.displayName || assignees[0]?.fullName
+  } else {
+    assignee =
+      assignees
+        .map((emp: any) => emp?.displayName || emp?.fullName)
+        .filter(Boolean)
+        .join(', ') || undefined
+  }
 
   return {
     id: item.id,

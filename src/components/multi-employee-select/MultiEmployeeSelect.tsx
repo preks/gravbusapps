@@ -17,6 +17,19 @@ export interface MultiEmployeeSelectProps {
   initialEmployees?: EmployeeLiteOption[]
 }
 
+// Helper function to find employee by ID from multiple sources
+const findEmployeeById = (
+  empId: string,
+  selectedEmployees: EmployeeLiteOption[],
+  initialEmployees: EmployeeLiteOption[],
+  employees: EmployeeLiteOption[]
+): EmployeeLiteOption | undefined => {
+  let employee = selectedEmployees.find(e => e.id === empId)
+  employee ??= initialEmployees.find(e => e.id === empId)
+  employee ??= employees.find(e => e.id === empId)
+  return employee
+}
+
 const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelectProps>(
   (
     {
@@ -53,19 +66,7 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
         const newSelectedEmployees: EmployeeLiteOption[] = []
 
         for (const empId of value) {
-          // Check selectedEmployees first (already have full data)
-          let employee = selectedEmployees.find(e => e.id === empId)
-
-          // Then check initialEmployees
-          if (!employee) {
-            employee = initialEmployees.find(e => e.id === empId)
-          }
-
-          // Then check employees from search results
-          if (!employee) {
-            employee = employees.find(e => e.id === empId)
-          }
-
+          const employee = findEmployeeById(empId, selectedEmployees, initialEmployees, employees)
           if (employee) {
             newSelectedEmployees.push(employee)
           }
@@ -74,11 +75,11 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
         // Only update if the IDs changed (prevent unnecessary re-renders)
         const currentIds = selectedEmployees
           .map(e => e.id)
-          .sort()
+          .sort((a, b) => a.localeCompare(b))
           .join(',')
         const newIds = newSelectedEmployees
           .map(e => e.id)
-          .sort()
+          .sort((a, b) => a.localeCompare(b))
           .join(',')
 
         if (currentIds !== newIds) {
@@ -93,7 +94,7 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
     const handleAdd = React.useCallback(
       (employeeId: string) => {
         const employee = employees.find(e => e.id === employeeId)
-        if (employee && !selectedEmployees.find(e => e.id === employeeId)) {
+        if (employee && !selectedEmployees.some(e => e.id === employeeId)) {
           const newSelected = [...selectedEmployees, employee]
           setSelectedEmployees(newSelected)
           onValueChange?.(newSelected.map(e => e.id))
@@ -116,7 +117,7 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
     // Build options for combobox (exclude already selected)
     const options = React.useMemo(() => {
       return employees
-        .filter(emp => !selectedEmployees.find(s => s.id === emp.id))
+        .filter(emp => !selectedEmployees.some(s => s.id === emp.id))
         .map(emp => {
           const initials = (emp.displayName || '?')
             .split(' ')

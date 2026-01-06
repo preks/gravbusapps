@@ -99,9 +99,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
       // 1. From task object (for existing assignees loaded from backend)
       let employee = task?.taskAssignees?.find((ta: any) => ta.assignedEmployee?.id === employeeId)?.assignedEmployee
       // 2. From form state (for newly added assignees from MultiEmployeeSelect)
-      if (!employee) {
-        employee = assignedEmployees.find((emp: any) => emp.id === employeeId)
-      }
+      employee ??= assignedEmployees.find((emp: any) => emp.id === employeeId)
 
       return {
         ...(existing?.id && { id: existing.id }),
@@ -127,7 +125,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
       if (task?.taskAssignees && task.taskAssignees.length > 0) {
         const employeeIds = task.taskAssignees.map((ta: any) => ta.assignedEmployee?.id).filter(Boolean)
 
-        const employees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp && emp.id)
+        const employees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp?.id)
 
         // Store full taskAssignees array (with junction table IDs for updates)
         const taskAssigneesArray = task.taskAssignees.map((ta: any) => ({
@@ -304,7 +302,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           // Multi-assignee mode for IRM
           multiAssigneeMode={true}
           assignedEmployees={
-            task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp && emp.id) || []
+            task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp?.id) || []
           }
           entityId={task?.id}
           // Catalogs

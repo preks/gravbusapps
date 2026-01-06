@@ -33,7 +33,7 @@ import EmptyState from '@/components/empty-state/EmptyState'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { Task as BaseTask } from '@/common/data/relations/types/taskTypes'
+import type { Task as BaseTask, TaskAssignee } from '@/common/data/relations/types/taskTypes'
 import { transformTaskOrApproval } from './utils/taskMappers'
 import { DocuSignSignatureModal } from '@/common/components/docusign/DocuSignSignatureModal'
 import { type InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
@@ -41,7 +41,6 @@ import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusig
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
 import { computeTaskStatus, formatTaskProgress } from '../../utils/taskStatusUtils'
-import type { TaskAssignee } from '@/common/data/relations/types/taskTypes'
 
 export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
 export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
@@ -102,6 +101,21 @@ export type TaskItem = {
   startDate?: string
   documents?: TaskDocument[]
   rawTask?: BaseTask
+}
+
+// Helper functions to reduce cognitive complexity
+const formatTaskDate = (dateString: string | undefined): string => {
+  if (!dateString) return ''
+  const date = dayjs(dateString)
+  return date.isValid() ? date.format('MMM D, YYYY [at] h:mm A') : dateString
+}
+
+const buildTaskDescription = (dueDate: string): string[] => {
+  const descParts: string[] = []
+  if (dueDate) {
+    descParts.push(`Due ${dueDate}`)
+  }
+  return descParts
 }
 
 export interface TaskSectionProps extends BusinessAppContextProps {
@@ -468,18 +482,9 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           <TooltipProvider>
             <TimelineLayout
               items={tasks.map((t, idx) => {
-                const createdDate = t.createdAt
-                  ? dayjs(t.createdAt).isValid()
-                    ? dayjs(t.createdAt).format('MMM D, YYYY [at] h:mm A')
-                    : t.createdAt
-                  : ''
-                const due = t.due
-                  ? dayjs(t.due).isValid()
-                    ? dayjs(t.due).format('MMM D, YYYY [at] h:mm A')
-                    : t.due
-                  : ''
-                const descParts: string[] = []
-                if (due) descParts.push(`Due ${due}`)
+                const createdDate = formatTaskDate(t.createdAt)
+                const due = formatTaskDate(t.due)
+                const descParts = buildTaskDescription(due)
                 const code = t.statusCode
 
                 const { color, icon } = getStatusColorAndIcon(code, t.due)
@@ -517,6 +522,34 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                   isAssigneeItem
                 )
 
+                // Compute task status for multi-assignee tasks
+                const taskStatusInfo =
+                  t.taskAssignees && t.taskAssignees.length > 1
+                    ? (() => {
+                        const { overallStatus, progress } = computeTaskStatus(t.taskAssignees as any)
+
+                        let statusLabel: string
+                        if (overallStatus === 'COMPLETED') {
+                          statusLabel = 'Completed'
+                        } else if (overallStatus === 'IN_PROGRESS') {
+                          statusLabel = 'In Progress'
+                        } else {
+                          statusLabel = 'Pending'
+                        }
+
+                        let variant: 'success' | 'info' | 'warning'
+                        if (overallStatus === 'COMPLETED') {
+                          variant = 'success'
+                        } else if (overallStatus === 'IN_PROGRESS') {
+                          variant = 'info'
+                        } else {
+                          variant = 'warning'
+                        }
+
+                        return { statusLabel, variant, progress }
+                      })()
+                    : null
+
                 return {
                   id: t.id || `task-${idx}`,
                   date: createdDate,
@@ -529,36 +562,18 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                       >
                         <span className="gba:truncate">{t.title}</span>
                         {/* Show computed status for multi-assignee tasks */}
-                        {t.taskAssignees && t.taskAssignees.length > 1 ? (
-                          <>
-                            {(() => {
-                              const { overallStatus, progress } = computeTaskStatus(t.taskAssignees as any)
-                              const statusLabel =
-                                overallStatus === 'COMPLETED'
-                                  ? 'Completed'
-                                  : overallStatus === 'IN_PROGRESS'
-                                    ? 'In Progress'
-                                    : 'Pending'
-                              const variant =
-                                overallStatus === 'COMPLETED'
-                                  ? 'success'
-                                  : overallStatus === 'IN_PROGRESS'
-                                    ? 'info'
-                                    : 'warning'
-                              return (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge variant={variant} size="sm">
-                                      {statusLabel} ({progress.completed}/{progress.total})
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>{formatTaskProgress(progress)}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )
-                            })()}
-                          </>
+                        {taskStatusInfo ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant={taskStatusInfo.variant} size="sm">
+                                {taskStatusInfo.statusLabel} ({taskStatusInfo.progress.completed}/
+                                {taskStatusInfo.progress.total})
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{formatTaskProgress(taskStatusInfo.progress)}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         ) : (
                           /* Show regular status for single or no assignee tasks */
                           t.taskStatus && (
@@ -673,10 +688,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         buildReferenceUrl={buildReferenceUrl}
         data-testid="task-section-detail-sheet"
         accessToken={accessToken}
-        assignedUserId={
-          getFirstAssignee((tasks || []).find(x => x.id === selectedTask?.id)?.assigneeEmployee)?.userId as any
-        }
-        currentUserId={userInfo?.id as any}
+        assignedUserId={getFirstAssignee((tasks || []).find(x => x.id === selectedTask?.id)?.assigneeEmployee)?.userId}
+        currentUserId={userInfo?.id}
         businessAppContext={businessAppContext}
       />
 
