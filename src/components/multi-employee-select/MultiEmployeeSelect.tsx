@@ -33,23 +33,62 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
     ref
   ) => {
     const [selectedEmployees, setSelectedEmployees] = React.useState<EmployeeLiteOption[]>(initialEmployees)
+    const initializedRef = React.useRef(false)
 
     // Use employee search hook
     const { employees, loading, hasMore, search, loadMore } = useEmployeeSearch(accessToken)
 
-    // Sync selected employees when value changes externally
+    // Unified sync effect - makes this a proper controlled component
     React.useEffect(() => {
-      if (value.length === 0 && selectedEmployees.length > 0) {
-        setSelectedEmployees([])
-      }
-    }, [value, selectedEmployees.length])
-
-    // Initialize with initial employees
-    React.useEffect(() => {
-      if (initialEmployees.length > 0 && selectedEmployees.length === 0) {
+      // On first mount, if value is empty but initialEmployees has data, initialize from initialEmployees
+      if (!initializedRef.current && value.length === 0 && initialEmployees.length > 0) {
         setSelectedEmployees(initialEmployees)
+        initializedRef.current = true
+        return
       }
-    }, [initialEmployees, selectedEmployees.length])
+
+      // After initialization, always sync selectedEmployees with value prop (source of truth)
+      if (initializedRef.current) {
+        // Build employee objects from value IDs
+        const newSelectedEmployees: EmployeeLiteOption[] = []
+
+        for (const empId of value) {
+          // Check selectedEmployees first (already have full data)
+          let employee = selectedEmployees.find(e => e.id === empId)
+
+          // Then check initialEmployees
+          if (!employee) {
+            employee = initialEmployees.find(e => e.id === empId)
+          }
+
+          // Then check employees from search results
+          if (!employee) {
+            employee = employees.find(e => e.id === empId)
+          }
+
+          if (employee) {
+            newSelectedEmployees.push(employee)
+          }
+        }
+
+        // Only update if the IDs changed (prevent unnecessary re-renders)
+        const currentIds = selectedEmployees
+          .map(e => e.id)
+          .sort()
+          .join(',')
+        const newIds = newSelectedEmployees
+          .map(e => e.id)
+          .sort()
+          .join(',')
+
+        if (currentIds !== newIds) {
+          setSelectedEmployees(newSelectedEmployees)
+        }
+      } else if (value.length > 0) {
+        // If value has data on first render, mark as initialized
+        initializedRef.current = true
+      }
+    }, [value, initialEmployees, employees, selectedEmployees])
 
     const handleAdd = React.useCallback(
       (employeeId: string) => {

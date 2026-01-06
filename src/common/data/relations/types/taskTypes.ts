@@ -101,7 +101,10 @@ export const TaskFields = {
 export const TaskFormFields = {
   accountId: 'account',
 
-  // Multiple assignees field (assignedEmployees kept as form-only data for userId extraction)
+  // Multiple assignees field - pass through taskAssignees array directly with id/version
+  taskAssignees: 'taskAssignees',
+
+  // Legacy mapping kept for backward compatibility (not used when taskAssignees is set)
   assignedEmployeeIds: 'taskAssignees',
 
   code: 'code',
@@ -372,24 +375,14 @@ export interface TaskReference {
 /**
  * Build Task Payload (Unified for IRM & CRM)
  * Transforms form data to backend format with multiple assignees
+ *
+ * Note: taskAssignees array is now built by TaskForm's useEffect and passed through
+ * by buildPayload with id/version intact (for UPDATE/DELETE operations)
  */
 export const buildTaskPayload = (task: Partial<Task> & Record<string, any>) => {
   // Build base payload using buildPayload utility
+  // taskAssignees array is passed through with all fields (id, version, assignedEmployeeId, etc.)
   const payload = buildPayload(task, TaskFormFields)
-
-  // Transform assignee data to taskAssignees array
-  // Backend expects taskAssignees array (can be empty, 1, or many)
-  // Check original task parameter since buildPayload doesn't copy these fields
-  if (task.assignedEmployeeIds && Array.isArray(task.assignedEmployeeIds) && task.assignedEmployeeIds.length > 0) {
-    // Create taskAssignees from assignedEmployeeIds array
-    payload.taskAssignees = task.assignedEmployeeIds.map((employeeId: string, index: number) => {
-      const employee = task.assignedEmployees?.[index]
-      return {
-        assignedEmployee: employeeId,
-        assignedUserId: employee?.userId || null
-      }
-    })
-  }
 
   return payload
 }

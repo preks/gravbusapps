@@ -154,22 +154,42 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
  * Uses common buildTaskPayload with IRM-specific wrapper
  */
 export const buildInvestmentTaskPayload = (task: Partial<InvestmentTask> & Record<string, any>) => {
-  // Use common buildTaskPayload utility (handles taskAssignees transformation)
+  // Build base payload using buildPayload utility (handles most fields)
   const payload = buildPayload(task, InvestmentTaskFormFields)
 
-  // Transform assignee data to taskAssignees array
-  // Check original task parameter since buildPayload doesn't copy these fields
-  if (task.assignedEmployeeIds && Array.isArray(task.assignedEmployeeIds) && task.assignedEmployeeIds.length > 0) {
-    payload.taskAssignees = task.assignedEmployeeIds.map((employeeId: string, index: number) => {
-      const employee = task.assignedEmployees?.[index]
-      return {
-        assignedEmployee: employeeId,
-        assignedUserId: employee?.userId || null
-      }
+  // Manually construct taskAssignees to preserve assignedUserId field name
+  // (buildPayload's transformIdFields would transform assignedUserId → assignedUser, which is wrong)
+  // taskAssignees array comes from form with id/version already set by TaskForm's useEffect
+  if (task.taskAssignees && Array.isArray(task.taskAssignees)) {
+    payload.taskAssignees = task.taskAssignees.map((ta: any) => ({
+      ...(ta.id && { id: ta.id }),
+      ...(ta.version !== undefined && { version: ta.version }),
+      assignedEmployee: ta.assignedEmployeeId, // Transform assignedEmployeeId → assignedEmployee
+      assignedUserId: ta.assignedUserId, // Preserve assignedUserId field name (don't transform!)
+      taskStatus: ta.taskStatus || null,
+      completedAt: ta.completedAt || null
+    }))
+  }
+
+  // Get creator employee details (from task or context)
+  // Priority: _creatorEmployee (set by formPreSubmitUtils) > creatorEmployee > creatorUserId
+  const creatorEmployee = task._creatorEmployee || task.creatorEmployee
+  const userId = creatorEmployee?.userId || task.creatorUserId
+
+  if (!userId) {
+    console.error('Task operation failed: Missing creator user ID', {
+      task: { ...task, _creatorEmployee: undefined },
+      creatorEmployee
     })
+    throw new Error('Unable to determine current user. Please ensure you are logged in and try again.')
   }
 
   return {
+    // TOP-LEVEL: Creator's employee details (required by Kogito process)
+    // Only userId is needed - backend will look up full employee record
+    employeeDetails: {
+      userId: userId
+    },
     investmentTask: payload
   }
 }

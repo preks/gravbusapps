@@ -80,6 +80,42 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
     [accountId, contactId, opportunityId, leadId, investmentId, task]
   )
 
+  // Watch assignedEmployeeIds and sync taskAssignees array
+  const assignedEmployeeIds = form.watch('assignedEmployeeIds')
+  useEffect(() => {
+    if (!assignedEmployeeIds) return
+
+    const currentTaskAssignees = form.getValues('taskAssignees') || []
+    const existingAssigneesMap = new Map(currentTaskAssignees.map((ta: any) => [ta.assignedEmployeeId, ta]))
+
+    // Get employee objects from form state (set by MultiEmployeeSelect)
+    const assignedEmployees = form.getValues('assignedEmployees') || []
+
+    // Build new taskAssignees array, preserving existing IDs and versions
+    const newTaskAssignees = assignedEmployeeIds.map((employeeId: string) => {
+      const existing = existingAssigneesMap.get(employeeId)
+
+      // Get employee data (for userId) - try multiple sources
+      // 1. From task object (for existing assignees loaded from backend)
+      let employee = task?.taskAssignees?.find((ta: any) => ta.assignedEmployee?.id === employeeId)?.assignedEmployee
+      // 2. From form state (for newly added assignees from MultiEmployeeSelect)
+      if (!employee) {
+        employee = assignedEmployees.find((emp: any) => emp.id === employeeId)
+      }
+
+      return {
+        ...(existing?.id && { id: existing.id }),
+        ...(existing?.version !== undefined && { version: existing.version }),
+        assignedEmployeeId: employeeId,
+        assignedUserId: employee?.userId || null,
+        taskStatus: existing?.taskStatus || null,
+        completedAt: existing?.completedAt || null
+      }
+    })
+
+    form.setValue('taskAssignees', newTaskAssignees)
+  }, [assignedEmployeeIds, task?.taskAssignees, form])
+
   // Sync form when task changes (following AccountForm pattern)
   const taskRef = useRef(task)
   useEffect(() => {
@@ -87,7 +123,28 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
       form.reset(mapToFormValues(task || {}, investmentTaskSchema) as Partial<InvestmentTask>)
       taskRef.current = task
 
-      // Hydrate first found entity
+      // Manually set assignee fields when task loads (prevents infinite loop in MultiEmployeeSelect)
+      if (task?.taskAssignees && task.taskAssignees.length > 0) {
+        const employeeIds = task.taskAssignees.map((ta: any) => ta.assignedEmployee?.id).filter(Boolean)
+
+        const employees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp && emp.id)
+
+        // Store full taskAssignees array (with junction table IDs for updates)
+        const taskAssigneesArray = task.taskAssignees.map((ta: any) => ({
+          id: ta.id,
+          version: ta.version,
+          assignedEmployeeId: ta.assignedEmployee?.id,
+          assignedUserId: ta.assignedUserId,
+          taskStatus: ta.taskStatus,
+          completedAt: ta.completedAt
+        }))
+
+        form.setValue('taskAssignees', taskAssigneesArray)
+        form.setValue('assignedEmployeeIds', employeeIds)
+        form.setValue('assignedEmployees', employees)
+      }
+
+      // Set relatedEntityId and hydrate entity (relatedEntityId is required for form validation)
       const entity = [
         { type: 'investment' as const, id: task?.investmentId },
         { type: 'account' as const, id: task?.accountId },
@@ -97,6 +154,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
       ].find(e => e.id)
 
       if (entity?.id) {
+        form.setValue('relatedEntityId', entity.id)
         hydrateEntityById(entity.type, entity.id)
       }
     }
@@ -109,13 +167,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
       delete data.files
       delete data._pendingFiles
       delete data.relatedEntityId
+      // Delete helper fields (not sent to backend)
+      delete data.assignedEmployeeIds
+      delete data.assignedEmployees
 
-      // Build payload (buildPayload will include creator fields from taskData)
-      const { investmentTask } = buildInvestmentTaskPayload(data as Partial<InvestmentTask>)
-
-      return {
-        investmentTask
-      }
+      // Build payload (returns { employeeDetails, investmentTask })
+      return buildInvestmentTaskPayload(data as Partial<InvestmentTask>)
     } catch (error) {
       console.error('Error submitting task:', error)
       throw error
@@ -246,7 +303,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           businessAppContext={{ accessToken, userInfo, additionalData }}
           // Multi-assignee mode for IRM
           multiAssigneeMode={true}
-          assignedEmployees={task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter(Boolean) || []}
+          assignedEmployees={
+            task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp && emp.id) || []
+          }
           entityId={task?.id}
           // Catalogs
           typeCatalog={'InvestmentTaskType:v1'}

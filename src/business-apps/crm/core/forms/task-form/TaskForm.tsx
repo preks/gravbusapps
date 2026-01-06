@@ -99,22 +99,54 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
   const taskRef = useRef(task)
 
+  // Watch assignedEmployeeIds and sync taskAssignees array
+  const assignedEmployeeIds = form.watch('assignedEmployeeIds')
+  useEffect(() => {
+    if (!assignedEmployeeIds) return
+
+    const currentTaskAssignees = form.getValues('taskAssignees') || []
+    const existingAssigneesMap = new Map(currentTaskAssignees.map((ta: any) => [ta.assignedEmployeeId, ta]))
+
+    // Get employee objects from form state (set by MultiEmployeeSelect)
+    const assignedEmployees = form.getValues('assignedEmployees') || []
+
+    // Build new taskAssignees array, preserving existing IDs and versions
+    const newTaskAssignees = assignedEmployeeIds.map((employeeId: string) => {
+      const existing = existingAssigneesMap.get(employeeId)
+
+      // Get employee data (for userId) - try multiple sources
+      // 1. From task object (for existing assignees loaded from backend)
+      let employee = task?.taskAssignees?.find((ta: any) => ta.assignedEmployee?.id === employeeId)?.assignedEmployee
+      // 2. From form state (for newly added assignees from MultiEmployeeSelect)
+      if (!employee) {
+        employee = assignedEmployees.find((emp: any) => emp.id === employeeId)
+      }
+
+      return {
+        ...(existing?.id && { id: existing.id }),
+        ...(existing?.version !== undefined && { version: existing.version }),
+        assignedEmployeeId: employeeId,
+        assignedUserId: employee?.userId || null,
+        taskStatus: existing?.taskStatus || null,
+        completedAt: existing?.completedAt || null
+      }
+    })
+
+    form.setValue('taskAssignees', newTaskAssignees)
+  }, [assignedEmployeeIds, task?.taskAssignees, form])
+
   const handleSubmit = useCallback(
     async (data: z.infer<typeof taskSchema>) => {
       try {
         delete data.files
         delete data._pendingFiles
         delete data.relatedEntityId
-        // Delete form-specific fields - buildCustomerTaskPayload handles transformation
-        delete (data as any).assignedEmployeeIds
-        delete (data as any).assignedEmployees
+        // Delete helper fields (not sent to backend)
+        delete data.assignedEmployeeIds
+        delete data.assignedEmployees
 
-        // Build payload (buildPayload will include creator fields and transform taskAssignees)
-        const { salesTask } = buildCustomerTaskPayload(data as Partial<CustomerTask>)
-
-        return {
-          salesTask
-        }
+        // Build payload (returns { employeeDetails, salesTask })
+        return buildCustomerTaskPayload(data as Partial<CustomerTask>)
       } catch (error) {
         console.error('Error submitting task:', error)
         throw error
@@ -175,7 +207,28 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       form.reset(mapToFormValues(task || {}, taskSchema) as any)
       taskRef.current = task
 
-      // Hydrate first found entity
+      // Manually set assignee fields when task loads (prevents infinite loop in MultiEmployeeSelect)
+      if (task?.taskAssignees && task.taskAssignees.length > 0) {
+        const employeeIds = task.taskAssignees.map((ta: any) => ta.assignedEmployee?.id).filter(Boolean)
+
+        const employees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp && emp.id)
+
+        // Store full taskAssignees array (with junction table IDs for updates)
+        const taskAssigneesArray = task.taskAssignees.map((ta: any) => ({
+          id: ta.id,
+          version: ta.version,
+          assignedEmployeeId: ta.assignedEmployee?.id,
+          assignedUserId: ta.assignedUserId,
+          taskStatus: ta.taskStatus,
+          completedAt: ta.completedAt
+        }))
+
+        form.setValue('taskAssignees', taskAssigneesArray)
+        form.setValue('assignedEmployeeIds', employeeIds)
+        form.setValue('assignedEmployees', employees)
+      }
+
+      // Set relatedEntityId and hydrate entity (relatedEntityId is required for form validation)
       const entity = [
         { type: 'account' as const, id: task?.accountId },
         { type: 'contact' as const, id: task?.contactId },
@@ -184,6 +237,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       ].find(e => e.id)
 
       if (entity?.id) {
+        form.setValue('relatedEntityId', entity.id)
         hydrateEntityById(entity.type, entity.id)
       }
     }
@@ -268,7 +322,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           // Required props
           accessToken={accessToken}
           businessAppContext={{ accessToken, userInfo, additionalData }}
-          assignedEmployees={task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter(Boolean) || []}
+          assignedEmployees={
+            task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp && emp.id) || []
+          }
           entityId={task?.id}
           // Catalogs
           typeCatalog={TASK_TYPE_CATALOG}
