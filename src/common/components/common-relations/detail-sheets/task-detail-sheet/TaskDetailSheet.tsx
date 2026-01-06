@@ -182,12 +182,12 @@ const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
   return (
     <div
       key={taskAssignee.id || index}
-      className={`gba:p-3 gba:rounded-lg gba:border ${
-        isCurrentUser ? 'gba:border-primary gba:bg-accent/10' : 'gba:bg-muted'
+      className={`gba:py-4 gba:px-4 gba:rounded-lg gba:border ${
+        isCurrentUser ? 'gba:border-primary gba:bg-accent/5' : 'gba:bg-muted/30'
       }`}
       data-testid={`${dataTestId}-instance-${index}`}
     >
-      <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
+      <div className={`gba:flex gba:items-center gba:gap-3 ${isCurrentUser && accessToken ? 'gba:mb-3' : ''}`}>
         <Avatar
           size="default"
           className="gba:cursor-pointer"
@@ -219,10 +219,6 @@ const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
               </Badge>
             )}
           </div>
-          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-            Instance ID: {taskAssignee.id?.substring(0, 8)}...
-            {taskAssignee.version !== undefined && ` • Version: ${taskAssignee.version}`}
-          </div>
         </div>
 
         <div className="gba:text-right">
@@ -241,15 +237,20 @@ const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
       </div>
 
       {isCurrentUser && accessToken && (
-        <div className="gba:pt-3 gba:border-t gba:mt-3">
+        <div className="gba:pt-3 gba:border-t">
           <AppAction
             mode="action-button"
             size="sm"
             variant="outline"
             contexts={[
-              entityType === 'investment' ? FlowContextName.investmentTaskEntity : FlowContextName.customerTaskEntity
+              {
+                context:
+                  entityType === 'investment'
+                    ? FlowContextName.investmentTaskEntity
+                    : FlowContextName.customerTaskEntity,
+                contextData: { taskId }
+              }
             ]}
-            externalContextData={{ taskId }}
             accessToken={accessToken}
             emptyState="enable"
             data-testid={`${dataTestId}-update-button-${index}`}
@@ -692,7 +693,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                     <Badge
                       variant={getTaskStatusBadgeVariant(computeTaskStatus(task.taskAssignees as any).overallStatus)}
                     >
-                      {computeTaskStatus(task.taskAssignees as any).overallStatus}
+                      {getTaskStatusLabel(computeTaskStatus(task.taskAssignees as any).overallStatus)}
                     </Badge>
                   </div>
                 )}

@@ -124,3 +124,94 @@ export function getTaskStatusLabel(status: string | undefined | null): string {
     .map(word => word.charAt(0) + word.slice(1).toLowerCase())
     .join(' ')
 }
+
+/**
+ * Configuration options for assignee display
+ */
+export interface TaskAssigneeDisplayOptions {
+  /** Fallback text when no assignees */
+  fallback?: string
+  /** Text to show for multiple assignees (default: "Multiple") */
+  multipleText?: string | ((count: number) => string)
+  /** Whether to show count for multiple assignees (default: false) */
+  showCount?: boolean
+}
+
+/**
+ * Get display name for a single employee
+ *
+ * @param employee - Employee object with name fields
+ * @returns Display name or 'Unknown User'
+ */
+export function getEmployeeDisplayName(employee: any): string {
+  if (!employee) return 'Unknown User'
+
+  // Priority: fullName > firstName + lastName > displayName
+  if (employee.fullName) return employee.fullName
+
+  const fullName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+  if (fullName) return fullName
+
+  return employee.displayName || 'Unknown User'
+}
+
+/**
+ * Get display name for task assignees (handles single, multiple, or none)
+ *
+ * @param assigneeEmployee - Single employee object or array of employees
+ * @param options - Configuration options
+ * @returns Display string for assignees
+ */
+export function getTaskAssigneeDisplayName(assigneeEmployee: any, options: TaskAssigneeDisplayOptions = {}): string {
+  const { fallback = 'Unassigned', multipleText = 'Multiple', showCount = false } = options
+
+  // Handle null/undefined
+  if (!assigneeEmployee) return fallback
+
+  // Handle array of employees
+  if (Array.isArray(assigneeEmployee)) {
+    if (assigneeEmployee.length === 0) return fallback
+
+    if (assigneeEmployee.length === 1) {
+      return getEmployeeDisplayName(assigneeEmployee[0])
+    }
+
+    // Multiple assignees
+    if (showCount) {
+      return `${assigneeEmployee.length} assignees`
+    }
+    return typeof multipleText === 'function' ? multipleText(assigneeEmployee.length) : multipleText
+  }
+
+  // Handle single employee
+  return getEmployeeDisplayName(assigneeEmployee)
+}
+
+/**
+ * Get task assignee display from full task object
+ * Handles both taskAssignees array and assigneeEmployee field
+ *
+ * @param task - Task object
+ * @param options - Display options
+ * @returns Display string
+ */
+export function getTaskAssigneeDisplay(task: any, options: TaskAssigneeDisplayOptions = {}): string {
+  // Check taskAssignees array first (multi-assignee support)
+  if (task.taskAssignees && task.taskAssignees.length > 0) {
+    const assignees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter(Boolean)
+
+    return getTaskAssigneeDisplayName(assignees, options)
+  }
+
+  // Fallback to assigneeEmployee field (legacy single assignee)
+  if (task.assigneeEmployee) {
+    return getTaskAssigneeDisplayName(task.assigneeEmployee, options)
+  }
+
+  // Fallback to creator as last resort
+  if (task.creatorEmployee) {
+    return getEmployeeDisplayName(task.creatorEmployee)
+  }
+
+  return options.fallback || 'Unassigned'
+}

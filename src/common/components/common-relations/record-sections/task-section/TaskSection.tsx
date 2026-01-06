@@ -40,7 +40,12 @@ import { type InvestmentTask } from '@/common/data/investment/types/investmentTa
 import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
-import { computeTaskStatus, formatTaskProgress } from '../../utils/taskStatusUtils'
+import {
+  computeTaskStatus,
+  formatTaskProgress,
+  getTaskAssigneeDisplayName,
+  getEmployeeDisplayName
+} from '../../utils/taskStatusUtils'
 
 export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
 export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
@@ -395,17 +400,6 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     setSelectedTask(Task)
   }
 
-  const getEmployeeDisplayName = (emp: any) => {
-    if (!emp) return 'Unknown User'
-
-    // Use firstName + lastName first
-    const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim()
-    if (fullName) return fullName
-
-    // Fallback to displayName
-    return emp.displayName || 'Unknown User'
-  }
-
   // Helper: Get first assignee from single or array
   const getFirstAssignee = (assigneeEmployee: any) => {
     if (!assigneeEmployee) return undefined
@@ -421,19 +415,6 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     }
 
     return assigneeEmployee?.userId === userId
-  }
-
-  // Helper: Get assignee display name (handles both single and array)
-  const getAssigneeDisplayName = (assigneeEmployee: any, fallback?: string) => {
-    if (!assigneeEmployee) return fallback
-
-    if (Array.isArray(assigneeEmployee)) {
-      if (assigneeEmployee.length === 0) return fallback
-      if (assigneeEmployee.length === 1) return getEmployeeDisplayName(assigneeEmployee[0])
-      return `${assigneeEmployee.length} assignees`
-    }
-
-    return getEmployeeDisplayName(assigneeEmployee)
   }
 
   // Map task priority type to badge variant
@@ -489,7 +470,10 @@ const TaskSection: React.FC<TaskSectionProps> = ({
 
                 const { color, icon } = getStatusColorAndIcon(code, t.due)
 
-                const assigneeName = getAssigneeDisplayName(t.assigneeEmployee, t.assignee)
+                const assigneeName = getTaskAssigneeDisplayName(t.assigneeEmployee, {
+                  fallback: t.assignee,
+                  showCount: true
+                })
                 const assigneeId = getFirstAssignee(t.assigneeEmployee)?.id
 
                 // Get timing type icon and tooltip once to avoid duplicate function calls
