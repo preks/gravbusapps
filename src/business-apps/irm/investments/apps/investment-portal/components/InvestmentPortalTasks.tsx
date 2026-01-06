@@ -86,7 +86,15 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
       // Build OR condition for tasks assigned to OR created by current user
       if (currentEmployeeId) {
         customConditions.push({
-          _or: [{ assignedEmployeeId: { _eq: currentEmployeeId } }, { creatorEmployeeId: { _eq: currentEmployeeId } }]
+          _or: [
+            {
+              taskAssignees: {
+                assignedEmployeeId: { _eq: currentEmployeeId },
+                isDeleted: { _eq: false }
+              }
+            },
+            { creatorEmployeeId: { _eq: currentEmployeeId } }
+          ]
         })
       }
 
