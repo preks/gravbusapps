@@ -1,11 +1,25 @@
 /**
  * Utility functions for opportunity status management
+ * Shared between Investment (IRM) and Customer (CRM) opportunity records
  */
 
 /**
  * Determines if an opportunity is in an "open" state and allows stage transitions
- * @param status - The opportunity status value
+ *
+ * An opportunity is considered "open" (and tooltips/transitions are enabled) if:
+ * - No status is provided (defaults to open)
+ * - Status explicitly contains "OPEN"
+ * - Status is not in a closed/final state
+ *
+ * @param status - The opportunity status value (from opportunityStatus.value)
  * @returns true if the opportunity allows stage transitions, false otherwise
+ *
+ * @example
+ * isOpportunityOpen('Open') // true
+ * isOpportunityOpen('In Progress') // true
+ * isOpportunityOpen('Closed Won') // false
+ * isOpportunityOpen('Lost') // false
+ * isOpportunityOpen(undefined) // true (default to open)
  */
 export const isOpportunityOpen = (status?: string): boolean => {
   if (!status) return true // Default to open if no status
