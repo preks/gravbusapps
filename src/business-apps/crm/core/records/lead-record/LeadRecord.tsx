@@ -9,8 +9,8 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { User, FileText } from '@phosphor-icons/react'
-import { Flag, Bot } from 'lucide-react'
+import { UserIcon, FileTextIcon, FlagIcon } from '@phosphor-icons/react'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -395,7 +395,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-          icon: <User className="gba:mr-2" />,
+          icon: <UserIcon className="gba:mr-2" />,
           content: (
             <HomeView
               leadId={leadId}
@@ -419,7 +419,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView leadId={leadId} {...props} />
@@ -487,7 +487,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge data-testid="lead-sensitive-badge" variant="warning" className="gba:text-sm">
-                <Flag className="gba:h-3 gba:w-3" />
+                <FlagIcon className="gba:h-3 gba:w-3" />
               </Badge>
             </TooltipTrigger>
             <TooltipContent data-testid="lead-sensitive-tooltip">

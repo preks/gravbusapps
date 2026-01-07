@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
-import { User, FileText, Star, Lightbulb, Bot, TrendingUp } from 'lucide-react'
+import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon } from '@phosphor-icons/react'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -362,14 +363,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             value: opportunityData?.opportunityStatus
               ? formatStatus(rawStatus)
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Star
+            icon: StarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage', 'Stage'),
             value:
               opportunityData?.opportunityPipelineStage?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Star
+            icon: StarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
@@ -392,7 +393,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
               opportunityData?.winningChance !== undefined && opportunityData?.winningChance !== null
                 ? `${opportunityData.winningChance}%`
                 : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: TrendingUp
+            icon: TrendUpIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
@@ -407,7 +408,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
               (opportunityData?.ownerEmployee?.firstName && opportunityData?.ownerEmployee?.lastName
                 ? `${opportunityData.ownerEmployee.firstName} ${opportunityData.ownerEmployee.lastName}`.trim()
                 : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned')),
-            icon: User
+            icon: UserIcon
           }
         ]
       }
@@ -575,7 +576,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       {
         value: 'overview',
         label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-        icon: <User size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <UserIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <HomeView
             opportunityId={opportunityId}
@@ -596,7 +597,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileText size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <FileTextIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <div className="gba:col-span-12">
             <DocumentView opportunityId={opportunityId} {...props} />
