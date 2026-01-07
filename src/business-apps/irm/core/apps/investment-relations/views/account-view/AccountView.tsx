@@ -1,10 +1,6 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  AccountLayout,
-  type AccountViewConfig,
-  type AccountStatisticsData
-} from '@/common/components/common-relations/view-layouts/account-layout'
+import { AccountLayout, type AccountViewConfig } from '@/common/components/common-relations/view-layouts/account-layout'
 import type { Account } from '@/common/data/relations/types/accountTypes'
 import { INVESTMENT_ACCOUNT_DESCRIPTORS } from '@/common/data/investment/types/investmentAccountTypes'
 import {
@@ -65,18 +61,8 @@ export const AccountView: React.FC<AccountViewProps> = context => {
   const accountStatistics = useInvestmentAccountStatistics(context)
 
   // Statistics - Transform hook data to AccountStatisticsData format
-  const accountStatisticsData: AccountStatisticsData | undefined = useMemo(() => {
-    if (!accountStatistics.trendData) return undefined
-    return {
-      recentAccounts: accountStatistics.trendData.recentAccounts,
-      activeAccounts: accountStatistics.trendData.activeAccounts,
-      accountsThisYear: accountStatistics.trendData.accountsThisYear,
-      totalAccounts: accountStatistics.trendData.totalAccounts,
-      isLoading: accountStatistics.isLoading,
-      error: accountStatistics.error,
-      refetch: accountStatistics.refetch
-    }
-  }, [accountStatistics])
+  // Statistics - Hook already returns the correct format
+  const accountStatisticsData = accountStatistics
 
   // Config
   const config: AccountViewConfig<Account, InvestmentAccountQueryVariables> = useMemo(
