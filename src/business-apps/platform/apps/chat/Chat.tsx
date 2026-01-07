@@ -6,6 +6,7 @@ import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
 import { useChatExperts } from './hooks/useChatExperts'
+import { useOpenChatFromPlatform } from './hooks/useOpenChatFromPlatform'
 import { ConversationList } from './components/ConversationList'
 import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
 import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
@@ -92,18 +93,19 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 
-  // If running on localhost, connect to DEV environment
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  if (isLocalhost) {
+  // If platform is running on localhost (baseUrl includes localhost), connect to DEV environment
+  // This handles the case where Chat is loaded from CDN but platform is running locally
+  const isLocalPlatform = baseUrl.includes('localhost')
+  if (isLocalPlatform) {
     baseUrl = 'https://newwork-dev.newwork.com'
-    console.log('🔄 [Chat] Local development detected - connecting to DEV environment:', baseUrl)
+    console.log('🔄 [Chat] Local platform detected (baseUrl had localhost) - connecting to DEV environment:', baseUrl)
   }
 
   // Normalize API and WS endpoints; connect to chat-service namespace with default socket path
   let apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
 
-  // Override if NEXT_PUBLIC_CHAT_API is pointing to localhost when running locally
-  if (isLocalhost && apiUrl.includes('localhost')) {
+  // Override if NEXT_PUBLIC_CHAT_API is pointing to localhost when running on local platform
+  if (apiUrl.includes('localhost')) {
     apiUrl = `${baseUrl}/chat-service/api/v1`
     console.log('🔄 [Chat] Overriding localhost CHAT_API to use DEV environment:', apiUrl)
   }
@@ -175,6 +177,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   useEffect(() => {
     console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
   }, [stableActiveConversation?.id])
+
+  // Listen for platform messages to open chat with specific users
+  useOpenChatFromPlatform({
+    createDirectConversation,
+    setDraftMessage,
+    isConnected,
+    setShowConversationList
+  })
 
   // Register nudge callback to handle incoming nudges from OTHER users
   useEffect(() => {
