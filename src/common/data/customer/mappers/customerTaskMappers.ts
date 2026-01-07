@@ -92,8 +92,6 @@ export function toCustomerTask(base: CustomerTask): CustomerTask {
     taskTiming,
     comments,
     reference: taskReference,
-    // Alias for task columns compatibility (assignedEmployee → assignedTo)
-    assignedTo: base.assignedEmployee,
     creatorEmployee: base.creatorEmployee
-  } as any
+  } as CustomerTask
 }

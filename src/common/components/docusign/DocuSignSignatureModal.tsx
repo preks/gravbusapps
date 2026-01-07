@@ -7,7 +7,7 @@ import { buildFileUrl } from '@/common/utils/fileUtils'
 import { fileClient } from '@/common/network/files/FileClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads'
+import { type InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 import { useUpdateInvestmentTaskEnvelope } from './hooks/useUpdateInvestmentTaskEnvelope'
 import { useEnvelopeStatusCache } from './hooks/useEnvelopeStatusCache'
 import useDocuSign from '@/common/integrations/docusign/useDocuSign'
@@ -49,7 +49,7 @@ interface DocuSignSignatureModalProps {
   businessAppContext?: BusinessAppContextProps
   taskContext?: {
     taskId: string
-    taskFormData: InvestmentTaskFormData
+    taskFormData: Partial<InvestmentTask>
   }
 }
 

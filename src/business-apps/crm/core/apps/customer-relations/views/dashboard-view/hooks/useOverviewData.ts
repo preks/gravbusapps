@@ -427,6 +427,26 @@ export const useOverviewData = (
           }
         }
 
+        // Get assignee display name (handles multi-assignee)
+        let assignedTo = 'Unassigned'
+        if (task.taskAssignees && task.taskAssignees.length > 0) {
+          const assignees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter(Boolean)
+
+          if (assignees.length === 1) {
+            const emp = assignees[0]
+            assignedTo =
+              emp.fullName || emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown'
+          } else if (assignees.length > 1) {
+            assignedTo = 'Multiple'
+          }
+        } else if (task.creatorEmployee) {
+          assignedTo =
+            task.creatorEmployee.fullName ||
+            task.creatorEmployee.displayName ||
+            `${task.creatorEmployee.firstName || ''} ${task.creatorEmployee.lastName || ''}`.trim() ||
+            'Unassigned'
+        }
+
         return {
           id: task.id,
           name: task.name || 'Untitled Task',
@@ -434,14 +454,7 @@ export const useOverviewData = (
           dueDate: task.dueDate,
           status: task.status?.value || task.statusRef?.split(':').pop() || 'Active',
           priority: task.priority?.value || task.priorityRef?.split(':').pop() || 'Normal',
-          assignedTo:
-            task.assignedEmployee?.fullName ||
-            task.assignedEmployee?.displayName ||
-            `${task.assignedEmployee?.firstName || ''} ${task.assignedEmployee?.lastName || ''}`.trim() ||
-            task.creatorEmployee?.fullName ||
-            task.creatorEmployee?.displayName ||
-            `${task.creatorEmployee?.firstName || ''} ${task.creatorEmployee?.lastName || ''}`.trim() ||
-            'Unassigned',
+          assignedTo,
           relatedTo: relatedEntity?.name || 'No relation',
           relatedEntity,
           isOverdue

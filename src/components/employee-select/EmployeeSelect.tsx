@@ -20,6 +20,10 @@ export interface EmployeeSelectProps {
   initialEmployee?: Employee | null
   autoSelect?: 'current-user'
 
+  // Behavior
+  /** If false, the dropdown will stay open after selecting an employee (useful for multi-add scenarios) */
+  closeOnSelect?: boolean
+
   // Manual mode (for backward compatibility)
   employees?: Employee[]
   onSearch?: (q: string) => void
@@ -42,6 +46,7 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps>(
       accessToken,
       initialEmployee,
       autoSelect,
+      closeOnSelect = true,
       employees: manualEmployees,
       onSearch: manualOnSearch,
       loading: manualLoading,
@@ -132,6 +137,7 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps>(
         hasMore={Boolean(hasMore)}
         data-testid={dataTestId}
         align="start"
+        closeOnSelect={closeOnSelect}
         {...rest}
       />
     )

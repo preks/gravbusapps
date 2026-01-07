@@ -40,6 +40,24 @@ export const taskSchema = z.object({
   assignedEmployee: z.any().optional(),
   creatorEmployee: z.any().optional(),
 
+  // Task Assignees (multiple assignees support - junction table)
+  taskAssignees: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        version: z.number().optional(),
+        assignedEmployeeId: z.string().optional(),
+        assignedUserId: z.string().nullable().optional(),
+        taskStatus: z.string().nullable().optional(),
+        completedAt: z.string().nullable().optional()
+      })
+    )
+    .optional(),
+
+  // Helper fields for MultiEmployeeSelect (not sent to backend)
+  assignedEmployeeIds: z.array(z.string()).optional(),
+  assignedEmployees: z.array(z.any()).optional(),
+
   // Documents
   documents: z
     .array(
