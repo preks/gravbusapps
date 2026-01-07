@@ -5,6 +5,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 export interface InvestmentDeletePopupValues {
   investmentId: string
@@ -124,7 +125,7 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
   }, [investmentId, props.accessToken, graphqlClient])
 
   // Submit handler for deletion
-  const handleSubmit = async (_formData: InvestmentDeletePopupValues) => {
+  const handleSubmit = async () => {
     if (!investment) {
       throw new Error(getTranslationFromI18nKeyAndLabel('investment.delete.error.noData', 'Investment data not loaded'))
     }
@@ -144,11 +145,21 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
   }
 
   // Validation function
-  const validateForm = (_formData: InvestmentDeletePopupValues): string[] | null => {
+  const validateForm = (): string[] | null => {
     if (!investment) {
       return [getTranslationFromI18nKeyAndLabel('investment.delete.error.noData', 'Investment data not loaded')]
     }
     return null
+  }
+
+  // Handle process completion - redirect to investment management
+  const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
+    if (detail?.resolution === 'success') {
+      // Small delay to ensure the popup closes properly before navigation
+      setTimeout(() => {
+        navigateTo('/platform/irm/investment-management?view=investments')
+      }, 100)
+    }
   }
 
   if (loading) {
@@ -180,6 +191,7 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
+      onProcessCompletion={handleProcessCompletion}
       businessAppContext={props}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >

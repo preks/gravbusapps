@@ -1,0 +1,17 @@
+{
+  "name": "@newwork/services-plus-seed",
+  "version": "1.0.0",
+  "description": "Seed data for Services+ platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@newwork/services-plus-core": "1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

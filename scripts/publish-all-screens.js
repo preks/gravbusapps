@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * Publish ALL screens (apps and forms) to DEV
+ * Publish ALL screens to DEV
  * - Uses the existing single-screen dev publisher
  * - Does NOT rely on change detection; iterates every screen
  * - Non-interactive: passes --no-interaction to avoid prompts
  */
 
-import path from 'path'
-import fs from 'fs'
-import { execSync } from 'child_process'
+import path from 'node:path'
+import fs from 'node:fs'
+import { execSync } from 'node:child_process'
 import { glob } from 'glob'
 
 async function findAllScreenDirectories() {
@@ -18,8 +18,14 @@ async function findAllScreenDirectories() {
   const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', {
     nodir: true
   })
+  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', {
+    nodir: true
+  })
+  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', {
+    nodir: true
+  })
 
-  const allIndexFiles = [...appIndexFiles, ...formIndexFiles]
+  const allIndexFiles = [...appIndexFiles, ...formIndexFiles, ...popupIndexFiles, ...recordIndexFiles]
   const uniqueDirs = new Set()
 
   for (const filePath of allIndexFiles) {

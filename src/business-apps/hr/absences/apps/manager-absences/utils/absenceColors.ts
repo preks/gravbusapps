@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { CatalogEntry } from '@/common/types/CatalogTypes'
@@ -21,10 +21,10 @@ export interface AbsenceColorsData {
 
 // Fallback colors if catalog doesn't provide colors
 const FALLBACK_COLORS = [
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#6b7280' // Status-based colors only
+  'var(--nw-chart-3)',
+  'var(--nw-chart-6)',
+  'var(--nw-chart-5)',
+  'var(--nw-chart-1)' // Status-based colors only
 ]
 
 /**
@@ -85,7 +85,6 @@ export class AbsenceColorsManager {
       })
 
       // Create maps for easy lookup
-      const groupsMap = new Map(groups.map(g => [g.id, g]))
       const typesByGroupMap = new Map<string, CatalogEntry[]>()
 
       // Group types by their parent group
@@ -100,12 +99,9 @@ export class AbsenceColorsManager {
 
       const colorMap: { [key: string]: string } = {}
       const displayItems: AbsenceColorConfig[] = []
-      let colorIndex = 0
 
       // Process each group in the sorted order
       for (const group of sortedGroups) {
-        const groupName = group.value.toLowerCase()
-
         // Handle all groups uniformly - use group color only
         const groupColor = this.extractColorFromCatalog(group)
 
@@ -122,7 +118,6 @@ export class AbsenceColorsManager {
         } else {
           console.warn(`No color found for group: ${group.value}, skipping fallback`)
         }
-        colorIndex++
       }
 
       // No special type processing - only use group colors
@@ -285,9 +280,9 @@ export class AbsenceColorsManager {
   /**
    * Get default color for absence type based on special rules
    */
-  private getDefaultColorForType(typeCodeOrId: string): string {
+  private getDefaultColorForType(): string {
     // Use status-based colors only
-    return '#6b7280' // Default gray for all types
+    return 'var(--nw-muted-foreground)' // Default gray for all types
   }
 
   /**
@@ -313,7 +308,7 @@ export class AbsenceColorsManager {
     }
 
     console.warn(`No catalog color found for absence: ${absenceName}, using default`)
-    return '#6b7280' // Single fallback color instead of cycling through array
+    return 'var(--nw-chart-1)' // Single fallback color instead of cycling through array
   }
 
   /**
@@ -346,7 +341,7 @@ export class AbsenceColorsManager {
     }
 
     // Apply special rules for specific types
-    const defaultColor = this.getDefaultColorForType(typeCodeOrId)
+    const defaultColor = this.getDefaultColorForType()
     this.colorCache.set(typeCodeOrId, defaultColor)
 
     return defaultColor
@@ -375,7 +370,7 @@ export class AbsenceColorsManager {
     }
 
     // Apply special rules for specific groups
-    const defaultColor = this.getDefaultColorForType(groupCodeOrId)
+    const defaultColor = this.getDefaultColorForType()
     this.colorCache.set(groupCodeOrId, defaultColor)
 
     return defaultColor

@@ -75,7 +75,7 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
 
       // Return empty string instead of null for consistent type
       return ''
-    } catch (error) {
+    } catch {
       // Return empty string instead of null for consistent type
       return ''
     }
@@ -86,7 +86,7 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
     try {
       const fileIdMatch = reportPath.match(/fileId=([^,\s)]+)/)
       return fileIdMatch ? fileIdMatch[1] : 'investment-report.pdf'
-    } catch (error) {
+    } catch {
       return 'investment-report.pdf'
     }
   }

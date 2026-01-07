@@ -10,7 +10,7 @@ import {
   Alert
 } from '@newwork/nw-design-system'
 import { PiArrowLeft, PiEnvelope, PiPhone, PiCalendar, PiFlag, PiDeviceMobile } from 'react-icons/pi'
-import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency } from '@/common/utils/numberFormatter'
 import { EmployeeHeaderData } from '../../queries/EmployeeHeaderQueries'
 
 const DATA_TEST_ID_PREFIX = 'PerformanceHeader'

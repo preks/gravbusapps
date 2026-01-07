@@ -3,9 +3,9 @@ import useInformationExtraction, { UseInformationExtractionReturn } from '@/comm
 import {
   useGetInvestmentActivitiesByOpportunityId,
   useGetInvestmentNotesByOpportunityId,
-  useGetInvestmentTasksByOpportunityId,
-  useGetInvestmentOpportunityById
+  useGetInvestmentTasksByOpportunityId
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 
 const taskDescription = `You are an assistant that summarises CRM opportunity timelines. 
 Provide a concise executive summary in plain language, the total number of activities mentioned, 
@@ -20,15 +20,14 @@ type SummarySchema = z.infer<typeof summarySchema>
 type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useAiSummary(opportunityId: string, accessToken: string): UseAiSummaryReturn {
-  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById({ accessToken })
+  const { opportunity } = useInvestmentOpportunity(accessToken, opportunityId)
   const { fetchInvestmentActivitiesByOpportunityId } = useGetInvestmentActivitiesByOpportunityId({ accessToken })
   const { fetchInvestmentNotesByOpportunityId } = useGetInvestmentNotesByOpportunityId({ accessToken })
   const { fetchInvestmentTasksByOpportunityId } = useGetInvestmentTasksByOpportunityId({ accessToken })
 
   const generateInputData = async () => {
-    // get opportunity data using central hook
-    const opportunityResult = await fetchInvestmentOpportunityById(opportunityId)
-    const opportunity = opportunityResult.opportunity
+    // get opportunity data using new declarative hook
+    // opportunity is already available from the hook
 
     // get activity data
     const activityResult = await fetchInvestmentActivitiesByOpportunityId(opportunityId)

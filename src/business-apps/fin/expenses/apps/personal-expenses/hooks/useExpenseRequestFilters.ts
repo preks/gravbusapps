@@ -48,6 +48,11 @@ export interface ExpenseRequestWhereClause {
     currencyRef?: {
       _eq?: string
     }
+    currency?: {
+      code?: {
+        _eq?: string
+      }
+    }
     startDate?: {
       _gte?: string
       _lte?: string

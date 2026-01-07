@@ -14,7 +14,7 @@ const Header: React.FC<HeaderProps> = ({ 'data-testid': dataTestId = 'request-ad
           'Request Advance Payment'
         )}
       </h1>
-      <div className="gba:border-b gba:border-text-[#E0E0E0]"></div>
+      <div className="gba:border-b gba:border-border"></div>
     </div>
   )
 }

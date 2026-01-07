@@ -1,42 +1,76 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
-import { UsersThreeIcon, BriefcaseIcon, ChartPieIcon } from '@phosphor-icons/react'
+import { UsersThreeIcon, BriefcaseIcon, ChartPieIcon, LightbulbIcon } from '@phosphor-icons/react'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeList } from './components/views/employee-view/EmployeeList'
 import { JobPositionList } from './components/views/job-position-view/JobPositionList'
 import { HrAnalyticsView } from './components/views/analytics-view/HrAnalyticsView'
+import { InsightsView } from './components/views/insights-view/InsightsView'
 import { MODULE_COLORS } from '@/common/constants/ui'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const moduleColor = MODULE_COLORS.HR
 
-export interface HumanResourcesProps extends BusinessAppContextProps {}
-
-export const HumanResources: React.FC<HumanResourcesProps> = context => {
+export const HumanResources: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'employees',
       icon: <UsersThreeIcon />,
-      label: 'Employees',
-      title: 'Employee Management',
-      description:
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.employees_section.tab_label',
+        'Employees'
+      ),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.employees_section.title',
+        'Employee Management'
+      ),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.employees_section.description',
         'View and manage all employees in your organization, including their profiles, roles, and organizational assignments.'
+      )
     },
     {
       key: 'positions',
       icon: <BriefcaseIcon />,
-      label: 'Job Positions',
-      title: 'Job Position Management',
-      description:
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.tab_label',
+        'Job Positions'
+      ),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.title',
+        'Job Position Management'
+      ),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.description',
         'Manage job positions, departments, profiles, and track employee assignments across your organizational structure.'
+      )
     },
     {
       key: 'analytics',
       icon: <ChartPieIcon />,
-      label: 'Analytics',
-      title: 'HR Analytics & Insights',
-      description:
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.tab_label',
+        'Analytics'
+      ),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.title',
+        'HR Analytics & Insights'
+      ),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.description',
         'Comprehensive workforce insights, analytics, and metrics to drive HR decisions and organizational strategy.'
+      )
+    },
+    {
+      key: 'insights',
+      icon: <LightbulbIcon />,
+      label: 'Insights',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.title', 'HR Insights'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:hr_insights.description',
+        'Next 30 days Key employee events and milestones including birthdays, anniversaries, new hires, probation periods, and terminations.'
+      )
     }
   ]
 
@@ -138,6 +172,12 @@ export const HumanResources: React.FC<HumanResourcesProps> = context => {
             <HrAnalyticsView {...context} />
           </div>
         )
+      case 'insights':
+        return (
+          <div data-testid="insights-tab-content">
+            <InsightsView {...context} />
+          </div>
+        )
       default:
         return null
     }
@@ -149,8 +189,11 @@ export const HumanResources: React.FC<HumanResourcesProps> = context => {
     <div data-testid="human-resources-app">
       <PageLayout
         headerIcon={UsersThreeIcon}
-        headerTitle="Human Resources"
-        headerDescription="Manage employees, job positions, and organizational structure"
+        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.title', 'Human Resources')}
+        headerDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:human_resources_page.description',
+          'Manage employees, job positions, and organizational structure'
+        )}
         sectionTitle={activeTabInfo.title}
         sectionDescription={activeTabInfo.description}
         headerSubViews={{

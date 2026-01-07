@@ -1,8 +1,8 @@
 import React from 'react'
 import { Divider } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from 'react-i18next'
 import { FORM_STEPS, REQUEST_TYPES } from '../constants/constants'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FormFooterProps {
   step: string
@@ -23,10 +23,8 @@ const FormFooter: React.FC<FormFooterProps> = ({
   formIsValid = false,
   onCancel,
   onSubmit,
-  testIdPrefix = REQUEST_TYPES.EXPENSE,
-  additionalData
+  testIdPrefix = REQUEST_TYPES.EXPENSE
 }) => {
-  const { t } = useTranslation()
   return (
     <div style={{ marginTop: 'auto', width: '100%' }} data-testid={`${testIdPrefix}-footer`}>
       <Divider style={{ margin: '16px 0' }} data-testid={`${testIdPrefix}-bottom-divider`} />
@@ -50,7 +48,7 @@ const FormFooter: React.FC<FormFooterProps> = ({
           onClick={onCancel}
           disabled={loading}
         >
-          {t('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
         </Button>
         {(step === FORM_STEPS.EXPENSE || step === FORM_STEPS.TRIP) && (
           <Button
@@ -69,7 +67,10 @@ const FormFooter: React.FC<FormFooterProps> = ({
             onClick={onSubmit}
             disabled={loading || !formIsValid}
           >
-            {t('lowcoder:create_expense_request.expense_request_container.btn_submit', 'Create')}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_request.expense_request_container.btn_submit',
+              'Create'
+            )}
           </Button>
         )}
       </div>

@@ -2,15 +2,12 @@
 // These should match the DBML schema exactly without any computed fields
 import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import type {
-  InvestmentAccountRef,
-  InvestmentOpportunityRef,
-  InvestmentRef,
-  InvestmentRoleRef
-} from './investmentRelationBaseTypes'
+import type { InvestmentAccount } from './investmentAccountTypes'
+import type { InvestmentOpportunity } from './investmentOpportunityTypes'
+import type { Investment, InvestmentRole } from './investmentTypes'
 import type { ReportScope } from './investmentEnums'
 
-// InvestmentRef is now imported from investmentRelationBaseTypes.ts to avoid circular dependencies
+// Investment is now imported from investmentRelationBaseTypes.ts to avoid circular dependencies
 
 // =====================================================
 // CORE INVESTMENT ENTITIES (from DBML)
@@ -33,13 +30,18 @@ export interface BaseInvestment extends BaseEntity {
   currency?: CatalogEntry
 
   // Entity references (using Ref types)
-  investmentAccount?: InvestmentAccountRef
-  investmentOpportunity?: InvestmentOpportunityRef
+  investmentAccount?: InvestmentAccount
+  investmentOpportunity?: InvestmentOpportunity
   ownerEmployee?: EmployeeRef
-  loanRecipientInvestmentAccount?: InvestmentAccountRef
+  loanRecipientInvestmentAccount?: InvestmentAccount
+
+  // Investment specialization relationships (array relationships in GraphQL schema)
+  equityInvestment?: BaseEquityInvestment[]
+  realEstateInvestment?: BaseRealEstateInvestment[]
+  liquidFundInvestment?: BaseLiquidFundInvestment[]
 
   // Investment Role relationships (array of roles)
-  investmentRole?: InvestmentRoleRef[]
+  investmentRole?: InvestmentRole[]
 
   // Investment fields
   acquisitionDate?: string // ISO date string
@@ -69,6 +71,11 @@ export interface BaseInvestment extends BaseEntity {
 
   fundManagerName?: string
   identification?: any // Jsonb
+
+  // Financial metrics
+  irr?: number // Internal Rate of Return
+  moic?: number // Multiple on Invested Capital
+
   additionalProperties?: any // Jsonb - stores custom tile data and other additional information
 }
 
@@ -81,7 +88,7 @@ export interface BaseInvestmentRole extends BaseEntity {
   investmentRole?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
 }
 
 // investment_report table
@@ -98,8 +105,8 @@ export interface BaseInvestmentReport extends BaseEntity {
   currency?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
-  loanRecipientInvestmentAccount?: InvestmentAccountRef
+  investment?: Investment
+  loanRecipientInvestmentAccount?: InvestmentAccount
 
   // Report fields (from investment table)
   plannedExitDate?: string // ISO date string
@@ -124,6 +131,10 @@ export interface BaseInvestmentReport extends BaseEntity {
 
   fundManagerName?: string
   identification?: any // Jsonb
+
+  // Financial metrics
+  irr?: number // Internal Rate of Return
+  moic?: number // Multiple on Invested Capital
 
   // Additional metadata fields
   additionalProperties?: any // Jsonb - custom properties
@@ -164,7 +175,7 @@ export interface BaseInvestmentTransaction extends BaseEntity {
   currency?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
 }
 
 // equity_investment table
@@ -176,7 +187,7 @@ export interface BaseEquityInvestment extends BaseEntity {
   ebitdaAmount?: number
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
 }
 
 // equity_investment_report table
@@ -213,7 +224,13 @@ export interface BaseEquityInvestmentRound extends BaseEntity {
   currency?: CatalogEntry
 
   // Entity references (using Ref types)
-  equityInvestment?: BaseEquityInvestment
+  equityInvestment?: BaseEquityInvestment & {
+    investmentId?: string
+    investment?: { id: string }
+  }
+  equityInvestmentId?: string
+  investmentOpportunity?: InvestmentOpportunity
+  investmentOpportunityId?: string
 }
 
 // real_estate_investment table
@@ -240,7 +257,7 @@ export interface BaseRealEstateInvestment extends BaseEntity {
   sizeMeasurementUnit?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
 }
 
 // real_estate_investment_rental_unit table
@@ -306,12 +323,18 @@ export interface BaseLiquidFundInvestment extends BaseEntity {
   interestRate?: number
   maturityDate?: string // ISO date string
 
+  // Additional metadata fields
+  additionalProperties?: any // Jsonb
+
   // Catalog references
   investmentLiquidFundType?: CatalogEntry
   interestPaymentFrequency?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
+
+  // Reports relationship (array)
+  liquidFundInvestmentReport?: BaseLiquidFundInvestmentReport[]
 }
 
 // liquid_fund_investment_report table
@@ -343,30 +366,4 @@ export interface BaseLiquidFundInvestmentReport extends BaseEntity {
 
   // Entity references (using Ref types)
   liquidFundInvestment?: BaseLiquidFundInvestment
-}
-
-// =====================================================
-// QUERY RESPONSE INTERFACES
-// =====================================================
-
-// Response interfaces moved to hooks files where they're used
-
-// For list queries, we expect arrays (what makes sense for lists)
-export interface InvestmentData {
-  items: BaseInvestment[] // Base type - enhanced type is defined in investmentTypes.ts
-  total: number
-  pageInfo?: {
-    hasNextPage: boolean
-    hasPreviousPage: boolean
-  }
-}
-
-// Raw GraphQL response interface (what GraphQL actually returns - always arrays)
-export interface InvestmentGraphQLResponse {
-  Investment: BaseInvestment[] // Even for ID queries, GraphQL returns array (0 or 1 items)
-  InvestmentAggregate?: {
-    aggregate: {
-      count: number
-    }
-  }
 }

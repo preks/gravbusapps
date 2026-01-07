@@ -40,7 +40,7 @@ export function DataCards<T extends Record<string, any>>({
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-600"></div>
+        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-info"></div>
       </div>
     )
   }
@@ -48,7 +48,7 @@ export function DataCards<T extends Record<string, any>>({
   // Handle error state
   if (error) {
     return (
-      <div className="gba:text-center gba:text-red-600 gba:py-8">
+      <div className="gba:text-center gba:text-destructive gba:py-8">
         <p>{error}</p>
       </div>
     )
@@ -57,7 +57,7 @@ export function DataCards<T extends Record<string, any>>({
   // Handle empty state
   if (!data || data.length === 0) {
     return (
-      <div className="gba:text-center gba:text-gray-500 gba:py-8">
+      <div className="gba:text-center gba:text-muted-foreground gba:py-8">
         <p>{emptyMessage}</p>
       </div>
     )

@@ -16,6 +16,7 @@ export const useExpenseCurrencies = (
   setFilters?: (filters: string[]) => void
 ) => {
   const [currencyStats, setCurrencyStats] = useState<CurrencyStat[]>([])
+  const [initialized, setInitialized] = useState<boolean>(false)
   const hasPreselectedCurrencyRef = useRef<boolean>(false)
 
   const selectedCurrencyRef = useMemo(() => {
@@ -39,8 +40,14 @@ export const useExpenseCurrencies = (
   useEffect(() => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId
     const accessToken = context?.accessToken
-    if (!employeeId || !accessToken) return
-    ;(async () => {
+    if (!employeeId || !accessToken) {
+      return
+    }
+    if (initialized) {
+      return
+    }
+
+    const fetchCurrencies = async () => {
       try {
         const stats = await fetchEmployeeCurrencyStats({
           accessToken,
@@ -54,14 +61,19 @@ export const useExpenseCurrencies = (
         })
         setCurrencyStats(stats as CurrencyStat[])
         preselectMostUsedOnce(stats as CurrencyStat[])
-      } catch (_e) {
+      } catch {
         // ignore
+      } finally {
+        setInitialized(true)
       }
-    })()
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, preselectMostUsedOnce])
+    }
+
+    fetchCurrencies()
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, initialized, preselectMostUsedOnce])
 
   return {
     currencyStats,
-    selectedCurrencyRef
+    selectedCurrencyRef,
+    initialized
   }
 }

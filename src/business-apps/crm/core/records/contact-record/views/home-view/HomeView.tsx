@@ -3,28 +3,26 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import type { ContactData } from '../../queries/ContactQueries'
-import type { ContactActivityData } from '../../queries/ContactActivityQueries'
-import type { ContactTaskData } from '../../queries/ContactTaskQueries'
-import type { ContactNoteData } from '../../queries/ContactNoteQueries'
+import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
+import type { CustomerActivity } from '@/common/data/customer/types/customerActivityTypes'
+import type { CustomerTask } from '@/common/data/customer/types/customerTaskTypes'
+import type { CustomerNote } from '@/common/data/customer/hooks/useCustomerNotes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
-import TaskSection, {
-  type TaskStatusCode
-} from '@/common/components/common-relations/record-sections/task-section/TaskSection'
+import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 
 interface HomeViewProps extends BusinessAppContextProps {
   contactId: string
-  contact: ContactData
-  activities: ContactActivityData[]
-  notes: ContactNoteData[]
-  tasks: ContactTaskData[]
-  approvals: ContactTaskData[]
+  contact: CustomerContact
+  activities: CustomerActivity[]
+  notes: CustomerNote[]
+  tasks: CustomerTask[]
+  approvals: CustomerTask[]
   sectionsLoading: boolean
   sectionsError: string | null
   loadSectionData: () => void
@@ -77,32 +75,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: AccountSection,
             props: {
               ...props,
-              account: contact?.account
-                ? {
-                    id: contact.account.id,
-                    name: contact.account.name,
-                    email: undefined,
-                    phone: undefined,
-                    website: undefined,
-                    legalForm: undefined,
-                    industry: undefined,
-                    size: undefined,
-                    revenue: undefined,
-                    numberOfEmployees: undefined,
-                    annualRevenue: undefined
-                  }
-                : undefined,
-              address: undefined,
-              recordUrl: contact?.account?.id
+              accounts:
+                contact?.accountContacts
+                  ?.map(ac => ({
+                    ...ac.account,
+                    contactType: ac.contactType
+                  }))
+                  .filter(Boolean) || [],
+              accountId: contact?.accountContacts?.[0]?.account?.id,
+              recordUrl: contact?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/crm/account-record', {
-                    accountId: contact.account.id,
+                    accountId: contact.accountContacts[0].account.id,
                     source: 'customer-relations'
                   })
                 : undefined,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
                 externalContextData: {
-                  accountId: contact?.account?.id
+                  accountId: contact?.accountContacts?.[0]?.account?.id
                 },
                 prefixDataTestId: 'contact-account'
               }
@@ -121,18 +111,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: ContactSection,
             props: {
               ...props,
-              contact: {
-                id: contact?.id,
-                firstName: contact?.firstName,
-                lastName: contact?.lastName,
-                email: contact?.email,
-                phone: contact?.phone,
-                jobTitle: contact?.jobTitle,
-                department: contact?.department,
-                linkedinUrl: contact?.linkedinUrl,
-                xingUrl: contact?.xingUrl,
-                bio: contact?.bio
-              },
+              contact: contact, // ✅ Vollständiges CustomerContact-Objekt
               contactId: contact?.id,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerContactEntity],
@@ -154,10 +133,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: ActivitySection,
             props: {
               ...props,
-              activities: activities.map(activity => ({
-                ...activity,
-                occurredAt: activity.occurredAt ?? undefined
-              })),
+              activities: activities,
               activitiesLoading: sectionsLoading,
               activitiesError: sectionsError,
               onReloadActivities: loadSectionData,
@@ -188,38 +164,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               buildReferenceUrl,
-              tasks: tasks.map(task => {
-                const statusRefValue = task.statusRef?.split(':').pop()?.toUpperCase() || ''
-                const statusCode: TaskStatusCode | undefined = [
-                  'PENDING',
-                  'IN_PROGRESS',
-                  'OVERDUE',
-                  'COMPLETED'
-                ].includes(statusRefValue)
-                  ? (statusRefValue as TaskStatusCode)
-                  : undefined
-
-                const timingTypeValue = task.timingType?.toUpperCase()
-                const taskTiming = ['DEADLINE', 'SCHEDULED', 'UNKNOWN_TIMING_TYPE'].includes(timingTypeValue || '')
-                  ? (timingTypeValue as 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE')
-                  : undefined
-
-                return {
-                  id: task.id,
-                  title: task.name || getTranslationFromI18nKeyAndLabel('crm.common.untitledTask', 'Untitled Task'),
-                  description: task.description,
-                  createdAt: task.createdAt,
-                  due: task.dueDate ?? undefined,
-                  assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
-                  statusCode,
-                  taskStatus: task.type,
-                  taskPriority: task.priority,
-                  assigneeEmployee: task.assignedEmployee,
-                  taskTiming,
-                  startDate: task.createdAt,
-                  creatorEmployee: task.creatorEmployee
-                }
-              }),
+              tasks: tasks,
               taskActionProps: {
                 ...taskActionProps,
                 emptyStateBehavior: 'enable'
@@ -239,38 +184,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               buildReferenceUrl,
-              tasks: approvals.map(task => {
-                const statusRefValue = task.statusRef?.split(':').pop()?.toUpperCase() || ''
-                const statusCode: TaskStatusCode | undefined = [
-                  'PENDING',
-                  'IN_PROGRESS',
-                  'OVERDUE',
-                  'COMPLETED'
-                ].includes(statusRefValue)
-                  ? (statusRefValue as TaskStatusCode)
-                  : undefined
-
-                const timingTypeValue = task.timingType?.toUpperCase()
-                const taskTiming = ['DEADLINE', 'SCHEDULED', 'UNKNOWN_TIMING_TYPE'].includes(timingTypeValue || '')
-                  ? (timingTypeValue as 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE')
-                  : undefined
-
-                return {
-                  id: task.id,
-                  title: task.name || getTranslationFromI18nKeyAndLabel('crm.common.untitledTask', 'Untitled Task'),
-                  description: task.description,
-                  createdAt: task.createdAt,
-                  due: task.dueDate ?? undefined,
-                  assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
-                  statusCode,
-                  taskStatus: task.type,
-                  taskPriority: task.priority,
-                  assigneeEmployee: task.assignedEmployee,
-                  taskTiming,
-                  startDate: task.createdAt,
-                  creatorEmployee: task.creatorEmployee
-                }
-              }),
+              tasks: approvals,
               taskActionProps: {
                 ...approvalActionProps,
                 emptyStateBehavior: 'enable'
@@ -281,7 +195,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 prefixDataTestId: 'contact-approval-entity',
                 emptyStateBehavior: 'enable'
               },
-              sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approvals'),
+              sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approval Tasks'),
               'data-testid': 'contact-approvals-section'
             }
           }
@@ -298,18 +212,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: NoteSection,
             props: {
               ...props,
-              notes: notes.map(note => ({
-                id: note.id,
-                noteTitle: note.noteTitle,
-                noteText: note.noteText,
-                createdAt: note.createdAt,
-                createdBy: note.createdBy
-              })),
+              notes: notes,
               noteActionProps: {
                 ...noteActionProps,
                 emptyStateBehavior: 'enable'
               },
-              noteEntityActionProps: noteActionProps,
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-note-entity',
+                emptyStateBehavior: 'enable'
+              },
               'data-testid': 'contact-notes-section'
             }
           }

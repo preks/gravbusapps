@@ -8,6 +8,12 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_ABSENCES, GET_EMPLOYEE_ENTITLEMENTS } from './queries/graphql'
 import { getAbsenceGroups } from '@/business-apps/hr/core/forms/create-new-absence/queries/getAbsenceGroups'
 import dayjs from 'dayjs'
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
+
+dayjs.extend(isSameOrAfter)
+dayjs.extend(isSameOrBefore)
+
 import {
   getCurrentActiveUserLocale,
   getTranslationFromI18nKeyAndLabel,
@@ -21,6 +27,7 @@ import { startProcess } from '@/common/utils/start-process'
 
 import AbsencesTab from '@/business-apps/hr/core/apps/employee-record/components/tabs/AbsencesTab'
 import { useEmployeeData } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData'
+import { AbsenceList } from './components/absence-list-table'
 
 export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState('calendar')
@@ -73,7 +80,13 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
     setError(null)
     Promise.all([
       client.request(GET_EMPLOYEE_ABSENCES, {
-        employeeId,
+        where: {
+          employee: { id: { _eq: employeeId } },
+          isDeleted: { _eq: false }
+        },
+        offset: 0,
+        limit: 1000,
+        orderBy: [{ createdAt: 'DESC' }],
         activeUserLocale: getCurrentActiveUserLocale()
       }),
       client.request(GET_EMPLOYEE_ENTITLEMENTS, {
@@ -97,7 +110,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               <Paperclip
                 className="gba:w-4 gba:h-4"
                 style={{
-                  color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : '#1976d2'
+                  color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : 'var(--nw-chart-4)'
                 }}
               />
             ),
@@ -105,15 +118,15 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             statusColor: (() => {
               switch ((absence.status || '').toLowerCase()) {
                 case 'pending':
-                  return 'rgba(255, 158, 2, 0.55)'
+                  return 'var(--nw-warning)'
                 case 'approved':
-                  return 'rgba(13, 188, 123, 0.55)'
+                  return 'var(--nw-success)'
                 case 'rejected':
-                  return 'rgba(222, 29, 73, 0.55)'
+                  return 'var(--nw-destructive)'
                 case 'cancelled':
-                  return 'rgba(141, 145, 153, 0.55)'
+                  return 'var(--nw-muted-foreground)'
                 default:
-                  return 'rgba(141, 145, 153, 0.55)'
+                  return 'var(--nw-muted-foreground)'
               }
             })(),
             requestDate: absence.createdAt
@@ -126,7 +139,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             .map((a: any, idx: number) => ({
               id: a.id || idx,
               type: a.type ? getCatalogValue(a.type) || '' : '',
-              icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: '#1976d2' }} />,
+              icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
               dates: `${dayjs(a.startDate).format('MM/DD/YYYY')} - ${dayjs(a.endDate).format('MM/DD/YYYY')}`,
               description: a.description,
               timeUntil: (() => {
@@ -140,8 +153,23 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             }))
         )
 
+        const currentYear = dayjs().year()
+        const firstDayOfYear = dayjs(`${currentYear}-01-01`).startOf('day')
+        const lastDayOfYear = dayjs(`${currentYear}-12-31`).endOf('day')
+
+        const currentYearEntitlements = (entitlementRes?.EmployeeAbsenceEntitlement || []).filter((ent: any) => {
+          if (!ent.validFrom || !ent.validTo) {
+            return false
+          }
+
+          const validFrom = dayjs(ent.validFrom)
+          const validTo = dayjs(ent.validTo)
+
+          return validFrom.isSameOrBefore(lastDayOfYear) && validTo.isSameOrAfter(firstDayOfYear)
+        })
+
         setEntitlements(
-          (entitlementRes?.EmployeeAbsenceEntitlement || []).map((ent: any) => ({
+          currentYearEntitlements.map((ent: any) => ({
             type: ent.type ? getCatalogValue(ent.type) || '' : '',
             color: ent.type?.objectValue?.color || 'blue',
             used: ent.approved,
@@ -152,7 +180,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               <Paperclip
                 className="gba:w-4 gba:h-4"
                 style={{
-                  color: ent.type?.objectValue?.color ? `#${ent.type.objectValue.color}` : '#1976d2'
+                  color: ent.type?.objectValue?.color ? `#${ent.type.objectValue.color}` : 'var(--nw-chart-4)'
                 }}
               />
             ),
@@ -160,13 +188,14 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
           }))
         )
 
+        // Use the same filtered entitlements for stats
         setStats(
-          (entitlementRes?.EmployeeAbsenceEntitlement || []).map((ent: any) => ({
+          currentYearEntitlements.map((ent: any) => ({
             title: ent.type ? getCatalogValue(ent.type) || '' : '',
             used: ent.approved,
             total: ent.total,
             progress: ent.total ? Math.round((ent.approved / ent.total) * 100) : 0,
-            icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: '#1976d2' }} />,
+            icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
             color: ent.type?.objectValue?.color,
             textColor: ent.type?.objectValue?.color,
             daysLeft: ent.available,
@@ -308,7 +337,6 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
 
     switch (activeTab) {
       case 'calendar':
-      case 'absence-list':
       case 'entitlements':
         if (employee && absenceEntitlements) {
           return (
@@ -319,6 +347,12 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               shownTab={activeTab}
             />
           )
+        }
+        return null
+
+      case 'absence-list':
+        if (employeeId && accessToken) {
+          return <AbsenceList {...props} employeeId={employeeId} />
         }
         return null
 

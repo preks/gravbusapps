@@ -16,8 +16,11 @@ interface RequestDateRangeFilterProps {
 const RequestDateRangeFilter: React.FC<RequestDateRangeFilterProps> = ({
   requestDateRange,
   onDateRangeChange,
-  placeholder = ['Start date', 'End date'],
-  isEffectiveDateRange = false // This is for the effective date range filter to show the hint
+  placeholder = [
+    getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+    getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
+  ],
+  isEffectiveDateRange = false
 }) => {
   const handleDateChange = (dates: any) => {
     if (!dates || dates.length === 0) {

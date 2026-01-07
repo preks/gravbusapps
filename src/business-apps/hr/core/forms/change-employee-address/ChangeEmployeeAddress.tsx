@@ -5,7 +5,7 @@ import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangeEmployeeAddressProvider, useChangeEmployeeAddress } from './ChangeEmployeeAddressContext'
 import { useForm } from 'react-hook-form'
-import { Separator, Button, FormField } from '@newwork/nw-design-system'
+import { Button, FormField } from '@newwork/nw-design-system'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -21,8 +21,6 @@ import {
 import { populateFormFromRecord, buildDeletePayloadFromRecord, restoreSelectionFromId } from './helpers'
 import { uploadEmployeeDocumentIfAny } from './uploadHelpers'
 
-export interface ChangeEmployeeAddressFormProps extends BusinessAppContextProps {}
-
 interface AddressFormValues {
   selectedAddressId?: string | null // null means Add Address
   countryId?: string | null
@@ -35,11 +33,14 @@ interface AddressFormValues {
   employeeDocumentId?: string
 }
 
-const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = ({ accessToken, userInfo }) => {
+const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([])
   const [addressLineCount, setAddressLineCount] = useState<number>(1)
   const [addressLinesError, setAddressLinesError] = useState<string | null>(null)
   const { data, refetchAddresses } = useChangeEmployeeAddress()
+
+  const employee = useMemo(() => (data?.address as any)?.Employee?.[0], [data])
+  const employeePosition = useMemo(() => (data?.address as any)?.EmployeePosition?.[0], [data])
   const ADD_SENTINEL = '__ADD_ADDRESS__'
   const [isDeleteMode, setIsDeleteMode] = useState(false)
   const [deletePayload, setDeletePayload] = useState<any | null>(null)
@@ -174,11 +175,19 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
         form.setValue('city', first?.locality || '', { shouldDirty: false } as any)
         form.setValue('regionId', first?.region?.id || null, { shouldDirty: false, shouldValidate: true } as any)
         try {
-          ;(form as any).trigger && (form as any).trigger('countryId')
-        } catch {}
+          if ((form as any).trigger) {
+            ;(form as any).trigger('countryId')
+          }
+        } catch {
+          // Ignore trigger errors
+        }
         try {
-          ;(form as any).trigger && (form as any).trigger('regionId')
-        } catch {}
+          if ((form as any).trigger) {
+            ;(form as any).trigger('regionId')
+          }
+        } catch {
+          // Ignore trigger errors
+        }
         let lastNonEmpty = -1
         for (let i = 0; i < 4; i++) {
           if ((normalized[i] || '').trim() !== '') lastNonEmpty = i
@@ -202,7 +211,6 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
         defaultSelectAppliedFor.current = key
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.address?.EmployeeAddress, data?.catalogs?.countries])
 
   const initialRef = useRef<AddressFormValues>(normalizedDefaults)
@@ -215,10 +223,23 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="change-employee-address-form-container"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-employee-address']]:!pt-0 gba:[&>div[data-testid='change-employee-address']]:!px-0"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-employee-address']]:!pt-0"
         data-testid="change-employee-address-form-content"
       >
         {/* moved upload below comment - removed from here */}
@@ -234,7 +255,10 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
           }
           handlePreSubmit={async values => {
             const employeeId =
-              userInfo?.employeeDetails?.employeeId || data?.address?.EmployeeAddress[0]?.employeeId || ''
+              (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+              userInfo?.employeeDetails?.employeeId ||
+              data?.address?.EmployeeAddress[0]?.employeeId ||
+              ''
             const uploadedEmployeeDocumentId = await uploadEmployeeDocumentIfAny(
               fileClient,
               accessToken,
@@ -245,7 +269,10 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
           }}
           onSubmit={async (values: AddressFormValues) => {
             const employeeId =
-              userInfo?.employeeDetails?.employeeId || data?.address?.EmployeeAddress[0]?.employeeId || ''
+              (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+              userInfo?.employeeDetails?.employeeId ||
+              data?.address?.EmployeeAddress[0]?.employeeId ||
+              ''
             // ensure 4 address lines
             const lines = ensureFourLines(values.addressLines)
             const addresses = (data?.address?.EmployeeAddress || []) as any[]
@@ -275,7 +302,6 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                 addresses
               })
             }
-
             return buildUpdatePayload({
               employeeId,
               employeeDocumentId: values.employeeDocumentId || null,
@@ -334,8 +360,12 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                           form.setValue('postalCode', '', { shouldDirty: false } as any)
                           form.setValue('city', '', { shouldDirty: false } as any)
                           try {
-                            ;(form as any).clearErrors && (form as any).clearErrors(['countryId', 'regionId'])
-                          } catch {}
+                            if ((form as any).clearErrors) {
+                              ;(form as any).clearErrors(['countryId', 'regionId'])
+                            }
+                          } catch {
+                            // Ignore clearErrors errors
+                          }
                           setAddressLineCount(1)
                           setAddressLinesError(null)
                           setIsDeleteMode(false)
@@ -353,6 +383,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                         setSelectedIdBeforeDelete(selId)
                         const selected = addresses.find((a: any) => String(a.id) === selId)
                         const employeeId =
+                          (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
                           selected?.employeeId ||
                           userInfo?.employeeDetails?.employeeId ||
                           data?.address?.EmployeeAddress?.[0]?.employeeId ||
@@ -490,7 +521,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
   )
 }
 
-export const ChangeEmployeeAddress: React.FC<ChangeEmployeeAddressFormProps> = context => {
+export const ChangeEmployeeAddress: React.FC<BusinessAppContextProps> = context => {
   return (
     <ChangeEmployeeAddressProvider {...context}>
       <ChangeEmployeeAddressContent {...context} />

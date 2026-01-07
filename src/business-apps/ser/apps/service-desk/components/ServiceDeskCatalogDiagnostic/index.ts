@@ -1,0 +1,1 @@
+export { ServiceDeskCatalogDiagnostic } from './ServiceDeskCatalogDiagnostic';

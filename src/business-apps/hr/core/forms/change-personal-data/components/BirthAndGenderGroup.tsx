@@ -6,6 +6,7 @@ import {
   FormControl,
   FormMessage,
   Input,
+  DateInput,
   Select,
   SelectTrigger,
   SelectValue,
@@ -13,7 +14,7 @@ import {
   SelectItem
 } from '@newwork/nw-design-system'
 import type { Control } from 'react-hook-form'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { PersonalDataFormValues, CatalogEntry } from '../types'
 
 export interface BirthAndGenderGroupProps {
@@ -73,17 +74,16 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
-              <Input
-                className="gba:w-[100%]"
-                {...field}
-                type="date"
-                placeholder={placeholderSelect}
-                data-testid="flw_changePersonalData_currentBirthDate"
-                title={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
-                  'Please Select'
-                )}
-              />
+              <div data-testid="flw_changePersonalData_currentBirthDate">
+                <DateInput
+                  type="date"
+                  value={(field.value as string) || ''}
+                  onChange={(v?: string) => field.onChange(v || '')}
+                  placeholder={placeholderSelect}
+                  className="gba:w-[100%]"
+                  locale={getCurrentActiveUserLocale()}
+                />
+              </div>
             </FormControl>
             <FormMessage />
           </FormItem>

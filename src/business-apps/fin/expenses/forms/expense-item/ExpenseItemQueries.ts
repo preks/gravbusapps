@@ -24,7 +24,7 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
       const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
 
       return await flowClient.getResource(path)
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_type_item.process_error_data_fetch',
@@ -57,7 +57,7 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
 
     // Use the getResource method
     return await flowClient.getResource(path)
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_type_item.process_error_data_fetch',
@@ -203,7 +203,7 @@ export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($empl
     structureId
     costCenterId
   }
-  ExpenseRequest(where: { currencyRef: { _isNull: true } ,isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED"]}}) {
+  ExpenseRequest(where: { currencyRef: { _isNull: true } ,isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED", "REJECTED"]}}) {
     id
     status
     title
@@ -298,8 +298,18 @@ export const getCustomFields = `query MyQuery($expenseRuleGeneralId: [uuid!]) {
   }
 }
 `
-export const expenseRequestByCurrencyQuery = `query fetchCurrency ($employeeId: uuid,$givenCurrency: String) {
-  ExpenseRequest(where: { currencyRef:{_eq:$givenCurrency},isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED"]}}) {
+export const expenseRequestByCurrencyQuery = `query fetchCurrency ($employeeId: uuid, $givenCurrency: String) {
+  ExpenseRequest(
+    where: {
+      isDeleted: { _eq: false }
+      employeeId: { _eq: $employeeId }
+      status: { _in: ["CREATED", "REJECTED"] }
+      _or: [
+        { currencyRef: { _isNull: true } }
+        { currencyRef: { _eq: $givenCurrency } }
+      ]
+    }
+  ) {
     id
     status
     title

@@ -28,7 +28,7 @@ export const useExpenseRequestPdf = (props: BusinessAppContextProps) => {
           setPdfError(result.error || 'Failed to load PDF')
           setIsPdfModalVisible(true)
         }
-      } catch (error) {
+      } catch {
         setPdfError(error instanceof Error ? error.message : 'Unknown error occurred')
         setIsPdfModalVisible(true)
       } finally {

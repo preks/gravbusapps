@@ -12,13 +12,19 @@ export interface CrmNoteData {
   noteTitle: string
   createdAt: string
   createdBy: string
+  authorEmployee?: {
+    id: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+  }
 }
 
 export interface CrmNoteResponse {
   CrmNote: CrmNoteData[]
 }
 
-export const GET_CRM_NOTES = (variables: CrmNoteQueryVariables): string => {
+export const GET_CRM_NOTES = (): string => {
   return `
     query GetCrmNotes($opportunityId: uuid!) {
       CrmNote(where: {opportunity: {id: {_eq: $opportunityId}}, isDeleted: {_eq: false}}) {
@@ -28,6 +34,12 @@ export const GET_CRM_NOTES = (variables: CrmNoteQueryVariables): string => {
         createdBy
         noteText
         noteTitle
+        authorEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
     }
   `

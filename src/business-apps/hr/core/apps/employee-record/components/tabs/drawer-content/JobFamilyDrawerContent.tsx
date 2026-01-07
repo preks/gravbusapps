@@ -4,6 +4,7 @@ import React from 'react'
 import { PiStack, PiUsers } from 'react-icons/pi'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { Employee } from '../../../hooks/useEmployeeData'
+import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useOrganizationalChildUnits } from '../../../hooks/useOrganizationalChildUnits'
 import { Button, Spinner } from '@newwork/nw-design-system'
 
@@ -85,20 +86,17 @@ const JobFamilyDrawerContent: React.FC<JobFamilyDrawerContentProps> = ({
     <div className="gba:space-y-6" data-testid="job-family-drawer-content">
       {/* Usage section */}
       <div>
-        <h4 className="gba:font-medium gba:mb-3 gba:text-gray-700">Usage</h4>
+        <h4 className="gba:font-medium gba:mb-3 gba:text-foreground">Usage</h4>
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           {/* First box - always Employees */}
-          <div className="gba:bg-blue-50 gba:p-4 gba:rounded-md gba:border gba:bg-gray-50">
-            <div className="gba:text-sm gba:text-gray-500">Employees</div>
+          <div className="gba:bg-info-secondary gba:p-4 gba:rounded-md gba:border">
+            <div className="gba:text-sm gba:text-muted-foreground">Employees</div>
             <div className="gba:text-2xl gba:font-semibold gba:mt-1">{employeeCount}</div>
           </div>
 
           {/* Second box - Child Families for Job Family */}
-          <div
-            className="gba:bg-blue-50 gba:p-4 gba:rounded-md gba:border gba:bg-gray-50"
-            data-testid="child-units-count"
-          >
-            <div className="gba:text-sm gba:text-gray-500">Child Families</div>
+          <div className="gba:bg-info-secondary gba:p-4 gba:rounded-md gba:border" data-testid="child-units-count">
+            <div className="gba:text-sm gba:text-muted-foreground">Child Families</div>
             <div className="gba:text-2xl gba:font-semibold gba:mt-1">{childUnitsCount ?? 0}</div>
           </div>
         </div>
@@ -131,9 +129,11 @@ export const getJobFamilyTitle = (employee: Employee) => {
   // Get job family from the updated data structure
   // Cast jobPosition to the defined type to avoid lint errors
   const jobPosition = employee.employeePosition?.jobPosition as JobPosition
-  const jobFamily = jobPosition?.jobFunction?.jobFamily?.value
-
-  return jobFamily || 'Not assigned'
+  const jobFamily = jobPosition?.jobFunction?.jobFamily
+  return (
+    getCatalogValue(jobFamily) ||
+    getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.left_side_bar.not_assigned', 'Not assigned')
+  )
 }
 
 export default JobFamilyDrawerContent

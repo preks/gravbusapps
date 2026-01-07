@@ -151,9 +151,9 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
       key: 'value',
       render: (text: string, record: DocumentType) => (
         <div>
-          <div style={{ fontWeight: 600 }}>{text}</div>
+          <div className="gba:font-semibold">{text}</div>
           {record.objectValue?.description && (
-            <div className="gba:text-gray-500 gba:text-xs">{record.objectValue.description}</div>
+            <div className="gba:text-muted-foreground gba:text-xs">{record.objectValue.description}</div>
           )}
         </div>
       )
@@ -184,10 +184,10 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
             {fileTypes.map((type: string, index: number) => (
               <Tag
                 key={index}
-                color="white"
+                color="var(--nw-primary-foreground)"
                 style={{
-                  borderColor: '#f2f2f2',
-                  color: '#222222',
+                  borderColor: 'var(--nw-border)',
+                  color: 'var(--nw-foreground)',
                   fontWeight: 500
                 }}
               >
@@ -211,11 +211,11 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
         const isGdpr = record.objectValue?.gdprRelevant === true
         return isGdpr ? (
           <Tag
-            color="gold"
+            color="var(--nw-warning-secondary)"
             style={{
-              backgroundColor: '#fffbe6',
-              borderColor: '#faad14',
-              color: '#d48806',
+              backgroundColor: 'var(--nw-warning-secondary)',
+              borderColor: 'var(--nw-warning)',
+              color: 'var(--nw-warning-on-card)',
               fontWeight: 500
             }}
           >
@@ -249,14 +249,14 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
             type="text"
             icon={<EditOutlined />}
             onClick={() => showModal(record)}
-            className="gba:text-gray-500 gba:hover:text-blue-500"
+            className="gba:text-muted-foreground gba:hover:text-info"
           />
           <Button
             type="text"
             danger
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.id)}
-            className="gba:hover:text-red-500"
+            className="gba:hover:text-destructive"
           />
         </div>
       )
@@ -278,10 +278,10 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
   }
 
   return (
-    <div style={{ padding: '24px' }} className="gba:document-management-container">
-      <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }} className="gba:header-row">
+    <div className="gba:p-6 gba:document-management-container">
+      <Row justify="space-between" align="middle" className="gba:mb-6 gba:header-row">
         <Col>
-          <Title level={3} style={{ margin: 0 }} className="gba:page-title">
+          <Title level={3} className="gba:m-0 gba:page-title">
             {t('documentManagement.title', 'Document Type Management')}
           </Title>
           <Text type="secondary">
@@ -291,18 +291,18 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
       </Row>
 
       {/* KPI and Search Card */}
-      <Card style={{ marginBottom: '24px' }}>
+      <Card className="gba:mb-6">
         <Row gutter={16} align="middle" justify="space-between">
           <Col span={10}>
             <div>
-              <div className="gba:text-sm gba:text-gray-500">
+              <div className="gba:text-sm gba:text-muted-foreground">
                 {moduleFilter
                   ? t('documentManagement.kpi.matching', 'Matching Document Types')
                   : t('documentManagement.kpi.total', 'Total Document Types')}
               </div>
               <div className="gba:font-bold gba:text-2xl">
                 {hookLoading ? (
-                  <span style={{ fontWeight: 'normal', fontSize: '12px' }}>{t('common.loading', 'Loading...')}</span>
+                  <span className="gba:font-normal gba:text-xs">{t('common.loading', 'Loading...')}</span>
                 ) : (
                   totalDocumentTypes
                 )}

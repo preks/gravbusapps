@@ -1,330 +1,203 @@
-import React, { useCallback, useState } from 'react'
+import React, { useMemo, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import TaskSegment, {
-  TaskSegmentSchema
-} from '@/common/components/common-relations/form-segments/task-segment/TaskSegment'
+import { TaskLayout, taskSchema } from '@/common/components/common-relations/form-layouts/task-layout'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { AppActionForm } from '@/components/app-action-form'
-import { buildInvestmentTaskPayload } from '@/common/data/investment/payloads'
-import type { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads'
-import { useInvestmentEntities, useInvestmentTasks } from '@/common/data/investment/hooks'
-import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
+import { CatalogSelect } from '@/components/catalog-select'
+import { type InvestmentTask, buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
+import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
+import { useInvestmentTask } from '@/common/data/investment/hooks/useInvestmentTask'
 import { useForm } from 'react-hook-form'
-import { createTaskSegmentResolver } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { mapToFormValues } from '@/common/utils/formMappingUtils'
+import { ErrorAlert } from '@/components/error-alert'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getReferenceEntityType } from '@/common/data/investment/utils'
+import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 
-type TaskFormData = TaskSegmentSchema & { id?: string; version?: number; code?: string }
+const investmentTaskSchema = taskSchema.extend({
+  investmentId: z.string().nullable().optional(),
+  // IRM-specific: Multi-assignee support
+  assignedEmployeeIds: z.array(z.string()).optional(),
+  assignedEmployees: z.array(z.any()).optional()
+})
 
-const initialFormData: TaskFormData = {
-  title: '',
-  code: '',
-  description: '',
-  taskTypeRef: '',
-  taskPriorityRef: '',
-  taskStatusRef: 'InvestmentTaskStatus:v1:PENDING',
-  dueDate: '',
-  timingType: 'DEADLINE',
-  assignedEmployeeId: '',
-  relatedEntityId: ''
-}
-
-const TASK_TYPE_CATALOG = 'InvestmentTaskType'
-const TASK_PRIORITY_CATALOG = 'InvestmentTaskPriority'
-const TASK_STATUS_CATALOG = 'InvestmentTaskStatus'
-
-export interface InvestmentTaskFormProps extends BusinessAppContextProps {
-  onSuccess?: (task: TaskFormData) => void
+export interface TaskFormProps extends BusinessAppContextProps {
+  onSuccess?: (task: z.infer<typeof investmentTaskSchema>) => void
   onCancel?: () => void
 }
 
-const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
-  accessToken,
-  userInfo,
-  additionalData,
-  onSuccess,
-  onCancel
-}) => {
-  const [formData, _setFormData] = useState<TaskFormData>({
-    ...initialFormData,
-    assignedEmployeeId: userInfo?.employeeDetails?.employeeId || ''
-  })
+export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
+  const initialParameters = useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters || null
+  }, [additionalData])
   const {
     entities,
     loading: entitiesLoading,
-    error: entitiesError,
     searchEntities,
     hasMore: entitiesHasMore,
     loadMore: loadMoreEntities,
     hydrateEntityById
   } = useInvestmentEntities({ accessToken, additionalData })
-  const {
-    employees,
-    search: searchEmployees,
-    loading: employeesLoading,
-    hasMore: employeesHasMore,
-    loadMore: loadMoreEmployees,
-    hydrateById
-  } = useEmployeeSearch(accessToken)
-  const [assigneePrefill, setAssigneePrefill] = useState<
-    Array<{
-      id: string
-      displayName: string
-      userId?: string
-      pictureThumbnail?: string
-      organizationalUnitName?: string
-      jobPositionName?: string
-    }>
-  >([])
-  const { fetchInvestmentTaskById } = useInvestmentTasks({ accessToken, userInfo, additionalData })
 
-  // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
-  const platformParams = React.useMemo(() => {
-    const nested =
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
-      (additionalData as any)?.psi_initialParameters ||
-      {}
-    const params = {
-      taskId: (additionalData as any)?.taskId || nested?.taskId,
-      employeeId: (additionalData as any)?.employeeId || nested?.employeeId,
-      investmentId: (additionalData as any)?.investmentId || nested?.investmentId,
-      accountId: (additionalData as any)?.accountId || nested?.accountId,
-      contactId: (additionalData as any)?.contactId || nested?.contactId,
-      opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
-      leadId: (additionalData as any)?.leadId || nested?.leadId
-    } as {
-      taskId?: string
-      employeeId?: string
-      investmentId?: string
-      accountId?: string
-      contactId?: string
-      opportunityId?: string
-      leadId?: string
-    }
-    return params
-  }, [additionalData])
+  // Investment task hook - declarative single-by-PK
+  const taskId = additionalData?.taskId || initialParameters?.taskId || null
+  const { task, loading, error } = useInvestmentTask(accessToken || '', taskId)
 
-  const investmentId = platformParams.investmentId
-  const accountId = platformParams.accountId
-  const contactId = platformParams.contactId
-  const opportunityId = platformParams.opportunityId
-  const leadId = platformParams.leadId
+  // File client for document uploads
+  const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  // Determine if entity selection should be shown
-  const hasEntityFromContext = investmentId || accountId || contactId || opportunityId || leadId
-  const shouldShowEntitySelection = !hasEntityFromContext
-  // Load existing task when taskId is provided via additionalData
-  React.useEffect(() => {
-    const taskId = platformParams.taskId as string | undefined
+  // Extract entity IDs from additionalData or initialParameters
+  const accountId = additionalData?.accountId || initialParameters?.accountId || null
+  const contactId = additionalData?.contactId || initialParameters?.contactId || null
+  const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
+  const leadId = additionalData?.leadId || initialParameters?.leadId || null
+  const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
-    if (!taskId) {
-      return
-    }
+  // Extract typeRef from additionalData or initialParameters
+  const typeRef = additionalData?.typeRef || initialParameters?.typeRef || null
 
-    ;(async () => {
-      try {
-        const task = await fetchInvestmentTaskById(taskId)
-
-        if (!task) {
-          return
-        }
-
-        // Map fetched task to form fields
-        const newFormData = {
-          id: task.id,
-          version: (task as any).version,
-          title: task.name || '',
-          code: task.code || '',
-          description: task.description || '',
-          taskTypeRef: task.taskType?.id || '',
-          taskPriorityRef: task.taskPriority?.id || '',
-          taskStatusRef: task.taskStatus?.id || 'InvestmentTaskStatus:v1:PENDING',
-          dueDate: task.dueDate || '',
-          timingType: (task.taskTiming as any) || 'DEADLINE',
-          assignedEmployeeId: task.assignedEmployee?.id || '',
-          relatedEntityId:
-            task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || ''
-        }
-
-        _setFormData(prev => ({ ...prev, ...newFormData }))
-
-        // CRITICAL: Also update the React Hook Form values
-        form.reset(newFormData)
-        // Ensure the related entity is hydrated and pinned so the combobox trigger keeps rich label
-        const relId =
-          task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id
-        if (relId) {
-          if (task.investment?.id) hydrateEntityById('investment', task.investment.id)
-          else if (task.account?.id) hydrateEntityById('account', task.account.id)
-          else if (task.contact?.id) hydrateEntityById('contact', task.contact.id)
-          else if (task.opportunity?.id) hydrateEntityById('opportunity', task.opportunity.id)
-          else if (task.lead?.id) hydrateEntityById('lead', task.lead.id)
-        }
-        // Prefill assignee option so Combobox can display the name before search results
-        if (task.assignedEmployee?.id) {
-          const displayName =
-            task.assignedEmployee.displayName ||
-            `${task.assignedEmployee.firstName || ''} ${task.assignedEmployee.lastName || ''}`.trim() ||
-            'Unknown'
-          setAssigneePrefill([{ id: task.assignedEmployee.id, displayName }])
-          // Hydrate details for the selected employee so avatar/job/unit appear immediately
-          hydrateById(task.assignedEmployee.id)
-        }
-        // Also hydrate RHF defaults
-        form.reset({
-          title: task.name || '',
-          description: task.description || '',
-          taskTypeRef: task.taskType?.id || '',
-          taskPriorityRef: task.taskPriority?.id || '',
-          taskStatusRef: task.taskStatus?.id || '',
-          dueDate: task.dueDate || '',
-          timingType: (task.taskTiming as any) || 'DEADLINE',
-          assignedEmployeeId: task.assignedEmployee?.id || '',
-          assignedUserId: (task as any).assignedUserId || undefined,
-          creatorEmployeeId: task.creatorEmployee?.id || undefined,
-          creatorUserId: (task as any).creatorUserId || undefined,
-          relatedEntityId:
-            task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
-          investment: task.investment ? { id: task.investment.id } : undefined,
-          account: task.account ? { id: task.account.id } : undefined,
-          contact: task.contact ? { id: task.contact.id } : undefined,
-          opportunity: task.opportunity ? { id: task.opportunity.id } : undefined,
-          lead: task.lead ? { id: task.lead.id } : undefined
-        })
-      } catch (e) {
-        console.error('Error loading task:', e)
-      }
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [platformParams.taskId])
-
-  // Prefill current user as default assignee in create mode so Combobox shows a label
-  React.useEffect(() => {
-    if (platformParams.taskId) return // update mode handled above
-    const id = platformParams.employeeId || userInfo?.employeeDetails?.employeeId
-    if (!id) return
-    const displayName =
-      `${userInfo?.employeeDetails?.firstName || ''} ${userInfo?.employeeDetails?.lastName || ''}`.trim() ||
-      userInfo?.userName ||
-      'Current User'
-    setAssigneePrefill([{ id, displayName }])
-    // Hydrate minimal details for initial selection
-    hydrateById(id)
-  }, [platformParams.taskId, platformParams.employeeId, userInfo, hydrateById])
-
-  // Merge prefilled assignee option with live search results, de-duplicated by id
-  const mergedAssignees = React.useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        id: string
-        displayName: string
-        userId?: string
-        pictureThumbnail?: string
-        organizationalUnitName?: string
-        jobPositionName?: string
-      }
-    >()
-    assigneePrefill.forEach(o => map.set(o.id, o))
-    employees.forEach(e =>
-      map.set(e.id, {
-        id: e.id,
-        displayName: e.displayName,
-        userId: e.userId,
-        pictureThumbnail: (e as any).pictureThumbnail,
-        organizationalUnitName: (e as any).organizationalUnitName,
-        jobPositionName: (e as any).jobPositionName
-      })
-    )
-    return Array.from(map.values())
-  }, [assigneePrefill, employees])
-
-  // Local state update helper (kept if external code sets form data later)
-  // (reserved for future external state updates)
-
-  // RHF + Zod resolver provided to AppActionForm
-  const form = useForm<any>({
-    resolver: createTaskSegmentResolver({
-      requireAssignee: false,
-      requireEntity: false,
-      requireType: !((additionalData as any)?.typeRef === 'InvestmentTaskType:v1:APPROVAL')
-    }),
-    defaultValues: formData as any,
-    mode: 'onChange'
+  // Determine if this is an Approval task (type selection should be hidden)
+  const isApprovalTask = typeRef?.toUpperCase()?.includes('APPROVAL') ?? false
+  const form = useForm<z.infer<typeof investmentTaskSchema>>({
+    resolver: zodResolver(investmentTaskSchema) as any,
+    defaultValues: mapToFormValues(task || {}, investmentTaskSchema) as any,
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit'
   })
 
-  const handleSubmit = useCallback(
-    async (data: TaskSegmentSchema) => {
-      try {
-        // Pull full form values to include non-registered fields (account/contact/opportunity/lead)
-        const allValues = (form as any).getValues?.() || {}
+  const relatedEntityIds = useMemo(
+    () => ({
+      accountId: task?.accountId || accountId,
+      contactId: task?.contactId || contactId,
+      opportunityId: task?.opportunityId || opportunityId,
+      leadId: task?.leadId || leadId,
+      investmentId: task?.investmentId || investmentId
+    }),
+    [accountId, contactId, opportunityId, leadId, investmentId, task]
+  )
 
-        // assignedUserId is maintained by TaskSegment effect; prefer the form value if present
-        const assignedUserId = allValues.assignedUserId
+  // Watch assignedEmployeeIds and sync taskAssignees array
+  const assignedEmployeeIds = form.watch('assignedEmployeeIds')
+  useEffect(() => {
+    if (!assignedEmployeeIds) return
 
-        // Build entity ref from whichever field is set
-        const entityRef = (() => {
-          if (allValues.investment?.id) return { investment: { id: allValues.investment.id } }
-          if (allValues.account?.id) return { account: { id: allValues.account.id } }
-          if (allValues.contact?.id) return { contact: { id: allValues.contact.id } }
-          if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } }
-          if (allValues.lead?.id) return { lead: { id: allValues.lead.id } }
-          return {} as any
-        })()
+    const currentTaskAssignees = form.getValues('taskAssignees') || []
+    const existingAssigneesMap = new Map(currentTaskAssignees.map((ta: any) => [ta.assignedEmployeeId, ta]))
 
-        const base: InvestmentTaskFormData = {
-          title: data.title,
-          code: formData.code,
-          description: data.description || '',
-          taskTypeRef: data.taskTypeRef,
-          taskPriorityRef: data.taskPriorityRef,
-          taskStatusRef: data.taskStatusRef,
-          taskTiming: (allValues.timingType || data.timingType) as any,
-          dueDate: data.dueDate || null,
-          templateStartDate: allValues.templateStartDate || null,
-          startDate: allValues.startDate || null,
-          endDate: allValues.endDate || null,
-          assignedEmployeeId: data.assignedEmployeeId,
-          assignedUserId: assignedUserId,
-          creatorEmployeeId: allValues.creatorEmployeeId,
-          creatorUserId: allValues.creatorUserId,
-          ...(entityRef as any)
-        }
+    // Get employee objects from form state (set by MultiEmployeeSelect)
+    const assignedEmployees = form.getValues('assignedEmployees') || []
 
-        // Only pass id/version when updating
-        const mapped: InvestmentTaskFormData = formData.id
-          ? { ...base, id: formData.id, version: formData.version }
-          : base
+    // Build new taskAssignees array, preserving existing IDs and versions
+    const newTaskAssignees = assignedEmployeeIds.map((employeeId: string) => {
+      const existing = existingAssigneesMap.get(employeeId)
 
-        const payload = buildInvestmentTaskPayload(
-          mapped,
-          { accessToken, userInfo, additionalData },
-          { isUpdate: Boolean(formData.id) }
-        )
+      // Get employee data (for userId) - try multiple sources
+      // 1. From task object (for existing assignees loaded from backend)
+      let employee = task?.taskAssignees?.find((ta: any) => ta.assignedEmployee?.id === employeeId)?.assignedEmployee
+      // 2. From form state (for newly added assignees from MultiEmployeeSelect)
+      employee ??= assignedEmployees.find((emp: any) => emp.id === employeeId)
 
-        return payload
-      } catch (error) {
-        console.error('Error submitting task:', error)
-        throw error
+      return {
+        ...(existing?.id && { id: existing.id }),
+        ...(existing?.version !== undefined && { version: existing.version }),
+        assignedEmployeeId: employeeId,
+        assignedUserId: employee?.userId || null,
+        taskStatus: existing?.taskStatus || 'SCHEDULED_TASK_STATUS', // Set default to SCHEDULED for new instances
+        completedAt: existing?.completedAt || null
       }
-    },
-    [accessToken, userInfo, additionalData, formData, employees, form]
+    })
+
+    form.setValue('taskAssignees', newTaskAssignees)
+  }, [assignedEmployeeIds, task?.taskAssignees, form])
+
+  // Sync form when task changes (following AccountForm pattern)
+  const taskRef = useRef(task)
+  useEffect(() => {
+    if (taskRef.current?.id !== task?.id) {
+      form.reset(mapToFormValues(task || {}, investmentTaskSchema) as any)
+      taskRef.current = task
+
+      // Manually set assignee fields when task loads (prevents infinite loop in MultiEmployeeSelect)
+      if (task?.taskAssignees && task.taskAssignees.length > 0) {
+        const employeeIds = task.taskAssignees.map((ta: any) => ta.assignedEmployee?.id).filter(Boolean)
+
+        const employees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp?.id)
+
+        // Store full taskAssignees array (with junction table IDs for updates)
+        const taskAssigneesArray = task.taskAssignees.map((ta: any) => ({
+          id: ta.id,
+          version: ta.version,
+          assignedEmployeeId: ta.assignedEmployee?.id,
+          assignedUserId: ta.assignedUserId,
+          taskStatus: ta.taskStatus,
+          completedAt: ta.completedAt
+        }))
+
+        form.setValue('taskAssignees', taskAssigneesArray)
+        form.setValue('assignedEmployeeIds', employeeIds)
+        form.setValue('assignedEmployees', employees)
+      }
+
+      // Set relatedEntityId and hydrate entity (relatedEntityId is required for form validation)
+      const entity = [
+        { type: 'investment' as const, id: task?.investmentId },
+        { type: 'account' as const, id: task?.accountId },
+        { type: 'contact' as const, id: task?.contactId },
+        { type: 'opportunity' as const, id: task?.opportunityId },
+        { type: 'lead' as const, id: task?.leadId }
+      ].find(e => e.id)
+
+      if (entity?.id) {
+        form.setValue('relatedEntityId', entity.id)
+        hydrateEntityById(entity.type, entity.id)
+      }
+    }
+  }, [task?.id, task, form, hydrateEntityById])
+
+  // Upload files will be called directly with FILE_CONTEXT.TASK
+
+  const handleSubmit = useCallback(async (data: z.infer<typeof investmentTaskSchema>) => {
+    try {
+      // Delete helper fields (not sent to backend)
+      delete (data as any).files
+      delete (data as any)._pendingFiles
+      delete (data as any).relatedEntityId
+      delete (data as any).assignedEmployeeIds
+      delete (data as any).assignedEmployees
+
+      // Build payload (returns { employeeDetails, investmentTask })
+      return buildInvestmentTaskPayload(data as Partial<InvestmentTask>)
+    } catch (error) {
+      console.error('Error submitting task:', error)
+      throw error
+    }
+  }, [])
+
+  const handlePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true,
+      additionalEntityIdFields: ['investmentId']
+    }),
+    [userInfo, fileClient]
   )
 
   const handleSuccess = useCallback(() => {
-    onSuccess?.(formData)
-  }, [formData, onSuccess])
+    onSuccess?.(form.getValues())
+  }, [onSuccess, form])
 
-  const handleFormSubmit = useCallback(
-    async (data: any) => {
-      try {
-        const result = await handleSubmit(data)
-        return result
-      } catch (error) {
-        console.error('Form submission failed:', error)
-        throw error
-      }
-    },
-    [handleSubmit, formData]
-  )
+  const handleCancel = useCallback(() => {
+    onCancel?.()
+  }, [onCancel])
 
   const handleEntitySearch = useCallback(
     (q: string) => {
@@ -333,100 +206,146 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
     [searchEntities]
   )
 
-  // Trigger initial search to load some default entities
-  React.useEffect(() => {
-    if (accessToken && !platformParams.taskId) {
+  const handleFilesChange = useCallback(
+    (files: File[]) => {
+      form.setValue('_pendingFiles', files, { shouldDirty: true })
+    },
+    [form]
+  )
+
+  const handleDocumentRemove = useCallback(
+    (documentId: string) => {
+      const currentDocs = form.getValues('documents') || []
+      form.setValue(
+        'documents',
+        currentDocs.filter((doc: any) => doc.id !== documentId),
+        { shouldDirty: true }
+      )
+    },
+    [form]
+  )
+
+  useEffect(() => {
+    if (accessToken && !taskId) {
       // Only trigger initial search in create mode
       searchEntities('')
     }
-  }, [accessToken, platformParams.taskId, searchEntities])
+  }, [accessToken, taskId, searchEntities])
 
-  // Handle investment-specific entity context (extends common TaskSegment behavior)
-  React.useEffect(() => {
-    if (!investmentId) return
-    const hasEntity = Boolean(
-      form.getValues('investment') ||
-        form.getValues('account') ||
-        form.getValues('contact') ||
-        form.getValues('opportunity') ||
-        form.getValues('lead')
-    )
-    if (hasEntity) return
+  // Pre-set the type from context when provided
+  useEffect(() => {
+    if (typeRef && !task) {
+      // Only set for new tasks, not when editing existing ones
+      form.setValue('taskTypeRef', typeRef)
+    }
+  }, [typeRef, task, form])
 
-    // Set investment entity in form
-    form.setValue('investment', { id: investmentId })
-    form.setValue('relatedEntityId', investmentId)
+  const handleAdditionalEntityChange = useCallback(
+    (type: string, entityId: string | null) => {
+      if (type === 'investment') {
+        if (entityId) {
+          form.setValue('investmentId', entityId)
+          form.setValue('relatedEntityId', entityId)
+          hydrateEntityById('investment', entityId)
+        } else {
+          form.setValue('investmentId', undefined)
+        }
+      }
+    },
+    [form, hydrateEntityById]
+  )
 
-    // Hydrate investment details for display
-    hydrateEntityById('investment', investmentId)
-  }, [investmentId, form, hydrateEntityById])
+  useEffect(() => {
+    const contextInvestmentId = relatedEntityIds.investmentId
+    if (!contextInvestmentId) return
 
-  // Detect approval mode from additionalData.typeRef
-  const isApprovalMode = React.useMemo(() => {
-    const t =
-      (additionalData as any)?.typeRef || (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.typeRef
-    return t === 'InvestmentTaskType:v1:APPROVAL' || (typeof t === 'string' && t.toLowerCase() === 'approval')
-  }, [additionalData])
+    const currentInvestmentId = form.getValues('investmentId')
+    if (currentInvestmentId !== contextInvestmentId) {
+      handleAdditionalEntityChange('investment', contextInvestmentId)
+    }
+  }, [relatedEntityIds.investmentId, form, handleAdditionalEntityChange])
+
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load task data' })
+  }
+
+  if (errors.length > 0) {
+    return <ErrorAlert errors={errors} prefixDataTestId="investment-task-form" />
+  }
+
+  const processType = taskId ? 'update' : 'create'
 
   return (
-    <AppActionForm
-      processType={formData.id ? 'update' : 'create'}
-      onSubmit={handleFormSubmit}
-      onSuccess={handleSuccess}
-      onCancel={onCancel}
-      formData={formData}
-      form={form}
-      submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
-      data-testid="investment-task-process-dialog"
-    >
-      <TaskSegment
-        // labels
-        titleLabel={
-          isApprovalMode
-            ? getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Approval Name')
-            : getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Task Name')
-        }
-        descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.description', 'Description')}
-        deadlineLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.deadline', 'Deadline')}
-        typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}
-        priorityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.priority', 'Priority')}
-        statusLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}
-        assigneeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
-        entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
-        //TODO ADD FILE UPLOAD TO BACKEND AND THEN READD IT IN FRONTEND
-        //uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
-        //onFilesChange={() => {/* File upload handling */}}
-        timingTypeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}
-        // catalogs
-        accessToken={accessToken}
-        typeCatalog={{ identifier: TASK_TYPE_CATALOG, version: 'v1' }}
-        priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
-        statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
-        // entity search
-        // Hide entity selection if entity is provided from context
-        showEntitySelection={shouldShowEntitySelection}
-        showAssigneeSelection={true}
-        entities={entities}
-        entitiesLoading={entitiesLoading}
-        entitiesError={Boolean(entitiesError)}
-        entitiesHasMore={entitiesHasMore}
-        onEntitySearch={handleEntitySearch}
-        onEntityLoadMore={loadMoreEntities}
-        initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
-        // assignee combobox
-        assignees={mergedAssignees}
-        assigneesLoading={employeesLoading}
-        onAssigneeSearch={searchEmployees}
-        assigneesHasMore={employeesHasMore}
-        onAssigneeLoadMore={loadMoreEmployees}
-        data-testid="investment-task-segment"
-        // show/hide
-        showType={!isApprovalMode}
-        staticDefaults={{ taskTypeRef: isApprovalMode ? 'InvestmentTaskType:v1:APPROVAL' : undefined }}
-      />
-    </AppActionForm>
+    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
+      <AppActionForm
+        processType={processType}
+        onSubmit={handleSubmit}
+        handlePreSubmit={handlePreSubmit}
+        onSuccess={handleSuccess}
+        onCancel={handleCancel}
+        formData={form.getValues()}
+        form={form as any}
+        schema={investmentTaskSchema}
+        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
+        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+        data-testid={formatDataTestId('investment-task-form', 'Form')}
+        isSubmitDisabled={loading}
+      >
+        <TaskLayout
+          // Required props
+          accessToken={accessToken}
+          businessAppContext={{ accessToken, userInfo, additionalData }}
+          // Multi-assignee mode for IRM
+          multiAssigneeMode={true}
+          assignedEmployees={
+            task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp?.id) || []
+          }
+          entityId={task?.id}
+          // Catalogs
+          typeCatalog={'InvestmentTaskType:v1'}
+          priorityCatalog={'InvestmentTaskPriority:v1'}
+          statusCatalog={'InvestmentTaskStatus:v1'}
+          // Type selection control
+          initialTypeRef={typeRef}
+          hideTypeSelection={isApprovalTask}
+          // Entity search - hide if any entity is set
+          showEntitySelection={
+            !(
+              relatedEntityIds.accountId ||
+              relatedEntityIds.contactId ||
+              relatedEntityIds.opportunityId ||
+              relatedEntityIds.leadId ||
+              relatedEntityIds.investmentId
+            )
+          }
+          entities={entities}
+          entitiesLoading={entitiesLoading}
+          entitiesHasMore={entitiesHasMore}
+          onEntitySearch={handleEntitySearch}
+          onEntityLoadMore={loadMoreEntities}
+          initialEntityFromContext={{
+            // Only pass standard entities to TaskSegment (investmentId handled separately via onAdditionalEntityChange)
+            accountId: relatedEntityIds.accountId,
+            contactId: relatedEntityIds.contactId,
+            opportunityId: relatedEntityIds.opportunityId,
+            leadId: relatedEntityIds.leadId
+          }}
+          onAdditionalEntityChange={handleAdditionalEntityChange}
+          // File handling
+          onFilesChange={handleFilesChange}
+          existingDocuments={form.watch('documents') || []}
+          onDocumentRemove={handleDocumentRemove}
+          // Loading state
+          loading={loading && !!taskId}
+          data-testid="investment-task-layout"
+        />
+      </AppActionForm>
+    </CatalogSelect.Provider>
   )
 }
 
-export default InvestmentTaskForm
+export default TaskForm

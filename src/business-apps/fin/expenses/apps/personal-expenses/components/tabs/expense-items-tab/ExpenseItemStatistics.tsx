@@ -1,9 +1,9 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
+import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
 import React, { useMemo, useCallback } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { EuroOutlined, WalletOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 
 interface ExpenseItemStatisticsProps {
   items: any[]
@@ -34,7 +34,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   fetchItemStatistics = () => Promise.resolve(),
   currencyCode: currencyCodeOverride
 }) => {
-  const currentMonthName = dayjs().format('MMMM')
+  const currentMonthName = getTranslatedMonthName(new Date())
   // Resolve a currency code override or fallback to first item or EUR
   const currencyCode = useMemo(() => {
     if (currencyCodeOverride) return currencyCodeOverride

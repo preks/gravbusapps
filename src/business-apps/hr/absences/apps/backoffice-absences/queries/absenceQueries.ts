@@ -425,4 +425,3 @@ export const getGetEmployeesWithAbsencesByDepartmentsQuery = (currentDate: strin
   }
 `
 }
-

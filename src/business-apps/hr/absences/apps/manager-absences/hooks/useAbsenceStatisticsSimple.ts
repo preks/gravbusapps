@@ -16,6 +16,7 @@ interface AbsenceStatistics {
   averageWorkStreak: string
   sickAbsencesByMonth: {
     month: string
+    monthNumber: number | null
     count: number
   }
 
@@ -50,6 +51,7 @@ export const useAbsenceStatisticsSimple = (context: BusinessAppContextProps): Us
     averageWorkStreak: '0.0',
     sickAbsencesByMonth: {
       month: 'None',
+      monthNumber: null,
       count: 0
     },
     plannedAbsences: 0,
@@ -92,7 +94,7 @@ export const useAbsenceStatisticsSimple = (context: BusinessAppContextProps): Us
         previousYear
       )
 
-      setStatistics(finalStatistics)
+      setStatistics(finalStatistics as AbsenceStatistics)
     } catch (err) {
       console.error('Error fetching absence statistics:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch statistics')

@@ -1,17 +1,29 @@
-import React, { useState, useEffect } from 'react'
-import { Spinner, Tabs, TabsList, TabsTrigger, TabsContent, Button } from '@newwork/nw-design-system'
-import { ArrowLeftOutlined, UserOutlined, FileOutlined } from '@ant-design/icons'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
+import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon } from '@phosphor-icons/react'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { useOpportunityData } from './hooks/useOpportunityData'
-import { OpportunityHeader } from './components/OpportunityHeader'
-import { CompanyInformation } from './components/CompanyInformation'
-import { ContactInformation } from './components/ContactInformation'
-import { OpportunityDetails } from './components/OpportunityDetails'
-import { ActivityTimeline } from './components/ActivityTimeline'
-import { TasksSection } from './components/TasksSection'
-import { OpportunityStageProgression } from './components/OpportunityStageProgression'
-import { OpportunityDocuments } from './components/OpportunityDocuments'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { useCustomerOpportunity } from '@/common/data/customer/hooks/useCustomerOpportunity'
+import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
+import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
+import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
+import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
+import { useAiSummary } from './hooks/useAiSummary'
+import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { AppAction } from '@/components/app-action'
+import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
+import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
+import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
+import { useOpportunityPipelineStages } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/hooks/useOpportunityPipelineStages'
+import type { Stage, StageCondition } from '@/components/stage-progression/types'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { isOpportunityOpen } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityStatusUtils'
+import { HomeView } from './views/home-view/HomeView'
+import { DocumentView } from './views/document-view'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -26,69 +38,500 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   getBackButtonText,
   ...props
 }) => {
+  const ALLOWED_TABS = ['overview', 'documents'] as const
+  type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState('overview')
+
+  // Initialize activeTab from URL on mount and write default if missing
+  useEffect(() => {
+    if (globalThis.window === undefined) return
+    const params = new URLSearchParams(globalThis.location.search)
+    const initial = params.get('tab') || 'overview'
+    const validated = ALLOWED_TABS.includes(initial as TabKey) ? (initial as TabKey) : 'overview'
+    setActiveTab(validated)
+    if (!params.get('tab') || initial !== validated) {
+      params.set('tab', validated)
+      globalThis.history.replaceState(null, '', `${globalThis.location.pathname}?${params.toString()}`)
+    }
+    const onPopState = () => {
+      const p = new URLSearchParams(globalThis.location.search)
+      const t = p.get('tab') || 'overview'
+      setActiveTab(ALLOWED_TABS.includes(t as TabKey) ? (t as TabKey) : 'overview')
+    }
+    globalThis.addEventListener('popstate', onPopState)
+    return () => globalThis.removeEventListener('popstate', onPopState)
+  }, [])
+
+  // Use new declarative hook for opportunity data
   const {
-    opportunity,
-    opportunityData,
-    stageConditionStatuses,
+    opportunity: opportunityData,
     loading,
     error,
-    opportunityStages,
-    opportunityStatuses,
-    loadingStages,
-    loadingStatuses,
-    stagesError,
-    refetchOpportunityData
-  } = useOpportunityData(opportunityId, props.accessToken)
+    refetch
+  } = useCustomerOpportunity(props.accessToken, opportunityId)
 
-  // Listen for process completion events to refresh opportunity data (including stage condition updates)
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        console.log('OpportunityRecord: Process completion event received:', event)
+  const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
 
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          console.log('OpportunityRecord: Refreshing opportunity data after stage condition update...')
-          refetchOpportunityData()
-          return
-        }
+  // Use shared hook for fetching pipeline stages and catalog conditions
+  const { opportunityStages, catalogStageConditions, loadingStages, stagesError } = useOpportunityPipelineStages({
+    opportunityData,
+    stageConditionCatalog: 'SalesPipelineStageCondition',
+    accessToken: props.accessToken,
+    contextLabel: 'customer'
+  })
 
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.opportunityStageConditionStatus) {
-          console.log('OpportunityRecord: Refreshing opportunity data from response...')
-          refetchOpportunityData()
-        }
-      } catch (err) {
-        console.error('Error handling process completion in OpportunityRecord:', err)
+  /**
+   * Transforms a catalog condition to a stage condition
+   */
+  const transformCatalogConditionToStageCondition = useCallback(
+    (catalogCondition: any, statusRecord: any): StageCondition => {
+      const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
+      const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+
+      return {
+        id: catalogCondition.id,
+        title: catalogCondition.value || 'Unknown Condition',
+        isCompleted: statusRecord?.completed || false,
+        checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+        completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
       }
+    },
+    []
+  )
+
+  /**
+   * Helper function to find status record for a catalog condition
+   */
+  const findStatusRecord = (stageConditionStatuses: any[], catalogConditionId: string) => {
+    return stageConditionStatuses.find(
+      statusData => statusData.opportunityPipelineStageConditionRef === catalogConditionId
+    )
+  }
+
+  /**
+   * Helper function to extract CRM stage conditions
+   */
+  const extractCrmStageConditions = useCallback(
+    (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+      const stageCatalogConditions = catalogStageConditions.filter(
+        catalogCondition => catalogCondition.parentEntryId === stage.id
+      )
+
+      return stageCatalogConditions.map(catalogCondition => {
+        const statusRecord = findStatusRecord(stageConditionStatuses, catalogCondition.id)
+        return transformCatalogConditionToStageCondition(catalogCondition, statusRecord)
+      })
+    },
+    [catalogStageConditions, transformCatalogConditionToStageCondition]
+  )
+
+  // Extract stageConditionStatuses from opportunityData
+  useEffect(() => {
+    if (opportunityData?.opportunityStageConditions) {
+      setStageConditionStatuses(opportunityData.opportunityStageConditions)
+    } else {
+      setStageConditionStatuses([])
+    }
+  }, [opportunityData?.opportunityStageConditions])
+
+  // CRM-specific configuration for OpportunityStageProgression
+  const crmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
+    () => ({
+      transitionFlowContext: FlowContextName.customerOpportunityStageTransition,
+      opportunityIdField: 'opportunityId',
+      targetStageRefField: 'targetStageRef',
+      extractStageConditions: extractCrmStageConditions,
+      isTooltipEnabled: (status?: string) => isOpportunityOpen(status)
+    }),
+    [extractCrmStageConditions, opportunityData?.opportunityStatus?.value]
+  )
+
+  // AI Summary hook for HeaderSection
+  const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
+
+  // Activity data loading - using central hooks
+  const { fetchCustomerActivitiesByOpportunityId } = useCustomerActivities(props)
+  const [activities, setActivities] = useState<any[]>([])
+  const [activitiesLoading, setActivitiesLoading] = useState(false)
+  const [activitiesError, setActivitiesError] = useState<string | null>(null)
+
+  // Notes and Tasks data loading - using central hooks
+  const { fetchCustomerNotesByOpportunityId } = useCustomerNotes(props)
+  const { fetchCustomerTasksByOpportunityId } = useCustomerTasks(props)
+  const [notes, setNotes] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [approvals, setApprovals] = useState<any[]>([])
+
+  const loadActivities = async () => {
+    if (!opportunityId) return
+
+    setActivitiesLoading(true)
+    setActivitiesError(null)
+
+    try {
+      const activitiesData = await fetchCustomerActivitiesByOpportunityId(opportunityId)
+      const sortedActivities = (activitiesData || []).sort((a, b) => {
+        const dateA = new Date(a.occurredAt || a.createdAt).getTime()
+        const dateB = new Date(b.occurredAt || b.createdAt).getTime()
+        return dateB - dateA
+      })
+      setActivities(sortedActivities)
+    } catch (err) {
+      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities')
+    } finally {
+      setActivitiesLoading(false)
+    }
+  }
+
+  const loadNotes = async () => {
+    if (!opportunityId) return
+    try {
+      const notesData = await fetchCustomerNotesByOpportunityId(opportunityId)
+      setNotes(notesData || [])
+    } catch (err) {
+      console.error('Failed to load notes:', err)
+    }
+  }
+
+  const loadTasksAndApprovals = async () => {
+    if (!opportunityId) return
+    try {
+      const tasksData = await fetchCustomerTasksByOpportunityId(opportunityId)
+      const allTasks = tasksData || []
+
+      // Separate regular tasks from approval tasks
+      const regularTasks = allTasks.filter(task => {
+        const taskTypeValue = task.type?.value || task.taskType?.value || ''
+        const isApprovalTask = taskTypeValue?.toLowerCase() === 'approval'
+        return !isApprovalTask
+      })
+
+      const approvalTasks = allTasks.filter(task => {
+        const taskTypeValue = task.type?.value || task.taskType?.value || ''
+        const isApprovalTask = taskTypeValue?.toLowerCase() === 'approval'
+        return isApprovalTask
+      })
+
+      setTasks(regularTasks)
+      setApprovals(approvalTasks)
+    } catch (err) {
+      console.error('Failed to load tasks:', err)
+    }
+  }
+
+  // Load all data on mount and when opportunityId changes
+  useEffect(() => {
+    loadActivities()
+    loadNotes()
+    loadTasksAndApprovals()
+  }, [opportunityId])
+
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetch()
+    loadActivities()
+    loadNotes()
+    loadTasksAndApprovals()
+  }, [refetch])
+
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
+
+  // Memoize stage condition action props to prevent recreation
+  const stageConditionActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerOpportunityConditionUpdate],
+      externalContextData: undefined,
+      prefixDataTestId: 'stage-condition-status-icon'
+    }),
+    []
+  )
+
+  // Memoize header action button to prevent recreation
+  const headerActionButton = useMemo(
+    () => (
+      <AppAction
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerOpportunityEntity,
+            contextData: { opportunityId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'opportunity',
+          entityId: opportunityId,
+          entityName: opportunityData?.name || 'Opportunity',
+          entityUrl: `/platform/crm/opportunity-record?opportunityId=${opportunityId}`
+        }}
+        prefixDataTestId="opportunity-record-action"
+        accessToken={props.accessToken}
+      />
+    ),
+    [opportunityId, opportunityData?.name, props.accessToken]
+  )
+
+  // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
+  const headerMeta = useMemo(() => {
+    // Only display status if opportunityStatus catalog entry exists
+    const rawStatus = opportunityData?.opportunityStatus?.value || opportunityData?.opportunityStatus?.code
+
+    // Format status to remove prefixes like "OPPORTUNITY_OPEN" -> "Open"
+    const formatStatus = (status?: string): string => {
+      if (!status) return ''
+      return status
+        .replace(/^OPPORTUNITY_/, '')
+        .replace(/^INVESTMENT_/, '')
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ')
     }
 
-    // Listen to multiple possible event names for stage condition updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
+    const statusLabel = opportunityData?.opportunityStatus ? formatStatus(rawStatus) : ''
+
+    // Forecast badge
+    const forecast = opportunityData?.opportunityForecast
+    const forecastValue = forecast?.value || forecast?.code || ''
+    const forecastAdditionalValue1 = forecast?.additionalValue1 || ''
+    const forecastDisplayValue = forecastAdditionalValue1
+      ? `${forecastValue}: ${forecastAdditionalValue1}`
+      : forecastValue
+
+    return (
+      <div className="gba:flex gba:items-center gba:gap-2">
+        {statusLabel && (
+          <AppAction
+            contextsArray={[FlowContextName.customerOpportunityStatusUpdate]}
+            externalContextData={{ opportunityId }}
+            prefixDataTestId="opportunity-status-update"
+            accessToken={props.accessToken}
+            emptyStateBehavior="enable"
+            deferMainContextRequestsUntilClick
+          >
+            <Badge
+              variant={getOpportunityStatusBadgeVariant(opportunityData?.opportunityStatus)}
+              className="gba:gap-1 gba:cursor-pointer hover:gba:opacity-80"
+              data-testid="opportunity-status-badge"
+            >
+              {statusLabel}
+            </Badge>
+          </AppAction>
+        )}
+        {forecast && forecastDisplayValue && (
+          <Badge variant={getOpportunityForecastBadgeVariant(forecast)} data-testid="opportunity-forecast-badge">
+            {forecastDisplayValue}
+          </Badge>
+        )}
+        {opportunityData?.estimatedAmount && (
+          <Badge variant="outline" className="gba:gap-1">
+            {formatCurrency(opportunityData.estimatedAmount, opportunityData?.currency?.id || 'Currency:v1:EUR')}
+          </Badge>
+        )}
+      </div>
+    )
+  }, [
+    opportunityData?.estimatedAmount,
+    opportunityData?.currency?.id,
+    opportunityData?.opportunityStatus,
+    opportunityData?.opportunityForecast,
+    opportunityId,
+    props.accessToken
+  ])
+
+  const headerDetailGroups = useMemo(() => {
+    // Format status to remove prefixes - only if opportunityStatus catalog exists
+    const formatStatus = (status?: string): string => {
+      if (!status) return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+      return status
+        .replace(/^OPPORTUNITY_/, '')
+        .replace(/^INVESTMENT_/, '')
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ')
+    }
+
+    // Only use status if opportunityStatus catalog entry exists
+    const rawStatus = opportunityData?.opportunityStatus?.value || opportunityData?.opportunityStatus?.code
+
+    return [
+      {
+        id: 'opportunity-details',
+        items: [
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.opportunity.status', 'Status'),
+            value: opportunityData?.opportunityStatus
+              ? formatStatus(rawStatus)
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: StarIcon
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage', 'Stage'),
+            value:
+              opportunityData?.opportunityPipelineStage?.value ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: StarIcon
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
+            value: opportunityData?.closeDate
+              ? (() => {
+                  const dateOnly = opportunityData.closeDate.split('T')[0]
+                  const formatted = formatDate(dateOnly, 'date.short')
+                  // Fallback: if formatDate returns ISO format, manually format the date
+                  return formatted?.includes('T') ? dateOnly : formatted
+                })()
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.currency', 'Currency'),
+            value: extractCurrencyCode(opportunityData?.currency?.id || 'Currency:v1:EUR')
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.opportunity.winningChance', 'Winning Chance'),
+            value:
+              opportunityData?.winningChance !== undefined && opportunityData?.winningChance !== null
+                ? `${opportunityData.winningChance}%`
+                : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: TrendUpIcon
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
+            value: opportunityData?.estimatedAmount
+              ? formatCurrency(opportunityData.estimatedAmount, opportunityData.currency?.id || 'Currency:v1:EUR')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
+            value:
+              opportunityData?.ownerEmployee?.displayName ||
+              (opportunityData?.ownerEmployee?.firstName && opportunityData?.ownerEmployee?.lastName
+                ? `${opportunityData.ownerEmployee.firstName} ${opportunityData.ownerEmployee.lastName}`.trim()
+                : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned')),
+            icon: UserIcon
+          }
+        ]
+      }
+    ]
+  }, [
+    opportunityData?.opportunityStatus?.value,
+    opportunityData?.opportunityPipelineStage?.code,
+    opportunityData?.closeDate,
+    opportunityData?.currency?.id,
+    opportunityData?.winningChance,
+    opportunityData?.estimatedAmount,
+    opportunityData?.ownerEmployee
+  ])
+
+  const headerActions = useMemo(() => {
+    const actions: AiAction[] = [
+      {
+        key: 'ai-summary',
+        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+        icon: <Bot size={16} />,
+        hook: aiSummaryHook,
+        config: {
+          entityType: 'opportunity',
+          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
+          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
+            'crm.ai.summary.subtitle',
+            'Analyzing opportunity data and activities'
+          )
+        }
+      }
     ]
 
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
+    return (
+      <AiActions
+        actions={actions}
+        dataTestId={`opportunity-update-button-${opportunityId}`}
+        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
+      />
+    )
+  }, [aiSummaryHook, opportunityId])
 
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
+  const headerContent = useMemo(() => {
+    // Show stage progression if data is ready
+    if (!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.opportunityPipelineRef) {
+      return (
+        <OpportunityStageProgression
+          currentStage={opportunityData?.opportunityPipelineStage?.value || 'Discovery'}
+          stages={opportunityStages}
+          opportunityId={opportunityId || ''}
+          opportunityVersion={opportunityData?.version}
+          accessToken={props.accessToken}
+          stageConditionStatuses={stageConditionStatuses}
+          onStageUpdate={refetch}
+          contextConfig={crmPipelineConfig}
+          opportunityStatus={opportunityData?.opportunityStatus?.value}
+        />
+      )
     }
-  }, [refetchOpportunityData])
+
+    // Show loading state
+    if (loadingStages) {
+      return (
+        <div
+          style={{
+            textAlign: 'center',
+            padding: 'var(--nw-spacing-lg)'
+          }}
+        >
+          <Spinner size="sm" />
+          <span style={{ marginLeft: 'var(--nw-spacing-sm)' }}>
+            {getTranslationFromI18nKeyAndLabel('crm.opportunity.loadingStages', 'Loading pipeline stages...')}
+          </span>
+        </div>
+      )
+    }
+
+    // Show error state
+    if (stagesError) {
+      return (
+        <div style={{ textAlign: 'center', padding: 'var(--nw-spacing-lg)', color: 'var(--nw-color-danger-500)' }}>
+          <p>
+            {getTranslationFromI18nKeyAndLabel('crm.opportunity.failedToLoadStages', 'Failed to load pipeline stages')}:{' '}
+            {stagesError}
+          </p>
+        </div>
+      )
+    }
+
+    // Show no pipeline assigned message
+    if (opportunityData && !opportunityData.opportunityPipelineRef) {
+      return (
+        <div
+          style={{
+            textAlign: 'center',
+            padding: 'var(--nw-spacing-lg)',
+            color: 'var(--nw-color-text-secondary)'
+          }}
+        >
+          <p>
+            {getTranslationFromI18nKeyAndLabel(
+              'crm.opportunity.noStageAssigned',
+              'No sales pipeline assigned to this opportunity'
+            )}
+          </p>
+        </div>
+      )
+    }
+
+    return undefined
+  }, [
+    loadingStages,
+    stagesError,
+    opportunityStages,
+    opportunityData?.opportunityPipelineRef,
+    crmPipelineConfig,
+    opportunityData?.opportunityPipelineStage?.value,
+    opportunityId,
+    opportunityData?.version,
+    stageConditionStatuses,
+    props.accessToken,
+    refetch,
+    opportunityData?.opportunityStatus?.value
+  ])
 
   if (loading) {
     return (
@@ -98,127 +541,87 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     )
   }
 
-  if (error || !opportunity) {
+  if (error || !opportunityData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">{error || 'Opportunity not found'}</p>
-          <Button onClick={onBack} className="gba:mt-4" variant="default">
-            {getBackButtonText()}
+          <p style={{ color: 'var(--nw-color-danger-500)' }} data-testid="opportunity-error-text">
+            {error || getTranslationFromI18nKeyAndLabel('crm.opportunity.notFound', 'Opportunity not found')}
+          </p>
+          <Button
+            onClick={onBack}
+            style={{ marginTop: 'var(--nw-spacing-md)' }}
+            variant="default"
+            data-testid="opportunity-error-back-button"
+          >
+            {getTranslationFromI18nKeyAndLabel('crm.opportunity.back', getBackButtonText())}
           </Button>
         </div>
       </div>
     )
   }
 
+  const subViewsConfig = {
+    defaultValue: activeTab,
+    onValueChange: (val: string) => {
+      const next = ALLOWED_TABS.includes(val as TabKey) ? (val as TabKey) : 'overview'
+      setActiveTab(next)
+      if (globalThis.window !== undefined) {
+        const params = new URLSearchParams(globalThis.location.search)
+        params.set('tab', next)
+        globalThis.history.replaceState(null, '', `${globalThis.location.pathname}?${params.toString()}`)
+      }
+    },
+    items: [
+      {
+        value: 'overview',
+        label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
+        icon: <UserIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        content: (
+          <HomeView
+            opportunityId={opportunityId}
+            opportunityData={opportunityData}
+            activities={activities}
+            notes={notes}
+            tasks={tasks}
+            approvals={approvals}
+            stageConditionStatuses={stageConditionStatuses || []}
+            activitiesLoading={activitiesLoading}
+            activitiesError={activitiesError}
+            loadActivities={loadActivities}
+            stageConditionActionProps={stageConditionActionProps}
+            {...props}
+          />
+        )
+      },
+      {
+        value: 'documents',
+        label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
+        icon: <FileTextIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        content: (
+          <div className="gba:col-span-12">
+            <DocumentView opportunityId={opportunityId} {...props} />
+          </div>
+        )
+      }
+    ]
+  }
+
   return (
-    <div
-      className="gba:opportunity-details-container"
-      data-testid="opportunity-record-detail"
-      style={{ backgroundColor: 'white', padding: '16px' }}
-    >
-      <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
-        <button
-          onClick={onBack}
-          className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
-          data-testid="back-button"
-        >
-          <ArrowLeftOutlined className="gba:mr-2" />
-          <span>{getBackButtonText()}</span>
-        </button>
-      </div>
-
-      <OpportunityHeader
-        opportunity={opportunity}
-        opportunityData={opportunityData}
-        opportunityId={opportunityId}
-        additionalData={props}
-        accessToken={props.accessToken}
+    <div className="gba:opportunity-details-container" data-testid="opportunity-record-detail">
+      <RecordLayout
+        headerOrientation="horizontal"
+        headerIcon={Lightbulb}
+        headerCategory="OPPORTUNITY"
+        onBack={onBack}
+        headerTitle={opportunityData.name || 'Unnamed Opportunity'}
+        headerMeta={headerMeta}
+        headerActions={headerActions}
+        headerActionButton={headerActionButton}
+        headerDetailGroups={headerDetailGroups}
+        headerContent={headerContent}
+        subViews={subViewsConfig}
       />
-
-      {/* Stage Progression - Show filtered pipeline stages */}
-      {!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.salesPipelineRef && (
-        <OpportunityStageProgression
-          currentStage={opportunityData?.salesPipelineStage?.code || 'Discovery'}
-          stages={opportunityStages}
-          opportunityId={opportunityId}
-          opportunityVersion={parseInt(opportunity.version) || 0}
-          accessToken={props.accessToken}
-          stageConditionStatuses={stageConditionStatuses}
-          onStageUpdate={refetchOpportunityData}
-        />
-      )}
-
-      {/* Show stages loading */}
-      {loadingStages && (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spinner size="sm" />
-          <span style={{ marginLeft: '8px' }}>Loading pipeline stages...</span>
-        </div>
-      )}
-
-      {/* Show stages error */}
-      {stagesError && (
-        <div style={{ textAlign: 'center', padding: '20px', color: '#ff4d4f' }}>
-          <p>Failed to load pipeline stages: {stagesError}</p>
-        </div>
-      )}
-
-      {/* Show info when no salesPipelineRef */}
-      {!opportunityData?.salesPipelineRef && !loadingStages && (
-        <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
-          <p>No sales pipeline assigned to this opportunity</p>
-        </div>
-      )}
-
-      <div className="gba:opportunity-details-content" data-testid="opportunity-details-content">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
-            <TabsTrigger value="overview" data-testid="overview-tab">
-              <UserOutlined className="gba:mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="documents" data-testid="documents-tab">
-              <FileOutlined className="gba:mr-2" />
-              Documents
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" data-testid="overview-content">
-            <div className="gba:grid gba:grid-cols-8 gba:gap-6 gba:mb-6">
-              <div className="gba:col-span-4 gba:flex">
-                <CompanyInformation opportunity={opportunity} opportunityData={opportunityData} />
-              </div>
-
-              <div className="gba:col-span-2 gba:flex">
-                <ContactInformation opportunityData={opportunityData} opportunityId={opportunityId} context={props} />
-              </div>
-
-              <div className="gba:col-span-2 gba:flex">
-                <OpportunityDetails
-                  opportunityData={opportunityData}
-                  stageConditionStatuses={stageConditionStatuses}
-                  context={props}
-                />
-              </div>
-            </div>
-
-            <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-              <div>
-                <ActivityTimeline opportunityId={opportunityId} context={props} />
-              </div>
-
-              <div>
-                <TasksSection opportunityId={opportunityId} context={props} />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="documents" data-testid="documents-content">
-            <OpportunityDocuments opportunityId={opportunityId} context={props} />
-          </TabsContent>
-        </Tabs>
-      </div>
     </div>
   )
 }
@@ -230,11 +633,10 @@ interface OpportunityRecordProps extends BusinessAppContextProps {
 }
 
 const OpportunityRecord: React.FC<OpportunityRecordProps> = props => {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
   const opportunityId = props.opportunityId || urlParams.get('opportunityId') || urlParams.get('id')
 
   const source = props.source || urlParams.get('source')
-
   const fromEntity = urlParams.get('fromEntity')
 
   const getBackButtonText = () => {
@@ -286,14 +688,12 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = props => {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">No opportunity ID provided</p>
-          <p className="gba:text-gray-500 gba:mb-4">Please provide an opportunity ID via props or URL parameter</p>
-          <button
-            onClick={handleBack}
-            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
-          >
+          <p className="gba:text-lg" style={{ color: 'var(--nw-color-danger-500)' }}>
+            {getTranslationFromI18nKeyAndLabel('crm.opportunity.idRequired', 'Opportunity ID is required')}
+          </p>
+          <Button onClick={handleBack} className="gba:mt-4" variant="default">
             {getBackButtonText()}
-          </button>
+          </Button>
         </div>
       </div>
     )

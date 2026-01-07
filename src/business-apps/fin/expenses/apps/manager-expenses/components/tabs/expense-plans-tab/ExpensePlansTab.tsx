@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react'
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { PiFileText } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -36,7 +36,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   })
 
   // State for page size
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
 
   // Stats from overview aggregates (declared after overview)
   let planStats: any = null
@@ -151,6 +151,21 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const plansError = overview.error ? new Error(overview.error) : null
   const totalCount = overview.data?.expensePlansTotal ?? 0
 
+  // Reset pagination when filters or search change so filtered results are visible from page 1.
+  const prevFilterSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    const signature = JSON.stringify({
+      searchTerm,
+      statusFilter,
+      primaryCurrency
+    })
+    const prev = prevFilterSignatureRef.current
+    if (prev !== null && prev !== signature) {
+      setCurrentPage(1)
+    }
+    prevFilterSignatureRef.current = signature
+  }, [searchTerm, statusFilter, primaryCurrency])
+
   const updateSorting = useCallback((field: any) => {
     setSorting(prev => {
       if (prev.field === field) {
@@ -213,10 +228,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       {/* Data Container with floating details */}
       <DataContainer
         key="expense-plans-data-container"
-        contentBackground="white"
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
+          // Always keep filter chips in sync with the active filters,
+          // even when there are no results (so users can see/clear them).
           filter: buildDeduplicatedFilters(statusFilter, primaryCurrency),
           setSearch: handleSearchChange,
           setFilter: newFilters => {
@@ -270,6 +286,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           debounceDelay: 300
         }}
         dataFilterProps={{
+          // Always keep filter sidebar visible, even when there are no plans yet
           filterGroups,
           onFilterChange: handleDataFilterChange
         }}

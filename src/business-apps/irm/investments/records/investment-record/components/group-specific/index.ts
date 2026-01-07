@@ -3,6 +3,13 @@
 
 // Equity Investment Group components
 export { default as EquityInvestmentRounds } from './EquityInvestmentRounds'
+export { default as EquityAnalyticsTab } from './EquityAnalyticsTab'
+export { default as EquityPerformanceChart } from './EquityPerformanceChart'
+export { default as ShareholderStructureChart } from './ShareholderStructureChart'
+export { default as LiquidityPreferenceTable } from './LiquidityPreferenceTable'
+export { default as RevenueForecastChart } from './RevenueForecastChart'
+export { default as CombinedPpmChartsContainer } from './CombinedPpmChartsContainer'
+export { default as KPIsAtEntryVsCurrentChart } from './KPIsAtEntryVsCurrentChart'
 
 // Real Estate Investment Group components
 export { default as RealEstateLiquidityForecast } from './RealEstateLiquidityForecast'

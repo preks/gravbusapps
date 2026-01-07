@@ -1,12 +1,16 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { GET_INVESTMENT_TASKS_BY_INVESTMENT_ID } from '@/common/data/investment/queries/investmentQueries'
-import type { BaseInvestmentTask, InvestmentTask } from '@/common/data/investment/types'
-import { toInvestmentTask } from '@/common/data/investment/mappers'
+import {
+  buildInvestmentTaskByInvestmentIdQuery,
+  buildInvestmentTaskWhereCondition,
+  buildInvestmentTaskOrderBy
+} from '@/common/data/investment/queries/investmentTaskQueries'
+import type { InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
+import { toInvestmentTask } from '@/common/data/investment/mappers/investmentTaskMappers'
 
 interface InvestmentTasksByInvestmentIdResponse {
-  InvestmentTask: BaseInvestmentTask[]
+  InvestmentTask: InvestmentTask[]
 }
 
 export const useGetInvestmentTasksByInvestmentId = (context: BusinessAppContextProps) => {
@@ -14,10 +18,23 @@ export const useGetInvestmentTasksByInvestmentId = (context: BusinessAppContextP
 
   const fetchInvestmentTasksByInvestmentId = useCallback(
     async (investmentId: string): Promise<InvestmentTask[]> => {
-      const query = GET_INVESTMENT_TASKS_BY_INVESTMENT_ID(investmentId)
+      const query = buildInvestmentTaskByInvestmentIdQuery()
+      const customConditions: Record<string, any>[] = [
+        { investment: { id: { _eq: investmentId } } },
+        { isDeleted: { _eq: false } }
+      ]
+      const whereCondition = buildInvestmentTaskWhereCondition({}, [], customConditions)
+      const orderBy = buildInvestmentTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables = {
+        limit: 1000,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentTasksByInvestmentIdResponse>(query)
+        const result = await graphqlClient.request<InvestmentTasksByInvestmentIdResponse>(query, graphQLVariables)
         // Transform base types to enhanced types using mapper
         return result.InvestmentTask.map(toInvestmentTask)
       } catch (error) {

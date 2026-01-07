@@ -196,8 +196,9 @@ export const getMultipleOverlapAggregates = async (
   }
 
   // Build the query with multiple month aggregations
-  const monthQueries = months.map((month, index) => {
-    return `
+  const monthQueries = months
+    .map((_month, index) => {
+      return `
       month${index}: EmployeeAbsenceAggregate(where: $where${index}) {
         aggregate {
           count
@@ -206,7 +207,8 @@ export const getMultipleOverlapAggregates = async (
         }
       }
     `
-  }).join('\n')
+    })
+    .join('\n')
 
   const query = `
     query MultipleOverlapAggregates(${months.map((_, index) => `$where${index}: EmployeeAbsenceBoolExp!`).join(', ')}) {
@@ -218,11 +220,7 @@ export const getMultipleOverlapAggregates = async (
   months.forEach((month, index) => {
     const monthWhere = {
       ...baseWhere,
-      _and: [
-        ...baseWhere._and,
-        { startDate: { _lte: month.endIso } },
-        { endDate: { _gte: month.startIso } }
-      ]
+      _and: [...baseWhere._and, { startDate: { _lte: month.endIso } }, { endDate: { _gte: month.startIso } }]
     }
     variables[`where${index}`] = monthWhere
   })

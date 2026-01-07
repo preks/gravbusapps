@@ -202,8 +202,8 @@ export const JobPositionProvider: React.FC<{
   const contractTypesError = null
   const hasMoreEmploymentTypes = false
   const hasMoreContractTypes = false
-  const searchEmploymentTypesInternal = (_searchTerm?: string) => {}
-  const searchContractTypesInternal = (_searchTerm?: string) => {}
+  const searchEmploymentTypesInternal = () => {}
+  const searchContractTypesInternal = () => {}
   const loadMoreEmploymentTypes = () => {}
   const loadMoreContractTypes = () => {}
 
@@ -280,19 +280,13 @@ export const JobPositionProvider: React.FC<{
     [searchJobLevelsInternal]
   )
 
-  const searchEmploymentTypes = useCallback(
-    (searchTerm: string) => {
-      searchEmploymentTypesInternal(searchTerm)
-    },
-    [searchEmploymentTypesInternal]
-  )
+  const searchEmploymentTypes = useCallback(() => {
+    searchEmploymentTypesInternal()
+  }, [searchEmploymentTypesInternal])
 
-  const searchContractTypes = useCallback(
-    (searchTerm: string) => {
-      searchContractTypesInternal(searchTerm)
-    },
-    [searchContractTypesInternal]
-  )
+  const searchContractTypes = useCallback(() => {
+    searchContractTypesInternal()
+  }, [searchContractTypesInternal])
 
   // Fetch job functions when job family changes
   const fetchJobFunctions = useCallback(

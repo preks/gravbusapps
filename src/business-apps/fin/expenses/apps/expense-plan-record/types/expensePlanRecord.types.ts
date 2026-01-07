@@ -16,8 +16,11 @@ export interface ExpensePlanItem {
   expenseGroup: {
     value: string
   }
-  expenseClass: {
+  expenseClass?: {
+    id: string
+    code: string
     value: string
+    objectValue?: any
   }
   expenseDate: string
   totalAmount: number

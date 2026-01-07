@@ -4,12 +4,17 @@ import usePermissionCheck, { ResourcePermissionMap } from '../../../../../../com
 export const TAB_KEYS = {
   summary: 'summary',
   details: 'details',
+  timeTracking: 'timeTracking',
   employment: 'employment',
   documents: 'documents',
   performance: 'performance',
   feedback: 'feedback',
   absences: 'absences',
-  skills: 'skills'
+  skills: 'skills',
+  compensation: 'compensation',
+  serviceRequests: 'serviceRequests',
+  changeLog: 'changeLog',
+  hrNotes: 'hrNotes'
 }
 
 // Section key constants for the employee record app
@@ -27,6 +32,11 @@ export const SECTION_KEYS = {
   employment: {
     workingHours: 'workingHours',
     jobHistory: 'jobHistory'
+  },
+  compensation: {
+    bonuses: 'bonuses',
+    benefits: 'benefits',
+    payslips: 'payslips'
   },
   documents: {
     personalDocuments: 'personalDocuments',
@@ -111,6 +121,28 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
       }
     }
   },
+  [TAB_KEYS.compensation]: {
+    domain: 'employee',
+    resource: 'working_conditions', // ✅ Using existing working_conditions resource since it contains salary data
+    permission: 'read',
+    sections: {
+      bonuses: {
+        domain: 'employee',
+        resource: 'employee_bonus',
+        permission: 'read'
+      },
+      benefits: {
+        domain: 'employee',
+        resource: 'employee_benefit',
+        permission: 'read'
+      },
+      payslips: {
+        domain: 'employee',
+        resource: 'employee_payslip',
+        permission: 'read'
+      }
+    }
+  },
   [TAB_KEYS.documents]: {
     domain: 'employee',
     resource: 'employee_document_general',
@@ -143,6 +175,11 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
     resource: 'employee_document_development',
     permission: 'read'
   },
+  [TAB_KEYS.timeTracking]: {
+    domain: 'employee',
+    resource: 'employee_time',
+    permission: 'read'
+  },
   [TAB_KEYS.absences]: {
     domain: 'employee',
     resource: 'employee_absence',
@@ -169,6 +206,21 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
         permission: 'read'
       }
     }
+  },
+  [TAB_KEYS.serviceRequests]: {
+    domain: 'employee',
+    resource: 'employee',
+    permission: 'read'
+  },
+  [TAB_KEYS.changeLog]: {
+    domain: 'employee',
+    resource: 'employee',
+    permission: 'read'
+  },
+  [TAB_KEYS.hrNotes]: {
+    domain: 'employee',
+    resource: 'employee',
+    permission: 'read'
   }
 }
 

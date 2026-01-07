@@ -16,7 +16,7 @@ const Employee: React.FC<EmployeeProps> = ({ accessToken, initialValues = {}, is
   if (!accessToken) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-        <div className="gba:text-gray-500">Access token required</div>
+        <div className="gba:text-muted-foreground">Access token required</div>
       </div>
     )
   }
@@ -24,7 +24,7 @@ const Employee: React.FC<EmployeeProps> = ({ accessToken, initialValues = {}, is
   if (!structureId) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-        <div className="gba:text-gray-500">Structure ID required</div>
+        <div className="gba:text-muted-foreground">Structure ID required</div>
       </div>
     )
   }

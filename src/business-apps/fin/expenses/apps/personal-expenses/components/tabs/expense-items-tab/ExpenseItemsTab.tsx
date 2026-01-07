@@ -1,23 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react'
-import dayjs from 'dayjs'
+// import dayjs from 'dayjs'
 import { getItemsCardStrategies, preserveCurrencyAndReset } from './cardStrategies'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  GET_EXPENSE_ITEMS_BY_EMPLOYEE,
-  GET_EXPENSE_ITEM_STATISTICS,
-  GET_PENDING_ITEMS,
-  GET_PENDING_ITEMS_WITH_DATE_RANGE
-} from '../../../queries/expenseItems'
+import { GET_PENDING_ITEMS } from '../../../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ExpenseStatus } from '../../../utils'
+// import { ExpenseStatus } from '../../../utils'
 import ExpenseItemStatistics from './ExpenseItemStatistics'
 import ExpenseItemsTable from './ExpenseItemsTable'
 import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters'
 import { startProcess } from '@/common/utils/start-process'
-import { env } from '@/common/env/EnvUtils'
+// import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 // import { useExpenseItemStatistics } from '../../../hooks/useExpenseItemStatistics';
 import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { useExpenseItemStatsOverview } from '../../../hooks/useExpenseItemStatsOverview'
 
 export interface ExpenseItemsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
@@ -74,15 +70,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
 
   const [activeCard, setActiveCard] = useState<string | null>(null)
 
-  // State for storing all items for statistics
-  const [allItems, setAllItems] = useState<any[]>([])
-  const [hasLoadedAllItems, setHasLoadedAllItems] = useState(false)
-  const [statsLoading, setStatsLoading] = useState(false)
-  const [statsError, setStatsError] = useState<string | null>(null)
-  const [totalExpenses, setTotalExpenses] = useState<number | null>(null)
-  const [previousMonthTotalExpenses, setPreviousMonthTotalExpenses] = useState<number | null>(null)
-  const [pendingReimbursementTotal, setPendingReimbursementTotal] = useState<number>(0)
-  const [previousMonthPendingReimbursementTotal, setPreviousMonthPendingReimbursementTotal] = useState<number>(0)
+  // Stats come from aggregated overview hook
   const [pendingItemCountFromApi, setPendingItemCountFromApi] = useState<number>(0)
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
   const graphqlClient = useGraphQLClient(contextProps.accessToken)
@@ -214,117 +202,24 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
   }, [addFilter, removeFilter, selectedFilters, clearFilters])
 
   // Function to fetch statistics data specifically (kept for compatibility; will be replaced by hook usage)
+  const {
+    data: statsOverview,
+    isLoading: statsLoading,
+    error: statsError,
+    fetchOverview
+  } = useExpenseItemStatsOverview(contextProps)
+
   const fetchItemStatistics = useCallback(async () => {
-    setStatsLoading(true)
-    setStatsError(null)
-    try {
-      const employeeId = contextProps?.userInfo?.employeeDetails?.employeeId
-      const accessToken = contextProps?.accessToken
-
-      if (!employeeId || !accessToken) {
-        throw new Error('Missing employee ID or access token')
-      }
-
-      const today = dayjs()
-      const currentMonthStart = today.startOf('month').format('YYYY-MM-DD HH:mm:ss')
-      const currentMonthEnd = today.endOf('month').format('YYYY-MM-DD HH:mm:ss')
-
-      const lastMonth = today.subtract(1, 'month')
-      const previousMonthStart = lastMonth.startOf('month').format('YYYY-MM-DD HH:mm:ss')
-      const previousMonthEnd = lastMonth.endOf('month').format('YYYY-MM-DD HH:mm:ss')
-
-      const fetchStatsForPeriod = async (startDate: string, endDate: string) => {
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query: GET_EXPENSE_ITEM_STATISTICS,
-            variables: {
-              employeeId,
-              currencyRef: selectedCurrencyRef,
-              startDate,
-              endDate
-            }
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-
-        if (result.errors) {
-          throw new Error(result.errors.map((e: any) => e.message).join(', '))
-        }
-
-        return result.data?.totalExpenses?.aggregate?.sum?.totalAmount ?? 0
-      }
-
-      const fetchPendingStatsForPeriod = async (startDate: string, endDate: string) => {
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query: GET_PENDING_ITEMS_WITH_DATE_RANGE,
-            variables: {
-              employeeId,
-              currencyRef: selectedCurrencyRef,
-              startDate,
-              endDate
-            }
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-
-        if (result.errors) {
-          throw new Error(result.errors.map((e: any) => e.message).join(', '))
-        }
-
-        return result.data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount
-      }
-
-      const [currentMonthTotal, previousMonthTotal, currentMonthPending, previousMonthPending] = await Promise.all([
-        fetchStatsForPeriod(currentMonthStart, currentMonthEnd),
-        fetchStatsForPeriod(previousMonthStart, previousMonthEnd),
-        fetchPendingStatsForPeriod(currentMonthStart, currentMonthEnd),
-        fetchPendingStatsForPeriod(previousMonthStart, previousMonthEnd)
-      ])
-
-      if (isMounted.current) {
-        setTotalExpenses(currentMonthTotal)
-        setPreviousMonthTotalExpenses(previousMonthTotal)
-        setPendingReimbursementTotal(currentMonthPending)
-        setPreviousMonthPendingReimbursementTotal(previousMonthPending)
-      }
-    } catch (error) {
-      if (isMounted.current) {
-        setStatsError(error instanceof Error ? error.message : 'Unknown error fetching statistics')
-      }
-    } finally {
-      if (isMounted.current) {
-        setStatsLoading(false)
-      }
-    }
-  }, [contextProps, selectedCurrencyRef])
+    if (!selectedCurrencyRef) return
+    await fetchOverview(selectedCurrencyRef)
+  }, [fetchOverview, selectedCurrencyRef])
 
   // Fetch statistics on component mount
   useEffect(() => {
-    if (!hideStats) {
+    if (!hideStats && selectedCurrencyRef) {
       fetchItemStatistics()
     }
-  }, [fetchItemStatistics, hideStats])
+  }, [fetchItemStatistics, hideStats, selectedCurrencyRef])
 
   // Combine UI and card filters no longer needed locally (table consumes selectedFilters directly)
 
@@ -353,15 +248,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
                 currencyRef: selectedCurrencyRef
               })
               setPendingItemCountFromApi(data?.pendingExcludingAllowance?.aggregate?.count ?? 0)
-            } catch (e) {
+            } catch {
               setPendingItemCountFromApi(0)
             }
           }
           fetchPendingItemCount()
-
-          // Reset all items to force refresh of statistics
-          setHasLoadedAllItems(false)
-          setAllItems([])
 
           // Trigger table refresh by updating a state that forces re-render
           setTableRefreshTrigger(prev => prev + 1)
@@ -413,19 +304,24 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     }
   }, [fetchItemStatistics, contextProps.userInfo?.employeeDetails?.employeeId, graphqlClient])
 
+  // Resolve stats values from overview
+  const totalExpenses = statsOverview?.totalExpensesCurrent ?? null
+  const previousMonthTotalExpenses = statsOverview?.totalExpensesPrevious ?? null
+  const pendingReimbursementTotal = statsOverview?.pendingReimbursementCurrent ?? 0
+  const previousMonthPendingReimbursementTotal = statsOverview?.pendingReimbursementPrevious ?? 0
+
   // Memoize the content header to prevent unnecessary re-renders
-  // Use allItems for statistics instead of filtered items
   const contentHeader = useMemo(() => {
     return (
       <div>
         <ExpenseItemStatistics
-          items={allItems ?? []}
+          items={[]}
           totalExpenses={totalExpenses}
           previousMonthTotalExpenses={previousMonthTotalExpenses}
           pendingReimbursementTotal={pendingReimbursementTotal}
           previousMonthPendingReimbursementTotal={previousMonthPendingReimbursementTotal}
           pendingItemCountFromApi={pendingItemCountFromApi}
-          statsLoading={statsLoading ?? !hasLoadedAllItems}
+          statsLoading={statsLoading}
           statsError={statsError}
           fetchItemStatistics={fetchItemStatistics}
           onWidgetClick={handleWidgetClick}
@@ -435,7 +331,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
       </div>
     )
   }, [
-    allItems,
     totalExpenses,
     previousMonthTotalExpenses,
     selectedFilters,
@@ -443,14 +338,13 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     statsLoading,
     statsError,
     fetchItemStatistics,
-    hasLoadedAllItems,
     handleWidgetClick,
     activeCard,
     pendingReimbursementTotal,
     previousMonthPendingReimbursementTotal
   ])
 
-  // Update the content header only when it changes and when allItems is loaded
+  // Update the content header when it changes
   const onContentHeaderChange = props.onContentHeaderChange
   useEffect(() => {
     if (hideStats) {
@@ -463,104 +357,14 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
       }
       return
     }
-    // Only update content header when we have items and the callback exists
-    if (onContentHeaderChange && allItems && allItems.length > 0) {
+    // Update content header when callback exists
+    if (onContentHeaderChange) {
       const timerId = setTimeout(() => {
         onContentHeaderChange(contentHeader)
       }, 0)
       return () => clearTimeout(timerId)
     }
-  }, [onContentHeaderChange, contentHeader, allItems, hideStats])
-
-  // One-time effect to fetch all items for statistics without filters
-  useEffect(() => {
-    // Skip heavy stats-only fetch when stats hidden
-    if (hideStats) return
-    // Only fetch all items once
-    if (!hasLoadedAllItems) {
-      const fetchAllItemsForStats = async () => {
-        try {
-          // Use GraphQL directly for all-items query to avoid state conflicts
-          const employeeId = contextProps?.userInfo?.employeeDetails?.employeeId
-          const accessToken = contextProps?.accessToken
-
-          if (!employeeId || !accessToken) {
-            console.error('Missing employee ID or access token')
-            return
-          }
-
-          const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-              Origin: window.location.origin
-            },
-            credentials: 'include', // Include cookies for CORS requests
-            mode: 'cors', // Explicitly set CORS mode
-            body: JSON.stringify({
-              query: GET_EXPENSE_ITEMS_BY_EMPLOYEE,
-              variables: {
-                employeeId: employeeId,
-                searchTerm: '%',
-                limit: 1000,
-                offset: 0,
-                status: Object.values(ExpenseStatus),
-                expenseDateStart: null,
-                expenseDateEnd: null,
-                totalAmountMin: null,
-                totalAmountMax: null,
-                currencyRef: selectedCurrencyRef
-              }
-            })
-          })
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-          }
-
-          const result = await response.json()
-
-          if (result.errors) {
-            throw new Error(result.errors.map((e: any) => e.message).join(', '))
-          }
-
-          // Map the response data to our format
-          const responseItems = result.data?.ExpenseItem ?? []
-
-          const mappedItems = responseItems.map((item: any) => ({
-            id: item.id,
-            description: item.description,
-            date: item.date,
-            status: item.status,
-            totalAmount: item.totalAmount,
-            reimbursableAmount: item.reimbursableAmount,
-            nonReimbursableAmount: (item.totalAmount ?? 0) - (item.deductibleAmount ?? 0),
-            deductibleAmount: item.deductibleAmount,
-            currencyRef: item.currencyRef,
-            costCenter: item.costCenter,
-            expenseClass: item.expenseClass,
-            additionalProperties: item.additionalProperties,
-            expenseItemFile: item.expenseItemFile,
-            employee: item.employee
-          }))
-
-          setAllItems(mappedItems)
-          setHasLoadedAllItems(true)
-        } catch (error) {
-          console.error('Error fetching statistics data:', error)
-        }
-      }
-
-      fetchAllItemsForStats()
-    }
-  }, [
-    contextProps?.userInfo?.employeeDetails?.employeeId,
-    contextProps?.accessToken,
-    hasLoadedAllItems,
-    hideStats,
-    selectedCurrencyRef
-  ])
+  }, [onContentHeaderChange, contentHeader, hideStats])
 
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { Form, Pagination } from 'antd'
 import PlanCard from './PlanCard'
 import SearchBarWithLabel from './SearchBarWithLabel'
-import { useTranslation } from 'react-i18next'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { PLANS_PER_PAGE } from '../constants/constants'
 
 interface PlanFormContentProps {
@@ -28,8 +28,6 @@ interface PlanFormContentProps {
  * Plan Form Content component that displays a list of plan cards with pagination and search
  */
 const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPlanSelect, isSelectedPlan = false }) => {
-  const { t } = useTranslation()
-
   const [searchTerm, setSearchTerm] = useState('')
 
   const [currentPage, setCurrentPage] = useState(1)
@@ -90,11 +88,14 @@ const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPla
           >
             <SearchBarWithLabel
               onSearch={handleSearch}
-              placeholder={t(
+              placeholder={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_request.search_module_placeholder',
                 'Search in Expense Plans List'
               )}
-              label={`${t('lowcoder:create_expense_request.plan_select_button', 'My Expense Plans')} (${filteredPlans.length})`}
+              label={`${getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_request.plan_select_button',
+                'My Expense Plans'
+              )} (${filteredPlans.length})`}
             />
           </div>
         )}
@@ -103,13 +104,13 @@ const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPla
         <div
           className={`${isSelectedPlan ? '' : ''}`}
           style={{
-            borderTop: isSelectedPlan ? 'none' : '2px solid #F7F7F7',
+            borderTop: isSelectedPlan ? 'none' : '2px solid muted',
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
             overflowY: 'auto',
             maxHeight: 'calc(100vh - 10px)',
-            backgroundColor: isSelectedPlan ? 'transparent' : '#F7F7F7',
+            backgroundColor: isSelectedPlan ? 'transparent' : 'muted',
             borderRadius: '4px'
           }}
           data-testid="plan-cards-container"
@@ -128,15 +129,15 @@ const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPla
               style={{
                 textAlign: 'center',
                 padding: '24px',
-                color: '#666',
+                color: 'muted-foreground',
                 fontSize: '14px',
-                backgroundColor: 'white',
+                backgroundColor: 'background',
                 borderRadius: '4px',
                 boxShadow: '0 2px 2px rgba(0, 0, 0, 0.05)'
               }}
               data-testid="plan-no-results"
             >
-              {t(
+              {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_request.no_plans_found_search',
                 'No expense plans found matching your search'
               )}

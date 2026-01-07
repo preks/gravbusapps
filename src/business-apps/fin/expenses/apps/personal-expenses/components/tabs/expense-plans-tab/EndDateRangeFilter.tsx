@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { DatePicker, Space } from 'antd'
+import { DatePicker } from 'antd'
 import dayjs, { Dayjs } from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -15,7 +15,6 @@ interface EndDateRangeFilterProps {
 export const EndDateRangeFilter: React.FC<EndDateRangeFilterProps> = ({
   endDateRange,
   onDateRangeChange,
-  className = '',
   placeholder = [
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')

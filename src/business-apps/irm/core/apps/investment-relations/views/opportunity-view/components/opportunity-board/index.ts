@@ -1,1 +1,0 @@
-export { OpportunityBoard } from './OpportunityBoard'

@@ -8,10 +8,10 @@ import {
   DialogFooter,
   DialogClose,
   Button,
-  Icon
+  Icon,
+  toast
 } from '@newwork/nw-design-system'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { WarningIcon, TrashIcon } from '@phosphor-icons/react'
 
 type DeleteButtonProps = {
@@ -63,7 +63,7 @@ const DeleteButton = ({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <Icon icon={WarningIcon} color="#ef4444" />
+            <Icon icon={WarningIcon} className="gba:text-destructive" />
             Delete {itemTitle}
           </DialogTitle>
           <DialogDescription>{`Are you sure you want to delete ${itemName}?`}</DialogDescription>

@@ -5,13 +5,12 @@ import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   Toaster,
+  toast,
   Button,
   Alert,
   Spinner,
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   Card,
   CardContent,
   Select,
@@ -20,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { toast } from 'sonner'
 import { AlertTriangle, RefreshCw, Play } from 'lucide-react'
 import { MockDataProvider } from '../../providers/MockDataProvider'
 import { TemplateCard, LaunchConfiguration, EmptyState, SimulationWizard } from './components'
@@ -74,23 +72,33 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
   const [isLaunching, setIsLaunching] = useState(false)
   const [showExecutionWizard, setShowExecutionWizard] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(12)
+  const [totalCount, setTotalCount] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
 
-  // Load published templates from API
-  const loadPublishedTemplates = async () => {
+  // Load published templates from API with pagination and search
+  const loadPublishedTemplates = async (page: number = 1, search: string = '') => {
     try {
       setIsLoading(true)
       setError(null)
-      // Get all templates from the custom flow engine API
-      const response = await fetchWithAuth(`${API_BASE}/templates`)
-      const allTemplates = response.data || []
-      // Since our API only returns published templates (drafts are filtered at source),
-      // we use the templates as-is since backend now provides proper id field
-      const publishedTemplates = allTemplates.map((template: any) => ({
-        ...template,
-        // Backend now provides id field with workflow definition name - don't override it
-        type: 'TEMPLATE' // Default type for published templates
-      }))
-      setTemplates(publishedTemplates)
+      const offset = (page - 1) * itemsPerPage
+      const params = new URLSearchParams({
+        limit: String(itemsPerPage),
+        offset: String(offset),
+        onlyLatest: 'true',
+        includeDrafts: 'true'
+      })
+      const q = search.trim()
+      if (q) params.append('search', q)
+
+      const response = await fetchWithAuth(`${API_BASE}/templates/list?${params.toString()}`)
+      const list = response.data || []
+      setTemplates(list)
+      setTotalCount(Number(response.totalCount || 0))
+      setHasMore(Boolean(response.hasMore))
+      setCurrentPage(page)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load templates')
       console.error('Error loading templates:', err)
@@ -109,11 +117,17 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
       // Initialize empty launch parameters
       setLaunchParameters({})
 
-      // Initialize execution assignments for steps that need them
+      // Initialize execution assignments for steps that need them (only for user tasks, not system tasks)
       const template = response.data?.template || response.template
       if (template?.steps) {
+        const SYSTEM_TASK_TYPES = ['FUNCTION', 'AI_AGENT', 'AI_TASK_EXPERT']
         const assignments: ExecutionAssignment[] = template.steps
           .map((step: any, index: number) => {
+            // Skip system tasks - they don't need user assignment
+            if (SYSTEM_TASK_TYPES.includes(step.type)) {
+              return null
+            }
+
             const assignment = step.assignment
             // Check if step needs execution-time assignment (has no targets configured)
             const needsAssignment =
@@ -146,11 +160,21 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
     console.log('FlowLauncher: accessToken =', accessToken ? 'PRESENT' : 'MISSING')
     if (accessToken) {
       console.log('FlowLauncher: Making API call to load templates')
-      loadPublishedTemplates()
+      loadPublishedTemplates(1, '')
     } else {
       console.log('FlowLauncher: No accessToken, skipping API call')
     }
   }, [accessToken])
+
+  // Debounced server-side search
+  useEffect(() => {
+    if (!accessToken) return
+    const handle = setTimeout(() => {
+      setIsSearching(Boolean(searchTerm.trim()))
+      loadPublishedTemplates(1, searchTerm)
+    }, 300)
+    return () => clearTimeout(handle)
+  }, [searchTerm])
 
   // Handle template selection
   const handleTemplateSelect = async (template: FlowTemplate) => {
@@ -161,14 +185,6 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
     } else {
       console.error('Template missing ID field:', template)
     }
-  }
-
-  // Handle parameter change
-  const handleParameterChange = (parameterName: string, value: string) => {
-    setLaunchParameters(prev => ({
-      ...prev,
-      [parameterName]: value
-    }))
   }
 
   // Initiator selection is now in the header (top-right)
@@ -426,20 +442,19 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
                     {templates.length === 0 ? (
                       <EmptyState
                         title="No Published Templates"
-                        description="No published flow templates are available for launch. Create and publish templates to get started with workflow automation."
+                        description={
+                          isSearching
+                            ? 'No templates match your search. Try different keywords.'
+                            : 'No published flow templates are available for launch. Create and publish templates to get started with workflow automation.'
+                        }
                         actionLabel="Refresh Templates"
-                        onAction={loadPublishedTemplates}
+                        onAction={() => loadPublishedTemplates(1, searchTerm)}
                         data-testid={`${testId}-no-templates`}
                       />
                     ) : (
-                      <div className="gba:space-y-1">
-                        {templates
-                          .filter(
-                            template =>
-                              template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              template.description?.toLowerCase().includes(searchTerm.toLowerCase())
-                          )
-                          .map(template => (
+                      <>
+                        <div className="gba:space-y-1">
+                          {templates.map(template => (
                             <TemplateCard
                               key={template.id}
                               template={template}
@@ -448,7 +463,39 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
                               data-testid={`${testId}-template-${template.id}`}
                             />
                           ))}
-                      </div>
+                        </div>
+                        {/* Pagination Controls */}
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mt-4">
+                          <div className="gba:text-sm gba:text-gray-600">
+                            {totalCount > 0 && (
+                              <span>
+                                {Math.min((currentPage - 1) * itemsPerPage + 1, totalCount)}-
+                                {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
+                              </span>
+                            )}
+                          </div>
+                          <div className="gba:flex gba:gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => loadPublishedTemplates(Math.max(1, currentPage - 1), searchTerm)}
+                              disabled={currentPage <= 1 || isLoading}
+                              data-testid={`${testId}-prev-page`}
+                            >
+                              Previous
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => loadPublishedTemplates(currentPage + 1, searchTerm)}
+                              disabled={!hasMore || isLoading}
+                              data-testid={`${testId}-next-page`}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -466,6 +513,7 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
                     </h2>
 
                     <LaunchConfiguration
+                      accessToken={accessToken}
                       selectedTemplate={selectedTemplate}
                       templateMetadata={templateMetadata}
                       executionAssignments={executionAssignments}

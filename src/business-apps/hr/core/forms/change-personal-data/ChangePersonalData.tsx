@@ -1,8 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  formatDateToISO,
+  getCurrentActiveUserLocale
+} from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import UploadComponent from '../components/UploadComponent'
+import { FileUpload, FormField, FormItem, LocalizationProvider } from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext'
 import { useForm } from 'react-hook-form'
@@ -22,6 +26,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
   const { data } = useChangePersonalData()
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
+  const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
   const catalogSalutation: CatalogEntry[] = useMemo(() => data?.catalogs?.salutation || [], [data])
   const catalogs = useMemo(
     () => ({
@@ -86,6 +91,23 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
   })
 
   const fileClient = useFileClient({ accessToken } as any)
+
+  // Accepted file types aligned with previous UploadComponent
+  const acceptedFileTypes = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG'
+
+  // Map FileUpload files to the legacy fileList shape used by submit logic
+  const handleDesignSystemFilesChange = useCallback((files: Array<{ file: File | { name: string }; id: string }>) => {
+    const mapped = files
+      .filter(f => f.file instanceof File)
+      .map(f => ({
+        uid: f.id,
+        name: (f.file as File).name,
+        status: 'done',
+        originFileObj: f.file as File
+      }))
+    // Defer to avoid setState during child render
+    setTimeout(() => setFileList(mapped), 0)
+  }, [])
 
   // Normalize default values to match Select option value types (string ids)
   const normalizedDefaults: PersonalDataFormValues = useMemo(() => {
@@ -169,10 +191,23 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="flw_changePersonalData_screenContentLayout"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0 gba:[&>div[data-testid='change-personal-data']]:!px-0"
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0"
         data-testid="change-personal-data-form-content"
       >
         {/* moved upload below comment - removed from here */}
@@ -195,8 +230,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
               if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
                 const file: File = fileList[0].originFileObj as File
                 const employeeId =
+                  additionalData?.employeeId ||
                   additionalData?.psi_taskPayload?.employeeId ||
-                  additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+                  additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
                   data?.employee?.EmployeeByPk?.id ||
                   data?.employee?.EmployeeByPk?.employeeId
 
@@ -252,6 +288,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
           }}
           onSubmit={async (values: PersonalDataFormValues) => {
             const uploadedEmployeeDocumentId = values.employeeDocumentId || ''
+            const firstName = values.firstName || ''
+            const lastName = values.lastName || ''
+            const fullName = [firstName, lastName].filter(Boolean).join(' ')
             const payload = {
               event: 'pse_submit',
               employeeDocument: null,
@@ -263,10 +302,11 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 version: employee?.version ?? 0,
                 academicTitleRef: values.academicTitleRefs || [],
                 salutationRef: values.salutationRef || '',
-                firstName: values.firstName || '',
-                lastName: values.lastName || '',
+                firstName: firstName,
+                lastName: lastName,
                 preferredName: values.preferredName || '',
                 displayName: values.displayName || '',
+                fullName: fullName,
                 birthName: values.birthName || '',
                 birthDate: values.birthDate ? formatDateToISO(new Date(values.birthDate)) : '',
                 genderRef: values.genderRef || '',
@@ -285,7 +325,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 salutationRef: employee?.salutationRef || '',
                 firstName: employee?.firstName || '',
                 lastName: employee?.lastName || '',
-                displayName: employee?.displayName || '',
+                fullName: employee?.fullName || '',
                 preferredName: employee?.preferredName || '',
                 birthName: employee?.birthName || '',
                 birthDate: employee?.birthDate ? formatDateToISO(new Date(employee.birthDate)) : '',
@@ -296,7 +336,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 birthPlace: employee?.birthPlace || '',
                 severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? '',
                 schoolQualificationRef: employee?.schoolQualificationRef || '',
-                userId: employee?.userId || ''
+                userId: employee?.userId || '',
+                notes: employee?.notes || '',
+                title: employee?.title || ''
               }
             }
             return payload
@@ -305,7 +347,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="change-personal-data-groups">
             {/* Group 1: Names */}
-            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} />
+            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} setValue={form.setValue} />
 
             {/* Group 2: Birth and Gender (includes DOB & Place) */}
             <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />
@@ -326,17 +368,24 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
               catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }}
             />
 
-            {/* Upload (compact single-line), placed under comment */}
-            <UploadComponent
-              dataTestIdPrefix="flw_changePersonalData_uploadFile"
-              multiple={false}
-              fileList={fileList}
-              setFileList={setFileList}
-              labelText={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_absences.create_absence.upload_document',
-                'Upload document'
+            {/* Upload (nw-design-system)  */}
+            <FormField
+              name={'fileUpload'}
+              render={() => (
+                <FormItem>
+                  <div data-testid="flw_changePersonalData_uploadFile">
+                    <FileUpload
+                      multiple={false}
+                      maxFiles={1}
+                      accept={acceptedFileTypes}
+                      layout="list"
+                      preview="icon"
+                      onFilesChange={handleDesignSystemFilesChange as any}
+                    />
+                  </div>
+                </FormItem>
               )}
-            />
+            ></FormField>
           </div>
         </AppActionForm>
       </div>
@@ -345,12 +394,13 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
 }
 
 export const ChangePersonalData: React.FC<BusinessAppContextProps> = context => {
+  const locale = useMemo(() => getCurrentActiveUserLocale(), [])
   return (
-    <>
+    <LocalizationProvider locale={locale as any}>
       <ChangePersonalDataProvider {...context}>
         <ChangePersonalDataContent {...context} />
       </ChangePersonalDataProvider>
-    </>
+    </LocalizationProvider>
   )
 }
 

@@ -21,7 +21,6 @@ interface ExpenseDateRangeFilterProps {
 export const ExpenseDateRangeFilter: React.FC<ExpenseDateRangeFilterProps> = ({
   expenseDateRange,
   onDateRangeChange,
-  className = '',
   placeholder = [
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')

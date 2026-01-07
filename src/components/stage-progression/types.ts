@@ -26,23 +26,12 @@ export interface StageTooltipConfig {
 }
 
 // Styling configuration for the progression
+// @deprecated - Styling is now handled via Tailwind classes with design tokens
 export interface StageProgressionStyling {
   height?: string
   fontSize?: string
   fontWeight?: string
   borderRadius?: string
-  colors?: {
-    completed?: string
-    current?: {
-      border?: string
-      background?: string
-      text?: string
-    }
-    pending?: {
-      background?: string
-      text?: string
-    }
-  }
 }
 
 // Removed ActionMenu configuration - this should be handled by specific implementations
@@ -54,10 +43,8 @@ export interface StageProgressionProps {
   currentStage: string // Code or value of the current stage
 
   // Optional visual configuration
+  // @deprecated - Styling is now handled via Tailwind classes with design tokens
   styling?: StageProgressionStyling
-
-  // Optional stage completion percentage for progress visualization
-  getStageCompletionPercentage?: (stageCode: string) => number
 
   // Event handlers
   onStageClick?: (stage: Stage) => void
@@ -65,8 +52,13 @@ export interface StageProgressionProps {
   // Custom content
   renderStageContent?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean) => ReactNode
 
-  // Children render prop for custom stage wrapping (e.g., ActionMenu)
-  children?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean, stageElement: ReactNode) => ReactNode
+  // Render prop for custom stage wrapping (e.g., ActionMenu)
+  renderStageWrapper?: (
+    stage: Stage,
+    isCurrentStage: boolean,
+    isCompleted: boolean,
+    stageElement: ReactNode
+  ) => ReactNode
 
   // Data test id prefix
   dataTestIdPrefix?: string

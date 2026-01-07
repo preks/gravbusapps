@@ -57,7 +57,6 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   )
 
   const employee = data?.employee
-  const employeeFullName = `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim()
 
   const normalizedDefaults: AddSkillFormValues = useMemo(
     () => ({
@@ -203,17 +202,27 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
       data-testid="flw_addSkills_addSkillsContainer"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: Array.isArray(employee.employeePosition)
+                  ? employee.employeePosition?.[0]?.jobPosition?.name
+                  : (employee.employeePosition as any)?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='add-skill-form']]:!p-0 gba:[&>div[data-testid='add-skill-form']>form]:!max-w-[100%]"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='add-skill-form']]:!pt-0"
         data-testid="add-skill-form-content"
       >
-        {/* Header showing current employee name */}
-        <div className="gba:text-muted-foreground gba:font-bold gba:mb-2" data-testid="flw_addSkills_employeeText">
-          {employeeFullName}
-        </div>
-
         <AppActionForm
           processType="update"
           form={form as any}

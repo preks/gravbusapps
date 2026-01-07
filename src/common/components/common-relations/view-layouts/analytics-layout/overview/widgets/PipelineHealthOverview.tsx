@@ -7,7 +7,12 @@ import {
   CardDescription,
   IconAvatar,
   ChartConfig,
-  ChartContainer
+  ChartContainer,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
 import { PieChart, Pie, Cell } from 'recharts'
 import { HeartIcon } from '@phosphor-icons/react'
@@ -24,14 +29,24 @@ export interface PipelineHealthOverviewProps {
   error?: string | null
   data?: PipelineHealthMetrics | null
   moduleColor?: string
+  pipelines?: Array<{ id: string; name: string }>
+  selectedPipelineId?: string
+  onPipelineChange?: (pipelineId: string | undefined) => void
 }
 
 export const PipelineHealthOverview: React.FC<PipelineHealthOverviewProps> = ({
   isLoading,
   error,
   data,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  pipelines = [],
+  selectedPipelineId,
+  onPipelineChange
 }) => {
+  const handlePipelineChange = (value: string) => {
+    const pipelineId = value === 'all' ? undefined : value
+    onPipelineChange?.(pipelineId)
+  }
   const chartData = useMemo(() => {
     if (!data) return []
     // Pie chart data: progress and remaining portions
@@ -131,11 +146,45 @@ export const PipelineHealthOverview: React.FC<PipelineHealthOverviewProps> = ({
 
   return (
     <Card className="gba:h-full gba:flex gba:flex-col">
-      <CardHeader className="gba:flex gba:items-center gba:gap-3">
-        <IconAvatar icon={HeartIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
-        <div>
-          <CardTitle>Pipeline Health Overview</CardTitle>
-          <CardDescription>Overall pipeline performance</CardDescription>
+      <CardHeader>
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <IconAvatar
+              icon={HeartIcon}
+              variant={moduleColor as any}
+              size="md"
+              iconWeight="regular"
+              decorative={true}
+            />
+            <div>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                Pipeline Health Overview
+                {selectedPipelineId && (
+                  <span className="gba:text-sm gba:font-normal gba:text-gray-500">
+                    - {pipelines.find(p => p.id === selectedPipelineId)?.name || 'Selected Pipeline'}
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>Overall pipeline performance</CardDescription>
+            </div>
+          </div>
+          {pipelines.length > 0 && onPipelineChange && (
+            <div className="gba:min-w-48">
+              <Select value={selectedPipelineId || 'all'} onValueChange={handlePipelineChange}>
+                <SelectTrigger data-testid="pipeline-health-pipeline-selector">
+                  <SelectValue placeholder="Select pipeline" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Pipelines</SelectItem>
+                  {pipelines.map(pipeline => (
+                    <SelectItem key={pipeline.id} value={pipeline.id}>
+                      {pipeline.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="gba:flex gba:flex-1 gba:flex-col gba:gap-4">

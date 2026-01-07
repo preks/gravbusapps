@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { OnlineStatus, ONLINE_STATUS_COLORS } from './types'
 
 interface EmployeeAvatarStatusProps {
@@ -31,7 +30,7 @@ export function EmployeeAvatarStatus({ size, onlineStatus }: EmployeeAvatarStatu
         backgroundColor: statusColor,
         borderRadius: '50%',
         border: `${Math.max(2, size * 0.05)}px solid white`,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        boxShadow: '0 1px 3px var(--nw-shadow)',
         zIndex: 10
       }}
     />

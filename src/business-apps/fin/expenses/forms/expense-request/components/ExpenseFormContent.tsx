@@ -1,8 +1,7 @@
 import React from 'react'
 import { Form } from 'antd'
 import { InputField, SelectField, TextAreaField, CheckboxGroup } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from 'react-i18next'
-import { getCatalogValue } from '@/common/utils/windowUtils'
+import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TITLE_MAX_LENGTH, COMMENT_TEXTAREA_ROWS, REQUEST_TYPES } from '../constants/constants'
 interface ExpenseFormContentProps {
   form: any
@@ -30,8 +29,6 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
   setSelectedCostCenter,
   expenseCatalogueData = {}
 }) => {
-  const { t } = useTranslation()
-
   const transportationMeans = expenseCatalogueData?.expenseTransportationMeans || []
 
   return (
@@ -46,12 +43,16 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
         }}
         onFieldsChange={() => {
           const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-          setFormIsValid && setFormIsValid(isFormValidValue)
+          if (setFormIsValid) {
+            setFormIsValid(isFormValidValue)
+          }
         }}
         onValuesChange={() => {
           form.validateFields().catch(() => {})
           const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-          setFormIsValid && setFormIsValid(isFormValidValue)
+          if (setFormIsValid) {
+            setFormIsValid(isFormValidValue)
+          }
         }}
         validateTrigger={['onChange', 'onBlur']}
       >
@@ -63,14 +64,14 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               rules={[
                 {
                   required: true,
-                  message: t(
+                  message: getTranslationFromI18nKeyAndLabel(
                     'lowcoder:create_expense_request.expense_request_container.current_title_custom_rule',
                     'Please enter a title'
                   )
                 },
                 {
                   max: TITLE_MAX_LENGTH,
-                  message: t(
+                  message: getTranslationFromI18nKeyAndLabel(
                     'lowcoder:create_expense_request.maximum_characters_title_error_message',
                     'Maximum limit reached: The title can be up to 50 characters only.'
                   )
@@ -79,9 +80,12 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               style={{ marginBottom: 0 }}
             >
               <InputField
-                label={t('lowcoder:create_expense_request.expense_request_exceed_characters_error_message', 'Title')}
+                label={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_list.expense_plan_table.title',
+                  'Title'
+                )}
                 name="title"
-                placeholder={t(
+                placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_request.expense_request_container.current_title_placeholder',
                   'Enter Title'
                 )}
@@ -101,7 +105,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               rules={[
                 {
                   required: true,
-                  message: t(
+                  message: getTranslationFromI18nKeyAndLabel(
                     'lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule',
                     'Please select a cost center'
                   )
@@ -123,11 +127,11 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                   form.setFieldsValue({ costCenter: value.value })
                   setSelectedCostCenter?.(value.value as string)
                 }}
-                label={t(
+                label={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
                   'Cost Center'
                 )}
-                placeholder={t(
+                placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
                   'Select Cost Center'
                 )}
@@ -153,8 +157,14 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                   })) || []
                 }
                 onChange={(value: any) => form.setFieldsValue({ project: value.value })}
-                label={t('lowcoder:add_allowance_info_request.select_project', 'Project')}
-                placeholder={t('lowcoder:add_allowance_info_request.select_project_placeholder', 'Select Project')}
+                label={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:add_allowance_info_request.select_project',
+                  'Project'
+                )}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:add_allowance_info_request.select_project_placeholder',
+                  'Select Project'
+                )}
               />
             </Form.Item>
           </div>
@@ -167,8 +177,14 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               <TextAreaField
                 name="comment"
                 data-testid={`${testIdPrefix}-comment-textarea`}
-                label={t('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Comment')}
-                placeholder={t('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Enter Comment')}
+                label={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
+                  'Comment'
+                )}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area_enter',
+                  'Enter Comment'
+                )}
                 onChange={(field: any) => form.setFieldsValue({ comment: field.value })}
                 rows={COMMENT_TEXTAREA_ROWS}
               />
@@ -184,7 +200,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                 name="transportationMeans"
                 label={
                   <div style={{ paddingBottom: '15px', fontWeight: 500, fontStyle: 'normal', fontSize: '14px' }}>
-                    {t(
+                    {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:create_expense_request.expense_request_container.transportation_checkbox',
                       'Means of Transportation'
                     )}
@@ -200,8 +216,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                     value: item.id
                   }))}
                   onChange={(values: any) => form.setFieldsValue({ transportationMeans: values })}
-                  className="gba:flex gba:flex-col"
-                  style={{ gap: '15px', backgroundColor: '#ffffff' }}
+                  className="gba:flex gba:flex-col gba:gap-4 gba:bg-background"
                 />
               </Form.Item>
             </div>

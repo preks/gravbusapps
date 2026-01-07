@@ -40,7 +40,6 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
     setPayloadItemsLoaded,
     setPayloadItemIds
   } = useExpensePlanWizardContext()
-  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [selectedItemsToInitial, setSelectedItemsToInitial] = useState<any[]>([])
   const [initialCurrentPage, setInitialCurrentPage] = useState<number>(1)
   const [expenseTotals, setExpenseTotals] = useState<{ currency: string; amount: number }[]>([])
@@ -129,84 +128,112 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
     return expenseItems.slice(startIndex, endIndex)
   }, [expenseItems, initialCurrentPage, itemListLimit])
 
+  /**
+   * Extracts valid item IDs from payload
+   */
+  const extractPayloadItemIds = (additionalData: any): string[] => {
+    if (
+      !additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems ||
+      additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length === 0
+    ) {
+      return []
+    }
+
+    return additionalData.psi_taskPayload.psi_initialParameters.expenseItems
+      .filter((item: any) => item.itemId)
+      .map((item: any) => item.itemId)
+  }
+
+  /**
+   * Determines the currency to use for items
+   */
+  const determineItemCurrency = (currentCurrency: string, expensePlanData: any, additionalData: any): string => {
+    // Use current currency if available
+    if (currentCurrency) return currentCurrency
+
+    // Try expense plan currency
+    if (expensePlanData?.ExpensePlanByPk?.currencyRef) {
+      return expensePlanData.ExpensePlanByPk.currencyRef
+    }
+
+    // Try first expense item currency
+    if (expensePlanData?.ExpensePlanItem?.length > 0) {
+      return expensePlanData.ExpensePlanItem[0].currencyRef
+    }
+
+    // Try payload currency
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems?.length > 0) {
+      const itemWithCurrency = additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find(
+        (item: any) => item.itemId && item.currencyId
+      )
+      return itemWithCurrency?.currencyId || ''
+    }
+
+    return ''
+  }
+
+  /**
+   * Fetches and adds new items from payload
+   */
+  const fetchAndAddPayloadItems = async (newItemIds: string[], itemCurrency: string): Promise<void> => {
+    const userLocale = getCurrentActiveUserLocale()
+    const variables = {
+      employeeId,
+      status: REQUEST_STATUS.CREATED,
+      activeUserLocale: userLocale,
+      idsArray: newItemIds,
+      itemCurrency: itemCurrency
+    }
+
+    const response = await graphQLClient.request(fetchEmployeeExpenseItemsFromPayload, variables)
+    const payloadItems = response?.ExpenseItemEmployee || []
+
+    if (payloadItems.length === 0) return
+
+    const itemsToAdd = payloadItems.map((item: any) => ({ ...item }))
+    const currentItems = expensePlanData?.ExpensePlanItem || []
+    const updatedItems = [...currentItems, ...itemsToAdd]
+
+    setExpensePlanData({
+      ...expensePlanData,
+      ExpensePlanItem: updatedItems
+    })
+
+    setSelectedItemsToInitial((prev: any[]) => [...prev, ...itemsToAdd])
+    setPayloadItemsLoaded(true)
+  }
+
   useEffect(() => {
     const fetchItemsFromPayload = async () => {
+      // Early returns for invalid states
       if (payloadItemsLoaded) return
-      if (
-        additionalData &&
-        additionalData.psi_taskPayload &&
-        additionalData.psi_taskPayload.psi_initialParameters &&
-        additionalData.psi_taskPayload.psi_initialParameters.expenseItems &&
-        additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0
-      ) {
-        try {
-          setIsLoading(true)
-          const extractedPayloadItemIds = additionalData.psi_taskPayload.psi_initialParameters.expenseItems
-            .filter((item: any) => item.itemId)
-            .map((item: any) => item.itemId)
 
-          if (extractedPayloadItemIds.length === 0) return
-          setPayloadItemIds(extractedPayloadItemIds)
-          const existingItemIds = expensePlanData?.ExpensePlanItem?.map((item: any) => item.id) || []
-          const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id))
+      const extractedPayloadItemIds = extractPayloadItemIds(additionalData)
+      if (extractedPayloadItemIds.length === 0) return
 
-          if (newItemIds.length === 0) return
+      try {
+        setIsLoading(true)
+        setPayloadItemIds(extractedPayloadItemIds)
 
-          let itemCurrency = currentCurrency || ''
-          if (expensePlanData?.ExpensePlanByPk?.currencyRef) {
-            itemCurrency = expensePlanData.ExpensePlanByPk.currencyRef
-          } else if (expensePlanData?.ExpensePlanItem && expensePlanData?.ExpensePlanItem.length > 0) {
-            itemCurrency = expensePlanData.ExpensePlanItem[0].currencyRef
-          } else if (
-            additionalData.psi_taskPayload.psi_initialParameters.expenseItems &&
-            additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 &&
-            !currentCurrency
-          ) {
-            itemCurrency =
-              additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find(
-                (item: any) => item.itemId && item.currencyId
-              )?.currencyId || ''
-          }
+        // Filter out items that already exist
+        const existingItemIds = expensePlanData?.ExpensePlanItem?.map((item: any) => item.id) || []
+        const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id))
 
-          const userLocale = getCurrentActiveUserLocale()
+        if (newItemIds.length === 0) return
 
-          const variables = {
-            employeeId,
-            status: REQUEST_STATUS.CREATED,
-            activeUserLocale: userLocale,
-            idsArray: newItemIds,
-            itemCurrency: itemCurrency
-          }
-          const response = await graphQLClient.request(fetchEmployeeExpenseItemsFromPayload, variables)
-          const payloadItems = response?.ExpenseItemEmployee || []
-
-          if (payloadItems.length > 0) {
-            const itemsToAdd = payloadItems.map((item: any) => ({
-              ...item
-            }))
-
-            const currentItems = expensePlanData?.ExpensePlanItem || []
-            const updatedItems = [...currentItems, ...itemsToAdd]
-
-            setExpensePlanData({
-              ...expensePlanData,
-              ExpensePlanItem: updatedItems
-            })
-
-            setSelectedItemsToInitial((prev: any[]) => [...prev, ...itemsToAdd])
-            setPayloadItemsLoaded(true)
-          }
-        } catch (error) {
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:modify_expense_request.error_fetch_items_payload',
-              'Error fetching items from payload'
-            ),
-            'error'
-          )
-        } finally {
-          setIsLoading(false)
-        }
+        // Determine currency and fetch items
+        const itemCurrency = determineItemCurrency(currentCurrency, expensePlanData, additionalData)
+        await fetchAndAddPayloadItems(newItemIds, itemCurrency)
+      } catch {
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:modify_expense_request.error_fetch_items_payload',
+            'Error fetching items from payload'
+          ),
+          'error'
+        )
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -312,8 +339,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
             <Button
               variant="secondary"
               icon={<img src={ICONS.FOCUS} alt="Create" className="gba:w-4 gba:h-4" />}
-              className="gba:flex gba:items-center gba:gap-1"
-              style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight: 600 }}
+              className="gba:flex gba:items-center gba:gap-1 gba:bg-border gba:rounded-full gba:font-semibold"
               data-testid="create-item-button"
               onClick={e => {
                 e.stopPropagation()
@@ -327,7 +353,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
       )}
 
       <div
-        className="gba:bg-[#F7F7F7] gba:flex gba:flex-col gba:flex-grow gba:border-t gba:border-b gba:border-[#F7F7F7]"
+        className="gba:bg-muted gba:flex gba:flex-col gba:flex-grow gba:border-t gba:border-b gba:border-muted"
         data-testid="expense-plan-wizard-items-screen-content"
         style={{ flex: '1 1 auto', minHeight: expenseItems.length === 0 ? '50vh' : 'auto' }}
       >
@@ -371,7 +397,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
           </div>
         ) : (
           <div
-            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-[#F7F7F7] gba:gap-8"
+            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-muted gba:gap-8"
             data-testid="empty-items-container"
             style={{
               flex: '1 1 auto',

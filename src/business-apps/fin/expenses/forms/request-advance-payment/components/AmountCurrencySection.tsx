@@ -49,11 +49,8 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
       {/* Amount Field */}
       <div className="gba:flex-1 gba:bg-gray-100" data-testid="request-advance-payment-amount-field">
         <label className="gba:block gba:text-xs gba:font-medium gba:text-black gba:bg-gray-100 gba:px-3 gba:py-1 gba:rounded">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:calculation_allowance_code_list.calculation_allowance_code_modal.current_amount_label',
-            'Amount'
-          )}
-          <span className="gba:text-[#707070]"> *</span>
+          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount', 'Amount')}
+          <span className="gba:text-muted-foreground"> *</span>
         </label>
         <AmountInput
           value={amount}
@@ -75,7 +72,7 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
             'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
             'Currency'
           )}
-          <span className="gba:text-[#707070]"> *</span>
+          <span className="gba:text-muted-foreground"> *</span>
         </label>
         <Select
           value={currency}

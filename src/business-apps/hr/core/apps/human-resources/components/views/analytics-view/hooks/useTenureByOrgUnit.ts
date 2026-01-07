@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 /**
  * Interface for tenure ranges used in the heatmap
@@ -57,6 +59,7 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
+  const { t } = useTranslation(hrTranslations)
 
   // Get QueryExecutor client
   const queryClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
@@ -130,10 +133,10 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
         orgUnitCounts[item.orgUnitId] += item.count
       })
 
-      // Limit to top 20 organizational units with the most employees to improve chart rendering
+      // Limit to top organizational units with the most employees to improve chart rendering
       const topOrgUnitIds = Object.entries(orgUnitCounts)
         .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
-        .slice(0, 20)
+        .slice(0, 50)
         .map(entry => entry[0])
 
       console.log('[useTenureByOrgUnit] Top org units by employee count:', topOrgUnitIds.slice(0, 5))
@@ -192,10 +195,25 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
     }
   }, [fetchTenureDistribution])
 
+  // Localize tenure range labels
+  const localizedTenureRanges: TenureRange[] = tenureRanges.map(range => {
+    const label =
+      range.id === 'less-than-6m'
+        ? t('hr-analytics-tenure-lt-6-months')
+        : range.id === '6m-1y'
+          ? t('hr-analytics-tenure-6-12-months')
+          : range.id === '1y-2y'
+            ? t('hr-analytics-tenure-1-2-years')
+            : range.id === '2y-5y'
+              ? t('hr-analytics-tenure-2-5-years')
+              : t('hr-analytics-tenure-5-plus-years')
+    return { ...range, label }
+  })
+
   return {
     tenureDistribution,
     orgUnits,
-    tenureRanges,
+    tenureRanges: localizedTenureRanges,
     loading,
     error,
     refetch: fetchTenureDistribution

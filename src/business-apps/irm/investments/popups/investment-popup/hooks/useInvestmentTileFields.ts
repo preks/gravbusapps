@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
 // Interface for tile field definition from catalog
 export interface TileField {
@@ -28,10 +28,18 @@ export const useInvestmentTileFields = (context: BusinessAppContextProps, invest
 
   const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData(context)
 
+  // Helper to extract code from various formats
+  const extractCode = (ref: any): string | null => {
+    if (!ref) return null
+    if (typeof ref === 'string') {
+      return ref.includes(':') ? ref.split(':').pop() || null : ref
+    }
+    return ref.code || null
+  }
+
   // Extract investment group and type codes from investment data
   const getInvestmentCodes = useCallback(
     (investmentData: any): { groupCode: string | null; typeCode: string | null } => {
-      // Extract group code
       const groupRef =
         investmentData?.group ||
         investmentData?.investmentGroup ||
@@ -39,7 +47,6 @@ export const useInvestmentTileFields = (context: BusinessAppContextProps, invest
         investmentData?.investmentGroupRef ||
         investmentData?.groupId
 
-      // Extract type code
       const typeRef =
         investmentData?.investmentType ||
         investmentData?.type ||
@@ -47,35 +54,41 @@ export const useInvestmentTileFields = (context: BusinessAppContextProps, invest
         investmentData?.investmentTypeRef ||
         investmentData?.typeId
 
-      let groupCode = null
-      let typeCode = null
-
-      // Extract group code from format like "InvestmentGroup:v1:REAL_ESTATE"
-      if (groupRef) {
-        if (typeof groupRef === 'string' && groupRef.includes(':')) {
-          groupCode = groupRef.split(':').pop() || null
-        } else if (typeof groupRef === 'object' && groupRef.code) {
-          groupCode = groupRef.code
-        } else {
-          groupCode = groupRef
-        }
+      return {
+        groupCode: extractCode(groupRef),
+        typeCode: extractCode(typeRef)
       }
-
-      // Extract type code from format like "InvestmentType:v1:EQUITY_FUND"
-      if (typeRef) {
-        if (typeof typeRef === 'string' && typeRef.includes(':')) {
-          typeCode = typeRef.split(':').pop() || null
-        } else if (typeof typeRef === 'object' && typeRef.code) {
-          typeCode = typeRef.code
-        } else {
-          typeCode = typeRef
-        }
-      }
-
-      return { groupCode, typeCode }
     },
     []
   )
+
+  // Helper to extract tile fields from catalog entry
+  const getTileFieldsFromEntry = (entry: any): TileFieldsDefinition | null => {
+    const objectValue = entry?.objectValue as TileFieldsDefinition
+    return objectValue?.tileFields?.length ? objectValue : null
+  }
+
+  // Helper to find and extract tile fields from catalog
+  const findTileFieldsInCatalog = (
+    catalogData: any,
+    typeCode: string | null,
+    groupCode: string | null
+  ): TileFieldsDefinition | null => {
+    // Try investment type first
+    if (typeCode) {
+      const typeEntry = catalogData.investmentTypes.find((type: any) => type.code === typeCode)
+      const tileFields = getTileFieldsFromEntry(typeEntry)
+      if (tileFields) return tileFields
+    }
+
+    // Fallback to investment group
+    if (groupCode) {
+      const groupEntry = catalogData.investmentGroups.find((group: any) => group.code === groupCode)
+      return getTileFieldsFromEntry(groupEntry)
+    }
+
+    return null
+  }
 
   // Load tile fields definition from catalog
   const loadTileFields = useCallback(async () => {
@@ -85,38 +98,12 @@ export const useInvestmentTileFields = (context: BusinessAppContextProps, invest
     setError(null)
 
     try {
-      // Extract both group and type codes from investment
       const { groupCode, typeCode } = getInvestmentCodes(investment)
-
-      // Fetch catalog data
       const catalogData = await fetchInvestmentCatalogData()
+      const tileFieldsDefinition = findTileFieldsInCatalog(catalogData, typeCode, groupCode)
 
-      let tileFieldsDefinition: TileFieldsDefinition | null = null
-
-      // First, try to get tileFields from investment type
-      if (typeCode) {
-        const typeEntry = catalogData.investmentTypes.find((type: any) => type.code === typeCode)
-
-        if (typeEntry && typeEntry.objectValue && typeEntry.objectValue?.tileFields?.length > 0) {
-          tileFieldsDefinition = typeEntry.objectValue as TileFieldsDefinition
-        }
-      }
-
-      // Fallback to investment group if type doesn't have tileFields
-      if (!tileFieldsDefinition && groupCode) {
-        const groupEntry = catalogData.investmentGroups.find((group: any) => group.code === groupCode)
-
-        if (groupEntry && groupEntry.objectValue && groupEntry.objectValue?.tileFields?.length > 0) {
-          tileFieldsDefinition = groupEntry.objectValue as TileFieldsDefinition
-        }
-      }
-
-      // Process the tile fields
-      if (tileFieldsDefinition) {
-        const fields = tileFieldsDefinition.tileFields || []
-        // Sort by displayOrder
-        const sortedFields = [...fields].sort((a, b) => a.displayOrder - b.displayOrder)
-
+      if (tileFieldsDefinition?.tileFields) {
+        const sortedFields = [...tileFieldsDefinition.tileFields].sort((a, b) => a.displayOrder - b.displayOrder)
         setTileFields(sortedFields)
       } else {
         console.warn(`No tileFields found for investment. Group: ${groupCode}, Type: ${typeCode}`)

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Alert, Empty, Modal } from 'antd'
+import { Alert } from 'antd'
 import {
   Table,
   TableHeader,
@@ -12,11 +12,14 @@ import {
   Card,
   CardContent,
   Spinner,
-  Button,
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
@@ -29,6 +32,7 @@ import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileS
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
+import { TablePagination } from '../../../../../components'
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[]
@@ -113,8 +117,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    return search || selectedFilters.length > 0
+    const trimmedSearch = (search || '').trim()
+    return trimmedSearch !== '' || selectedFilters.length > 0
   }, [search, selectedFilters])
+
+  useEffect(() => {
+    if (!isLoading && totalCount > 0 && currentPage > 1 && onTableChange) {
+      const lastPage = Math.max(1, Math.ceil(totalCount / pageSize))
+      if (currentPage > lastPage) {
+        onTableChange({ current: lastPage, pageSize }, {}, { field: sortField, order: sortOrder })
+      }
+    }
+  }, [isLoading, totalCount, currentPage, pageSize, onTableChange, sortField, sortOrder])
 
   // Sync local search input with prop changes
   useEffect(() => {
@@ -129,7 +143,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     // Manage pagination transitions for search
     if (prev === '' && next !== '') {
       // Starting a new search → save current page and jump to page 1
-      if (onTableChange) {
+      if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
       savedPageBeforeSearchRef.current = currentPage
@@ -143,9 +157,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         )
       }
       savedPageBeforeSearchRef.current = null
-    } else if (next !== '' && currentPage !== 1) {
-      // While typing within search mode, keep on page 1
-      if (onTableChange) {
+    } else if (prev !== next && next !== '') {
+      // Search term changed while already in search mode → reset to first page
+      if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
     }
@@ -240,6 +254,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     [onTableChange]
   )
 
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      handleEnhancedTableChange(pagination, {}, {})
+    },
+    [handleEnhancedTableChange]
+  )
+
   // Memoize pagination configuration
   // Pagination config is constructed inline in JSX via handlers
 
@@ -293,7 +315,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         } else if (!result.success) {
           console.error('Error printing request:', result.error)
         }
-      } catch (error) {
+      } catch {
         console.error('Error fetching print PDF:', error)
       } finally {
         if (isMounted.current) {
@@ -318,31 +340,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       return <Alert message="Error" description={errorMessage} type="error" showIcon />
     }
 
-    // Show empty state only when not loading and there are no items
-    if (!isLoading && (!items || items.length === 0)) {
-      return <Empty description="No expense requests found matching your criteria." style={{ margin: '40px 0' }} />
-    }
-
-    // Always render the table, but use the loading prop to show loading state
-    // This keeps the table visible during loading for better UX
-
     return (
       <div className="expense-requests-table">
         <Card data-testid="expense-requests-table-container">
           <CardContent className="gba:p-0">
-            {isLoading && (
-              <div className="gba:flex gba:justify-center gba:p-4">
-                <Spinner />
-              </div>
-            )}
-
             <div className="gba:overflow-x-auto">
               <Table data-testid="expense-requests-data-table">
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
                     <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3" />
                     <TableHead
-                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                       onClick={() => handleSort('code')}
                       data-testid="expense-requests-code-header"
                     >
@@ -355,7 +363,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                       onClick={() => handleSort('title')}
                       data-testid="expense-requests-title-header"
                     >
@@ -365,7 +373,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                       onClick={() => handleSort('requestDate')}
                       data-testid="expense-requests-request-date-header"
                     >
@@ -378,7 +386,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                       onClick={() => handleSort('startDate')}
                       data-testid="expense-requests-start-date-header"
                     >
@@ -391,7 +399,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                       onClick={() => handleSort('endDate')}
                       data-testid="expense-requests-end-date-header"
                     >
@@ -404,7 +412,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                       onClick={() => handleSort('status')}
                       data-testid="expense-requests-status-header"
                     >
@@ -417,7 +425,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100 gba:text-right"
+                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100 gba:text-right"
                       onClick={() => handleSort('reimbursableAmount')}
                       data-testid="expense-requests-reimbursable-amount-header"
                     >
@@ -443,7 +451,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!items || items.length === 0) ? (
+                  {!isLoading && totalCount === 0 && (!items || items.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
@@ -453,7 +461,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                                 'No data available'
                               )
                             : getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:personal_expenses.no_expense_requests_found',
+                                'lowcoder:personal_expenses.no_expense_request_data',
                                 'No expense requests found. Create your first expense request to get started.'
                               )}
                         </div>
@@ -588,115 +596,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
             </div>
 
             {/* Pagination */}
-            {totalCount > pageSize ? (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-                data-testid="expense-requests-pagination"
-              >
-                <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_list.flows_button.expense_requests',
-                    'Expense Requests'
-                  )}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                    </p>
-                    <select
-                      value={pageSize}
-                      onChange={e =>
-                        handleEnhancedTableChange({ current: 1, pageSize: Number(e.target.value) }, {}, {})
-                      }
-                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                      data-testid="expense-requests-page-size-select"
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                  <div
-                    className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                    data-testid="expense-requests-page-info"
-                  >
-                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handleEnhancedTableChange({ current: 1, pageSize }, {}, {})}
-                      disabled={currentPage === 1}
-                      data-testid="expense-requests-first-page-button"
-                    >
-                      <span className="gba:sr-only">Go to first page</span>
-                      ⟨⟨
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
-                      disabled={currentPage === 1}
-                      data-testid="expense-requests-previous-page-button"
-                    >
-                      <span className="gba:sr-only">Go to previous page</span>⟨
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid="expense-requests-next-page-button"
-                    >
-                      <span className="gba:sr-only">Go to next page</span>⟩
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() =>
-                        handleEnhancedTableChange({ current: Math.ceil(totalCount / pageSize), pageSize }, {}, {})
-                      }
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid="expense-requests-last-page-button"
-                    >
-                      <span className="gba:sr-only">Go to last page</span>
-                      ⟩⟩
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-                data-testid="expense-requests-pagination-info-single-page"
-              >
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                  </p>
-                  <select
-                    value={pageSize}
-                    onChange={e => handleEnhancedTableChange({ current: 1, pageSize: Number(e.target.value) }, {}, {})}
-                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                    data-testid="expense-requests-page-size-select-single"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-            )}
+            <TablePagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={totalCount}
+              onPageChange={handleTablePaginationChange}
+              entityNamePlural={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_list.flows_button.expense_requests',
+                'Expense Requests'
+              )}
+              dataTestIdPrefix="expense-requests"
+            />
           </CardContent>
         </Card>
       </div>
@@ -721,7 +631,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   return (
     <>
       <DataContainer
-        sidebarScrollable={false}
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',
@@ -764,7 +673,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                 ? [
                     {
                       id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+                      title: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                        'Currency'
+                      ),
                       filters: currencyFilters
                     }
                   ]
@@ -790,7 +702,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         }
         data-testid="expense-request-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {selectedItem?.title ||
@@ -813,35 +725,48 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         </SheetContent>
       </Sheet>
 
-      {/* Print Modal */}
-      <Modal
-        title={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.print_expense_request',
-          'Print Expense Request'
-        )}
+      {/* Print Dialog using design system */}
+      <Dialog
         open={printModalOpen}
-        onCancel={() => setPrintModalOpen(false)}
-        footer={null}
-        width={800}
-        data-testid="expense-request-print-modal"
+        onOpenChange={open => {
+          setPrintModalOpen(open)
+          if (!open) {
+            setPrintPdfUrl('')
+          }
+        }}
       >
-        {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:p-8">
-            <Spinner />
-          </div>
-        ) : printPdfUrl ? (
-          <iframe
-            src={printPdfUrl}
-            style={{ width: '100%', height: '600px', border: 'none' }}
-            title="Expense Request PDF"
-            data-testid="expense-request-pdf-iframe"
-          />
-        ) : (
-          <div className="gba:text-center gba:p-8 gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')}
-          </div>
-        )}
-      </Modal>
+        <DialogContent
+          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
+          style={{ height: '90vh' }}
+          data-testid="expense-request-print-modal"
+        >
+          <DialogHeader className="gba:p-4">
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.print_expense_request',
+                'Print Expense Request'
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:p-8">
+              <Spinner />
+            </div>
+          ) : printPdfUrl ? (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:border-0"
+              style={{ height: 'calc(90vh - 55px)' }}
+              title="Expense Request PDF"
+              data-testid="expense-request-pdf-iframe"
+            />
+          ) : (
+            <div className="gba:text-center gba:p-8 gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 })

@@ -20,17 +20,6 @@ export interface QueryVariablesJobLevel {
   search?: string
 }
 
-const createSearchCondition = (search?: string, jobLevelId?: string): string => {
-  if (jobLevelId) return ''
-  if (!search) return ''
-  return `
-    , _or: [
-      { name: { _ilike: "%${search}%" } },
-      { code: { _ilike: "%${search}%" } }
-    ]
-  `
-}
-
 const GET_JOB_LEVELS_QUERY = `
   query GetJobLevels($search: String, $limit: Int, $offset: Int, $jobLevelId: uuid, $jobLevelGroupId: String) {
     JobLevel(

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardHeader, CardContent, CardTitle, Alert, Spinner } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardContent, CardTitle, Alert } from '@newwork/nw-design-system'
 import { DashboardStats } from '../types'
 import ComparisonCard from './ComparisonCard'
 import ExpenseDistribution from './ExpenseDistribution'
@@ -62,9 +62,16 @@ export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
   if (isLoading) {
     return (
       <Card className="gba:spending-overview-card" data-testid="spending-overview-loading">
-        <div className="gba:flex gba:justify-center gba:p-6">
-          <Spinner size="lg" />
-        </div>
+        <CardContent>
+          <div className="gba:py-8 gba:text-center">
+            <div className="gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.no_spending_data_available',
+                'No spending data available.'
+              )}
+            </div>
+          </div>
+        </CardContent>
       </Card>
     )
   }

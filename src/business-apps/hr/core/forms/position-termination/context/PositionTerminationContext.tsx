@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback } from 'react'
 import { usePositionTerminationData, PositionTerminationData } from '../hooks/usePositionTerminationData'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs, { Dayjs } from 'dayjs'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
@@ -33,9 +32,8 @@ export const usePositionTerminationContext = () => {
 export const PositionTerminationProvider: React.FC<{
   jobPositionId: string
   accessToken: string
-  userInfo?: BusinessAppContextProps['userInfo']
   children: React.ReactNode
-}> = ({ jobPositionId, accessToken, userInfo, children }) => {
+}> = ({ jobPositionId, accessToken, children }) => {
   // Use GraphQL hook to fetch position data
   const {
     data: position,

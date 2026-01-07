@@ -26,7 +26,7 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
       year,
       label: getYearLabel(year, currentYear),
       value,
-      color: idx === 0 ? '#3390ff' : '#bfc7d1'
+      color: idx === 0 ? 'var(--nw-chart-4)' : 'var(--nw-muted-foreground)'
     }
   })
 
@@ -165,7 +165,7 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
                 {row.types.map((type: { label: string; value: number; color: string }) => (
                   <span
                     key={type.label}
-                    className="gba:text-[#6b7683] gba:font-medium gba:text-[12px] gba:text-center gba:whitespace-nowrap"
+                    className="gba:text-muted-foreground gba:font-medium gba:text-xs gba:text-center gba:whitespace-nowrap"
                     data-testid="year-comparison-section-leave-type-legend-type"
                   >
                     {type.label}: {type.value}d

@@ -3,7 +3,7 @@
  * Displays a table of advance payments with filtering and view capabilities
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 import { useDebounce } from '@/common/hooks/useDebounce'
@@ -17,12 +17,6 @@ import {
   TableCell,
   Alert,
   Spinner,
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
   Card,
   CardContent,
   Sheet,
@@ -39,6 +33,7 @@ import { getAdvancePaymentStatusDisplay } from '../../../utils/utils'
 import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice'
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { TablePagination } from '../../../../../components'
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
@@ -267,6 +262,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     setPageSize(pagination.pageSize)
   }
 
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback((pagination: { current: number; pageSize: number }) => {
+    handleEnhancedTableChange(pagination)
+  }, [])
+
   const renderDataBody = useCallback(() => {
     if (isLoading && !payments?.length) {
       return (
@@ -279,19 +279,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     if (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return <Alert variant="destructive">{errorMessage}</Alert>
-    }
-
-    if (!payments || payments.length === 0) {
-      return (
-        <div className="gba:p-8 gba:text-center gba:text-muted-foreground">
-          <div>
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:advance_payment_table.no_advance_payments_found',
-              'No advance payments found matching the current filters. Clear all filters to see all payments.'
-            )}
-          </div>
-        </div>
-      )
     }
 
     return (
@@ -367,204 +354,183 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.map((record: any) => {
-                  const hasExpenseRequest =
-                    record.expensePlan &&
-                    Array.isArray(record.expensePlan.expenseRequest) &&
-                    record.expensePlan.expenseRequest.length > 0 &&
-                    record.expensePlan.expenseRequest[0]?.id
+                {!isLoading && totalCount === 0 && (!payments || payments.length === 0) ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="gba:py-8 gba:text-center">
+                      <div className="gba:text-gray-500">
+                        {hasActiveFilters
+                          ? getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
+                              'No data available'
+                            )
+                          : getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:backoffice_expense_landing_page.no_advance_payments_created_yet',
+                              'No advance payments created yet.'
+                            )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  payments.map((record: any) => {
+                    const hasExpenseRequest =
+                      record.expensePlan &&
+                      Array.isArray(record.expensePlan.expenseRequest) &&
+                      record.expensePlan.expenseRequest.length > 0 &&
+                      record.expensePlan.expenseRequest[0]?.id
 
-                  return (
-                    <TableRow
-                      key={record.id}
-                      onClick={(event: React.MouseEvent<HTMLTableRowElement>) => {
-                        const target = event.target as HTMLElement
-                        const isActionButton = target.closest('[data-testid*="actions"]')
-                        if (!isActionButton) {
-                          setSelectedItem(record)
-                        }
-                      }}
-                      className="gba:cursor-pointer gba:hover:bg-muted"
-                    >
-                      <TableCell className="gba:w-[60px]">
-                        <div
-                          className="gba:flex gba:justify-center gba:items-center"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <AppActionButton
-                            data-testid={`advance-payments-update-button-${record.id}`}
-                            size="icon"
-                            staticFlowData={[
-                              {
-                                category: getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:employee_list.flows_button.navigations',
-                                  'Navigations'
-                                ),
-                                key: 'view-advance-payment-details',
-                                label: getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:advance_payment_table.view_advance_payment_details',
-                                  'View Advance Payment Details'
-                                ),
-                                onClick: (e?: React.MouseEvent) => {
-                                  e?.stopPropagation()
-                                  setSelectedItem(record)
-                                }
-                              },
-                              {
-                                category: getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:employee_list.flows_button.navigations',
-                                  'Navigations'
-                                ),
-                                key: 'view-plan-details',
-                                label: getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-                                  'View Plan Details'
-                                ),
-                                onClick: (e?: React.MouseEvent) => {
-                                  e?.stopPropagation()
-                                  handleNavigateToPlanDetails(record)
-                                }
-                              },
-                              ...(hasExpenseRequest
-                                ? [
-                                    {
-                                      category: getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:employee_list.flows_button.navigations',
-                                        'Navigations'
-                                      ),
-                                      key: 'view-request-details',
-                                      label: getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                                        'View Request Details'
-                                      ),
-                                      onClick: (e?: React.MouseEvent) => {
-                                        e?.stopPropagation()
-                                        handleNavigateToRequestDetails(record)
+                    return (
+                      <TableRow
+                        key={record.id}
+                        onClick={(event: React.MouseEvent<HTMLTableRowElement>) => {
+                          const target = event.target as HTMLElement
+                          const isActionButton = target.closest('[data-testid*="actions"]')
+                          if (!isActionButton) {
+                            setSelectedItem(record)
+                          }
+                        }}
+                        className="gba:cursor-pointer gba:hover:bg-muted"
+                      >
+                        <TableCell className="gba:w-[60px]">
+                          <div
+                            className="gba:flex gba:justify-center gba:items-center"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <AppActionButton
+                              data-testid={`advance-payments-update-button-${record.id}`}
+                              size="icon"
+                              staticFlowData={[
+                                {
+                                  category: getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:employee_list.flows_button.navigations',
+                                    'Navigations'
+                                  ),
+                                  key: 'view-advance-payment-details',
+                                  label: getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:advance_payment_table.view_advance_payment_details',
+                                    'View Advance Payment Details'
+                                  ),
+                                  onClick: (e?: React.MouseEvent) => {
+                                    e?.stopPropagation()
+                                    setSelectedItem(record)
+                                  }
+                                },
+                                {
+                                  category: getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:employee_list.flows_button.navigations',
+                                    'Navigations'
+                                  ),
+                                  key: 'view-plan-details',
+                                  label: getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
+                                    'View Plan Details'
+                                  ),
+                                  onClick: (e?: React.MouseEvent) => {
+                                    e?.stopPropagation()
+                                    handleNavigateToPlanDetails(record)
+                                  }
+                                },
+                                ...(hasExpenseRequest
+                                  ? [
+                                      {
+                                        category: getTranslationFromI18nKeyAndLabel(
+                                          'lowcoder:employee_list.flows_button.navigations',
+                                          'Navigations'
+                                        ),
+                                        key: 'view-request-details',
+                                        label: getTranslationFromI18nKeyAndLabel(
+                                          'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+                                          'View Request Details'
+                                        ),
+                                        onClick: (e?: React.MouseEvent) => {
+                                          e?.stopPropagation()
+                                          handleNavigateToRequestDetails(record)
+                                        }
                                       }
-                                    }
-                                  ]
-                                : [])
-                            ]}
-                            prefixDataTestId="advance-payments-update"
-                            accessToken={props.accessToken}
-                            emptyStateBehavior="enable"
-                            deferMainContextRequestsUntilClick
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid="advance-payment-title-cell">
-                          {record.title || record.description || 'N/A'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid="advance-payment-reporter-cell">{record.employeeFullName || 'N/A'}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid="advance-payment-org-unit-cell">
-                          {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid="advance-payment-cost-center-cell">{record.costCenter?.name || 'N/A'}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid="advance-payment-plan-id-cell">{record.expensePlan?.code || 'N/A'}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid="advance-payment-status-cell">
-                          {(() => {
-                            const status = getAdvancePaymentStatusDisplay(record.status || 'N/A')
-                            return <Badge variant={(status as any).badgeVariant || 'outline'}>{status.label}</Badge>
-                          })()}
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-right">
-                        <span data-testid="advance-payment-amount-cell">
-                          {formatNumberFunction(String(record.expensePlan?.totalAmount ?? '0'))}{' '}
-                          {record.currency?.code || record.expensePlan?.currency?.code || ''}
-                        </span>
-                      </TableCell>
-                      <TableCell className="gba:text-right">
-                        <span data-testid="advance-payment-advance-cell">
-                          {formatNumberFunction(String(record.amount ?? '0'))}{' '}
-                          {record.currency?.code || record.expensePlan?.currency?.code || ''}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid="advance-payment-method-cell">
-                          {record.paymentMethod === 'DIRECT_DEPOSIT'
-                            ? getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-                                'Direct Deposit'
-                              )
-                            : record.paymentMethod
+                                    ]
+                                  : [])
+                              ]}
+                              prefixDataTestId="advance-payments-update"
+                              accessToken={props.accessToken}
+                              emptyStateBehavior="enable"
+                              deferMainContextRequestsUntilClick
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div data-testid="advance-payment-title-cell">
+                            {record.title || record.description || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div data-testid="advance-payment-reporter-cell">{record.employeeFullName || 'N/A'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div data-testid="advance-payment-org-unit-cell">
+                            {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div data-testid="advance-payment-cost-center-cell">{record.costCenter?.name || 'N/A'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div data-testid="advance-payment-plan-id-cell">{record.expensePlan?.code || 'N/A'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div data-testid="advance-payment-status-cell">
+                            {(() => {
+                              const status = getAdvancePaymentStatusDisplay(record.status || 'N/A')
+                              return <Badge variant={(status as any).badgeVariant || 'outline'}>{status.label}</Badge>
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="gba:text-right">
+                          <span data-testid="advance-payment-amount-cell">
+                            {formatNumberFunction(String(record.expensePlan?.totalAmount ?? '0'))}{' '}
+                            {record.currency?.code || record.expensePlan?.currency?.code || ''}
+                          </span>
+                        </TableCell>
+                        <TableCell className="gba:text-right">
+                          <span data-testid="advance-payment-advance-cell">
+                            {formatNumberFunction(String(record.amount ?? '0'))}{' '}
+                            {record.currency?.code || record.expensePlan?.currency?.code || ''}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div data-testid="advance-payment-method-cell">
+                            {record.paymentMethod === 'DIRECT_DEPOSIT'
                               ? getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-                                  'Cash Payment'
+                                  'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+                                  'Direct Deposit'
                                 )
-                              : 'N/A'}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
+                              : record.paymentMethod
+                                ? getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+                                    'Cash Payment'
+                                  )
+                                : 'N/A'}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
               </TableBody>
             </Table>
           </div>
 
           {/* Pagination */}
-          {totalCount > 0 && (
-            <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
-              <div className="gba:text-sm gba:text-muted-foreground">
-                {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
-              </div>
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize })}
-                      className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
-                    />
-                  </PaginationItem>
-                  {Array.from({ length: Math.ceil(totalCount / pageSize) }, (_, i) => i + 1)
-                    .filter(
-                      page =>
-                        page === 1 || page === Math.ceil(totalCount / pageSize) || Math.abs(page - currentPage) <= 1
-                    )
-                    .map((page, index, array) => (
-                      <React.Fragment key={page}>
-                        {index > 0 && array[index - 1] !== page - 1 && (
-                          <PaginationItem>
-                            <span className="gba:px-2">...</span>
-                          </PaginationItem>
-                        )}
-                        <PaginationItem>
-                          <PaginationLink
-                            onClick={() => handleEnhancedTableChange({ current: page, pageSize })}
-                            className={
-                              page === currentPage ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:cursor-pointer'
-                            }
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      </React.Fragment>
-                    ))}
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize })}
-                      className={
-                        currentPage >= Math.ceil(totalCount / pageSize)
-                          ? 'gba:pointer-events-none gba:opacity-50'
-                          : 'gba:cursor-pointer'
-                      }
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
+          <TablePagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={totalCount}
+            onPageChange={handleTablePaginationChange}
+            entityNamePlural={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:backoffice_expense_landing_page.advance_title',
+              'Advance Payments'
+            )}
+            dataTestIdPrefix="advance-payments"
+            showBorder={false}
+          />
         </CardContent>
       </Card>
     )
@@ -609,7 +575,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
           {/* Dropdown with search results */}
           {showReporterDropdown && reporterSearchText.trim() && (
-            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
+            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
               {renderReporterDropdownContent()}
             </div>
           )}
@@ -702,6 +668,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     ...(advanceMinFilter || advanceMaxFilter ? ['advance'] : [])
   ]
 
+  const hasActiveFilters = useMemo(() => {
+    const hasSearch = (searchText || '').trim() !== ''
+    return (
+      hasSearch ||
+      statusFilter.length > 0 ||
+      !!reporterFilter ||
+      !!amountMinFilter ||
+      !!amountMaxFilter ||
+      !!advanceMinFilter ||
+      !!advanceMaxFilter
+    )
+  }, [searchText, statusFilter, reporterFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter])
+
   const filterLabelMap: Record<string, string> = {
     status:
       statusFilter.length > 0
@@ -754,13 +733,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             'lowcoder:advance_payment_table.search_placeholder',
             'Search in Advance Payments'
           ),
-          filter: selectedFilters,
+          filter: totalCount === 0 && !isLoading ? [] : selectedFilters,
           setFilter: setFilters,
           filterLabelMap: filterLabelMap,
           actions: []
         }}
         dataFilterProps={{
-          filterGroups: filterGroups,
+          filterGroups,
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
         dataBody={renderDataBody()}
@@ -777,7 +756,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           )
         }
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
               {selectedItem?.title ||

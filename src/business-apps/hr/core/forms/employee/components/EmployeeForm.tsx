@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useEmployeeContext } from '../context/EmployeeContext'
-import { InputField, SelectField, Button, Select, Input } from '@newwork/gravity-ui-catalog'
+import { Button, Select, Input } from '@newwork/gravity-ui-catalog'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import Pill from '@/components/pill'
 
@@ -24,25 +24,21 @@ const EmployeeForm: React.FC = () => {
     // Organizational unit specific functionality
     searchOrganizationalUnits,
     loadMoreOrganizationalUnits,
-    hasMoreOrganizationalUnits,
     organizationalUnitsError,
     organizationalUnitsLoading,
     // Job position specific functionality
     searchJobPositions,
     loadMoreJobPositions,
-    hasMoreJobPositions,
     jobPositionsError,
     jobPositionsLoading,
     // Employment type specific functionality
     searchEmploymentTypes,
     loadMoreEmploymentTypes,
-    hasMoreEmploymentTypes,
     employmentTypesError,
     employmentTypesLoading,
     // Contract type specific functionality
     searchContractTypes,
     loadMoreContractTypes,
-    hasMoreContractTypes,
     contractTypesError,
     contractTypesLoading
   } = useEmployeeContext()
@@ -113,13 +109,15 @@ const EmployeeForm: React.FC = () => {
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6">
           {/* Personal Information Section */}
           <div className="gba:space-y-4">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
               Personal Information
             </h3>
 
             {/* First Name - Mandatory */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">First Name *</label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                First Name *
+              </label>
               <Input
                 name="firstName"
                 value={formValues.firstName}
@@ -131,7 +129,9 @@ const EmployeeForm: React.FC = () => {
 
             {/* Last Name - Mandatory */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">Last Name *</label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                Last Name *
+              </label>
               <Input
                 name="lastName"
                 value={formValues.lastName}
@@ -143,7 +143,9 @@ const EmployeeForm: React.FC = () => {
 
             {/* Email - Mandatory */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">Email *</label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                Email *
+              </label>
               <Input
                 name="email"
                 type="email"
@@ -154,20 +156,20 @@ const EmployeeForm: React.FC = () => {
                 status={!isEmailFieldValid ? 'error' : undefined}
               />
               {!isEmailFieldValid && (
-                <div className="gba:text-red-500 gba:text-sm gba:mt-1">Please enter a valid email address</div>
+                <div className="gba:text-destructive gba:text-sm gba:mt-1">Please enter a valid email address</div>
               )}
             </div>
           </div>
 
           {/* Employment Information Section */}
           <div className="gba:space-y-4">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
               Employment Information
             </h3>
 
             {/* Organizational Unit Selection - Mandatory */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                 Organizational Unit *
               </label>
               <Select
@@ -185,13 +187,15 @@ const EmployeeForm: React.FC = () => {
                 style={{ width: '100%' }}
               />
               {organizationalUnitsError && (
-                <div className="gba:text-red-500 gba:text-sm gba:mt-1">{organizationalUnitsError}</div>
+                <div className="gba:text-destructive gba:text-sm gba:mt-1">{organizationalUnitsError}</div>
               )}
             </div>
 
             {/* Job Position Selection - Mandatory */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">Job Position *</label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                Job Position *
+              </label>
               <Select
                 name="jobPositionId"
                 value={toStringOrUndefined(formValues.jobPositionId)}
@@ -239,9 +243,11 @@ const EmployeeForm: React.FC = () => {
                 style={{ width: '100%' }}
                 disabled={jobPositions.length === 0 && !jobPositionsLoading}
               />
-              {jobPositionsError && <div className="gba:text-red-500 gba:text-sm gba:mt-1">{jobPositionsError}</div>}
+              {jobPositionsError && (
+                <div className="gba:text-destructive gba:text-sm gba:mt-1">{jobPositionsError}</div>
+              )}
               {jobPositions.length === 0 && !jobPositionsLoading && !jobPositionsError && (
-                <div className="gba:text-gray-500 gba:text-sm gba:mt-1">
+                <div className="gba:text-muted-foreground gba:text-sm gba:mt-1">
                   {formValues.organizationalUnitId
                     ? 'No vacant positions available in the selected organizational unit'
                     : 'No vacant positions available'}
@@ -251,7 +257,9 @@ const EmployeeForm: React.FC = () => {
 
             {/* Hire Date - Optional */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">Hire Date</label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                Hire Date
+              </label>
               <Input
                 name="hireDate"
                 type="date"
@@ -263,13 +271,13 @@ const EmployeeForm: React.FC = () => {
           </div>
 
           {/* Additional Attributes - Collapsible Section */}
-          <div className="gba:border gba:border-gray-200 gba:rounded-lg">
+          <div className="gba:border gba:border-border gba:rounded-lg">
             <button
               type="button"
               onClick={() => setShowAdditionalAttributes(!showAdditionalAttributes)}
-              className="gba:w-full gba:px-4 gba:py-3 gba:text-left gba:flex gba:items-center gba:justify-between gba:bg-gray-50 gba:hover:bg-gray-100 gba:rounded-lg gba:transition-colors"
+              className="gba:w-full gba:px-4 gba:py-3 gba:text-left gba:flex gba:items-center gba:justify-between gba:bg-muted gba:hover:bg-muted gba:rounded-lg gba:transition-colors"
             >
-              <span className="gba:font-medium gba:text-gray-700">Additional Attributes</span>
+              <span className="gba:font-medium gba:text-muted-foreground">Additional Attributes</span>
               <span
                 className={`gba:transform gba:transition-transform ${showAdditionalAttributes ? 'gba:rotate-180' : ''}`}
               >
@@ -278,10 +286,10 @@ const EmployeeForm: React.FC = () => {
             </button>
 
             {showAdditionalAttributes && (
-              <div className="gba:p-4 gba:space-y-6 gba:border-t gba:border-gray-200">
+              <div className="gba:p-4 gba:space-y-6 gba:border-t gba:border-border">
                 {/* Preferred Name */}
                 <div>
-                  <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                  <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                     Preferred Name
                   </label>
                   <Input
@@ -295,7 +303,7 @@ const EmployeeForm: React.FC = () => {
                 {/* Employment Type */}
                 <div className="gba:space-y-3">
                   <div>
-                    <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                       Employment Type *
                     </label>
                     <Select
@@ -314,7 +322,7 @@ const EmployeeForm: React.FC = () => {
                       disabled={!toStringOrUndefined(formValues.jobPositionId)}
                     />
                     {employmentTypesError && (
-                      <div className="gba:text-red-500 gba:text-sm gba:mt-1">{employmentTypesError}</div>
+                      <div className="gba:text-destructive gba:text-sm gba:mt-1">{employmentTypesError}</div>
                     )}
                   </div>
                 </div>
@@ -322,7 +330,7 @@ const EmployeeForm: React.FC = () => {
                 {/* Contract Type */}
                 <div className="gba:space-y-3">
                   <div>
-                    <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                       Contract Type *
                     </label>
                     <Select
@@ -341,7 +349,7 @@ const EmployeeForm: React.FC = () => {
                       disabled={!toStringOrUndefined(formValues.jobPositionId)}
                     />
                     {contractTypesError && (
-                      <div className="gba:text-red-500 gba:text-sm gba:mt-1">{contractTypesError}</div>
+                      <div className="gba:text-destructive gba:text-sm gba:mt-1">{contractTypesError}</div>
                     )}
                   </div>
                 </div>
@@ -351,14 +359,14 @@ const EmployeeForm: React.FC = () => {
 
           {/* Error Display */}
           {error && (
-            <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
-              <div className="gba:text-red-800 gba:text-sm">{error}</div>
+            <div className="gba:bg-destructive-secondary gba:border gba:border-destructive gba:rounded-md gba:p-4">
+              <div className="gba:text-destructive gba:text-sm">{error}</div>
             </div>
           )}
         </div>
 
         {/* Submit Button - Fixed at bottom */}
-        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200">
+        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-border">
           <Button
             variant="primary"
             loading={loading}

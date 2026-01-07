@@ -1,9 +1,33 @@
-export interface CrmAnalyticsData {
+export interface IrmAnalyticsData {
   overview: OverviewAnalytics
+  overviewTrendData?: OverviewTrendData
+  overviewGeographicData?: Array<{ country: string; accounts: number }>
   leads: LeadsAnalytics
   accounts: AccountsAnalytics
-  opportunities: OpportunitiesAnalytics
-  contacts: ContactsAnalytics
+  opportunities?: OpportunitiesAnalytics // Optional: No longer populated by useIrmAnalyticsData (uses dedicated aggregate hooks instead)
+  contacts?: ContactsAnalytics // Optional: No longer populated by useIrmAnalyticsData (uses dedicated hooks instead)
+}
+
+export interface OverviewTrendData {
+  // Last 30 days vs Previous 30 days for entity counts
+  totalLeadsThisMonth: number
+  totalLeadsLastMonth: number
+  totalAccountsThisMonth: number
+  totalAccountsLastMonth: number
+  totalOpportunitiesThisMonth: number
+  totalOpportunitiesLastMonth: number
+  totalContactsThisMonth: number
+  totalContactsLastMonth: number
+  // Won opportunities trend
+  currentMonthWonOpportunities: number
+  previousMonthWonOpportunities: number
+  // Conversion metrics trend
+  currentMonthLeadConversionRate: number
+  previousMonthLeadConversionRate: number
+  currentMonthAvgDealSize: number
+  previousMonthAvgDealSize: number
+  currentMonthSalesCycleLength: number
+  previousMonthSalesCycleLength: number
 }
 
 export interface OverviewAnalytics {
@@ -124,6 +148,7 @@ export interface OpportunitiesAnalytics {
     percentage: number
   }[]
   opportunitiesByPipeline: {
+    pipelineId: string
     pipeline: string
     count: number
     value: number

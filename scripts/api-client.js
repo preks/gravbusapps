@@ -207,6 +207,35 @@ async function getResourceUrlByPath(urlPath, apiEndpoint = null, oauthConfig = {
 }
 
 /**
+ * Helper to detect LOWCODER screens by builderType
+ * @param {Object} screen
+ * @returns {boolean}
+ */
+function isLowcoderScreen(screen) {
+  const type = (screen?.screenComponents?.builderType || '').toUpperCase()
+  return type === 'LOWCODER'
+}
+
+/**
+ * Delete a screen by ID in Screen Management
+ * @param {string} screenId
+ * @param {string} apiEndpoint
+ * @param {Object} oauthConfig
+ */
+async function deleteScreenInScreenManagement(screenId, apiEndpoint = null, oauthConfig = {}) {
+  const oauthClient = new OAuthClient(oauthConfig)
+  const accessToken = await oauthClient.getAccessToken()
+  const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
+
+  await axios.delete(`${screenManagementApi}/screen/${screenId}`, {
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${accessToken}`
+    }
+  })
+}
+
+/**
  * Add an app resource URL to Navigation service
  * @param {string} azureDestinationPath - The path where the app is deployed
  * @param {boolean} addIfExistsResponse - Whether to respond if the URL exists
@@ -318,7 +347,8 @@ async function addScreenConfigToScreenManagement(
   customUrlPath,
   buildNumber = '',
   apiEndpoint = null,
-  oauthConfig = {}
+  oauthConfig = {},
+  options = {}
 ) {
   const generatedId = uuidv4()
 
@@ -328,16 +358,16 @@ async function addScreenConfigToScreenManagement(
     const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
 
     // Use new helper functions for proper screen naming and key generation
-    const name = formatScreenNameFromPath(customUrlPath)
-    const screenKey = generateScreenKeyFromPath(customUrlPath)
+    const name = options.nameOverride || formatScreenNameFromPath(customUrlPath)
+    const screenKey = options.screenKeyOverride || generateScreenKeyFromPath(customUrlPath)
 
     const payload = {
-      id: generatedId,
+      id: options.idOverride || generatedId,
       name: name,
       screenKey: screenKey,
-      namespaceCode: 'nw_dev',
-      namespaceId: '1e6e2926-33f1-4dfb-a3b8-d535602d06b0',
-      namespaceDescription: 'nw_dev',
+      namespaceCode: options.namespace?.namespaceCode || 'nw_dev',
+      namespaceId: options.namespace?.namespaceId || '1e6e2926-33f1-4dfb-a3b8-d535602d06b0',
+      namespaceDescription: options.namespace?.namespaceDescription || 'nw_dev',
       type: 'SCREEN',
       screenComponents: {
         appName: name,
@@ -445,11 +475,11 @@ async function updateScreenConfigInScreenManagement(screenId, updateData, apiEnd
     // Ensure required fields are present
     const payload = {
       id: screenId,
-      namespaceId: updateData.namespaceId || '1e6e2926-33f1-4dfb-a3b8-d535602d06b0',
-      namespaceCode: updateData.namespaceCode || 'nw_dev',
+      namespaceId: updateData.namespaceId,
+      namespaceCode: updateData.namespaceCode,
       screenKey: updateData.screenKey,
       name: updateData.name,
-      namespaceDescription: updateData.namespaceDescription || 'nw_dev',
+      namespaceDescription: updateData.namespaceDescription,
       createdAt: updateData.createdAt,
       createdBy: updateData.createdBy,
       updatedBy: updateData.updatedBy,
@@ -493,6 +523,72 @@ async function updateScreenConfigInScreenManagement(screenId, updateData, apiEnd
 }
 
 /**
+ * Update screen configuration with detailed result
+ * @returns {Promise<{success:boolean,status?:number,message?:string}>}
+ */
+async function updateScreenConfigInScreenManagementDetailed(
+  screenId,
+  updateData,
+  apiEndpoint = null,
+  oauthConfig = {}
+) {
+  try {
+    const oauthClient = new OAuthClient(oauthConfig)
+    const accessToken = await oauthClient.getAccessToken()
+    const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
+
+    const payload = {
+      id: screenId,
+      namespaceId: updateData.namespaceId,
+      namespaceCode: updateData.namespaceCode,
+      screenKey: updateData.screenKey,
+      name: updateData.name,
+      namespaceDescription: updateData.namespaceDescription,
+      createdAt: updateData.createdAt,
+      createdBy: updateData.createdBy,
+      updatedBy: updateData.updatedBy,
+      updatedAt: updateData.updatedAt || new Date().toISOString(),
+      isDeleted: updateData.isDeleted || false,
+      type: updateData.type || 'SCREEN',
+      screenComponents: {
+        key: updateData.screenComponents?.key,
+        name: updateData.screenComponents?.name,
+        builderType: updateData.screenComponents?.builderType || 'NATIVE_SCREEN',
+        appId: updateData.screenComponents?.appId,
+        appName: updateData.screenComponents?.appName,
+        formDefinition: updateData.screenComponents?.formDefinition || {},
+        flowIcon: updateData.screenComponents?.flowIcon || '',
+        release: updateData.screenComponents?.release || 'true'
+      }
+    }
+
+    try {
+      await axios.put(`${screenManagementApi}/screen/${screenId}`, payload, {
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${accessToken}`,
+          'content-type': 'application/json'
+        }
+      })
+      console.log(`✅ Screen config updated successfully for ID: ${screenId}`)
+      return { success: true }
+    } catch (error) {
+      const status = error?.response?.status
+      const message = error?.response?.data?.message || error.message
+      if (status === 404) {
+        console.log(`❌ Screen config not found for ID: ${screenId}`)
+      } else {
+        console.log(`❌ Error updating screen config for ID: ${screenId}`, message)
+      }
+      return { success: false, status, message }
+    }
+  } catch (error) {
+    console.error('❌ Failed to update screen config (detailed):', error.message)
+    return { success: false, message: error.message }
+  }
+}
+
+/**
  * Convert camelCase to natural language with spaces
  * @param {string} camelCase - The camelCase string to convert
  * @returns {string} Natural language with spaces
@@ -519,7 +615,8 @@ async function addFormAsLandingScreen(
   azureDestinationPath,
   buildNumber = '',
   apiEndpoint = null,
-  oauthConfig = {}
+  oauthConfig = {},
+  options = {}
 ) {
   const generatedId = uuidv4()
 
@@ -529,15 +626,15 @@ async function addFormAsLandingScreen(
     const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
 
     const name = camelCaseToNaturalLanguageWithWhiteSpaces(processName)
-    const screenKey = `frm_${processName}`
+    const screenKey = options.screenKeyOverride || `frm_${processName}`
 
     const payload = {
-      id: generatedId,
+      id: options.idOverride || generatedId,
       name: name,
       screenKey: screenKey,
-      namespaceCode: 'nw_dev',
-      namespaceId: '1e6e2926-33f1-4dfb-a3b8-d535602d06b0',
-      namespaceDescription: 'nw_dev',
+      namespaceCode: options.namespace?.namespaceCode || 'nw_dev',
+      namespaceId: options.namespace?.namespaceId || '1e6e2926-33f1-4dfb-a3b8-d535602d06b0',
+      namespaceDescription: options.namespace?.namespaceDescription || 'nw_dev',
       type: 'SCREEN',
       screenComponents: {
         appName: name,
@@ -822,11 +919,59 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
     const existingProdScreen = await getScreenByKey(devScreen.screenKey, prodScreenManagementApi, prodOauthConfig)
 
     if (existingProdScreen) {
-      // Update existing screen with new version
+      // Strict LOWCODER detection and deletion
+      if (isLowcoderScreen(existingProdScreen)) {
+        console.log('   🔎 LOWCODER screen detected - deleting before recreation')
+        await deleteScreenInScreenManagement(existingProdScreen.id, prodScreenManagementApi, prodOauthConfig)
+
+        // Build minimal creation payload without reusing dev ID to avoid server-side conflicts
+        const recreatePayload = {
+          name: devScreen.name,
+          screenKey: devScreen.screenKey,
+          namespaceId: devScreen.namespaceId,
+          namespaceCode: devScreen.namespaceCode,
+          namespaceDescription: devScreen.namespaceDescription,
+          type: 'SCREEN',
+          screenComponents: {
+            appName: devScreen.screenComponents?.appName || devScreen.name,
+            builderType: 'NATIVE_SCREEN',
+            key: devScreen.screenKey,
+            name: devScreen.name,
+            flowIcon: devScreen.screenComponents?.flowIcon || '',
+            formDefinition: {
+              componentPath: devScreen.screenComponents?.formDefinition?.componentPath,
+              version: buildVersion
+            },
+            release: 'true'
+          }
+        }
+
+        try {
+          // short delay to let deletion complete server-side
+          await new Promise(r => setTimeout(r, 300))
+          await axios.post(`${prodScreenManagementApi}/screen`, recreatePayload, {
+            headers: {
+              accept: 'application/json',
+              authorization: `Bearer ${accessToken}`,
+              'content-type': 'application/json'
+            }
+          })
+          console.log(`   ✅ Screen recreated in prod as NATIVE_SCREEN: ${devScreen.screenKey}`)
+          return { success: true, operation: 'create', screenId: devScreen.id }
+        } catch (error) {
+          console.error(`   ❌ Failed to recreate screen in prod: ${error.message}`)
+          return { success: false, operation: 'create', error: error.message }
+        }
+      }
+
       console.log(`   📝 Screen exists in prod (ID: ${existingProdScreen.id}), updating version to ${buildVersion}`)
 
       const updateData = {
         ...devScreen,
+        // Overwrite namespace with source (dev)
+        namespaceId: devScreen.namespaceId,
+        namespaceCode: devScreen.namespaceCode,
+        namespaceDescription: devScreen.namespaceDescription,
         screenComponents: {
           ...devScreen.screenComponents,
           builderType: 'NATIVE_SCREEN',
@@ -838,52 +983,91 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
         }
       }
 
-      const updateSuccess = await updateScreenConfigInScreenManagement(
+      const updateResult = await updateScreenConfigInScreenManagementDetailed(
         existingProdScreen.id,
         updateData,
         prodScreenManagementApi,
         prodOauthConfig
       )
 
-      if (updateSuccess) {
+      if (updateResult.success) {
         console.log(`   ✅ Screen updated in prod: ${devScreen.screenKey}`)
         return { success: true, operation: 'update', screenId: existingProdScreen.id }
-      } else {
-        console.error(`   ❌ Failed to update screen in prod: ${devScreen.screenKey}`)
-        return { success: false, operation: 'update', error: 'Screen update failed' }
       }
-    } else {
-      // Create new screen in prod with same ID as dev
-      console.log(`   🆕 Screen doesn't exist in prod, creating: ${devScreen.screenKey}`)
 
-      const payload = {
-        ...devScreen,
-        screenComponents: {
-          ...devScreen.screenComponents,
-          builderType: 'NATIVE_SCREEN',
-          formDefinition: {
-            ...devScreen.screenComponents.formDefinition,
-            version: buildVersion
-          },
-          release: 'true'
+      const message = (updateResult.message || '').toLowerCase()
+      if ([400, 409, 422].includes(updateResult.status) || message.includes('namespace')) {
+        console.log('   🔁 Update failed due to namespace mismatch → deleting and recreating')
+        try {
+          await deleteScreenInScreenManagement(existingProdScreen.id, prodScreenManagementApi, prodOauthConfig)
+          // Create without reusing dev ID or extra metadata
+          const createPayload = {
+            name: updateData.name,
+            screenKey: updateData.screenKey,
+            namespaceId: updateData.namespaceId,
+            namespaceCode: updateData.namespaceCode,
+            namespaceDescription: updateData.namespaceDescription,
+            type: 'SCREEN',
+            screenComponents: {
+              appName: updateData.screenComponents?.appName || updateData.name,
+              builderType: 'NATIVE_SCREEN',
+              key: updateData.screenComponents?.key || updateData.screenKey,
+              name: updateData.screenComponents?.name || updateData.name,
+              flowIcon: updateData.screenComponents?.flowIcon || '',
+              formDefinition: updateData.screenComponents?.formDefinition,
+              release: 'true'
+            }
+          }
+          await axios.post(`${prodScreenManagementApi}/screen`, createPayload, {
+            headers: {
+              accept: 'application/json',
+              authorization: `Bearer ${accessToken}`,
+              'content-type': 'application/json'
+            }
+          })
+          console.log(`   ✅ Screen recreated with source namespace in prod: ${devScreen.screenKey}`)
+          return { success: true, operation: 'recreate', screenId: devScreen.id }
+        } catch (error) {
+          console.error(`   ❌ Failed to recreate screen in prod after namespace mismatch: ${error.message}`)
+          return { success: false, operation: 'recreate', error: error.message }
         }
       }
 
-      try {
-        await axios.post(`${prodScreenManagementApi}/screen`, payload, {
-          headers: {
-            accept: 'application/json',
-            authorization: `Bearer ${accessToken}`,
-            'content-type': 'application/json'
-          }
-        })
+      console.error(`   ❌ Failed to update screen in prod: ${updateResult.message || 'Unknown error'}`)
+      return { success: false, operation: 'update', error: updateResult.message }
+    }
 
-        console.log(`   ✅ Screen created in prod: ${devScreen.screenKey}`)
-        return { success: true, operation: 'create', screenId: devScreen.id }
-      } catch (error) {
-        console.error(`   ❌ Failed to create screen in prod: ${error.message}`)
-        return { success: false, operation: 'create', error: error.message }
+    // Create new screen in prod with same ID as dev
+    console.log(`   🆕 Screen doesn't exist in prod, creating: ${devScreen.screenKey}`)
+
+    const payload = {
+      ...devScreen,
+      // Ensure builder type and version
+      screenComponents: {
+        ...devScreen.screenComponents,
+        builderType: 'NATIVE_SCREEN',
+        formDefinition: {
+          ...devScreen.screenComponents.formDefinition,
+          version: buildVersion
+        },
+        release: 'true'
       }
+    }
+
+    try {
+      await axios.post(`${prodScreenManagementApi}/screen`, payload, {
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${accessToken}`,
+          'content-type': 'application/json'
+        }
+      })
+
+      console.log(`   ✅ Screen created in prod: ${devScreen.screenKey}`)
+      return { success: true, operation: 'create', screenId: devScreen.id }
+    } catch (error) {
+      console.error(`   ❌ Failed to create screen in prod: ${error.message}`)
+      return { success: false, operation: 'create', error: error.message }
     }
   } catch (error) {
     console.error(`   ❌ Error syncing screen to prod: ${error.message}`)
@@ -907,5 +1091,9 @@ export {
   getAllNativeScreens,
   convertScreenKeyToUrl,
   syncResourceUrlWithSameId,
-  syncScreenFromDevToProd
+  syncScreenFromDevToProd,
+  // helpers for prod publish
+  isLowcoderScreen,
+  deleteScreenInScreenManagement,
+  updateScreenConfigInScreenManagementDetailed
 }

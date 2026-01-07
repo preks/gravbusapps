@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { useJobPositionListData, JobPosition } from './hooks/useJobPositionListData'
 import { useJobPositionFilters } from './hooks/useJobPositionFilters'
@@ -14,6 +13,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PlusSquareIcon } from '@/components/dataController/DataController'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
  * Job Position List page component. Renders the job position list module with a table view.
@@ -22,7 +22,6 @@ import { PlusSquareIcon } from '@/components/dataController/DataController'
  */
 export const JobPositionList: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
   const { accessToken } = props
-  const { t } = useTranslation()
   const [vacancyFilter, setVacancyFilter] = useState<ExtendedVacancyFilter>('vacant') // Default to vacant positions
   const [selectedJobPosition, setSelectedJobPosition] = useState<JobPosition | null>(null)
   const [currentPage, setCurrentPage] = useState<number>(1)
@@ -71,7 +70,11 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
       // Enable filters when user first interacts with them (lazy loading)
       enableFilters()
       // Use the appropriate function directly
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter, enableFilters]
   )
@@ -205,8 +208,13 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <PiBriefcase size={20} />
-                <span>{t('job_position.list_title', 'Job Positions')}</span>
-                <span className="gba:text-gray-500">({total})</span>
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.job_positions_section.tab_label',
+                    'Job Positions'
+                  )}
+                </span>
+                <span className="gba:text-muted-foreground">({total})</span>
               </div>
               <VacancyStatusToggle
                 value={vacancyFilter}
@@ -230,8 +238,8 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
                 <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
                   <PlusSquareIcon />
                 </span>
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  Add
+                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-foreground gba:flex-none order-1 gba:grow-0">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.add', 'Add')}
                 </span>
               </button>
             </AppActionMenu>

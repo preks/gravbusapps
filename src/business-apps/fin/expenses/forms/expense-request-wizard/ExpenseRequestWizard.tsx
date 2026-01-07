@@ -4,11 +4,9 @@ import { Button } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
-import { showToast } from '../../utils/notificationUtils'
 import { EVENTS } from '../../utils/constants'
 import { ICONS } from '../../utils/icons'
 import { useExpenseRequestDateValidation } from './utils/dateValidationUtils'
-import dayjs from 'dayjs'
 
 import { ExpenseRequestWizardProvider, useExpenseRequestWizardContext } from './context/ExpenseRequestWizardContext'
 import { SCREEN_NAMES_ENUM } from './constants/constants'
@@ -182,29 +180,21 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
     setIsEditingTitle(false)
   }
 
+  // useEffect for initial screen setup ONLY
+  const hasInitializedRef = React.useRef<boolean>(false)
   useEffect(() => {
-    setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
-  }, [expenseRequestData, isTrip, loading, additionalData])
-
-  const navigateToNextScreen = () => {
-    switch (currentScreen) {
-      case SCREEN_NAMES_ENUM.ITEMS_TAB:
-        if (!isTrip) setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB)
-        else setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB)
-        break
-      case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
-        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB)
-        break
-      case SCREEN_NAMES_ENUM.TRIPS_TAB:
-        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB)
-        break
-      case SCREEN_NAMES_ENUM.ALLOWANCE_TAB:
-        setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB)
-        break
-      default:
-        break
+    if (!loading && expenseRequestData && !hasInitializedRef.current) {
+      setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
+      hasInitializedRef.current = true
     }
-  }
+  }, [loading, expenseRequestData])
+
+  // Listen for process events (Next/Back button clicks) to navigate
+  useEffect(() => {
+    if (hasInitializedRef.current && expenseRequestData) {
+      setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
+    }
+  }, [additionalData])
 
   const navigateToPreviousScreen = () => {
     try {
@@ -273,6 +263,69 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
       default:
         return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />
     }
+  }
+
+  /**
+   * Renders the main content area based on loading and error states
+   */
+  const renderMainContent = () => {
+    if (loading) {
+      return (
+        <div
+          className="gba:flex gba:justify-center gba:items-center"
+          style={{ height: '100%' }}
+          data-testid="expense-request-wizard-loading"
+        >
+          {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+        </div>
+      )
+    }
+
+    if (expenseRuleError) {
+      return (
+        <div
+          style={{
+            backgroundColor: 'destructive-secondary',
+            padding: '16px 24px',
+            borderRadius: '4px',
+            marginBottom: '32px'
+          }}
+          data-testid="expense-request-wizard-error-container"
+        >
+          <h3
+            style={{ fontSize: '14px', fontWeight: 700, color: 'destructive', marginBottom: '8px' }}
+            data-testid="expense-request-wizard-error-title"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_request.invalid_profile_title',
+              'Validation Issue'
+            )}
+          </h3>
+          <p
+            style={{ fontSize: '14px', color: 'foreground', margin: 0 }}
+            data-testid="expense-request-wizard-error-message"
+          >
+            {expenseRuleError}
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div
+        className="gba:flex gba:flex-col"
+        data-testid="expense-request-wizard-screen-container"
+        style={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: '1 1 auto',
+          minHeight: '50vh'
+        }}
+      >
+        {renderCurrentScreen()}
+      </div>
+    )
   }
 
   if (loading) {
@@ -492,16 +545,19 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
               data-testid="expense-request-wizard-subtitle"
             >
               {currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_overview.expense_items.expense_items_title',
+                  'Expense Items'
+                )}
               {currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB &&
                 getTranslationFromI18nKeyAndLabel(
                   'lowcoder:add_items_to_plan.add_trip_info_to_plan.title',
                   'Trip Details'
                 )}
               {currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.allowances_subtitle', 'Allowances')}
+                getTranslationFromI18nKeyAndLabel('lowcoder:cards.allowances', 'Allowances')}
               {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.summary_subtitle', 'Summary')}
+                getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.summary', 'Summary')}
             </div>
           </div>
         </div>
@@ -518,50 +574,7 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
           minHeight: '50vh'
         }}
       >
-        {loading ? (
-          <div
-            className="gba:flex gba:justify-center gba:items-center"
-            style={{ height: '100%' }}
-            data-testid="expense-request-wizard-loading"
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
-          </div>
-        ) : expenseRuleError ? (
-          <div
-            style={{ backgroundColor: '#f8d8e4', padding: '16px 24px', borderRadius: '4px', marginBottom: '32px' }}
-            data-testid="expense-request-wizard-error-container"
-          >
-            <h3
-              style={{ fontSize: '14px', fontWeight: 700, color: '#ff0000', marginBottom: '8px' }}
-              data-testid="expense-request-wizard-error-title"
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_request.invalid_profile_title',
-                'Validation Issue'
-              )}
-            </h3>
-            <p
-              style={{ fontSize: '14px', color: '#595959', margin: 0 }}
-              data-testid="expense-request-wizard-error-message"
-            >
-              {expenseRuleError}
-            </p>
-          </div>
-        ) : (
-          <div
-            className="gba:flex gba:flex-col"
-            data-testid="expense-request-wizard-screen-container"
-            style={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              flex: '1 1 auto',
-              minHeight: '50vh'
-            }}
-          >
-            {renderCurrentScreen()}
-          </div>
-        )}
+        {renderMainContent()}
       </div>
 
       <div style={{ marginTop: 'auto', width: '100%' }} data-testid="expense-request-wizard-footer">
@@ -729,7 +742,6 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
  */
 const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = props => {
   const { accessToken, userInfo, additionalData } = props
-  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
 
   return (
     <ExpenseRequestWizardProvider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}>

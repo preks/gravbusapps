@@ -243,7 +243,6 @@ export const useEmployeeDemographicData = ({ accessToken }: UseEmployeeDemograph
 
   useEffect(() => {
     loadDemographicData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return {

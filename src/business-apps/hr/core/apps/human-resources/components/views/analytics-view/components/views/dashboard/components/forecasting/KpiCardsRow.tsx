@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, Spin } from 'antd'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WorkingConditionKpi, WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast'
 
@@ -29,9 +29,9 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
 
   const formatSalary = (value: number) => {
     if (value >= 1_000_000) {
-      return `${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}M`
+      return `${(value / 1_000_000).toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 2 })}M`
     }
-    return value.toLocaleString(undefined, { maximumFractionDigits: 0 })
+    return value.toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 0 })
   }
 
   const currentYear = today.getFullYear()
@@ -49,7 +49,7 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
     <Spin spinning={loading || payrollLoading}>
       <div className="gba:flex gba:flex-row gba:w-full gba:gap-4 gba:mb-6" data-testid="forecasting-kpi-row">
         <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-total-annual-payroll">
-          <div className="gba:text-xs gba:text-gray-500 gba:mb-1">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_annual_payroll', 'Total Annual Payroll')}
           </div>
           <div className="gba:text-2xl gba:font-bold gba:mb-1">
@@ -63,7 +63,7 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
           </div>
         </Card>
         <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-total-salary">
-          <div className="gba:text-xs gba:text-gray-500 gba:mb-1">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_salary', 'Total Monthly Salary')}
           </div>
           <div className="gba:text-2xl gba:font-bold gba:mb-1">
@@ -77,25 +77,25 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
           </div>
         </Card>
         <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-headcount">
-          <div className="gba:text-xs gba:text-gray-500 gba:mb-1">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_headcount', 'Current Headcount')}
           </div>
           <div className="gba:text-2xl gba:font-bold gba:mb-1">{headcount}</div>
         </Card>
         <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-ytd-hires">
-          <div className="gba:text-xs gba:text-gray-500 gba:mb-1">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_hires', 'YTD Hires')}
           </div>
-          <div className="gba:text-2xl gba:font-bold gba:text-green-600 gba:mb-1">+{ytdHires}</div>
+          <div className="gba:text-2xl gba:font-bold gba:text-success gba:mb-1">+{ytdHires}</div>
         </Card>
         <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-ytd-departures">
-          <div className="gba:text-xs gba:text-gray-500 gba:mb-1">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_departures', 'YTD Departures')}
           </div>
-          <div className="gba:text-2xl gba:font-bold gba:text-red-600 gba:mb-1">-{ytdDepartures}</div>
+          <div className="gba:text-2xl gba:font-bold gba:text-destructive gba:mb-1">-{ytdDepartures}</div>
         </Card>
         <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-next-month-forecast">
-          <div className="gba:text-xs gba:text-gray-500 gba:mb-1">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_next_month_forecast', 'Next Month Forecast')}
           </div>
           <div className="gba:text-2xl gba:font-bold gba:mb-1">
@@ -108,7 +108,7 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
                 {(() => {
                   const diff = nextMonthForecast - totalMonthlySalary
                   if (diff === 0) return null
-                  const diffClass = diff > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
+                  const diffClass = diff > 0 ? 'gba:text-success' : 'gba:text-destructive'
                   return (
                     <div className={`gba:text-xs ${diffClass} gba:mt-1`} data-testid="kpi-next-month-diff">
                       {diff > 0 ? '+' : ''}
@@ -121,7 +121,7 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
           </div>
         </Card>
         <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-six-month-forecast">
-          <div className="gba:text-xs gba:text-gray-500 gba:mb-1">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_six_month_forecast', '6-Month Forecast')}
           </div>
           <div className="gba:text-2xl gba:font-bold gba:mb-1">

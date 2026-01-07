@@ -41,6 +41,8 @@ const ORDERABLE_FIELDS = new Set([
   'forecastedProfitAmount',
   'debtFinancingAmount',
   'requiredCapitalAmount',
+  'irr',
+  'moic',
   // Nested fields (for validation)
   'investment.name',
   'investment.code',
@@ -191,7 +193,6 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
       orConditions.push(
         `{ loanRecipientName: ${searchPattern} }`,
         `{ fundManagerName: ${searchPattern} }`,
-        `{ identification: ${searchPattern} }`,
         `{ investment: { name: ${searchPattern} } }`,
         `{ investment: { code: ${searchPattern} } }`,
         `{ investment: { isin: ${searchPattern} } }`
@@ -255,13 +256,14 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
 
     // Investment-level filters (through relationship)
     // Consolidate ALL investment-related filters into single investment clause to avoid duplicate keys
-    const investmentFilters: string[] = []
-
-    // Add investment ID filter if provided
+    // Add investment ID filter if provided (direct field, not nested)
     if (variables.investmentIds?.length) {
       const safeInvestmentIds = variables.investmentIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ')
-      investmentFilters.push(`id: { _in: [${safeInvestmentIds}] }`)
+      conditions.push(`investmentId: { _in: [${safeInvestmentIds}] }`)
     }
+
+    // Investment relationship filters (nested)
+    const investmentFilters: string[] = []
 
     // Add investment type filter if provided
     if (variables.investmentTypeIds?.length) {

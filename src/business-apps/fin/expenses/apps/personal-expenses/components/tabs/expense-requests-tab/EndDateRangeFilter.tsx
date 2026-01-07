@@ -20,7 +20,6 @@ interface EndDateRangeFilterProps {
 export const EndDateRangeFilter: React.FC<EndDateRangeFilterProps> = ({
   endDateRange,
   onDateRangeChange,
-  className = '',
   placeholder = ['Start date', 'End date']
 }) => {
   // Convert Date objects to dayjs objects for the DatePicker

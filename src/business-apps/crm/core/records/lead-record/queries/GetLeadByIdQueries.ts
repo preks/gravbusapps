@@ -14,6 +14,16 @@ export interface GetLeadByIdResponse {
     email: string
     phoneNumber: string
     position: string
+    academicTitle?: {
+      id: string
+      value: string
+      code: string
+    }
+    salutation?: {
+      id: string
+      value: string
+      code: string
+    }
     leadSource?: {
       value: string
     }
@@ -28,6 +38,16 @@ export interface GetLeadByIdResponse {
       lastName: string
     }
     createdAt: string
+    communicationChannels?: Array<{
+      id: string
+      communicationChannelRef: string
+      value: string
+      communicationChannel?: {
+        id: string
+        code: string
+        value: string
+      }
+    }>
     companyName: string
     legalForm?: {
       id: string
@@ -46,6 +66,7 @@ export interface GetLeadByIdResponse {
     companyPhone: string
     addresses?: Array<{
       addressLine?: any
+      postalCode?: string
       city?: string
       country?: {
         id: string
@@ -83,6 +104,16 @@ export const GET_LEAD_BY_ID = `
       email
       phoneNumber
       position
+      academicTitle {
+        id
+        value
+        code
+      }
+      salutation {
+        id
+        value
+        code
+      }
       leadSource {
         value
       }
@@ -97,6 +128,16 @@ export const GET_LEAD_BY_ID = `
         lastName
       }
       createdAt
+      communicationChannels {
+        id
+        communicationChannelRef
+        value
+        communicationChannel {
+          id
+          code
+          value
+        }
+      }
       
       #COMPANY
       companyName
@@ -117,6 +158,7 @@ export const GET_LEAD_BY_ID = `
       companyPhone
       addresses {
         addressLine
+        postalCode
         city
         country {
           id

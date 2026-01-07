@@ -1,26 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert, Badge, Button } from '@newwork/nw-design-system'
 import {
-  FileTextOutlined,
-  FilePdfOutlined,
-  FileImageOutlined,
-  FileExcelOutlined,
-  FileWordOutlined,
-  FileOutlined,
-  FolderOpenOutlined,
-  DownloadOutlined,
-  EyeOutlined,
-  CaretRightOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
-  CalendarOutlined,
-  UserOutlined,
-  FolderAddOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  MoreOutlined
-} from '@ant-design/icons'
-import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Spinner,
+  Alert,
+  Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -31,10 +18,10 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem
+  DropdownMenuItem,
+  toast
 } from '@newwork/nw-design-system'
 import { Gear } from '@phosphor-icons/react'
-import { toast } from 'sonner'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { DataContainer } from '@/components/layout/dataContainer'
@@ -56,7 +43,27 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { useGetInvestmentDocumentsByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { useSearchInvestmentDocuments } from '@/common/data/investment/hooks/useSearchInvestmentDocuments'
-import { buildDocumentUrls } from '../utils/documentUrlUtils'
+import { buildFileUrl } from '@/common/utils/fileUtils'
+import {
+  AppstoreOutlined,
+  BarsOutlined,
+  CalendarOutlined,
+  CaretRightOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  EyeOutlined,
+  FileExcelOutlined,
+  FileImageOutlined,
+  FileOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  FileWordOutlined,
+  FolderAddOutlined,
+  FolderOpenOutlined,
+  MoreOutlined,
+  UserOutlined
+} from '@ant-design/icons'
 
 interface Document {
   id: string
@@ -75,7 +82,7 @@ interface Document {
     value: string
     code?: string
   } | null
-  file?: string | null
+  fileInfo?: any // FileInfo object with path property
   mimeType?: string | null
   fileSize?: number
   createdBy?: string | null
@@ -599,15 +606,15 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
   // Document utility functions moved to separate utils file
 
   const handleViewDocument = (document: Document) => {
-    if (!document.file) {
-      console.error('No file ID available for document:', document)
+    if (!document.fileInfo) {
+      console.error('No file information available for document:', document)
       toast.warning('No file available to view')
       return
     }
 
     try {
-      const { viewUrl } = buildDocumentUrls(document, opportunityId)
-      window.open(viewUrl, '_blank', 'rel=noopener noreferrer')
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank', 'rel=noopener noreferrer')
     } catch (error) {
       console.error('Error building document URL for view:', error)
       toast.error('Failed to open document')
@@ -615,20 +622,22 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
   }
 
   const handleDownloadDocument = (document: Document) => {
-    if (!document.file) {
-      console.error('No file ID available for document:', document)
+    if (!document.fileInfo) {
+      console.error('No file information available for document:', document)
       toast.warning('No file available to download')
       return
     }
 
     try {
-      const { downloadUrl, downloadFilename } = buildDocumentUrls(document, opportunityId)
+      const fileUrl = buildFileUrl(document.fileInfo)
+      const downloadFilename = document.name || 'document'
       const link = window.document.createElement('a')
-      link.href = downloadUrl
+      link.href = fileUrl
       link.download = downloadFilename
       window.document.body.appendChild(link)
       link.click()
       window.document.body.removeChild(link)
+      toast.success(`Downloading ${downloadFilename}`)
     } catch (error) {
       console.error('Error building document URL for download:', error)
       toast.error('Failed to download document')

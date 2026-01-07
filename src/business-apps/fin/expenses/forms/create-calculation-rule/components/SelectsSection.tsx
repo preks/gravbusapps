@@ -1,5 +1,5 @@
 import React from 'react'
-import { SelectField } from '@newwork/gravity-ui-catalog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SelectsSectionProps {
@@ -43,100 +43,114 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
 }) => {
   return (
     <>
-      <div className={`gba:mb-4`} data-testid="ccr-calculation-type-container">
-        <div className={`gba:relative`}>
-          <SelectField
-            allowClear
-            label={getTranslationFromI18nKeyAndLabel(
+      <div className="gba:mb-4" data-testid="ccr-calculation-type-container">
+        <div className="gba:space-y-2">
+          <Label htmlFor="ccrCalculationType">
+            {getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_label',
               'Rule Calculation'
-            )}
-            name="ccrCalculationType"
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_placeholder',
-              'Select Rule Calculation'
-            )}
-            data-testid="ccr-calculation-select"
-            data={calculationTypeOptions}
+            )}{' '}
+            *
+          </Label>
+          <Select
             value={calculationTypeId || undefined}
+            onValueChange={value => onChangeCalculation(value || null)}
             disabled={isUpdate}
-            onChange={(value: any) => onChangeCalculation(value?.value ?? null)}
-            onBlur={onBlurCalculation}
-            required
-          />
+          >
+            <SelectTrigger className="gba:w-full" data-testid="ccr-calculation-select" onBlur={onBlurCalculation}>
+              <SelectValue
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_placeholder',
+                  'Select Rule Calculation'
+                )}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {calculationTypeOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {showCalculationError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-calculation-error"
-            >
+            <div className="gba:text-sm gba:text-destructive" data-testid="ccr-calculation-error">
               {errors.calculationType}
             </div>
           )}
         </div>
       </div>
 
-      <div className={`gba:mb-4`} data-testid="ccr-country-container">
-        <div className={`gba:relative`}>
-          <SelectField
-            allowClear
-            label={getTranslationFromI18nKeyAndLabel(
+      <div className="gba:mb-4" data-testid="ccr-country-container">
+        <div className="gba:space-y-2">
+          <Label htmlFor="ccrCountry">
+            {getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_label',
               'Country'
-            )}
-            name="ccrCountry"
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_placeholder',
-              'Select Country'
-            )}
-            data-testid="ccr-country-select"
-            data={countryOptions}
+            )}{' '}
+            *
+          </Label>
+          <Select
             value={countryRefId || undefined}
+            onValueChange={value => onChangeCountry(value || null)}
             disabled={isUpdate}
-            onChange={(value: any) => onChangeCountry(value?.value ?? null)}
-            onBlur={onBlurCountry}
-            required
-          />
+          >
+            <SelectTrigger className="gba:w-full" data-testid="ccr-country-select" onBlur={onBlurCountry}>
+              <SelectValue
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_placeholder',
+                  'Select Country'
+                )}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {countryOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {showCountryError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-country-error"
-            >
+            <div className="gba:text-sm gba:text-destructive" data-testid="ccr-country-error">
               {errors.countryRefId}
             </div>
           )}
         </div>
       </div>
 
-      <div className={`gba:mb-4`} data-testid="ccr-currency-container">
-        <div className={`gba:relative`}>
-          <SelectField
-            allowClear
-            label={getTranslationFromI18nKeyAndLabel(
+      <div className="gba:mb-4" data-testid="ccr-currency-container">
+        <div className="gba:space-y-2">
+          <Label htmlFor="ccrCurrency">
+            {getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_label',
               'Currency'
-            )}
-            name="ccrCurrency"
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder',
-              'Select Currency'
-            )}
-            data-testid="ccr-currency-select"
-            data={currencyOptions}
-            isDataSorted={false}
+            )}{' '}
+            *
+          </Label>
+          <Select
             value={currencyId || undefined}
+            onValueChange={value => onChangeCurrency(value || null)}
             disabled={isUpdate}
-            onChange={(value: any) => onChangeCurrency(value?.value ?? null)}
-            onBlur={onBlurCurrency}
-            required
-          />
+          >
+            <SelectTrigger className="gba:w-full" data-testid="ccr-currency-select" onBlur={onBlurCurrency}>
+              <SelectValue
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder',
+                  'Select Currency'
+                )}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {currencyOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {showCurrencyError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-currency-error"
-            >
+            <div className="gba:text-sm gba:text-destructive" data-testid="ccr-currency-error">
               {errors.currencyId}
             </div>
           )}

@@ -11,8 +11,8 @@ interface OptimizedAbsenceTrendsProps extends BusinessAppContextProps {
 }
 
 const colorPalette = {
-  column: '#3498DB',
-  totalLine: '#34495E'
+  column: 'var(--nw-info)',
+  totalLine: 'var(--nw-foreground)'
 }
 
 const getMonthTranslation = (monthName: string): string => {
@@ -67,9 +67,9 @@ const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTyp
     serverAgg?.distinctEmployees != null ? serverAgg.distinctEmployees : monthData.uniqueEmployees || 0
 
   return (
-    <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow">
+    <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow">
       <p className="gba:font-medium gba:mb-2">{getMonthTranslation(label)}</p>
-      <p className="gba:text-sm gba:text-gray-600 gba:mb-2">
+      <p className="gba:text-sm gba:text-muted-foreground gba:mb-2">
         {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total', 'Total')}:{' '}
         {totalForMonth}{' '}
         {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absences', 'absences')}
@@ -89,7 +89,7 @@ const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTyp
         }
         return null
       })}
-      <div className="gba:text-sm gba:text-gray-500 gba:mt-2 gba:border-t gba:pt-2">
+      <div className="gba:text-sm gba:text-muted-foreground gba:mt-2 gba:border-t gba:pt-2">
         <p>
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_management_hub_backoffice.avg_requests_per_employee',
@@ -117,10 +117,7 @@ const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTyp
   )
 }
 
-const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
-  dashboardData,
-  onMonthClick
-}) => {
+const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboardData, onMonthClick }) => {
   const { monthlyData, isLoading, error } = dashboardData
 
   // No need for additional GraphQL calls - monthlyData already contains the aggregated data
@@ -233,7 +230,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
       return typeData.color
     }
 
-    return '#8884d8'
+    return 'var(--nw-chart-1)'
   }
 
   if (isLoading) {
@@ -250,7 +247,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
-            <div className="gba:text-gray-500">
+            <div className="gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.loading_trends_data',
                 'Loading optimized trends data...'
@@ -275,7 +272,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="gba:text-red-500 gba:text-center gba:py-8">
+          <div className="gba:text-destructive gba:text-center gba:py-8">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.error_loading_trends',
               'Error loading trends'
@@ -301,21 +298,21 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
 
         <div className="gba:flex gba:flex-col gba:items-start gba:gap-4 gba:mt-4">
           <div>
-            <div className="gba:text-3xl gba:font-bold gba:text-gray-900">{totalAbsenceRequests}</div>
-            <div className="gba:text-sm gba:text-gray-600">
+            <div className="gba:text-3xl gba:font-bold gba:text-foreground">{totalAbsenceRequests}</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.total_absences_current_filter',
                 'Total Absences (Current Filter)'
               )}
             </div>
-            <div className="gba:text-xs gba:text-gray-500">
+            <div className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total_days', 'Total Days')}
               : {totalAbsenceDays}
             </div>
           </div>
 
           <div className="gba:text-left">
-            <div className="gba:text-lg gba:font-semibold gba:text-blue-600">
+            <div className="gba:text-lg gba:font-semibold gba:text-info">
               {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.avg', 'Avg')}:{' '}
               {averagePerMonth}{' '}
               {getTranslationFromI18nKeyAndLabel(
@@ -323,7 +320,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
                 'days/month'
               )}
             </div>
-            <div className="gba:text-xs gba:text-gray-500">
+            <div className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.based_on_active_months',
                 'Based on'
@@ -334,7 +331,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
                 'active months'
               )}
             </div>
-            <div className="gba:text-xs gba:text-gray-500">
+            <div className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.overlap_note',
                 'Note: Monthly totals are overlap-based. A single request can appear in multiple months.'

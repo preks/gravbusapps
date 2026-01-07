@@ -1,104 +1,222 @@
-import { INVESTMENT_ACTIVITY } from './fragments/investmentRelationFragments'
+/**
+ * Investment Activity Queries (New)
+ * GraphQL queries for Investment Activity entities using fields mapping
+ * Uses Common Activity Queries with InvestmentActivityFields (no overrides needed)
+ */
 
-// Query variables interface
-export interface InvestmentActivityQueryVariables {
-  id?: string
-  offset?: number
-  limit?: number
-  search?: string
-  accountId?: string
-  contactId?: string
-  opportunityId?: string
-  leadId?: string
+import {
+  buildActivityQuery,
+  buildActivityByIdQuery,
+  buildActivitySearchQuery,
+  buildActivityWhereCondition,
+  buildActivityOrderBy,
+  buildActivityByLeadIdQuery,
+  buildActivityByAccountIdQuery,
+  buildActivityByContactIdQuery,
+  buildActivityByOpportunityIdQuery,
+  type CommonActivityQueryVariables,
+  type ActivityRelationBuilders,
+  type ActivityRelationFields
+} from '@/common/data/relations/queries/activityQueries'
+import { InvestmentActivityFields, INVESTMENT_ACTIVITY_DESCRIPTORS } from '../types/investmentActivityTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+
+// Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
+import {
+  buildAccountFragment,
+  buildContactFragment,
+  buildDocumentFragment,
+  buildLeadFragment,
+  buildOpportunityFragment
+} from '@/common/data/relations/queries/relationFragments'
+
+// Import Investment Fields
+import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
+import { InvestmentAccountFields } from '../types/investmentAccountTypes'
+import { InvestmentContactFields } from '../types/investmentContactTypes'
+import { InvestmentLeadFields } from '../types/investmentLeadTypes'
+import { InvestmentOpportunityFields } from '../types/investmentOpportunityTypes'
+
+/**
+ * Investment Activity Query Variables Interface
+ * Extends CommonActivityQueryVariables (no additional fields needed)
+ */
+export interface InvestmentActivityQueryVariables extends CommonActivityQueryVariables {
+  // Investment-specific: investmentId filter
+  investmentId?: string
+  investmentIds?: string[]
 }
 
-// Get investment activity by ID
-export const GET_INVESTMENT_ACTIVITY_BY_ID = (id: string): string => `
-  query GetInvestmentActivityById {
-    InvestmentActivity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-      ${INVESTMENT_ACTIVITY}
-      
-      # Entity references
-      investment {
-        id
-        code
-        name
-      }
-      account {
-        id
-        name
-      }
-      contact {
-        id
-        firstName
-        lastName
-      }
-      opportunity {
-        id
-        name
-      }
-      lead {
-        id
-        firstName
-        lastName
-      }
-    }
-  }
-`
+/**
+ * Build Investment Activity query with fields mapping
+ */
+export const buildInvestmentActivityQuery = (
+  fields: typeof InvestmentActivityFields = InvestmentActivityFields
+): string => {
+  return buildActivityQuery('InvestmentActivity', fields)
+}
 
-// Get investment activities with filtering
-export const GET_INVESTMENT_ACTIVITIES = (variables: InvestmentActivityQueryVariables = {}): string => {
-  const whereConditions = [`isDeleted: { _eq: false }`]
-
-  if (variables.id) {
-    whereConditions.push(`id: { _eq: "${variables.id}" }`)
+/**
+ * Build Investment Activity by ID query
+ */
+export const buildInvestmentActivityByIdQuery = (
+  fields: typeof InvestmentActivityFields = InvestmentActivityFields,
+  id: string
+): string => {
+  // Build relation builders and fields for common relations
+  const relationBuilders: ActivityRelationBuilders = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
   }
 
-  if (variables.accountId) {
-    whereConditions.push(`account: { id: { _eq: "${variables.accountId}" } }`)
+  const relationFields: ActivityRelationFields = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
   }
 
-  if (variables.contactId) {
-    whereConditions.push(`contact: { id: { _eq: "${variables.contactId}" } }`)
+  return buildActivityByIdQuery('InvestmentActivity', id, fields, relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Activity search query
+ */
+export const buildInvestmentActivitySearchQuery = (
+  fields: typeof InvestmentActivityFields = InvestmentActivityFields
+): string => {
+  return buildActivitySearchQuery('InvestmentActivity', fields)
+}
+
+/**
+ * Build WHERE condition for Investment Activity queries
+ * Uses INVESTMENT_ACTIVITY_DESCRIPTORS which includes common descriptors
+ */
+export const buildInvestmentActivityWhereCondition = (
+  variables: InvestmentActivityQueryVariables = {},
+  additionalDescriptors: Descriptor[] = [],
+  customConditions: Record<string, any>[] = []
+): Record<string, any> => {
+  // INVESTMENT_ACTIVITY_DESCRIPTORS already includes common descriptors
+  const descriptors = [...INVESTMENT_ACTIVITY_DESCRIPTORS, ...additionalDescriptors]
+  return buildActivityWhereCondition(variables, descriptors, customConditions)
+}
+
+/**
+ * Build ORDER BY for Investment Activity queries
+ * Uses INVESTMENT_ACTIVITY_DESCRIPTORS which includes common descriptors
+ */
+export const buildInvestmentActivityOrderBy = (
+  orderBy: InvestmentActivityQueryVariables['orderBy'] = [],
+  additionalDescriptors: Descriptor[] = []
+): any[] => {
+  // INVESTMENT_ACTIVITY_DESCRIPTORS already includes common descriptors
+  const descriptors = [...INVESTMENT_ACTIVITY_DESCRIPTORS, ...additionalDescriptors]
+  return buildActivityOrderBy(orderBy, descriptors)
+}
+
+// =====================================================
+// INVESTMENT ACTIVITY BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Investment Activity query filtered by Lead ID
+ * Uses common buildActivityByLeadIdQuery with Investment-specific fields and relations
+ */
+export const buildInvestmentActivityByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
   }
 
-  if (variables.opportunityId) {
-    whereConditions.push(`opportunity: { id: { _eq: "${variables.opportunityId}" } }`)
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
   }
 
-  if (variables.leadId) {
-    whereConditions.push(`lead: { id: { _eq: "${variables.leadId}" } }`)
+  return buildActivityByLeadIdQuery('InvestmentActivity', InvestmentActivityFields, relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Activity query filtered by Account ID
+ */
+export const buildInvestmentActivityByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
   }
 
-  if (variables.search?.trim()) {
-    const searchPattern = `%${variables.search.trim()}%`
-    whereConditions.push(`
-      _or: [
-        { title: { _ilike: "${searchPattern}" } }
-        { description: { _ilike: "${searchPattern}" } }
-      ]
-    `)
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
   }
 
-  const whereClause = `where: { ${whereConditions.join(', ')} }`
+  return buildActivityByAccountIdQuery('InvestmentActivity', InvestmentActivityFields, relationBuilders, relationFields)
+}
 
-  return `
-    query GetInvestmentActivities(
-      $offset: Int = ${variables.offset || 0}
-      $limit: Int = ${variables.limit || 20}
-    ) {
-      InvestmentActivity(
-        ${whereClause}
-        offset: $offset
-        limit: $limit
-      ) {
-        ${INVESTMENT_ACTIVITY}
-      }
-      InvestmentActivityAggregate {
-        aggregate {
-          count
-        }
-      }
-    }
-  `
+/**
+ * Build Investment Activity query filtered by Contact ID
+ */
+export const buildInvestmentActivityByContactIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildActivityByContactIdQuery('InvestmentActivity', InvestmentActivityFields, relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Activity query filtered by Opportunity ID
+ */
+export const buildInvestmentActivityByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildActivityByOpportunityIdQuery(
+    'InvestmentActivity',
+    InvestmentActivityFields,
+    relationBuilders,
+    relationFields
+  )
 }

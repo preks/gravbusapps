@@ -1,24 +1,29 @@
 export interface Employee {
   id: string
-  userId: string
   firstName: string
   lastName: string
-  pictureThumbnail: string
-  employeePosition: EmployeePosition
-}
-
-export interface EmployeePosition {
-  supervisor: Employee
-  jobPosition: JobPosition
-  organizationalUnit: OrganizationalUnit
-}
-
-export interface JobPosition {
-  name: string
-}
-
-export interface OrganizationalUnit {
-  name: string
+  pictureThumbnail?: string
+  employeePosition?: {
+    supervisor?: {
+      pictureThumbnail?: string
+      firstName?: string
+      lastName?: string
+      employeePosition?: {
+        jobPosition?: {
+          name?: string
+        }
+        organizationalUnit?: {
+          name?: string
+        }
+      }
+    }
+    jobPosition?: {
+      name: string
+    }
+    organizationalUnit?: {
+      name: string
+    }
+  }
 }
 
 export interface RequestType {
@@ -27,7 +32,6 @@ export interface RequestType {
 }
 
 export interface Currency {
-  value: string
   code: string
 }
 
@@ -43,24 +47,47 @@ export interface EmployeeDocument {
 }
 
 export interface ExpensePlan {
-  planDate: string
-  decisionDate: string
-  employeeDocument: EmployeeDocument
+  id: string
+  planDate?: string
+  decisionDate?: string
+  employeeDocument?: EmployeeDocument
   employee: Employee
   code: string
   requestType: RequestType
   currency: Currency
   totalAmount: number
   title: string
+  description?: string
+}
+
+export interface AdvancePaymentComment {
+  id: string
+  commentDate: string
+  comment: string
+  commentType: string
+  authorEmployee?: string
+  advancePayment?: string
 }
 
 export interface AdvancePaymentData {
+  id: string
   expensePlanId: string
-  status: string
-  version: number
   expensePlan: ExpensePlan
   amount: number
+  description?: string
   currency: Currency
   paymentMethod: string
   costCenter: CostCenter
+  code?: string
+  status?: string
+  decisionDate?: string
+  transactionDate?: string
+  transactionNumber?: string
+  transactionConfirmed?: boolean
+  transactionConfirmedByEmployee?: {
+    id: string
+    firstName: string
+    lastName: string
+  }
+  advancePaymentComment?: AdvancePaymentComment[]
 }

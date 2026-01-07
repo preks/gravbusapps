@@ -61,16 +61,14 @@ export const RecentAbsenceRequestsList: React.FC<RecentAbsenceRequestsListProps>
   // Generate consistent background colors for avatars
   const getAvatarBgColor = (name: string) => {
     const colors = [
-      '#6366f1',
-      '#8b5cf6',
-      '#ec4899',
-      '#ef4444',
-      '#f97316',
-      '#eab308',
-      '#22c55e',
-      '#10b981',
-      '#06b6d4',
-      '#3b82f6'
+      'var(--nw-chart-1)',
+      'var(--nw-chart-2)',
+      'var(--nw-chart-3)',
+      'var(--nw-chart-4)',
+      'var(--nw-chart-5)',
+      'var(--nw-chart-6)',
+      'var(--nw-chart-7)',
+      'var(--nw-chart-8)'
     ]
     const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
     return colors[hash % colors.length]
@@ -83,18 +81,6 @@ export const RecentAbsenceRequestsList: React.FC<RecentAbsenceRequestsListProps>
       return `${nameParts[0]}${nameParts[1].charAt(0)}@gmail.com`
     }
     return `${nameParts[0]}@gmail.com`
-  }
-
-  // Format date range
-  const formatDateRange = (startDate: string, endDate: string) => {
-    const start = dayjs(startDate)
-    const end = dayjs(endDate)
-
-    if (start.isSame(end, 'day')) {
-      return start.format('MMM D')
-    }
-
-    return `${start.format('MMM D')} - ${end.format('MMM D')}`
   }
 
   const handleCardClick = () => {
@@ -134,7 +120,7 @@ export const RecentAbsenceRequestsList: React.FC<RecentAbsenceRequestsListProps>
             )}
           </div>
         </div>
-        <RiTimeLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:ml-2" />
+        <RiTimeLine className="gba:h-6 gba:w-6 gba:text-muted-foreground gba:ml-2" />
       </div>
 
       <div className="gba:flex gba:flex-col gba:gap-2 gba:px-6 gba:pb-6">
@@ -155,10 +141,10 @@ export const RecentAbsenceRequestsList: React.FC<RecentAbsenceRequestsListProps>
 
                 {/* Name and Email */}
                 <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:leading-5 gba:text-left">
+                  <div className="gba:text-sm gba:font-medium gba:text-foreground gba:leading-5 gba:text-left">
                     {`${request.employee.firstName} ${request.employee.lastName}`}
                   </div>
-                  <div className="gba:text-xs gba:text-gray-500 gba:leading-4 gba:mt-1 gba:text-left">
+                  <div className="gba:text-xs gba:text-muted-foreground gba:leading-4 gba:mt-1 gba:text-left">
                     {generateEmail(`${request.employee.firstName} ${request.employee.lastName}`)}
                   </div>
                 </div>
@@ -166,10 +152,10 @@ export const RecentAbsenceRequestsList: React.FC<RecentAbsenceRequestsListProps>
 
               {/* Right side: Creation date and days */}
               <div className="gba:flex gba:flex-col gba:items-end gba:gap-1">
-                <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:text-right">
+                <div className="gba:text-sm gba:font-medium gba:text-foreground gba:text-right">
                   {dayjs(request.createdAt).format('MMM D')}
                 </div>
-                <div className="gba:text-xs gba:text-gray-500 gba:text-right">
+                <div className="gba:text-xs gba:text-muted-foreground gba:text-right">
                   {request.effectiveDays}{' '}
                   {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.days', 'days')}
                 </div>

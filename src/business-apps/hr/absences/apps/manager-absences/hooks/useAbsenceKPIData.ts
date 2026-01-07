@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { AbsenceFilters } from '../types'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const GET_EMPLOYEE_ABSENCES_FOR_KPI = `
@@ -119,7 +118,7 @@ interface KPIData {
   }>
 }
 
-export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: AbsenceFilters) => {
+export const useAbsenceKPIData = (context: BusinessAppContextProps) => {
   const { accessToken, userInfo } = context
   const [data, setData] = useState<KPIData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -171,7 +170,7 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       const groupObjectValue = absence.type.parentEntry.objectValue
       const rawColor = groupObjectValue?.color
 
-      let color = '#8884d8'
+      let color = 'var(--nw-chart-1)'
       if (rawColor) {
         color = rawColor.startsWith('#') ? rawColor : `#${rawColor}`
       }
@@ -254,7 +253,7 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
     const groupColors: { [key: string]: string } = {}
     currentYearAbsences.forEach(absence => {
       const groupName = absence.type.groupName || 'Unknown'
-      const color = absence.type.color || '#8884d8'
+      const color = absence.type.color || 'var(--nw-chart-1)'
 
       if (!groupTotals[groupName]) groupTotals[groupName] = 0
       groupTotals[groupName] += absence.calendarDays || 0
@@ -268,7 +267,7 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
     const pieChartData = sortedPieEntries.map(([name, value]) => ({
       name,
       value,
-      color: groupColors[name] || '#8884d8'
+      color: groupColors[name] || 'var(--nw-chart-1)'
     }))
 
     const employeeAbsences: {

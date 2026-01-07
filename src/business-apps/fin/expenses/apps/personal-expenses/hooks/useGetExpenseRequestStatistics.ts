@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { GET_EXPENSE_REQUEST_STATISTICS } from '../queries/expenseRequests'
-import { env } from '@/common/env/EnvUtils'
+import { GET_EXPENSE_REQUEST_STATISTICS_CONSOLIDATED } from '../queries/expenseRequests'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface ExpenseRequestStatisticsData {
   currentMonthTotal: number
@@ -26,6 +26,7 @@ export const useGetExpenseRequestStatistics = (
 ): ExpenseRequestStatisticsDataView => {
   const accessToken = context?.accessToken
   const employeeId = context?.userInfo?.employeeDetails?.employeeId
+  const graphqlClient = useGraphQLClient(accessToken || '')
   const [statistics, setStatistics] = useState<ExpenseRequestStatisticsData>({
     currentMonthTotal: 0,
     previousMonthTotal: 0,
@@ -34,7 +35,8 @@ export const useGetExpenseRequestStatistics = (
     pendingApproval: 0,
     reimbursableAmount: 0
   })
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  // Start in "not loading" state; we only show skeletons while an actual request is in flight.
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<Error | null>(null)
 
   const fetchStatistics = useCallback(async () => {
@@ -55,47 +57,29 @@ export const useGetExpenseRequestStatistics = (
       const previousMonthStart = now.subtract(1, 'month').startOf('month').format('YYYY-MM-DD HH:mm:ss')
       const previousMonthEnd = now.subtract(1, 'month').endOf('month').format('YYYY-MM-DD HH:mm:ss')
 
-      const fetchCount = async (startDate: string, endDate: string) => {
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query: GET_EXPENSE_REQUEST_STATISTICS,
-            variables: {
-              employeeId,
-              startDate,
-              endDate,
-              currencyRef
-            }
-          })
-        })
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-        const result = await response.json()
-        if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(', '))
-        const count = result.data?.ExpenseRequestAggregate?.aggregate?.count ?? 0
-        const totalAmount = result.data?.ExpenseRequestAggregate?.aggregate?.sum?.totalAmount ?? 0
-        const pendingApproval = result.data?.PendingApproval?.aggregate?.count ?? 0
-        const reimbursableAmount = result.data?.ReimbursableAmount?.aggregate?.sum?.reimbursableAmount ?? 0
+      const data = await graphqlClient.request<any>(GET_EXPENSE_REQUEST_STATISTICS_CONSOLIDATED, {
+        employeeId,
+        currentStart: currentMonthStart,
+        currentEnd: currentMonthEnd,
+        previousStart: previousMonthStart,
+        previousEnd: previousMonthEnd,
+        currencyRef
+      })
 
-        return { count, totalAmount, pendingApproval, reimbursableAmount }
-      }
-
-      // Fetch all statistics in parallel
-      const [currentMonthData, previousMonthData] = await Promise.all([
-        fetchCount(currentMonthStart, currentMonthEnd),
-        fetchCount(previousMonthStart, previousMonthEnd)
-      ])
+      const currentCount = data?.Current?.aggregate?.count ?? 0
+      const currentAmount = data?.Current?.aggregate?.sum?.totalAmount ?? 0
+      const previousCount = data?.Previous?.aggregate?.count ?? 0
+      const previousAmount = data?.Previous?.aggregate?.sum?.totalAmount ?? 0
+      const pendingApproval = data?.PendingApproval?.aggregate?.count ?? 0
+      const reimbursableAmount = data?.ReimbursableAmount?.aggregate?.sum?.reimbursableAmount ?? 0
 
       setStatistics({
-        currentMonthTotal: currentMonthData.count,
-        previousMonthTotal: previousMonthData.count,
-        currentMonthAmount: currentMonthData.totalAmount,
-        previousMonthAmount: previousMonthData.totalAmount,
-        pendingApproval: currentMonthData.pendingApproval,
-        reimbursableAmount: currentMonthData.reimbursableAmount
+        currentMonthTotal: currentCount,
+        previousMonthTotal: previousCount,
+        currentMonthAmount: currentAmount,
+        previousMonthAmount: previousAmount,
+        pendingApproval,
+        reimbursableAmount
       })
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)))
@@ -110,7 +94,7 @@ export const useGetExpenseRequestStatistics = (
     } finally {
       setIsLoading(false)
     }
-  }, [employeeId, accessToken, currencyRef])
+  }, [employeeId, accessToken, currencyRef, graphqlClient])
 
   return { statistics, isLoading, error: error?.message ?? null, fetchStatistics }
 }

@@ -1,42 +1,19 @@
-import { Textarea, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
-import { Control, FieldValues, Path } from 'react-hook-form'
+import React from 'react'
+import { Textarea } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { DynamicFieldDefinition } from '../DynamicFormField'
 
-interface TextAreaFieldProps<TFieldValues extends FieldValues = FieldValues> {
-  field: DynamicFieldDefinition
+type TextAreaFieldProps = React.ComponentProps<typeof Textarea> & {
   fieldName: string
-  control: Control<TFieldValues>
   testIdPrefix: string
 }
 
-export function TextAreaField<TFieldValues extends FieldValues = FieldValues>({
-  field,
-  fieldName,
-  control,
-  testIdPrefix
-}: TextAreaFieldProps<TFieldValues>) {
+export function TextAreaField({ fieldName, testIdPrefix, value, placeholder, ...props }: TextAreaFieldProps) {
   return (
-    <FormField
-      key={fieldName}
-      control={control}
-      name={fieldName as Path<TFieldValues>}
-      render={({ field: formField }) => (
-        <FormItem>
-          <FormLabel>
-            {field.label} {field.required && <span className="gba:text-destructive">*</span>}
-          </FormLabel>
-          <FormControl>
-            <Textarea
-              {...formField}
-              value={formField.value || ''}
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-              data-testid={formatDataTestId(testIdPrefix, `${fieldName}Textarea`)}
-            />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
+    <Textarea
+      {...props}
+      value={value || ''}
+      placeholder={placeholder}
+      data-testid={formatDataTestId(testIdPrefix, `${fieldName}Textarea`)}
     />
   )
 }

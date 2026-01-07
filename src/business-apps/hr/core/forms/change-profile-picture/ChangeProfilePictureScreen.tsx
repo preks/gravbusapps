@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Spinner } from '@newwork/nw-design-system'
+import { Spinner, AvatarUpload } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -7,47 +7,76 @@ import flowSmall from '@/assets/icons/flowSmall.svg'
 import { useGetEmployeePicture } from './queries/ChangeProfilePictureQueries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-
-interface ChangeProfilePictureScreenProps extends BusinessAppContextProps {}
+import FormHeader from '../components/FormHeader'
 
 const prefixDataTestId = 'ChangeProfilePictureScreen'
 
-const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
-  additionalData,
-  userInfo,
-  accessToken
-}) => {
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+const extractBase64Data = (dataUrl: string | null): string | null => {
+  if (!dataUrl) return null
+  const commaIndex = dataUrl.indexOf(',')
+  return commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl
+}
+
+type AvatarUploadValue = {
+  file: File | null
+  thumbnail: string | null
+}
+
+import { EmployeeInfo } from '../components/FormHeader'
+
+const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isImageLoading, setIsImageLoading] = useState<boolean>(true)
   const [currentVersion, setCurrentVersion] = useState<number | null>(null)
+  const [changedFile, setChangedFile] = useState<AvatarUploadValue | null>(null)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
+  const onChangeExecutionsRef = useRef<number>(0)
 
   const currentImageUrl = useMemo(() => {
     const avatar = (additionalData as any)?.psi_taskPayload?.avatarUrl
     return typeof avatar === 'string' && avatar.length > 0 ? avatar : null
   }, [additionalData])
 
-  // GraphQL: Prefill from existing picture
   const { fetchEmployeePicture } = useGetEmployeePicture({ accessToken, userInfo })
   const fileClient = useFileClient({ accessToken, userInfo })
+
+  const employeeId = useMemo(() => {
+    return (
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      userInfo?.employeeDetails?.employeeId
+    )
+  }, [additionalData, userInfo?.employeeDetails?.employeeId])
+
   useEffect(() => {
+    if (!employeeId || !accessToken) {
+      setIsImageLoading(false)
+      return
+    }
+
     let cancelled = false
     const load = async () => {
-      // Skip if already have preview or payload provides avatar
-      if (previewUrl || currentImageUrl) return
-      const employeeId = userInfo?.employeeDetails?.employeeId
-      if (!employeeId) return
       try {
         setIsImageLoading(true)
         const res = await fetchEmployeePicture(employeeId)
         if (!cancelled) {
-          if (res.thumbnail) setPreviewUrl(res.thumbnail)
+          if (!currentImageUrl && res.thumbnail) {
+            setPreviewUrl(res.thumbnail)
+          }
           if (typeof res.version === 'number') setCurrentVersion(res.version)
+          const rawThumbnail = res.thumbnail
+            ? res.thumbnail.includes(',')
+              ? res.thumbnail.split(',')[1]
+              : res.thumbnail
+            : undefined
+          setEmployeeHeaderInfo({
+            firstName: res.firstName,
+            lastName: res.lastName,
+            pictureThumbnail: rawThumbnail,
+            jobTitle: res.jobTitle
+          })
         }
       } catch (error) {
-        console.error('Failed to upload profile picture:', error)
+        console.error('Failed to fetch employee data:', error)
       } finally {
         if (!cancelled) setIsImageLoading(false)
       }
@@ -56,34 +85,12 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
     return () => {
       cancelled = true
     }
-  }, [userInfo?.employeeDetails?.employeeId, accessToken])
-
-  const handleOpenFileDialog = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = e => {
-    const file = e.target.files?.[0] || null
-    setSelectedFile(file)
-    if (file) {
-      const reader = new FileReader()
-      setIsImageLoading(true)
-      reader.onload = () => {
-        setPreviewUrl(typeof reader.result === 'string' ? reader.result : null)
-        setIsImageLoading(false)
-      }
-      reader.readAsDataURL(file)
-    } else {
-      setPreviewUrl(null)
-      setIsImageLoading(false)
-    }
-  }
+  }, [employeeId, accessToken])
 
   const imageSrc = previewUrl || currentImageUrl || undefined
 
   const validateForm = () => {
-    // Require uploading a new file; existing preview/current image is not sufficient
-    const hasNewUpload = Boolean(selectedFile)
+    const hasNewUpload = Boolean(changedFile)
     if (!hasNewUpload) {
       return [
         getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.required', 'Please upload a profile picture.')
@@ -93,21 +100,23 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
   }
 
   const handlePreSubmit = async () => {
-    const employeeId = userInfo?.employeeDetails?.employeeId
-    if (!employeeId || !selectedFile) return {}
+    const employeeId =
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      userInfo?.employeeDetails?.employeeId
+    if (!employeeId || !changedFile) return {}
+
+    const file = changedFile?.file
+    const thumbnail = changedFile?.thumbnail
+    if (!file || !thumbnail) return {}
 
     try {
       const pathParams = { accessScope: 'public' } as const
       const appName = 'userProfile'
       const folderPath = `/pics/${employeeId}`
 
-      const uploadResponse = await fileClient.uploadFile(selectedFile, pathParams, { appName, folderPath })
+      const uploadResponse = await fileClient.uploadFile(file!, pathParams, { appName, folderPath })
 
-      const thumbnailBase64 = previewUrl
-        ? previewUrl.includes(',')
-          ? previewUrl.split(',').pop() || ''
-          : previewUrl
-        : ''
+      if (!uploadResponse.fileInfo) return {}
 
       const employeePictureChange = {
         id: employeeId,
@@ -115,7 +124,7 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
         firstName: userInfo?.employeeDetails?.firstName,
         lastName: userInfo?.employeeDetails?.lastName,
         picture: JSON.stringify(uploadResponse.fileInfo),
-        pictureThumbnail: thumbnailBase64
+        pictureThumbnail: thumbnail
       }
 
       // window.dispatchEvent(new Event('com.newwork.user.profilePicture.updated'));
@@ -134,115 +143,72 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
       processType="update"
       formData={{}}
       onSubmit={data => data}
-      // Prevent platform process event hooks after submit/cancel
       submitEventType={undefined as any}
-      cancelEventType={undefined as any}
+      cancelEventType="pse_abort"
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
-      // Disable submit until a new file is selected
-      isSubmitDisabled={!selectedFile}
+      isSubmitDisabled={!changedFile || onChangeExecutionsRef.current < 2}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       submitButtonTestId="flw_changePicture_btnSubmit"
       cancelButtonTestId="flw_changePicture_btnCancel"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      onCancel={() => {
-        dispatchProcessContinueEvent('pse_abort', {
-          event: 'pse_abort',
-          pso_exitStrategy: 'abort',
-          pso_completeNotification: {
-            type: 'error',
-            messageKey: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_module.toast_notification_cancel_create_absence',
-              'The action has been canceled.'
-            )
-          }
-        })
-      }}
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
-        {/* Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-6">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <img
-              src={flowSmall}
-              alt="Flow Small"
-              data-testid={formatDataTestId(prefixDataTestId, 'FlowIcon')}
-              className="gba:w-6 gba:h-6"
-              style={{
-                filter: 'brightness(0)'
-              }}
-            />
-            <h2
-              className="gba:text-xl gba:font-semibold"
-              style={{ color: 'var(--nw-color-text-primary)' }}
-              data-testid={formatDataTestId(prefixDataTestId, 'Title')}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.title', 'Change Profile Picture')}
-            </h2>
-          </div>
-        </div>
+        <FormHeader
+          title={getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.title', 'Change Profile Picture')}
+          flowIconUrl={flowSmall}
+          employee={
+            employeeHeaderInfo?.firstName || employeeHeaderInfo?.lastName
+              ? {
+                  firstName: employeeHeaderInfo.firstName,
+                  lastName: employeeHeaderInfo.lastName,
+                  pictureThumbnail: employeeHeaderInfo.pictureThumbnail,
+                  jobTitle: employeeHeaderInfo.jobTitle
+                }
+              : undefined
+          }
+        />
 
-        {/* Divider */}
-        <div className="gba:border-t" style={{ borderColor: 'var(--nw-color-border-default)' }} />
-
-        {/* Content */}
-        <div className="gba:p-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
-          {/* Avatar preview */}
-          <div
-            className="gba:w-48 gba:h-48 gba:rounded-full gba:overflow-hidden gba:border gba:flex gba:items-center gba:justify-center"
-            style={{ borderColor: 'var(--nw-color-border-default)' }}
-            data-testid="flw_changePicture_currentPicture"
-          >
+        <div className="gba:px-6 gba:pb-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+          <div className="gba:w-full gba:flex gba:justify-center">
             {isImageLoading ? (
               <Spinner size="lg" />
-            ) : imageSrc ? (
-              <img src={imageSrc} alt="avatar" className="gba:w-full gba:h-full gba:object-cover" />
             ) : (
-              <div
-                className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center"
-                style={{ color: 'var(--nw-color-text-tertiary)' }}
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.noImage', 'No image')}
-              </div>
-            )}
-          </div>
-
-          {/* Upload button */}
-          <div className="gba:w-full">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="gba:hidden"
-              data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
-            />
-            <Button
-              variant="secondary"
-              onClick={handleOpenFileDialog}
-              data-testid="flw_changePicture_uploadFile"
-              type="button"
-              className="gba:w-full"
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.upload', 'Upload Picture')}
-            </Button>
-            {!selectedFile && !imageSrc && (
-              <div
-                className="gba:text-red-500 gba:text-sm gba:mt-2"
-                data-testid={formatDataTestId(prefixDataTestId, 'ValidationMessage')}
-              >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:profile_picture_form.required',
-                  'Please upload a profile picture.'
+              <AvatarUpload
+                image={imageSrc}
+                shape="circle"
+                uploadButtonText={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:profile_picture_form.upload',
+                  'Upload Picture'
                 )}
-              </div>
+                onChange={value => {
+                  onChangeExecutionsRef.current += 1
+                  setChangedFile(value ? { file: value.file, thumbnail: extractBase64Data(value.thumbnail) } : null)
+                }}
+                data-testid="flw_changePicture_avatarUpload"
+                className="gba:w-full"
+                fallback={
+                  <div className="gba:w-48 gba:h-48 gba:rounded-full gba:overflow-hidden gba:border gba:border-border gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.noImage', 'No image')}
+                  </div>
+                }
+              />
             )}
           </div>
+          {!changedFile && (
+            <div
+              className="gba:text-destructive gba:text-sm gba:mt-2"
+              data-testid={formatDataTestId(prefixDataTestId, 'ValidationMessage')}
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:profile_picture_form.required',
+                'Please upload a profile picture.'
+              )}
+            </div>
+          )}
         </div>
-
-        {/* Actions handled by AppActionForm (standard layout) */}
       </div>
     </AppActionForm>
   )

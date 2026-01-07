@@ -490,7 +490,7 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
           </div>
 
           <div>
-            <ToggleGroup defaultValue="cards" size="default" variant="default">
+            <ToggleGroup defaultValue="cards" size="default" variant="default" type="single">
               <ToggleGroupItem
                 value="cards"
                 onClick={() => setViewMode('cards')}

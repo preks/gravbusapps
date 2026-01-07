@@ -1,15 +1,18 @@
-import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import React, { useCallback, useEffect, useRef, useMemo } from 'react'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
-import { Form, Row, Col } from 'antd'
+import { Form, Row, Col, Alert } from 'antd'
+import { Badge } from '@newwork/nw-design-system'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
 import UploadComponent from '../UploadComponent'
 import SinglePositionComponent from './SinglePositionComponent'
 import MultiPositionComponent from './MultiPositionComponent'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 
-import { Alert } from 'antd'
-import { getCurrentActiveUserLocale, getDateFormat } from '../../../../../../../common/utils/windowUtils'
+import {
+  getCurrentActiveUserLocale,
+  getDateFormat,
+  getTranslationFromI18nKeyAndLabel
+} from '../../../../../../../common/utils/windowUtils'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { DEFAULT_CURRENCY_ID } from '../../constants/constants'
 
@@ -36,7 +39,6 @@ interface FormScreenComponentProps {
   handleRemovePosition: (positionId: string) => void
   loading: boolean
   calculateTotal: () => number
-  isEmbeddedInRequestWizard?: boolean
 }
 
 export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
@@ -60,13 +62,126 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   handleExpenseTypeChange,
   handleAddPosition,
   handleRemovePosition,
-  calculateTotal,
-  isEmbeddedInRequestWizard = false
+  calculateTotal
 }) => {
-  const { t } = useTranslation()
-  const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode } = useExpenseItem()
+  const t = getTranslationFromI18nKeyAndLabel
+  const {
+    isProcessingFiles,
+    isFormDisabled,
+    expenseRuleError,
+    receiptCurrencyError,
+    handleCurrencyChange,
+    isEditMode,
+    additionalData
+  } = useExpenseItem()
 
-  const [formIsValid, setFormIsValid] = useState(false)
+  // Calculate isEmbeddedInRequestWizard from additionalData
+  const isEmbeddedInRequestWizard = Boolean(additionalData?.expenseRequestId && additionalData.expenseRequestId !== '0')
+
+  const selectedExpenseRequestId = Form.useWatch('expenseRequestId', form)
+  const hadBackendRequestRef = useRef(false)
+
+  useEffect(() => {
+    if (hadBackendRequestRef.current || !isEditMode) {
+      return
+    }
+
+    const initialRequestId = selectedExpenseRequestId || form.getFieldValue('expenseRequestId')
+    if (initialRequestId && initialRequestId !== '0') {
+      hadBackendRequestRef.current = true
+    }
+  }, [form, isEditMode, selectedExpenseRequestId])
+
+  const expenseRequestOptions = useMemo(() => {
+    return expenseRequests.map(request => {
+      // For "None" option, return simple text
+      if (request.id === '0') {
+        return {
+          id: request.id,
+          name: request.title || request.code
+        }
+      }
+
+      // For expense requests with status, create a React element with Badge
+      const statusDisplay = request.statusDisplay
+      const formattedDate = request.formattedDate || ''
+      const title = request.title || request.code || ''
+
+      const badgeVariant = statusDisplay?.badgeVariant || 'outline'
+      const statusLabel = statusDisplay?.label || ''
+
+      // Map badge variant to text color token
+      const getTextColorClass = (variant: string) => {
+        switch (variant) {
+          case 'offline':
+            return 'gba:text-offline'
+          case 'warning':
+            return 'gba:text-warning'
+          case 'info':
+            return 'gba:text-info'
+          case 'success':
+            return 'gba:text-success'
+          default:
+            return ''
+        }
+      }
+
+      const textColorClass = statusDisplay ? getTextColorClass(badgeVariant) : ''
+
+      return {
+        id: request.id,
+        name: (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {statusLabel && (
+              <Badge variant={badgeVariant} className="gba:shrink-0">
+                {statusLabel}
+              </Badge>
+            )}
+            <span className={`${textColorClass} gba:min-w-0 gba:truncate`}>
+              {formattedDate} - {title}
+            </span>
+          </div>
+        )
+      }
+    })
+  }, [expenseRequests])
+
+  const hasBackendPreselectedRequest =
+    hadBackendRequestRef.current ||
+    !!(additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest)
+
+  const filteredExpenseRequestOptions = hasBackendPreselectedRequest
+    ? expenseRequestOptions.filter(option => option.id !== '0')
+    : expenseRequestOptions
+
+  // Memoize the submit handler to prevent re-creating on every render
+  const handleCreateClick = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+
+      try {
+        await form.validateFields()
+
+        if (expenseRuleError) {
+          return
+        }
+
+        await handleSubmit()
+      } catch (errorInfo: any) {
+        // Handle form validation errors - scroll to first invalid field
+        const firstErrorField = errorInfo?.errorFields?.[0]?.name?.[0]
+        if (firstErrorField) {
+          const element = document.querySelector(`[name="${firstErrorField}"]`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }
+        // Currency/submission errors are already handled by context with toast
+      }
+    },
+    [form, expenseRuleError, handleSubmit]
+  )
 
   return (
     <Form
@@ -74,15 +189,6 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       layout="vertical"
       data-testid="expense-form"
       className="gba:flex gba:flex-col gba:flex-grow"
-      onFieldsChange={() => {
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-        setFormIsValid(isFormValidValue)
-      }}
-      onValuesChange={() => {
-        form.validateFields()
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-        setFormIsValid(isFormValidValue)
-      }}
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
@@ -92,6 +198,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       <div className="gba:m-0 gba:mb-[30px]" data-testid="form-upload-container">
         <UploadComponent fileList={fileList} setFileList={setFileList} />
       </div>
+
+      {receiptCurrencyError && fileList && fileList.length > 0 && (
+        <div
+          className="gba:mb-4 gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:px-4 gba:py-3"
+          data-testid="receipt-currency-error-container"
+        >
+          {receiptCurrencyError}
+        </div>
+      )}
 
       <div className="gba:mb-4" data-testid="title-field-container">
         <div className="gba:relative">
@@ -260,15 +375,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             <Form.Item className="gba:mb-0" data-testid="total-amount-form-item">
               <InputField
                 label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
-                className="gba:[&>input[type=number]]:appearance-textfield 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
                 name="amount"
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
                 data-testid="total-amount-input"
                 value={calculateTotal().toFixed(2)}
                 placeholder={t(
@@ -346,12 +455,18 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             allowClear
             name="expenseRequestId"
             data-testid="expense-request-select"
-            data={[
-              ...expenseRequests.map(request => ({
-                id: request.id,
-                name: request.title || request.code
-              }))
-            ]}
+            data={filteredExpenseRequestOptions}
+            value={
+              selectedExpenseRequestId
+                ? {
+                    id: selectedExpenseRequestId,
+                    name:
+                      filteredExpenseRequestOptions.find(option => option.id === selectedExpenseRequestId)?.name ||
+                      expenseRequestOptions.find(option => option.id === selectedExpenseRequestId)?.name ||
+                      selectedExpenseRequestId
+                  }
+                : undefined
+            }
             onChange={(value: any) => {
               form.setFieldsValue({ expenseRequestId: value.value })
             }}
@@ -368,7 +483,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       {/* Spacer to push content to the bottom */}
       <div className="gba:flex-grow" data-testid="expense-item-spacer" />
 
-      <Divider color="#EFEFEF" horizontal size={1} className="gba:mt-[30px] gba:mb-[30px]" data-testid="form-divider" />
+      <Divider color="border" horizontal size={1} className="gba:mt-[30px] gba:mb-[30px]" data-testid="form-divider" />
       <div
         className="gba:flex gba:justify-between gba:py-4"
         style={{ width: '100%' }}
@@ -385,11 +500,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </Button>
         <Button
           variant="primary"
-          onClick={e => {
-            e.stopPropagation()
-            handleSubmit()
-          }}
-          disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
+          onClick={handleCreateClick}
+          disabled={
+            isProcessingFiles ||
+            (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId) ||
+            !!receiptCurrencyError
+          }
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"

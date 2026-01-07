@@ -23,14 +23,18 @@
 
 @import '@newwork/nw-design-system/index.css';
 
-@import 'tailwindcss' prefix(gba);
-@import 'tw-animate-css';
+@import 'react-quill/dist/quill.snow.css';
 
 @import '@newwork/nw-design-system/core';
 @import '@newwork/nw-design-system/layout';
 @import '@newwork/nw-design-system/colors';
 @import '@newwork/nw-design-system/effects';
 @import '@newwork/nw-design-system/spacing';
+
+@import 'tailwindcss/theme' layer(gravity-business-apps-theme) prefix(gba);
+@import 'tailwindcss/preflight' layer(gravity-business-apps-base) prefix(gba);
+@import 'tailwindcss/utilities' layer(all-newwork-tw-utilities) prefix(gba);
+@import 'tw-animate-css';
 
 @import './business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css';
 
@@ -112,6 +116,22 @@
   :root {
     --font-primary: 'Roboto Flex', sans-serif;
     --font-secondary: 'Roboto Flex', sans-serif;
+
+    /* AI Color Tokens - Orange theme for EveryAI */
+    --nw-ai: #f59e0b; /* Orange - main AI color */
+    --nw-ai-foreground: #ffffff; /* White text on AI backgrounds */
+    --nw-ai-secondary: #fbbf24; /* Lighter orange for secondary elements */
+    --nw-ai-secondary-foreground: #000000; /* Dark text on secondary AI backgrounds */
+  }
+}
+
+@layer gravity-business-apps-theme {
+  @theme {
+    /* AI Color Tokens - Proper Tailwind color definitions */
+    --color-ai: var(--nw-ai);
+    --color-ai-foreground: var(--nw-ai-foreground);
+    --color-ai-secondary: var(--nw-ai-secondary);
+    --color-ai-secondary-foreground: var(--nw-ai-secondary-foreground);
   }
 }
 
@@ -131,6 +151,29 @@
     }
     100% {
       transform: rotate(360deg);
+    }
+  }
+
+  /* AI Button gradient animation */
+  @keyframes gradient-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* AI Button shimmer animation */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-200%) skewX(-15deg);
+    }
+    100% {
+      transform: translateX(400%) skewX(-15deg);
     }
   }
 }
@@ -321,4 +364,27 @@
 
 .widget-group-cards [data-widget-key].clickable {
   cursor: pointer !important;
+}
+
+/* Elegant hover add button animation for expense settings */
+@keyframes fadeInScale {
+  0% { 
+    opacity: 0; 
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  100% { 
+    opacity: 1; 
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Hover add row styling */
+.gba\:hover-add-row {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.gba\:hover-add-row:hover {
+  background-color: #f0f9ff !important;
+  border-color: #3b82f6 !important;
 }

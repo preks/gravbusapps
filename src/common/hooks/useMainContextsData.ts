@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@newwork/nw-design-system'
 import { FlowContextName } from '../types/FlowRegistryTypes'
 import { useFlowRegistryClient } from '../network/flows/useFlowRegistryClient'
 

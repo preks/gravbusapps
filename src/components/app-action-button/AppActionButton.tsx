@@ -10,6 +10,10 @@ import {
 } from '@/common/hooks/useAppActionData'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
+/**
+ * @deprecated Use AppAction component instead with variant="header" or mode="action-button"
+ * @see AppAction
+ */
 export type AppActionButtonProps = Omit<ActionButtonProps, 'actions'> &
   AppActionCommonProps & {
     /**
@@ -24,13 +28,30 @@ const DATA_TEST_ID_PREFIX = 'AppActionButton'
 /**
  * AppActionButton Component
  * Displays an action button with flow items from the flow registry
+ *
+ * @deprecated Use AppAction component instead with variant="header" or mode="action-button"
+ * @example
+ * // Instead of:
+ * <AppActionButton
+ *   contextsArray={[FlowContextName.leadEntity]}
+ *   externalContextData={{ leadId }}
+ *   accessToken={accessToken}
+ * />
+ *
+ * // Use:
+ * <AppAction
+ *   variant="header"
+ *   contextsArray={[FlowContextName.leadEntity]}
+ *   externalContextData={{ leadId }}
+ *   accessToken={accessToken}
+ * />
  */
 export const AppActionButton: React.FC<AppActionButtonProps> = React.memo(props => {
   // Extract App Action specific props and get clean props for ActionButton
   const { appActionConfig, cleanProps } = extractAppActionProps(props)
 
   // Use shared logic for data fetching and state management
-  const { combinedData, handleDeferredFetch, translations, shouldShowLoading } = useAppActionData(
+  const { combinedData, handleDeferredFetch, shouldShowLoading } = useAppActionData(
     appActionConfig,
     DATA_TEST_ID_PREFIX
   )
@@ -52,8 +73,6 @@ export const AppActionButton: React.FC<AppActionButtonProps> = React.memo(props 
     <ActionButton
       {...actionButtonProps}
       data-testid={buttonTestId}
-      noActionsText={translations.noActions}
-      loadingText={translations.loading}
       emptyStateBehavior={appActionConfig.emptyStateBehavior}
       actionsLoading={shouldShowLoading}
       actions={combinedData}

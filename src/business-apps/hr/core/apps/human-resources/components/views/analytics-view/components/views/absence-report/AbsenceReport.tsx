@@ -10,9 +10,7 @@ import AbsenceDetailsTable from './components/AbsenceDetailsTable'
 const { TabPane } = Tabs
 const { Text, Title } = Typography
 
-interface AbsenceReportProps extends BusinessAppContextProps {}
-
-const AbsenceReport: React.FC<AbsenceReportProps> = context => {
+const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
   // Define valid tabs
   const validTabs = ['overview', 'charts', 'details']
   const defaultTab = 'overview'
@@ -73,15 +71,7 @@ const AbsenceReport: React.FC<AbsenceReportProps> = context => {
 
   if (error) {
     return (
-      <div
-        data-testid={`${prefixDataTestId}-error`}
-        style={{
-          background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-          minHeight: '100%',
-          padding: '24px',
-          borderRadius: '8px'
-        }}
-      >
+      <div data-testid={`${prefixDataTestId}-error`} className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg">
         <Alert
           message="Failed to Load Absence Data"
           description={error}
@@ -101,19 +91,10 @@ const AbsenceReport: React.FC<AbsenceReportProps> = context => {
     return (
       <div
         data-testid={`${prefixDataTestId}-loading`}
-        style={{
-          background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-          minHeight: '100%',
-          padding: '24px',
-          borderRadius: '8px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flexDirection: 'column'
-        }}
+        className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center gba:flex-col"
       >
         <Spin size="large" />
-        <Text style={{ marginTop: '16px', color: '#666' }}>Loading absence data and analytics...</Text>
+        <Text className="gba:mt-4 gba:text-muted-foreground">Loading absence data and analytics...</Text>
       </div>
     )
   }
@@ -125,41 +106,26 @@ const AbsenceReport: React.FC<AbsenceReportProps> = context => {
   const safeBalanceData = balanceData || []
 
   return (
-    <div
-      data-testid={prefixDataTestId}
-      style={{
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
-      }}
-    >
+    <div data-testid={prefixDataTestId} className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <Title level={3} className="gba:m-0 gba:text-foreground">
             Absence Report & Analytics
           </Title>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Card size="small" style={{ padding: '4px 8px' }}>
-              <Text strong style={{ color: '#1890ff' }}>
+          <div className="gba:flex gba:gap-2">
+            <Card size="small" className="gba:py-1 gba:px-2">
+              <Text strong className="gba:text-info">
                 {statistics?.totalEmployees || 0} Employees
               </Text>
             </Card>
-            <Card size="small" style={{ padding: '4px 8px' }}>
-              <Text strong style={{ color: '#722ed1' }}>
+            <Card size="small" className="gba:py-1 gba:px-2">
+              <Text strong className="gba:text-info">
                 {safeAbsenceTypes.length} Absence Types
               </Text>
             </Card>
-            <Card size="small" style={{ padding: '4px 8px' }}>
-              <Text strong style={{ color: '#52c41a' }}>
+            <Card size="small" className="gba:py-1 gba:px-2">
+              <Text strong className="gba:text-success">
                 {statistics?.totalAbsenceDays || 0} Total Days
               </Text>
             </Card>
@@ -181,11 +147,7 @@ const AbsenceReport: React.FC<AbsenceReportProps> = context => {
         onChange={handleTabChange}
         type="card"
         size="large"
-        style={{
-          background: '#fff',
-          borderRadius: '8px',
-          padding: '16px'
-        }}
+        className="gba:bg-primary-foreground gba:rounded-lg gba:p-4"
       >
         <TabPane
           tab={
@@ -227,7 +189,7 @@ const AbsenceReport: React.FC<AbsenceReportProps> = context => {
       {/* Footer Summary */}
       <Row gutter={[16, 16]} style={{ marginTop: '24px' }}>
         <Col span={24}>
-          <Card size="small" style={{ background: '#f0f2f5' }}>
+          <Card size="small" className="gba:bg-muted">
             <Row gutter={[16, 8]} justify="space-between" align="middle">
               <Col>
                 <Text type="secondary">
@@ -239,16 +201,9 @@ const AbsenceReport: React.FC<AbsenceReportProps> = context => {
                 <Space>
                   {safeAbsenceGroups.length > 0 ? (
                     safeAbsenceGroups.map((group, index: number) => (
-                      <div key={group?.code || `group-${index}`} style={{ textAlign: 'center' }}>
-                        <div
-                          style={{
-                            fontSize: '12px',
-                            color: ['#1890ff', '#ff4d4f', '#722ed1', '#52c41a'][index % 4]
-                          }}
-                        >
-                          {group?.value || 'Unknown'}
-                        </div>
-                        <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                      <div key={group?.code || `group-${index}`} className="gba:text-center">
+                        <div className="gba:text-xs gba:text-info">{group?.value || 'Unknown'}</div>
+                        <div className="gba:text-sm gba:font-bold">
                           {statistics?.groupStats?.find(s => s.groupCode === group?.code)?.totalDays || 0} days
                         </div>
                       </div>

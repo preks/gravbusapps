@@ -10,6 +10,12 @@ export interface FeedbackRequestResponse {
   [key: string]: any
 }
 
+export interface BulkFeedbackRequestPayload {
+  requestedFromList: string[]
+  creatorUserId: string
+  requestMessage?: string
+}
+
 /**
  * Client for interacting with Feedback Request service
  * Enables requesting feedback from employees
@@ -45,6 +51,22 @@ export class FeedbackRequestClient extends RestClient {
       })
     } catch (error) {
       console.error('FeedbackRequestClient: Error requesting feedback:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Request feedback from multiple employees in bulk
+   */
+  public async bulkRequestFeedback(payload: BulkFeedbackRequestPayload): Promise<FeedbackRequestResponse> {
+    try {
+      return await this.post<FeedbackRequestResponse>('/processes/employee/bulkRequestFeedback', payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+    } catch (error) {
+      console.error('FeedbackRequestClient: Error requesting feedback in bulk:', error)
       throw error
     }
   }

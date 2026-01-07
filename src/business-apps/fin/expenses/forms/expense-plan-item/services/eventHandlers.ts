@@ -10,20 +10,212 @@ import {
   DEFAULT_EXPENSE_CLASS_ID,
   EXPENSE_SEARCH_TERM
 } from '../../expense-item/constants/constants'
+import { parseNumericValue } from '@/business-apps/fin/expenses/utils/amountFormatting'
+
+/**
+ * Formats custom fields from form values
+ */
+const formatCustomFields = (
+  values: any,
+  customFields: { [expenseTypeId: string]: any[] }
+): Array<{ id: string; infoValue: string; mandatory: boolean; value: string }> => {
+  const customFieldsArray: Array<{
+    id: string
+    infoValue: string
+    mandatory: boolean
+    value: string
+  }> = []
+
+  if (!values.expenseType || !customFields[values.expenseType]) {
+    return customFieldsArray
+  }
+
+  const customFieldData = customFields[values.expenseType]
+  customFieldData.forEach(field => {
+    const fieldValue = values[field.infoValue]
+    if (fieldValue) {
+      customFieldsArray.push({
+        id: field.id,
+        infoValue: field.infoValue,
+        mandatory: field.mandatory || false,
+        value: fieldValue
+      })
+    }
+  })
+
+  return customFieldsArray
+}
+
+/**
+ * Checks if expense plan exists in additional data
+ */
+const hasExpensePlan = (additionalData?: any): boolean => {
+  return !!(additionalData?.expensePlanId || additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlan)
+}
+
+/**
+ * Initiates flow and gets task information
+ */
+const initiateFlowAndGetTask = async (
+  accessToken: string,
+  employeeId: string,
+  userId: string
+): Promise<{ flowProcessId: string | null; taskId: string | null; taskName: string | null }> => {
+  try {
+    const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME)
+
+    if (!flowResult?.id) {
+      return { flowProcessId: null, taskId: null, taskName: null }
+    }
+
+    const flowProcessId = flowResult.id
+    const tasksResult = await getOpenedTaskFlow(accessToken, userId, flowProcessId, FLOW_DOMAIN, FLOW_PROCESS_NAME)
+
+    if (!tasksResult || !Array.isArray(tasksResult) || tasksResult.length === 0) {
+      return { flowProcessId, taskId: null, taskName: null }
+    }
+
+    const firstTask = tasksResult[0]
+    if (firstTask && typeof firstTask.id === 'string' && typeof firstTask.name === 'string') {
+      return { flowProcessId, taskId: firstTask.id, taskName: firstTask.name }
+    }
+
+    return { flowProcessId, taskId: null, taskName: null }
+  } catch {
+    showToast(
+      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
+      'error'
+    )
+    return { flowProcessId: null, taskId: null, taskName: null }
+  }
+}
+
+/**
+ * Creates submit data payload
+ */
+const createSubmitData = (
+  values: any,
+  itemValues: any,
+  customFieldsArray: any[],
+  catalogueDataResponse: any,
+  generalDataResponse: any,
+  userInfo: any,
+  employeeRuleId: string | null | object,
+  expensePlanId: string,
+  additionalData?: any
+): any => {
+  // Normalize amount coming from the form (could be locale-formatted like "12,00")
+  const normalizedAmount = parseNumericValue(values.amount) ?? 0
+  const isReimbursable = values.reimbursable === true
+
+  return {
+    expensePlanItem: {
+      ...(itemValues?.id && { id: itemValues.id }),
+      ...(itemValues?.id && { version: itemValues.version }),
+      title: values.title,
+      totalAmount: normalizedAmount,
+      currencyRef: values.currency || DEFAULT_CURRENCY_ID,
+      reimbursable: isReimbursable,
+      expenseClassRef:
+        catalogueDataResponse?.data?.expenceClass?.find((element: any) =>
+          element.code.toLowerCase().includes(EXPENSE_SEARCH_TERM)
+        )?.id || DEFAULT_EXPENSE_CLASS_ID,
+      status: DEFAULT_EXPENSE_STATUS,
+      employee: generalDataResponse?.data?.Employee?.[0]?.id || userInfo?.employeeDetails?.employeeId || '',
+      expenseGroupRef: values.expenseGroup,
+      source: values.expenseType ? DEFAULT_EXPENSE_SOURCE : '',
+      expenseDate: values.date ? dayjs(values.date).format() : dayjs().format(),
+      ...(isReimbursable ? { reimbursableAmount: normalizedAmount } : { nonReimbursableAmount: normalizedAmount }),
+      expenseRuleGeneralExpense: values.expenseType || '',
+      costCenter: values.costCenter,
+      expensePlan: values.expensePlan || expensePlanId || additionalData?.expensePlanId || '',
+      additionalProperties: {
+        customFields: customFieldsArray
+      },
+      expenseRule: employeeRuleId as string
+    },
+    event: EVENTS.SUBMIT
+  }
+}
+
+/**
+ * Completes task flow submission
+ */
+const submitViaTaskFlow = async (
+  flowProcessId: string,
+  taskId: string,
+  taskName: string,
+  accessToken: string,
+  userId: string,
+  submitData: any
+): Promise<boolean> => {
+  try {
+    await completeTaskFlow(
+      accessToken,
+      userId,
+      flowProcessId,
+      taskName,
+      taskId,
+      submitData,
+      FLOW_DOMAIN,
+      FLOW_PROCESS_NAME
+    )
+    return true
+  } catch {
+    showToast(
+      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
+      'error'
+    )
+    return false
+  }
+}
+
+/**
+ * Submits via process continue event
+ */
+const submitViaProcessEvent = (
+  submitData: any,
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
+): boolean => {
+  try {
+    if (dispatchProcessContinueEventIfEnabled) {
+      return dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
+    }
+
+    dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
+    return true
+  } catch {
+    showToast(
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_type_item.error_flows',
+        'Error in expense approval process'
+      ),
+      'error'
+    )
+    return false
+  }
+}
+
+/**
+ * Shows success message and resets form
+ */
+const handleSuccess = (form: any, setIsEditMode?: (isEdit: boolean) => void): void => {
+  showToast(
+    getTranslationFromI18nKeyAndLabel(
+      'lowcoder:create_expense_type_item.created_item_notification_message',
+      'Expense item created successfully!'
+    ),
+    'success'
+  )
+
+  form.resetFields()
+  if (setIsEditMode) {
+    setIsEditMode(false)
+  }
+}
 
 /**
  * Handles the submission of an expense plan item
- * @param form Form instance
- * @param customFields Custom fields data
- * @param employeeRuleId Employee rule ID
- * @param generalDataResponse General data response
- * @param catalogueDataResponse Catalogue data response
- * @param setLoading Loading state setter
- * @param t Translation function
- * @param accessToken Access token for authentication
- * @param userInfo User information
- * @param additionalData Additional data from props
- * @param setIsEditMode Edit mode setter
  */
 export const handleSubmit = async (
   form: any,
@@ -45,176 +237,72 @@ export const handleSubmit = async (
     setLoading(true)
 
     await form.validateFields()
-
     const values = form.getFieldsValue()
 
-    // Format custom fields for the expense plan item
-    const customFieldsArray: Array<{
-      id: string
-      infoValue: string
-      mandatory: boolean
-      value: string
-    }> = []
-    if (values.expenseType && customFields[values.expenseType]) {
-      const customFieldData = customFields[values.expenseType]
-      customFieldData.forEach(field => {
-        const fieldValue = values[field.infoValue]
-        if (fieldValue) {
-          customFieldsArray.push({
-            id: field.id,
-            infoValue: field.infoValue,
-            mandatory: field.mandatory || false,
-            value: fieldValue
-          })
-        }
-      })
+    // Format custom fields
+    const customFieldsArray = formatCustomFields(values, customFields)
+
+    // Check if we should skip (process event already dispatched)
+    if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
+      return
     }
 
-    // Check if we have an expense plan from either the wizard or task payload
-    const hasExpensePlan =
-      additionalData?.expensePlanId || additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlan
-
+    // Initialize flow variables
     let flowProcessId: string | null = null
     let taskId: string | null = null
     let taskName: string | null = null
+    const hasPlan = hasExpensePlan(additionalData)
 
-    if (accessToken && userInfo?.employeeDetails?.employeeId && hasExpensePlan) {
-      try {
-        // Check if process event is already dispatched
-        if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
-          return
-        }
-
-        const flowResult = await initiateFlow(
-          accessToken,
-          userInfo.employeeDetails.employeeId,
-          FLOW_DOMAIN,
-          FLOW_PROCESS_NAME
-        )
-        if (flowResult && flowResult.id) {
-          flowProcessId = flowResult.id
-          const userId = userInfo?.id || ''
-
-          const tasksResult = await getOpenedTaskFlow(
-            accessToken,
-            userId,
-            flowProcessId as string,
-            FLOW_DOMAIN,
-            FLOW_PROCESS_NAME
-          )
-
-          if (tasksResult && Array.isArray(tasksResult) && tasksResult.length > 0) {
-            const firstTask = tasksResult[0]
-            if (firstTask && typeof firstTask.id === 'string' && typeof firstTask.name === 'string') {
-              taskId = firstTask.id
-              taskName = firstTask.name
-            }
-          }
-        }
-      } catch (flowError) {
-        showToast(
-          getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
-          'error'
-        )
-      }
+    // Initiate flow if conditions are met
+    if (accessToken && userInfo?.employeeDetails?.employeeId && hasPlan) {
+      const flowData = await initiateFlowAndGetTask(
+        accessToken,
+        userInfo.employeeDetails.employeeId,
+        userInfo?.id || ''
+      )
+      flowProcessId = flowData.flowProcessId
+      taskId = flowData.taskId
+      taskName = flowData.taskName
     }
 
-    const submitData = {
-      expensePlanItem: {
-        ...(itemValues?.id && { id: itemValues.id }),
-        ...(itemValues?.id && { version: itemValues.version }),
-        title: values.title,
-        totalAmount: values.amount || 0,
-        currencyRef: values.currency || DEFAULT_CURRENCY_ID,
-        reimbursable: values.reimbursable || false,
-        expenseClassRef:
-          catalogueDataResponse?.data?.expenceClass?.find((element: any) =>
-            element.code.toLowerCase().includes(EXPENSE_SEARCH_TERM)
-          )?.id || DEFAULT_EXPENSE_CLASS_ID,
-        status: DEFAULT_EXPENSE_STATUS,
-        employee: generalDataResponse?.data?.Employee?.[0]?.id || userInfo?.employeeDetails?.employeeId || '',
-        expenseGroupRef: values.expenseGroup,
-        source: values.expenseType ? DEFAULT_EXPENSE_SOURCE : '',
-        expenseDate: values.date ? dayjs(values.date).format() : dayjs().format(),
-        reimbursableAmount: values.reimbursable === true ? values.amount : '',
-        nonReimbursableAmount: values.reimbursable !== true ? values.amount : '',
-        expenseRuleGeneralExpense: values.expenseType || '',
-        costCenter: values.costCenter,
-        expensePlan: values.expensePlan || expensePlanId || additionalData?.expensePlanId || '',
-        additionalProperties: {
-          customFields: customFieldsArray
-        },
-        expenseRule: employeeRuleId as string
-      },
-      event: EVENTS.SUBMIT
-    }
+    // Create submit data payload
+    const submitData = createSubmitData(
+      values,
+      itemValues,
+      customFieldsArray,
+      catalogueDataResponse,
+      generalDataResponse,
+      userInfo,
+      employeeRuleId,
+      expensePlanId,
+      additionalData
+    )
 
+    // Submit via appropriate method
     let operationSuccessful = false
 
-    if (flowProcessId && taskId && taskName && hasExpensePlan && accessToken) {
-      try {
-        const userId = userInfo?.id || ''
-        await completeTaskFlow(
-          accessToken,
-          userId,
-          flowProcessId as string,
-          taskName as string,
-          taskId as string,
-          submitData,
-          FLOW_DOMAIN,
-          FLOW_PROCESS_NAME
-        )
-        operationSuccessful = true
-      } catch (completeError) {
-        showToast(
-          getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
-          'error'
-        )
-      }
-    }
-
-    if (accessToken && userInfo?.employeeDetails?.employeeId && !hasExpensePlan) {
-      try {
-        if (dispatchProcessContinueEventIfEnabled) {
-          const success = dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
-          if (success) {
-            operationSuccessful = true
-          }
-        } else {
-          dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
-          operationSuccessful = true
-        }
-      } catch (processError) {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_type_item.error_flows',
-            'Error in expense approval process'
-          ),
-          'error'
-        )
-      }
-    }
-
-    if (operationSuccessful) {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_type_item.created_item_notification_message',
-          'Expense item created successfully!'
-        ),
-        'success'
+    if (flowProcessId && taskId && taskName && hasPlan && accessToken) {
+      operationSuccessful = await submitViaTaskFlow(
+        flowProcessId,
+        taskId,
+        taskName,
+        accessToken,
+        userInfo?.id || '',
+        submitData
       )
-
-      form.resetFields()
-      if (setIsEditMode) {
-        setIsEditMode(false)
-      }
+    } else if (accessToken && userInfo?.employeeDetails?.employeeId && !hasPlan) {
+      operationSuccessful = submitViaProcessEvent(submitData, dispatchProcessContinueEventIfEnabled)
     }
-  } catch (error) {
+
+    // Handle success
+    if (operationSuccessful) {
+      handleSuccess(form, setIsEditMode)
+    }
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
       'error'
     )
-    throw error
   } finally {
     setLoading(false)
   }
@@ -262,7 +350,7 @@ export const handleExpenseGroupChange = async (
     const types = await fetchExpenseTypes(value)
     setExpenseTypes({ [value]: types })
     setCustomFields({})
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_type_item.process_error_expense_types',
@@ -294,7 +382,7 @@ export const handleExpenseTypeChange = async (
   try {
     const fields = await fetchCustomFields([value])
     setCustomFields({ [value]: fields })
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_type_item.process_error_expense_custom_groups',
@@ -313,7 +401,7 @@ export const handleExpenseTypeChange = async (
 export const handleCurrencyChange = async (currencyId: string, form: any) => {
   try {
     form.setFieldsValue({ currency: currencyId })
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_type_item.process_error_data_fetch',

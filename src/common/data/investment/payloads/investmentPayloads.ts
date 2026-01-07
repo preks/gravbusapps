@@ -2,7 +2,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toISOFormat } from '@/common/utils/dateFormatter'
 import { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import { InvestmentAccountRef } from '@/common/data/investment/types/investmentRelationBaseTypes'
+import { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 
 // ==============================
 // Investment Payload Types
@@ -61,13 +61,26 @@ export interface InvestmentData {
   currency?: CatalogEntry // Full catalog object
   fundManagerName?: string
   identification?: any // JSON object
-  investmentAccount?: InvestmentAccountRef // Full account object
+  irr?: number | string // Internal Rate of Return
+  moic?: number | string // Multiple on Invested Capital
   investmentOpportunity?: string // uuid
-  loanRecipientInvestmentAccount?: InvestmentAccountRef // uuid
+  loanRecipientInvestmentAccount?: InvestmentAccount // uuid
+  company?: any // Company object or uuid
+  companyId?: string // Company uuid (alternative field name)
   additionalProperties?: any // JSON object
 
   // Investment Roles (array) - GraphQL schema name is singular
   investmentRole?: InvestmentRoleData[]
+
+  // Investment-Account Junction Table (many-to-many)
+  investmentAccounts?: Array<{
+    // GraphQL field name
+    id?: string
+    version?: number
+    investmentAccountId: string
+    investmentAccountTypeRef?: string
+    isDeleted?: boolean
+  }>
 
   // Support for dynamic additional properties fields
   [key: string]: any // Allow dynamic additional properties fields
@@ -163,12 +176,12 @@ export const buildInvestmentPayload = (
   // Helper to convert string/number to number
   const toNumber = (value: number | string | undefined): number | undefined => {
     if (value === undefined || value === null || value === '') return undefined
-    const num = typeof value === 'string' ? parseFloat(value) : value
-    return isNaN(num) ? undefined : num
+    const num = typeof value === 'string' ? Number.parseFloat(value) : value
+    return Number.isNaN(num) ? undefined : num
   }
 
   // Helper to extract and build additionalProperties object from form data
-  const buildAdditionalProperties = (formData: any, _entityPrefix: string): Record<string, any> | undefined => {
+  const buildAdditionalProperties = (formData: any): Record<string, any> | undefined => {
     // Return undefined if formData is null, undefined, or not an object
     if (!formData || typeof formData !== 'object') {
       return undefined
@@ -206,7 +219,7 @@ export const buildInvestmentPayload = (
   }
 
   // Extract investment-level additionalProperties
-  const investmentAdditionalProperties = buildAdditionalProperties(investment, 'investment')
+  const investmentAdditionalProperties = buildAdditionalProperties(investment)
 
   // Base investment payload - include ALL fields from GraphQL schema
   // NOTE: Form stores full objects, API expects IDs with "Ref" suffix for catalogs
@@ -219,7 +232,13 @@ export const buildInvestmentPayload = (
     ...(investment.code && { code: investment.code }),
     ...(investment.isin && { isin: investment.isin }),
     ...(investment.investmentGroup?.id && { investmentGroupRef: investment.investmentGroup.id }),
-    ...(investment.ownerEmployee?.id && { ownerEmployee: investment.ownerEmployee.id }),
+    // Send ownerEmployee as string UUID (backend expects "ownerEmployee" field name with UUID string value)
+    // Form uses ownerEmployeeId field, extract from either ownerEmployeeId (string) or ownerEmployee.id (object)
+    ...((investment as any).ownerEmployeeId
+      ? { ownerEmployee: (investment as any).ownerEmployeeId }
+      : investment.ownerEmployee?.id
+        ? { ownerEmployee: investment.ownerEmployee.id }
+        : {}),
     ...(investment.initialInvestmentAmount && {
       initialInvestmentAmount: toNumber(investment.initialInvestmentAmount)
     }),
@@ -256,12 +275,29 @@ export const buildInvestmentPayload = (
     }),
     ...(investment.currency?.id && { currencyRef: investment.currency.id }), // Extract ID from catalog object
     ...(investment.fundManagerName && { fundManagerName: investment.fundManagerName }),
+    ...(investment.irr !== undefined &&
+      investment.irr !== null &&
+      investment.irr !== '' && {
+        irr: toNumber(investment.irr)
+      }),
+    ...(investment.moic !== undefined &&
+      investment.moic !== null &&
+      investment.moic !== '' && {
+        moic: toNumber(investment.moic)
+      }),
     ...(investment.identification && { identification: investment.identification }),
     ...(investment.investmentAccount?.id && { investmentAccount: investment.investmentAccount.id }), // Extract ID from account object
     ...(investment.investmentOpportunity && { investmentOpportunity: investment.investmentOpportunity }),
     ...(investment.loanRecipientInvestmentAccount?.id && {
       loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount.id
     }),
+    // Send company as string UUID (backend expects "company" field name with UUID string value)
+    // Form uses companyId field, extract from either companyId (string) or company.id (object)
+    ...((investment as any).companyId
+      ? { company: (investment as any).companyId }
+      : investment.company?.id
+        ? { company: investment.company.id }
+        : {}),
 
     // Investment additionalProperties as JSON string
     ...(investmentAdditionalProperties && { additionalProperties: investmentAdditionalProperties })
@@ -323,7 +359,7 @@ export const buildInvestmentPayload = (
       const existingEquity = Array.isArray(rawInvestmentData?.equityInvestment)
         ? rawInvestmentData.equityInvestment[0] || {}
         : rawInvestmentData?.equityInvestment || {}
-      const equityAdditionalProperties = buildAdditionalProperties(equityData, 'equityInvestment')
+      const equityAdditionalProperties = buildAdditionalProperties(equityData)
 
       // Build equityInvestment using ONLY fields defined in EquityInvestmentData interface
       // NOTE: Form state uses catalog fields WITHOUT "Ref", API expects WITH "Ref"
@@ -338,8 +374,9 @@ export const buildInvestmentPayload = (
         equityPayload.investmentStakeTypeRef = equityData.investmentStakeType.id // Extract ID from catalog object
       if (equityData.stakePercentage !== undefined) equityPayload.stakePercentage = toNumber(equityData.stakePercentage)
 
-      // Additional properties
-      if (equityAdditionalProperties) equityPayload.additionalProperties = equityAdditionalProperties
+      // CRITICAL FIX: Always set additionalProperties (even if empty) - backend validation requires this field
+      // This ensures the payload is never completely empty which could cause validation errors
+      equityPayload.additionalProperties = equityAdditionalProperties || {}
 
       // Always include id and version for updates
       if (options.isUpdate && existingEquity.id) {
@@ -359,7 +396,7 @@ export const buildInvestmentPayload = (
       const existingRealEstate = Array.isArray(rawInvestmentData?.realEstateInvestment)
         ? rawInvestmentData.realEstateInvestment[0] || {}
         : rawInvestmentData?.realEstateInvestment || {}
-      const realEstateAdditionalProperties = buildAdditionalProperties(realEstateData, 'realEstateInvestment')
+      const realEstateAdditionalProperties = buildAdditionalProperties(realEstateData)
 
       // Build realEstateInvestment using ONLY fields defined in RealEstateInvestmentData interface
       // NOTE: Form state uses catalog fields WITHOUT "Ref", API expects WITH "Ref"
@@ -393,8 +430,9 @@ export const buildInvestmentPayload = (
       if (realEstateData.liquidityForecast !== undefined)
         realEstatePayload.liquidityForecast = realEstateData.liquidityForecast
 
-      // Additional properties
-      if (realEstateAdditionalProperties) realEstatePayload.additionalProperties = realEstateAdditionalProperties
+      // CRITICAL FIX: Always set additionalProperties (even if empty) - backend validation requires this field
+      // This ensures the payload is never completely empty which could cause validation errors
+      realEstatePayload.additionalProperties = realEstateAdditionalProperties || {}
 
       // Always include id and version for updates
       if (options.isUpdate && existingRealEstate.id) {
@@ -414,7 +452,7 @@ export const buildInvestmentPayload = (
       const existingLiquidFund = Array.isArray(rawInvestmentData?.liquidFundInvestment)
         ? rawInvestmentData.liquidFundInvestment[0] || {}
         : rawInvestmentData?.liquidFundInvestment || {}
-      const liquidFundAdditionalProperties = buildAdditionalProperties(liquidFundData, 'liquidFundInvestment')
+      const liquidFundAdditionalProperties = buildAdditionalProperties(liquidFundData)
 
       // Build liquidFundInvestment using ONLY fields defined in LiquidFundInvestmentData interface
       // NOTE: Form state uses catalog fields WITHOUT "Ref", API expects WITH "Ref"
@@ -436,8 +474,9 @@ export const buildInvestmentPayload = (
       if (liquidFundData.maturityDate !== undefined)
         liquidFundPayload.maturityDate = toISOFormat(liquidFundData.maturityDate)
 
-      // Additional properties
-      if (liquidFundAdditionalProperties) liquidFundPayload.additionalProperties = liquidFundAdditionalProperties
+      // CRITICAL FIX: Always set additionalProperties (even if empty) - backend validation requires this field
+      // This ensures the payload is never completely empty which could cause validation errors
+      liquidFundPayload.additionalProperties = liquidFundAdditionalProperties || {}
 
       // Always include id and version for updates
       if (options.isUpdate && existingLiquidFund.id) {

@@ -20,7 +20,7 @@ export const StatsCard = ({ stat }: StatsCardProps) => {
         <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
           <span
             className="gba:statsCardUsed"
-            style={used && used > 0 ? { color: 'rgba(13, 188, 123)' } : { color: 'rgba(0, 0, 0)' }}
+            style={used && used > 0 ? { color: 'var(--nw-success)' } : { color: 'var(--nw-foreground)' }}
             data-testid="stats-card-used"
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {used}
@@ -56,7 +56,7 @@ export const StatsCard = ({ stat }: StatsCardProps) => {
       <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
         <span
           className="gba:statsCardUsed"
-          style={used && used > 0 ? { color: 'rgba(13, 188, 123)' } : { color: 'rgba(0, 0, 0)' }}
+          style={used && used > 0 ? { color: 'var(--nw-success)' } : { color: 'var(--nw-foreground)' }}
           data-testid="stats-card-used"
         >
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {used}

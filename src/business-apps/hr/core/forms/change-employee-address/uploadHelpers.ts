@@ -53,7 +53,7 @@ export const uploadEmployeeDocumentIfAny = async (
           uploadedEmployeeDocumentId = undefined
         })
     }
-  } catch (e) {
+  } catch {
     uploadedEmployeeDocumentId = undefined
   }
   return uploadedEmployeeDocumentId

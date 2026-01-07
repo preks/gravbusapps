@@ -63,6 +63,8 @@ export interface Investment {
   totalDistributionAmount: number | null
   totalInvestmentAmount: number | null
   acquisitionDate: string | null
+  irr: number | null
+  moic: number | null
 }
 
 export interface RealEstateInvestment {
@@ -132,6 +134,8 @@ export interface InvestmentReport {
   totalCommitmentAmount: number | null
   totalDistributionAmount: number | null
   totalInvestmentAmount: number | null
+  irr: number | null
+  moic: number | null
 }
 
 export interface RealEstateInvestmentReport {

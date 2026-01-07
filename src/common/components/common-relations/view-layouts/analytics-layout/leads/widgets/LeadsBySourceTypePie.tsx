@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@newwork/nw-design-system'
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
   ChartConfig,
   ChartContainer,
   ChartTooltip,
@@ -20,20 +24,13 @@ export interface LeadsBySourceTypePieProps {
   moduleColor?: string
 }
 
-const formatLargeNumber = (value: number): string => {
-  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
-  return value.toString()
-}
-
 const toKey = (value: string): string =>
   value
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 
-export const LeadsBySourceTypePie: React.FC<LeadsBySourceTypePieProps> = ({ data, moduleColor }) => {
+export const LeadsBySourceTypePie: React.FC<LeadsBySourceTypePieProps> = ({ data }) => {
   const dataKey = 'leads'
   const nameKey = 'sourceType'
 
@@ -51,18 +48,12 @@ export const LeadsBySourceTypePie: React.FC<LeadsBySourceTypePieProps> = ({ data
 
   const chartConfig = useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig
-    const config: Record<string, { label?: string }> = {
-      [dataKey]: {}
-    }
+    const config: Record<string, { label?: string }> = {}
     data.forEach(item => {
       const key = toKey(item.sourceType)
       config[key] = { label: item.sourceType }
     })
     return config as ChartConfig
-  }, [data])
-
-  const totalLeads = useMemo(() => {
-    return data?.reduce((sum, item) => sum + item.count, 0) || 0
   }, [data])
 
   return (

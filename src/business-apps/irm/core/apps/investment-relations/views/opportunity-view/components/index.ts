@@ -1,3 +1,2 @@
-export { OpportunityStatistics } from './OpportunityStatistics'
-export { OpportunityList } from './OpportunityList'
-export { OpportunityBoard } from './opportunity-board/OpportunityBoard'
+export { OpportunityQuickFilters } from './OpportunityQuickFilters'
+export type { OpportunityQuickFiltersProps, QuickFilterType } from './OpportunityQuickFilters'

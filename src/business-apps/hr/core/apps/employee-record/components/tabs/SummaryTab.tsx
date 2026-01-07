@@ -21,12 +21,12 @@ import {
   PiCalendarX,
   PiCheckCircle,
   PiSignIn,
-  PiSignOut,
-  PiDotsThreeVertical
+  PiSignOut
 } from 'react-icons/pi'
 import { ArrowCircleLeftIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '@/common/BusinessAppContext'
+import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Button, Tooltip } from 'antd'
@@ -117,26 +117,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       visible: false
     }))
   }
-  // Get additional attributes from additionalProperties
-  const getAdditionalAttributes = () => {
-    if (!employee.additionalProperties) return []
-
-    const attributes = []
-    for (const [key, value] of Object.entries(employee.additionalProperties)) {
-      if (key !== 'imported') {
-        // Try to get a hardcoded label for the key, or use the key itself if no label exists
-        const translatedKey = key.charAt(0).toUpperCase() + key.slice(1)
-        attributes.push({
-          key: translatedKey,
-          value: value === null || value === undefined ? '' : String(value)
-        })
-      }
-    }
-
-    return attributes
-  }
-
-  const additionalAttributes = getAdditionalAttributes()
 
   // Map real team members from GraphQL data
 
@@ -178,7 +158,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
           <div className="gba:font-bold gba:text-2xl" data-testid="summary-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.summary_overview', 'Employee Overview')}
           </div>
-          <div className="gba:text-gray-500 gba:text-lg" data-testid="summary-description">
+          <div className="gba:text-muted-foreground gba:text-lg" data-testid="summary-description">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:hr_employee.summary_description',
               'View and edit employee profile'
@@ -189,30 +169,37 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
         {/* Action Button */}
         {useMemo(
           () => (
-            <div>
-              <AppActionMenu
-                data-testid="employee-actions-button"
-                contextsArray={[FlowContextName.employeeEntity]}
-                externalContextData={{
-                  employeeId: employee?.id,
-                  managerId: employee?.employeePosition?.supervisor?.id,
-                  organizationalUnitId: employee?.employeePosition?.organizationalUnitId
-                }}
-                prefixDataTestId="employee-actions"
-                accessToken={accessToken}
-                autoExecuteSingleAction={false}
-                deferMainContextRequestsUntilClick={false}
-                emptyStateBehavior="hide"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                  <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.action', 'Actions')}
-                </div>
-              </AppActionMenu>
-            </div>
+            <AppAction
+              variant="header"
+              data-testid="employee-actions-button"
+              contexts={[
+                {
+                  context: FlowContextName.employeeEntity,
+                  contextData: {
+                    employeeId: employee?.id,
+                    managerId: employee?.employeePosition?.supervisor?.id,
+                    organizationalUnitId: employee?.employeePosition?.organizationalUnitId
+                  }
+                }
+              ]}
+              shareContext={{
+                entityType: 'employee',
+                entityId: employee?.id || '',
+                entityName:
+                  employee?.displayName ||
+                  `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() ||
+                  'Employee',
+                entityUrl: `/platform/hr/employee-record?employeeId=${employee?.id}`
+              }}
+              prefixDataTestId="employee-actions"
+              accessToken={accessToken}
+            />
           ),
           [
             employee?.id,
+            employee?.displayName,
+            employee?.firstName,
+            employee?.lastName,
             employee?.employeePosition?.supervisor?.id,
             employee?.employeePosition?.organizationalUnitId,
             accessToken
@@ -226,12 +213,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <Card
             variant="outlined"
-            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-gray-200 gba:transition-all"
-            style={{ minHeight: '420px', backgroundColor: 'white' }}
+            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all gba:min-h-[420px] gba:bg-primary-foreground"
             data-testid="summary-section-organization-chart"
           >
-            <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Organization Chart</h3>
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+              <h3 className="gba:text-xl gba:font-semibold gba:text-info">Organization Chart</h3>
             </div>
             <div className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
               <div
@@ -282,15 +268,15 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         appearance="gradient"
                       />
                       <div className="gba:mt-2 gba:text-center">
-                        <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
+                        <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
                           {employee.employeePosition.supervisor.displayName}
                         </div>
-                        <div className="gba:text-xs gba:text-gray-500">
+                        <div className="gba:text-xs gba:text-muted-foreground">
                           {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
                         </div>
                       </div>
                     </a>
-                    <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>
+                    <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
                   </div>
                 )}
 
@@ -313,12 +299,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   </div>
                   <div className="gba:mt-2 gba:text-center">
                     <div className="gba:font-medium gba:text-sm">{employee.displayName}</div>
-                    <div className="gba:text-xs gba:text-gray-500">
+                    <div className="gba:text-xs gba:text-muted-foreground">
                       {employee.employeePosition?.jobPosition?.name || ''}
                     </div>
                   </div>
                   {subordinates.length > 0 && (
-                    <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>
+                    <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
                   )}
                 </div>
               </div>
@@ -356,10 +342,10 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                           appearance="gradient"
                         />
                         <div className="gba:mt-2 gba:text-center gba:w-full">
-                          <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
+                          <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
                             {member.displayName}
                           </div>
-                          <div className="gba:text-xs gba:text-gray-500 gba:truncate gba:w-full gba:text-center gba:px-1">
+                          <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:w-full gba:text-center gba:px-1">
                             {member.position}
                           </div>
                         </div>
@@ -376,21 +362,25 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <Card
             variant="outlined"
-            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-gray-200 gba:transition-all"
-            style={{ minHeight: '420px', backgroundColor: 'white' }}
+            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all"
+            style={{ minHeight: '420px', backgroundColor: 'var(--nw-primary-foreground)' }}
             data-testid="summary-section-job-information"
           >
-            <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Job Information</h3>
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+              <h3 className="gba:text-xl gba:font-semibold gba:text-info">Job Information</h3>
             </div>
             <div className="gba:p-4">
               <div className="gba:space-y-4">
                 <div className="gba:flex gba:items-center">
-                  <PiBriefcase className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                  <PiBriefcase className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Profile</div>
-                    <div className="gba:text-sm gba:text-gray-600">
-                      {employee.employeePosition?.jobPosition?.name ?? 'Not assigned'}
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Profile</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">
+                      {employee.employeePosition?.jobPosition?.name ??
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_profile.left_side_bar.not_assigned',
+                          'Not assigned'
+                        )}
                     </div>
                   </div>
                 </div>
@@ -398,9 +388,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 {/* Optional Job Family section - only show if data is available */}
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
-                    <PiStack className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                    <PiStack className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
-                      <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Family</div>
+                      <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Family</div>
                       <button
                         onClick={() =>
                           openDrawer(
@@ -413,7 +403,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         data-testid="job-family-button"
                       >
                         {/* Display job family from updated data structure, fallback to organizationalUnit name */}
-                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
@@ -422,10 +416,10 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 {/* Optional Job Function section - only show if data is available */}
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
-                    <PiFunction className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                    <PiFunction className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:flex gba:justify-between gba:w-full">
-                        <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
+                        <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Function</div>
                       </div>
                       <button
                         onClick={() =>
@@ -438,7 +432,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-function-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobFunction?.name || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.name ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
@@ -447,9 +445,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 {/* Optional Job Level section - only show if data is available */}
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
-                    <PiListNumbers className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                    <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
-                      <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Level</div>
+                      <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Level</div>
                       <button
                         onClick={() =>
                           openDrawer(
@@ -461,8 +459,23 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-level-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobLevel?.name || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobLevel?.name ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* SAP Number (HR Reference Code) */}
+                {employee?.hrReferenceCode && (
+                  <div className="gba:flex gba:items-center">
+                    <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <div>
+                      <div className="gba:text-sm gba:font-medium gba:text-foreground">{getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.sap_number', 'SAP Number')}</div>
+                      <div className="gba:text-sm gba:text-muted-foreground">{String(employee.hrReferenceCode)}</div>
                     </div>
                   </div>
                 )}
@@ -475,12 +488,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <Card
             variant="outlined"
-            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-gray-200 gba:transition-all"
-            style={{ minHeight: '420px', backgroundColor: 'white' }}
+            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all"
+            style={{ minHeight: '420px', backgroundColor: 'var(--nw-primary-foreground)' }}
             data-testid="summary-section-availability"
           >
-            <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Availability & Schedule</h3>
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+              <h3 className="gba:text-xl gba:font-semibold gba:text-info">Availability & Schedule</h3>
             </div>
             <div className="gba:p-4">
               <div className="gba:space-y-4">
@@ -488,18 +501,18 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 <div className="gba:flex gba:items-center">
                   {hasAbsenceToday ? (
                     <ArrowCircleLeftIcon
-                      className="gba:h-5 gba:w-5 gba:text-red-500 gba:mr-3"
+                      className="gba:h-5 gba:w-5 gba:text-destructive gba:mr-3"
                       data-testid="current-status-icon"
                     />
                   ) : (
                     <PiCheckCircle
-                      className="gba:h-5 gba:w-5 gba:text-green-500 gba:mr-3"
+                      className="gba:h-5 gba:w-5 gba:text-success gba:mr-3"
                       data-testid="current-status-icon"
                     />
                   )}
                   <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Current Status</div>
-                    <div className="gba:text-sm gba:text-gray-600" data-testid="current-status-text">
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">Current Status</div>
+                    <div className="gba:text-sm gba:text-muted-foreground" data-testid="current-status-text">
                       {hasAbsenceToday ? 'Unavailable' : 'Available'}
                     </div>
                   </div>
@@ -514,11 +527,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     const isWorkDay = dayHours > 0
                     return (
                       <div key={day} className="gba:text-center">
-                        <div className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase">
-                          {day.slice(0, 3)}
+                        <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
+                          <span className="gba:hidden gba:2xl:inline">{day.slice(0, 3)}</span>
+                          <span className="gba:inline gba:2xl:hidden">{day.slice(0, 1)}</span>
                         </div>
                         <div
-                          className={`gba:h-2 gba:rounded-full gba:mt-1 ${isWorkDay ? 'gba:bg-blue-500' : 'gba:bg-gray-200'}`}
+                          className={`gba:h-2 gba:rounded-full gba:mt-1 ${isWorkDay ? 'gba:bg-info' : 'gba:bg-border'}`}
                         ></div>
                       </div>
                     )
@@ -527,19 +541,19 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
                 {/* Timezone */}
                 <div className="gba:flex gba:items-center">
-                  <PiClock className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                  <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Timezone</div>
-                    <div className="gba:text-sm gba:text-gray-600">Europe/Berlin</div>
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">Timezone</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">Europe/Berlin</div>
                   </div>
                 </div>
 
                 {/* Working hours */}
                 <div className="gba:flex gba:items-center">
-                  <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                  <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Weekly Hours</div>
-                    <div className="gba:text-sm gba:text-gray-600">{computedWorkingHours}</div>
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">Weekly Hours</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{computedWorkingHours}</div>
                   </div>
                 </div>
 
@@ -547,15 +561,15 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 {isCurrentUser && (
                   <div className="">
                     <div className="gba:flex gba:items-center gba:mb-3">
-                      <PiLightning className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                      <PiLightning className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                       <div
-                        className="gba:text-sm gba:font-medium gba:text-gray-900"
+                        className="gba:text-sm gba:font-medium gba:text-foreground"
                         data-testid="quick-actions-heading"
                       >
                         Quick Actions
                       </div>
                     </div>
-                    <div className="gba:flex gba:gap-2 gba:w-full">
+                    <div className="gba:flex gba:gap-2 gba:w-full gba:flex-wrap">
                       <Tooltip title="Clock In">
                         <Button
                           type="default"
@@ -602,9 +616,14 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         prefixDataTestId="request-absence"
                         accessToken={accessToken}
                       >
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:flex-1 gba:min-w-0">
                           <PiCalendarX className="gba:h-4 gba:w-4" />
-                          <span className="gba:text-xs gba:md:text-sm gba:truncate">Request Absence</span>
+                          <span className="gba:text-xs gba:md:text-sm gba:truncate">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:absence_hub.request_absence',
+                              'Request Absence'
+                            )}
+                          </span>
                         </div>
                       </AppActionMenu>
                     </div>
@@ -614,19 +633,19 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 {/* Upcoming Absence Section */}
                 {firstUpcomingValidAbsence && (
                   <div
-                    className="gba:mt-4 gba:border-t gba:border-gray-200 gba:pt-4"
+                    className="gba:mt-4 gba:border-t gba:border-border gba:pt-4"
                     data-testid="upcoming-absence-section"
                   >
                     <div className="gba:flex gba:items-center gba:mb-3">
-                      <PiCalendarX className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                      <PiCalendarX className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                       <div
-                        className="gba:text-sm gba:font-medium gba:text-gray-900"
+                        className="gba:text-sm gba:font-medium gba:text-foreground"
                         data-testid="upcoming-absence-heading"
                       >
                         Next Planned Absence
                       </div>
                     </div>
-                    <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-gray-200">
+                    <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-border">
                       <div className="gba:flex gba:justify-between gba:items-center">
                         <div>
                           <p className="gba:text-sm gba:font-medium" data-testid="absence-type">
@@ -636,7 +655,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                             - {firstUpcomingValidAbsence.calendarDays} days
                           </p>
                           <div className="gba:flex gba:items-center gba:mt-1">
-                            <span className="gba:text-xs gba:text-gray-500" data-testid="absence-dates">
+                            <span className="gba:text-xs gba:text-muted-foreground" data-testid="absence-dates">
                               {dayjs(firstUpcomingValidAbsence.startDate).format('MMM DD')} -{' '}
                               {dayjs(firstUpcomingValidAbsence.endDate).format('MMM DD, YYYY')}
                             </span>
@@ -659,7 +678,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
                 {absenceLoading && !upcomingAbsence && (
                   <div
-                    className="gba:mt-4 gba:border-t gba:border-gray-200 gba:pt-4 gba:text-center gba:text-sm gba:text-gray-500"
+                    className="gba:mt-4 gba:border-t gba:border-border gba:pt-4 gba:text-center gba:text-sm gba:text-muted-foreground"
                     data-testid="loading-absence"
                   >
                     Loading upcoming absence...
@@ -670,36 +689,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
           </Card>
         </div>
 
-        {/* Additional Attributes Section */}
-        {additionalAttributes.length > 0 && (
-          <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-            <Card
-              variant="outlined"
-              className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-gray-200 gba:transition-all"
-              style={{ minHeight: '420px', backgroundColor: 'white' }}
-              data-testid="summary-section-additional-attributes"
-            >
-              <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-                <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Additional Attributes</h3>
-              </div>
-              <div className="gba:p-4">
-                <div className="gba:space-y-4">
-                  {additionalAttributes.map((attr, index) => (
-                    <div key={index} className="gba:flex gba:items-center">
-                      <div className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3">
-                        <div className="gba:w-2 gba:h-2 gba:bg-gray-400 gba:rounded-full"></div>
-                      </div>
-                      <div className="gba:flex-1">
-                        <div className="gba:text-sm gba:font-medium gba:text-gray-900">{attr.key}</div>
-                        <div className="gba:text-sm gba:text-gray-600">{attr.value}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
+        {/* Additional Attributes moved to HR Admin > Details tab */}
       </div>
 
       {/* Job Details Drawer */}

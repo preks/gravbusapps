@@ -50,8 +50,6 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = context => {
   const [searchTerm, setSearchTerm] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const [selectedRows, setSelectedRows] = useState<any[]>([])
-
   const handleDelete = async (type: 'group' | 'level', item: JobLevelGroup | JobLevel) => {
     const isJobLevel = type === 'level'
 
@@ -264,10 +262,7 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = context => {
         columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
         sorting={sorting}
         onSortingChange={setSorting}
-        selectedRows={selectedRows}
-        onSelectionChange={setSelectedRows}
         enableSorting
-        enableSelection
         enablePagination
       />
     )

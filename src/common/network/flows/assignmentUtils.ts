@@ -13,7 +13,7 @@ export function transformAssignmentTarget(target: Partial<AssignmentTarget>, mod
   // For ASSIGN mode: convert undefined arrays to []
   const defaultValue = mode === AssignmentMode.CLAIM ? [ANY_SELECTOR] : []
 
-  transformed.userIds = target.userIds?.length ? target.userIds : defaultValue
+  transformed.users = target.users?.length ? target.users : defaultValue
   transformed.organizationalUnits = target.organizationalUnits?.length ? target.organizationalUnits : defaultValue
   transformed.matrixTeams = target.matrixTeams?.length ? target.matrixTeams : defaultValue
   transformed.companies = target.companies?.length ? target.companies : defaultValue
@@ -31,8 +31,8 @@ export function validateClaimAssignment(target: AssignmentTarget): { valid: bool
   const errors: string[] = []
 
   // CLAIM mode validation rules:
-  // 1. userIds are not accepted
-  if (target.userIds && target.userIds.length > 0 && !target.userIds.includes(ANY_SELECTOR)) {
+  // 1. users are not accepted
+  if (target.users && target.users.length > 0 && !target.users.includes(ANY_SELECTOR)) {
     errors.push('Direct user assignment is not allowed in CLAIM mode')
   }
 
@@ -89,7 +89,7 @@ export function buildClaimableTaskQuery(userAssignments: AssignmentTarget): obje
  */
 export function isEmptyAssignmentTarget(target: AssignmentTarget): boolean {
   return (
-    !target.userIds?.length &&
+    !target.users?.length &&
     !target.organizationalUnits?.length &&
     !target.matrixTeams?.length &&
     !target.companies?.length &&

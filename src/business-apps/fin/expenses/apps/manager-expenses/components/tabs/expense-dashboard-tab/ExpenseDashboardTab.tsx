@@ -22,6 +22,7 @@ export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void
   onNavigateToReports?: () => void
   onNavigateToAnalytics?: () => void
+  moduleColor?: string
 }
 
 // Define a type for recent requests if not already available from the hook
@@ -269,7 +270,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
                   <CardContent className="gba:p-6">
                     <div className="gba:flex gba:items-center gba:mb-3">
                       <IconAvatar
-                        icon={action.icon}
+                        icon={action.icon as any}
                         className={`gba:text-2xl ${action.iconColor} gba:mr-3`}
                         variant="default"
                         size="md"

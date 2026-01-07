@@ -164,7 +164,16 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
             data-testid="currency-filter-select"
           >
             <SelectTrigger className="gba:w-[140px] gba:border-border">
-              <SelectValue placeholder={filterDataLoading ? 'Loading...' : 'Filter by currency'} />
+              <SelectValue
+                placeholder={
+                  filterDataLoading
+                    ? 'Loading...'
+                    : getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_request_filter.filter_by_currency',
+                        'Filter by Currency'
+                      )
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               {currencies.map(currency => (

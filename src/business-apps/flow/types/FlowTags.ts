@@ -9,5 +9,8 @@ export interface FlowTag {
 }
 
 export interface FlowTags {
-  [key: string]: string
+  app?: string
+  serviceCategory?: string
+  digitalWorkplaceCategory?: string
+  [key: string]: string | undefined
 }

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { Spin, Alert, Button } from 'antd'
 import {
   DashboardOutlined,
-  CalendarOutlined,
   UserOutlined,
   TeamOutlined,
   ApartmentOutlined,
@@ -17,40 +16,57 @@ import Workforce from './components/views/workforce'
 import StructuralAnalysisReport from './components/views/structural-analysis/StructuralAnalysisReport'
 import Compensation from './components/views/compensation'
 import Forecasting from './components/views/forecasting'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export interface HrAnalyticsViewProps extends BusinessAppContextProps {}
-
-export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = context => {
+export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
-      label: 'Dashboard'
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.dashboard_tab_label',
+        'Dashboard'
+      )
     },
     {
       key: 'demographics',
       icon: <UserOutlined />,
-      label: 'Demographics'
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.demographics_tab_label',
+        'Demographics'
+      )
     },
     {
       key: 'workforce',
       icon: <TeamOutlined />,
-      label: 'Workforce'
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.workforce_tab_label',
+        'Workforce'
+      )
     },
     {
       key: 'compensation',
       icon: <DollarOutlined />,
-      label: 'Compensation'
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.compensation_tab_label',
+        'Compensation'
+      )
     },
     {
       key: 'forecasting',
       icon: <LineChartOutlined />,
-      label: 'Forecasting'
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.forecasting_tab_label',
+        'Forecasting'
+      )
     },
     {
       key: 'structural-analysis',
       icon: <ApartmentOutlined />,
-      label: 'Structural Analysis'
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.structural_analysis_tab_label',
+        'Structural Analysis'
+      )
     }
   ]
 
@@ -69,7 +85,7 @@ export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = context => {
 
   const [activeSubTab, setActiveSubTab] = useState<string>(getInitialTab())
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isLoading] = useState<boolean>(false)
 
   const handleSubTabChange = (value: string) => {
     setActiveSubTab(value)
@@ -106,13 +122,16 @@ export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = context => {
       return (
         <div className="gba:p-6">
           <Alert
-            message={`Error Loading ${viewName}`}
+            message={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:human_resources_page.analytics_section.error_loading',
+              `Error Loading ${viewName}`
+            )}
             description={error}
             type="error"
             showIcon
             action={
               <Button size="small" onClick={() => setError(null)} type="primary">
-                Retry
+                {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.analytics_section.retry', 'Retry')}
               </Button>
             }
             className="gba:shadow-sm"
@@ -129,7 +148,12 @@ export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = context => {
         <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
           <div className="gba:text-center">
             <Spin size="large" />
-            <div className="gba:mt-4 gba:text-gray-600 gba:text-lg">Loading {viewName}...</div>
+            <div className="gba:mt-4 gba:text-muted-foreground gba:text-lg">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:human_resources_page.analytics_section.loading',
+                `Loading ${viewName}...`
+              )}
+            </div>
           </div>
         </div>
       )
@@ -138,10 +162,14 @@ export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = context => {
   }
 
   const renderTabContent = () => {
-    const errorContent = renderErrorContent('HR Analytics')
+    const errorContent = renderErrorContent(
+      getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.analytics_section.title', 'HR Analytics')
+    )
     if (errorContent) return errorContent
 
-    const loadingContent = renderLoadingContent('HR Analytics')
+    const loadingContent = renderLoadingContent(
+      getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.analytics_section.title', 'HR Analytics')
+    )
     if (loadingContent) return loadingContent
 
     switch (activeSubTab) {

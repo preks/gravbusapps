@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   buildAdvancePaymentsQuery,
   validateFilters,
@@ -170,7 +170,8 @@ export interface AdvancePaymentsDataView {
     advanceRange?: { min?: number; max?: number } | null,
     sortField?: string | null,
     sortOrder?: 'ascend' | 'descend' | null,
-    currencyRef?: string | null
+    currencyRef?: string | null,
+    options?: { force?: boolean }
   ) => Promise<void>
 }
 
@@ -179,6 +180,9 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState(0)
+  const graphqlClient = useGraphQLClient(context?.accessToken || '')
+  // Prevent duplicate in-flight calls with the exact same parameters (e.g., StrictMode)
+  const lastCallSignatureRef = useRef<string>('')
 
   const fetchItems = useCallback(
     async (
@@ -190,7 +194,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       advanceRange: { min?: number; max?: number } | null = null,
       sortField?: string | null,
       sortOrder?: 'ascend' | 'descend' | null,
-      currencyRef?: string | null
+      currencyRef?: string | null,
+      options?: { force?: boolean }
     ) => {
       const employeeId = context?.userInfo?.employeeDetails?.employeeId
       const accessToken = context?.accessToken
@@ -199,6 +204,24 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         console.warn('Missing employeeId or accessToken for advance payments query')
         return
       }
+
+      const callSignature = JSON.stringify({
+        searchTerm,
+        page,
+        pageSize,
+        statusFilter,
+        amountRange,
+        advanceRange,
+        sortField,
+        sortOrder,
+        currencyRef,
+        employeeId
+      })
+      if (!options?.force && callSignature === lastCallSignatureRef.current) {
+        // Skip duplicate identical request unless force-refresh is requested
+        return
+      }
+      lastCallSignatureRef.current = callSignature
 
       setIsLoading(true)
       setError(null)
@@ -279,32 +302,9 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           variables.currencyRef = filters.currencyRef
         }
 
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query,
-            variables
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`)
-        }
-
-        const result = await response.json()
-
-        if (result.errors && result.errors.length > 0) {
-          console.error('GraphQL Errors:', result.errors)
-          throw new Error(result.errors.map((e: any) => e.message).join(', '))
-        }
-
-        // Get the items and count
-        const fetchedItems = result.data?.AdvancePayment ?? []
-        const count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0
+        const result = await graphqlClient.request<any>(query, variables)
+        const fetchedItems = result?.AdvancePayment ?? []
+        const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
 
         setTotalCount(count)
         setItems(fetchedItems)
@@ -317,7 +317,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         setIsLoading(false)
       }
     },
-    [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]
+    [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, graphqlClient]
   )
 
   return {

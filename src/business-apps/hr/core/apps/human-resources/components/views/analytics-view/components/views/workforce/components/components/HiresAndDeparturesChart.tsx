@@ -1,6 +1,7 @@
 import React from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface HiresAndDeparturesChartProps {
   hiresData: Array<{
@@ -29,6 +30,40 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
   isLoading,
   dataTestId
 }) => {
+  const { t } = useTranslation(hrTranslations)
+
+  // Custom legend to enforce fixed order
+  const renderLegend = (props: any) => {
+    const desiredOrder = ['hires', 'departures', 'netChange']
+    const items = Array.isArray(props?.payload) ? props.payload : []
+
+    const ordered = [...items].sort((a, b) => {
+      const ai = desiredOrder.indexOf(a?.dataKey ?? '')
+      const bi = desiredOrder.indexOf(b?.dataKey ?? '')
+      return ai - bi
+    })
+
+    const labelFor = (dataKey: string): string => {
+      if (dataKey === 'hires') return t('hr-analytics-new-hires')
+      if (dataKey === 'departures') return t('hr-analytics-departures')
+      if (dataKey === 'netChange') return t('hr-analytics-net-change')
+      return dataKey
+    }
+
+    return (
+      <div className="gba:flex gba:flex-wrap gba:gap-4 gba:mb-2">
+        {ordered.map((entry: any) => (
+          <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2">
+            <span
+              className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-sm"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="gba:text-sm gba:text-foreground">{labelFor(entry.dataKey)}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
   // Combine all data by date
   const combinedData = React.useMemo(() => {
     const dataMap = new Map()
@@ -70,9 +105,17 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
     })
 
     // Convert to array and sort by date
+    // Fix: ensure sort is stable and robust, handle potential invalid dates
     return Array.from(dataMap.entries())
-      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-      .map(([_, data]) => data)
+      .sort(([a], [b]) => {
+        const aTime = new Date(a).getTime()
+        const bTime = new Date(b).getTime()
+        if (isNaN(aTime) && isNaN(bTime)) return 0
+        if (isNaN(aTime)) return 1
+        if (isNaN(bTime)) return -1
+        return aTime - bTime
+      })
+      .map(([, data]) => data)
   }, [hiresData, exitsData, netChangeData])
 
   if (isLoading) {
@@ -86,7 +129,7 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
   if (combinedData.length === 0) {
     return (
       <div data-testid={`${dataTestId}-empty`} className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <p className="gba:text-gray-500">No hires and departures data available</p>
+        <p className="gba:text-muted-foreground">{t('hr-analytics-no-hires-departures-data')}</p>
       </div>
     )
   }
@@ -95,45 +138,49 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
     <div data-testid={dataTestId} className="gba:w-full gba:h-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={combinedData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#666" />
-          <YAxis tick={{ fontSize: 12 }} stroke="#666" label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-muted)" />
+          <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="var(--nw-muted-foreground)" />
+          <YAxis
+            tick={{ fontSize: 12 }}
+            stroke="var(--nw-muted-foreground)"
+            label={{ value: t('hr-analytics-count'), angle: -90, position: 'insideLeft' }}
+          />
           <Tooltip
-            labelFormatter={value => `Month: ${value}`}
+            labelFormatter={value => `${t('hr-analytics-month')}: ${value}`}
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #d1d5db',
+              backgroundColor: 'var(--nw-card)',
+              border: '1px solid var(--nw-border)',
               borderRadius: '6px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              boxShadow: 'var(--nw-shadow-sm)'
             }}
           />
-          <Legend />
+          <Legend content={renderLegend} />
           <Line
             type="monotone"
             dataKey="hires"
-            stroke="#52c41a"
+            stroke="var(--nw-success)"
             strokeWidth={2}
-            name="New Hires"
-            dot={{ fill: '#52c41a', strokeWidth: 2, r: 3 }}
-            activeDot={{ r: 5, fill: '#52c41a' }}
+            name={t('hr-analytics-new-hires')}
+            dot={{ fill: 'var(--nw-success)', strokeWidth: 2, r: 3 }}
+            activeDot={{ r: 5, fill: 'var(--nw-success)' }}
           />
           <Line
             type="monotone"
             dataKey="departures"
-            stroke="#ff4d4f"
+            stroke="var(--nw-destructive)"
             strokeWidth={2}
-            name="Departures"
-            dot={{ fill: '#ff4d4f', strokeWidth: 2, r: 3 }}
-            activeDot={{ r: 5, fill: '#ff4d4f' }}
+            name={t('hr-analytics-departures')}
+            dot={{ fill: 'var(--nw-destructive)', strokeWidth: 2, r: 3 }}
+            activeDot={{ r: 5, fill: 'var(--nw-destructive)' }}
           />
           <Line
             type="monotone"
             dataKey="netChange"
-            stroke="#1890ff"
+            stroke="var(--nw-chart-4)"
             strokeWidth={3}
-            name="Net Change"
-            dot={{ fill: '#1890ff', strokeWidth: 2, r: 4 }}
-            activeDot={{ r: 6, fill: '#1890ff' }}
+            name={t('hr-analytics-net-change')}
+            dot={{ fill: 'var(--nw-chart-4)', strokeWidth: 2, r: 4 }}
+            activeDot={{ r: 6, fill: 'var(--nw-chart-4)' }}
             strokeDasharray="5 5"
           />
         </LineChart>

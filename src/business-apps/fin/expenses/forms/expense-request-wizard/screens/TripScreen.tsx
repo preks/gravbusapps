@@ -170,7 +170,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       }
 
       return true
-    } catch (error) {
+    } catch {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_item.missing_expense_rule_message',
         'There is no rule set for your user, please reach out to your administrator.'
@@ -195,21 +195,62 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       const planValue = requestValue.expensePlan
 
       if (planValue.expenseRuleId && planValue.expenseRuleId !== newRuleId) {
-        const errorMessage = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message',
-          `The expense request uses the rule ${requestValue.code} ${requestValue.title}, but the expense plan uses the rule ${planValue.code} ${planValue.title}. They don't fit. Please reach out to your supervisor or expense expert.`,
-          {
-            codeRequest: requestValue.code,
-            nameRequest: requestValue.title,
-            codePlan: planValue.code,
-            namePlan: planValue.title,
-            interpolation: {
-              escapeValue: false
+        // Fetch rule details for both request and plan rules
+        try {
+          const getRuleDetailsQuery = `query getRuleDetails($requestRuleId: uuid!, $planRuleId: uuid!) {
+            requestRule: ExpenseRuleByPk(id: $requestRuleId) {
+              code
+              name
             }
-          }
-        )
-        setRuleConflictError(errorMessage)
-        return true
+            planRule: ExpenseRuleByPk(id: $planRuleId) {
+              code
+              name
+            }
+          }`
+
+          const ruleDetails = await graphqlClient.request(getRuleDetailsQuery, {
+            requestRuleId: newRuleId,
+            planRuleId: planValue.expenseRuleId
+          })
+
+          const requestRuleCode = ruleDetails?.requestRule?.code || newRuleId
+          const requestRuleName = ruleDetails?.requestRule?.name || ''
+          const planRuleCode = ruleDetails?.planRule?.code || planValue.expenseRuleId
+          const planRuleName = ruleDetails?.planRule?.name || ''
+
+          const errorMessage = getTranslationFromI18nKeyAndLabel(
+            'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message',
+            `The expense request uses the rule ${requestRuleCode} ${requestRuleName}, but the expense plan uses the rule ${planRuleCode} ${planRuleName}. They don't fit. Please reach out to your supervisor or expense expert.`,
+            {
+              codeRequest: requestRuleCode,
+              nameRequest: requestRuleName,
+              codePlan: planRuleCode,
+              namePlan: planRuleName,
+              interpolation: {
+                escapeValue: false
+              }
+            }
+          )
+          setRuleConflictError(errorMessage)
+          return true
+        } catch {
+          // Fallback to using rule IDs if fetching fails
+          const errorMessage = getTranslationFromI18nKeyAndLabel(
+            'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message',
+            `The expense request uses the rule ${newRuleId}, but the expense plan uses the rule ${planValue.expenseRuleId}. They don't fit. Please reach out to your supervisor or expense expert.`,
+            {
+              codeRequest: newRuleId,
+              nameRequest: '',
+              codePlan: planValue.expenseRuleId,
+              namePlan: '',
+              interpolation: {
+                escapeValue: false
+              }
+            }
+          )
+          setRuleConflictError(errorMessage)
+          return true
+        }
       }
     }
 
@@ -249,22 +290,64 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     )
 
     if (mismatchedItem) {
-      const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'lowcoder:modify_expense_request.request_and_item_rule_conflict_message',
-        `The expense request uses the rule ${requestValue.code} ${requestValue.title}, but the expense item uses the rule ${mismatchedItem.code} ${mismatchedItem.title}. They don't fit. Please reach out to your supervisor or expense expert.`,
-        {
-          codeRequest: requestValue.code,
-          nameRequest: requestValue.title,
-          codeItem: mismatchedItem.code,
-          nameItem: mismatchedItem.title,
-          interpolation: {
-            escapeValue: false
+      // Fetch rule details for both request and item rules
+      try {
+        const getRuleDetailsQuery = `query getRuleDetails($requestRuleId: uuid!, $itemRuleId: uuid!) {
+          requestRule: ExpenseRuleByPk(id: $requestRuleId) {
+            code
+            name
           }
-        }
-      )
+          itemRule: ExpenseRuleByPk(id: $itemRuleId) {
+            code
+            name
+          }
+        }`
 
-      setRuleConflictError(errorMessage)
-      return true
+        const ruleDetails = await graphqlClient.request(getRuleDetailsQuery, {
+          requestRuleId: newRuleId,
+          itemRuleId: mismatchedItem.ruleId
+        })
+
+        const requestRuleCode = ruleDetails?.requestRule?.code || newRuleId
+        const requestRuleName = ruleDetails?.requestRule?.name || ''
+        const itemRuleCode = ruleDetails?.itemRule?.code || mismatchedItem.ruleId
+        const itemRuleName = ruleDetails?.itemRule?.name || ''
+
+        const errorMessage = getTranslationFromI18nKeyAndLabel(
+          'lowcoder:modify_expense_request.request_and_item_rule_conflict_message',
+          `The expense request uses the rule ${requestRuleCode} ${requestRuleName}, but the expense item uses the rule ${itemRuleCode} ${itemRuleName}. They don't fit. Please reach out to your supervisor or expense expert.`,
+          {
+            codeRequest: requestRuleCode,
+            nameRequest: requestRuleName,
+            codeItem: itemRuleCode,
+            nameItem: itemRuleName,
+            interpolation: {
+              escapeValue: false
+            }
+          }
+        )
+
+        setRuleConflictError(errorMessage)
+        return true
+      } catch {
+        // Fallback to using rule IDs if fetching fails
+        const errorMessage = getTranslationFromI18nKeyAndLabel(
+          'lowcoder:modify_expense_request.request_and_item_rule_conflict_message',
+          `The expense request uses the rule ${newRuleId}, but the expense item uses the rule ${mismatchedItem.ruleId}. They don't fit. Please reach out to your supervisor or expense expert.`,
+          {
+            codeRequest: newRuleId,
+            nameRequest: '',
+            codeItem: mismatchedItem.ruleId,
+            nameItem: '',
+            interpolation: {
+              escapeValue: false
+            }
+          }
+        )
+
+        setRuleConflictError(errorMessage)
+        return true
+      }
     }
 
     return false
@@ -349,13 +432,17 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       lastAbsenceCheckKeyRef.current = dedupeKey
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables)
+        // Prevent stale responses from overwriting newer state
+        if (lastAbsenceCheckKeyRef.current !== dedupeKey) {
+          return
+        }
         const overlapWarning = getOverlapWarningMessage(response, expensePlanId)
         if (isEndLocation) {
           setEndLocationOverlap(overlapWarning)
         } else {
           setStartLocationOverlap(overlapWarning)
         }
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:modify_expense_request.error_fetching_expense_data',
@@ -364,7 +451,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           'error'
         )
       }
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_fetching_expense_data',
@@ -557,7 +644,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       } else {
         setLocalitiesDefault(expenseRequestData, setStartLocation, setEndLocation, setLocationsAreSynced)
       }
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_load_trip_data',
@@ -693,7 +780,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
         setExpenseRulesData(rulesResponse)
 
         await loadInitialTripData()
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:modify_expense_request.error_fetching_expense_data',

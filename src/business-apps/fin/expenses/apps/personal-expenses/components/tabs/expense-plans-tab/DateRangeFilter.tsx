@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { DatePicker, Space } from 'antd'
+import { DatePicker } from 'antd'
 import dayjs, { Dayjs } from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -21,7 +21,6 @@ interface DateRangeFilterProps {
 export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
   startDateRange,
   onDateRangeChange,
-  className = '',
   placeholder = [
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')

@@ -22,6 +22,7 @@ export type RequestOptions = {
   params?: Record<string, string | number | boolean>
   responseType?: ResponseType
   withCredentials?: boolean // Whether to include credentials in the request
+  signal?: AbortSignal
 }
 
 export type RequestOptionsWithBody = RequestOptions & {
@@ -80,7 +81,8 @@ export class RestClient {
       method,
       headers,
       credentials: options.withCredentials ? 'include' : 'same-origin',
-      mode: 'cors'
+      mode: 'cors',
+      signal: options.signal
     }
 
     // Add body for non-GET/HEAD requests
@@ -93,15 +95,28 @@ export class RestClient {
 
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`
+      let errorData: any = null
 
       try {
-        const errorData = await response.json()
-        errorMessage = errorData.message || errorMessage
-      } catch (e) {
+        errorData = await response.json()
+        errorMessage = errorData.message || errorData.error || errorMessage
+        // Log full error data for debugging
+        if (errorData && errorData.errors && Array.isArray(errorData.errors)) {
+          const details = errorData.errors.map((e: any) => e.detail || e.title).join('; ')
+          if (details) {
+            errorMessage = details
+          }
+        }
+      } catch {
         errorMessage = response.statusText || errorMessage
       }
 
-      throw new Error(`REST request failed: ${response.status} - ${errorMessage}`)
+      const error = new Error(`REST request failed: ${response.status} - ${errorMessage}`)
+      // Attach error data for debugging
+      if (errorData) {
+        ;(error as any).responseData = errorData
+      }
+      throw error
     }
 
     if (response.status === 204) {
@@ -145,7 +160,6 @@ export class RestClient {
         }
       }
     } catch (e: unknown) {
-      console.error('Failed to parse response:', e)
       const errorMessage = e instanceof Error ? e.message : String(e)
       throw new Error(`Failed to parse response: ${errorMessage}`)
     }

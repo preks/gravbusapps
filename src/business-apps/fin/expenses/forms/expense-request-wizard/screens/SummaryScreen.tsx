@@ -196,7 +196,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
           {requestData?.expensePlan && (
             <div className="gba:mt-6" data-testid="expense-request-plan-section">
               <span
-                className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
+                className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
                 data-testid="expense-request-plan-section-title"
               >
                 {getTranslationFromI18nKeyAndLabel(
@@ -219,7 +219,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
           )}
           <div className="gba:mt-6" data-testid="expense-request-allowances-section">
             <span
-              className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
+              className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
               data-testid="expense-request-allowances-section-title"
             >
               {getTranslationFromI18nKeyAndLabel(
@@ -268,7 +268,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
 
             <div className="gba:mt-6" data-testid="expense-request-expense-items-section">
               <span
-                className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
+                className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
                 data-testid="expense-request-expense-items-section-title"
               >
                 {getTranslationFromI18nKeyAndLabel(

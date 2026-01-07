@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId'
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId'
@@ -107,59 +107,12 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
       setApprovals(approvalTasks)
-    } catch (err) {
+    } catch {
       // Failed to load approvals
     }
   }, [investmentId, fetchInvestmentTasksByInvestmentId])
 
-  // Handle process events
-  const handleProcessEvent = useCallback(
-    (event: Event) => {
-      try {
-        const customEvent = event as CustomEvent
-
-        // Check for successful completion
-        if (customEvent.detail?.resolution === 'success') {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-          return
-        }
-
-        // Check for different event structures
-        const response = customEvent.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.investment) {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-          return
-        }
-
-        // Check for continue events with payload (task/activity/note creation/update)
-        if (customEvent.type === 'com.newwork.process.continue' && customEvent.detail?.payload) {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-          return
-        }
-
-        // Handle process completion events by investmentId (legacy support)
-        if (customEvent.detail?.investmentId === investmentId) {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-        }
-      } catch (err) {
-        console.error('Error handling process event in InvestmentHomeTab:', err)
-      }
-    },
-    [investmentId, loadTasks, loadActivities, loadNotes, loadApprovals]
-  )
-
+  // Load section data on mount
   useEffect(() => {
     loadTasks()
     loadActivities()
@@ -167,29 +120,18 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
     loadApprovals()
   }, [loadTasks, loadActivities, loadNotes, loadApprovals])
 
-  // Listen for process events to refresh data
-  useEffect(() => {
-    const eventTypes = [
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted'
-    ]
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    loadTasks()
+    loadActivities()
+    loadNotes()
+    loadApprovals()
+  }, [loadTasks, loadActivities, loadNotes, loadApprovals])
 
-    eventTypes.forEach(eventType => {
-      window.addEventListener(eventType, handleProcessEvent)
-    })
-
-    return () => {
-      eventTypes.forEach(eventType => {
-        window.removeEventListener(eventType, handleProcessEvent)
-      })
-    }
-  }, [handleProcessEvent])
+  // Listen for process completion events to refresh section data
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   return (
     <>
@@ -202,50 +144,32 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: AccountSection,
             props: {
               ...context,
-              account: investment?.investmentAccount
+              // Transform junction table to include account type
+              accounts:
+                investment?.investmentAccounts
+                  ?.map(junction => ({
+                    ...junction.investmentAccount,
+                    investmentAccountType: junction.investmentAccountType // Add catalog entry from junction table
+                  }))
+                  .filter(Boolean) || [],
+              account: investment?.investmentAccounts?.[0]
                 ? {
-                    id: investment.investmentAccount.id,
-                    name: investment.investmentAccount.name,
-                    email: investment.investmentAccount.email,
-                    phone: investment.investmentAccount.phone,
-                    website: investment.investmentAccount.website,
-                    legalForm: investment.investmentAccount.legalForm?.value,
-                    industry: investment.investmentAccount.industryClass?.value,
-                    size: investment.investmentAccount.companySize?.value,
-                    revenue: investment.investmentAccount.accountAnnualRevenueBand?.value,
-                    numberOfEmployees: investment.investmentAccount.companySize,
-                    annualRevenue: investment.investmentAccount.accountAnnualRevenueBand
+                    ...investment.investmentAccounts[0].investmentAccount,
+                    investmentAccountType: investment.investmentAccounts[0].investmentAccountType
                   }
                 : undefined,
-              address: investment?.investmentAccount
-                ? (() => {
-                    const addresses = investment.investmentAccount.addresses || []
-                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.locality,
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
-              accountId: investment?.investmentAccount?.id,
-              recordUrl: investment?.investmentAccount?.id
+              accountId: investment?.investmentAccounts?.[0]?.investmentAccountId,
+              recordUrl: investment?.investmentAccounts?.[0]?.investmentAccountId
                 ? buildPlatformUrl('/platform/irm/account-record', {
-                    accountId: investment.investmentAccount.id,
+                    accountId: investment.investmentAccounts[0].investmentAccountId,
                     source: 'investment-relations',
                     fromEntity: 'investments'
                   })
                 : undefined,
-              actionButtonProps: investment?.investmentAccount?.id
+              actionButtonProps: investment?.investmentAccounts?.[0]?.investmentAccountId
                 ? {
                     contextsArray: [FlowContextName.investmentAccountEntity],
-                    externalContextData: { accountId: investment.investmentAccount.id },
+                    externalContextData: { accountId: investment.investmentAccounts[0].investmentAccountId },
                     prefixDataTestId: 'investment-record-account-action'
                   }
                 : undefined
@@ -264,34 +188,73 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: ContactSection,
             props: {
               ...context,
-              contact: {
-                id: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
-                firstName: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.firstName || null,
-                lastName: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.lastName || null,
-                email: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.email || null,
-                phone: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.phone || null,
-                jobTitle: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.jobPosition || null,
-                department: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.department || null,
-                communicationChannels:
-                  investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.communicationChannels || null
-              },
-              contactId: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
-              recordUrl: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id
-                ? buildPlatformUrl('/platform/irm/contact-record', {
-                    contactId: investment.investmentAccount.investmentAccountContact[0].contact.id,
-                    source: 'investment-relations',
-                    fromEntity: 'investments'
+              // Flatten contacts from all associated accounts (junction table)
+              // GraphQL field: investmentAccountContact (singular), TypeScript: accountContacts (plural)
+              contacts:
+                investment?.investmentAccounts
+                  ?.flatMap(junction => {
+                    // Try both field names: accountContacts (mapped) or investmentAccountContact (raw GraphQL)
+                    const contactAssociations =
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                    return contactAssociations.map((iac: any) => ({
+                      ...iac.contact,
+                      contactType: iac.contactType, // From account-contact association
+                      pictureThumbnail: iac.contact?.pictureThumbnail,
+                      communicationChannels: iac.contact?.communicationChannels
+                    }))
                   })
-                : undefined,
-              actionButtonProps: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id
-                ? {
-                    contextsArray: [FlowContextName.investmentContactEntity],
-                    externalContextData: {
-                      contactId: investment.investmentAccount.investmentAccountContact[0].contact.id
-                    },
-                    prefixDataTestId: 'investment-record-contact-action'
-                  }
-                : undefined
+                  .filter(Boolean) || [],
+              contactId: (() => {
+                const firstContactAssoc = investment?.investmentAccounts
+                  ?.flatMap(
+                    junction =>
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                  )
+                  .find(Boolean)
+                return firstContactAssoc?.contact?.id || null
+              })(),
+              recordUrl: (() => {
+                const firstContactAssoc = investment?.investmentAccounts
+                  ?.flatMap(
+                    junction =>
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                  )
+                  .find(Boolean)
+                const firstContact = firstContactAssoc?.contact
+                return firstContact?.id
+                  ? buildPlatformUrl('/platform/irm/contact-record', {
+                      contactId: firstContact.id,
+                      source: 'investment-relations',
+                      fromEntity: 'investments'
+                    })
+                  : undefined
+              })(),
+              actionButtonProps: (() => {
+                const firstContactAssoc = investment?.investmentAccounts
+                  ?.flatMap(
+                    junction =>
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                  )
+                  .find(Boolean)
+                const firstContact = firstContactAssoc?.contact
+                return firstContact?.id
+                  ? {
+                      contextsArray: [FlowContextName.investmentContactEntity],
+                      externalContextData: {
+                        contactId: firstContact.id
+                      },
+                      prefixDataTestId: 'investment-record-contact-action'
+                    }
+                  : undefined
+              })()
             }
           }
         ]}
@@ -312,7 +275,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
               activitiesError: activitiesError,
               onReloadActivities: loadActivities,
               activitySectionActionProps: {
-                contextsArray: [FlowContextName.createInvestmentActivity],
+                contextsArray: [FlowContextName.investmentActivityCreate],
                 externalContextData: { investmentId },
                 prefixDataTestId: 'investment-activity',
                 emptyStateBehavior: 'enable'
@@ -339,63 +302,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             props: {
               ...context,
               buildReferenceUrl,
-              tasks: tasks.map(task => ({
-                id: task.id,
-                title:
-                  task.title ||
-                  task.name ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledTask', 'Untitled Task'),
-                description: task.description,
-                createdAt: task.createdAt,
-                due: task.dueDate,
-                assignee: task.assignedDisplayName,
-                statusCode: (task.statusCode ||
-                  task.status ||
-                  task.taskStatus?.code ||
-                  task.taskStatus?.value ||
-                  'PENDING') as any,
-                taskStatus: task.taskStatus,
-                taskPriority: task.taskPriority,
-                assigneeEmployee: task.assignedEmployee,
-                taskTiming: task.taskTiming,
-                startDate: task.startDate,
-                creatorEmployee: task.creatorEmployee,
-                reference: task.lead
-                  ? {
-                      type: 'lead' as const,
-                      id: task.lead.id,
-                      name:
-                        `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() || task.lead.code || 'Lead'
-                    }
-                  : task.account
-                    ? {
-                        type: 'account' as const,
-                        id: task.account.id,
-                        name: task.account.name || task.account.code || 'Account'
-                      }
-                    : task.contact
-                      ? {
-                          type: 'contact' as const,
-                          id: task.contact.id,
-                          name:
-                            `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() ||
-                            task.contact.code ||
-                            'Contact'
-                        }
-                      : task.opportunity
-                        ? {
-                            type: 'opportunity' as const,
-                            id: task.opportunity.id,
-                            name: task.opportunity.name || task.opportunity.code || 'Opportunity'
-                          }
-                        : task.investment
-                          ? {
-                              type: 'investment' as const,
-                              id: task.investment.id,
-                              name: task.investment.name || task.investment.code || 'Investment'
-                            }
-                          : undefined
-              })),
+              tasks: tasks,
               taskActionProps: {
                 contextsArray: [FlowContextName.investmentTaskCreate],
                 externalContextData: { investmentId },
@@ -417,65 +324,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
               ...context,
               sectionTitle: 'Approval Tasks',
               buildReferenceUrl,
-              tasks: approvals.map(approval => ({
-                id: approval.id,
-                title:
-                  approval.title ||
-                  approval.name ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledApproval', 'Approval Task'),
-                description: approval.description,
-                createdAt: approval.createdAt,
-                due: approval.dueDate,
-                assignee: approval.assignedDisplayName,
-                statusCode: (approval.statusCode ||
-                  approval.status ||
-                  approval.taskStatus?.code ||
-                  approval.taskStatus?.value ||
-                  'PENDING') as any,
-                taskStatus: approval.taskStatus,
-                taskPriority: approval.taskPriority,
-                assigneeEmployee: approval.assignedEmployee,
-                taskTiming: approval.taskTiming,
-                startDate: approval.startDate,
-                creatorEmployee: approval.creatorEmployee,
-                reference: approval.lead
-                  ? {
-                      type: 'lead' as const,
-                      id: approval.lead.id,
-                      name:
-                        `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() ||
-                        approval.lead.code ||
-                        'Lead'
-                    }
-                  : approval.account
-                    ? {
-                        type: 'account' as const,
-                        id: approval.account.id,
-                        name: approval.account.name || approval.account.code || 'Account'
-                      }
-                    : approval.contact
-                      ? {
-                          type: 'contact' as const,
-                          id: approval.contact.id,
-                          name:
-                            `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() ||
-                            approval.contact.code ||
-                            'Contact'
-                        }
-                      : approval.opportunity
-                        ? {
-                            type: 'opportunity' as const,
-                            id: approval.opportunity.id,
-                            name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
-                          }
-                        : approval.investment
-                          ? {
-                              type: 'investment' as const,
-                              id: approval.investment.id,
-                              name: approval.investment.name || approval.investment.code || 'Investment'
-                            }
-                          : undefined
-              })),
+              tasks: approvals,
               taskActionProps: {
                 contextsArray: [FlowContextName.investmentTaskCreate],
                 externalContextData: {
@@ -507,21 +356,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: NoteSection,
             props: {
               ...context,
-              notes: notes.map(note => ({
-                id: note.id,
-                noteTitle:
-                  note.title ||
-                  note.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledNote', 'Untitled Note'),
-                noteText: note.text || '',
-                createdAt: note.createdAt,
-                createdBy:
-                  note.authorDisplayName ||
-                  note.authorEmployee?.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                authorEmployee: note.authorEmployee,
-                reminderAt: note.reminderDate
-              })),
+              notes: notes,
               noteActionProps: {
                 contextsArray: [FlowContextName.investmentNoteCreate],
                 externalContextData: { investmentId },

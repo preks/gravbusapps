@@ -2,61 +2,23 @@
  * Basic GraphQL types for query building
  */
 
+import type { Descriptor } from './queryHelpers'
+
 // ==========================================
 // QUERY INTERFACES
 // ==========================================
 
 export interface BaseQueryVariables {
-  id?: string
-  search?: string
-  offset?: number
+  ids?: string[]
   limit?: number
-  orderBy?: any[]
-  where?: any
-  structureId?: string
-}
-
-export interface QueryOptions {
-  includeDeleted?: boolean
-  useCurrentStructure?: boolean
-  recordState?: string
-  activeOnly?: boolean
-}
-
-// ==========================================
-// RESPONSE INTERFACES
-// ==========================================
-
-export interface QueryResponse<T> {
-  data: T[]
-  aggregate?: {
-    count: number
-  }
-}
-
-export interface FinancialQueryResponse<T> extends QueryResponse<T> {
-  aggregate?: {
-    count: number
-    sum?: {
-      [key: string]: number
-    }
-  }
-}
-
-// ==========================================
-// PAGINATION
-// ==========================================
-
-export interface PaginationInfo {
-  offset: number
-  limit: number
-  total: number
-  hasMore: boolean
-}
-
-export interface PaginatedResponse<T> {
-  data: T[]
-  pagination: PaginationInfo
+  offset?: number
+  search?: string
+  orderBy?: Array<{
+    field: string
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+  }>
+  createdAtFrom?: string
+  createdAtTo?: string
 }
 
 // ==========================================
@@ -72,13 +34,42 @@ export interface BaseEntity {
   recordState?: string
   activeFrom?: string
   activeTo?: string
-  version: number
+  version?: number
+  additionalProperties?: any // jsonb
 }
 
-// Note: activeFrom/activeTo are now included in AuditFields
-// Extended validity periods can be added to specific entities if needed:
-// effectiveFrom?: string;
-// effectiveTo?: string;
+/**
+ * Base Entity Descriptors
+ * Common descriptors for all entities extending BaseEntity
+ * Keys match BaseEntity fields exactly (alphabetically sorted)
+ */
+export const BASE_ENTITY_DESCRIPTORS: Descriptor[] = [
+  { key: 'activeFrom', searchPaths: ['activeFrom'], sortPath: 'activeFrom', type: 'date' },
+  { key: 'activeTo', searchPaths: ['activeTo'], sortPath: 'activeTo', type: 'date' },
+  {
+    key: 'additionalProperties',
+    enableSort: false,
+    enableFilter: false
+  },
+  { key: 'createdAt', searchPaths: ['createdAt'], sortPath: 'createdAt', type: 'date' },
+  { key: 'createdBy', type: 'text' },
+  { key: 'isDeleted', searchPaths: ['isDeleted'], sortPath: 'isDeleted', type: 'boolean' },
+  { key: 'recordState', searchPaths: ['recordState'], sortPath: 'recordState', type: 'text' },
+  { key: 'updatedAt', searchPaths: ['updatedAt'], sortPath: 'updatedAt', type: 'date' },
+  { key: 'updatedBy', type: 'text' },
+  { key: 'version', searchPaths: ['version'], sortPath: 'version', type: 'number' },
+
+  // Date range filters
+  // Note: activeFrom/activeTo are already range fields, these filters apply to the field values themselves
+  { key: 'activeFromAfter', path: 'activeFrom', kind: 'dateFrom' },
+  { key: 'activeFromBefore', path: 'activeFrom', kind: 'dateTo' },
+  { key: 'activeToAfter', path: 'activeTo', kind: 'dateFrom' },
+  { key: 'activeToBefore', path: 'activeTo', kind: 'dateTo' },
+  { key: 'createdAtFrom', path: 'createdAt', kind: 'dateFrom' },
+  { key: 'createdAtTo', path: 'createdAt', kind: 'dateTo' },
+  { key: 'updatedAtFrom', path: 'updatedAt', kind: 'dateFrom' },
+  { key: 'updatedAtTo', path: 'updatedAt', kind: 'dateTo' }
+]
 
 // ==========================================
 // CATALOG ENTRY TYPES
@@ -97,6 +88,8 @@ export interface CatalogEntry {
   catalogId?: string
   parentEntryId?: string
   displayOrder?: number
+  childEntries?: CatalogEntry[]
+  parentEntry?: CatalogEntry
   translations?: CatalogEntryTranslation[]
 }
 

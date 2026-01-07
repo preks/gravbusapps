@@ -10,6 +10,7 @@ export const employeeFeedbackQuery = `
       id
       feedback
       feedbackDate
+      feedbackPublic
       senderEmployeeId
       employeeId
       rating

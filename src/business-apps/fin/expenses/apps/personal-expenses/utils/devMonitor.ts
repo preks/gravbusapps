@@ -8,15 +8,6 @@ export const startDevMonitor = () => {
     apiCalls: true
   }
 
-  // Check if process events are working
-  const testProcessEvent = () => {
-    window.dispatchEvent(
-      new CustomEvent('com.newwork.process.test', {
-        detail: { timestamp: Date.now() }
-      })
-    )
-  }
-
   // Monitor React error boundaries
   window.addEventListener('error', event => {
     console.warn('🟡 JavaScript Error:', event.error)

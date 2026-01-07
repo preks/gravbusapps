@@ -72,7 +72,7 @@ export const employeeOnboardingFlow: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: ['it-department'],
             matrixTeams: [],
             companies: [],
@@ -113,7 +113,7 @@ export const employeeOnboardingFlow: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: ['hr-department'],
             matrixTeams: [],
             companies: [],
@@ -210,7 +210,7 @@ export const documentApprovalFlow: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: [],
             matrixTeams: [],
             companies: [],
@@ -244,7 +244,7 @@ export const documentApprovalFlow: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: ['management'],
             matrixTeams: [],
             companies: [],
@@ -351,7 +351,7 @@ export const projectApprovalFlow: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: ['finance'],
             matrixTeams: [],
             companies: [],
@@ -391,7 +391,7 @@ export const projectApprovalFlow: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: [],
             matrixTeams: [],
             companies: [],
@@ -419,7 +419,7 @@ export const projectApprovalFlow: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: ['executive'],
             matrixTeams: [],
             companies: [],
@@ -529,7 +529,7 @@ export const selfServiceITSupport: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: [],
             matrixTeams: [],
             companies: [],
@@ -575,7 +575,7 @@ export const selfServiceITSupport: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: [],
             matrixTeams: [],
             companies: [],
@@ -712,7 +712,7 @@ export const performanceReviewFlow: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: [],
             matrixTeams: [],
             companies: [],
@@ -746,7 +746,7 @@ export const performanceReviewFlow: FlowTemplate = {
       assignment: {
         targets: [
           {
-            userIds: [],
+            users: [],
             organizationalUnits: ['hr'],
             matrixTeams: [],
             companies: [],

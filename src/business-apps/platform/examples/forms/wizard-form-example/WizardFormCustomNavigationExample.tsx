@@ -57,9 +57,7 @@ const initialCustomWizardFormData: CustomWizardFormData = {
 }
 
 const WizardFormCustomNavigationExample: React.FC<WizardFormCustomNavigationExampleProps> = ({
-  accessToken,
   userInfo,
-  additionalData,
   onSuccess,
   onCancel,
   initialData,
@@ -350,8 +348,6 @@ const WizardFormCustomNavigationExample: React.FC<WizardFormCustomNavigationExam
       isWizardNextDisabled={!isCurrentStepValid}
       isWizardSubmitDisabled={!isCurrentStepValid}
       showStepNumbers={true}
-      showStepIndicator={true}
-      allowStepJumping={false}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common:button.submit', 'Complete Setup')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common:button.cancel', 'Cancel')}
       data-testid={dataTestId}

@@ -1,430 +1,511 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import {
-  Button,
-  Textarea,
   Spinner,
   Alert,
   AlertTitle,
   AlertDescription,
-  Avatar,
-  Separator
+  Switch,
+  Textarea,
+  Label,
+  useTranslation
 } from '@newwork/nw-design-system'
+import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AdvancePaymentApprovalProps, AdvancePaymentData } from './types'
-import { useGetAdvancePaymentForApproval } from './queries'
-import { formatCurrency } from '../approve-expense-plan/utils/formatters'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import { useAdvancePaymentData } from './hooks/useAdvancePaymentData'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 
-const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessAppContextProps> = ({
-  paymentId,
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  formData?: {
+    approval?: string
+    approvalNote?: string
+  }
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
+// Component imports
+import { AdvancePaymentDetailsSection, ExpensePlanInfoSection, ApprovalDetailsSection } from './components'
+import translations from './_i18n'
+
+interface AdvancePaymentApprovalProps extends BusinessAppContextProps {
+  onClose?: () => void
+}
+
+const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
   accessToken,
   additionalData,
-  onClose = () => {},
-  onApprove = () => {},
-  onReject = () => {},
-  ...contextProps
+  userInfo,
+  onClose
 }) => {
-  const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showWarning, setShowWarning] = useState(false)
-  const [extractedPaymentId, setExtractedPaymentId] = useState<string | null>(null)
+  const { t } = useTranslation(translations)
 
-  const { fetchAdvancePaymentData } = useGetAdvancePaymentForApproval(accessToken)
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
+  // Extract paymentId from additionalData or URL parameters
+  const paymentId =
+    additionalData?.paymentId ||
+    additionalData?.psi_taskPayload?.advancePayment?.id ||
+    new URLSearchParams(globalThis.location.search).get('paymentId')
+
+  const [isApproving, setIsApproving] = useState(false)
+  const [isRejecting, setIsRejecting] = useState(false)
+  const [showComment, setShowComment] = useState(false)
+  const [comment, setComment] = useState('')
+
+  // Ref for scrolling to comment section
+  const commentSectionRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to comment section when it becomes visible
   useEffect(() => {
-    if (!extractedPaymentId) {
-      if (paymentId) {
-        setExtractedPaymentId(paymentId)
-      } else if (additionalData?.psi_taskPayload?.advancePayment?.id) {
-        setExtractedPaymentId(additionalData.psi_taskPayload.advancePayment.id)
+    if (showComment && commentSectionRef.current) {
+      requestAnimationFrame(() => {
+        commentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+    }
+  }, [showComment])
+
+  const { advancePayment, loading, error, refetch } = useAdvancePaymentData({ paymentId, accessToken })
+
+  // Extract task metadata
+  const taskPayload = additionalData?.psi_taskPayload || {}
+  const processMetadata = additionalData?.psi_processMetadata || {}
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
+  // Task is completed if status is COMPLETED OR if completedAt exists (matching InboxView logic)
+  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
+  const taskTitle = t('task-title')
+  const creatorName = taskPayload?.creatorName as string | undefined
+
+  // Use generic hooks for entity dates (request created)
+  const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
+    accessToken,
+    entityId: advancePayment?.id,
+    entityType: 'AdvancePayment'
+  })
+
+  // For completed tasks, try to extract approver from comments
+  const approverId = useMemo(() => {
+    if (!isTaskCompleted || !advancePayment?.advancePaymentComment) return null
+
+    // Find the most recent APPROVE_COMMENT or REJECT_COMMENT with an authorEmployee
+    const approvalComment = advancePayment.advancePaymentComment.find(
+      comment =>
+        (comment.commentType === 'APPROVE_COMMENT' || comment.commentType === 'REJECT_COMMENT') &&
+        comment.authorEmployee
+    )
+
+    return approvalComment?.authorEmployee || null
+  }, [isTaskCompleted, advancePayment?.advancePaymentComment])
+
+  // For completed tasks, fetch approver name
+  const { approverName, isLoading: isLoadingApproverName } = useApproverData({
+    accessToken,
+    approverId
+  })
+
+  // Extract approval data from task outputs/inputs (for completed tasks)
+  const taskOutputApprovalStatus = useMemo(() => {
+    if (!isTaskCompleted) return null
+
+    // Check outputs first (most reliable for completed tasks)
+    if (processMetadata?.outputs?.approval) {
+      return processMetadata.outputs.approval
+    }
+
+    // Check if stored directly in processMetadata
+    if (processMetadata?.approval) {
+      return processMetadata.approval
+    }
+
+    // Check taskPayload
+    if (taskPayload?.approval) {
+      return taskPayload.approval
+    }
+
+    // Check formData
+    if (extendedAdditionalData?.formData?.approval) {
+      return extendedAdditionalData.formData.approval
+    }
+
+    return null
+  }, [isTaskCompleted, processMetadata, taskPayload, additionalData])
+
+  const taskOutputApprovalNote = useMemo(() => {
+    if (!isTaskCompleted) return null
+
+    // Check outputs first
+    if (processMetadata?.outputs?.approvalNote) {
+      return processMetadata.outputs.approvalNote
+    }
+
+    // Check if stored directly in processMetadata
+    if (processMetadata?.approvalNote) {
+      return processMetadata.approvalNote
+    }
+
+    // Check taskPayload
+    if (taskPayload?.approvalNote) {
+      return taskPayload.approvalNote
+    }
+
+    // Check formData
+    if (extendedAdditionalData?.formData?.approvalNote) {
+      return extendedAdditionalData.formData.approvalNote
+    }
+
+    return null
+  }, [isTaskCompleted, processMetadata, taskPayload, additionalData])
+
+  const completedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt || null
+
+  // Extract approval data from advancePaymentComment (for completed tasks)
+  const approvalCommentFromPayment = useMemo(() => {
+    if (
+      !isTaskCompleted ||
+      !advancePayment?.advancePaymentComment ||
+      advancePayment.advancePaymentComment.length === 0
+    ) {
+      return null
+    }
+
+    // Find the most recent APPROVE_COMMENT or REJECT_COMMENT
+    const approvalComment = advancePayment.advancePaymentComment.find(
+      comment => comment.commentType === 'APPROVE_COMMENT' || comment.commentType === 'REJECT_COMMENT'
+    )
+
+    return approvalComment?.comment || null
+  }, [isTaskCompleted, advancePayment?.advancePaymentComment])
+
+  const approvalDateFromPayment = useMemo(() => {
+    if (
+      !isTaskCompleted ||
+      !advancePayment?.advancePaymentComment ||
+      advancePayment.advancePaymentComment.length === 0
+    ) {
+      return null
+    }
+
+    // Find the most recent APPROVE_COMMENT or REJECT_COMMENT
+    const approvalComment = advancePayment.advancePaymentComment.find(
+      comment => comment.commentType === 'APPROVE_COMMENT' || comment.commentType === 'REJECT_COMMENT'
+    )
+
+    return approvalComment?.commentDate || null
+  }, [isTaskCompleted, advancePayment?.advancePaymentComment])
+
+  // Determine approval status from advance payment status or task outputs
+  const approvalStatus = useMemo(() => {
+    if (!isTaskCompleted) return null
+
+    // Priority order:
+    // 1. Task outputs (most reliable for completed tasks)
+    // 2. AdvancePayment.status (but only if it's an approval status, not PENDING)
+    if (taskOutputApprovalStatus) {
+      return taskOutputApprovalStatus
+    }
+
+    // Only use advancePayment.status if it's an actual approval status (APPROVED, REJECTED, etc.)
+    // Don't use PENDING as that's the initial status, not an approval status
+    if (advancePayment?.status && advancePayment.status !== 'PENDING') {
+      return advancePayment.status
+    }
+
+    // If we have approval comments, infer status from comment type
+    if (advancePayment?.advancePaymentComment && advancePayment.advancePaymentComment.length > 0) {
+      const approvalComment = advancePayment.advancePaymentComment.find(
+        comment => comment.commentType === 'APPROVE_COMMENT' || comment.commentType === 'REJECT_COMMENT'
+      )
+      if (approvalComment) {
+        if (approvalComment.commentType === 'APPROVE_COMMENT') {
+          return 'APPROVED'
+        }
+        if (approvalComment.commentType === 'REJECT_COMMENT') {
+          return 'REJECTED'
+        }
       }
     }
-  }, [extractedPaymentId, paymentId, additionalData])
 
-  useEffect(() => {
-    if (extractedPaymentId) {
-      fetchPaymentData()
-    }
-  }, [extractedPaymentId])
+    return null
+  }, [isTaskCompleted, taskOutputApprovalStatus, advancePayment?.status, advancePayment?.advancePaymentComment])
 
-  const fetchPaymentData = async () => {
-    if (!extractedPaymentId) {
-      return
-    }
+  // Determine approval comment (priority: task outputs > advancePaymentComment)
+  const approvalComment = taskOutputApprovalNote || approvalCommentFromPayment
 
-    setIsLoading(true)
-    setError(null)
-    try {
-      const data = await fetchAdvancePaymentData(extractedPaymentId)
-      setPaymentData(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch payment data')
-    } finally {
-      setIsLoading(false)
+  // Determine approval date (priority: completedAt > advancePaymentComment date)
+  const approvalDate = completedAt || approvalDateFromPayment
+
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', {
+        event: 'pse_abort'
+      })
     }
   }
 
   const handleApprove = async () => {
-    if (!extractedPaymentId) {
+    if (!paymentId) {
       return
     }
 
-    setIsSubmitting(true)
+    setIsApproving(true)
     try {
-      const today = new Date().toISOString()
+      const approvalPayload = {
+        event: 'pse_approve',
+        advancePaymentComment: {
+          commentDate: new Date().toISOString().slice(0, 19),
+          comment: showComment && comment.trim() ? comment.trim() : '',
+          commentType: 'APPROVE_COMMENT',
+          authorEmployee: userInfo?.employeeDetails?.employeeId,
+          advancePayment: paymentId
+        }
+      }
 
-      window.dispatchEvent(
-        new CustomEvent('com.newwork.process.continue', {
-          detail: {
-            event: 'pse_approve',
-            payload: {
-              changeMode: 'INSERT',
-              advancePaymentComment: {
-                commentDate: today,
-                comment: message || '',
-                commentType: 'APPROVE_COMMENT',
-                authorEmployee: contextProps.userInfo?.employeeDetails?.employeeId,
-                advancePayment: extractedPaymentId
-              }
-            }
-          }
-        })
-      )
+      dispatchProcessContinueEvent('pse_approve', approvalPayload)
 
-      onClose()
+      // Refresh data after successful approval
+      setTimeout(() => {
+        refetch()
+      }, 500)
     } catch (err) {
-      console.error('Error approving payment:', err)
+      console.error('Error approving advance payment:', err)
     } finally {
-      setIsSubmitting(false)
+      setIsApproving(false)
     }
   }
 
   const handleReject = async () => {
-    if (!extractedPaymentId) {
+    if (!paymentId) {
       return
     }
 
-    if (!message.trim()) {
-      setShowWarning(true)
+    // Require comment for rejection
+    if (!comment.trim()) {
+      setShowComment(true)
       return
     }
 
-    setIsSubmitting(true)
+    setIsRejecting(true)
     try {
-      const today = new Date().toISOString()
+      const rejectionPayload = {
+        event: 'pse_reject',
+        advancePaymentComment: {
+          commentDate: new Date().toISOString().slice(0, 19),
+          comment: comment.trim(),
+          commentType: 'REJECT_COMMENT',
+          authorEmployee: userInfo?.employeeDetails?.employeeId,
+          advancePayment: paymentId
+        }
+      }
 
-      window.dispatchEvent(
-        new CustomEvent('com.newwork.process.continue', {
-          detail: {
-            event: 'pse_reject',
-            payload: {
-              changeMode: 'INSERT',
-              advancePaymentComment: {
-                commentDate: today,
-                comment: message || '',
-                commentType: 'REJECT_COMMENT',
-                authorEmployee: contextProps.userInfo?.employeeDetails?.employeeId,
-                advancePayment: extractedPaymentId
-              }
-            }
-          }
-        })
-      )
+      dispatchProcessContinueEvent('pse_reject', rejectionPayload)
 
-      onClose()
+      // Refresh data after successful rejection
+      setTimeout(() => {
+        refetch()
+      }, 500)
     } catch (err) {
-      console.error('Error rejecting payment:', err)
+      console.error('Error rejecting advance payment:', err)
     } finally {
-      setIsSubmitting(false)
+      setIsRejecting(false)
     }
   }
 
-  if (!extractedPaymentId || !accessToken) {
+  if (loading) {
     return (
-      <div data-testid="advance-payment-approval-container">
-        <div className="gba:shadow-none gba:bg-background gba:rounded-lg">
-          <div className="gba:p-6">
-            <Alert variant="destructive">
-              <AlertTitle>
-                {getTranslationFromI18nKeyAndLabel('lowcoder:common.error', 'Configuration Error')}
-              </AlertTitle>
-              <AlertDescription>Missing payment ID. Please check the platform configuration.</AlertDescription>
-            </Alert>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <div data-testid="advance-payment-approval-container">
-        <div className="gba:shadow-none gba:bg-background gba:rounded-lg">
-          <div className="gba:p-6">
-            <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
-              <Spinner size="lg" />
-            </div>
-          </div>
-        </div>
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
+        data-testid="advance-payment-approval-loading"
+      >
+        <Spinner size="lg" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div data-testid="advance-payment-approval-container">
-        <div className="gba:shadow-none gba:bg-background gba:rounded-lg">
-          <div className="gba:p-6">
-            <Alert variant="destructive">
-              <AlertTitle>
-                {getTranslationFromI18nKeyAndLabel('lowcoder:common.error', 'Error Loading Data')}
-              </AlertTitle>
-              <AlertDescription>Failed to load payment data: {error}</AlertDescription>
-            </Alert>
-            <div className="gba:mt-4">
-              <Button onClick={fetchPaymentData}>
-                {getTranslationFromI18nKeyAndLabel('lowcoder:common.retry', 'Retry')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Alert variant="destructive" data-testid="advance-payment-approval-error">
+        <AlertTitle>{t('error-loading-title')}</AlertTitle>
+        <AlertDescription>
+          {error}
+          <button
+            onClick={refetch}
+            className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
+          >
+            {t('action-retry')}
+          </button>
+        </AlertDescription>
+      </Alert>
     )
   }
 
-  if (!paymentData) {
+  if (!advancePayment) {
     return (
-      <div data-testid="advance-payment-approval-container">
-        <div className="gba:shadow-none gba:bg-background gba:rounded-lg">
-          <div className="gba:p-6">
-            <Alert variant="destructive">
-              <AlertTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:common.error', 'No Data Available')}</AlertTitle>
-              <AlertDescription>No payment data available for ID: {extractedPaymentId}</AlertDescription>
-            </Alert>
-          </div>
-        </div>
-      </div>
+      <Alert data-testid="advance-payment-approval-no-data">
+        <AlertTitle>{t('error-no-data-title')}</AlertTitle>
+        <AlertDescription>{t('error-no-data-description')}</AlertDescription>
+      </Alert>
     )
   }
 
-  const { expensePlan, amount, description, currency, paymentMethod, costCenter } = paymentData
-  const { employee } = expensePlan
+  const displayName =
+    `${advancePayment.expensePlan?.employee?.firstName || ''} ${advancePayment.expensePlan?.employee?.lastName || ''}`.trim() ||
+    t('value-employee')
 
   return (
-    <div className="gba:border-0" data-testid="advance-payment-approval-container">
-      <div className="gba:shadow-none gba:rounded-lg">
-        <div className="gba:p-0">
-          {/* Header Section */}
-          <div className="gba:text-center gba:mb-2 gba:px-2 gba:pt-8" data-testid="advance-payment-approval-header">
-            <h1
-              className="gba:text-2xl gba:font-semibold gba:m-0 gba:text-foreground gba:mb-1"
-              data-testid="advance-payment-approval-title"
+    <TaskFormLayout
+      data-testid="advance-payment-approval-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          showEmployeeInfo={true}
+          employeeData={
+            advancePayment?.expensePlan?.employee
+              ? {
+                  displayName,
+                  firstName: advancePayment.expensePlan.employee.firstName,
+                  lastName: advancePayment.expensePlan.employee.lastName,
+                  avatarUrl: advancePayment.expensePlan.employee.pictureThumbnail
+                    ? `data:image/jpeg;base64,${advancePayment.expensePlan.employee.pictureThumbnail}`
+                    : undefined,
+                  position: advancePayment.expensePlan.employee.employeePosition?.jobPosition?.name
+                }
+              : undefined
+          }
+          isLoadingEmployee={loading}
+          creatorName={creatorName}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+        />
+      }
+      footer={
+        isTaskCompleted ? undefined : (
+          <TaskDetailFooter
+            data-testid="advance-payment-approval-actions"
+            actions={[
+              {
+                label: t('action-return'),
+                onClick: handleReject,
+                variant: 'outline' as const,
+                disabled: isRejecting || isApproving,
+                loading: isRejecting,
+                icon: XCircle,
+                testId: 'return-button'
+              },
+              {
+                label: t('action-approve'),
+                onClick: handleApprove,
+                variant: 'default' as const,
+                disabled: isApproving || isRejecting,
+                loading: isApproving,
+                icon: ThumbsUp,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'approve-button'
+              }
+            ]}
+          />
+        )
+      }
+      contentClassName="gba:space-y-6"
+    >
+      {/* 1. Approval Details (only for completed tasks) */}
+      {isTaskCompleted && (
+        <ApprovalDetailsSection
+          approvalStatus={approvalStatus}
+          approvalComment={approvalComment}
+          approvalDate={approvalDate}
+          approverName={approverName}
+          isLoadingApprover={isLoadingApproverName}
+          isLoading={loading}
+          prefixDataTestId="advance-payment-approval"
+          t={t}
+        />
+      )}
+
+      {/* 2. Expense Plan Info */}
+      {advancePayment.expensePlan && (
+        <ExpensePlanInfoSection
+          expensePlan={advancePayment.expensePlan}
+          prefixDataTestId="advance-payment-approval"
+          t={t}
+        />
+      )}
+
+      {/* 3. Advance Payment Details */}
+      <AdvancePaymentDetailsSection
+        advancePayment={advancePayment}
+        requestCreatedAt={requestCreatedAt}
+        isLoadingRequestDate={isLoadingRequestDate}
+        prefixDataTestId="advance-payment-approval"
+        t={t}
+      />
+
+      {/* 4. Comment Section - Only for active tasks */}
+      {!isTaskCompleted && (
+        <div ref={commentSectionRef} data-testid="advance-payment-approval-comment-section">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+            <Switch id="show-comment" checked={showComment} onCheckedChange={setShowComment} />
+            <Label
+              htmlFor="show-comment"
+              className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex gba:items-center gba:gap-2"
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_advance_payment.title', 'Approve Advance Payment')}
-            </h1>
+              <MessageSquare className="gba:h-4 gba:w-4" />
+              {t('comment-toggle-label')}
+            </Label>
           </div>
 
-          <Separator className="gba:h-px gba:!bg-muted gba:mb-2" />
-
-          {/* Expense Plan and Employee Info */}
-          <div className="gba:flex gba:flex-row gba:gap-6 gba:mb-1">
-            <div className="gba:flex-1 gba:bg-card gba:rounded-lg gba:pt-4 gba:p-6">
-              <h3 className="gba:text-base gba:font-semibold gba:mb-2 gba:text-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.expense_request_container.current_expense_plan_label',
-                  'Expense plan'
-                )}
-              </h3>
-              <div className="gba:space-y-0.5 gba:text-sm">
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:approve_advance_payment.id', 'Id')}:
-                  </span>
-                  <span className="gba:text-foreground gba:font-medium gba:ml-4 gba:text-right gba:break-words">
-                    {expensePlan.code}
-                  </span>
-                </div>
-                <div className="gba:flex gba:justify-between gba:items-start">
-                  <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_list.expense_plan_table.title',
-                      'Title'
-                    )}
-                    :
-                  </span>
-                  <span className="gba:text-foreground gba:ml-4 gba:text-right gba:break-words gba:flex-1">
-                    {expensePlan.title}
-                  </span>
-                </div>
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.type', 'Type')}
-                    :
-                  </span>
-                  <span className="gba:text-foreground gba:ml-4 gba:text-right gba:break-words">
-                    {expensePlan.requestType.value}
-                  </span>
-                </div>
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_list.expense_plan_table.amount',
-                      'Amount'
-                    )}
-                    :
-                  </span>
-                  <span className="gba:text-foreground gba:font-semibold gba:ml-4 gba:text-right gba:break-words">
-                    {formatCurrency(expensePlan.totalAmount, expensePlan.currency.code)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="gba:flex-1 gba:bg-card gba:rounded-lg gba:pt-4 gba:p-6">
-              <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-              </h3>
-              <div className="gba:flex gba:items-center gba:gap-4">
-                {employee.pictureThumbnail ? (
-                  <img
-                    src={`data:image/jpeg;base64,${employee.pictureThumbnail}`}
-                    alt={`${employee.firstName} ${employee.lastName}`}
-                    className="gba:w-14 gba:h-14 gba:rounded-full gba:object-cover gba:flex-shrink-0"
-                    data-testid="employee-avatar"
-                  />
-                ) : (
-                  <Avatar className="gba:w-14 gba:h-14 gba:bg-blue-500 gba:flex-shrink-0" data-testid="employee-avatar">
-                    <span className="gba:text-lg gba:text-white">{employee.firstName?.charAt(0) || 'A'}</span>
-                  </Avatar>
-                )}
-                <div className="gba:flex-1 gba:min-w-0">
-                  <div className="gba:font-semibold gba:text-foreground gba:break-words gba:leading-relaxed gba:text-base">
-                    {`${employee.firstName} ${employee.lastName}`}
-                  </div>
-                  <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                    {employee.employeePosition?.jobPosition?.name || 'Unknown Role'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Notes Section */}
-          <div className="gba:mb-4 gba:p-2 gba:rounded-sm gba:w-full" data-testid="approve-expense-plan-notes">
-            <div className="gba:text-sm gba:font-semibold gba:mb-1 gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.notes_area_label', 'Notes')}
-            </div>
-            <div className="gba:bg-muted gba:rounded-sm">
-              <Textarea
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.notes_area_placeholder',
-                  'No Notes'
-                )}
-                value={description || ''}
-                disabled
-                className="gba:!bg-transparent gba:border-none gba:resize-none gba:p-2 gba:text-xs gba:rounded-none gba:w-full"
-                data-testid="approve-expense-plan-notes-textarea"
-              />
-            </div>
-          </div>
-
-          {/* Payment Details Section */}
-          <div>
-            <h3 className="gba:bg-gray-100 gba:p-3 gba:rounded-sm gba:mb-4 gba:w-full gba:text-foreground gba:text-sm gba:font-semibold gba:pl-6">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
-            </h3>
-            <div className="gba:mb-8 gba:bg-card gba:rounded-lg gba:pt-1 gba:p-6">
-              <div className="gba:space-y-4 gba:text-sm">
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-                      'Payment Method'
-                    )}
-                    :
-                  </span>
-                  <span className="gba:text-foreground gba:ml-4 gba:text-right gba:break-words gba:flex-1">
-                    {paymentMethod}
-                  </span>
-                </div>
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_overview.side_bar.request_cost_center',
-                      'Cost Center'
-                    )}
-                    :
-                  </span>
-                  <span className="gba:text-foreground gba:ml-4 gba:text-right gba:break-words gba:flex-1">
-                    {costCenter.name}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Separator className="gba:!h-3 gba:!bg-muted gba:mb-2" />
-          {/* Amount Display */}
-          <div className="gba:flex gba:justify-between gba:items-center gba:px-6 gba:py-6 gba:border-b gba:border-border gba:mb-8">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.advance_payment', 'Advance Payment')}
-            </h3>
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">
-              {formatCurrency(amount, currency.code)}
-            </div>
-          </div>
-          {/* Message Section */}
-          <div className="gba:mb-4 gba:p-2 gba:rounded-sm gba:w-full" data-testid="approve-expense-plan-message">
-            <div className="gba:text-md gba:font-semibold gba:mb-1 gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_list.search_employee_list.recent_employees_table.message',
-                'Message'
-              )}
-            </div>
-            <div className="gba:bg-muted gba:rounded-sm">
-              <Textarea
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.comment_area',
-                  'Write Message...'
-                )}
-                value={message}
-                onChange={e => {
-                  setMessage(e.target.value)
-                  if (showWarning) setShowWarning(false)
-                }}
-                className="gba:!bg-transparent gba:border-none gba:resize-none gba:p-2 gba:text-xs gba:rounded-none gba:w-full"
-                data-testid="advance-payment-message-input"
-              />
-            </div>
-            {showWarning && (
-              <div className="gba:text-destructive gba:text-sm gba:mt-2" data-testid="advance-payment-message-warning">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.warning_message',
-                  'Please add a message!'
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="gba:flex gba:justify-end gba:gap-4 gba:px-6 gba:pb-8">
-            <Button
-              variant="outline"
-              onClick={handleReject}
-              disabled={isSubmitting}
-              data-testid="advance-payment-reject-button"
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reject_button', 'Reject')}
-            </Button>
-            <Button onClick={handleApprove} disabled={isSubmitting} data-testid="advance-payment-approve-button">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.approve_button', 'Approve')}
-            </Button>
-          </div>
+          {showComment && (
+            <Textarea
+              id="comment"
+              placeholder={t('comment-placeholder')}
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              rows={4}
+              className="gba:w-full"
+              data-testid="advance-payment-comment-input"
+            />
+          )}
         </div>
-      </div>
+      )}
+    </TaskFormLayout>
+  )
+}
+
+/**
+ * Advance Payment Approval component
+ * @param props - Business app context props
+ * @returns Advance Payment Approval component
+ */
+const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps> = props => {
+  const { accessToken, additionalData, userInfo, onClose } = props
+
+  return (
+    <div data-testid="advance-payment-approval-wrapper">
+      <AdvancePaymentApprovalContent
+        accessToken={accessToken}
+        additionalData={additionalData}
+        userInfo={userInfo}
+        onClose={onClose}
+      />
     </div>
   )
 }

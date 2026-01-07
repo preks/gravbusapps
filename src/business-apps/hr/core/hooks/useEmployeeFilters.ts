@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '../apps/human-resources/_i18n'
 //import { useTranslation } from 'react-i18next';
 import { useGetOrganizationalUnits, OrganizationalUnitOption } from './useGetOrganizationalUnits'
 import { useGetEmploymentTypes, EmploymentTypeOption } from './useGetEmploymentTypes'
@@ -46,6 +48,7 @@ export interface EmployeeFilters {
  */
 export function useEmployeeFilters(accessToken: string) {
   //const { t } = useTranslation();
+  const { t } = useTranslation(hrTranslations)
 
   // Search and filter state
   const [search, setSearch] = useState('')
@@ -233,25 +236,25 @@ export function useEmployeeFilters(accessToken: string) {
   const filterGroups: FilterGroup[] = [
     {
       id: 'organizationalUnits',
-      title: 'Organizational Units',
+      title: t('hr-employees-filters-organizational-units'),
       filters: orgUnitFilterOptions,
       backendSearch: getOrgUnitFilters
     },
     {
       id: 'employmentTypes',
-      title: 'Employment Types',
+      title: t('hr-employees-filters-employment-types'),
       filters: employmentTypeFilterOptions,
       backendSearch: getEmploymentTypeFilters
     },
     {
       id: 'contractTypes',
-      title: 'Contract Types',
+      title: t('hr-employees-filters-contract-types'),
       filters: contractTypeFilterOptions,
       backendSearch: getContractTypeFilters
     },
     {
       id: 'matrixTeams',
-      title: 'Matrix Teams',
+      title: t('hr-employees-filters-matrix-teams'),
       filters: matrixTeamFilterOptions,
       backendSearch: getMatrixTeamFilters
     }

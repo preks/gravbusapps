@@ -272,7 +272,9 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
           value={search}
           onChange={v => {
             setSearch(v)
-            onSearchChange && onSearchChange(v)
+            if (onSearchChange) {
+              onSearchChange(v)
+            }
           }}
           data-testid={`${dataTestId}-Search-Input`}
         />

@@ -27,6 +27,9 @@ export interface DeleteConfirmPopupProps {
   /** The type of item being deleted (e.g., "document", "activity", "note", "contact") */
   itemType: string
 
+  /** Custom dialog title (optional, will generate "Delete {ItemType}" if not provided) */
+  customTitle?: string
+
   /** Custom confirmation message (optional, will generate default if not provided) */
   customMessage?: string
 
@@ -73,6 +76,7 @@ export const DeleteConfirmPopup: React.FC<DeleteConfirmPopupProps> = ({
   onClose,
   itemTitle,
   itemType,
+  customTitle,
   customMessage,
   warningText = 'This action cannot be undone.',
   confirmButtonText = 'Delete',
@@ -88,6 +92,8 @@ export const DeleteConfirmPopup: React.FC<DeleteConfirmPopupProps> = ({
   isLoading = false,
   onConfirm
 }) => {
+  const defaultTitle = `Delete ${itemType.charAt(0).toUpperCase() + itemType.slice(1)}`
+  const displayTitle = customTitle || defaultTitle
   const defaultMessage = `Are you sure you want to delete the ${itemType} "${itemTitle}"?`
   const displayMessage = customMessage || defaultMessage
 
@@ -138,7 +144,7 @@ export const DeleteConfirmPopup: React.FC<DeleteConfirmPopupProps> = ({
           hasHandledRef.current = true
           handleFlowProcessCompletion()
         }
-      } catch (e) {
+      } catch {
         // no-op
       }
     }
@@ -173,9 +179,7 @@ export const DeleteConfirmPopup: React.FC<DeleteConfirmPopupProps> = ({
                 data-testid={`${dataTestId}-warning-icon`}
               />
             </div>
-            <AlertDialogTitle data-testid={`${dataTestId}-title`}>
-              Delete {itemType.charAt(0).toUpperCase() + itemType.slice(1)}
-            </AlertDialogTitle>
+            <AlertDialogTitle data-testid={`${dataTestId}-title`}>{displayTitle}</AlertDialogTitle>
           </div>
         </AlertDialogHeader>
 

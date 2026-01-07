@@ -1,6 +1,6 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Form, Input, DatePicker, InputNumber, Select, Button } from 'antd'
+import { Form, Button } from 'antd'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
@@ -15,10 +15,6 @@ export interface SalaryAdjustmentFormProps extends BusinessAppContextProps {
 }
 
 const SalaryAdjustmentForm: React.FC<SalaryAdjustmentFormProps> = ({
-  accessToken,
-  user,
-  userInfo,
-  employeeId,
   onSubmit,
   onCancel,
   initialValues,

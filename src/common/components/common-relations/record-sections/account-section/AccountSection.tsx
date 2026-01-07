@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Avatar,
@@ -10,12 +10,15 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PiGlobe, PiPhone, PiUsers, PiMapPin, PiCaretLeft, PiCaretRight } from 'react-icons/pi'
+import { PiGlobe, PiUsers, PiMapPin } from 'react-icons/pi'
 import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
+import { createGetPages } from '../utils'
+import { ContactTypeBadge } from '../shared/ContactTypeBadge'
+import EmptyState from '@/components/empty-state/EmptyState'
 
 interface AddressObject {
   addressLine?: {
@@ -27,12 +30,41 @@ interface AddressObject {
   region?: string
 }
 
+// Helper component to render address lines with reduced nesting
+const AddressLines: React.FC<{ value: string }> = ({ value }) => {
+  const lines = value.split('\n')
+  const firstLine = lines[0] || ''
+  const postalCodeCityLine = lines[1] || ''
+
+  return (
+    <>
+      {[firstLine, postalCodeCityLine]
+        .filter(line => line.trim())
+        .map((line, index) => (
+          <div key={`address-line-${index}`} className="gba:text-sm gba:leading-snug">
+            {line}
+          </div>
+        ))}
+    </>
+  )
+}
+
+// Helper component to render full address in tooltip
+const FullAddressTooltip: React.FC<{ value: string }> = ({ value }) => (
+  <>
+    {value.split('\n').map((line, index) => (
+      <div key={`tooltip-line-${index}`} className="gba:text-sm gba:leading-snug">
+        {line}
+      </div>
+    ))}
+  </>
+)
+
 interface AccountSectionProps extends Partial<BusinessAppContextProps> {
   accountId?: string
-  accountData?: any
-  account?: any
-  accounts?: any[]
-  address?: AddressObject
+  account?: any // InvestmentAccount oder CustomerAccount - vollständiges Objekt
+  accounts?: any[] // Array von Account-Objekten
+  address?: AddressObject // Optional: explizite Adresse (falls nicht im Account)
   className?: string
   'data-testid'?: string
   // Optional configurable action props
@@ -44,79 +76,32 @@ interface AccountSectionProps extends Partial<BusinessAppContextProps> {
   recordUrl?: string
 }
 
+const createTitleClickHandler = (recordUrl?: string) => {
+  if (!recordUrl) {
+    return undefined
+  }
+  return () => navigateTo(recordUrl)
+}
+
 const AccountSection: React.FC<AccountSectionProps> = ({
-  accountId,
-  accountData,
   account,
   accounts,
   address,
   className = '',
-  actionButtonProps,
   recordUrl,
   ...props
 }) => {
-  const accountList = useMemo(() => {
-    const arr = Array.isArray(accounts) ? accounts.filter(Boolean) : []
-    return arr
-  }, [accounts])
-
-  const hasMultiple = accountList.length > 1
-  const initialSelected: any | null = account || (accountList.length > 0 ? accountList[0] : null)
-  const [selectedAccount, setSelectedAccount] = useState<any | null>(initialSelected)
-  const [currentIndex, setCurrentIndex] = useState(0)
-
-  // Update selected account when accountList changes
-  useEffect(() => {
-    if (accountList.length > 0 && !selectedAccount) {
-      setSelectedAccount(accountList[0])
-      setCurrentIndex(0)
-    }
-  }, [accountList, selectedAccount])
-
-  // Carousel navigation
-  const handlePrevious = () => {
-    if (hasMultiple) {
-      const newIndex = currentIndex > 0 ? currentIndex - 1 : accountList.length - 1
-      setCurrentIndex(newIndex)
-      setSelectedAccount(accountList[newIndex])
-    }
-  }
-
-  const handleNext = () => {
-    if (hasMultiple) {
-      const newIndex = currentIndex < accountList.length - 1 ? currentIndex + 1 : 0
-      setCurrentIndex(newIndex)
-      setSelectedAccount(accountList[newIndex])
-    }
-  }
-
-  // Navigation handler
-  const handleTitleClick = () => {
-    if (recordUrl) {
-      navigateTo(recordUrl)
-    }
-  }
-
-  // Conditional logic for clickable title
-  const shouldShowClickableTitle = !!recordUrl
-
-  // Use the correct account data source
-  const displayAccount = hasMultiple ? selectedAccount : accountData || account || initialSelected
+  // If used directly (not via SectionWrapper), render first account
+  const accountList = Array.isArray(accounts) ? accounts.filter(Boolean) : []
+  const displayAccount = account || (accountList.length > 0 ? accountList[0] : null)
 
   return (
     <div data-testid={props['data-testid'] || 'account-section'} className={`gba:w-full gba:h-full ${className}`}>
       <AccountCompanyInformation
         account={displayAccount}
-        accountData={accountData}
         address={address}
-        hasMultiple={hasMultiple}
-        currentIndex={currentIndex}
-        totalCount={accountList.length}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
         className={className}
-        actionButtonProps={actionButtonProps}
-        onTitleClick={shouldShowClickableTitle ? handleTitleClick : undefined}
+        onTitleClick={createTitleClickHandler(recordUrl)}
       />
     </div>
   )
@@ -124,36 +109,58 @@ const AccountSection: React.FC<AccountSectionProps> = ({
 
 // Static properties for SectionWrapper
 ;(AccountSection as any).sectionTitle = 'Account Information'
-;(AccountSection as any).sectionActions = (props: AccountSectionProps) => {
-  const { accessToken, actionButtonProps, accountData, account, accountId } = props
+;(AccountSection as any).getPages = createGetPages<any, AccountSectionProps>(
+  (props: AccountSectionProps) => props.accounts,
+  (props: AccountSectionProps) => props.account
+)
+;(AccountSection as any).renderPage = (pageData: any, _pageIndex: number, props: AccountSectionProps) => {
+  const { address, className = '', recordUrl } = props
 
-  if (!actionButtonProps) {
+  return (
+    <AccountCompanyInformation
+      account={pageData}
+      address={address}
+      className={className}
+      onTitleClick={createTitleClickHandler(recordUrl)}
+    />
+  )
+}
+;(AccountSection as any).getActionButtonConfig = (pageData: any, _pageIndex: number, props: AccountSectionProps) => {
+  const { accessToken, actionButtonProps, account, accountId } = props
+
+  if (!actionButtonProps || !accessToken) {
     return null
   }
 
-  return (
-    <AppActionButton
-      data-testid="account-action-button"
-      size="icon"
-      contextsArray={actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity]}
-      externalContextData={{
-        accountId: accountData?.id || account?.id || accountId,
-        ...actionButtonProps.externalContextData
-      }}
-      prefixDataTestId={actionButtonProps.prefixDataTestId || 'account-section-action'}
-      accessToken={accessToken}
-      emptyStateBehavior="enable"
-      deferMainContextRequestsUntilClick
-    />
-  )
+  // Use pageData if available (carousel), otherwise fallback to account/accountId from props
+  const accountIdToUse = pageData?.id || account?.id || accountId
+
+  if (!accountIdToUse) {
+    return null
+  }
+
+  const config = {
+    type: 'AppActionButton' as const,
+    config: {
+      contextsArray: actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity],
+      externalContextData: {
+        ...actionButtonProps.externalContextData,
+        accountId: accountIdToUse // Override with current page accountId (must come after spread)
+      },
+      prefixDataTestId: actionButtonProps.prefixDataTestId || 'account-section-action',
+      emptyStateBehavior: 'enable' as const,
+      deferMainContextRequestsUntilClick: true
+    }
+  }
+
+  return config
 }
 
 export default AccountSection
 
 // Inlined from '@/business-apps/crm/common/apps/account-record/components/CompanyInformation'
 interface InlinedCompanyInformationProps {
-  account?: any
-  accountData?: any
+  account?: any // InvestmentAccount oder CustomerAccount - vollständiges Objekt
   address?: AddressObject
   hasMultiple?: boolean
   currentIndex?: number
@@ -167,39 +174,61 @@ interface InlinedCompanyInformationProps {
     prefixDataTestId?: string
   }
   onTitleClick?: () => void
+  accessToken?: string
 }
 
 const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   account,
-  accountData,
   address,
-  hasMultiple,
-  currentIndex = 0,
-  totalCount = 1,
-  onPrevious,
-  onNext,
   className = '',
   onTitleClick
 }) => {
   const cardClassName = `gba:w-full ${className}`.trim()
 
+  // Empty state - when no account data is available
+  if (!account) {
+    return (
+      <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
+        <EmptyState
+          title="No Account Data"
+          description="No account data is available for this object. Update its details to see the information here."
+        />
+      </div>
+    )
+  }
+
+  // Extract logo URL - support both pictureThumbnail and URLs
+  // Only use uploaded images or fallback to icon - no random/hardcoded images
+  const logoUrl = account?.pictureThumbnail
+    ? `data:image/gif;base64,${account.pictureThumbnail}`
+    : account?.pictureUrl || account?.pictureThumbnailUrl
+
+  // Get contact type from extended account object (passed from parent via accountContacts in Contact Records)
+  const contactType = account?.contactType
+
+  // Get account type from extended account object (passed from parent via junction tables in Opportunity/Investment Records)
+  // Can be from investmentAccountType (for investments) or accountType (for opportunities)
+  const accountType = account?.investmentAccountType || account?.accountType
+
   return (
     <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
-      <div className="gba:space-y-2 gba:flex-1">
-        {/* Company Name and Icon */}
+      <div className="gba:space-y-1 gba:flex-1">
+        {/* Company Name and Icon with Action Button */}
         <div className="gba:flex gba:items-center gba:gap-3">
-          {accountData?.logoUrl || account?.logoUrl ? (
-            <Avatar className="gba:h-12 gba:w-12">
-              <AvatarImage src={accountData?.logoUrl || account?.logoUrl} alt="Company logo" />
-              <AvatarFallback>
-                <BankIcon />
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <IconAvatar icon={BankIcon} variant="default" size="lg" title="Company" />
-          )}
+          <div className="gba:relative gba:shrink-0">
+            {logoUrl ? (
+              <Avatar className="gba:h-12 gba:w-12">
+                <AvatarImage src={logoUrl} alt="Company logo" />
+                <AvatarFallback>
+                  <BankIcon />
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <IconAvatar icon={BankIcon} variant="default" size="lg" title="Company" />
+            )}
+          </div>
           <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
-            <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
+            <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -210,24 +239,29 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                         data-testid="account-name-clickable"
                         title="Click to view account record"
                       >
-                        {accountData?.name || account?.name || '-'}
+                        {account?.name || '-'}
                       </button>
                     ) : (
                       <h3
                         className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0"
                         data-testid="account-name"
                       >
-                        {accountData?.name || account?.name || '-'}
+                        {account?.name || '-'}
                       </h3>
                     )}
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="gba:max-w-xs gba:break-words">{accountData?.name || account?.name || '-'}</p>
+                    <p className="gba:max-w-xs gba:break-words">{account?.name || '-'}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {contactType && (
+                <div className="gba:shrink-0">
+                  <ContactTypeBadge contactType={contactType} />
+                </div>
+              )}
             </div>
-            {/* Company Type and Industry - directly under name */}
+            {/* Legal Form and Account Type - directly under name */}
             <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
               <TooltipProvider>
                 <Tooltip>
@@ -237,9 +271,16 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                       data-testid="account-secondary-info"
                     >
                       {(() => {
-                        const legalForm = accountData?.legalForm?.value || account?.legalForm
-                        const industry = accountData?.industry?.value || account?.industry
-                        const items = [legalForm, industry].filter(Boolean)
+                        // Extract legal form
+                        const legalForm = account?.legalForm?.value || account?.legalForm
+
+                        // Extract account type (from junction tables for Opportunity/Investment Records)
+                        const accountTypeValue =
+                          accountType && typeof accountType === 'object'
+                            ? accountType.value || accountType.code
+                            : accountType
+
+                        const items = [legalForm, accountTypeValue].filter(Boolean)
 
                         if (items.length > 0) {
                           return items.join(' • ')
@@ -253,9 +294,12 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                   <TooltipContent>
                     <p className="gba:max-w-xs gba:break-words">
                       {(() => {
-                        const legalForm = accountData?.legalForm?.value || account?.legalForm
-                        const industry = accountData?.industry?.value || account?.industry
-                        const items = [legalForm, industry].filter(Boolean)
+                        const legalForm = account?.legalForm?.value || account?.legalForm
+                        const accountTypeValue =
+                          accountType && typeof accountType === 'object'
+                            ? accountType.value || accountType.code
+                            : accountType
+                        const items = [legalForm, accountTypeValue].filter(Boolean)
 
                         if (items.length > 0) {
                           return items.join(' • ')
@@ -269,6 +313,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               </TooltipProvider>
             </div>
           </div>
+          {/* Action Button removed - handled by SectionWrapper */}
         </div>
 
         {/* Separator */}
@@ -277,39 +322,66 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
         {/* Contact Information */}
         <div>
           {(() => {
-            const infoItems = [
-              {
-                icon: PiPhone,
-                title: 'Phone',
-                value: accountData?.phone || account?.phone,
-                render: (value: string) =>
-                  value ? (
-                    <a
-                      href={`tel:${value}`}
-                      className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
-                      data-testid="account-phone-link"
-                    >
-                      {value}
-                    </a>
-                  ) : null
-              },
+            // Get ALL communication channels dynamically
+            const communicationChannelItems = renderCommunicationChannels(account?.communicationChannels, 'account')
+
+            // Website ist ein normales Feld, NICHT aus communicationChannels
+            const websiteValue = account?.website
+
+            // Extract employees - nur Common Field companySize verwenden (KEINE Fallbacks)
+            const employeesValue = account?.companySize?.value
+
+            // Extract revenue - nur Common Field accountAnnualRevenueBand verwenden (KEINE Fallbacks)
+            const revenueValue = account?.accountAnnualRevenueBand?.value
+
+            // Extract industry - moved from secondary info to detailed info section
+            const industryValue =
+              account?.industryClass?.value || account?.industryClass || account?.industry?.value || account?.industry
+
+            // Extract address from account.addresses if not provided explicitly
+            const accountAddress =
+              address ||
+              (() => {
+                const addresses = account?.addresses || []
+                const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
+                const addr = primaryAddress || addresses[0]
+                if (!addr) return undefined
+
+                return {
+                  addressLine: addr.addressLine,
+                  postalCode: addr.postalCode,
+                  locality: addr.locality || addr.city, // CRM uses 'city', IRM uses 'locality'
+                  country: typeof addr.country === 'string' ? addr.country : addr.country?.value,
+                  region: typeof addr.region === 'string' ? addr.region : addr.region?.value
+                }
+              })()
+
+            // Static fields (not from communication channels)
+            const staticInfoItems = [
               {
                 icon: PiUsers,
                 title: 'Employees',
-                value: accountData?.numberOfEmployees?.value || account?.numberOfEmployees?.value || account?.size,
+                value: employeesValue,
                 render: (value: string) => value
               },
               {
                 icon: ChartLineUpIcon,
                 title: 'Revenue',
-                value: accountData?.annualRevenue?.value || account?.annualRevenue?.value || account?.revenue,
+                value: revenueValue,
                 render: (value: string) => value,
                 testId: 'account-revenue-value'
               },
               {
+                icon: BankIcon,
+                title: 'Industry',
+                value: industryValue,
+                render: (value: string) => value,
+                testId: 'account-industry-value'
+              },
+              {
                 icon: PiGlobe,
                 title: 'Website',
-                value: accountData?.website || account?.website,
+                value: websiteValue,
                 render: (value: string) =>
                   value
                     ? (() => {
@@ -331,106 +403,29 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               {
                 icon: PiMapPin,
                 title: 'Address',
-                value: (() => {
-                  if (address) {
-                    return formatAddress({
-                      addressLine: address.addressLine?.lines ? { lines: address.addressLine.lines } : null,
-                      locality: String(address.locality || ''),
-                      postalCode: String(address.postalCode || ''),
-                      region: String(address.region || ''),
-                      country: String(address.country || '')
+                value: accountAddress
+                  ? formatAddress({
+                      addressLine: accountAddress.addressLine?.lines
+                        ? { lines: accountAddress.addressLine.lines }
+                        : accountAddress.addressLine,
+                      locality: String(accountAddress.locality || ''),
+                      postalCode: String(accountAddress.postalCode || ''),
+                      region: String(accountAddress.region || ''),
+                      country: String(accountAddress.country || '')
                     })
-                  }
-                  // Fallback to old logic for backward compatibility
-                  return formatAddress({
-                    addressLine: accountData?.addressLine,
-                    locality: String(accountData?.locality || account?.locality || ''),
-                    postalCode: String(accountData?.postalCode || account?.postalCode || ''),
-                    region: String(
-                      accountData?.region?.value ||
-                        account?.region?.value ||
-                        accountData?.region ||
-                        account?.region ||
-                        ''
-                    ),
-                    country: String(
-                      accountData?.country?.value ||
-                        account?.country?.value ||
-                        accountData?.country ||
-                        account?.country ||
-                        ''
-                    )
-                  })
-                })(),
+                  : undefined,
                 render: (value: string) =>
                   value ? (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="gba:flex gba:flex-col gba:cursor-help">
-                            {address
-                              ? // Show first address line + postal code + locality for content
-                                (() => {
-                                  const contentLines = []
-                                  // Add first address line if it exists
-                                  if (address.addressLine?.lines?.[0]) {
-                                    contentLines.push(address.addressLine.lines[0])
-                                  }
-                                  // Add postal code + locality
-                                  const postalCodeLocality = [address.postalCode, address.locality]
-                                    .filter(Boolean)
-                                    .join(', ')
-                                  if (postalCodeLocality) {
-                                    contentLines.push(postalCodeLocality)
-                                  }
-                                  return contentLines.map((line, index) => (
-                                    <div key={index} className="gba:text-sm gba:leading-snug">
-                                      {line}
-                                    </div>
-                                  ))
-                                })()
-                              : // Fallback to formatted address lines
-                                (() => {
-                                  const lines = value.split('\n')
-                                  const firstLine = lines[0] || ''
-                                  // Get postalCode and city from the formatted address (line 2)
-                                  const postalCodeCityLine = lines[1] || ''
-                                  return [firstLine, postalCodeCityLine]
-                                    .filter(line => line.trim())
-                                    .map((line, index) => (
-                                      <div key={index} className="gba:text-sm gba:leading-snug">
-                                        {line}
-                                      </div>
-                                    ))
-                                })()}
+                            <AddressLines value={value} />
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <div className="gba:flex gba:flex-col gba:gap-1">
-                            {address
-                              ? // Show complete formatted address for tooltip
-                                (() => {
-                                  const tooltipAddress = formatAddress({
-                                    addressLine: address.addressLine?.lines
-                                      ? { lines: address.addressLine.lines }
-                                      : null,
-                                    locality: String(address.locality || ''),
-                                    postalCode: String(address.postalCode || ''),
-                                    region: String(address.region || ''),
-                                    country: String(address.country || '')
-                                  })
-                                  return tooltipAddress.split('\n').map((line, index) => (
-                                    <div key={index} className="gba:text-sm gba:leading-snug">
-                                      {line}
-                                    </div>
-                                  ))
-                                })()
-                              : // Fallback to formatted address lines
-                                value.split('\n').map((line, index) => (
-                                  <div key={index} className="gba:text-sm gba:leading-snug">
-                                    {line}
-                                  </div>
-                                ))}
+                            <FullAddressTooltip value={value} />
                           </div>
                         </TooltipContent>
                       </Tooltip>
@@ -439,9 +434,24 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               }
             ]
 
-            return infoItems.map((item, index) => {
+            // Combine dynamic communication channels with static fields
+            const allItems = [...communicationChannelItems, ...staticInfoItems]
+
+            // Filter to only show items with actual values
+            const itemsWithValues = allItems.filter(item => item.value)
+
+            // If no items, show placeholder
+            if (itemsWithValues.length === 0) {
+              return (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
+                  <span className="gba:text-sm gba:text-muted-foreground">No information available</span>
+                </div>
+              )
+            }
+
+            return itemsWithValues.map((item, index) => {
               const IconComponent = item.icon
-              const content = item.render(item.value || '')
+              const content = item.render(item.value)
 
               return (
                 <div
@@ -449,13 +459,9 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                   className={`gba:flex gba:gap-2 gba:px-2 gba:py-1 gba:rounded ${item.title === 'Address' ? 'gba:items-start' : 'gba:items-center'}`}
                 >
                   <IconComponent className="gba:text-sm gba:text-muted-foreground" title={item.title} />
-                  {content ? (
-                    <span className="gba:text-sm gba:text-muted-foreground" data-testid={item.testId}>
-                      {content}
-                    </span>
-                  ) : (
-                    <span className="gba:text-sm gba:text-muted-foreground">-</span>
-                  )}
+                  <span className="gba:text-sm gba:text-muted-foreground" data-testid={item.testId}>
+                    {content}
+                  </span>
                 </div>
               )
             })
@@ -463,30 +469,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
         </div>
       </div>
 
-      {/* Carousel Navigation - Bottom Right */}
-      {hasMultiple && (
-        <div className="gba:absolute gba:bottom-2 gba:right-2 gba:z-10">
-          <div className="gba:flex gba:items-center gba:gap-1 gba:rounded gba:border gba:bg-muted gba:px-2 gba:py-1 gba:shadow-sm gba:border-border">
-            <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
-              {currentIndex + 1}/{totalCount}
-            </span>
-            <button
-              onClick={onPrevious}
-              data-testid="accounts-carousel-prev"
-              className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
-            >
-              <PiCaretLeft className="gba:text-[10px]" />
-            </button>
-            <button
-              onClick={onNext}
-              data-testid="accounts-carousel-next"
-              className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
-            >
-              <PiCaretRight className="gba:text-[10px]" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Carousel Navigation removed - handled by SectionWrapper */}
     </div>
   )
 }

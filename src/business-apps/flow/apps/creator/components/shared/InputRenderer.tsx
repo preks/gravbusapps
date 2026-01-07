@@ -11,8 +11,14 @@ import {
   Button,
   RadioGroup,
   RadioGroupItem,
-  Label
+  Label,
+  Badge,
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent
 } from '@newwork/nw-design-system'
+import { Database } from 'lucide-react'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 
 interface InputRendererProps {
@@ -201,21 +207,82 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
       case InputType.SELECT:
         return (
           <div className="gba:mb-4">
-            <label
-              className="gba:block gba:text-sm gba:font-medium gba:mb-2"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              {input.label}
-            </label>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+              <label className="gba:block gba:text-sm gba:font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                {input.label}
+              </label>
+              {/* Show catalog indicator if dataSource is present */}
+              {input.dataSource?.type === 'CATALOG' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="secondary"
+                        className="gba:text-xs gba:bg-blue-100 gba:text-blue-800 gba:flex gba:items-center gba:gap-1"
+                      >
+                        <Database className="gba:h-3 gba:w-3" />
+                        {input.dataSource.catalog}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:text-xs">
+                        Options from <strong>{input.dataSource.catalog}</strong> catalog
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {/* Show entity indicator if dataSource is present */}
+              {input.dataSource?.type === 'ENTITY' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="secondary"
+                        className="gba:text-xs gba:bg-purple-100 gba:text-purple-800 gba:flex gba:items-center gba:gap-1"
+                      >
+                        <Database className="gba:h-3 gba:w-3" />
+                        {input.dataSource.entity}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:text-xs">
+                        Options from <strong>{input.dataSource.entity}</strong> entities
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+
+            {/* Error message if data source resolution failed */}
+            {input._resolveError && (
+              <div className="gba:mb-2 gba:p-2 gba:bg-destructive-secondary gba:border gba:border-destructive gba:rounded gba:text-xs gba:text-destructive">
+                <strong>Failed to load options:</strong> {input._resolveError}
+              </div>
+            )}
+
+            {/* Warning if no options available */}
+            {!input._resolveError && input.dataSource && (!input.options || input.options.length === 0) && (
+              <div className="gba:mb-2 gba:p-2 gba:bg-warning-secondary gba:border gba:border-warning gba:rounded gba:text-xs gba:text-warning-secondary-foreground">
+                No options available from {input.dataSource.type === 'ENTITY' ? 'entity' : 'catalog'}:{' '}
+                <strong>{input.dataSource.entity || input.dataSource.catalog}</strong>
+              </div>
+            )}
+
             <Select
-              disabled={readOnly}
+              disabled={readOnly || !!input._resolveError}
               value={value || ''}
               onValueChange={newValue => {
                 onChange?.(newValue)
               }}
             >
               <SelectTrigger data-testid={`${testId}-input-${index}`}>
-                <SelectValue placeholder={input.placeholder || `Select ${input.label}`} />
+                <SelectValue
+                  placeholder={
+                    input._resolveError ? 'Failed to load options' : input.placeholder || `Select ${input.label}`
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {input.options?.map((option: any, optIndex: number) => {
@@ -243,21 +310,82 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
       case InputType.MULTISELECT:
         return (
           <div className="gba:mb-4">
-            <label
-              className="gba:block gba:text-sm gba:font-medium gba:mb-2"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              {input.label}
-            </label>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+              <label className="gba:block gba:text-sm gba:font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                {input.label}
+              </label>
+              {/* Show catalog indicator if dataSource is present */}
+              {input.dataSource?.type === 'CATALOG' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="secondary"
+                        className="gba:text-xs gba:bg-blue-100 gba:text-blue-800 gba:flex gba:items-center gba:gap-1"
+                      >
+                        <Database className="gba:h-3 gba:w-3" />
+                        {input.dataSource.catalog}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:text-xs">
+                        Options from <strong>{input.dataSource.catalog}</strong> catalog
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {/* Show entity indicator if dataSource is present */}
+              {input.dataSource?.type === 'ENTITY' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="secondary"
+                        className="gba:text-xs gba:bg-purple-100 gba:text-purple-800 gba:flex gba:items-center gba:gap-1"
+                      >
+                        <Database className="gba:h-3 gba:w-3" />
+                        {input.dataSource.entity}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:text-xs">
+                        Options from <strong>{input.dataSource.entity}</strong> entities
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+
+            {/* Error message if data source resolution failed */}
+            {input._resolveError && (
+              <div className="gba:mb-2 gba:p-2 gba:bg-destructive-secondary gba:border gba:border-destructive gba:rounded gba:text-xs gba:text-destructive">
+                <strong>Failed to load options:</strong> {input._resolveError}
+              </div>
+            )}
+
+            {/* Warning if no options available */}
+            {!input._resolveError && input.dataSource && (!input.options || input.options.length === 0) && (
+              <div className="gba:mb-2 gba:p-2 gba:bg-warning-secondary gba:border gba:border-warning gba:rounded gba:text-xs gba:text-warning-secondary-foreground">
+                No options available from {input.dataSource.type === 'ENTITY' ? 'entity' : 'catalog'}:{' '}
+                <strong>{input.dataSource.entity || input.dataSource.catalog}</strong>
+              </div>
+            )}
+
             <Select
-              disabled={readOnly}
+              disabled={readOnly || !!input._resolveError}
               value={value || ''}
               onValueChange={newValue => {
                 onChange?.(newValue)
               }}
             >
               <SelectTrigger data-testid={`${testId}-input-${index}`}>
-                <SelectValue placeholder={input.placeholder || `Select ${input.label}`} />
+                <SelectValue
+                  placeholder={
+                    input._resolveError ? 'Failed to load options' : input.placeholder || `Select ${input.label}`
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {input.options?.map((option: any, optIndex: number) => {
@@ -442,11 +570,10 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
         return (
           <div className="gba:mb-4">
             <Checkbox
-              data-testid={`${testId}-input-${index}`}
+              data-testid={`${testId}-input-${index}-checkbox`}
               disabled={readOnly}
               checked={value || false}
               onChange={e => onChange?.(e.target.checked)}
-              data-testid={`${testId}-input-${index}-checkbox`}
             >
               {input.placeholder || input.label}
             </Checkbox>

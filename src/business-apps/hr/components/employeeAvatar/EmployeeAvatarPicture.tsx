@@ -1,7 +1,5 @@
 'use client'
 
-import { AvatarEditor } from '@/components/avatar-editor'
-
 interface EmployeeAvatarPictureProps {
   readonly profilePicture: any
   readonly size: number
@@ -16,7 +14,7 @@ interface EmployeeAvatarPictureProps {
  * @param size - Size of the avatar in pixels
  * @param employeeId - Employee's ID
  */
-export function EmployeeAvatarPicture({ profilePicture, size, employeeId }: EmployeeAvatarPictureProps) {
+export function EmployeeAvatarPicture({ profilePicture, size }: EmployeeAvatarPictureProps) {
   return (
     <div className="gba:relative gba:flex gba:items-center gba:justify-center" style={{ width: size, height: size }}>
       <div className="gba:w-full gba:h-full gba:rounded-full gba:overflow-hidden gba:[&_.controls]:hidden gba:flex gba:items-center gba:justify-center">

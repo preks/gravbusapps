@@ -4,35 +4,38 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerTask, CustomerTask } from '../types'
+import type { CustomerTask } from '../types/customerTaskTypes'
 
-// Queries
+// Use the new query builder functions
 import {
-  GET_CUSTOMER_TASKS,
-  GET_CUSTOMER_TASKS_BY_ACCOUNT_ID,
-  GET_CUSTOMER_TASKS_BY_CONTACT_ID,
-  GET_CUSTOMER_TASKS_BY_LEAD_ID,
-  GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID,
-  GET_CUSTOMER_TASK_BY_ID,
+  buildCustomerTaskQuery,
+  buildCustomerTaskByIdQuery,
+  buildCustomerTaskByAccountIdQuery,
+  buildCustomerTaskByContactIdQuery,
+  buildCustomerTaskByLeadIdQuery,
+  buildCustomerTaskByOpportunityIdQuery,
+  buildCustomerTaskWhereCondition,
+  buildCustomerTaskOrderBy,
   type CustomerTaskQueryVariables
 } from '../queries/customerTaskQueries'
 
 // Mapper
-import { toCustomerTask } from '../mappers'
+import { toCustomerTask } from '../mappers/customerTaskMappers'
+import { CustomerTaskFields } from '../types/customerTaskTypes'
 
 export interface CustomerTaskListQueryResponse {
-  SalesTask: BaseCustomerTask[]
+  SalesTask: CustomerTask[]
   SalesTaskAggregate: {
     aggregate: { count: number }
   }
 }
 
 export interface CustomerTaskByEntityQueryResponse {
-  SalesTask: BaseCustomerTask[]
+  SalesTask: CustomerTask[]
 }
 
 export interface CustomerTaskByIdQueryResponse {
-  SalesTask: BaseCustomerTask[]
+  SalesTask: CustomerTask[]
 }
 
 export interface CustomerTaskListData {
@@ -45,10 +48,24 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTasks = useCallback(
     async (variables: CustomerTaskQueryVariables = {}): Promise<CustomerTaskListData> => {
-      const query = GET_CUSTOMER_TASKS(variables)
+      const query = buildCustomerTaskQuery()
+
+      const whereCondition = buildCustomerTaskWhereCondition(variables)
+
+      const orderBy = buildCustomerTaskOrderBy(variables.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy.push({ createdAt: 'DESC' })
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<CustomerTaskListQueryResponse>(query)
+        const result = await graphqlClient.request<CustomerTaskListQueryResponse>(query, graphQLVariables)
         const tasks = result.SalesTask.map(toCustomerTask)
         const total = result.SalesTaskAggregate?.aggregate?.count || 0
         return { tasks, total }
@@ -62,10 +79,15 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTasksByAccountId = useCallback(
     async (accountId: string): Promise<CustomerTask[]> => {
-      const query = GET_CUSTOMER_TASKS_BY_ACCOUNT_ID(accountId)
+      const query = buildCustomerTaskByAccountIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
-        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query)
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
         return result.SalesTask.map(toCustomerTask)
       } catch (error) {
         console.error('Error fetching customer tasks by account ID:', error)
@@ -77,10 +99,15 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTasksByContactId = useCallback(
     async (contactId: string): Promise<CustomerTask[]> => {
-      const query = GET_CUSTOMER_TASKS_BY_CONTACT_ID(contactId)
+      const query = buildCustomerTaskByContactIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
-        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query)
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
         return result.SalesTask.map(toCustomerTask)
       } catch (error) {
         console.error('Error fetching customer tasks by contact ID:', error)
@@ -92,10 +119,15 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTasksByLeadId = useCallback(
     async (leadId: string): Promise<CustomerTask[]> => {
-      const query = GET_CUSTOMER_TASKS_BY_LEAD_ID(leadId)
+      const query = buildCustomerTaskByLeadIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ lead: { id: { _eq: leadId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
-        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query)
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
         return result.SalesTask.map(toCustomerTask)
       } catch (error) {
         console.error('Error fetching customer tasks by lead ID:', error)
@@ -107,10 +139,15 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTasksByOpportunityId = useCallback(
     async (opportunityId: string): Promise<CustomerTask[]> => {
-      const query = GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID(opportunityId)
+      const query = buildCustomerTaskByOpportunityIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ opportunity: { id: { _eq: opportunityId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
-        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query)
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
         return result.SalesTask.map(toCustomerTask)
       } catch (error) {
         console.error('Error fetching customer tasks by opportunity ID:', error)
@@ -122,12 +159,12 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTaskById = useCallback(
     async (taskId: string): Promise<CustomerTask | null> => {
-      const query = GET_CUSTOMER_TASK_BY_ID(taskId)
+      const query = buildCustomerTaskByIdQuery(CustomerTaskFields, taskId)
 
       try {
-        const result = await graphqlClient.request<CustomerTaskByIdQueryResponse>(query)
-        const tasks = result.SalesTask.map(toCustomerTask)
-        return tasks.length > 0 ? tasks[0] : null
+        const result = await graphqlClient.request<{ SalesTaskByPk: any }>(query)
+        const task = result.SalesTaskByPk
+        return task ? toCustomerTask(task) : null
       } catch (error) {
         console.error('Error fetching customer task by ID:', error)
         throw error

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentDashboardStats } from '../types'
-import { useInvestmentDataIntegration } from '@/common/data/investment'
+import { useInvestmentDataIntegration } from '@/common/data/investment/hooks/useInvestmentDataIntegration'
 
 export const useInvestmentDashboardStats = (context: BusinessAppContextProps) => {
   const {

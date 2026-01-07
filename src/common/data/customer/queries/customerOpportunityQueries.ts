@@ -1,266 +1,216 @@
-// Customer Opportunity Queries - using shared fragments
+/**
+ * Customer Opportunity Queries (New)
+ * GraphQL queries for Customer Opportunity entities using fields mapping
+ * Extends Common Opportunity Queries with CRM-specific fields
+ */
+
 import {
-  CUSTOMER_OPPORTUNITY,
-  CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_TASK,
-  CUSTOMER_SALES_ACTIVITY,
-  CUSTOMER_CRM_NOTE,
-  CUSTOMER_CRM_DOCUMENT
-} from './fragments/customerRelationFragments'
+  buildOpportunityQuery,
+  buildOpportunityByIdQuery,
+  buildOpportunitySearchQuery,
+  buildOpportunityWhereCondition,
+  buildOpportunityOrderBy,
+  type CommonOpportunityQueryVariables,
+  type OpportunityRelationBuilders,
+  type OpportunityRelationFields
+} from '@/common/data/relations/queries/opportunityQueries'
+import {
+  CustomerOpportunityFields,
+  CUSTOMER_OPPORTUNITY_DESCRIPTORS,
+  CustomerOpportunityStageConditionFields
+} from '../types/customerOpportunityTypes'
+import { CUSTOMER_CAMPAIGN_REF } from './fragments/customerReferenceFragments'
+import { CUSTOMER_ADDRESS_FRAGMENT } from '../types/customerAddressTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
-export interface CustomerOpportunityQueryVariables {
-  ids?: string[]
-  search?: string
-  accountIds?: string[]
-  stageIds?: string[]
-  stageValues?: string[]
-  pipelineIds?: string[]
-  statusIds?: string[]
-  currencyIds?: string[]
-  ownerEmployeeIds?: string[]
-  // Additional range filters used by customer opportunity list
-  estimatedAmountRanges?: Array<{ min?: number; max?: number }>
-  winningChanceRanges?: Array<{ min?: number; max?: number }>
-  forecastedProfitBetween?: [number, number]
-  closeDateFrom?: string
-  closeDateTo?: string
-  limit?: number
-  offset?: number
-  orderBy?: Array<{
-    field: string
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
-  }>
+// Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
+import {
+  buildActivityFragment,
+  buildAccountFragment,
+  buildContactFragment,
+  buildDocumentFragment,
+  buildLeadFragment,
+  buildNoteFragment,
+  buildTaskFragment
+} from '@/common/data/relations/queries/relationFragments'
+
+// Import Customer Fields
+import { CustomerActivityFields } from '../types/customerActivityTypes'
+import { CustomerAccountFields } from '../types/customerAccountTypes'
+import { CustomerContactFields } from '../types/customerContactTypes'
+import { CustomerDocumentFields } from '../types/customerDocumentTypes'
+import { CustomerLeadFields } from '../types/customerLeadTypes'
+import { CustomerNoteFields } from '../types/customerNoteTypes'
+import { CustomerTaskFields } from '../types/customerTaskTypes'
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
+
+/**
+ * Customer Opportunity Query Variables Interface
+ * Extends CommonOpportunityQueryVariables with CRM-specific filters
+ */
+export interface CustomerOpportunityQueryVariables extends CommonOpportunityQueryVariables {
+  // CRM-specific filter IDs
+  salesCampaignIds?: string[]
 }
 
-export const buildCustomerOpportunityWhereCondition = (variables: CustomerOpportunityQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }'
+/**
+ * Build Customer Opportunity query with fields mapping
+ * CRM uses "Opportunity" as entity name (not "CustomerOpportunity")
+ */
+export const buildCustomerOpportunityQuery = (
+  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields
+): string => {
+  const entityFields = `
+    # Addresses relation (CRM uses "city" not "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${CUSTOMER_ADDRESS_FRAGMENT}
+    }
+    
+    # Opportunity-Account Junction Table (many-to-many)
+    # GraphQL field name: opportunityAccounts
+    ${fields.customerOpportunityAccounts}(where: { isDeleted: { _eq: false } }) {
+      id
+      version
+      opportunityId
+      accountId
+      accountTypeRef
+      accountType {
+        ${CATALOG_ENTRY}
+      }
+      account {
+        ${buildAccountFragment(CustomerAccountFields)}
+      }
+    }
+    
+    # Lead relation (CRM uses singular "lead" as object, not array - no where clause)
+    ${fields.leads} {
+      ${buildLeadFragment(CustomerLeadFields)}
+    }
+    
+    # CRM duplicate relations (mapped to main relations in mapper)
+    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+      ${buildDocumentFragment(CustomerDocumentFields)}
+    }
+    
+    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
+      ${buildNoteFragment(CustomerNoteFields)}
+    }
+    
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+    salesCampaignId
+  `
+  return buildOpportunityQuery('Opportunity', fields, entityFields)
+}
 
-  if (variables.search?.trim()) {
-    const q = variables.search.trim()
-    const isNumber = !isNaN(Number(q))
-    whereClause += `, _or: [
-      { name: { _ilike: "%${q}%" } },
-      { code: { _ilike: "%${q}%" } },
-      { notesSummary: { _ilike: "%${q}%" } },
-      { account: { name: { _ilike: "%${q}%" } } },
-      { ownerEmployee: { firstName: { _ilike: "%${q}%" } } },
-      { ownerEmployee: { lastName: { _ilike: "%${q}%" } } },
-      { ownerEmployee: { displayName: { _ilike: "%${q}%" } } },
-      { salesPipelineStage: { value: { _ilike: "%${q}%" } } },
-      { salesPipeline: { value: { _ilike: "%${q}%" } } },
-      { opportunityStatus: { value: { _ilike: "%${q}%" } } }
-      ${isNumber ? `, { estimatedAmount: { _eq: ${Number(q)} } }, { winningChance: { _eq: ${Number(q)} } }` : ''}
-    ]`
+/**
+ * Build Customer Opportunity by ID query
+ */
+export const buildCustomerOpportunityByIdQuery = (
+  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields
+): string => {
+  // Build relation builders and fields for common relations
+  const relationBuilders: OpportunityRelationBuilders = {
+    buildActivityFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildDocumentFragment,
+    buildLeadFragment,
+    buildNoteFragment,
+    buildTaskFragment
   }
 
-  if (variables.accountIds?.length)
-    whereClause += `, account: { id: { _in: [${variables.accountIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.stageIds?.length)
-    whereClause += `, salesPipelineStage: { id: { _in: [${variables.stageIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.stageValues?.length)
-    whereClause += `, _or: [ { stage: { _in: [${variables.stageValues.map(v => `"${v}"`).join(', ')}] } }, { salesPipelineStage: { value: { _in: [${variables.stageValues.map(v => `"${v}"`).join(', ')}] } } } ]`
-  if (variables.pipelineIds?.length)
-    whereClause += `, salesPipeline: { id: { _in: [${variables.pipelineIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.statusIds?.length)
-    whereClause += `, opportunityStatus: { id: { _in: [${variables.statusIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.currencyIds?.length)
-    whereClause += `, currency: { id: { _in: [${variables.currencyIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.ownerEmployeeIds?.length)
-    whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`
-
-  // Ranged filters for estimatedAmount and winningChance (multiple OR ranges)
-  if (variables.estimatedAmountRanges?.length) {
-    const orConditions = variables.estimatedAmountRanges.map(range => {
-      const parts: string[] = []
-      if (range.min !== undefined) parts.push(`_gte: ${range.min}`)
-      if (range.max !== undefined) parts.push(`_lte: ${range.max}`)
-      return `{ estimatedAmount: { ${parts.join(', ')} } }`
-    })
-    whereClause += `, _or: [${orConditions.join(', ')}]`
+  const relationFields: OpportunityRelationFields = {
+    activityFields: CustomerActivityFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    documentFields: CustomerDocumentFields,
+    leadFields: CustomerLeadFields,
+    noteFields: CustomerNoteFields,
+    taskFields: CustomerTaskFields,
+    stageConditionFields: CustomerOpportunityStageConditionFields
   }
-  if (variables.winningChanceRanges?.length) {
-    const orConditions = variables.winningChanceRanges.map(range => {
-      const parts: string[] = []
-      if (range.min !== undefined) parts.push(`_gte: ${range.min}`)
-      if (range.max !== undefined) parts.push(`_lte: ${range.max}`)
-      return `{ winningChance: { ${parts.join(', ')} } }`
-    })
-    whereClause += `, _or: [${orConditions.join(', ')}]`
-  }
-  if (variables.forecastedProfitBetween)
-    whereClause += `, forecastedProfitAmount: { _gte: ${variables.forecastedProfitBetween[0]}, _lte: ${variables.forecastedProfitBetween[1]} }`
-  if (variables.closeDateFrom) whereClause += `, closeDate: { _gte: "${variables.closeDateFrom}" }`
-  if (variables.closeDateTo) whereClause += `, closeDate: { _lte: "${variables.closeDateTo}" }`
 
-  whereClause += ' }'
-  return whereClause
-}
-
-export const GET_CUSTOMER_OPPORTUNITIES = (variables: CustomerOpportunityQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100)
-  const offset = variables.offset || 0
-  const where = buildCustomerOpportunityWhereCondition(variables)
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy
-        .map(o => {
-          const f = o.field
-          if (f === 'ownerEmployee') return `{ ownerEmployee: { displayName: ${o.direction} } }`
-          if (f === 'account') return `{ account: { name: ${o.direction} } }`
-          if (f === 'estimatedAmount' || f === 'winningChance') {
-            const dir = o.direction === 'ASC' ? 'ASC_NULLS_FIRST' : 'DESC_NULLS_LAST'
-            return `{ ${f}: ${dir} }`
-          }
-          // Only direct scalar fields allowed otherwise
-          return `{ ${f}: ${o.direction} }`
-        })
-        .join(', ')}]`
-    : 'orderBy: [{ createdAt: DESC_NULLS_LAST }]'
-
-  return `
-    query GetCustomerOpportunities {
-      CustomerOpportunity: Opportunity(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${where}
-      ) {
-        ${CUSTOMER_OPPORTUNITY}
-        account { ${CUSTOMER_ACCOUNT_REF} }
-      }
-      CustomerOpportunityAggregate: OpportunityAggregate(${where}) { aggregate { count } }
+  // Domain-specific entity fields (addresses, opportunityAccounts, leads, crmDocument, crmNote, salesCampaign)
+  const entityFields = `
+    # Addresses relation (CRM uses "city" not "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${CUSTOMER_ADDRESS_FRAGMENT}
     }
-  `
-}
-
-export const GET_CUSTOMER_OPPORTUNITY_BY_ID = (id: string): string => {
-  return `
-    query GetCustomerOpportunityById {
-      CustomerOpportunity: Opportunity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        ${CUSTOMER_OPPORTUNITY}
-        account { ${CUSTOMER_ACCOUNT_REF} }
+    
+    # Opportunity-Account Junction Table (many-to-many)
+    # GraphQL field name: opportunityAccounts
+    ${fields.customerOpportunityAccounts}(where: { isDeleted: { _eq: false } }) {
+      id
+      version
+      opportunityId
+      accountId
+      accountTypeRef
+      accountType {
+        ${CATALOG_ENTRY}
+      }
+      account {
+        ${buildAccountFragment(CustomerAccountFields)}
       }
     }
+    
+    # Lead relation (CRM uses singular "lead" as object, not array - no where clause)
+    ${fields.leads} {
+      ${buildLeadFragment(CustomerLeadFields)}
+    }
+    
+    # CRM duplicate relations (mapped to main relations in mapper)
+    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+      ${buildDocumentFragment(CustomerDocumentFields)}
+    }
+    
+    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
+      ${buildNoteFragment(CustomerNoteFields)}
+    }
+    
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+    salesCampaignId
   `
+
+  return buildOpportunityByIdQuery('Opportunity', fields, relationBuilders, relationFields, entityFields)
 }
 
-export const SEARCH_CUSTOMER_OPPORTUNITIES = (variables: CustomerOpportunityQueryVariables): string => {
-  const { search = '', limit = 10 } = variables
-  return `
-    query SearchCustomerOpportunities {
-      CustomerOpportunity: Opportunity(
-        where: {
-          isDeleted: { _eq: false }
-          _and: [ { _or: [
-            { name: { _ilike: "%${search}%" } },
-            { code: { _ilike: "%${search}%" } },
-            { description: { _ilike: "%${search}%" } }
-          ] } ]
-        }
-        limit: ${limit}
-        orderBy: [{ name: ASC }]
-      ) {
-        id
-        code
-        name
-        description
-        closeDate
-      }
-    }
-  `
+/**
+ * Build Customer Opportunity search query
+ */
+export const buildCustomerOpportunitySearchQuery = (
+  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields
+): string => {
+  return buildOpportunitySearchQuery('Opportunity', fields)
 }
 
-// Get Customer Tasks by Opportunity ID
-export const GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetCustomerTasksByOpportunityId {
-      SalesTask(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_TASK}
-
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
+/**
+ * Build WHERE condition for Customer Opportunity queries
+ * Includes CRM-specific descriptors (salesCampaignIds)
+ */
+export const buildCustomerOpportunityWhereCondition = (
+  variables: CustomerOpportunityQueryVariables = {},
+  additionalDescriptors: Descriptor[] = [],
+  customConditions: Record<string, any>[] = []
+): Record<string, any> => {
+  // CUSTOMER_OPPORTUNITY_DESCRIPTORS already includes common descriptors + CRM-specific overrides
+  const descriptors = [...CUSTOMER_OPPORTUNITY_DESCRIPTORS, ...additionalDescriptors]
+  return buildOpportunityWhereCondition(variables, descriptors, customConditions)
 }
 
-// Get Customer Activities by Opportunity ID
-export const GET_CUSTOMER_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetCustomerActivitiesByOpportunityId {
-      SalesActivity(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_SALES_ACTIVITY}
-
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
-}
-
-// Get Customer Notes by Opportunity ID
-export const GET_CUSTOMER_NOTES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetCustomerNotesByOpportunityId {
-      CrmNote(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_CRM_NOTE}
-        
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
-}
-
-// Get Customer Documents by Opportunity ID
-export const GET_CUSTOMER_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetCustomerDocumentsByOpportunityId {
-      CrmDocument(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_CRM_DOCUMENT}
-        
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
+/**
+ * Build ORDER BY for Customer Opportunity queries
+ */
+export const buildCustomerOpportunityOrderBy = (
+  orderBy: CustomerOpportunityQueryVariables['orderBy'] = [],
+  additionalDescriptors: Descriptor[] = []
+): any[] => {
+  // CUSTOMER_OPPORTUNITY_DESCRIPTORS already includes common descriptors + CRM-specific overrides
+  const descriptors = [...CUSTOMER_OPPORTUNITY_DESCRIPTORS, ...additionalDescriptors]
+  return buildOpportunityOrderBy(orderBy, descriptors)
 }

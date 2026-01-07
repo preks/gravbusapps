@@ -7,14 +7,26 @@ import {
   CalendarBlankIcon,
   UserIcon,
   PlusIcon,
-  DotsThreeVertical
+  DotsThreeVerticalIcon
 } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import { AppAction } from '@/components/app-action'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { FileInfo } from '@/common/types/FileTypes'
+import type { Activity } from '@/common/data/relations/types/activityTypes'
+import EmptyState from '@/components/empty-state/EmptyState'
+
+export type ActivityDocument = {
+  id: string
+  name: string
+  mimeType?: string
+  fileSize?: number
+  file?: string
+  fileInfo?: FileInfo
+}
 
 export type ActivityItem = {
   id: string
@@ -36,10 +48,11 @@ export type ActivityItem = {
     value?: string
     type?: string
   }
+  documents?: ActivityDocument[]
 }
 
 export interface ActivitySectionProps extends BusinessAppContextProps {
-  activities?: ActivityItem[]
+  activities?: Activity[]
   activitiesLoading?: boolean
   activitiesError?: string | null
   onReloadActivities?: () => void
@@ -62,21 +75,41 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     alignment = 'left'
   } = props
 
-  // Process activities
+  // Process activities - map from Activity to ActivityItem
   const processedActivities = useMemo(() => {
     if (!rawActivities || rawActivities.length === 0) return []
 
-    return rawActivities.map((activity: any) => ({
+    return rawActivities.map((activity: Activity) => ({
       id: activity.id,
       title: activity.title || 'Untitled Activity',
       description: activity.description || '',
       occurredAt: activity.occurredAt || activity.createdAt,
       createdAt: activity.createdAt,
       ownerEmployee: activity.ownerEmployee,
-      createdBy: activity.createdBy,
-      activityType: activity.activityType
+      createdBy: activity.ownerEmployee
+        ? `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
+          activity.ownerEmployee.displayName
+        : undefined,
+      activityType: activity.activityType,
+      documents: activity.documents || []
     }))
   }, [rawActivities])
+
+  // Handle document download
+  const handleDocumentClick = (document: ActivityDocument, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!document.fileInfo) {
+      return
+    }
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch {
+      // Silent fail - fileInfo structure invalid
+    }
+  }
 
   const getActivityIcon = (activityType: string) => {
     switch (activityType?.toLowerCase()) {
@@ -128,9 +161,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
           </div>
         </Alert>
       ) : processedActivities.length === 0 ? (
-        <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-          No activities yet. Create your first activity.
-        </div>
+        <EmptyState title="No Activities" description="No activities yet. Create your first activity." />
       ) : (
         <TimelineLayout
           items={processedActivities.map((activity: any) => {
@@ -155,7 +186,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
                   className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
                   data-testid={`activity-menu-${activity.id}`}
                 >
-                  <DotsThreeVertical size={16} />
+                  <DotsThreeVerticalIcon size={16} />
                 </div>
               </AppActionMenu>
             ) : null
@@ -183,7 +214,30 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
                   {activityActions}
                 </div>
               ),
-              description: description,
+              description: (
+                <div className="gba:flex gba:flex-col gba:gap-2">
+                  {description && <span>{description}</span>}
+                  {activity.documents && activity.documents.length > 0 && (
+                    <div className="gba:flex gba:flex-wrap gba:gap-2">
+                      {activity.documents.map((doc: ActivityDocument) => {
+                        const FileIcon = getFileIcon(doc.mimeType)
+                        return (
+                          <button
+                            key={doc.id}
+                            onClick={e => handleDocumentClick(doc, e)}
+                            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                            data-testid={`activity-document-${activity.id}-${doc.id}`}
+                            title={doc.name}
+                          >
+                            <FileIcon size={14} weight="bold" />
+                            <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              ),
               icon: getActivityIcon(activityTypeLabel)
             } as any
           })}
@@ -199,26 +253,27 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
 
 // Static properties for SectionWrapper
 ;(ActivitySection as any).sectionTitle = 'Activities'
-;(ActivitySection as any).sectionActions = (props: ActivitySectionProps) => {
+;(ActivitySection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: ActivitySectionProps) => {
   const { accessToken, activitySectionActionProps } = props
 
-  if (!activitySectionActionProps) {
+  if (!activitySectionActionProps || !accessToken) {
     return null
   }
 
-  return (
-    <AppAction
-      accessToken={accessToken}
-      contextsArray={activitySectionActionProps.contextsArray}
-      externalContextData={activitySectionActionProps.externalContextData}
-      prefixDataTestId={activitySectionActionProps.prefixDataTestId}
-      emptyStateBehavior={activitySectionActionProps.emptyStateBehavior}
-    >
-      <Button data-testid="add-activity-button" variant="secondary" size="icon">
-        <PlusIcon />
-      </Button>
-    </AppAction>
-  )
+  return {
+    type: 'AppAction' as const,
+    config: {
+      contextsArray: activitySectionActionProps.contextsArray,
+      externalContextData: activitySectionActionProps.externalContextData,
+      prefixDataTestId: activitySectionActionProps.prefixDataTestId,
+      emptyStateBehavior: activitySectionActionProps.emptyStateBehavior || 'enable',
+      children: (
+        <Button data-testid="add-activity-button" variant="secondary" size="icon">
+          <PlusIcon />
+        </Button>
+      )
+    }
+  }
 }
 
 export default ActivitySection

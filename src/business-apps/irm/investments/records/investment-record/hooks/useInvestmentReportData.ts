@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentById } from '@/common/data/investment'
+import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { GenerateInvestmentReportRequest } from '@/common/network/investment-reports'
 
 dayjs.extend(weekday)
@@ -222,7 +222,12 @@ export interface BaseInvestment {
   ownerEmployee?: EmployeeRef | null
 
   // Entity relationships
-  investmentAccount?: any
+  investmentAccounts?: Array<{
+    // GraphQL field name
+    id?: string
+    investmentAccountId?: string
+    investmentAccount?: any
+  }>
   investmentOpportunity?: any
   loanRecipientInvestmentAccount?: any
 
@@ -331,7 +336,13 @@ const transformBaseInvestmentData = (investment: BaseInvestment) => {
     currencyRef: extractCurrencyRef(investment.currency),
     fundManagerName: investment.fundManagerName || '',
     identification: investment.identification || {},
-    investmentAccount: investment.investmentAccount?.id || null,
+    investmentAccounts:
+      investment.investmentAccounts?.map(assoc => ({
+        // GraphQL field name
+        id: assoc.id,
+        investmentAccountId: assoc.investmentAccountId,
+        investmentAccount: assoc.investmentAccount?.id || null
+      })) || [],
     investmentOpportunity: investment.investmentOpportunity?.id || null,
     ownerEmployee: investment.ownerEmployee?.id || null,
     loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id || null

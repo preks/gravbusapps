@@ -15,17 +15,16 @@ import {
 } from '@newwork/nw-design-system'
 import { Typography } from 'antd'
 import { PiFileText, PiFilePdf } from 'react-icons/pi'
-import { BusinessAppContextProps } from '../../../../../../../../../../common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import HeadcountStatistics from '../components/HeadcountStatistics'
 import HeadcountTrendsChart from '../components/HeadcountTrendsChart'
 import HiresAndDeparturesChart from '../components/HiresAndDeparturesChart'
 import HeadcountByOrgUnitChart from '../components/HeadcountByOrgUnitChart'
 import { useHeadcountTrendsData } from '../../../../../hooks/useHeadcountTrendsData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
-
-interface HeadcountTrendsProps extends BusinessAppContextProps {}
 
 interface TableData {
   period: string
@@ -33,9 +32,10 @@ interface TableData {
   change?: number
 }
 
-const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
+const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [exportingTable, setExportingTable] = useState<string | null>(null)
+  const { t } = useTranslation(hrTranslations)
 
   const {
     statistics,
@@ -106,29 +106,28 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
   // Chart configurations
   const chartConfigs = [
     {
-      title: 'Total Headcount Over Time',
+      title: t('hr-analytics-total-headcount-over-time'),
       data: headcountOverTime,
       tableData: transformHeadcountOverTimeData(),
       testId: 'headcount-trends-chart',
-      tag: `${headcountOverTime.length} data points`,
-      description: 'Historical headcount trends showing organizational growth and workforce changes over time'
+      tag: t('hr-analytics-total-data-points', { count: headcountOverTime.length }),
+      description: t('hr-analytics-headcount-trends-description')
     },
     {
-      title: 'Monthly Hires & Departures',
+      title: t('hr-analytics-monthly-hires-departures'),
       data: [...monthlyHires, ...monthlyExits],
       tableData: transformHiresAndDeparturesData(),
       testId: 'hires-departures-chart',
-      tag: `${Math.max(monthlyHires.length, monthlyExits.length)} months`,
-      description: 'Monthly hiring and departure activity showing workforce flow and turnover patterns'
+      tag: t('hr-analytics-months', { count: Math.max(monthlyHires.length, monthlyExits.length) }),
+      description: t('hr-analytics-hires-departures-description')
     },
     {
-      title: 'Headcount by Organizational Unit',
+      title: t('hr-analytics-headcount-by-org-unit'),
       data: departmentData,
       tableData: transformOrgUnitData(),
       testId: 'headcount-by-org-unit-chart',
-      tag: `${departmentData.length} departments`,
-      description:
-        'Current headcount distribution across organizational units showing workforce allocation and department sizes'
+      tag: t('hr-analytics-departments', { count: departmentData.length }),
+      description: t('hr-analytics-headcount-by-org-unit-description')
     }
   ]
 
@@ -138,18 +137,20 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
   if (error) {
     return (
       <div data-testid="headcount-trends-error">
-        <Card className="gba:border-red-200 gba:bg-red-50">
+        <Card className="gba:border-destructive-secondary gba:bg-destructive-secondary/50">
           <CardContent className="gba:p-6">
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex-1">
-                <h3 className="gba:text-red-900 gba:font-medium gba:mb-2">Failed to Load Headcount Trends Data</h3>
-                <p className="gba:text-red-700">{error}</p>
+                <h3 className="gba:text-destructive-secondary-foreground gba:font-medium gba:mb-2">
+                  {t('hr-analytics-failed-to-load-headcount')}
+                </h3>
+                <p className="gba:text-destructive-secondary-foreground">{error}</p>
               </div>
               <button
                 onClick={refetch}
-                className="gba:px-4 gba:py-2 gba:bg-red-600 gba:text-white gba:rounded gba:hover:bg-red-700"
+                className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive-secondary"
               >
-                Retry
+                {t('common-retry')}
               </button>
             </div>
           </CardContent>
@@ -165,8 +166,8 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
 
       {/* Interactive Charts Section */}
       <div className="gba:mb-4">
-        <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">Workforce Charts</h3>
-        <p className="gba:text-sm gba:text-gray-600">Click on any chart to view detailed data table</p>
+        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('hr-analytics-workforce-charts')}</h3>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
       </div>
 
       {/* Top Row: Two Charts Side by Side */}
@@ -179,14 +180,14 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
               key={config.testId}
               data-testid={`${config.testId}-card`}
               className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:shadow-sm ${
-                isSelected ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg' : 'gba:hover:shadow-lg'
+                isSelected ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
               }`}
               onClick={() => handleChartClick(config.testId)}
             >
               <CardHeader className="gba:border-b">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <Title level={4} className="gba:m-0 gba:text-gray-800">
+                    <Title level={4} className="gba:m-0 gba:text-foreground">
                       {config.title}
                     </Title>
                   </div>
@@ -194,8 +195,12 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
                     {config.tag}
                   </Badge>
                 </div>
-                <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">{config.description}</Text>
-                {isSelected && <p className="gba:text-xs gba:text-blue-600 gba:mt-1">✓ Selected - Table shown below</p>}
+                <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</Text>
+                {isSelected && (
+                  <p className="gba:text-xs gba:text-info gba:mt-1">
+                    ✓ {t('common-selected')} - {t('hr-analytics-table-shown-below')}
+                  </p>
+                )}
               </CardHeader>
 
               <CardContent>
@@ -233,14 +238,14 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
             <Card
               data-testid={`${config.testId}-card`}
               className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:shadow-sm ${
-                isSelected ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg' : 'gba:hover:shadow-lg'
+                isSelected ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
               }`}
               onClick={() => handleChartClick(config.testId)}
             >
               <CardHeader className="gba:border-b">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <Title level={4} className="gba:m-0 gba:text-gray-800">
+                    <Title level={4} className="gba:m-0 gba:text-foreground">
                       {config.title}
                     </Title>
                   </div>
@@ -248,8 +253,8 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
                     {config.tag}
                   </Badge>
                 </div>
-                <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">{config.description}</Text>
-                {isSelected && <p className="gba:text-xs gba:text-blue-600 gba:mt-1">✓ Selected - Table shown below</p>}
+                <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</Text>
+                {isSelected && <p className="gba:text-xs gba:text-info gba:mt-1">✓ Selected - Table shown below</p>}
               </CardHeader>
 
               <CardContent>
@@ -272,9 +277,11 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
           <CardHeader>
             <div className="gba:flex gba:justify-between gba:items-center">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-xl">Data Table: {selectedConfig.title}</CardTitle>
-                <Badge variant="outline" className="gba:bg-green-50 gba:text-green-700">
-                  {selectedConfig.tableData.length} entries
+                <CardTitle className="gba:text-xl">
+                  {t('hr-analytics-data-table', { title: selectedConfig.title })}
+                </CardTitle>
+                <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary/50">
+                  {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
                 </Badge>
               </div>
               <div className="gba:flex gba:gap-2">
@@ -289,7 +296,7 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
                   className="gba:flex gba:items-center gba:gap-1"
                 >
                   <PiFileText className="gba:w-3 gba:h-3" />
-                  Export Excel
+                  {t('common-export-excel')}
                 </Button>
 
                 <Button
@@ -303,11 +310,11 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
                   className="gba:flex gba:items-center gba:gap-1"
                 >
                   <PiFilePdf className="gba:w-3 gba:h-3" />
-                  Export PDF
+                  {t('common-export-pdf')}
                 </Button>
               </div>
             </div>
-            <p className="gba:text-sm gba:text-gray-600 gba:mt-2">{selectedConfig.description}</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{selectedConfig.description}</p>
           </CardHeader>
 
           <CardContent>
@@ -315,9 +322,9 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="gba:w-2/5">Period</TableHead>
-                    <TableHead className="gba:w-1/5">Value</TableHead>
-                    <TableHead className="gba:w-2/5">Change</TableHead>
+                    <TableHead className="gba:w-2/5">{t('hr-analytics-period')}</TableHead>
+                    <TableHead className="gba:w-1/5">{t('hr-analytics-value')}</TableHead>
+                    <TableHead className="gba:w-2/5">{t('hr-analytics-change')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -331,10 +338,10 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
                             variant="outline"
                             className={`${
                               item.change > 0
-                                ? 'gba:bg-green-50 gba:text-green-700'
+                                ? 'gba:bg-success-secondary/50 gba:text-success-secondary-foreground'
                                 : item.change < 0
-                                  ? 'gba:bg-red-50 gba:text-red-700'
-                                  : 'gba:bg-gray-50 gba:text-gray-700'
+                                  ? 'gba:bg-destructive-secondary/50 gba:text-destructive-secondary-foreground'
+                                  : 'gba:bg-muted gba:text-muted-foreground'
                             }`}
                           >
                             {item.change > 0 ? '+' : ''}
@@ -349,9 +356,11 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
             </div>
 
             {/* Summary */}
-            <div className="gba:mt-4 gba:p-3 gba:bg-gray-50 gba:rounded-md gba:flex gba:justify-between gba:items-center">
-              <span className="gba:font-medium gba:text-sm">Total Data Points: {selectedConfig.tableData.length}</span>
-              <span className="gba:text-sm gba:text-gray-600">{selectedConfig.title}</span>
+            <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
+              <span className="gba:font-medium gba:text-sm">
+                {t('hr-analytics-total-data-points', { count: selectedConfig.tableData.length })}
+              </span>
+              <span className="gba:text-sm gba:text-muted-foreground">{selectedConfig.title}</span>
             </div>
           </CardContent>
         </Card>
@@ -360,7 +369,7 @@ const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
       {/* Help Text */}
       {!selectedConfig && (
         <div className="gba:text-center gba:py-8">
-          <p className="gba:text-gray-500">Click on any chart above to view its detailed data table</p>
+          <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
         </div>
       )}
     </div>

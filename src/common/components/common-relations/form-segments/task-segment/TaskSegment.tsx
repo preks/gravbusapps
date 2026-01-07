@@ -1,7 +1,9 @@
 import React from 'react'
-import { useCatalogOptions } from '../shared/hooks/useCatalogOptions'
 import { EmployeeSelect } from '@/components/employee-select'
-import { EntitySelect } from '../shared/components'
+import { MultiEmployeeSelect } from '@/components/multi-employee-select'
+import { EntitySelect } from '../../selects/reference-select'
+import { CatalogSelect } from '@/components/catalog-select'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   FormField,
   FormItem,
@@ -14,56 +16,65 @@ import {
   SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectValue
+  SelectValue,
+  FileUpload,
+  type FileMetadata,
+  DateInput,
+  useTranslation,
+  Badge,
+  Alert,
+  AlertTitle,
+  AlertDescription
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
-import { Clock3, CalendarClock } from 'lucide-react'
+import { Clock3, CalendarClock, Info } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-
-export interface TaskOption {
-  value: string
-  label: string
-}
+import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
+import {
+  applyInitialCommonEntityFromContext,
+  createCommonEntitySelectHandler,
+  type CommonEntityContext
+} from '../../selects/reference-select/entityHandlingUtils'
+import { computeTaskStatus, formatTaskProgress } from '../../utils/taskStatusUtils'
+import translations from './_i18n'
 
 export interface TaskSegmentProps {
-  // Labels
-  titleLabel: string
-  descriptionLabel: string
-  deadlineLabel: string
-  typeLabel: string
-  priorityLabel: string
-  statusLabel?: string
-  assigneeLabel?: string
-  timingTypeLabel?: string
-  entityLabel?: string
-  uploadFileLabel?: string
+  // Context
+  accessToken: string
+  businessAppContext?: BusinessAppContextProps
 
-  // Option sources
-  typeOptions?: TaskOption[]
-  priorityOptions?: TaskOption[]
-  statusOptions?: TaskOption[]
-  accessToken?: string
-  typeCatalog?: { identifier: string; version: string }
-  priorityCatalog?: { identifier: string; version: string }
-  statusCatalog?: { identifier: string; version: string }
-  fetchTypeOptions?: (q?: string) => Promise<TaskOption[]>
-  fetchPriorityOptions?: (q?: string) => Promise<TaskOption[]>
-  fetchStatusOptions?: (q?: string) => Promise<TaskOption[]>
+  // Assigned employee from task entity (to display without extra request)
+  assignedEmployee?: Employee | null
 
-  // Entity selection
+  // Multi-assignee support (enabled by default)
+  multiAssigneeMode?: boolean
+  assignedEmployees?: Employee[]
+
+  // Entity ID to determine if new entity (for auto-select)
+  entityId?: string
+
+  // Catalog identifiers
+  typeCatalog?: string
+  priorityCatalog?: string
+  statusCatalog?: string
+
+  // Type selection control
+  initialTypeRef?: string | null
+  hideTypeSelection?: boolean
+
+  // Entity selection (still needs entities array until EntitySelect is refactored)
   showEntitySelection?: boolean
   entities?: Array<{
     id: string
     name: string
-    type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment'
+    type: string // Generic type - allows any entity type
     subtitle?: string
   }>
   entitiesLoading?: boolean
   onEntitySearch?: (q: string) => void
   entitiesHasMore?: boolean
   onEntityLoadMore?: () => void
-  entitiesError?: boolean
 
   // Pre-populate related entity from context (when selection is hidden)
   initialEntityFromContext?: {
@@ -71,130 +82,73 @@ export interface TaskSegmentProps {
     contactId?: string
     opportunityId?: string
     leadId?: string
+    [key: string]: string | undefined // Allow additional entity types (e.g. investmentId)
   }
 
-  // Assignees
-  showAssigneeSelection?: boolean
-  assignees?: Array<{
-    id: string
-    displayName: string
-    userId?: string
-    pictureThumbnail?: string
-    organizationalUnitName?: string
-    jobPositionName?: string
-  }>
-  assigneesLoading?: boolean
-  onAssigneeSearch?: (q: string) => void
-  assigneesHasMore?: boolean
-  onAssigneeLoadMore?: () => void
+  // Handler for additional entity types (injected by parent forms, e.g. IRM TaskForm for investment)
+  onAdditionalEntityChange?: (type: string, entityId: string | null) => void
 
   // File upload callback (optional convenience)
   onFilesChange?: (files: File[]) => void
+  existingDocuments?: Array<{ id: string; name?: string; version?: number }>
+  onDocumentRemove?: (documentId: string) => void
 
-  // New behavior controls
-  showType?: boolean
-  staticDefaults?: Partial<Record<string, any>>
+  // Custom fields
+  customFields?: React.ReactNode
 
   ['data-testid']?: string
 }
 
 const TaskSegment: React.FC<TaskSegmentProps> = ({
-  titleLabel,
-  descriptionLabel,
-  deadlineLabel,
-  typeLabel,
-  priorityLabel,
-  statusLabel,
-  assigneeLabel,
-  timingTypeLabel,
-  entityLabel,
-  uploadFileLabel,
-  typeOptions,
-  priorityOptions,
-  statusOptions,
   accessToken,
+  businessAppContext,
+  assignedEmployee,
+  multiAssigneeMode = true, // Multi-assignee support is now the default
+  assignedEmployees = [],
+  entityId,
   typeCatalog,
   priorityCatalog,
-  statusCatalog,
-  fetchTypeOptions,
-  fetchPriorityOptions,
-  fetchStatusOptions,
+  // statusCatalog kept in props for backwards compatibility, backend now computes status
+  initialTypeRef,
+  hideTypeSelection = false,
   showEntitySelection = false,
   entities = [],
   entitiesLoading = false,
   onEntitySearch,
-  showAssigneeSelection = true,
-  assignees = [],
-  assigneesLoading = false,
-  onAssigneeSearch,
-  assigneesHasMore = false,
-  onAssigneeLoadMore,
-  onFilesChange,
   entitiesHasMore = false,
   onEntityLoadMore,
   initialEntityFromContext,
-  showType = true,
-  staticDefaults,
+  onAdditionalEntityChange,
+  onFilesChange,
+  existingDocuments = [],
+  onDocumentRemove,
+  customFields,
   'data-testid': dataTestId = 'task-segment'
 }) => {
-  const form = useFormContext<any>()
+  const form = useFormContext()
+  const { t } = useTranslation(translations)
 
-  // Apply static defaults once
-  React.useEffect(() => {
-    if (!staticDefaults) return
-    Object.entries(staticDefaults).forEach(([key, value]) => {
-      if (value !== undefined && (form.getValues(key) === undefined || form.getValues(key) === '')) {
-        form.setValue(key as any, value, { shouldValidate: true })
-      }
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // Determine if new entity (for auto-select)
+  const isNewEntity = !entityId
 
-  const typeState = useCatalogOptions({
-    accessToken,
-    catalog: typeCatalog,
-    providedOptions: typeOptions,
-    fetchOptions: fetchTypeOptions
-  })
-  const priorityState = useCatalogOptions({
-    accessToken,
-    catalog: priorityCatalog,
-    providedOptions: priorityOptions,
-    fetchOptions: fetchPriorityOptions
-  })
-  const statusState = useCatalogOptions({
-    accessToken,
-    catalog: statusCatalog,
-    providedOptions: statusOptions,
-    fetchOptions: fetchStatusOptions
-  })
-
-  const timingTypeOptions: TaskOption[] = [
+  const taskTimingOptions = [
     { value: 'DEADLINE', label: 'Deadline' },
     { value: 'SCHEDULED', label: 'Scheduled' }
   ]
 
-  // Preselect defaults when options arrive
+  // Preselect default task timing
   React.useEffect(() => {
-    if (!form.getValues('timingType')) {
-      form.setValue('timingType', 'DEADLINE', { shouldValidate: true })
+    if (!form.getValues('taskTiming')) {
+      form.setValue('taskTiming', 'DEADLINE', { shouldValidate: true })
     }
-    if (typeState.options.length && !form.getValues('taskTypeRef')) {
-      form.setValue('taskTypeRef', typeState.options[0].value, {
-        shouldValidate: true
-      })
+  }, [form])
+
+  // Pre-select type from initialTypeRef
+  React.useEffect(() => {
+    if (initialTypeRef && !form.getValues('taskTypeRef')) {
+      form.setValue('taskTypeRef', initialTypeRef, { shouldValidate: true })
     }
-    if (priorityState.options.length && !form.getValues('taskPriorityRef')) {
-      form.setValue('taskPriorityRef', priorityState.options[0].value, {
-        shouldValidate: true
-      })
-    }
-    if (statusState.options.length && !form.getValues('taskStatusRef')) {
-      form.setValue('taskStatusRef', statusState.options[0].value, {
-        shouldValidate: true
-      })
-    }
-  }, [form, typeState.options, priorityState.options, statusState.options])
+  }, [initialTypeRef, form])
 
   const entitySelectOptions = React.useMemo(
     () =>
@@ -207,38 +161,56 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
       })),
     [entities]
   )
-  const assigneeOptions = React.useMemo(
+
+  // Helper: Convert existing documents to FileMetadata format
+  const initialFiles = React.useMemo<FileMetadata[]>(
     () =>
-      (assignees || []).map(a => ({
-        id: a.id,
-        displayName: a.displayName,
-        pictureThumbnail: a.pictureThumbnail,
-        organizationalUnitName: a.organizationalUnitName,
-        jobPositionName: a.jobPositionName
+      existingDocuments.map(doc => ({
+        id: doc.id,
+        name: doc.name || 'Unnamed Document',
+        size: 0,
+        type: '',
+        url: doc.id
       })),
-    [assignees]
+    [existingDocuments]
   )
-  const assigneeUserMap = React.useMemo(() => {
-    const map = new Map<string, string | undefined>()
-    ;(assignees || []).forEach(a => map.set(a.id, a.userId))
-    return map
-  }, [assignees])
 
-  // Keep assignedUserId in sync with the selected assignedEmployeeId (covers initial load and subsequent changes)
-  const assignedEmployeeId = (form as any)?.watch?.('assignedEmployeeId')
-  React.useEffect(() => {
-    const uid = assignedEmployeeId ? assigneeUserMap.get(String(assignedEmployeeId)) : undefined
-    const current = (form as any)?.getValues?.('assignedUserId')
-    if (uid !== current) {
-      ;(form as any)?.setValue?.('assignedUserId', uid)
-    }
-  }, [assignedEmployeeId, assigneeUserMap, form])
+  // Helper: Create a stable key for FileUpload
+  const fileUploadKey = React.useMemo(() => existingDocuments.map(d => d.id).join(',') || 'empty', [existingDocuments])
 
-  const normalizeDateTimeLocalValue = React.useCallback((v: string | undefined | null) => {
-    if (!v) return ''
-    const s = v.replace('Z', '')
-    return s.length >= 16 ? s.slice(0, 16) : s
+  // Helper: Extract File objects from FileWithPreview
+  const extractNewFiles = React.useCallback((files: any[]): File[] => {
+    return files.map(f => (f.file instanceof File ? f.file : null)).filter((f): f is File => f !== null)
   }, [])
+
+  // Helper: Check if file ID is in set
+  const isFileIdInSet = React.useCallback((fileId: string, fileIds: Set<string>): boolean => {
+    return fileIds.has(fileId)
+  }, [])
+
+  // Handler: Process file changes
+  const handleFilesChange = React.useCallback(
+    (files: any[]) => {
+      if (!onFilesChange) return
+
+      // Add new files
+      const newFiles = extractNewFiles(files)
+      if (newFiles.length > 0) {
+        onFilesChange(newFiles)
+      }
+
+      // Handle file removal - check which initial files are missing
+      const currentFileIds = new Set(files.map(f => f.id))
+      const removedDocs = initialFiles.filter(initial => !isFileIdInSet(initial.id, currentFileIds))
+
+      if (removedDocs.length > 0 && onDocumentRemove) {
+        for (const doc of removedDocs) {
+          onDocumentRemove(doc.id)
+        }
+      }
+    },
+    [onFilesChange, onDocumentRemove, initialFiles, extractNewFiles, isFileIdInSet]
+  )
 
   // Prime searches when provided but lists are empty
   React.useEffect(() => {
@@ -250,44 +222,81 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   // Apply initial entity from context if selection is hidden and no entity set yet
   React.useEffect(() => {
     if (!initialEntityFromContext) return
-    const hasEntity = Boolean(
-      form.getValues('account') || form.getValues('contact') || form.getValues('opportunity') || form.getValues('lead')
-    )
-    if (hasEntity) return
-    const { accountId, contactId, opportunityId, leadId } = initialEntityFromContext
-    const map: Array<{ key: 'account' | 'contact' | 'opportunity' | 'lead'; id?: string }> = [
-      { key: 'account', id: accountId },
-      { key: 'contact', id: contactId },
-      { key: 'opportunity', id: opportunityId },
-      { key: 'lead', id: leadId }
-    ]
-    const found = map.find(m => m.id)
-    if (found?.id) {
-      form.setValue(found.key, { id: found.id })
-      form.setValue('relatedEntityId', found.id)
-    }
-  }, [initialEntityFromContext, form])
 
-  React.useEffect(() => {
-    if (onAssigneeSearch && assigneeOptions.length === 0) {
-      onAssigneeSearch('')
+    // Handle common entity types (account, contact, opportunity, lead)
+    const commonEntityApplied = applyInitialCommonEntityFromContext(initialEntityFromContext as CommonEntityContext, {
+      form,
+      useIdFields: true // TaskSegment uses accountId, contactId, etc.
+    })
+
+    // If no common entity was applied, handle additional entity types (e.g. investmentId) via handler
+    if (!commonEntityApplied && onAdditionalEntityChange) {
+      const standardEntityKeys = new Set(['accountId', 'contactId', 'opportunityId', 'leadId'])
+      for (const [key, value] of Object.entries(initialEntityFromContext)) {
+        if (value && !standardEntityKeys.has(key)) {
+          // Extract type from field name (e.g. 'investmentId' -> 'investment')
+          const type = key.replace(/Id$/, '').toLowerCase()
+          const currentValue = form.getValues(key as any)
+          if (currentValue !== value) {
+            onAdditionalEntityChange(type, value)
+            form.setValue('relatedEntityId', value)
+          }
+          break // Only set first additional entity
+        }
+      }
     }
-  }, [onAssigneeSearch, assigneeOptions.length])
+  }, [initialEntityFromContext, form, onAdditionalEntityChange])
+
+  // Compute overall task status from assignees (only for existing tasks in update mode)
+  const taskAssignees = form.watch('taskAssignees')
+  const computedStatus = React.useMemo(() => {
+    if (!entityId || !taskAssignees || taskAssignees.length === 0) return null
+    return computeTaskStatus(taskAssignees)
+  }, [entityId, taskAssignees])
 
   return (
     <>
-      {/* Title */}
+      {/* Overall Task Status Display (Update Mode Only) */}
+      {computedStatus && (
+        <Alert className="gba:mb-4" data-testid={`${dataTestId}-computed-status-alert`}>
+          <Info className="gba:h-4 gba:w-4" />
+          <AlertTitle className="gba:flex gba:items-center gba:gap-2">
+            Task Status (Computed from Assignees)
+            <Badge variant={computedStatus.statusColor as any} data-testid={`${dataTestId}-status-badge`}>
+              {computedStatus.overallStatus}
+            </Badge>
+          </AlertTitle>
+          <AlertDescription>
+            <span className="gba:text-sm">{formatTaskProgress(computedStatus.progress)}</span>
+            {computedStatus.progress.total > 0 && (
+              <div className="gba:mt-2 gba:flex gba:gap-4 gba:text-xs">
+                <span>✅ Completed: {computedStatus.progress.completed}</span>
+                <span>⏳ In Progress: {computedStatus.progress.inProgress}</span>
+                <span>⏸️ Pending: {computedStatus.progress.pending}</span>
+              </div>
+            )}
+            <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground">
+              Task status is automatically computed from individual assignee statuses. Assignees can update their status
+              from the Task Section or Task Detail Sheet.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Name */}
       <FormField
         control={form.control as any}
-        name="title"
+        name="name"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {titleLabel}
-              <span className="gba:text-destructive">*</span>
-            </FormLabel>
+            <FormLabel>{t('task-title-label')}</FormLabel>
             <FormControl>
-              <Input placeholder="Please Enter..." data-testid={`${dataTestId}-title`} {...field} />
+              <Input
+                placeholder={t('task-title-placeholder')}
+                data-testid={`${dataTestId}-title`}
+                {...field}
+                value={field.value || ''}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -296,21 +305,21 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
 
       {/* Deadline and Timing */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-        {/* Deadline */}
         <FormField
           control={form.control as any}
           name="dueDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{deadlineLabel}</FormLabel>
+              <FormLabel>{t('task-deadline-label')}</FormLabel>
               <FormControl>
-                <Input
-                  className="gba:w-full"
-                  type="datetime-local"
-                  placeholder="Please Enter..."
+                <DateInput
+                  type="date"
+                  value={field.value || ''}
+                  onChange={value => field.onChange(value || '')}
+                  placeholder={t('task-deadline-placeholder')}
                   data-testid={`${dataTestId}-deadline`}
-                  value={normalizeDateTimeLocalValue(field.value)}
-                  onChange={field.onChange}
+                  captionLayout="dropdown"
+                  outputFormat="iso"
                 />
               </FormControl>
               <FormMessage />
@@ -318,21 +327,20 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           )}
         />
 
-        {/* Timing Type */}
         <FormField
           control={form.control as any}
-          name="timingType"
+          name="taskTiming"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{timingTypeLabel || 'Timing'}</FormLabel>
+              <FormLabel>{t('task-timing-type-label')}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger className="gba:w-full" data-testid={`${dataTestId}-timing`}>
-                    <SelectValue placeholder="Please Select..." />
+                    <SelectValue placeholder={t('please-select')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {timingTypeOptions.map(opt => (
+                  {taskTimingOptions.map(opt => (
                     <SelectItem key={opt.value} value={opt.value}>
                       <span className="gba:flex gba:items-center gba:gap-2">
                         {opt.value === 'DEADLINE' ? (
@@ -352,122 +360,110 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         />
       </div>
 
-      {/* Type and Priority*/}
+      {/* Type and Priority */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-        {showType && (
+        {typeCatalog && !hideTypeSelection && (
           <FormField
             control={form.control as any}
             name="taskTypeRef"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{typeLabel}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger
-                      className="gba:w-full"
-                      data-testid={`${dataTestId}-type`}
-                      aria-invalid={!!(form.formState?.errors as any)?.taskTypeRef}
-                    >
-                      <SelectValue placeholder="Please Select..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {typeState.options.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>{t('task-type-label')}</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier={typeCatalog}
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                    data-testid={`${dataTestId}-type`}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         )}
 
-        {/* Priority */}
+        {priorityCatalog && (
+          <FormField
+            control={form.control as any}
+            name="taskPriorityRef"
+            render={({ field }) => (
+              <FormItem className={hideTypeSelection && typeCatalog ? 'gba:col-span-2' : undefined}>
+                <FormLabel>{t('task-priority-label')}</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier={priorityCatalog}
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                    data-testid={`${dataTestId}-priority`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+      </div>
+
+      {/* Status - Backend computed, no manual selection needed */}
+
+      {/* Assigned To - Single or Multiple */}
+      {multiAssigneeMode ? (
         <FormField
           control={form.control as any}
-          name="taskPriorityRef"
+          name="assignedEmployeeIds"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{priorityLabel}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger
-                    className="gba:w-full"
-                    data-testid={`${dataTestId}-priority`}
-                    aria-invalid={!!(form.formState?.errors as any)?.taskPriorityRef}
-                  >
-                    <SelectValue placeholder="Please Select..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {priorityState.options.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormLabel>Assignees</FormLabel>
+              <FormControl>
+                <MultiEmployeeSelect
+                  accessToken={accessToken}
+                  initialEmployees={assignedEmployees as any}
+                  value={field.value || []}
+                  onValueChange={employeeIds => {
+                    field.onChange(employeeIds)
+                    form.setValue('assignedEmployeeIds', employeeIds)
+                  }}
+                  onEmployeesChange={employees => {
+                    form.setValue('assignedEmployees', employees)
+                  }}
+                  placeholder="Add assignees..."
+                  searchPlaceholder="Search employees..."
+                  data-testid={`${dataTestId}-assignees`}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-      </div>
-      {/* Status */}
-      <FormField
-        control={form.control as any}
-        name="taskStatusRef"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{statusLabel || 'Status'}</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger
-                  className="gba:w-full"
-                  data-testid={`${dataTestId}-status`}
-                  aria-invalid={!!(form.formState?.errors as any)?.taskStatusRef}
-                >
-                  <SelectValue placeholder="Please Select..." />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {statusState.options.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Assigned To */}
-      {showAssigneeSelection !== false && (
+      ) : (
         <FormField
           control={form.control as any}
           name="assignedEmployeeId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{assigneeLabel || 'Assigned To'}</FormLabel>
+              <FormLabel>{t('task-assignee-label')}</FormLabel>
               <FormControl>
                 <EmployeeSelect
-                  employees={assigneeOptions as any}
+                  accessToken={accessToken}
+                  businessAppContext={businessAppContext}
+                  initialEmployee={assignedEmployee}
+                  autoSelect={isNewEntity ? 'current-user' : undefined}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v)
-                    const uid = assigneeUserMap.get(String(v || ''))
-                    if (uid) {
-                      form.setValue('assignedUserId', uid)
+                    field.onChange(v || '')
+                  }}
+                  onEmployeeChange={(employee: any) => {
+                    // Set both assignedEmployeeId and assignedEmployee
+                    form.setValue('assignedEmployeeId', employee?.id || '')
+                    form.setValue('assignedEmployee', employee)
+                    // Also set assignedUserId directly when employee changes
+                    if (employee?.userId) {
+                      form.setValue('assignedUserId', employee.userId)
+                    } else {
+                      form.setValue('assignedUserId', undefined)
                     }
                   }}
-                  onSearch={onAssigneeSearch}
-                  loading={Boolean(assigneesLoading)}
-                  onLoadMore={onAssigneeLoadMore}
-                  hasMore={Boolean(assigneesHasMore)}
                   data-testid={`${dataTestId}-assignee`}
                 />
               </FormControl>
@@ -484,28 +480,26 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{entityLabel || 'Related Entity'}</FormLabel>
+              <FormLabel>{t('task-entity-label')}</FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={entitySelectOptions as any}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v)
-                    const id = String(v || '')
-                    const e = (entities || []).find(x => x.id === id)
-                    form.setValue('account', undefined)
-                    form.setValue('contact', undefined)
-                    form.setValue('opportunity', undefined)
-                    form.setValue('lead', undefined)
-                    form.setValue('investment', undefined)
-                    if (e) {
-                      form.setValue(e.type, { id: e.id })
-                    }
+                    field.onChange(v || '')
+                    const handleEntityChange = createCommonEntitySelectHandler({
+                      form,
+                      useIdFields: true, // TaskSegment uses accountId, contactId, etc.
+                      entities: entities || [],
+                      onAdditionalEntityChange
+                    })
+                    handleEntityChange(v)
                   }}
                   onSearch={onEntitySearch}
                   loading={Boolean(entitiesLoading)}
                   onLoadMore={onEntityLoadMore}
                   hasMore={Boolean(entitiesHasMore)}
+                  placeholder="Search..."
                   data-testid={`${dataTestId}-entity`}
                 />
               </FormControl>
@@ -521,9 +515,13 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         name="description"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{descriptionLabel}</FormLabel>
+            <FormLabel>{t('task-description-label')}</FormLabel>
             <FormControl>
-              <Textarea placeholder="Please Enter..." data-testid={`${dataTestId}-description`} {...field} />
+              <Textarea
+                placeholder={t('task-description-placeholder')}
+                data-testid={`${dataTestId}-description`}
+                {...field}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -531,23 +529,25 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
       />
 
       {/* Attach Documents */}
-      {uploadFileLabel && onFilesChange && (
+      {onFilesChange && (
         <FormField
-          control={form.control as any}
+          control={form.control}
           name="files"
           render={() => (
             <FormItem>
-              <FormLabel>{uploadFileLabel}</FormLabel>
+              <FormLabel>{t('task-upload-label')}</FormLabel>
               <FormControl>
-                <Input
-                  type="file"
-                  multiple
-                  className="gba:w-full"
-                  data-testid={`${dataTestId}-attachments`}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const files = Array.from(e.target.files || [])
-                    onFilesChange(files as any)
-                  }}
+                <FileUpload
+                  key={fileUploadKey}
+                  layout="list"
+                  preview="icon"
+                  maxFiles={10}
+                  maxSizeMB={10}
+                  multiple={true}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
+                  initialFiles={initialFiles}
+                  onChange={handleFilesChange}
+                  data-testid={`${dataTestId}-file-upload`}
                 />
               </FormControl>
               <FormMessage />
@@ -555,6 +555,9 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           )}
         />
       )}
+
+      {/* Custom fields */}
+      {customFields}
     </>
   )
 }
@@ -566,24 +569,42 @@ const buildTaskSegmentSchema = (options?: {
   requireAssignee?: boolean
   requireEntity?: boolean
   requireType?: boolean
+  multiAssigneeMode?: boolean
 }) => {
   const requireAssignee = options?.requireAssignee !== false
   const requireEntity = options?.requireEntity !== false
   const requireType = options?.requireType !== false
-  return z.object({
-    title: z.string().min(1, 'Title is required'),
-    timingType: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
+  const multiAssigneeMode = options?.multiAssigneeMode !== false // Multi-assignee is now the default
+
+  const baseSchema = {
+    name: z.string().min(1, 'Name is required'),
+    taskTiming: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
       message: 'Timing is required'
     }),
     taskTypeRef: requireType ? z.string().min(1, 'Type is required') : z.string().optional(),
     taskPriorityRef: z.string().min(1, 'Priority is required'),
-    taskStatusRef: z.string().min(1, 'Status is required'),
-    assignedEmployeeId: requireAssignee ? z.string().min(1, 'Assigned employee is required') : z.string().optional(),
+    taskStatusRef: z.string().optional(), // Backend computed, not required from user
     relatedEntityId: requireEntity ? z.string().min(1, 'Related entity is required') : z.string().optional(),
     description: z.string().optional(),
     dueDate: z.preprocess(val => (val == null ? '' : val), z.string().min(1, 'Deadline is required')),
     files: z.any().optional()
-  })
+  }
+
+  // Add assignee fields based on mode
+  if (multiAssigneeMode) {
+    return z.object({
+      ...baseSchema,
+      assignedEmployeeIds: requireAssignee
+        ? z.array(z.string()).min(1, 'At least one assignee is required')
+        : z.array(z.string()).optional(),
+      assignedEmployees: z.array(z.any()).optional()
+    })
+  } else {
+    return z.object({
+      ...baseSchema,
+      assignedEmployeeId: requireAssignee ? z.string().min(1, 'Assigned employee is required') : z.string().optional()
+    })
+  }
 }
 
 export type TaskSegmentSchema = z.infer<ReturnType<typeof buildTaskSegmentSchema>>
@@ -595,4 +616,5 @@ export const createTaskSegmentResolver = (options?: {
   requireAssignee?: boolean
   requireEntity?: boolean
   requireType?: boolean
+  multiAssigneeMode?: boolean
 }) => zodResolver(buildTaskSegmentSchema(options))

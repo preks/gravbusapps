@@ -1,43 +1,42 @@
 import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Card, Typography, Spin } from 'antd'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useMonthlyHeadcountChanges } from '../../../../hooks/useMonthlyHeadcountChanges'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 const { Title, Text } = Typography
 
-interface HeadcountChangesChartProps extends BusinessAppContextProps {}
-
-const HeadcountChangesChart: React.FC<HeadcountChangesChartProps> = props => {
+const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
   const { data, loading } = useMonthlyHeadcountChanges(props, year)
+  const { t } = useTranslation(hrTranslations)
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload
       return (
-        <div className="gba:bg-white gba:shadow-lg gba:rounded gba:p-4" data-testid="headcount-changes-tooltip">
+        <div
+          className="gba:bg-primary-foreground gba:shadow-lg gba:rounded gba:p-4"
+          data-testid="headcount-changes-tooltip"
+        >
           <div className="gba:font-semibold gba:text-base gba:mb-1">
-            {new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
+            {new Date(d.month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+              month: 'short',
+              year: 'numeric'
+            })}
           </div>
-          <div className="gba:text-green-600 gba:text-sm">
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('headcount_new_hires', 'New Hires')}:
-            </span>{' '}
-            +{d.newHires}
+          <div className="gba:text-success gba:text-sm">
+            <span className="gba:font-medium">{t('hr-analytics-new-hires')}:</span> +{d.newHires}
           </div>
-          <div className="gba:text-red-600 gba:text-sm">
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('headcount_departures', 'Departures')}:
-            </span>{' '}
+          <div className="gba:text-destructive gba:text-sm">
+            <span className="gba:font-medium">{t('hr-analytics-departures')}:</span>{' '}
             {d.departures === 0 ? '0' : '-' + d.departures}
           </div>
-          <div className="gba:text-black gba:text-sm">
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('headcount_net_change', 'Net Change')}:
-            </span>{' '}
-            {d.netChange > 0 ? '+' : ''}
+          <div className="gba:text-foreground gba:text-sm">
+            <span className="gba:font-medium">{t('hr-analytics-net-change')}:</span> {d.netChange > 0 ? '+' : ''}
             {d.netChange}
           </div>
         </div>
@@ -50,14 +49,11 @@ const HeadcountChangesChart: React.FC<HeadcountChangesChartProps> = props => {
     <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="headcount-changes-chart">
       {/* Header */}
       <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-gray-800">
-          {getTranslationFromI18nKeyAndLabel('headcount_changes_chart', 'Headcount Changes')}
+        <Title level={4} className="gba:m-0 gba:text-foreground">
+          {t('hr-analytics-headcount-changes-chart')}
         </Title>
-        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'headcount_changes_description',
-            'Monthly workforce changes showing new hires versus departures and net headcount impact'
-          )}
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
+          {t('hr-analytics-headcount-changes-description')}
         </Text>
       </div>
 
@@ -76,14 +72,14 @@ const HeadcountChangesChart: React.FC<HeadcountChangesChartProps> = props => {
               <Tooltip content={<CustomTooltip />} />
               <Bar
                 dataKey="newHires"
-                fill="#16a34a"
-                name={getTranslationFromI18nKeyAndLabel('headcount_new_hires', 'New Hires')}
+                fill="var(--nw-color-success)"
+                name={t('hr-analytics-new-hires')}
                 data-testid="bar-new-hires"
               />
               <Bar
                 dataKey="departures"
-                fill="#ef4444"
-                name={getTranslationFromI18nKeyAndLabel('headcount_departures', 'Departures')}
+                fill="var(--nw-color-destructive)"
+                name={t('hr-analytics-departures')}
                 data-testid="bar-departures"
               />
             </BarChart>

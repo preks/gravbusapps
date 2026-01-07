@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
-import { ActivitiesStatistics, ActivitiesTable } from '../activities'
+import React from 'react'
+import { ActivitiesStatistics } from '../activities/ActivitiesStatistics'
+import { ActivitiesTable } from '../activities/ActivitiesTable'
 import { SalesActivitiesTabProps } from '../../types/activitiesTypes'
 
 const DATA_TEST_ID_PREFIX = 'SalesActivitiesTab'
@@ -11,11 +12,9 @@ export const SalesActivitiesTab: React.FC<SalesActivitiesTabProps> = ({
   additionalData,
   ...context
 }) => {
-  const [activitiesTotal, setActivitiesTotal] = useState<number>(0)
-
   // Handle activities count change from table
-  const handleActivitiesTotalChange = (total: number) => {
-    setActivitiesTotal(total)
+  const handleActivitiesTotalChange = () => {
+    // Total received from table
   }
 
   return (

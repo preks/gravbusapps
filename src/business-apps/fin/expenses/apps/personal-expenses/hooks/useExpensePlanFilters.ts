@@ -141,6 +141,23 @@ export const useExpensePlanFilters = () => {
             selected: selectedFilters.includes(ExpenseStatus.TRANSFERRED)
           }
         ]
+      },
+      {
+        id: 'planType',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+        type: DataFilterType.CHECKBOX_GROUP,
+        filters: [
+          {
+            id: 'planType:EXPENSES',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense'),
+            selected: selectedFilters.includes('planType:EXPENSES')
+          },
+          {
+            id: 'planType:TRIP',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'),
+            selected: selectedFilters.includes('planType:TRIP')
+          }
+        ]
       }
     ],
     [selectedFilters, startDateRange, endDateRange, planDateRange, effectiveDateRange]
@@ -170,6 +187,17 @@ export const useExpensePlanFilters = () => {
     const statusFilters = selectedFilters.filter(f => (Object.values(ExpenseStatus) as string[]).includes(f))
     if (statusFilters.length > 0) {
       conditions.push({ status: { _in: statusFilters } })
+    }
+
+    // Plan type filters (EXPENSES or TRIP) map to requestTypeRef
+    const planTypeTokens = selectedFilters.filter(f => f.startsWith('planType:'))
+    if (planTypeTokens.length > 0) {
+      const allowedTypes = planTypeTokens.map(t => t.split(':')[1]).filter(t => t === 'EXPENSES' || t === 'TRIP')
+
+      if (allowedTypes.length > 0) {
+        const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
+        conditions.push({ _or: typeOr })
+      }
     }
 
     // Process top destination filter - just ensure we don't show discarded plans
@@ -227,16 +255,6 @@ export const useExpensePlanFilters = () => {
     conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } })
     return { _and: conditions.length > 0 ? conditions : [{}] }
   }, [search, selectedFilters, planDateRange, startDateRange, endDateRange, effectiveDateRange])
-
-  // deprecated: use clearAllFilters instead
-  const clearFilters = useCallback(() => {
-    setSelectedFilters([])
-    setStartDateRange(null)
-    setEndDateRange(null)
-    setPlanDateRange(null)
-    setEffectiveDateRange(null)
-    setSearch('')
-  }, [])
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     setSelectedFilters(prev => (selected ? [...prev, filterId] : prev.filter(id => id !== filterId)))

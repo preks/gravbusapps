@@ -33,7 +33,7 @@ export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
-      } catch (error) {
+      } catch {
         console.error('Error downloading accounting note:', error)
       }
     },
@@ -56,7 +56,7 @@ export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
         getTranslationFromI18nKeyAndLabel('expense.request.csv.trigger.success', 'CSV was generated successfully'),
         'success'
       )
-    } catch (error) {
+    } catch {
       console.error('Failed to trigger CSV process:', error)
 
       // Show error toast

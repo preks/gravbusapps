@@ -41,12 +41,12 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
 
   return (
     <PageLayout
-      headerIcon={<PiUsersThreeDuotone color="#254469" />}
+      headerIcon={<PiUsersThreeDuotone color="var(--nw-decorative)" />}
       headerLabel={getTranslationFromI18nKeyAndLabel('translation:hr.hr_settings', 'HR Settings')}
-      className={className}
+      className={`${className ?? ''} gba:!overflow-y-visible`}
       pageHeaderRight={
         <Input
-          prefix={<RiSearchLine style={{ color: '#9ca3af' }} />}
+          prefix={<RiSearchLine className="gba:text-muted-foreground" />}
           placeholder={getTranslationFromI18nKeyAndLabel('translation:actions.search', 'Search')}
           style={{ maxWidth: '320px' }}
           allowClear
@@ -59,10 +59,11 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
         <div
           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
           style={{
-            background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
+            background: 'var(--gradient-decorative-1)',
             minHeight: '100%',
             padding: '32px'
           }}
+          className="gba:w-full gba:h-full gba:!overflow-y-auto"
         >
           {filteredCards.length === 0 ? (
             <div
@@ -75,10 +76,10 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
                 textAlign: 'center'
               }}
             >
-              <Typography.Title level={4} style={{ color: '#6b7280', marginBottom: '8px' }}>
+              <Typography.Title level={4} className="gba:text-muted-foreground" style={{ marginBottom: '8px' }}>
                 {t('common.no_results_found')}
               </Typography.Title>
-              <Typography.Paragraph style={{ color: '#9ca3af', margin: 0 }}>
+              <Typography.Paragraph className="gba:text-muted-foreground" style={{ margin: 0 }}>
                 {t('common.try_different_search')}
               </Typography.Paragraph>
             </div>

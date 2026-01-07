@@ -1,12 +1,6 @@
 import { create } from 'zustand'
 import { BusinessPattern, WizardState, WizardStep, PatternSelection } from '../types/businessPatterns'
-import {
-  FlowTemplate,
-  FlowStep,
-  FlowStepType,
-  AssignmentMode,
-  TaskAssignment
-} from '@/common/network/flows/FlowTemplateClient'
+import { FlowTemplate, FlowStep, AssignmentMode, TaskAssignment } from '@/common/network/flows/FlowTemplateClient'
 import { validateTemplateAgainstPattern, ValidationResult } from '../utils/patternValidation'
 import { useFlowTemplateStore } from './useFlowTemplateStore'
 
@@ -62,29 +56,23 @@ const normalizeAssignmentTargets = (assignment: TaskAssignment | undefined): Tas
 
   let normalizedTargets = null
 
-  if (assignment.targets && assignment.targets.length > 0) {
-    const processedTargets = assignment.targets
-      .map(target => {
-        const normalizedTarget = { ...target }
+  if (assignment.targets) {
+    const normalizedTarget = { ...assignment.targets }
 
-        // Convert empty arrays to null for each field
-        Object.keys(normalizedTarget).forEach(key => {
-          const value = normalizedTarget[key as keyof typeof normalizedTarget]
-          if (Array.isArray(value) && value.length === 0) {
-            normalizedTarget[key as keyof typeof normalizedTarget] = null as any
-          }
-        })
+    // Convert empty arrays to null for each field
+    Object.keys(normalizedTarget).forEach(key => {
+      const value = normalizedTarget[key as keyof typeof normalizedTarget]
+      if (Array.isArray(value) && value.length === 0) {
+        normalizedTarget[key as keyof typeof normalizedTarget] = null as any
+      }
+    })
 
-        // Check if all fields are null/empty
-        const hasAnyValues = Object.values(normalizedTarget).some(
-          fieldValue => fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0
-        )
+    // Check if all fields are null/empty
+    const hasAnyValues = Object.values(normalizedTarget).some(
+      fieldValue => fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0
+    )
 
-        return hasAnyValues ? normalizedTarget : null
-      })
-      .filter(target => target !== null)
-
-    normalizedTargets = processedTargets.length > 0 ? processedTargets : null
+    normalizedTargets = hasAnyValues ? normalizedTarget : null
   }
 
   return {
@@ -137,7 +125,7 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
               preStep.assignment.assignmentMode === AssignmentMode.ASSIGN
                 ? null // For ASSIGN mode, null targets means "prompt user to assign during launch"
                 : {
-                    userIds: [],
+                    users: [],
                     organizationalUnits: [],
                     matrixTeams: [],
                     companies: [],
@@ -204,7 +192,7 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
   },
 
   clearPattern: () => {
-    set(state => ({
+    set(() => ({
       selectedPattern: undefined,
       configuration: {},
       isValid: false,
@@ -282,7 +270,7 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
 
   // Validation
   validateCurrentStep: (): boolean => {
-    const { currentStep, steps, selectedPattern, configuration, isEditMode } = get()
+    const { currentStep, steps, configuration } = get()
     const step = steps[currentStep]
 
     if (!step) return false
@@ -315,7 +303,7 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
 
     try {
       const template = get().generateTemplate()
-      return validateTemplateAgainstPattern(template, selectedPattern)
+      return validateTemplateAgainstPattern(template as any, selectedPattern)
     } catch (error) {
       return {
         isValid: false,
@@ -395,7 +383,7 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
       throw new Error('No pattern selected')
     }
 
-    const template = generateTemplate()
+    generateTemplate()
 
     return {
       pattern: selectedPattern,

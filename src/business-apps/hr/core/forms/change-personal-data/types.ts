@@ -20,6 +20,7 @@ export interface EmployeeByPk {
   lastName?: string
   preferredName?: string
   displayName?: string
+  fullName?: string
   birthName?: string
   birthDate?: string | null
   birthPlace?: string
@@ -32,10 +33,16 @@ export interface EmployeeByPk {
   academicTitleRef?: string[] | string | null
   notes?: string
   employeeId?: string
+  pictureThumbnail?: string
 }
 
 export interface EmployeeDataResponse {
   EmployeeByPk?: EmployeeByPk
+  EmployeePosition?: Array<{
+    jobPosition?: {
+      name?: string
+    }
+  }>
 }
 
 export interface CatalogsDataResponse {
@@ -74,4 +81,4 @@ export type PersonalDataFormValues = {
   employeeDocumentId?: string
 }
 
-export interface TypedControl extends Control<PersonalDataFormValues> {}
+export type TypedControl = Control<PersonalDataFormValues>

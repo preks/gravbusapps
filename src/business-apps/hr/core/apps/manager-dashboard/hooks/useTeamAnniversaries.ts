@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
-import { Employee, EmployeeResponse, WorkCommunication } from '../types/employee.types'
+import { Employee, WorkCommunication } from '../types/employee.types'
 
 export interface TeamAnniversary {
   id: string
@@ -103,13 +103,12 @@ export const useTeamAnniversaries = ({
 
       if (response?.Employee) {
         const today = dayjs()
-        const endDate = today.add(daysAhead, 'day')
 
         const anniversariesWithCalculations: TeamAnniversary[] = response.Employee.filter(
           (employee: Employee) => employee.workingCondition?.[0]?.hireDate
         ) // Only employees with hire dates
           .map((employee: Employee) => {
-            const hireDate = dayjs(employee.workingCondition[0].hireDate)
+            const hireDate = dayjs(employee.workingCondition?.[0]?.hireDate)
             const currentYear = today.year()
 
             // Get this year's anniversary
@@ -136,7 +135,7 @@ export const useTeamAnniversaries = ({
               firstName: employee.firstName,
               lastName: employee.lastName,
               fullName: `${employee.firstName} ${employee.lastName}`,
-              hireDate: employee.workingCondition[0].hireDate,
+              hireDate: employee.workingCondition?.[0]?.hireDate,
               pictureThumbnail: employee.pictureThumbnail,
               daysUntilAnniversary,
               yearsOfService,

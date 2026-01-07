@@ -1,20 +1,21 @@
 import React from 'react'
 import { Card, CardContent, Button, Badge } from '@newwork/nw-design-system'
 import {
-  Play,
-  Folder,
-  AppWindow,
-  Article,
-  ChatCircle,
-  SquaresFour,
-  Clock,
-  CaretDown,
-  CaretRight
+  PlayIcon,
+  FolderIcon,
+  SquaresFourIcon,
+  ArticleIcon,
+  ChatCircleIcon,
+  ClockIcon,
+  CaretDownIcon,
+  CaretRightIcon
 } from '@phosphor-icons/react'
 
 import { PageLayout } from '../layout/pageLayout'
 
 // Removed antd Typography and Collapse imports - using nw-design-system instead
+
+type BusinessAppType = 'app' | 'form' | 'popup' | 'window'
 
 interface BusinessAppInfo {
   name: string
@@ -22,7 +23,7 @@ interface BusinessAppInfo {
   module: string
   subModule?: string
   screenKey: string
-  type: 'app' | 'form' | 'popup'
+  type: BusinessAppType
 }
 
 interface RecentlyUsedApp {
@@ -141,20 +142,22 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     return subModule === 'default' ? 'General' : subModule.charAt(0).toUpperCase() + subModule.slice(1)
   }
 
-  const getTypeIcon = (type: 'app' | 'form' | 'popup') => {
+  const getTypeIcon = (type: BusinessAppType) => {
     switch (type) {
       case 'app':
-        return <Play />
+        return <PlayIcon />
       case 'form':
-        return <Article />
+        return <ArticleIcon />
       case 'popup':
-        return <ChatCircle />
+        return <ChatCircleIcon />
+      case 'window':
+        return <SquaresFourIcon />
       default:
-        return <Play />
+        return <PlayIcon />
     }
   }
 
-  const getTypeLabel = (type: 'app' | 'form' | 'popup'): string => {
+  const getTypeLabel = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
         return 'App'
@@ -162,13 +165,15 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         return 'Form'
       case 'popup':
         return 'Popup'
+      case 'window':
+        return 'Window'
       default:
         return 'App'
     }
   }
 
   // Tailwind token-based classes to replace inline color styles
-  const getTypeTextClass = (type: 'app' | 'form' | 'popup'): string => {
+  const getTypeTextClass = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
         return 'gba:text-ext-1'
@@ -176,12 +181,14 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         return 'gba:text-ext-2'
       case 'popup':
         return 'gba:text-ext-3'
+      case 'window':
+        return 'gba:text-ext-4'
       default:
         return 'gba:text-primary'
     }
   }
 
-  const getTypeBadgeClasses = (type: 'app' | 'form' | 'popup'): string => {
+  const getTypeBadgeClasses = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
         return 'gba:bg-ext-1-secondary gba:text-ext-1-secondary-foreground'
@@ -189,6 +196,8 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         return 'gba:bg-ext-2-secondary gba:text-ext-2-secondary-foreground'
       case 'popup':
         return 'gba:bg-ext-3-secondary gba:text-ext-3-secondary-foreground'
+      case 'window':
+        return 'gba:bg-ext-4-secondary gba:text-ext-4-secondary-foreground'
       default:
         return 'gba:bg-primary-secondary gba:text-primary-secondary-foreground'
     }
@@ -196,7 +205,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
 
   const renderAppButton = (app: BusinessAppInfo) => (
     <a
-      key={app.name}
+      key={app.screenKey}
       href={createAppURL(app)}
       onClick={e => handleAppLinkClick(e, app)}
       onAuxClick={e => {
@@ -229,7 +238,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     setExpandedSubModules(newExpanded)
   }
 
-  const renderSubModuleContent = (subModules: Record<string, BusinessAppInfo[]>) => {
+  const renderSubModuleContent = (module: string, subModules: Record<string, BusinessAppInfo[]>) => {
     const subModuleEntries = Object.entries(subModules)
 
     // If only one sub-module and it's 'default', show apps directly
@@ -241,20 +250,21 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     return (
       <div className="gba:w-full gba:space-y-2">
         {subModuleEntries.map(([subModule, apps]) => {
-          const isExpanded = expandedSubModules.has(subModule)
+          const subModuleId = `${module}/${subModule}`
+          const isExpanded = expandedSubModules.has(subModuleId)
           return (
             <div key={subModule} className="gba:bg-secondary gba:rounded gba:mb-2">
               <Button
                 variant="ghost"
-                onClick={() => toggleSubModule(subModule)}
+                onClick={() => toggleSubModule(subModuleId)}
                 className="gba:w-full gba:justify-between gba:px-4 gba:py-2 gba:text-left"
               >
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <Folder className="gba:text-blue-500" />
+                  <FolderIcon className="gba:text-blue-500" />
                   <span className="gba:text-sm gba:font-medium">{formatSubModuleName(subModule)}</span>
                   <Badge variant="secondary">{apps.length}</Badge>
                 </div>
-                {isExpanded ? <CaretDown size={16} /> : <CaretRight size={16} />}
+                {isExpanded ? <CaretDownIcon size={16} /> : <CaretRightIcon size={16} />}
               </Button>
               {isExpanded && (
                 <div className="gba:px-4 gba:pb-2 gba:space-y-1 gba:text-left">{apps.map(renderAppButton)}</div>
@@ -272,14 +282,15 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     const apps = items.filter(i => i.type === 'app')
     const forms = items.filter(i => i.type === 'form')
     const popups = items.filter(i => i.type === 'popup')
-    return { items, apps, forms, popups }
+    const windows = items.filter(i => i.type === 'window')
+    return { items, apps, forms, popups, windows }
   }, [businessApps])
 
   return (
     <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-gradient-decorative-1">
       <PageLayout
         variant="display"
-        headerIcon={<SquaresFour color="#000000" />}
+        headerIcon={<SquaresFourIcon className="gba:text-foreground" />}
         headerLabel="Business Applications"
         headerLabelClassName="gba:!text-black"
         className="gba:h-full gba:!bg-transparent gba:!shadow-none gba:!rounded-none"
@@ -289,20 +300,14 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {exampleItems.items.length > 0 && (
               <div className="gba:mb-8" data-testid="IDE-Examples-Section">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <SquaresFour color="#000000" />
+                  <SquaresFourIcon className="gba:text-foreground" />
                   Examples
                 </h4>
-                <div
-                  className="gba:grid gba:gap-6"
-                  style={{
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                    display: 'grid'
-                  }}
-                >
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">
                   {/* Apps */}
                   {exampleItems.apps.length > 0 && (
                     <Card
-                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -311,7 +316,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <Play className="gba:text-blue-600" />
+                            <PlayIcon className="gba:text-blue-600" />
                             Apps
                           </span>
                           <Badge variant="secondary">{exampleItems.apps.length}</Badge>
@@ -325,7 +330,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Forms */}
                   {exampleItems.forms.length > 0 && (
                     <Card
-                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -334,7 +339,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <Article className="gba:text-green-600" />
+                            <ArticleIcon className="gba:text-green-600" />
                             Forms
                           </span>
                           <Badge variant="secondary">{exampleItems.forms.length}</Badge>
@@ -348,6 +353,29 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Popups */}
                   {exampleItems.popups.length > 0 && (
                     <Card
+                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      style={{ display: 'flex', flexDirection: 'column' }}
+                    >
+                      <CardContent
+                        className="gba:p-3"
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                          <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            <ChatCircleIcon className="gba:text-orange-600" />
+                            Popups
+                          </span>
+                          <Badge variant="secondary">{exampleItems.popups.length}</Badge>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                          <div className="gba:space-y-1 gba:text-left">{exampleItems.popups.map(renderAppButton)}</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {/* Windows */}
+                  {exampleItems.windows.length > 0 && (
+                    <Card
                       className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
@@ -357,13 +385,13 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <ChatCircle className="gba:text-orange-600" />
-                            Popups
+                            <SquaresFourIcon className="gba:text-purple-600" />
+                            Windows
                           </span>
-                          <Badge variant="secondary">{exampleItems.popups.length}</Badge>
+                          <Badge variant="secondary">{exampleItems.windows.length}</Badge>
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                          <div className="gba:space-y-1 gba:text-left">{exampleItems.popups.map(renderAppButton)}</div>
+                          <div className="gba:space-y-1 gba:text-left">{exampleItems.windows.map(renderAppButton)}</div>
                         </div>
                       </CardContent>
                     </Card>
@@ -375,14 +403,14 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {recentlyUsedApps.length > 0 && (
               <div className="gba:mb-8">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <Clock color="#000000" />
+                  <ClockIcon className="gba:text-foreground" />
                   Recently Used
                 </h4>
-                <div className="gba:grid gba:gap-4 gba:grid-cols-5">
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-4">
                   {getRecentApps().map(app => (
                     <Card
-                      key={app.name}
-                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
+                      key={app.screenKey}
+                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
                     >
                       <CardContent className="gba:p-3">
                         <a
@@ -423,7 +451,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {/* Module Cards */}
             <div className="gba:mb-4">
               <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                <AppWindow color="#000000" />
+                <SquaresFourIcon className="gba:text-foreground" />
                 All Applications
               </h4>
               {Object.keys(groupedApps).length === 0 ? (
@@ -431,25 +459,25 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   <div className="gba:text-secondary-foreground gba:text-lg">No business applications found</div>
                 </div>
               ) : (
-                <div className="gba:grid gba:gap-6 gba:grid-cols-5">
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">
                   {Object.entries(groupedApps).map(([module, subModules]) => {
                     const totalApps = Object.values(subModules).reduce((sum, apps) => sum + apps.length, 0)
 
                     return (
                       <Card
                         key={module}
-                        className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:flex gba:flex-col gba:h-96"
+                        className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:flex gba:flex-col gba:h-96"
                       >
                         <CardContent className="gba:p-3 gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:h-full">
                           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                             <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                              <AppWindow className="gba:text-blue-600" />
+                              <SquaresFourIcon className="gba:text-blue-600" />
                               {formatModuleName(module)}
                             </span>
                             <Badge variant="secondary">{totalApps}</Badge>
                           </div>
                           <div className="gba:flex-1 gba:overflow-y-auto gba:min-h-0 gba:max-h-full">
-                            {renderSubModuleContent(subModules)}
+                            {renderSubModuleContent(module, subModules)}
                           </div>
                         </CardContent>
                       </Card>

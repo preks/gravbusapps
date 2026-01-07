@@ -629,7 +629,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           </Button>
         </div>
         <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-          <div className="gba:text-gray-600">
+          <div className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_hub.loading_absence_details',
               'Loading absence details...'
@@ -653,14 +653,14 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             )}
           </Button>
         </div>
-        <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg gba:p-4">
-          <div className="gba:text-red-800 gba:font-medium">
+        <div className="gba:bg-destructive-secondary gba:border gba:rounded-lg gba:p-4">
+          <div className="gba:text-destructive gba:font-medium">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_hub.error_loading_absence_details',
               'Error loading absence details'
             )}
           </div>
-          <div className="gba:text-red-600 gba:text-sm gba:mt-1">{dashboardData.error}</div>
+          <div className="gba:text-destructive gba:text-sm gba:mt-1">{dashboardData.error}</div>
         </div>
       </div>
     )
@@ -686,19 +686,19 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       </div>
 
       {/* Page Header */}
-      <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
+      <div className="gba:bg-card gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-3">
-            <PiCalendarBlank size={24} className="gba:text-blue-600" />
+            <PiCalendarBlank size={24} className="gba:text-info" />
             <div>
-              <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">{currentUIState.title}</h1>
-              <p className="gba:text-gray-600 gba:mt-1">{currentUIState.description}</p>
+              <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">{currentUIState.title}</h1>
+              <p className="gba:text-muted-foreground gba:mt-1">{currentUIState.description}</p>
             </div>
           </div>
 
           {/* Breadcrumb */}
-          <div className="gba:text-sm gba:text-gray-500">
-            <span className="gba:text-blue-600 gba:cursor-pointer hover:gba:underline" onClick={onNavigateBack}>
+          <div className="gba:text-sm gba:text-muted-foreground">
+            <span className="gba:text-info gba:cursor-pointer hover:gba:underline" onClick={onNavigateBack}>
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_details.absence_dashboard',
                 'Absence Dashboard'
@@ -712,9 +712,9 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
       {/* 🚀 PHASE 2: Universal Dynamic Analysis - Shows when table is filtered */}
       {dynamicAnalysis && (
-        <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4">
+        <div className="gba:bg-card gba:border gba:rounded-lg gba:p-4">
           <div className="gba:mb-3">
-            <div className="gba:text-gray-900 gba:font-medium gba:text-base gba:mb-1">
+            <div className="gba:text-foreground gba:font-medium gba:text-base gba:mb-1">
               {currentUIState.hasChangedFilters
                 ? // User has changed filters - show generic analysis title
                   department
@@ -732,7 +732,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                         'lowcoder:absence_management_hub_backoffice.absence_details.absence_analysis',
                         'Absence Analysis'
                       )}
-              <span className="gba:ml-2 gba:text-xs gba:bg-gray-100 gba:text-gray-700 gba:px-2 gba:py-1 gba:rounded">
+              <span className="gba:ml-2 gba:text-xs gba:bg-muted gba:text-foreground gba:px-2 gba:py-1 gba:rounded">
                 {dynamicAnalysis.isFiltered
                   ? getTranslationFromI18nKeyAndLabel(
                       'lowcoder:absence_management_hub_backoffice.absence_details.filtered',
@@ -744,7 +744,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                     )}
               </span>
             </div>
-            <div className="gba:text-gray-600 gba:text-sm">
+            <div className="gba:text-muted-foreground gba:text-sm">
               {currentUIState.hasChangedFilters
                 ? currentUIState.currentDateRange.startDate && currentUIState.currentDateRange.endDate
                   ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.live_analysis', 'Live Analysis')} • ${formatDateForLocale(currentUIState.currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentUIState.currentDateRange.endDate)}`
@@ -792,12 +792,12 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div
-                  className="gba:text-2xl gba:font-bold gba:text-gray-900"
+                  className="gba:text-2xl gba:font-bold gba:text-foreground"
                   data-testid="details-kpi-total-days-value"
                 >
                   {dynamicAnalysis.totalDays}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">
+                <div className="gba:text-xs gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:absence_management_hub_backoffice.absence_details.filtered_results',
                     'Filtered Results'
@@ -817,12 +817,12 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div
-                  className="gba:text-2xl gba:font-bold gba:text-gray-900"
+                  className="gba:text-2xl gba:font-bold gba:text-foreground"
                   data-testid="details-kpi-total-requests-value"
                 >
                   {dynamicAnalysis.totalRequests}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">
+                <div className="gba:text-xs gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:absence_management_hub_backoffice.absence_details.filtered_results',
                     'Filtered Results'
@@ -841,10 +841,13 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-employees-value">
+                <div
+                  className="gba:text-2xl gba:font-bold gba:text-foreground"
+                  data-testid="details-kpi-employees-value"
+                >
                   {dynamicAnalysis.uniqueEmployees}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">
+                <div className="gba:text-xs gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:absence_management_hub_backoffice.absence_details.filtered_results',
                     'Filtered Results'
@@ -864,12 +867,12 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div
-                  className="gba:text-2xl gba:font-bold gba:text-gray-900"
+                  className="gba:text-2xl gba:font-bold gba:text-foreground"
                   data-testid="details-kpi-avg-days-per-employee-value"
                 >
                   {dynamicAnalysis.avgDaysPerEmployee}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">
+                <div className="gba:text-xs gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:absence_management_hub_backoffice.absence_details.filtered_results',
                     'Filtered Results'
@@ -898,7 +901,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                 (filteredAbsencesForMonth.overlappingInfo.spanningInto > 0 ||
                   filteredAbsencesForMonth.overlappingInfo.spanningOut > 0 ||
                   filteredAbsencesForMonth.overlappingInfo.spanningAcross > 0) ? (
-                  <div className="gba:text-xs gba:text-gray-600 gba:space-y-1">
+                  <div className="gba:text-xs gba:text-muted-foreground gba:space-y-1">
                     <div>
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:absence_management_hub_backoffice.absence_details.fully_within_period',
@@ -953,7 +956,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                     {/* Detailed Employee Info for Spanning Requests */}
                     {(filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests?.length > 0 ||
                       filteredAbsencesForMonth.overlappingInfo.spanningOutRequests?.length > 0) && (
-                      <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
+                      <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border">
                         {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests?.length > 0 && (
                           <div className="gba:mb-1">
                             <span className="gba:font-medium">
@@ -975,14 +978,14 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                                   absence.employeeName ||
                                   `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim()
                                 return (
-                                  <span key={absence.id || index} className="gba:text-gray-500">
+                                  <span key={absence.id || index} className="gba:text-muted-foreground">
                                     {index > 0 && ', '}
                                     {employeeName} ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
                                   </span>
                                 )
                               })}
                             {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length > 2 && (
-                              <span className="gba:text-gray-500">
+                              <span className="gba:text-muted-foreground">
                                 {' '}
                                 +{filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length - 2}{' '}
                                 {getTranslationFromI18nKeyAndLabel(
@@ -1014,14 +1017,14 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                                   absence.employeeName ||
                                   `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim()
                                 return (
-                                  <span key={absence.id || index} className="gba:text-gray-500">
+                                  <span key={absence.id || index} className="gba:text-muted-foreground">
                                     {index > 0 && ', '}
                                     {employeeName} ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
                                   </span>
                                 )
                               })}
                             {filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length > 2 && (
-                              <span className="gba:text-gray-500">
+                              <span className="gba:text-muted-foreground">
                                 {' '}
                                 +{filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length - 2}{' '}
                                 {getTranslationFromI18nKeyAndLabel(
@@ -1036,7 +1039,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                     )}
                   </div>
                 ) : (
-                  <div className="gba:text-xs gba:text-gray-500">
+                  <div className="gba:text-xs gba:text-muted-foreground">
                     {month
                       ? getTranslationFromI18nKeyAndLabel(
                           'lowcoder:absence_management_hub_backoffice.absence_details.no_cross_month_requests',
@@ -1062,7 +1065,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
-                <div className="gba:text-xs gba:text-gray-600 gba:space-y-1">
+                <div className="gba:text-xs gba:text-muted-foreground gba:space-y-1">
                   <div>
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:absence_management_hub_backoffice.absence_details.avg_duration_per_request',
@@ -1099,13 +1102,16 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                 {Object.keys(dynamicAnalysis.statusBreakdown).length > 0 ? (
                   <div className="gba:flex gba:flex-wrap gba:gap-2 gba:text-xs">
                     {Object.entries(dynamicAnalysis.statusBreakdown).map(([status, count]) => (
-                      <div key={status} className="gba:text-gray-600 gba:bg-gray-50 gba:px-2 gba:py-1 gba:rounded">
+                      <div
+                        key={status}
+                        className="gba:text-muted-foreground gba:bg-muted gba:px-2 gba:py-1 gba:rounded"
+                      >
                         <span className="gba:font-medium">{getAbsenceStatusLabel(status)}:</span> {count as number}
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="gba:text-xs gba:text-gray-500">
+                  <div className="gba:text-xs gba:text-muted-foreground">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:absence_management_hub_backoffice.absence_details.no_status_data',
                       'No status data'
@@ -1129,13 +1135,13 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                 {Object.keys(dynamicAnalysis.departmentBreakdown).length > 0 ? (
                   <div className="gba:flex gba:flex-wrap gba:gap-2 gba:text-xs">
                     {Object.entries(dynamicAnalysis.departmentBreakdown).map(([dept, count]) => (
-                      <div key={dept} className="gba:text-gray-600 gba:bg-gray-50 gba:px-2 gba:py-1 gba:rounded">
+                      <div key={dept} className="gba:text-muted-foreground gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
                         <span className="gba:font-medium">{dept}:</span> {count as number}
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="gba:text-xs gba:text-gray-500">
+                  <div className="gba:text-xs gba:text-muted-foreground">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:absence_management_hub_backoffice.absence_details.no_department_data',
                       'No department data'

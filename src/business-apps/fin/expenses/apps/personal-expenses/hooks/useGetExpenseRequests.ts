@@ -1,10 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_REQUESTS_BY_EMPLOYEE } from '../queries/expenseRequests'
 import { CatalogEntry } from './useGetExpensePlans'
-import { ExpenseRequestFilter } from './useExpenseRequestFilters'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { ExpenseStatus } from '../utils'
 
 // Type for expense request data
 export interface ExpenseRequest {

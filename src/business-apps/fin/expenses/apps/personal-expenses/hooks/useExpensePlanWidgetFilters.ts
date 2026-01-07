@@ -78,10 +78,16 @@ export function useExpensePlanWidgetFilters(selectedFilters: string[], activeWid
 
 // Helper function to determine if a widget should be active based on current filters
 export function getActiveWidgetFromFilters(selectedFilters: string[]): string | null {
-  const totalPlansFilters = [ExpenseStatus.CLOSED, ExpenseStatus.PAID, 'planDateRange']
+  // Helper: any date range (effective or plan)
+  const hasAnyDateRange = selectedFilters.includes('effectiveDateRange') || selectedFilters.includes('planDateRange')
+
+  // Consider only status filters for widget detection
+  const statusFiltersOnly = selectedFilters.filter(f => (Object.values(ExpenseStatus) as string[]).includes(f))
+
+  const totalPlansFilters = [ExpenseStatus.CLOSED, ExpenseStatus.PAID]
 
   // Check for total-estimated widget pattern (all statuses except CREATED and PAID)
-  const estimatedFilters = [
+  const estimatedStatusFilters = [
     ExpenseStatus.PREPARED,
     ExpenseStatus.ASSIGNED,
     ExpenseStatus.PENDING,
@@ -89,19 +95,19 @@ export function getActiveWidgetFromFilters(selectedFilters: string[]): string | 
     ExpenseStatus.REJECTED,
     ExpenseStatus.VERIFIED,
     ExpenseStatus.BOOKED,
-    ExpenseStatus.TRANSFERRED,
-    'planDateRange'
+    ExpenseStatus.TRANSFERRED
   ]
 
   const hasEstimatedPattern =
-    estimatedFilters.every(filter => selectedFilters.includes(filter)) &&
+    estimatedStatusFilters.every(filter => statusFiltersOnly.includes(filter)) &&
+    hasAnyDateRange &&
     !selectedFilters.includes(ExpenseStatus.CREATED) &&
     !selectedFilters.includes(ExpenseStatus.PAID)
 
-  const hasTotalPattern = totalPlansFilters.every(filter => selectedFilters.includes(filter))
+  const hasTotalPattern = totalPlansFilters.every(filter => statusFiltersOnly.includes(filter)) && hasAnyDateRange
 
   // Check for pending-approval widget pattern (only PENDING status)
-  const hasPendingOnly = selectedFilters.length === 1 && selectedFilters.includes(ExpenseStatus.PENDING)
+  const hasPendingOnly = statusFiltersOnly.length === 1 && statusFiltersOnly.includes(ExpenseStatus.PENDING)
 
   // If only closed status is selected, activate total-plans widget
   if (hasTotalPattern) {

@@ -82,7 +82,7 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/ `
             id
           }
         }
-        communication(where: {isDeleted: {_eq: false}}) {
+        communication(where: {_and: [{isDeleted: {_eq: false}}, {purpose: {_eq: "INTERNAL"}}]}) {
           channel {
             translations {
               value
@@ -112,10 +112,18 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/ `
           probationEnd
           contractType {
             value
+            translations {
+              value
+              localeCode
+            }
             id
           }
           employmentType {
             value
+            translations {
+              value
+              localeCode
+            }
             id
           }
           region {

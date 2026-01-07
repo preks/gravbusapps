@@ -1,5 +1,3 @@
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-
 export interface QueryVariablesJobProfile {
   jobProfileId?: string
   offset?: number

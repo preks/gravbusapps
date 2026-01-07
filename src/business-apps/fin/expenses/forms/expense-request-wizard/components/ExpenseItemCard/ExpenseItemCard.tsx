@@ -75,7 +75,7 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
             {onDelete && (
               <div className="gba:w-[100%] gba:flex gba:justify-end">
                 <button
-                  className="gba:flex gba:items-center gba:justify-center gba:bg-[#F7F7F7] gba:rounded-full gba:w-8 gba:h-8 gba:p-0 gba:border-none gba:cursor-pointer"
+                  className="gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-full gba:w-8 gba:h-8 gba:p-0 gba:border-none gba:cursor-pointer"
                   onClick={e => {
                     e.stopPropagation()
                     onDelete(id)

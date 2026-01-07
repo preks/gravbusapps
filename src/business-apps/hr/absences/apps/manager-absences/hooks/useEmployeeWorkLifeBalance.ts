@@ -33,7 +33,7 @@ export const useEmployeeWorkLifeBalance = (context: BusinessAppContextProps): Us
 
   const graphqlClient = useGraphQLClient(accessToken)
 
-  const calculateWorkLifeBalance = useCallback((employeeAbsences: any[], employee: any) => {
+  const calculateWorkLifeBalance = useCallback((employeeAbsences: any[]) => {
     if (!employeeAbsences || employeeAbsences.length === 0) {
       return {
         avgStreak: 0,
@@ -160,7 +160,7 @@ export const useEmployeeWorkLifeBalance = (context: BusinessAppContextProps): Us
       // Calculate work-life balance for each employee
       const workLifeBalanceEmployees: EmployeeWorkLifeBalance[] = employeesData.map((employee: any) => {
         const employeeAbsences = absencesByEmployee[employee.id] || []
-        const balance = calculateWorkLifeBalance(employeeAbsences, employee)
+        const balance = calculateWorkLifeBalance(employeeAbsences)
 
         return {
           id: employee.id,

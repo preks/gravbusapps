@@ -28,14 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         this.props.fallback || (
-          <div
-            style={{
-              padding: '20px',
-              border: '1px solid red',
-              borderRadius: '4px',
-              backgroundColor: '#fee'
-            }}
-          >
+          <div className="gba:p-5 gba:border gba:border-destructive gba:rounded gba:bg-destructive/10">
             <h3>
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:personal_expenses.something_went_wrong',

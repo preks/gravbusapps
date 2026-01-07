@@ -68,7 +68,7 @@ const PersonalExpenseFilterBar: React.FC<PersonalExpenseFilterBarProps> = ({
           <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
             <SelectValue
               placeholder={
-                loading ? 'Loading...' : getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency', 'Currency')
+                loading ? 'Loading...' : getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency')
               }
             />
           </SelectTrigger>

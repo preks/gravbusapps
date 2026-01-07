@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { Form } from 'antd'
-import { useTranslation } from 'react-i18next'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { showToast } from '../../../utils/notificationUtils'
 import { fetchEmployeeRule, fetchExpenseRequestAndItems, getExpenseRulePkData } from '../ExpenseRequestWizardQueries'
@@ -82,7 +81,6 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   userInfo,
   additionalData
 }) => {
-  const { t } = useTranslation()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState<boolean>(true)
   const [employeeRuleId, setEmployeeRuleId] = useState<string | null>(null)
@@ -124,7 +122,13 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       // Extract expenseId from additionalData
       const expenseId = additionalData?.psi_taskPayload?.expenseRequest?.id
       if (!expenseId) {
-        showToast(t('lowcoder:create_expense_request_wizard.missing_expense_id', 'Missing expense ID'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request_wizard.missing_expense_id',
+            'Missing expense ID'
+          ),
+          'error'
+        )
         setLoading(false)
         return
       }
@@ -132,7 +136,13 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       // Get employee ID
       const employeeId = userInfo?.employeeDetails?.employeeId
       if (!employeeId) {
-        showToast(t('lowcoder:create_expense_request_wizard.missing_employee_id', 'Missing employee ID'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request_wizard.missing_employee_id',
+            'Missing employee ID'
+          ),
+          'error'
+        )
         setLoading(false)
         return
       }
@@ -170,9 +180,12 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       // Ensure currentCurrency reflects freshly loaded data (avoid stale value after reload)
       const refreshedCurrencyId = response?.ExpenseRequestByPk?.currency?.id || null
       setCurrentCurrency(refreshedCurrencyId)
-    } catch (error) {
+    } catch {
       showToast(
-        t('lowcoder:modify_expense_request.error_fetching_expense_data', 'Error fetching expense data'),
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:modify_expense_request.error_fetching_expense_data',
+          'Error fetching expense data'
+        ),
         'error'
       )
     } finally {
@@ -203,22 +216,31 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
           setExpenseRuleError(null)
         } else {
           setExpenseRuleError(
-            t('lowcoder:create_expense_request.missing_expense_rule_message', 'No expense rule found for this employee')
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_request.missing_expense_rule_message',
+              'No expense rule found for this employee'
+            )
           )
           showToast(
-            t(
+            getTranslationFromI18nKeyAndLabel(
               'lowcoder:create_expense_request.missing_expense_rule_message',
               'No expense rule found for this employee'
             ),
             'error'
           )
         }
-      } catch (error) {
+      } catch {
         setExpenseRuleError(
-          t('lowcoder:create_expense_request.error_employee_rule', 'Error fetching employee expense rule')
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.error_employee_rule',
+            'Error fetching employee expense rule'
+          )
         )
         showToast(
-          t('lowcoder:create_expense_request.error_employee_rule', 'Error fetching employee expense rule'),
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.error_employee_rule',
+            'Error fetching employee expense rule'
+          ),
           'error'
         )
       } finally {
@@ -227,7 +249,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     }
 
     initializeData()
-  }, [accessToken, userInfo, additionalData, t])
+  }, [accessToken, userInfo, additionalData])
 
   // Fetch expense data when employeeRuleId is available
   useEffect(() => {
@@ -293,9 +315,10 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
           ruleCurrencyId = ruleResp?.ExpenseRuleByPk?.currency?.id
         }
         const currencyToSet = currentCurrency || expenseRequestData.ExpenseItem?.[0]?.currencyRef || ''
+        const effectiveItemCurrency = useSingleCurrencyValue && ruleCurrencyId ? ruleCurrencyId : currencyToSet || ''
         setExpenseItemParams({
           expenseRequestId: expenseRequestData.ExpenseRequestByPk.id,
-          itemCurrency: useSingleCurrencyValue ? currencyToSet || ruleCurrencyId : currencyToSet,
+          itemCurrency: effectiveItemCurrency,
           useSingleCurrency: !!useSingleCurrencyValue
         })
       } catch {

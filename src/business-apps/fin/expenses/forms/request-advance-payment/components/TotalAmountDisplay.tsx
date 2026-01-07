@@ -29,7 +29,7 @@ const TotalAmountDisplay: React.FC<TotalAmountDisplayProps> = ({
           </div>
         </div>
         <div
-          className="gba:rounded-full gba:px-8 gba:py-1 gba:bg-[#C15FB1] gba:text-white gba:border gba:border-[#C15FB1] gba:text-sm gba:font-medium"
+          className="gba:rounded-full gba:px-8 gba:py-1 gba:bg-primary gba:text-primary-foreground gba:border gba:border-primary gba:text-sm gba:font-medium"
           data-testid="request-advance-payment-trip-badge"
         >
           {requestTypeValue || 'Trip'}

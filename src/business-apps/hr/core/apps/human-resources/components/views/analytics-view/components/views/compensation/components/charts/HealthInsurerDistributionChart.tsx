@@ -3,7 +3,8 @@ import { Typography, Spin, Empty } from 'antd'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { useHealthInsuranceDistribution } from '../../../../../hooks/useHealthInsuranceDistribution'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -12,9 +13,19 @@ const { Title, Text } = Typography
  */
 export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const { distribution: data, loading, error } = useHealthInsuranceDistribution(accessToken)
+  const { t } = useTranslation(hrTranslations)
 
-  // Color palette for pie chart segments
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D']
+  // Chart color palette using design system tokens - cycle through 8 colors
+  const COLORS = [
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
+  ]
 
   // Format data for the pie chart
   const chartData = data.map((item: any, index: number) => ({
@@ -45,19 +56,16 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
 
   return (
     <div
-      className="gba:w-full gba:h-full gba:bg-white gba:rounded-lg gba:p-6 gba:shadow-sm gba:border gba:border-gray-200"
+      className="gba:w-full gba:h-full gba:bg-card gba:rounded-lg gba:p-6 gba:shadow-sm gba:border gba:border-border"
       data-testid="health-insurer-distribution-chart"
     >
       {/* Header */}
       <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-gray-800">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_health_insurer_distribution', 'Health Insurer Distribution')}
+        <Title level={4} className="gba:m-0 gba:text-foreground">
+          {t('hr-analytics-health-insurer-distribution')}
         </Title>
-        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_health_insurer_distribution_description',
-            'Distribution of employees across different health insurance providers showing coverage preferences and provider market share'
-          )}
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
+          {t('hr-analytics-health-insurer-distribution-description')}
         </Text>
       </div>
 
@@ -69,12 +77,12 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
       ) : error ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
           <Text type="danger">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_error_loading_data', 'Error loading health insurer data')}
+            {t('hr-analytics-error-loading')}
           </Text>
         </div>
       ) : !data || data.length === 0 ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-          <Empty description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')} />
+          <Empty description={t('hr-analytics-no-data')} />
         </div>
       ) : (
         <div className="gba:h-96">
@@ -86,7 +94,7 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
                 cy="50%"
                 labelLine={false}
                 outerRadius={100}
-                fill="#8884d8"
+                fill="var(--nw-chart-1)"
                 dataKey="value"
                 label={({ name, percentage }) => `${name} (${percentage}%)`}
               >

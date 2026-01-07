@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { GET_EXPENSE_REQUEST_FOR_APPROVAL } from '../queries/expenseRequestQueries'
-import { ExpenseRequestApprovalData } from '../types/expenseRequestTypes'
+import { ExpenseRequestApprovalData } from '../types/expenseRequestV2Types'
 
 interface UseExpenseRequestDataProps {
   expenseId: string | null
   accessToken: string
+  payloadData?: any // Expense request data from task payload (used for ID extraction only)
 }
 
-export const useExpenseRequestData = ({ expenseId, accessToken }: UseExpenseRequestDataProps) => {
+export const useExpenseRequestData = ({ expenseId, accessToken, payloadData }: UseExpenseRequestDataProps) => {
   const [expenseRequest, setExpenseRequest] = useState<ExpenseRequestApprovalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -17,8 +18,11 @@ export const useExpenseRequestData = ({ expenseId, accessToken }: UseExpenseRequ
   const graphqlClient = useGraphQLClient(accessToken)
   const activeUserLocale = getCurrentActiveUserLocale()
 
+  // Get the expense ID from either the prop or payload data
+  const effectiveExpenseId = expenseId || payloadData?.id
+
   const fetchExpenseRequest = async () => {
-    if (!expenseId) {
+    if (!effectiveExpenseId) {
       setError('No expense request ID provided. Please provide a valid request ID.')
       setLoading(false)
       return
@@ -34,13 +38,14 @@ export const useExpenseRequestData = ({ expenseId, accessToken }: UseExpenseRequ
       setLoading(true)
       setError(null)
 
+      console.log('🔍 Fetching expense request from GraphQL API...')
       const result = await graphqlClient.request(GET_EXPENSE_REQUEST_FOR_APPROVAL, {
-        expenseId,
+        expenseId: effectiveExpenseId,
         activeUserLocale
       })
 
       if (!result?.ExpenseRequestByPk) {
-        setError(`No expense request found with ID: ${expenseId}`)
+        setError(`No expense request found with ID: ${effectiveExpenseId}`)
         setLoading(false)
         return
       }
@@ -56,7 +61,7 @@ export const useExpenseRequestData = ({ expenseId, accessToken }: UseExpenseRequ
 
   useEffect(() => {
     fetchExpenseRequest()
-  }, [expenseId, accessToken])
+  }, [effectiveExpenseId, accessToken])
 
   return {
     expenseRequest,

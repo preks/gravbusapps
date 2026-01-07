@@ -6,15 +6,10 @@ import { SCREEN_NAMES_ENUM } from '../constants/constants'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { combineDateTimeToISOString } from './locationTimeUtils'
 import { LocationData } from '../../expense-request-wizard/utils/types'
-import {
-  ADDRESS_TYPES_ENUM,
-  PointTypeEnum,
-  TripDirectionDefaultValue
-} from '../../expense-request-wizard/constants/constants'
+import { PointTypeEnum, TripDirectionDefaultValue } from '../../expense-request-wizard/constants/constants'
 import { mergeUniqueById } from '../../../utils/functionUtils'
 import { EVENTS } from '../../../utils/constants'
 import {
-  findRegionRuleDetail,
   getAllowanceRegionRuleDetailId,
   getCountryRefFromRegion,
   getValidLocality
@@ -519,7 +514,7 @@ export const setLocalitiesDefault = (
       }))
     }
     setLocationsAreSynced(true)
-  } catch (error) {}
+  } catch {}
 }
 
 export const getLatestRejectComment = (expensePlanData: any) => {

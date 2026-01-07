@@ -303,7 +303,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <span>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'Absences')}</span>
-                <span className="gba:text-gray-500">({data.total})</span>
+                <span className="gba:text-muted-foreground">({data.total})</span>
               </div>
             </div>
           )

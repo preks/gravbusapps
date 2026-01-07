@@ -71,7 +71,6 @@ export function useGetContractTypes(accessToken: string, searchRegex: string, of
         setHasMore(false)
         setLoading(false)
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchRegex, offset, userLocale, client])
   return { types, loading, error, hasMore }
 }

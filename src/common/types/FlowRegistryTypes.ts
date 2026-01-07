@@ -1,35 +1,50 @@
 export enum FlowContextName {
+  // Intranet
+  contentEntryEntity = 'contentEntryEntity',
+  contentEntryCreate = 'contentEntryCreate',
+  contentEntryUpdate = 'contentEntryUpdate',
+  contentEntryDelete = 'contentEntryDelete',
+  contentEntryReact = 'contentEntryReact',
+  contentEntryComment = 'contentEntryComment',
+  contentEntryAccept = 'contentEntryAccept',
+  contentDocumentCreate = 'contentDocumentCreate',
+  contentDocumentUpdate = 'contentDocumentUpdate',
+  contentDocumentDelete = 'contentDocumentDelete',
+
   // Human Resources
   employeeEntity = 'employeeEntity',
   jobPositionEntity = 'jobPositionEntity',
+  assetEntity = 'assetEntity',
+
+  // HR Notes
+  createEmployeeNote = 'createEmployeeNote',
+  updateEmployeeNote = 'updateEmployeeNote',
+  deleteEmployeeNote = 'deleteEmployeeNote',
 
   // Customer Relations
 
   /// Customer Leads
-  leadEntity = 'custopmerLeadEntity', // TODO: Obsolete
   customerLeadEntity = 'customerLeadEntity',
   customerLeadCreate = 'customerLeadCreate',
+  customerLeadStatusUpdate = 'customerLeadStatusUpdate', // Status change context
 
   /// Customer Accounts
-  accountEntity = 'customerAccountEntity', // TODO: Obsolete
-  customerAccountEntity = 'customerAccountEntity', // TODO: Check
+  customerAccountEntity = 'customerAccountEntity',
   customerAccountCreate = 'customerAccountCreate', // TODO: Replace startProcess
   customerAccountUpdate = 'customerAccountUpdate', // TODO: Replace startProcess
 
   /// Customer Contacts
-  contactEntity = 'customerContactEntity', // TODO: Rename
   customerContactEntity = 'customerContactEntity',
   customerContactCreate = 'customerContactCreate', // TODO: Replace startProcess
   customerContactUpdate = 'customerContactUpdate', // TODO: Replace startProcess
 
   /// Customer Opportunities
-  opportunityEntity = 'customerOpportunityEntity', // TODO: Obsolete
   customerOpportunityEntity = 'customerOpportunityEntity',
   customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
   customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
-
-  transitionOpportunityStage = 'transitionOpportunityStage',
-  saveOpportunityStageConditionStatus = 'saveOpportunityStageConditionStatus',
+  customerOpportunityStatusUpdate = 'customerOpportunityStatusUpdate', // Status change context
+  customerOpportunityStageTransition = 'customerOpportunityStageTransition',
+  customerOpportunityConditionUpdate = 'customerOpportunityConditionUpdate',
 
   /// Customer Campaigns
   customerCampaignEntity = 'customerCampaignEntity',
@@ -43,44 +58,49 @@ export enum FlowContextName {
   customerActivityDelete = 'customerActivityDelete',
 
   /// Customer Notes
+  customerNoteEntity = 'customerNoteEntity',
   customerNoteCreate = 'customerNoteCreate',
   customerNoteDelete = 'customerNoteDelete',
 
   /// Customer Documents
-  createCustomerDocument = 'customerDocumentCreate',
+  customerDocumentCreate = 'customerDocumentCreate',
 
   customerTaskEntity = 'customerTaskEntity',
-  createCustomerTask = 'customerTaskCreate',
+  customerTaskCreate = 'customerTaskCreate',
   customerTaskDelete = 'customerTaskDelete',
 
   // Investment Relations
 
   /// Investment Leads
   investmentLeadEntity = 'investmentLeadEntity',
-  createInvestmentLead = 'investmentLeadCreate',
-  updateInvestmentLead = 'investmentLeadUpdate',
+  investmentLeadCreate = 'investmentLeadCreate',
+  investmentLeadUpdate = 'investmentLeadUpdate',
+  investmentLeadReject = 'investmentLeadReject',
+  investmentLeadStatusUpdate = 'investmentLeadStatusUpdate', // Status change context
 
   /// Investment Accounts
   investmentAccountEntity = 'investmentAccountEntity',
-  createInvestmentAccount = 'investmentAccountCreate',
-  updateInvestmentAccount = 'investmentAccountUpdate',
+  investmentAccountCreate = 'investmentAccountCreate',
+  investmentAccountUpdate = 'investmentAccountUpdate',
 
   /// Investment Contacts
   investmentContactEntity = 'investmentContactEntity',
-  createInvestmentContact = 'investmentContactCreate',
-  updateInvestmentContact = 'investmentContactUpdate',
+  investmentContactCreate = 'investmentContactCreate',
+  investmentContactUpdate = 'investmentContactUpdate',
 
   /// Investment Opportunities
   investmentOpportunityEntity = 'investmentOpportunityEntity',
-  createInvestmentOpportunity = 'investmentOpportunityCreate',
-  updateInvestmentOpportunity = 'investmentOpportunityUpdate',
+  investmentOpportunityCreate = 'investmentOpportunityCreate',
+  investmentOpportunityUpdate = 'investmentOpportunityUpdate',
+  investmentOpportunityStatusUpdate = 'investmentOpportunityStatusUpdate', // Status change context
   investmentOpportunityStageTransition = 'investmentOpportunityStageTransition',
   investmentOpportunityConditionUpdate = 'investmentOpportunityConditionUpdate',
+  investmentOpportunityReject = 'investmentOpportunityReject',
 
   /// Investment Activities
 
   investmentActivityEntity = 'investmentActivityEntity',
-  createInvestmentActivity = 'investmentActivityCreate',
+  investmentActivityCreate = 'investmentActivityCreate',
   investmentActivityDelete = 'investmentActivityDelete',
 
   /// Investment Tasks
@@ -103,10 +123,10 @@ export enum FlowContextName {
   investmentDocumentDelete = 'investmentDocumentDelete',
 
   /// Investments
-  createInvestment = 'investmentCreate', // TODO: Obsolete
   investmentCreate = 'investmentCreate', // TODO: Replace startProcess
   investmentEntity = 'investmentEntity',
   investmentTileUpdate = 'investmentTileUpdate',
+  investmentKpiTilesUpdate = 'investmentKpiTilesUpdate',
   investmentStatusUpdate = 'investmentStatusUpdate',
   investmentPlanExit = 'investmentPlanExit',
 
@@ -120,10 +140,27 @@ export enum FlowContextName {
   investmentEquityInvestmentRoundUpdate = 'investmentEquityInvestmentRoundUpdate',
   investmentEquityInvestmentRoundDelete = 'investmentEquityInvestmentRoundDelete',
 
+  /// Investment Shareholders
+  investmentShareholderUpdate = 'investmentShareholderUpdate',
+
+  /// Investment Liquidity Preferences
+  investmentLiquidityPreferenceUpdate = 'investmentLiquidityPreferenceUpdate',
+
+  /// Investment PPM Forecasts
+  investmentPpmForecastUpdate = 'investmentPpmForecastUpdate',
+
+  /// Investment KPI Forecasts
+  investmentKpiForecastUpdate = 'investmentKpiForecastUpdate',
+
+  /// Investment Liquidity Forecasts (Real Estate)
+  investmentLiquidityForecastUpdate = 'investmentLiquidityForecastUpdate',
+
   /// Investment Reports
   investmentReportUpload = 'investmentReportUpload',
   investmentReportEntity = 'investmentReportEntity', // Integrate
   investmentReportGenerate = 'investmentReportGenerate',
+  investmentReportCreate = 'investmentReportCreate',
+  investmentReportUpdate = 'investmentReportUpdate',
 
   expenseItems = 'expenseItems',
   expensePlans = 'expensePlans',
@@ -136,12 +173,17 @@ export enum FlowContextName {
   flowInstance = 'flowInstance',
 
   documentPersonal = 'documentPersonal',
+  employeeDocumentDelete = 'employeeDocumentDelete',
   employeeAbsenceRecord = 'employeeAbsenceRecord',
   employeePerformanceGoal = 'employeePerformanceGoal',
   employeeGiveFeedback = 'employeeGiveFeedback',
   employeeRequestFeedback = 'employeeRequestFeedback',
   employeeSkills = 'employeeSkills',
+  employeeAdditionalProperties = 'updateEmployeeAdditionalAttributes',
   employeeProfilePicture = 'employeeProfilePicture',
+  employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
+  employeeBenefitRequest = 'requestEmployeeBenefit',
+  employeeBenefitDeactivate = 'deactivateEmployeeBenefit',
 
   updateEmployeePersonalData = 'updateEmployeePersonalData',
   updateEmployeeAddress = 'updateEmployeeAddress',
@@ -152,6 +194,8 @@ export enum FlowContextName {
   updateEmployeeSkill = 'updateEmployeeSkill',
   updateEmployeeWorkingCondition = 'updateEmployeeWorkingCondition',
   updateEmployeeWorkingHours = 'updateEmployeeWorkingHours',
+  adjustEmployeeSalary = 'adjustEmployeeSalary',
+  grantEmployeeBonus = 'grantEmployeeBonus',
 
   createEmployee = 'createEmployee',
   createJobPosition = 'createJobPosition'

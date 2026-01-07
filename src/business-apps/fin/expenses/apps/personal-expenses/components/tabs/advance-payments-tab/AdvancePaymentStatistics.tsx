@@ -1,11 +1,11 @@
-import React, { useMemo, useCallback, useEffect } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { FileTextOutlined, DollarOutlined, CalendarOutlined, BankOutlined } from '@ant-design/icons'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetAdvancePaymentStatistics } from '../../../hooks/useGetAdvancePaymentStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
+import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
 
 interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean
@@ -14,17 +14,14 @@ interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
   onWidgetClick?: (widgetKey: string) => void
   activeWidgetKey?: string
   selectedCurrencyRef?: string
-  refreshKey?: string | number
 }
 
 const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   statsLoading = false,
   statsError = null,
-  fetchAdvancePaymentStatistics = () => Promise.resolve(),
   onWidgetClick,
   activeWidgetKey,
   selectedCurrencyRef = 'Currency:v1:EUR',
-  refreshKey,
   ...contextProps
 }) => {
   // Memoize context props to ensure stable reference
@@ -48,21 +45,10 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   const isLoading = statsLoading || hookLoading
   const error = statsError || hookError
 
-  // Ensure statistics are fetched when component mounts or currency changes
-  useEffect(() => {
-    if (stableContextProps.accessToken && stableContextProps.userInfo?.employeeDetails?.employeeId) {
-      fetchStatistics()
-    }
-  }, [
-    stableContextProps.accessToken,
-    stableContextProps.userInfo?.employeeDetails?.employeeId,
-    selectedCurrencyRef,
-    refreshKey,
-    fetchStatistics
-  ])
+  // Fetching is handled inside the hook; avoid duplicate calls from here
 
   // Calculate current month name
-  const currentMonthName = dayjs().format('MMMM')
+  const currentMonthName = getTranslatedMonthName(new Date())
 
   // Calculate percentage changes
   const paymentsPercentageChange = useMemo(() => {

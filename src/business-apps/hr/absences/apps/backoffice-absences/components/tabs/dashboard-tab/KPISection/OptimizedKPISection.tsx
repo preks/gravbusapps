@@ -68,7 +68,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       ),
       value: totalAbsences,
       prefix: <PiUsers />,
-      color: '#1890ff',
+      color: 'var(--nw-info)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.all_absences_this_year',
         'All absences this year'
@@ -85,7 +85,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       suffix: ` ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}`,
       precision: 1,
       prefix: <PiCalendar />,
-      color: '#52c41a',
+      color: 'var(--nw-success)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.average_absence_length',
         'Average absence length'
@@ -101,7 +101,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       value: approvalRate,
       suffix: '%',
       prefix: <PiPercent />,
-      color: '#722ed1',
+      color: 'var(--nw-info)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.approved_vs_total_requests',
         'Approved vs total requests'
@@ -116,7 +116,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       ),
       value: pendingAbsences,
       prefix: <PiClock />,
-      color: '#fa8c16',
+      color: 'var(--nw-warning)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.awaiting_approval',
         'Awaiting approval'
@@ -225,7 +225,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
 
   if (error) {
     return (
-      <div className="gba:text-red-600 gba:p-4" data-testid="optimized-kpi-section-error">
+      <div className="gba:text-destructive gba:p-4" data-testid="optimized-kpi-section-error">
         {getTranslationFromI18nKeyAndLabel(
           'lowcoder:absence_management_hub_backoffice.error_loading_kpi_data',
           'Error loading KPI data'

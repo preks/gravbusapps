@@ -1,9 +1,9 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { BaseInvestmentNote, InvestmentNote } from '../types'
-import { GET_INVESTMENT_NOTE_BY_ID } from '../queries'
-import { toInvestmentNote } from '../mappers'
+import type { InvestmentNote } from '../types/investmentNoteTypes'
+import { buildInvestmentNoteByIdQuery } from '../queries/investmentNoteQueries'
+import { toInvestmentNote } from '../mappers/investmentRelatedEntityMappers'
 
 // Response interfaces
 export interface InvestmentNoteByIdData {
@@ -16,11 +16,12 @@ export const useGetInvestmentNoteById = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentNoteById = useCallback(
     async (id: string) => {
-      const query = GET_INVESTMENT_NOTE_BY_ID(id)
+      // Use new query builder with fields mapping
+      const query = buildInvestmentNoteByIdQuery(undefined, id)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentNote: BaseInvestmentNote[] }>(query)
-        const baseNote = result.InvestmentNote[0]
+        const result = await graphqlClient.request<{ InvestmentNoteByPk: InvestmentNote }>(query)
+        const baseNote = result.InvestmentNoteByPk
 
         return {
           note: baseNote ? toInvestmentNote(baseNote) : undefined

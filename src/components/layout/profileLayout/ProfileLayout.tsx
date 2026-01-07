@@ -49,10 +49,11 @@ export const ProfileLayout: React.FC<Readonly<ProfileLayoutProps>> = ({
       {/* Header section - either top or left */}
       <header
         className={cn(
-          'gba:bg-white gba:border-gray-200 gba:overflow-visible',
+          'gba:bg-white gba:border-gray-200',
+          isTopHeader ? 'gba:overflow-visible' : 'gba:overflow-auto',
           isTopHeader
             ? 'gba:w-full gba:border-b gba:flex gba:flex-col' // Removed fixed height to accommodate varying content heights
-            : 'gba:w-64 gba:h-full gba:p-4 gba:border-r gba:flex gba:flex-col'
+            : 'gba:w-64 gba:h-full gba:p-4 gba:border-r gba:flex gba:flex-col gba:min-h-0'
         )}
         data-testid={`${dataTestId}-header`}
       >

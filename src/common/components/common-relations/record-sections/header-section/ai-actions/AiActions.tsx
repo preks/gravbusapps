@@ -191,7 +191,6 @@ export const AiActions: React.FC<AiActionsProps> = ({
           actions={aiButtonActions}
           autoExecuteSingleAction={true}
           emptyStateBehavior="hide"
-          closeOnSelect={true}
           data-testid={dataTestId}
           className={className}
         >

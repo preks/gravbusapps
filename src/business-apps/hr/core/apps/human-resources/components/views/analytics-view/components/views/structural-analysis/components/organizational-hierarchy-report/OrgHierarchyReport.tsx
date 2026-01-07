@@ -3,11 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useHierarchyDataIntegration } from './hooks/useHierarchyData'
 import RadialBarChart from './components/RadialBarChart'
 
-export interface OrganizationalHierarchyReportProps extends BusinessAppContextProps {
-  // Add any additional props if needed
-}
-
-const OrganizationalHierarchyReport: React.FC<OrganizationalHierarchyReportProps> = context => {
+const OrganizationalHierarchyReport: React.FC<BusinessAppContextProps> = context => {
   const { sunburstData, statistics, tableData, isLoading, error, viewMode, setViewMode, refetch } =
     useHierarchyDataIntegration(context)
 
@@ -42,7 +38,7 @@ const OrganizationalHierarchyReport: React.FC<OrganizationalHierarchyReportProps
           minHeight: '400px'
         }}
       >
-        <div style={{ textAlign: 'center', color: 'red' }}>
+        <div style={{ textAlign: 'center' }} className="gba:text-destructive">
           <h3>Error loading hierarchy data</h3>
           <p>{error}</p>
         </div>

@@ -103,11 +103,6 @@ export const useInvestmentFileUpload = ({
 
         setUploadProgress(null)
 
-        const successMessage = getTranslationFromI18nKeyAndLabel(
-          'investment.document.upload.success.message',
-          `${uploadResults.length} document(s) uploaded successfully!`
-        )
-
         if (onSuccess) {
           // For backward compatibility, still pass file IDs to onSuccess
           const fileIds = uploadResults.map(

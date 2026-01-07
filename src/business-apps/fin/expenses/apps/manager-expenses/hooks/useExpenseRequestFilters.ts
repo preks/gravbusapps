@@ -22,6 +22,7 @@ export interface UseExpenseRequestFiltersReturn {
   filterLabelMap: Record<string, string>
   addFilter: (filterId: string) => void
   removeFilter: (filterId: string) => void
+  setFilters: (filters: string[]) => void
   getFilters: () => Record<string, any>
   handleDataFilterChange: (filterId: string, selected: boolean) => void
   primaryCurrency: string | null
@@ -72,8 +73,7 @@ export const useExpenseRequestFilters = ({
   const {
     mostUsedCurrency: detectedCurrency,
     availableCurrencies: fetchedCurrencies,
-    isLoading: currenciesLoading,
-    error: currenciesError
+    isLoading: currenciesLoading
   } = useExpenseRequestCurrencies(contextProps, managerId || '')
 
   const debouncedSearch = useDebounce(search, 300)
@@ -111,7 +111,7 @@ export const useExpenseRequestFilters = ({
   const handleDataFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       if (filterId.startsWith('currency:')) {
-        const currency = filterId.replaceAll('currency:', '')
+        const currency = filterId.replace(/^currency:/, '')
 
         if (selected) {
           setLocalPrimaryCurrency(currency)
@@ -123,6 +123,10 @@ export const useExpenseRequestFilters = ({
       } else {
         setSelectedFilters(prev => {
           if (selected) {
+            // Check for duplicates before adding
+            if (prev.includes(filterId)) {
+              return prev
+            }
             return [...prev, filterId]
           } else {
             return prev.filter(f => f !== filterId)
@@ -197,6 +201,12 @@ export const useExpenseRequestFilters = ({
     [handleDataFilterChange]
   )
 
+  const setFilters = useCallback((filters: string[]) => {
+    // Remove duplicates and set filters in a single update
+    const uniqueFilters = Array.from(new Set(filters))
+    setSelectedFilters(uniqueFilters)
+  }, [])
+
   const returnPrimaryCurrency = useMemo(() => {
     const currency = localPrimaryCurrency || 'EUR'
 
@@ -212,6 +222,7 @@ export const useExpenseRequestFilters = ({
     filterLabelMap,
     addFilter,
     removeFilter,
+    setFilters,
     primaryCurrency: returnPrimaryCurrency,
     mostUsedCurrency: localMostUsedCurrency,
     availableCurrencies: availableCurrencies,

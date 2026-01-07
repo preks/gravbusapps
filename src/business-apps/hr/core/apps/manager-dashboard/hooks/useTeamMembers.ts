@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { Employee, EmployeeResponse } from '../types/employee.types'
+import { Employee } from '../types/employee.types'
 import { getTeamMembersByManagerQuery } from '../queries/teamQueries'
 
 // Default mock data to use when GraphQL query fails

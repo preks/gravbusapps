@@ -2,6 +2,8 @@ import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { UserOutlined, CalendarOutlined, TeamOutlined, BarChartOutlined } from '@ant-design/icons'
 import { PerformanceStatistics as PerformanceStatsType } from '../../../../../hooks/usePerformanceData'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface PerformanceStatisticsProps {
   statistics: PerformanceStatsType
@@ -10,42 +12,43 @@ interface PerformanceStatisticsProps {
 }
 
 const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
+  const { t } = useTranslation(hrTranslations)
   // Transform statistics into widget format
   const widgets: WidgetItem[] = [
     {
       key: 'total-workdays',
-      title: 'Total Workdays',
+      title: t('hr-analytics-total-workdays'),
       value: statistics.totalWorkdays,
       prefix: <CalendarOutlined />,
-      color: '#1890ff',
-      description: 'Cumulative workdays across all entities',
+      color: 'var(--nw-info)',
+      description: t('hr-analytics-total-workdays-description'),
       precision: 0
     },
     {
       key: 'average-workdays',
-      title: 'Avg Workdays/Entity',
+      title: t('hr-analytics-avg-workdays-entity'),
       value: statistics.averageWorkdaysPerEntity,
       prefix: <BarChartOutlined />,
-      color: '#52c41a',
-      description: 'Average workdays per organizational entity',
+      color: 'var(--nw-success)',
+      description: t('hr-analytics-avg-workdays-entity-description'),
       precision: 1
     },
     {
       key: 'total-entities',
-      title: 'Active Entities',
+      title: t('hr-analytics-active-entities'),
       value: statistics.totalEntities,
       prefix: <TeamOutlined />,
-      color: '#fa8c16',
-      description: 'Number of organizational entities tracked',
+      color: 'var(--nw-warning)',
+      description: t('hr-analytics-active-entities-description'),
       precision: 0
     },
     {
       key: 'total-employees',
-      title: 'Total Employees',
+      title: t('hr-analytics-total-employees'),
       value: statistics.totalEmployees,
       prefix: <UserOutlined />,
-      color: '#722ed1',
-      description: 'Employees across all tracked entities',
+      color: 'var(--nw-info)',
+      description: t('hr-analytics-total-employees-description'),
       precision: 0
     }
   ]
@@ -57,7 +60,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistic
         isLoading={isLoading}
         error={null}
         skeletonCount={4}
-        emptyText="No performance statistics available."
+        emptyText={t('hr-analytics-no-performance-stats')}
         data-testid={`${dataTestId}-widgets`}
       />
     </div>

@@ -145,7 +145,7 @@ const DocumentDeletePopup: React.FC<DocumentDeletePopupProps> = ({ initialValues
   }, [documentId, props.accessToken, graphqlClient])
 
   // Submit handler for deletion
-  const handleSubmit = async (formData: DocumentDeletePopupValues) => {
+  const handleSubmit = async () => {
     if (!document) {
       throw new Error('Document data not loaded')
     }
@@ -183,7 +183,7 @@ const DocumentDeletePopup: React.FC<DocumentDeletePopupProps> = ({ initialValues
   }
 
   // Validation function
-  const validateForm = (formData: DocumentDeletePopupValues): string[] | null => {
+  const validateForm = (): string[] | null => {
     if (!document) {
       return ['Document data not loaded']
     }

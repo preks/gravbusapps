@@ -64,6 +64,7 @@ export const JOB_POSITION_QUERY = `
     ) {
       id
       name
+      activeTo
       jobFunction { 
         id 
         name 
@@ -86,6 +87,12 @@ export const JOB_POSITION_QUERY = `
         firstName
         lastName
         employee { pictureThumbnail }
+        supervisor {
+        id
+        firstName
+        lastName
+        pictureThumbnail
+      }
       }
       contractType {
         value

@@ -7,6 +7,7 @@ import { Button, Spinner } from '@newwork/nw-design-system'
 import { Employee } from '../../../hooks/useEmployeeData'
 import { useJobFunctionNameCount } from '../../../hooks/useJobFunctionNameCount'
 import { useJobFunctionProfilesCount } from '../../../hooks/useJobFunctionProfilesCount'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface JobFunctionDrawerContentProps {
   employee: Employee
@@ -49,18 +50,18 @@ const JobFunctionDrawerContent: React.FC<JobFunctionDrawerContentProps> = ({
   return (
     <div className="gba:space-y-6" data-testid="job-function-drawer-content">
       <div>
-        <h4 className="gba:font-medium gba:mb-3 gba:text-gray-700">Usage</h4>
+        <h4 className="gba:font-medium gba:mb-3 gba:text-foreground">Usage</h4>
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           {/* First box - always Employees */}
           <div
-            className="gba:bg-blue-50 gba:p-4 gba:rounded-md gba:border gba:bg-gray-50"
+            className="gba:bg-info-secondary gba:p-4 gba:rounded-md gba:border"
             data-testid="job-function-employee-count"
           >
-            <div className="gba:text-sm gba:text-gray-500">Employees</div>
+            <div className="gba:text-sm gba:text-muted-foreground">Employees</div>
             {loadingEmployeeCount ? (
               <Spinner size="sm" data-testid="job-function-employee-count-loading" />
             ) : employeeCountError ? (
-              <div className="gba:text-red-500 gba:text-sm" data-testid="job-function-employee-count-error">
+              <div className="gba:text-destructive gba:text-sm" data-testid="job-function-employee-count-error">
                 Error
               </div>
             ) : (
@@ -72,16 +73,16 @@ const JobFunctionDrawerContent: React.FC<JobFunctionDrawerContentProps> = ({
 
           {/* Second box - Job Profiles */}
           <div
-            className="gba:bg-blue-50 gba:p-4 gba:rounded-md gba:border gba:bg-gray-50"
+            className="gba:bg-info-secondary gba:p-4 gba:rounded-md gba:border"
             data-testid="job-function-profiles-count"
           >
             <div className="gba:flex gba:items-center gba:gap-2">
-              <div className="gba:text-sm gba:text-gray-500">Job Profiles</div>
+              <div className="gba:text-sm gba:text-muted-foreground">Job Profiles</div>
             </div>
             {loadingProfilesCount ? (
               <Spinner size="sm" data-testid="job-function-profiles-count-loading" />
             ) : profilesCountError ? (
-              <div className="gba:text-red-500 gba:text-sm" data-testid="job-function-profiles-count-error">
+              <div className="gba:text-destructive gba:text-sm" data-testid="job-function-profiles-count-error">
                 Error
               </div>
             ) : (
@@ -115,6 +116,7 @@ export const getJobFunctionIcon = () => <PiFunction className="gba:h-5 gba:w-5" 
 
 // Export the title to use for the drawer
 export const getJobFunctionTitle = (employee: Employee) =>
-  employee.employeePosition?.jobPosition?.jobFunction?.name || 'Not assigned'
+  employee.employeePosition?.jobPosition?.jobFunction?.name ||
+  getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.left_side_bar.not_assigned', 'Not assigned')
 
 export default JobFunctionDrawerContent

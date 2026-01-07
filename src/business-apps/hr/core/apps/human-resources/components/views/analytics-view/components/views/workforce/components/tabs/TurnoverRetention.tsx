@@ -15,16 +15,16 @@ import {
 } from '@newwork/nw-design-system'
 import { Typography } from 'antd'
 import { PiFileText, PiFilePdf } from 'react-icons/pi'
-import { BusinessAppContextProps } from '../../../../../../../../../../common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TurnoverRetentionStatistics from '../components/TurnoverRetentionStatistics'
 import TurnoverRateChart from '../components/TurnoverRateChart'
 import TenureDistributionChart from '../components/TenureDistributionChart'
 import RetentionByDepartmentChart from '../components/RetentionByDepartmentChart'
 import { useTurnoverRetentionData } from '../../../../../hooks/useTurnoverRetentionData'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
-
-interface TurnoverRetentionProps extends BusinessAppContextProps {}
 
 interface TableData {
   period: string
@@ -32,9 +32,10 @@ interface TableData {
   change?: number
 }
 
-const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
+const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [exportingTable, setExportingTable] = useState<string | null>(null)
+  const { t } = useTranslation(hrTranslations)
 
   const { statistics, turnoverRateOverTime, tenureDistribution, retentionByDepartment, isLoading, error, refetch } =
     useTurnoverRetentionData(context)
@@ -84,28 +85,28 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
   // Chart configurations
   const chartConfigs = [
     {
-      title: 'Turnover Rate Over Time',
+      title: t('hr-analytics-turnover-rate-over-time'),
       data: turnoverRateOverTime,
       tableData: transformTurnoverRateData(),
       testId: 'turnover-rate-chart',
-      tag: `${turnoverRateOverTime.length} months`,
-      description: 'Monthly employee turnover rates over time showing retention trends and patterns'
+      tag: t('hr-analytics-months', { count: turnoverRateOverTime.length }),
+      description: t('hr-analytics-turnover-rate-description')
     },
     {
-      title: 'Employee Tenure Distribution',
+      title: t('hr-analytics-employee-tenure-distribution'),
       data: tenureDistribution,
       tableData: transformTenureDistributionData(),
       testId: 'tenure-distribution-chart',
-      tag: `${tenureDistribution.length} tenure ranges`,
-      description: 'Distribution of employees by tenure length showing organizational experience and loyalty'
+      tag: t('hr-analytics-tenure-ranges', { count: tenureDistribution.length }),
+      description: t('hr-analytics-employee-tenure-description')
     },
     {
-      title: 'Retention by Department',
+      title: t('hr-analytics-retention-by-department'),
       data: retentionByDepartment,
       tableData: transformRetentionByDepartmentData(),
       testId: 'retention-by-department-chart',
-      tag: `${retentionByDepartment.length} departments`,
-      description: 'Employee retention rates by organizational unit highlighting departmental performance differences'
+      tag: t('hr-analytics-departments', { count: retentionByDepartment.length }),
+      description: t('hr-analytics-retention-by-department-description')
     }
   ]
 
@@ -115,18 +116,20 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
   if (error) {
     return (
       <div data-testid="turnover-retention-error">
-        <Card className="gba:border-red-200 gba:bg-red-50">
+        <Card className="gba:border-destructive-secondary gba:bg-destructive-secondary/50">
           <CardContent className="gba:p-6">
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex-1">
-                <h3 className="gba:text-red-900 gba:font-medium gba:mb-2">Failed to Load Turnover & Retention Data</h3>
-                <p className="gba:text-red-700">{error}</p>
+                <h3 className="gba:text-destructive-secondary-foreground gba:font-medium gba:mb-2">
+                  {t('hr-analytics-failed-to-load-turnover-retention')}
+                </h3>
+                <p className="gba:text-destructive-secondary-foreground">{error}</p>
               </div>
               <button
                 onClick={refetch}
-                className="gba:px-4 gba:py-2 gba:bg-red-600 gba:text-white gba:rounded gba:hover:bg-red-700"
+                className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive-secondary-foreground"
               >
-                Retry
+                {t('common-retry')}
               </button>
             </div>
           </CardContent>
@@ -142,8 +145,8 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
 
       {/* Interactive Charts Section */}
       <div className="gba:mb-4">
-        <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">Turnover & Retention Analysis</h3>
-        <p className="gba:text-sm gba:text-gray-600">Click on any chart to view detailed data table</p>
+        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('hr-analytics-turnover-retention-analysis')}</h3>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
       </div>
 
       {/* Charts Grid */}
@@ -161,14 +164,14 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                 key={config.testId}
                 data-testid={`${config.testId}-card`}
                 className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:shadow-sm ${
-                  isSelected ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg' : 'gba:hover:shadow-lg'
+                  isSelected ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
                 }`}
                 onClick={() => handleChartClick(config.testId)}
               >
                 <CardHeader className="gba:border-b">
                   <div className="gba:flex gba:items-center gba:justify-between">
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <Title level={4} className="gba:m-0 gba:text-gray-800">
+                      <Title level={4} className="gba:m-0 gba:text-foreground">
                         {config.title}
                       </Title>
                     </div>
@@ -176,9 +179,9 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                       {config.tag}
                     </Badge>
                   </div>
-                  <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">{config.description}</Text>
+                  <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</Text>
                   {isSelected && (
-                    <p className="gba:text-xs gba:text-blue-600 gba:mt-1">✓ Selected - Table shown below</p>
+                    <p className="gba:text-xs gba:text-info gba:mt-1">✓ {t('common-selected')} - {t('hr-analytics-table-shown-below')}</p>
                   )}
                 </CardHeader>
 
@@ -206,14 +209,14 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                 key={config.testId}
                 data-testid={`${config.testId}-card`}
                 className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:shadow-sm ${
-                  isSelected ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg' : 'gba:hover:shadow-lg'
+                  isSelected ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
                 }`}
                 onClick={() => handleChartClick(config.testId)}
               >
                 <CardHeader className="gba:border-b">
                   <div className="gba:flex gba:items-center gba:justify-between">
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <Title level={4} className="gba:m-0 gba:text-gray-800">
+                      <Title level={4} className="gba:m-0 gba:text-foreground">
                         {config.title}
                       </Title>
                     </div>
@@ -221,9 +224,9 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                       {config.tag}
                     </Badge>
                   </div>
-                  <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">{config.description}</Text>
+                  <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</Text>
                   {isSelected && (
-                    <p className="gba:text-xs gba:text-blue-600 gba:mt-1">✓ Selected - Table shown below</p>
+                    <p className="gba:text-xs gba:text-info gba:mt-1">✓ {t('common-selected')} - {t('hr-analytics-table-shown-below')}</p>
                   )}
                 </CardHeader>
 
@@ -253,14 +256,14 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                 key={config.testId}
                 data-testid={`${config.testId}-card`}
                 className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:shadow-sm ${
-                  isSelected ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg' : 'gba:hover:shadow-lg'
+                  isSelected ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
                 }`}
                 onClick={() => handleChartClick(config.testId)}
               >
                 <CardHeader className="gba:border-b">
                   <div className="gba:flex gba:items-center gba:justify-between">
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <Title level={4} className="gba:m-0 gba:text-gray-800">
+                      <Title level={4} className="gba:m-0 gba:text-foreground">
                         {config.title}
                       </Title>
                     </div>
@@ -268,9 +271,9 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                       {config.tag}
                     </Badge>
                   </div>
-                  <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">{config.description}</Text>
+                  <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</Text>
                   {isSelected && (
-                    <p className="gba:text-xs gba:text-blue-600 gba:mt-1">✓ Selected - Table shown below</p>
+                    <p className="gba:text-xs gba:text-info gba:mt-1">✓ {t('common-selected')} - {t('hr-analytics-table-shown-below')}</p>
                   )}
                 </CardHeader>
 
@@ -295,9 +298,9 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
           <CardHeader>
             <div className="gba:flex gba:justify-between gba:items-center">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-xl">Data Table: {selectedConfig.title}</CardTitle>
-                <Badge variant="outline" className="gba:bg-green-50 gba:text-green-700">
-                  {selectedConfig.tableData.length} entries
+                <CardTitle className="gba:text-xl">{t('hr-analytics-data-table', { title: selectedConfig.title })}</CardTitle>
+                <Badge variant="outline" className="gba:bg-success-secondary/50 gba:text-success-secondary-foreground">
+                  {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
                 </Badge>
               </div>
               <div className="gba:flex gba:gap-2">
@@ -312,7 +315,7 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                   className="gba:flex gba:items-center gba:gap-1"
                 >
                   <PiFileText className="gba:w-3 gba:h-3" />
-                  Export Excel
+                  {t('common-export-excel')}
                 </Button>
 
                 <Button
@@ -326,11 +329,11 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                   className="gba:flex gba:items-center gba:gap-1"
                 >
                   <PiFilePdf className="gba:w-3 gba:h-3" />
-                  Export PDF
+                  {t('common-export-pdf')}
                 </Button>
               </div>
             </div>
-            <p className="gba:text-sm gba:text-gray-600 gba:mt-2">{selectedConfig.description}</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{selectedConfig.description}</p>
           </CardHeader>
 
           <CardContent>
@@ -340,17 +343,17 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                   <TableRow>
                     <TableHead className="gba:w-2/5">
                       {selectedConfig.testId === 'turnover-rate-chart'
-                        ? 'Month'
+                        ? t('hr-analytics-month')
                         : selectedConfig.testId === 'tenure-distribution-chart'
-                          ? 'Tenure Range'
-                          : 'Department'}
+                          ? t('hr-analytics-tenure-range')
+                          : t('hr-analytics-department')}
                     </TableHead>
                     <TableHead className="gba:w-3/5">
                       {selectedConfig.testId === 'turnover-rate-chart'
-                        ? 'Turnover Rate'
+                        ? t('hr-analytics-turnover-rate')
                         : selectedConfig.testId === 'tenure-distribution-chart'
-                          ? 'Employees'
-                          : 'Retention Rate'}
+                          ? t('hr-analytics-employees')
+                          : t('hr-analytics-retention-rate')}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -360,7 +363,7 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
                       <TableCell className="gba:font-medium">{item.period}</TableCell>
                       <TableCell>
                         {typeof item.value === 'number' ? (
-                          <Badge variant="outline" className="gba:bg-blue-50 gba:text-blue-700">
+                          <Badge variant="outline" className="gba:bg-info-secondary gba:text-info-secondary-foreground">
                             {item.value.toLocaleString()}
                           </Badge>
                         ) : (
@@ -374,9 +377,9 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
             </div>
 
             {/* Summary */}
-            <div className="gba:mt-4 gba:p-3 gba:bg-gray-50 gba:rounded-md gba:flex gba:justify-between gba:items-center">
-              <span className="gba:font-medium gba:text-sm">Total Data Points: {selectedConfig.tableData.length}</span>
-              <span className="gba:text-sm gba:text-gray-600">{selectedConfig.title}</span>
+            <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
+              <span className="gba:font-medium gba:text-sm">{t('hr-analytics-total-data-points', { count: selectedConfig.tableData.length })}</span>
+              <span className="gba:text-sm gba:text-muted-foreground">{selectedConfig.title}</span>
             </div>
           </CardContent>
         </Card>
@@ -385,7 +388,7 @@ const TurnoverRetention: React.FC<TurnoverRetentionProps> = context => {
       {/* Help Text */}
       {!selectedConfig && (
         <div className="gba:text-center gba:py-8">
-          <p className="gba:text-gray-500">Click on any chart above to view its detailed data table</p>
+          <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
         </div>
       )}
     </div>

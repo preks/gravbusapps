@@ -19,6 +19,8 @@ interface OpportunityTrendData {
   actualWinRateLastMonth: number
   actualAvgDealSizeThisMonth: number
   actualAvgDealSizeLastMonth: number
+  actualAvgOpportunityValueThisMonth: number // Average value of ALL opportunities
+  actualAvgOpportunityValueLastMonth: number // Average value of ALL opportunities (previous period)
   actualAvgSalesCycleThisMonth: number
   actualAvgSalesCycleLastMonth: number
   actualConversionRateThisMonth: number
@@ -34,10 +36,25 @@ interface OpportunityTrendData {
   previousPeriodPipelineValue: number
 }
 
+// Helper function to calculate pipeline velocity
+const calculatePipelineVelocity = (opportunities: Array<{ createdAt: string; updatedAt: string }>) => {
+  if (opportunities.length === 0) return 0
+
+  const totalDays = opportunities.reduce((sum, opp) => {
+    const created = new Date(opp.createdAt)
+    const updated = new Date(opp.updatedAt)
+    const days = Math.max(0, Math.ceil((updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)))
+    return sum + days
+  }, 0)
+
+  return Math.round(totalDays / opportunities.length)
+}
+
 export const useOpportunityTrendData = (
   accessToken: string,
   selectedTimeFilter: TimeFilter,
-  selectedPipelineId?: string
+  selectedPipelineId?: string,
+  currencyCode?: string
 ) => {
   const [trendData, setTrendData] = useState<OpportunityTrendData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -122,6 +139,9 @@ export const useOpportunityTrendData = (
 
         // Debug: Log period ranges
 
+        // Currency filter clause
+        const currencyFilter = currencyCode ? `currency: {code: {_eq: "${currencyCode}"}}` : ''
+
         // Simple, clean query for debugging
         const query = `
           query GetOpportunityTrendData {
@@ -129,6 +149,7 @@ export const useOpportunityTrendData = (
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentPeriodStart}", _lt: "${currentPeriodEnd}"}
+                ${currencyFilter}
               }
             ) { 
               aggregate { 
@@ -150,6 +171,7 @@ export const useOpportunityTrendData = (
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousPeriodStart}", _lt: "${previousPeriodEnd}"}
+                ${currencyFilter}
               }
             ) { 
               aggregate { 
@@ -172,12 +194,37 @@ export const useOpportunityTrendData = (
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentPeriodStart}", _lt: "${currentPeriodEnd}"}
                 opportunityStatus: {code: {_eq: "WON"}}
+                ${currencyFilter}
               }
             ) { 
               aggregate { 
                 count 
                 sum { estimatedAmount }
               } 
+            }
+            
+            currentPeriodOpportunitiesForVelocity: InvestmentOpportunity(
+              where: {
+                isDeleted: {_eq: false}
+                createdAt: {_gte: "${currentPeriodStart}", _lt: "${currentPeriodEnd}"}
+                ${currencyFilter}
+              }
+            ) {
+              id
+              createdAt
+              updatedAt
+            }
+            
+            previousPeriodOpportunitiesForVelocity: InvestmentOpportunity(
+              where: {
+                isDeleted: {_eq: false}
+                createdAt: {_gte: "${previousPeriodStart}", _lt: "${previousPeriodEnd}"}
+                ${currencyFilter}
+              }
+            ) {
+              id
+              createdAt
+              updatedAt
             }
           }
         `
@@ -206,33 +253,6 @@ export const useOpportunityTrendData = (
               result.previousPeriodOpportunities.aggregate.count
             : 0
 
-        // Calculate average sales cycle (close date - created date in days)
-        const calculateAvgSalesCycle = (opportunities: any[]) => {
-          if (opportunities.length === 0) return 0
-
-          const validCycles = opportunities
-            .map(opp => {
-              const created = new Date(opp.createdAt)
-              const closed = new Date(opp.closeDate)
-
-              // Only validate that dates exist and closeDate is after createdAt
-              if (isNaN(created.getTime()) || isNaN(closed.getTime()) || closed <= created) {
-                return null // Invalid date or negative cycle
-              }
-
-              // Calculate days difference (close date - created date)
-              const daysDiff = Math.ceil((closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
-
-              return daysDiff
-            })
-            .filter(days => days !== null && days > 0)
-
-          if (validCycles.length === 0) return 0
-
-          const totalDays = validCycles.reduce((sum: number, days: number) => sum + days, 0)
-          return Math.round(totalDays / validCycles.length)
-        }
-
         // Calculate period-based conversion rate (simplified)
         const currentPeriodConversionRate =
           result.currentPeriodLeads.aggregate.count > 0
@@ -245,7 +265,13 @@ export const useOpportunityTrendData = (
 
         // Debug: Log conversion rate calculations
 
-        // Pipeline velocity calculation removed for simplified version
+        // Calculate pipeline velocity (average days from creation to last update for all opportunities)
+        const currentPeriodPipelineVelocity = calculatePipelineVelocity(
+          result.currentPeriodOpportunitiesForVelocity || []
+        )
+        const previousPeriodPipelineVelocity = calculatePipelineVelocity(
+          result.previousPeriodOpportunitiesForVelocity || []
+        )
 
         setTrendData({
           // Use dummy values for missing data (will be cleaned up later)
@@ -261,11 +287,13 @@ export const useOpportunityTrendData = (
           actualWinRateLastMonth: 0, // Will add later
           actualAvgDealSizeThisMonth: Math.round(currentPeriodAvgDealSize),
           actualAvgDealSizeLastMonth: Math.round(previousPeriodAvgDealSize),
-          actualAvgSalesCycleThisMonth: 0, // Will add later
-          actualAvgSalesCycleLastMonth: 0, // Will add later
+          actualAvgOpportunityValueThisMonth: Math.round(currentPeriodAvgDealSize), // Same as avgDealSize (all opps)
+          actualAvgOpportunityValueLastMonth: Math.round(previousPeriodAvgDealSize), // Same as avgDealSize (previous period)
+          actualAvgSalesCycleThisMonth: currentPeriodPipelineVelocity,
+          actualAvgSalesCycleLastMonth: previousPeriodPipelineVelocity,
           actualConversionRateThisMonth: Math.round(currentPeriodConversionRate),
           actualConversionRateLastMonth: Math.round(previousPeriodConversionRate),
-          actualPipelineVelocityLastMonth: 0, // Will add later
+          actualPipelineVelocityLastMonth: previousPeriodPipelineVelocity,
 
           // Period-based data (the important ones)
           currentPeriodOpportunities: result.currentPeriodOpportunities.aggregate.count,
@@ -273,7 +301,7 @@ export const useOpportunityTrendData = (
           currentPeriodPipelineValue: result.currentPeriodOpportunities.aggregate.sum?.estimatedAmount || 0,
           previousPeriodPipelineValue: result.previousPeriodOpportunities.aggregate.sum?.estimatedAmount || 0
         })
-      } catch (err) {
+      } catch {
         // console.error("Error fetching opportunity trend data:", err);
       } finally {
         setIsLoading(false)
@@ -283,7 +311,7 @@ export const useOpportunityTrendData = (
     if (accessToken) {
       fetchOpportunityTrendData()
     }
-  }, [accessToken, graphqlClient, selectedTimeFilter, selectedPipelineId])
+  }, [accessToken, graphqlClient, selectedTimeFilter, selectedPipelineId, currencyCode])
 
   return { trendData, isLoading }
 }

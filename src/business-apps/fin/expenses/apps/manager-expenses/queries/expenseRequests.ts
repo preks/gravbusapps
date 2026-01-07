@@ -178,10 +178,10 @@ export const GET_TEAM_MEMBERS_BY_MANAGER = `
   query GetTeamMembersByManager($managerId: uuid!) {
     Employee(
       where: {
-        manager: {
-          id: {_eq: $managerId}
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $managerId}
         },
-        isActive: {_eq: true}
+        isDeleted: {_eq: false}
       },
       orderBy: {fullName: ASC}
     ) {
@@ -189,8 +189,12 @@ export const GET_TEAM_MEMBERS_BY_MANAGER = `
       firstName
       lastName
       fullName
-      department
-      jobTitle
+      displayName
+      employeePosition {
+        organizationalUnit {
+          name
+        }
+      }
     }
   }
 `

@@ -1,215 +1,246 @@
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Spinner,
-  Alert,
-  Badge,
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Button
-} from '@newwork/nw-design-system'
-import { BarChartOutlined } from '@ant-design/icons'
+import { useState, useCallback, useMemo } from 'react'
+import { Card, CardContent, DataDisplay } from '@newwork/nw-design-system'
+import type { ColumnDef } from '@tanstack/react-table'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { formatNumberFunction, formatDate } from '@/common/utils/windowUtils'
+import { OpportunityListLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
+import { createOpportunityColumns } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
 import type { GenericOpportunity, OpportunitySectionProps } from './types'
+
+const BASE_VISIBLE_COLUMNS = ['opportunity', 'amount', 'account', 'stage', 'status', 'owner', 'closeDate', 'created']
 
 export const OpportunitySection = <T extends GenericOpportunity = GenericOpportunity>({
   opportunities,
   isLoading = false,
   error = null,
-  onRetry,
   recordUrlBuilder,
+  accountUrlBuilder,
   className = '',
-  'data-testid': dataTestId = 'opportunity-section'
-}: OpportunitySectionProps<T>) => {
-  const formatCurrency = (amount: number, currencyCode: string = 'EUR') => {
-    const formattedNumber = formatNumberFunction(amount, '0,0')
-    return `${formattedNumber} ${currencyCode}`
-  }
+  'data-testid': dataTestId = 'opportunity-section',
+  additionalColumns = [],
+  extendVisibleColumns = []
+}: Omit<OpportunitySectionProps<T>, 'onRetry'>) => {
+  // State for DataTable
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'created', desc: true }])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    // Insert extended columns after 'amount' if present
+    if (extendVisibleColumns.length === 0) return BASE_VISIBLE_COLUMNS
 
-  const handleOpportunityClick = (opportunityId: string) => {
-    const url = recordUrlBuilder(opportunityId)
-    navigateTo(url)
-  }
-
-  const getStageVariant = (stage: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      NEW_OPPORTUNITY: 'default',
-      IN_QUALIFICATION: 'secondary',
-      PROPOSAL_IN_PROGRESS: 'outline',
-      NEGOTIATION: 'secondary',
-      CLOSED: 'default'
+    const amountIndex = BASE_VISIBLE_COLUMNS.indexOf('amount')
+    if (amountIndex >= 0) {
+      return [
+        ...BASE_VISIBLE_COLUMNS.slice(0, amountIndex + 1),
+        ...extendVisibleColumns,
+        ...BASE_VISIBLE_COLUMNS.slice(amountIndex + 1)
+      ]
     }
-    return variants[stage] || 'outline'
-  }
+    return [...BASE_VISIBLE_COLUMNS, ...extendVisibleColumns]
+  })
 
-  const getStatusVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      Open: 'default',
-      Won: 'default',
-      Lost: 'destructive'
+  // Handle row click
+  const handleRowClick = useCallback(
+    (opportunity: T) => {
+      const url = recordUrlBuilder(opportunity.id)
+      navigateTo(url)
+    },
+    [recordUrlBuilder]
+  )
+
+  // Handle search
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  // Filter opportunities based on search
+  const filteredOpportunities = useMemo(() => {
+    if (!searchTerm.trim()) return opportunities
+
+    const search = searchTerm.toLowerCase()
+    return opportunities.filter(opp => {
+      const name = (opp.name || '').toLowerCase()
+      const owner = `${opp.ownerEmployee?.firstName || ''} ${opp.ownerEmployee?.lastName || ''}`.toLowerCase()
+      const stage = (opp.opportunityPipelineStage?.value || opp.opportunityPipelineStage?.code || '').toLowerCase()
+      const status = (opp.opportunityStatus?.value || opp.opportunityStatus?.code || '').toLowerCase()
+
+      return name.includes(search) || owner.includes(search) || stage.includes(search) || status.includes(search)
+    })
+  }, [opportunities, searchTerm])
+
+  // Sort opportunities
+  const sortedOpportunities = useMemo(() => {
+    if (sorting.length === 0) return filteredOpportunities
+
+    const { id: sortField, desc } = sorting[0]
+    const sorted = [...filteredOpportunities].sort((a, b) => {
+      let aVal: any
+      let bVal: any
+
+      switch (sortField) {
+        case 'opportunity':
+          aVal = a.name || ''
+          bVal = b.name || ''
+          break
+        case 'amount':
+          aVal = a.estimatedAmount || 0
+          bVal = b.estimatedAmount || 0
+          break
+        case 'stage':
+          aVal = a.opportunityPipelineStage?.value || a.opportunityPipelineStage?.code || ''
+          bVal = b.opportunityPipelineStage?.value || b.opportunityPipelineStage?.code || ''
+          break
+        case 'status':
+          aVal = a.opportunityStatus?.value || a.opportunityStatus?.code || ''
+          bVal = b.opportunityStatus?.value || b.opportunityStatus?.code || ''
+          break
+        case 'account':
+          aVal = a.opportunityAccounts?.[0]?.account?.name || ''
+          bVal = b.opportunityAccounts?.[0]?.account?.name || ''
+          break
+        case 'owner':
+          aVal = `${a.ownerEmployee?.firstName || ''} ${a.ownerEmployee?.lastName || ''}`.trim()
+          bVal = `${b.ownerEmployee?.firstName || ''} ${b.ownerEmployee?.lastName || ''}`.trim()
+          break
+        case 'closeDate':
+          aVal = a.closeDate || ''
+          bVal = b.closeDate || ''
+          break
+        case 'created':
+          aVal = a.createdAt || ''
+          bVal = b.createdAt || ''
+          break
+        default:
+          return 0
+      }
+
+      if (aVal < bVal) return desc ? 1 : -1
+      if (aVal > bVal) return desc ? -1 : 1
+      return 0
+    })
+
+    return sorted
+  }, [filteredOpportunities, sorting])
+
+  // Paginate opportunities
+  const paginatedOpportunities = useMemo(() => {
+    const start = pagination.pageIndex * pagination.pageSize
+    const end = start + pagination.pageSize
+    return sortedOpportunities.slice(start, end)
+  }, [sortedOpportunities, pagination])
+
+  // Use central columns merged with additional columns
+  const columns = useMemo(() => {
+    const baseColumns = createOpportunityColumns(accountUrlBuilder || (() => '')) as ColumnDef<T>[]
+    if (additionalColumns.length === 0) return baseColumns
+
+    // Insert additional columns after 'amount' column
+    const amountIndex = baseColumns.findIndex(col => col.id === 'amount')
+    if (amountIndex >= 0) {
+      return [...baseColumns.slice(0, amountIndex + 1), ...additionalColumns, ...baseColumns.slice(amountIndex + 1)]
     }
-    return variants[status] || 'outline'
-  }
+    return [...baseColumns, ...additionalColumns]
+  }, [accountUrlBuilder, additionalColumns])
 
-  // Calculate total value and detect currency
-  const totalValue = opportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+  // Derive additional column metadata for available/sortable columns
+  const additionalColumnsMeta = useMemo(
+    () =>
+      additionalColumns.map(col => ({
+        id: col.id as string,
+        label: typeof col.header === 'string' ? col.header : (col.id as string)
+      })),
+    [additionalColumns]
+  )
 
-  // Get unique currencies from opportunities
-  const currencies = Array.from(new Set(opportunities.filter(opp => opp.currency?.code).map(opp => opp.currency!.code)))
+  const availableColumns = useMemo(() => {
+    const baseAvailable = [
+      { id: 'opportunity', label: 'Opportunity Name' },
+      { id: 'amount', label: 'Value' },
+      { id: 'account', label: 'Account' },
+      { id: 'stage', label: 'Stage' },
+      { id: 'status', label: 'Status' },
+      { id: 'owner', label: 'Owner' },
+      { id: 'closeDate', label: 'Close Date' },
+      { id: 'created', label: 'Created' }
+    ]
+    if (additionalColumnsMeta.length === 0) return baseAvailable
 
-  // Use single currency if all opportunities share the same currency, otherwise indicate mixed
-  const totalCurrency = currencies.length === 1 ? currencies[0] : null
-  const isMixedCurrency = currencies.length > 1
+    // Insert after 'amount'
+    const amountIndex = baseAvailable.findIndex(col => col.id === 'amount')
+    if (amountIndex >= 0) {
+      return [
+        ...baseAvailable.slice(0, amountIndex + 1),
+        ...additionalColumnsMeta,
+        ...baseAvailable.slice(amountIndex + 1)
+      ]
+    }
+    return [...baseAvailable, ...additionalColumnsMeta]
+  }, [additionalColumnsMeta])
 
-  const openOpportunities = opportunities.filter(opp => {
-    const status = opp.opportunityStatus?.value || opp.opportunityStatus?.code || ''
-    return status !== 'Lost' && status !== 'Won'
-  })
-  const wonOpportunities = opportunities.filter(opp => {
-    const status = opp.opportunityStatus?.value || opp.opportunityStatus?.code || ''
-    return status === 'Won'
-  })
+  const sortableColumns = useMemo(() => {
+    const baseSortable = [
+      { id: 'opportunity', label: 'Opportunity Name' },
+      { id: 'amount', label: 'Value' },
+      { id: 'account', label: 'Account' },
+      { id: 'stage', label: 'Stage' },
+      { id: 'status', label: 'Status' },
+      { id: 'owner', label: 'Owner' },
+      { id: 'closeDate', label: 'Close Date' },
+      { id: 'created', label: 'Created' }
+    ]
+    if (additionalColumnsMeta.length === 0) return baseSortable
+
+    // Insert after 'amount'
+    const amountIndex = baseSortable.findIndex(col => col.id === 'amount')
+    if (amountIndex >= 0) {
+      return [
+        ...baseSortable.slice(0, amountIndex + 1),
+        ...additionalColumnsMeta,
+        ...baseSortable.slice(amountIndex + 1)
+      ]
+    }
+    return [...baseSortable, ...additionalColumnsMeta]
+  }, [additionalColumnsMeta])
 
   return (
     <Card className={`gba:w-full ${className}`} data-testid={dataTestId}>
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <BarChartOutlined />
-            Opportunities ({opportunities.length})
-          </CardTitle>
-          <div className="gba:flex gba:gap-4 gba:text-sm">
-            <div className="gba:text-center">
-              <div className="gba:font-medium gba:text-info">Open</div>
-              <div>{openOpportunities.length}</div>
-            </div>
-            <div className="gba:text-center">
-              <div className="gba:font-medium gba:text-success">Won</div>
-              <div>{wonOpportunities.length}</div>
-            </div>
-            <div className="gba:text-center">
-              <div className="gba:font-medium gba:text-muted-foreground">Total Value</div>
-              <div className="gba:font-semibold">
-                {totalCurrency
-                  ? formatCurrency(totalValue, totalCurrency)
-                  : isMixedCurrency
-                    ? `${formatNumberFunction(totalValue, '0,0')} (Mixed)`
-                    : '-'}
-              </div>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="gba:text-center gba:py-10">
-            <Spinner size="lg" />
-            <p className="gba:mt-4 gba:text-muted-foreground">Loading opportunities...</p>
-          </div>
-        ) : error ? (
-          <Alert variant="destructive" className="gba:mb-4">
-            <div>Failed to load opportunities</div>
-            <div className="gba:text-sm gba:mt-2">{error}</div>
-            {onRetry && (
-              <Button onClick={onRetry} variant="outline" size="sm" className="gba:mt-2">
-                Retry
-              </Button>
-            )}
-          </Alert>
-        ) : opportunities.length === 0 ? (
-          <div className="gba:text-center gba:py-10" data-testid="no-opportunities-message">
-            <div className="gba:text-4xl gba:mb-4">💼</div>
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">No Opportunities Found</h3>
-            <p className="gba:text-muted-foreground">This account doesn't have any opportunities yet.</p>
-          </div>
-        ) : (
-          <div className="gba:w-full" data-testid="opportunities-table">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Opportunity Name</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Stage</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Close Date</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {opportunities.map(opportunity => (
-                  <TableRow key={opportunity.id}>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleOpportunityClick(opportunity.id)}
-                        className="gba:p-0 gba:h-auto gba:text-primary gba:hover:text-primary"
-                        data-testid={`opportunity-link-${opportunity.id}`}
-                      >
-                        {opportunity.name || 'Unnamed Opportunity'}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.estimatedAmount
-                        ? formatCurrency(opportunity.estimatedAmount, opportunity.currency?.code || 'EUR')
-                        : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={getStageVariant(
-                          opportunity.opportunityPipelineStage?.value ||
-                            opportunity.opportunityPipelineStage?.code ||
-                            ''
-                        )}
-                        data-testid={`opportunity-stage-${opportunity.id}`}
-                      >
-                        {opportunity.opportunityPipelineStage?.value ||
-                          opportunity.opportunityPipelineStage?.code ||
-                          '-'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.opportunityStatus ? (
-                        <Badge
-                          variant={getStatusVariant(
-                            opportunity.opportunityStatus.value || opportunity.opportunityStatus.code || ''
-                          )}
-                        >
-                          {opportunity.opportunityStatus.value || opportunity.opportunityStatus.code || '-'}
-                        </Badge>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.ownerEmployee
-                        ? `${opportunity.ownerEmployee.firstName || ''} ${opportunity.ownerEmployee.lastName || ''}`.trim()
-                        : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.closeDate ? formatDate(opportunity.closeDate, 'date.short') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.createdAt ? formatDate(opportunity.createdAt, 'date.short') : '-'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            {/* Simple pagination info */}
-            <div className="gba:mt-4 gba:text-sm gba:text-muted-foreground gba:text-center">
-              Showing {opportunities.length} opportunities
-            </div>
-          </div>
-        )}
+      <CardContent className="gba:p-0">
+        <DataDisplay
+          titleSections={[
+            {
+              id: 'opportunities',
+              label: 'Opportunities',
+              metadata: {
+                count: filteredOpportunities.length
+              }
+            }
+          ]}
+          currentSection="opportunities"
+          searchValue={searchTerm}
+          searchPlaceholder="Search opportunities..."
+          onSearchChange={handleSearch}
+          sorting={sorting}
+          sortableColumns={sortableColumns}
+          onSortingChange={setSorting}
+          availableColumns={availableColumns}
+          visibleColumns={visibleColumns}
+          onVisibleColumnsChange={setVisibleColumns}
+          toolbarDensity="compact"
+        >
+          <OpportunityListLayout<T>
+            data={paginatedOpportunities}
+            loading={isLoading}
+            error={error}
+            totalCount={filteredOpportunities.length}
+            columns={columns.filter(col => visibleColumns.includes(col.id as string)) as any}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            onRowClick={handleRowClick}
+            dataTestId={`${dataTestId}-list`}
+          />
+        </DataDisplay>
       </CardContent>
     </Card>
   )

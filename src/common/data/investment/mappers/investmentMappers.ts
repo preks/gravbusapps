@@ -9,12 +9,7 @@ import {
   RealEstateInvestment,
   BaseLiquidFundInvestment,
   LiquidFundInvestment
-} from '../types'
-
-// Extract currency code from currency reference
-const extractCurrencyCode = (currencyId: string): string => {
-  return currencyId?.split(':').pop() || 'EUR'
-}
+} from '../types/investmentTypes'
 
 /**
  * Transform BaseInvestment (GraphQL response) to Investment (enhanced with computed fields)

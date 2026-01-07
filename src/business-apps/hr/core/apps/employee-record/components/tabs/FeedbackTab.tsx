@@ -1,17 +1,19 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import dayjs from 'dayjs'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import { Empty, Spin, Input, Select, Rate } from 'antd'
+import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { employeeFeedbackQuery, employeeFeedbackRequestsQuery } from '../../queries/feedbackQueries'
-import { AppActionMenu } from '@/components/app-action-menu'
+import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
+import { employeeFeedbackQuery } from '../../queries/feedbackQueries'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { StarOutlined, MessageOutlined, CalendarOutlined, SearchOutlined, DownloadOutlined } from '@ant-design/icons'
+import { CalendarOutlined, SearchOutlined, DownloadOutlined } from '@ant-design/icons'
+import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
 import { PiPencilSimple } from 'react-icons/pi'
 
 // Normalize avatar source into a valid image URL
@@ -58,6 +60,14 @@ interface FeedbackRequest {
   dueDate?: string
   recordState?: string | null
   message?: string | null
+  reviewerNames?: string[] | null
+  taskName?: string | null
+  taskTitle?: string | null
+  feedbackText?: string | null
+  creatorName?: string | null
+  creatorEmployeeId?: string | null
+  endpoint?: string | null
+  processInstanceId?: string | null
   employeeFeedbackRequestReviewer?: Array<{
     id: string
     reviewerEmployeeId?: string
@@ -83,8 +93,12 @@ interface FormattedFeedback {
   firstName: string
   lastName: string
   rating?: number
+
   private?: boolean
+  feedbackPublic?: boolean | null
   type?: string
+  // Numeric timestamp for sorting by most recent first
+  timestamp?: number
 }
 
 /**
@@ -94,32 +108,21 @@ interface FormattedFeedback {
 const FeedbackTab: React.FC<FeedbackTabProps> = ({
   employee,
   accessToken,
-  // employeeId and userInfo are kept in interface for future use
+  userInfo,
   employeeFeedback = [],
   isSelfView = false // Default to false if not provided
 }) => {
   // State variables for feedback and requests
   const [localFeedback, setLocalFeedback] = useState<ExtendedEmployeeFeedback[]>([])
-  const [feedbackRequests, setFeedbackRequests] = useState<FeedbackRequest[]>([])
+  // No local state needed for approval tasks in this column
   const [loading, setLoading] = useState<boolean>(false)
-  const [requestsLoading, setRequestsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [requestsError, setRequestsError] = useState<string | null>(null)
 
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [filterType, setFilterType] = useState<string>('all')
 
-  // Statistics state
-  const [statistics, setStatistics] = useState({
-    overallRating: 0,
-    pendingReviews: 0,
-    lastReviewDate: ''
-  })
-
-  // Filters for requests
-  const [requestSearchTerm, setRequestSearchTerm] = useState<string>('')
-  const [requestStatus, setRequestStatus] = useState<'all' | 'pending' | 'completed'>('all')
+  // Filters for requests (currently not displayed)
 
   // Initialize GraphQL client
   const graphQLClient = useGraphqlClient(accessToken)
@@ -137,9 +140,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       if (response) {
         const feedbackData = response.EmployeeFeedback || []
         setLocalFeedback(feedbackData)
-
-        // Calculate statistics
-        calculateStatistics(feedbackData)
       }
     } catch (err) {
       console.error('Error fetching feedback data:', err)
@@ -149,44 +149,63 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     }
   }
 
-  // Fetch feedback requests
-  const fetchFeedbackRequests = async () => {
+  // Load approval tasks (feedback you received to complete)
+  const [receivedCurrentPage, setReceivedCurrentPage] = useState<number>(1)
+  const [receivedPageSize, setReceivedPageSize] = useState<number>(3)
+
+  const {
+    tasks: feedbackTasks,
+    totalCount: receivedTotalCount,
+    isLoading: receivedLoading,
+    error: receivedError
+  } = useFlowExecutionTasks({ accessToken, userInfo } as any, {
+    currentPage: receivedCurrentPage,
+    pageSize: receivedPageSize,
+    searchTerm: '',
+    filterTaskName: 'enterRequestedFeedback'
+  })
+
+  // GraphQL: Feedback you requested (second column)
+  const [requestedFeedback, setRequestedFeedback] = useState<FeedbackRequest[]>([])
+  const [requestedTotalCount, setRequestedTotalCount] = useState<number>(0)
+  const [requestsLoadingApproval, setRequestsLoadingApproval] = useState<boolean>(false)
+  const [requestsErrorApproval, setRequestsErrorApproval] = useState<string | null>(null)
+  const [requestedCurrentPage, setRequestedCurrentPage] = useState<number>(1)
+  const [requestedPageSize, setRequestedPageSize] = useState<number>(3)
+
+  // Query moved to queries/EmployeeFeedbackRequestQueries.ts
+
+  const fetchRequestedFeedback = async () => {
     if (!employee?.id) return
-
     try {
-      setRequestsLoading(true)
-      setRequestsError(null)
-
-      const response = await graphQLClient.request(employeeFeedbackRequestsQuery, { employeeId: employee.id })
-
-      if (response) {
-        setFeedbackRequests(response.EmployeeFeedbackRequest || [])
-      }
-    } catch (err) {
-      console.error('Error fetching feedback requests:', err)
-      setRequestsError('Failed to load feedback requests')
+      setRequestsLoadingApproval(true)
+      setRequestsErrorApproval(null)
+      const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT, {
+        idEmployee: employee.id,
+        limit: requestedPageSize,
+        offset: (requestedCurrentPage - 1) * requestedPageSize
+      })
+      const rows: any[] = res?.EmployeeFeedbackRequest || []
+      const mapped: FeedbackRequest[] = rows.map((r: any, idx: number) => ({
+        id: `${r.requesterEmployeeId || 'req'}-${r.createdAt || idx}`,
+        requestedOn: r.createdAt,
+        recordState: r.recordState,
+        message: r.message,
+        taskTitle: 'Approve Feedback',
+        feedbackText: r.message,
+        creatorName: r?.requesterEmployee?.displayName || null,
+        creatorEmployeeId: r?.requesterEmployee.id || null
+      }))
+      setRequestedFeedback(mapped)
+      const total = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count
+      setRequestedTotalCount(
+        typeof total === 'number' ? total : (requestedCurrentPage - 1) * requestedPageSize + mapped.length
+      )
+    } catch (e: any) {
+      setRequestsErrorApproval(e?.message || 'Failed to load requested feedback')
     } finally {
-      setRequestsLoading(false)
+      setRequestsLoadingApproval(false)
     }
-  }
-
-  // Calculate statistics from feedback data
-  const calculateStatistics = (feedbackData: ExtendedEmployeeFeedback[]) => {
-    const ratings = feedbackData.filter(item => item.rating).map(item => item.rating || 0)
-    const overallRating = ratings.length > 0 ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length : 0
-
-    const pendingReviews = feedbackRequests.filter(req => (req.recordState || '').toLowerCase() === 'pending').length
-
-    const sortedFeedback = [...feedbackData].sort(
-      (a, b) => new Date(b.feedbackDate).getTime() - new Date(a.feedbackDate).getTime()
-    )
-    const lastReviewDate = sortedFeedback.length > 0 ? sortedFeedback[0].feedbackDate : ''
-
-    setStatistics({
-      overallRating,
-      pendingReviews,
-      lastReviewDate
-    })
   }
 
   // Format feedback data and apply statistics calculation when data changes
@@ -195,22 +214,87 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     // Initialize with props if available, otherwise fetch from API
     if (employeeFeedback?.length) {
       setLocalFeedback(employeeFeedback as ExtendedEmployeeFeedback[])
-      calculateStatistics(employeeFeedback as ExtendedEmployeeFeedback[])
     } else {
       fetchFeedbackData()
     }
-
-    // Always fetch feedback requests
-    fetchFeedbackRequests()
   }, [employee?.id, accessToken])
+
+  // Map flow tasks to FeedbackRequest (memoized to avoid re-computation/loops)
+  const feedbackRequests: FeedbackRequest[] = React.useMemo(() => {
+    return (feedbackTasks || []).map((t: any) => ({
+      id: String(t.id),
+      requestedOn: t.started || t.createdAt,
+      dueDate: t.dueDate,
+      recordState: t.state || t.status || null,
+      message: t.description || t.referenceName || t.name || null,
+      reviewerNames: Array.isArray(t.assigneeNames) ? t.assigneeNames : null,
+      taskName: t.name || null,
+      taskTitle: t.referenceName || null,
+      feedbackText: t?.inputs?.feedback?.feedback || null,
+      creatorName: t?.creatorName || null,
+      creatorEmployeeId: t?.creatorUserId || null,
+      endpoint: t?.endpoint || null,
+      processInstanceId: t?.processInstanceId || null
+    }))
+  }, [feedbackTasks])
+
+  useEffect(() => {
+    fetchRequestedFeedback()
+  }, [employee?.id, requestedCurrentPage, requestedPageSize])
+
+  // Respond action handler extracted for readability
+  const handleRespondClick = React.useCallback(
+    (request: FeedbackRequest) => {
+      const endpoint = request.endpoint || ''
+
+      // Extract by splitting the endpoint path: /processes/<domain>/<processName>/<processInstanceId>/...
+      let domain = 'employee'
+      let processName = 'giveFeedback'
+      let processInstanceId: string | undefined = request.processInstanceId || undefined
+
+      const extractFromParts = (parts: string[]) => {
+        const idx = parts.indexOf('processes')
+        if (idx >= 0 && parts.length > idx + 3) {
+          domain = parts[idx + 1]
+          processName = parts[idx + 2]
+          processInstanceId = parts[idx + 3]
+        }
+      }
+
+      try {
+        // Prefer URL parsing if absolute URL
+        const url = new URL(endpoint)
+        extractFromParts(url.pathname.split('/').filter(Boolean))
+      } catch {
+        // Fallback for relative endpoints
+        extractFromParts(endpoint.split('/').filter(Boolean))
+      }
+
+      startProcess({
+        domain,
+        processName,
+        payload: {
+          requestId: request.id,
+          employeeId: employee?.id
+        },
+        processInstanceId,
+        builderType: 'NATIVE_SCREEN'
+      })
+    },
+    [employee?.id]
+  )
 
   // Format feedback for display
   const formatFeedback = (): FormattedFeedback[] => {
     if (!localFeedback?.length) return []
 
     return localFeedback.map(feedback => {
+      const timestamp = feedback.feedbackDate ? Date.parse((feedback as any).feedbackDate) : 0
       const sender = `${feedback.senderEmployee?.firstName || ''} ${feedback.senderEmployee?.lastName || ''}`.trim()
-      const date = feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMMM D, YYYY') : 'Unknown date'
+      const date = feedback.feedbackDate
+        ? (formatDate(feedback.feedbackDate, 'date.short') ??
+          getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.requested_on_date', 'Unknown date'))
+        : 'Unknown date'
       const content = feedback.feedback || 'No feedback content'
 
       // Access pictureThumbnail through the correct path based on the GraphQL query structure
@@ -229,7 +313,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         lastName,
         rating: feedback.rating,
         private: (feedback as any).feedbackPublic === false,
-        type: ((feedback as any)?.type?.value as string) || (feedback as any).typeRef
+        feedbackPublic: (feedback as any).feedbackPublic,
+        type: ((feedback as any)?.type?.value as string) || (feedback as any).typeRef,
+        timestamp
       }
     })
   }
@@ -249,318 +335,280 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   // Note: Do not early-return error when there is no feedback; prefer empty state
 
   // Filter feedback based on search and filter criteria
-  const formattedFilteredFeedback = allFormattedFeedback.filter(feedback => {
-    const matchesSearch =
-      searchTerm === '' ||
-      feedback.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feedback.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feedback.lastName.toLowerCase().includes(searchTerm.toLowerCase())
+  const formattedFilteredFeedback = allFormattedFeedback
+    .filter(feedback => {
+      const matchesSearch =
+        searchTerm === '' ||
+        feedback.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        feedback.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        feedback.lastName.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesFilter =
-      filterType === 'all' ||
-      (filterType === 'private' && feedback.private) ||
-      (filterType === 'public' && !feedback.private)
+      // Use feedbackPublic: explicitly treat false as Private; any other value as Public
+      const isPrivate = feedback.feedbackPublic === false
+      if (!isSelfView && isPrivate) {
+        return false
+      }
+      const matchesFilter =
+        filterType === 'all' || (filterType === 'private' && isPrivate) || (filterType === 'public' && !isPrivate)
 
-    return matchesSearch && matchesFilter
-  })
+      return matchesSearch && matchesFilter
+    })
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
 
   return (
     <div className="gba:space-y-8 gba:pb-6" data-testid="feedback-tab">
-      {/* Header Section */}
-      <div className="gba:bg-gray-50 gba:p-6 gba:rounded-lg gba:shadow-sm" data-testid="feedback-header">
-        <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-start gba:gap-4">
+      {/* Header Section - align with standard page headers */}
+      <div className="gba:pb-4" data-testid="feedback-header">
+        <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-center gba:gap-4">
           <div className="gba:max-w-2xl">
-            <h2 className="gba:text-2xl gba:font-semibold gba:text-gray-800" data-testid="feedback-title">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance.feedback_tab_title', 'Feedback')}
+            <h2 className="gba:font-bold gba:text-2xl" data-testid="feedback-title">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.feedback_tab_title', 'Feedback')}
             </h2>
-            <p className="gba:text-gray-600 gba:mt-2" data-testid="feedback-description">
+            <p className="gba:text-gray-500 gba:text-lg" data-testid="feedback-description">
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_performance.feedback_tab_description',
+                'lowcoder:feedback_tab.feedback_tab_description',
                 'Give and receive feedback from colleagues and managers to improve performance.'
               )}
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="gba:flex gba:gap-2 gba:self-start">
+          {/* Header Actions - right aligned, inline with title */}
+          <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
             {/* Request Feedback Button - Only shown when viewing own profile */}
-            {isSelfView && (
-              <div>
-                <AppActionMenu
-                  data-testid="employee-feedback-request-button"
-                  contextsArray={[FlowContextName.employeeRequestFeedback]}
-                  externalContextData={{
-                    employeeId: employee?.id,
-                    isRequestingFeedback: true
-                  }}
-                  prefixDataTestId="request-feedback"
-                  accessToken={accessToken}
-                  autoExecuteSingleAction={true}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                    <PiPencilSimple />
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance.request_feedback', 'Request Feedback')}
-                  </div>
-                </AppActionMenu>
-              </div>
-            )}
+            <div>
+              <AppAction
+                variant="update-primary"
+                data-testid="employee-feedback-request-button"
+                contexts={[
+                  {
+                    context: FlowContextName.employeeRequestFeedback,
+                    contextData: { employeeId: employee?.id, isRequestingFeedback: true }
+                  }
+                ]}
+                prefixDataTestId="request-feedback"
+                accessToken={accessToken}
+                autoExecute={true}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.request_feedback', 'Request Feedback')}
+              </AppAction>
+            </div>
 
             {/* Give Feedback Button */}
             <div>
-              <AppActionMenu
+              <AppAction
+                variant="update-primary"
                 data-testid="employee-feedback-give-button"
-                contextsArray={[FlowContextName.employeeGiveFeedback]}
-                externalContextData={{
-                  employeeId: employee?.id
-                }}
+                contexts={[
+                  { context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }
+                ]}
                 prefixDataTestId="add-feedback"
                 accessToken={accessToken}
-                autoExecuteSingleAction={true}
+                autoExecute={true}
               >
-                <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                  <PiPencilSimple />
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance.give_feedback', 'Give Feedback')}
-                </div>
-              </AppActionMenu>
+                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.give_feedback', 'Give Feedback')}
+              </AppAction>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Statistics Cards Section */}
-      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4" data-testid="feedback-statistics">
-        {/* Overall Rating Card */}
-        <Card className="gba:shadow-sm gba:p-4" data-testid="stat-overall-rating">
-          <div className="gba:flex gba:flex-col gba:items-start">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-              <StarOutlined className="gba:text-yellow-400" />
-              <span className="gba:font-medium">Overall Rating</span>
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <span className="gba:text-3xl gba:font-bold" data-testid="rating-value">
-                {statistics.overallRating.toFixed(1)}
-              </span>
-              <div className="gba:flex gba:flex-col">
-                <Rate disabled defaultValue={statistics.overallRating} allowHalf />
-                <span className="gba:text-gray-500 gba:text-sm" data-testid="rating-count">
-                  {localFeedback.filter(f => f.rating).length > 0
-                    ? `Based on ${localFeedback.filter(f => f.rating).length} reviews`
-                    : 'No reviews yet'}
-                </span>
+      {/* Feedback Requests Section - visible only in self view */}
+      {isSelfView && (
+        <div className="gba:space-y-6 " data-testid="feedback-requests-section">
+          <div className="gba:flex gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_requests', 'Feedback Requests')}
+            </h3>
+          </div>
+
+          {/* Two-column layout: received (left) and approvals (right) */}
+          <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:px-4 gba:py-2">
+            <div>
+              <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
+                <h4 className="gba:text-base gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:feedback_tab.col_received',
+                    'Feedback requests you received'
+                  )}
+                </h4>
               </div>
+              {receivedLoading ? (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+                  <Spin size="default" />
+                </div>
+              ) : receivedError ? (
+                <div className="gba:text-red-500">{receivedError}</div>
+              ) : feedbackRequests.length === 0 ? (
+                <Empty
+                  description={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:feedback_tab.no_feedback_requests',
+                    'No feedback requests'
+                  )}
+                />
+              ) : (
+                <>
+                  <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
+                    {feedbackRequests.map((request: FeedbackRequest) => {
+                      const dateLabel = request.requestedOn ? (formatDate(request.requestedOn, 'date.short') ?? '') : ''
+                      return (
+                        <Card
+                          key={request.id}
+                          className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                          size="small"
+                          data-testid={`received-request-item-${request.id}`}
+                        >
+                          <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                            <div className="gba:flex gba:flex-col">
+                              <div className="gba:font-medium" data-testid={`received-request-line-${request.id}`}>
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:feedback_tab.from_on_text',
+                                  `From ${request.creatorName || ''} on ${dateLabel}`,
+                                  {
+                                    employee: request.creatorName || '',
+                                    date: dateLabel,
+                                    interpolation: {
+                                      escapeValue: false
+                                    }
+                                  }
+                                )}
+                              </div>
+                            </div>
+                            <div
+                              className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
+                              onClick={() => handleRespondClick(request)}
+                              data-testid={`received-request-respond-button-${request.id}`}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  handleRespondClick(request)
+                                }
+                              }}
+                            >
+                              <PiPencilSimple />
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
+                            </div>
+                          </div>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                  <div className="gba:mt-4 gba:flex gba:justify-end">
+                    <Pagination
+                      current={receivedCurrentPage}
+                      pageSize={receivedPageSize}
+                      total={receivedTotalCount || 0}
+                      onChange={(page, pageSize) => {
+                        setReceivedCurrentPage(page)
+                        setReceivedPageSize(pageSize)
+                      }}
+                      data-testid="received-requests-pagination"
+                      showSizeChanger
+                      pageSizeOptions={['3', '10', '20', '50']}
+                    />
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-        </Card>
 
-        {/* Pending Reviews Card */}
-        <Card className="gba:shadow-sm gba:p-4" data-testid="stat-pending-reviews">
-          <div className="gba:flex gba:flex-col gba:items-start">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-              <MessageOutlined className="gba:text-blue-500" />
-              <span className="gba:font-medium">Pending Reviews</span>
+            <div>
+              <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
+                <h4 className="gba:text-base gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.col_requested', 'Feedback you requested')}
+                </h4>
+              </div>
+              {requestsLoadingApproval ? (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+                  <Spin size="default" />
+                </div>
+              ) : requestsErrorApproval ? (
+                <div className="gba:text-red-500">{requestsErrorApproval}</div>
+              ) : requestedFeedback.length === 0 ? (
+                <Empty
+                  description={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:feedback_tab.no_approval_requests',
+                    'No approval requests'
+                  )}
+                />
+              ) : (
+                <>
+                  <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
+                    {requestedFeedback.map(request => {
+                      const dateLabel = request.requestedOn ? (formatDate(request.requestedOn, 'date.short') ?? '') : ''
+                      const fromName = request.creatorName || '-'
+                      return (
+                        <Card
+                          key={request.id}
+                          className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                          size="small"
+                          data-testid={`requested-request-item-${request.id}`}
+                        >
+                          <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                            <div className="gba:flex gba:flex-col">
+                              <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:feedback_tab.from_since_text',
+                                  `From ${fromName} since ${dateLabel}`,
+                                  {
+                                    employee: fromName,
+                                    date: dateLabel,
+                                    interpolation: {
+                                      escapeValue: false
+                                    }
+                                  }
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                  <div className="gba:mt-4 gba:flex gba:justify-end">
+                    <Pagination
+                      current={requestedCurrentPage}
+                      pageSize={requestedPageSize}
+                      total={requestedTotalCount ?? 0}
+                      onChange={(page, pageSize) => {
+                        setRequestedCurrentPage(page)
+                        setRequestedPageSize(pageSize)
+                      }}
+                      data-testid="requested-requests-pagination"
+                      showSizeChanger
+                      pageSizeOptions={['3', '10', '20', '50']}
+                    />
+                  </div>
+                </>
+              )}
             </div>
-            <div className="gba:flex gba:flex-col">
-              <span className="gba:text-3xl gba:font-bold" data-testid="pending-count">
-                {statistics.pendingReviews}
-              </span>
-              <span className="gba:text-gray-500 gba:text-sm" data-testid="pending-due">
-                {statistics.pendingReviews > 0 ? 'Due within 2 weeks' : 'No pending reviews'}
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Last Review Card */}
-        <Card className="gba:shadow-sm gba:p-4" data-testid="stat-last-review">
-          <div className="gba:flex gba:flex-col gba:items-start">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-              <CalendarOutlined className="gba:text-green-500" />
-              <span className="gba:font-medium">Last Review</span>
-            </div>
-            <div className="gba:flex gba:flex-col">
-              <span className="gba:text-3xl gba:font-bold" data-testid="last-review-date">
-                {statistics.lastReviewDate ? dayjs(statistics.lastReviewDate).format('MMM YYYY') : 'None'}
-              </span>
-              <span className="gba:text-gray-500 gba:text-sm" data-testid="last-review-type">
-                {statistics.lastReviewDate ? 'Performance Review' : ''}
-              </span>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Feedback Requests Section */}
-      <div className="gba:space-y-6" data-testid="feedback-requests-section">
-        <div className="gba:flex gba:justify-between gba:items-center">
-          <h3 className="gba:text-xl gba:font-semibold">Feedback Requests</h3>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <Input
-              placeholder="Search requests"
-              prefix={<SearchOutlined className="gba:text-gray-400" />}
-              className="gba:w-56 gba:rounded-md"
-              data-testid="requests-search-input"
-              value={requestSearchTerm}
-              onChange={e => setRequestSearchTerm(e.target.value)}
-            />
-            <Select
-              className="gba:w-40"
-              data-testid="requests-status-select"
-              value={requestStatus}
-              onChange={value => setRequestStatus(value as any)}
-              options={[
-                { value: 'all', label: 'All' },
-                { value: 'pending', label: 'Pending' },
-                { value: 'completed', label: 'Completed' }
-              ]}
-              suffixIcon={<DownloadOutlined className="gba:text-gray-400 gba:rotate-180" />}
-            />
           </div>
         </div>
-
-        {requestsLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-            <Spin size="default" />
-          </div>
-        ) : requestsError ? (
-          <div className="gba:text-red-500">{requestsError}</div>
-        ) : feedbackRequests.length === 0 ? (
-          <Empty description="No feedback requests" />
-        ) : (
-          <div className="gba:space-y-4">
-            {feedbackRequests.map((request, index) => (
-              <Card
-                key={request.id}
-                className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
-                data-testid={`request-card-${index}`}
-              >
-                <div className="gba:flex gba:flex-col gba:gap-4">
-                  {/* Request Header */}
-                  <div className="gba:flex gba:justify-between gba:items-start gba:w-full">
-                    <div className="gba:flex gba:flex-col gba:gap-1">
-                      {/* Status Badge */}
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span
-                          className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium ${
-                            (request.recordState || '').toLowerCase() === 'pending'
-                              ? 'gba:bg-yellow-100 gba:text-yellow-800'
-                              : (request.recordState || '').toLowerCase() === 'completed'
-                                ? 'gba:bg-green-100 gba:text-green-800'
-                                : 'gba:bg-gray-100 gba:text-gray-800'
-                          }`}
-                          data-testid={`request-status-${index}`}
-                        >
-                          {request.recordState || 'unknown'}
-                        </span>
-                      </div>
-
-                      {/* Request Message */}
-                      {request.message && (
-                        <div className="gba:font-medium" data-testid={`request-message-${index}`}>
-                          {request.message}
-                        </div>
-                      )}
-
-                      {/* Due Date */}
-                      <div className="gba:flex gba:items-center gba:gap-1 gba:text-gray-500 gba:text-sm">
-                        <CalendarOutlined />
-                        <span data-testid={`request-due-${index}`}>
-                          {request.dueDate
-                            ? `Due by ${dayjs(request.dueDate).format('DD/MM/YYYY')}`
-                            : request.requestedOn
-                              ? `Requested on ${dayjs(request.requestedOn).format('DD/MM/YYYY')}`
-                              : ''}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* View Details Button */}
-                    <button
-                      className="gba:flex gba:items-center gba:text-sm gba:text-blue-600 gba:hover:text-blue-800"
-                      data-testid={`view-details-button-${index}`}
-                      onClick={() => console.log(`View details for request ${request.id}`)}
-                    >
-                      View Details
-                    </button>
-                  </div>
-
-                  {/* Reviewers and Action */}
-                  <div className="gba:flex gba:justify-between gba:items-center gba:w-full gba:mt-2">
-                    {/* Reviewers */}
-                    <div className="gba:flex gba:flex-col gba:gap-1">
-                      <span className="gba:text-sm gba:text-gray-500">Reviewers:</span>
-                      <div className="gba:flex gba:gap-2">
-                        {(request.employeeFeedbackRequestReviewer || []).map((rev, ridx) => {
-                          const r = rev.reviewerEmployee
-                          const first = r?.firstName || ''
-                          const last = r?.lastName || ''
-                          const pic = r?.employeePosition?.employee?.pictureThumbnail || null
-                          return (
-                            <div
-                              key={rev.id || ridx}
-                              className="gba:w-8 gba:h-8"
-                              data-testid={`reviewer-avatar-${index}-${ridx}`}
-                            >
-                              <Avatar
-                                src={toAvatarSrc(pic || undefined)}
-                                initials={`${first?.[0] || ''}${last?.[0] || ''}`}
-                                alt={`${first} ${last}`}
-                                // @ts-ignore
-                                contentType={pic ? 'image' : 'initials'}
-                                // @ts-ignore
-                                size="md"
-                                // @ts-ignore
-                                shape="circle"
-                                // @ts-ignore
-                                appearance="gradient"
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Respond Action */}
-                    <div>
-                      <AppActionMenu
-                        data-testid={`respond-request-button-${index}`}
-                        contextsArray={[FlowContextName.employeeGiveFeedback]}
-                        externalContextData={{
-                          employeeId: employee?.id,
-                          requestId: request.id
-                        }}
-                        prefixDataTestId={`respond-request-${index}`}
-                        accessToken={accessToken}
-                        autoExecuteSingleAction={true}
-                      >
-                        <div className="gba:cursor-pointer">Respond</div>
-                      </AppActionMenu>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Feedback History Section */}
       <div className="gba:space-y-6" data-testid="feedback-history-section">
         <div className="gba:flex gba:justify-between gba:items-center">
-          <h3 className="gba:text-xl gba:font-semibold">Feedback History</h3>
+          <h3 className="gba:text-xl gba:font-semibold">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_history', 'Feedback History')}
+          </h3>
 
           <div className="gba:flex gba:items-center gba:gap-4">
             {/* Export Button */}
             <button
-              className="gba:flex gba:items-center gba:gap-2 gba:text-blue-600 gba:hover:text-blue-800 gba:transition-colors gba:px-3 gba:py-1.5 gba:rounded-md gba:border gba:border-gray-200 gba:hover:border-blue-300"
+              className="gba:flex gba:items-center gba:gap-2 gba:text-info gba:hover:text-blue-800 gba:transition-colors gba:px-3 gba:py-1.5 gba:rounded-md gba:border gba:border-border gba:hover:border-blue-300"
               data-testid="export-feedback-button"
               onClick={() => console.log('Export feedback')}
             >
-              <DownloadOutlined /> Export
+              <DownloadOutlined /> {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.export', 'Export')}
             </button>
 
             {/* Search Input */}
             <Input
-              placeholder="Search feedback"
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:feedback_tab.search_placeholder',
+                'Search feedback'
+              )}
               prefix={<SearchOutlined className="gba:text-gray-400" />}
               className="gba:w-64 gba:rounded-md"
               data-testid="feedback-search-input"
@@ -576,11 +624,20 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               value={filterType}
               onChange={value => setFilterType(value)}
               options={[
-                { value: 'all', label: 'All Feedback' },
-                { value: 'private', label: 'Private' },
-                { value: 'public', label: 'Public' }
+                {
+                  value: 'all',
+                  label: getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_all', 'All Feedback')
+                },
+                {
+                  value: 'private',
+                  label: getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_private', 'Private')
+                },
+                {
+                  value: 'public',
+                  label: getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_public', 'Public')
+                }
               ]}
-              suffixIcon={<DownloadOutlined className="gba:text-gray-400 gba:rotate-180" />}
+              suffixIcon={<DownloadOutlined className="gba:text-muted-foreground gba:rotate-180" />}
               popupClassName="gba:rounded-md gba:shadow-lg"
             />
           </div>
@@ -592,11 +649,12 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             <Spin size="large" />
           </div>
         ) : formattedFilteredFeedback.length > 0 ? (
-          <div className="gba:space-y-4" data-testid="feedback-list">
+          <div className="gba:space-y-4 gba:px-4" data-testid="feedback-list">
             {formattedFilteredFeedback.map((feedback, index) => (
               <Card
                 key={feedback.id || index}
-                className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
+                className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:h-full"
+                bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
                 data-testid={`feedback-card-${index}`}
               >
                 <div className="gba:flex gba:items-start gba:gap-4">
@@ -606,13 +664,13 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       src={toAvatarSrc(feedback.avatar)}
                       initials={`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
                       alt={`${feedback.firstName} ${feedback.lastName}`}
-                      // @ts-ignore - gravity-ui-catalog typing mismatch
+                      // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
                       contentType={feedback.avatar ? 'image' : 'initials'}
-                      // @ts-ignore - gravity-ui-catalog typing mismatch
+                      // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
                       size="lg"
-                      // @ts-ignore - gravity-ui-catalog typing mismatch
+                      // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
                       shape="circle"
-                      // @ts-ignore - gravity-ui-catalog typing mismatch
+                      // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
                       appearance="gradient"
                     />
                   </div>
@@ -620,7 +678,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                   {/* Feedback Content */}
                   <div className="gba:flex-grow">
                     <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
-                      <span className="gba:font-semibold gba:text-gray-800" data-testid={`feedback-sender-${index}`}>
+                      <span className="gba:font-semibold gba:text-foreground" data-testid={`feedback-sender-${index}`}>
                         {feedback.sender}
                       </span>
 
@@ -628,7 +686,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       {feedback.type && (
                         <span
                           className={
-                            'gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-gray-100 gba:text-gray-800'
+                            'gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-muted gba:text-foreground'
                           }
                           data-testid={`feedback-type-${index}`}
                         >
@@ -639,16 +697,16 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       {/* Private Badge */}
                       {feedback.private && (
                         <span
-                          className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-red-100 gba:text-red-800"
+                          className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-destructive-secondary gba:text-destructive"
                           data-testid={`feedback-privacy-${index}`}
                         >
-                          Private
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
                         </span>
                       )}
                     </div>
 
                     <div
-                      className="gba:flex gba:items-center gba:gap-1 gba:text-gray-500 gba:text-sm gba:mt-1"
+                      className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
                       data-testid={`feedback-date-${index}`}
                     >
                       <CalendarOutlined /> {feedback.date}
@@ -657,12 +715,12 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                     {/* Rating */}
                     {feedback.rating !== undefined && (
                       <div className="gba:my-2">
-                        <Rate disabled value={feedback.rating} className="gba:text-yellow-400" />
+                        <Rate disabled value={feedback.rating} className="gba:text-warning" />
                       </div>
                     )}
 
                     <div
-                      className="gba:mt-3 gba:text-gray-700 gba:border-t gba:border-gray-100 gba:pt-3"
+                      className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
                       data-testid={`feedback-content-${index}`}
                     >
                       {feedback.content}
@@ -676,13 +734,13 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           <>
             <Empty
               description={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_performance.no_feedback',
+                'lowcoder:feedback_tab.no_feedback',
                 'No feedback available'
               )}
               data-testid="feedback-empty"
             />
             {error && (
-              <div className="gba:text-center gba:text-gray-500 gba:py-4" data-testid="feedback-error-inline">
+              <div className="gba:text-center gba:text-muted-foreground gba:py-4" data-testid="feedback-error-inline">
                 <p>{error}</p>
               </div>
             )}

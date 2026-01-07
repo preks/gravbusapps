@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_PLANS_BY_EMPLOYEE } from '../queries/expensePlans'
-import { env } from '@/common/env/EnvUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 // Translation interface for catalog entries
 export interface Translation {
@@ -128,6 +128,7 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState<number>(0)
+  const graphqlClient = useGraphQLClient(accessToken || '')
 
   // Function to fetch items with search, pagination, and server-side sorting
   const fetchItems = useCallback(
@@ -196,34 +197,11 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
           variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }]
         }
 
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query: GET_EXPENSE_PLANS_BY_EMPLOYEE,
-            variables: variables
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`)
-        }
-
-        const result = await response.json()
-
-        if (result.errors && result.errors.length > 0) {
-          throw new Error(result.errors.map((e: any) => e.message).join(', '))
-        }
-
-        // Get total count from aggregate query
-        const count = result.data?.ExpensePlanAggregate?.aggregate?.count ?? 0
+        const result = await graphqlClient.request<any>(GET_EXPENSE_PLANS_BY_EMPLOYEE, variables)
+        const count = result?.ExpensePlanAggregate?.aggregate?.count ?? 0
         setTotalCount(count)
 
-        // Get the items
-        const fetchedItems = result.data?.ExpensePlan ?? []
+        const fetchedItems = result?.ExpensePlan ?? []
         setItems(fetchedItems)
       } catch (err) {
         setError(err instanceof Error ? err : new Error(String(err)))
@@ -233,7 +211,7 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
         setIsLoading(false)
       }
     },
-    [employeeId, accessToken]
+    [employeeId, accessToken, graphqlClient]
   )
 
   // We only want to run this once when the component mounts and has the required IDs.

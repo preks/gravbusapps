@@ -1,325 +1,272 @@
-// Investment Opportunity Queries - Complete queries using shared fragments
-import { INVESTMENT, INVESTMENT_REF } from './fragments/investmentFragments'
+/**
+ * Investment Opportunity Queries (New)
+ * GraphQL queries for Investment Opportunity entities using fields mapping
+ * Extends Common Opportunity Queries with InvestmentOpportunityFields (with overrides + IRM-specific fields)
+ */
+
 import {
-  INVESTMENT_OPPORTUNITY,
-  INVESTMENT_ACCOUNT_REF,
-  INVESTMENT_TASK,
-  INVESTMENT_ACTIVITY,
-  INVESTMENT_NOTE,
-  INVESTMENT_DOCUMENT
-} from './fragments/investmentRelationFragments'
+  buildOpportunityQuery,
+  buildOpportunityByIdQuery,
+  buildOpportunitySearchQuery,
+  buildOpportunityWhereCondition,
+  buildOpportunityOrderBy,
+  type CommonOpportunityQueryVariables,
+  type OpportunityRelationBuilders,
+  type OpportunityRelationFields
+} from '@/common/data/relations/queries/opportunityQueries'
+import {
+  InvestmentOpportunityFields,
+  INVESTMENT_OPPORTUNITY_DESCRIPTORS,
+  InvestmentOpportunityStageConditionFields
+} from '../types/investmentOpportunityTypes'
+import { INVESTMENT_ADDRESS_FRAGMENT } from '../types/investmentAddressTypes'
+// OpportunityFields type is used implicitly through Record<keyof typeof OpportunityFields, string>
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
-export interface InvestmentOpportunityQueryVariables {
-  ids?: string[]
-  search?: string
-  dealType?: string // Added dealType filtering
-  accountIds?: string[]
-  accountSearch?: string // Search account by name
-  contactIds?: string[] // Filter by contact IDs
-  stageIds?: string[]
-  pipelineIds?: string[]
-  statusIds?: string[]
-  leadSourceIds?: string[]
-  currencyIds?: string[]
-  ownerEmployeeIds?: string[]
+// Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
+import {
+  buildAccountFragment,
+  buildContactFragment,
+  buildLeadFragment,
+  buildActivityFragment,
+  buildNoteFragment,
+  buildDocumentFragment
+} from '@/common/data/relations/queries/relationFragments'
+
+// Import IRM-specific task fragment (uses taskAssignees instead of assignedEmployee)
+import { buildInvestmentTaskFragmentForRelations } from './investmentTaskQueries'
+
+// Import Investment Fields
+import { InvestmentActivityFields } from '../types/investmentActivityTypes'
+import { InvestmentAccountFields } from '../types/investmentAccountTypes'
+import { InvestmentContactFields } from '../types/investmentContactTypes'
+import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
+import { InvestmentLeadFields } from '../types/investmentLeadTypes'
+import { InvestmentNoteFields } from '../types/investmentNoteTypes'
+import { InvestmentTaskFields } from '../types/investmentTaskTypes'
+import { INVESTMENT_REF } from './fragments/investmentReferenceFragments'
+
+/**
+ * Investment Opportunity Query Variables Interface
+ * Extends CommonOpportunityQueryVariables with IRM-specific filters
+ */
+export interface InvestmentOpportunityQueryVariables extends CommonOpportunityQueryVariables {
+  // IRM-specific filters
+  dealType?: string
+  currencyCode?: string // Simple currency code like 'EUR', 'USD' - convenience parameter
+  divestmentIds?: string[]
+  investmentIds?: string[]
+  investmentGroupIds?: string[]
+  investmentRoleIds?: string[]
+  investmentStakeTypeIds?: string[]
+  investmentTypeIds?: string[]
+  sizeMeasurementUnitIds?: string[]
   forecastedProfitBetween?: [number, number]
-  // Date filters
-  createdAfter?: string
-  createdBefore?: string
-  closeDateFrom?: string
-  closeDateTo?: string
-  limit?: number
-  offset?: number
-  orderBy?: Array<{
-    field: string
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
-  }>
+  estimatedAmountRanges?: Array<{ min?: number; max?: number }>
+  accountSearch?: string // Search account by name
 }
 
-// Filter structure types for type safety
-export interface GraphQLFilter {
-  [key: string]: any
-}
-
-export interface GraphQLWhereCondition {
-  isDeleted: { _eq: boolean }
-  [key: string]: any
-}
-
-export interface DateRangeFilter {
-  _gte?: string
-  _lte?: string
-}
-
-export interface SearchFilter {
-  _or: Array<Record<string, { _ilike: string }>>
-}
-
-export interface InFilter {
-  _in: string[]
-}
-
-export interface NumberRangeFilter {
-  _gte?: number
-  _lte?: number
-}
-
-const escapeGraphQLString = (str: string): string => {
-  return JSON.stringify(str).slice(1, -1)
-}
-
-// Utility function to serialize filter objects to GraphQL string format with secure escaping
-const serializeGraphQLFilter = (filter: Record<string, any>): string => {
-  const serializeValue = (value: any): string => {
-    if (value === null || value === undefined) {
-      return 'null'
-    }
-    if (typeof value === 'string') {
-      return `"${escapeGraphQLString(value)}"`
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return String(value)
-    }
-    if (Array.isArray(value)) {
-      return `[${value.map(serializeValue).join(', ')}]`
-    }
-    if (typeof value === 'object') {
-      return serializeGraphQLFilter(value)
-    }
-    return String(value)
-  }
-
-  const pairs = Object.entries(filter).map(([key, value]) => {
-    return `${key}: ${serializeValue(value)}`
-  })
-
-  return `{ ${pairs.join(', ')} }`
-}
-
-// Base filter builder that returns structured filter objects
-const buildBaseFilters = (variables: InvestmentOpportunityQueryVariables = {}): GraphQLFilter[] => {
-  const filters: GraphQLFilter[] = []
-
-  if (variables.dealType) {
-    filters.push({
-      dealType: { _eq: variables.dealType }
-    })
-  }
-
-  if (variables.search?.trim()) {
-    const searchTerm = variables.search.trim()
-    filters.push({
-      _or: [
-        { name: { _ilike: `%${searchTerm}%` } },
-        { code: { _ilike: `%${searchTerm}%` } },
-        { notesSummary: { _ilike: `%${searchTerm}%` } },
-        { investmentName: { _ilike: `%${searchTerm}%` } }
-      ]
-    })
-  }
-
-  if (variables.accountIds?.length) {
-    filters.push({
-      accountId: { _in: variables.accountIds }
-    })
-  }
-
-  if (variables.accountSearch?.trim()) {
-    const accountSearchTerm = variables.accountSearch.trim()
-    filters.push({
-      account: {
-        name: { _ilike: `%${accountSearchTerm}%` }
-      }
-    })
-  }
-
-  if (variables.contactIds?.length) {
-    filters.push({
-      investmentOpportunityContact: {
-        contactId: { _in: variables.contactIds }
-      }
-    })
-  }
-
-  if (variables.stageIds?.length) {
-    filters.push({
-      opportunityPipelineStage: {
-        id: { _in: variables.stageIds }
-      }
-    })
-  }
-
-  if (variables.pipelineIds?.length) {
-    filters.push({
-      opportunityPipeline: {
-        id: { _in: variables.pipelineIds }
-      }
-    })
-  }
-
-  if (variables.statusIds?.length) {
-    filters.push({
-      opportunityStatus: {
-        id: { _in: variables.statusIds }
-      }
-    })
-  }
-
-  if (variables.currencyIds?.length) {
-    filters.push({
-      currency: {
-        id: { _in: variables.currencyIds }
-      }
-    })
-  }
-
-  if (variables.ownerEmployeeIds?.length) {
-    filters.push({
-      ownerEmployee: {
-        id: { _in: variables.ownerEmployeeIds }
-      }
-    })
-  }
-
-  if (variables.forecastedProfitBetween) {
-    const [min, max] = variables.forecastedProfitBetween
-    filters.push({
-      forecastedProfitAmount: {
-        _gte: min,
-        _lte: max
-      }
-    })
-  }
-
-  // Date filters
-  if (variables.createdAfter || variables.createdBefore) {
-    const createdAtFilter: DateRangeFilter = {}
-    if (variables.createdAfter) {
-      createdAtFilter._gte = variables.createdAfter
-    }
-    if (variables.createdBefore) {
-      createdAtFilter._lte = variables.createdBefore
-    }
-    filters.push({
-      createdAt: createdAtFilter
-    })
-  }
-
-  if (variables.closeDateFrom || variables.closeDateTo) {
-    const closeDateFilter: DateRangeFilter = {}
-    if (variables.closeDateFrom) {
-      closeDateFilter._gte = variables.closeDateFrom
-    }
-    if (variables.closeDateTo) {
-      closeDateFilter._lte = variables.closeDateTo
-    }
-    filters.push({
-      closeDate: closeDateFilter
-    })
-  }
-
-  return filters
-}
-
-export const buildInvestmentOpportunityWhereCondition = (
-  variables: InvestmentOpportunityQueryVariables = {}
+/**
+ * Build Investment Opportunity query with fields mapping
+ */
+export const buildInvestmentOpportunityQuery = (
+  fields: typeof InvestmentOpportunityFields = InvestmentOpportunityFields
 ): string => {
-  const baseFilters = buildBaseFilters(variables)
-
-  // Start with the base condition that always includes isDeleted: false
-  if (baseFilters.length === 0) {
-    return `where: ${serializeGraphQLFilter({ isDeleted: { _eq: false } })}`
-  }
-  const whereCondition: GraphQLWhereCondition = {
-    isDeleted: { _eq: false },
-    _and: baseFilters
-  }
-  return `where: ${serializeGraphQLFilter(whereCondition)}`
+  const entityFields = `
+    # Addresses relation (IRM uses "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${INVESTMENT_ADDRESS_FRAGMENT}
+    }
+    
+    # Leads relation (IRM uses "investmentLead" as array, with where clause)
+    ${fields.leads}(where: { isDeleted: { _eq: false } }) {
+      ${buildLeadFragment(InvestmentLeadFields)}
+    }
+    
+    # Divestment relation
+    divestment {
+      ${INVESTMENT_REF}
+    }
+    divestmentId
+    
+    # IRM-specific Investment fields
+    dealType
+    investmentGroup {
+      ${CATALOG_ENTRY}
+    }
+    investmentGroupRef
+    investmentName
+    investmentType {
+      ${CATALOG_ENTRY}
+    }
+    investmentTypeRef
+    investmentRole {
+      ${CATALOG_ENTRY}
+    }
+    investmentRoleRef
+    investmentStakeType {
+      ${CATALOG_ENTRY}
+    }
+    investmentStakeTypeRef
+    initialInvestmentAmount
+    forecastedProfitAmount
+    requiredCapitalAmount
+    marketValue
+    loanAmount
+    loanInterestRate
+    stakePercentage
+    annualNetColdRent
+    buildingYear
+    size
+    sizeMeasurementUnit {
+      ${CATALOG_ENTRY}
+    }
+    sizeMeasurementUnitRef
+  `
+  return buildOpportunityQuery('InvestmentOpportunity', fields, entityFields)
 }
 
-// Get Investment Opportunities with full details
-export const GET_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100)
-  const offset = variables.offset || 0
-  const where = buildInvestmentOpportunityWhereCondition(variables)
+/**
+ * Build Investment Opportunity by ID query
+ */
+export const buildInvestmentOpportunityByIdQuery = (
+  fields: typeof InvestmentOpportunityFields = InvestmentOpportunityFields
+): string => {
+  // Build relation builders and fields for common relations
+  const relationBuilders: OpportunityRelationBuilders = {
+    buildActivityFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildDocumentFragment,
+    buildLeadFragment,
+    buildNoteFragment,
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations // Use IRM-specific version (taskAssignees)
+  }
 
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy
-        .map(o => {
-          const f = o.field
-          if (
-            f === 'opportunityStatus' ||
-            f === 'opportunityPipeline' ||
-            f === 'opportunityPipelineStage' ||
-            f === 'currency'
-          ) {
-            return `{ ${f}: { code: ${o.direction} } }`
-          }
-          if (f === 'ownerEmployee') {
-            return `{ ownerEmployee: { displayName: ${o.direction} } }`
-          }
-          return `{ ${f}: ${o.direction} }`
-        })
-        .join(', ')}]`
-    : 'orderBy: [{ closeDate: ASC }]'
+  const relationFields: OpportunityRelationFields = {
+    activityFields: InvestmentActivityFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    documentFields: InvestmentDocumentFields,
+    leadFields: InvestmentLeadFields,
+    noteFields: InvestmentNoteFields,
+    taskFields: InvestmentTaskFields,
+    stageConditionFields: InvestmentOpportunityStageConditionFields
+  }
 
-  return `
-    query GetInvestmentOpportunities {
-      InvestmentOpportunity(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${where}
-      ) {
-        ${INVESTMENT_OPPORTUNITY}
-        
-        # Account relationship
-        account {
-          ${INVESTMENT_ACCOUNT_REF}
-        }
-        
-        # Related investments
-        investment {
-          ${INVESTMENT_REF}
-        }
-        
-        # Aggregate counts for relationships
-        investmentAggregate {
-          aggregate {
-            count
-          }
-        }
-        investmentActivityAggregate {
-          aggregate {
-            count
-          }
-        }
-        investmentDocumentAggregate {
-          aggregate {
-            count
-          }
-        }
-        investmentNoteAggregate {
-          aggregate {
-            count
-          }
-        }
-        investmentTaskAggregate {
-          aggregate {
-            count
-          }
-        }
+  // Domain-specific entity fields (addresses, leads, investment fields)
+  const entityFields = `
+    # Addresses relation (IRM uses "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${INVESTMENT_ADDRESS_FRAGMENT}
+    }
+    
+    # Leads relation (IRM uses "investmentLead" as array, with where clause)
+    ${fields.leads}(where: { isDeleted: { _eq: false } }) {
+      ${buildLeadFragment(InvestmentLeadFields)}
+    }
+    
+    # Opportunity-Account Junction Table (many-to-many)
+    # GraphQL field name: opportunityAccounts
+    ${fields.investmentOpportunityAccounts}(where: { isDeleted: { _eq: false } }) {
+      id
+      version
+      opportunityId
+      accountId
+      accountTypeRef
+      accountType {
+        ${CATALOG_ENTRY}
       }
-      
-      InvestmentOpportunityAggregate(${where}) {
-        aggregate {
-          count
-        }
+      account {
+        ${buildAccountFragment(InvestmentAccountFields)}
       }
     }
+    
+    # Divestment relation
+    divestment {
+      ${INVESTMENT_REF}
+    }
+    divestmentId
+    
+    # IRM-specific Investment fields
+    dealType
+    investmentGroup {
+      ${CATALOG_ENTRY}
+    }
+    investmentGroupRef
+    investmentName
+    investmentType {
+      ${CATALOG_ENTRY}
+    }
+    investmentTypeRef
+    investmentRole {
+      ${CATALOG_ENTRY}
+    }
+    investmentRoleRef
+    investmentStakeType {
+      ${CATALOG_ENTRY}
+    }
+    investmentStakeTypeRef
+    initialInvestmentAmount
+    forecastedProfitAmount
+    requiredCapitalAmount
+    marketValue
+    loanAmount
+    loanInterestRate
+    stakePercentage
+    annualNetColdRent
+    buildingYear
+    size
+    sizeMeasurementUnit {
+      ${CATALOG_ENTRY}
+    }
+    sizeMeasurementUnitRef
   `
+
+  return buildOpportunityByIdQuery('InvestmentOpportunity', fields, relationBuilders, relationFields, entityFields)
 }
+
+/**
+ * Build Investment Opportunity search query
+ */
+export const buildInvestmentOpportunitySearchQuery = (
+  fields: typeof InvestmentOpportunityFields = InvestmentOpportunityFields
+): string => {
+  return buildOpportunitySearchQuery('InvestmentOpportunity', fields)
+}
+
+/**
+ * Build WHERE condition for Investment Opportunity queries
+ * Includes IRM-specific descriptors from INVESTMENT_OPPORTUNITY_DESCRIPTORS
+ */
+export const buildInvestmentOpportunityWhereCondition = (
+  variables: InvestmentOpportunityQueryVariables = {},
+  additionalDescriptors: Descriptor[] = [],
+  customConditions: Record<string, any>[] = []
+): Record<string, any> => {
+  // INVESTMENT_OPPORTUNITY_DESCRIPTORS already includes common descriptors + IRM-specific ones
+  const descriptors = [...INVESTMENT_OPPORTUNITY_DESCRIPTORS, ...additionalDescriptors]
+  return buildOpportunityWhereCondition(variables, descriptors, customConditions)
+}
+
+/**
+ * Build ORDER BY for Investment Opportunity queries
+ * Includes IRM-specific descriptors
+ */
+export const buildInvestmentOpportunityOrderBy = (
+  orderBy: InvestmentOpportunityQueryVariables['orderBy'] = [],
+  additionalDescriptors: Descriptor[] = []
+): any[] => {
+  const descriptors = [...INVESTMENT_OPPORTUNITY_DESCRIPTORS, ...additionalDescriptors]
+  return buildOpportunityOrderBy(orderBy, descriptors)
+}
+
+// Investment Opportunity Queries - Complete queries using shared fragments
+// NOTE: Related-entity queries have been moved to centralized query builders
+// Use buildInvestmentTaskByOpportunityIdQuery, buildInvestmentActivityByOpportunityIdQuery, etc.
+// from investmentTaskQueries.ts, investmentActivityQueries.ts, etc.
+import { INVESTMENT_OPPORTUNITY } from './fragments/investmentFragments'
 
 // Get Investment Opportunity by ID
 export const GET_INVESTMENT_OPPORTUNITY_BY_ID = (id: string): string => {
@@ -327,77 +274,6 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = (id: string): string => {
     query GetInvestmentOpportunityById {
       InvestmentOpportunity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${INVESTMENT_OPPORTUNITY}
-        
-        # Account relationship
-        account {
-          ${INVESTMENT_ACCOUNT_REF}
-        }
-        
-        # Related investments (detailed view)
-        investment {
-          ${INVESTMENT}
-        }
-
-        # Include pipeline with stages for UI stage lists
-        opportunityPipeline {
-          ${CATALOG_ENTRY}
-          childEntries {
-            ${CATALOG_ENTRY}
-          }
-        }
-      }
-    }
-  `
-}
-
-// Search Investment Opportunities (lightweight for autocomplete)
-export const SEARCH_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQueryVariables): string => {
-  const { search = '', limit = 10 } = variables
-
-  return `
-    query SearchInvestmentOpportunities {
-      InvestmentOpportunity(
-        where: {
-          isDeleted: { _eq: false }
-          _and: [
-            {
-              _or: [
-                { name: { _ilike: "%${search}%" } },
-                { code: { _ilike: "%${search}%" } },
-                { description: { _ilike: "%${search}%" } }
-              ]
-            }
-          ]
-        }
-        limit: ${limit}
-        orderBy: [{ name: ASC }]
-      ) {
-        id
-        code
-        name
-        description
-        estimatedAmount
-        probability
-        closeDate
-        stage {
-          id
-          code
-          value
-        }
-        currency {
-          id
-          code
-          value
-        }
-        ownerEmployee {
-          id
-          displayName
-        }
-        account {
-          id
-          code
-          name
-        }
       }
     }
   `
@@ -406,130 +282,19 @@ export const SEARCH_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunity
 // =====================================================
 // INVESTMENT OPPORTUNITY RELATED ENTITIES QUERIES
 // =====================================================
-
-// Get Investment Tasks by Opportunity ID
-export const GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetInvestmentTasksByOpportunityId {
-      InvestmentTask(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_TASK}
-        
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Activities by Opportunity ID
-export const GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetInvestmentActivitiesByOpportunityId {
-      InvestmentActivity(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ occurredAt: DESC }]
-      ) {
-        ${INVESTMENT_ACTIVITY}
-        
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Notes by Opportunity ID
-export const GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetInvestmentNotesByOpportunityId {
-      InvestmentNote(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_NOTE}
-        
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Documents by Opportunity ID
-export const GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetInvestmentDocumentsByOpportunityId {
-      InvestmentDocument(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_DOCUMENT}
-        
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
-}
-
-// Build where condition specifically for won opportunities using object merging
-const buildWonOpportunityWhereCondition = (variables: InvestmentOpportunityQueryVariables = {}): string => {
-  const baseFilters = buildBaseFilters(variables)
-
-  // Create the won filter as a structured object
-  const wonFilter: GraphQLFilter = {
-    _or: [{ opportunityStatus: { alternativeCode: { _eq: 'WON' } } }, { opportunityStatus: { value: { _eq: 'WON' } } }]
-  }
-
-  // Start with base condition and add all filters using _and array
-  const whereCondition: GraphQLWhereCondition = {
-    isDeleted: { _eq: false },
-    _and: [wonFilter, ...baseFilters]
-  }
-
-  return `where: ${serializeGraphQLFilter(whereCondition)}`
-}
+// NOTE: Related-entity queries have been moved to centralized query builders
+// Use buildInvestmentTaskByOpportunityIdQuery, buildInvestmentActivityByOpportunityIdQuery, etc.
+// from investmentTaskQueries.ts, investmentActivityQueries.ts, etc.
 
 // Get Investment Opportunity Aggregates - for metrics calculation
-export const GET_INVESTMENT_OPPORTUNITY_AGGREGATES = (variables: InvestmentOpportunityQueryVariables = {}): string => {
-  const where = buildInvestmentOpportunityWhereCondition(variables)
-  const wonWhere = buildWonOpportunityWhereCondition(variables)
-
+export const GET_INVESTMENT_OPPORTUNITY_AGGREGATES = (): string => {
   return `
-    query GetInvestmentOpportunityAggregates {
+    query GetInvestmentOpportunityAggregates(
+      $where: InvestmentOpportunityBoolExp
+      $wonWhere: InvestmentOpportunityBoolExp
+    ) {
       # All opportunities aggregate
-      InvestmentOpportunityAggregate(${where}) {
+      InvestmentOpportunityAggregate(where: $where) {
         aggregate {
           count
           sum {
@@ -542,7 +307,7 @@ export const GET_INVESTMENT_OPPORTUNITY_AGGREGATES = (variables: InvestmentOppor
       }
       
       # Won opportunities aggregate
-      InvestmentOpportunityWonAggregate: InvestmentOpportunityAggregate(${wonWhere}) {
+      InvestmentOpportunityWonAggregate: InvestmentOpportunityAggregate(where: $wonWhere) {
         aggregate {
           count
           sum {
@@ -576,35 +341,32 @@ export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITION_BY_ID = (id: string): st
   `
 }
 
-// Get all Investment Opportunity Stage Conditions for an Opportunity
-export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITIONS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+// Get Equity Investment Round by Opportunity ID
+export const GET_EQUITY_INVESTMENT_ROUND_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
   return `
-    query GetInvestmentOpportunityStageConditionsByOpportunityId {
-      InvestmentOpportunityStageCondition(
-        where: {
-          opportunity: { id: { _eq: "${opportunityId}" } },
+    query GetEquityInvestmentRoundByOpportunityId {
+      EquityInvestmentRound(
+        where: { 
+          investmentOpportunityId: { _eq: "${opportunityId}" }
           isDeleted: { _eq: false }
         }
-        orderBy: [{ createdAt: DESC }]
+        limit: 1
       ) {
         id
-        completed
-        completedAt
-        deadlineAt
+        name
+        year
         version
-        configSnapshot
-        completedByEmployee {
-          id
-          displayName
-          firstName
-          lastName
+        equityInvestmentId
+        equityInvestment {
+          investmentId
+          investment {
+            id
+          }
         }
-        opportunityPipelineStageCondition {
-          id
-          value
-          code
-          parentEntryId
-        }
+        createdAt
+        createdBy
+        updatedAt
+        updatedBy
       }
     }
   `

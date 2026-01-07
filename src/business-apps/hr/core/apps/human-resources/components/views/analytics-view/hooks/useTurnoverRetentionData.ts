@@ -22,6 +22,7 @@ export interface TurnoverRetentionData {
 
 export interface TurnoverRetentionStatistics {
   currentTurnoverRate: number
+  turnoverChange: number
   averageTenure: string
   atRiskDepartments: number
   retentionTarget: number
@@ -46,6 +47,7 @@ export const useTurnoverRetentionData = (context: BusinessAppContextProps): UseT
 
   const [statistics, setStatistics] = useState<TurnoverRetentionStatistics>({
     currentTurnoverRate: 0,
+    turnoverChange: 0,
     averageTenure: '-',
     atRiskDepartments: 0,
     retentionTarget: 85
@@ -55,19 +57,29 @@ export const useTurnoverRetentionData = (context: BusinessAppContextProps): UseT
   const [error, setError] = useState<string | null>(null)
 
   // Use existing GraphQL hooks from Dashboard
-  const { rate: currentTurnoverRate, loading: turnoverLoading } = useTurnoverRate(context.accessToken, 100) // Pass a placeholder employee count
+  const {
+    rate: currentTurnoverRate,
+    change: turnoverChange,
+    loading: turnoverLoading
+  } = useTurnoverRate(context.accessToken)
 
   const { formattedTenure, loading: tenureLoading } = useAverageTenure(context.accessToken)
 
   const queryClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
 
   const calculateStatistics = useCallback(
-    (loadedData: TurnoverRetentionData, turnoverRate: number, tenure: string): TurnoverRetentionStatistics => {
+    (
+      loadedData: TurnoverRetentionData,
+      turnoverRate: number,
+      tenure: string,
+      change: number
+    ): TurnoverRetentionStatistics => {
       // Count departments with retention below target (85%) using real data
       const atRiskDepartments = loadedData.retentionByDepartment.filter(dept => dept.value < 85).length
 
       return {
         currentTurnoverRate: turnoverRate,
+        turnoverChange: change,
         averageTenure: tenure,
         atRiskDepartments,
         retentionTarget: 85 // Company target retention rate
@@ -146,7 +158,7 @@ export const useTurnoverRetentionData = (context: BusinessAppContextProps): UseT
       }
 
       setData(loadedData)
-      setStatistics(calculateStatistics(loadedData, currentTurnoverRate, formattedTenure))
+      setStatistics(calculateStatistics(loadedData, currentTurnoverRate, formattedTenure, turnoverChange ?? 0))
     } catch (err) {
       console.error('[useTurnoverRetentionData] Error loading real data:', err)
       setError(err instanceof Error ? err.message : 'Failed to load turnover & retention data')

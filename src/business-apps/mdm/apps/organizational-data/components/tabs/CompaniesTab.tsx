@@ -34,6 +34,7 @@ import CompanyForm from '@/business-apps/mdm/forms/company-form/CompanyForm'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface CompaniesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -144,24 +145,41 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
     setExpandedKeys(new Set(expandedIds))
   }, [])
 
-  const formatCampanyNodes = useCallback((companies: Company[]): TreeNode[] => {
-    return companies.map(company => ({
-      id: company.id,
-      values: {
-        holding: company.percentage ?? '-',
-        code: company.code,
-        name: company.name,
-        employees: company.numberOfAssignedEmployees,
-        jobPositions: company.numberOfAssignedJobPositions,
-        openJobPositions: company.numberOfOpenJobPositions,
-        totalJobPositions: company.numberOfTotalJobPositions,
-        childUnits: company.numberOfChildUnits,
-        description: company.description ?? '-'
-      },
-      icon: FolderIcon,
-      children: company.children.length > 0 ? formatCampanyNodes(company.children) : []
-    }))
+  const handleCompanyNameClick = useCallback((companyId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const url = buildPlatformUrl('/platform/mdm/company-record', { companyId })
+    navigateTo(url)
   }, [])
+
+  const formatCampanyNodes = useCallback(
+    (companies: Company[]): TreeNode[] => {
+      return companies.map(company => ({
+        id: company.id,
+        values: {
+          holding: company.percentage ?? '-',
+          code: company.code,
+          name: (
+            <button
+              onClick={e => handleCompanyNameClick(company.id, e)}
+              className="gba:text-left gba:font-medium gba:text-primary hover:gba:text-primary/80 gba:underline gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0"
+              data-testid={`${prefixDataTestId || ''}-company-name-link-${company.id}`}
+            >
+              {company.name}
+            </button>
+          ),
+          employees: company.numberOfAssignedEmployees,
+          jobPositions: company.numberOfAssignedJobPositions,
+          openJobPositions: company.numberOfOpenJobPositions,
+          totalJobPositions: company.numberOfTotalJobPositions,
+          childUnits: company.numberOfChildUnits,
+          description: company.description ?? '-'
+        },
+        icon: FolderIcon,
+        children: company.children.length > 0 ? formatCampanyNodes(company.children) : []
+      }))
+    },
+    [handleCompanyNameClick, prefixDataTestId]
+  )
 
   const nodes = useMemo(() => formatCampanyNodes(rootCompanies), [rootCompanies, formatCampanyNodes])
 
@@ -516,3 +534,4 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
 }
 
 export default CompaniesTab
+export { CompaniesTab }

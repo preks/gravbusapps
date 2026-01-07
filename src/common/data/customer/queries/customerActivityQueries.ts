@@ -1,217 +1,210 @@
-// Customer Activity Queries - generic activity list queries for customer relations
+/**
+ * Customer Activity Queries (New)
+ * GraphQL queries for Customer Activity entities using fields mapping
+ * Extends Common Activity Queries with CRM-specific fields
+ */
+
 import {
-  CUSTOMER_SALES_ACTIVITY,
-  CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_OPPORTUNITY_REF,
-  CUSTOMER_LEAD_REF
-} from './fragments/customerRelationFragments'
-import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers'
+  buildActivityQuery,
+  buildActivityByIdQuery,
+  buildActivitySearchQuery,
+  buildActivityWhereCondition,
+  buildActivityOrderBy,
+  buildActivityByLeadIdQuery,
+  buildActivityByAccountIdQuery,
+  buildActivityByContactIdQuery,
+  buildActivityByOpportunityIdQuery,
+  type CommonActivityQueryVariables,
+  type ActivityRelationBuilders,
+  type ActivityRelationFields
+} from '@/common/data/relations/queries/activityQueries'
+import { CustomerActivityFields, CUSTOMER_ACTIVITY_DESCRIPTORS } from '../types/customerActivityTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
-// Unified descriptors for Sales Activity (search, sort, filters, and option metadata)
-export const CUSTOMER_ACTIVITY_DESCRIPTORS: Descriptor[] = [
-  // Search/sort
-  { key: 'title', searchPaths: ['title', 'description'], sortPath: 'title', type: 'text' },
-  {
-    key: 'activityType',
-    searchPaths: ['activityType.value', 'activityType.code'],
-    sortPath: 'activityType.code',
-    type: 'text'
-  },
-  {
-    key: 'ownerEmployee',
-    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
-    sortPath: 'ownerEmployee.displayName',
-    type: 'text'
-  },
-  { key: 'occurredAt', searchPaths: ['occurredAt'], type: 'date' },
-  { key: 'completedAt', searchPaths: ['completedAt'], type: 'date' },
-  { key: 'createdAt', searchPaths: ['createdAt'], type: 'date' },
+// Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
+import {
+  buildDocumentFragment,
+  buildAccountFragment,
+  buildContactFragment,
+  buildLeadFragment,
+  buildOpportunityFragment
+} from '@/common/data/relations/queries/relationFragments'
 
-  // Filters (IDs, strings, booleans, dates, custom)
-  { key: 'activityTypeIds', path: 'activityType.id', kind: 'inIds' },
-  { key: 'ownerEmployeeIds', path: 'ownerEmployee.id', kind: 'inIds' },
+// Import Customer Fields
+import { CustomerDocumentFields } from '../types/customerDocumentTypes'
+import { CustomerAccountFields } from '../types/customerAccountTypes'
+import { CustomerContactFields } from '../types/customerContactTypes'
+import { CustomerLeadFields } from '../types/customerLeadTypes'
+import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 
-  // Relation filters
-  { key: 'accountIds', path: 'account.id', kind: 'inIds' },
-  { key: 'contactIds', path: 'contact.id', kind: 'inIds' },
-  { key: 'leadIds', path: 'lead.id', kind: 'inIds' },
-  { key: 'opportunityIds', path: 'opportunity.id', kind: 'inIds' },
+/**
+ * Customer Activity Query Variables Interface
+ * Extends CommonActivityQueryVariables (no CRM-specific filters)
+ */
+export type CustomerActivityQueryVariables = CommonActivityQueryVariables
 
-  // Date range filters
-  { key: 'occurredAtFrom', path: 'occurredAt', kind: 'dateFrom' },
-  { key: 'occurredAtTo', path: 'occurredAt', kind: 'dateTo' },
-  { key: 'completedAtFrom', path: 'completedAt', kind: 'dateFrom' },
-  { key: 'completedAtTo', path: 'completedAt', kind: 'dateTo' }
-]
-
-export interface CustomerActivityQueryVariables {
-  search?: string
-  activityTypeIds?: string[]
-  ownerEmployeeIds?: string[]
-
-  accountIds?: string[]
-  contactIds?: string[]
-  leadIds?: string[]
-  opportunityIds?: string[]
-
-  occurredAtFrom?: string
-  occurredAtTo?: string
-  completedAtFrom?: string
-  completedAtTo?: string
-
-  limit?: number
-  offset?: number
-  orderBy?: Array<{
-    field: string
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
-  }>
+/**
+ * Build Customer Activity query with fields mapping
+ * CRM uses "SalesActivity" as entity name (not "CustomerActivity")
+ */
+export const buildCustomerActivityQuery = (fields: typeof CustomerActivityFields = CustomerActivityFields): string => {
+  return buildActivityQuery('SalesActivity', fields)
 }
 
-// Build where condition for Customer Activity queries
-export const buildCustomerActivityWhereCondition = (variables: CustomerActivityQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }'
+/**
+ * Build Customer Activity by ID query
+ */
+export const buildCustomerActivityByIdQuery = (
+  fields: typeof CustomerActivityFields = CustomerActivityFields,
+  id: string
+): string => {
+  // Build relation builders and fields for common relations
+  const relationBuilders: ActivityRelationBuilders = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
 
-  // Generic search across dot-paths from descriptors
-  const searchOr = buildSearch(variables.search || '', CUSTOMER_ACTIVITY_DESCRIPTORS)
-  if (searchOr) whereClause += `, ${searchOr}`
+  const relationFields: ActivityRelationFields = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
 
-  // Generic AND filters from descriptors
-  const andFilters = buildFilter(variables as any, CUSTOMER_ACTIVITY_DESCRIPTORS)
-  if (andFilters) whereClause += `, ${andFilters}`
-
-  whereClause += ' }'
-  return whereClause
+  return buildActivityByIdQuery('SalesActivity', id, fields, relationBuilders, relationFields)
 }
 
-// Get Customer Activities with full details and aggregate count
-export const GET_CUSTOMER_ACTIVITIES = (variables: CustomerActivityQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100)
-  const offset = variables.offset || 0
-  const where = buildCustomerActivityWhereCondition(variables)
-
-  const orderByBuilt = buildOrderBy(variables.orderBy || [], CUSTOMER_ACTIVITY_DESCRIPTORS)
-  const orderByClause = orderByBuilt || 'orderBy: [{ createdAt: DESC }]'
-
-  return `
-    query GetCustomerActivities {
-      SalesActivity(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${where}
-      ) {
-        ${CUSTOMER_SALES_ACTIVITY}
-
-        # Entity references (minimal for display)
-        account { ${CUSTOMER_ACCOUNT_REF} }
-        contact { id code firstName lastName email }
-        lead { ${CUSTOMER_LEAD_REF} }
-        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
-      }
-
-      SalesActivityAggregate(${where}) {
-        aggregate { count }
-      }
-    }
-  `
+/**
+ * Build Customer Activity search query
+ */
+export const buildCustomerActivitySearchQuery = (
+  fields: typeof CustomerActivityFields = CustomerActivityFields
+): string => {
+  return buildActivitySearchQuery('SalesActivity', fields)
 }
 
-// Get Customer Activities by Account ID
-export const GET_CUSTOMER_ACTIVITIES_BY_ACCOUNT_ID = (accountId: string): string => {
-  return `
-    query GetCustomerActivitiesByAccountId {
-      SalesActivity(
-        where: { 
-          account: { id: { _eq: "${accountId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_SALES_ACTIVITY}
-
-        # Entity references
-        account {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
+/**
+ * Build WHERE condition for Customer Activity queries
+ * Uses CUSTOMER_ACTIVITY_DESCRIPTORS which includes common descriptors
+ */
+export const buildCustomerActivityWhereCondition = (
+  variables: CustomerActivityQueryVariables = {},
+  additionalDescriptors: Descriptor[] = [],
+  customConditions: Record<string, any>[] = []
+): Record<string, any> => {
+  // CUSTOMER_ACTIVITY_DESCRIPTORS already includes common descriptors
+  const descriptors = [...CUSTOMER_ACTIVITY_DESCRIPTORS, ...additionalDescriptors]
+  return buildActivityWhereCondition(variables, descriptors, customConditions)
 }
 
-// Get Customer Activities by Contact ID
-export const GET_CUSTOMER_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetCustomerActivitiesByContactId {
-      SalesActivity(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_SALES_ACTIVITY}
-
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-          email
-        }
-      }
-    }
-  `
+/**
+ * Build ORDER BY for Customer Activity queries
+ */
+export const buildCustomerActivityOrderBy = (
+  orderBy: CustomerActivityQueryVariables['orderBy'] = [],
+  additionalDescriptors: Descriptor[] = []
+): any[] => {
+  const descriptors = [...CUSTOMER_ACTIVITY_DESCRIPTORS, ...additionalDescriptors]
+  return buildActivityOrderBy(orderBy, descriptors)
 }
 
-// Get Customer Activities by Lead ID
-export const GET_CUSTOMER_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => {
-  return `
-    query GetCustomerActivitiesByLeadId {
-      SalesActivity(
-        where: { 
-          lead: { id: { _eq: "${leadId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_SALES_ACTIVITY}
+// =====================================================
+// CUSTOMER ACTIVITY BY ENTITY ID QUERY BUILDERS
+// =====================================================
 
-        # Entity references
-        lead {
-          id
-          code
-          firstName
-          lastName
-          email
-        }
-      }
-    }
-  `
+/**
+ * Build Customer Activity query filtered by Lead ID
+ * Uses common buildActivityByLeadIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerActivityByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityByLeadIdQuery('SalesActivity', CustomerActivityFields, relationBuilders, relationFields)
 }
 
-// Get Customer Activities by Opportunity ID
-export const GET_CUSTOMER_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetCustomerActivitiesByOpportunityId {
-      SalesActivity(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_SALES_ACTIVITY}
+/**
+ * Build Customer Activity query filtered by Account ID
+ */
+export const buildCustomerActivityByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
 
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityByAccountIdQuery('SalesActivity', CustomerActivityFields, relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Activity query filtered by Contact ID
+ */
+export const buildCustomerActivityByContactIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityByContactIdQuery('SalesActivity', CustomerActivityFields, relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Activity query filtered by Opportunity ID
+ */
+export const buildCustomerActivityByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityByOpportunityIdQuery('SalesActivity', CustomerActivityFields, relationBuilders, relationFields)
 }

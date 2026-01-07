@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Form } from 'antd'
 import { ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
 
@@ -71,7 +70,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const { t } = useTranslation()
+  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
   const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
 
   const [form] = Form.useForm()
@@ -94,18 +93,19 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null)
   const [rerunRule, setRerunRule] = useState<boolean>(false)
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [userCostCenter, setUserCostCenter] = useState<string>('')
 
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null)
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null)
 
-  const [userCostCenter, setUserCostCenter] = useState<string>('')
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null)
 
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
 
   useEffect(() => {
     fetchInitialData()
-  }, [accessToken, userInfo, employeeRuleId, firstRunVariable, rerunRule])
+  }, [accessToken, userInfo, employeeRuleId, rerunRule])
 
   useEffect(() => {
     if (!accessToken || !generalDataResponse || !catalogueDataResponse || expenseRuleError) {
@@ -126,7 +126,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       const matchingItems = expenseGroups.filter((item: any) => uniqueExpenseGroupRefs.includes(item.id))
 
       setExpenseGroups(matchingItems)
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
         'error'
@@ -185,138 +185,165 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
           currency: defaultCurrency.id
         })
       }
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+    }
+  }
+
+  /**
+   * Fetches and sets employee rule data
+   */
+  const fetchEmployeeRuleData = async (employeeId: string, currentDate: string): Promise<string | null> => {
+    try {
+      const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken)
+
+      if (employeeRuleData?.expenseRuleId) {
+        setEmployeeRuleId(employeeRuleData.expenseRuleId)
+        setExpenseRuleError(null)
+        return employeeRuleData.expenseRuleId
+      }
+
+      const errorMessage = t(
+        'lowcoder:create_expense_item.missing_expense_rule_message',
+        'There is no rule set for your user, please reach out to your administrator.'
+      )
+      setExpenseRuleError(errorMessage)
+      return null
+    } catch {
+      const errorMessage = t(
+        'lowcoder:create_expense_item.missing_expense_rule_message',
+        'There is no rule set for your user, please reach out to your administrator.'
+      )
+      setExpenseRuleError(errorMessage)
+      showToast(errorMessage, 'error')
+      return null
+    }
+  }
+
+  /**
+   * Fetches general data for expense rule
+   */
+  const fetchGeneralData = async (): Promise<void> => {
+    try {
+      const generalData = await graphqlClient.query({
+        query: fetchExpenseRuleGeneralData,
+        variables: {
+          expenseRuleId: employeeRuleId,
+          activeUserLocale: getCurrentActiveUserLocale(),
+          objectFilter: { useInExpense: true }
+        }
+      })
+      setGeneralDataResponse(generalData)
+    } catch {
+      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+    }
+  }
+
+  /**
+   * Fetches catalogue data for employee
+   */
+  const fetchCatalogueData = async (employeeId: string): Promise<any> => {
+    try {
+      const catalogueData = await graphqlClient.query({
+        query: fetchExpenseCatalogueData,
+        variables: {
+          employeeId: employeeId,
+          expenseRuleId: employeeRuleId,
+          activeUserLocale: getCurrentActiveUserLocale(),
+          objectFilter: { useInExpense: true }
+        }
+      })
+      setCatalogueDataResponse(catalogueData)
+      return catalogueData
+    } catch {
+      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      return null
+    }
+  }
+
+  /**
+   * Sets default cost center from employee position or first available
+   */
+  const setDefaultCostCenter = (userCostCenters: any[], employeePosition: any[]): void => {
+    if (userCostCenters.length === 0) return
+
+    const employeePositionCostCenterId = employeePosition[0]?.costCenterId
+    const firstCostCenterId = userCostCenters[0]?.id
+    const defaultCostCenter = employeePositionCostCenterId || firstCostCenterId
+
+    if (defaultCostCenter) {
+      form.setFieldsValue({ costCenter: defaultCostCenter })
+      setUserCostCenter(defaultCostCenter)
+    }
+  }
+
+  /**
+   * Fetches and sets cost centers for structure
+   */
+  const fetchAndSetCostCenters = async (structureId: string, employeePosition: any[]): Promise<void> => {
+    try {
+      const costCenterData = await graphqlClient.query({
+        query: getStructureCostCenter,
+        variables: { structureId: structureId }
+      })
+
+      const userCostCenters = costCenterData?.data?.userCostCenters || []
+      setCostCenters(userCostCenters)
+      setDefaultCostCenter(userCostCenters, employeePosition)
+    } catch {
+      setCostCenters([])
+    }
+  }
+
+  /**
+   * Processes and sets currencies from catalogue data
+   */
+  const processCurrencies = (catalogueData: any): void => {
+    try {
+      const currencyData = catalogueData?.data?.currency
+      if (currencyData && Array.isArray(currencyData)) {
+        const finalCurrencies = transformCurrencies(currencyData)
+        setCurrencies(finalCurrencies)
+      } else {
+        setCurrencies([])
+      }
+    } catch {
+      setCurrencies([])
     }
   }
 
   const fetchInitialData = async () => {
     try {
-      if (!accessToken) {
-        return
-      }
-
-      if (!userInfo) {
-        return
-      }
+      // Early validation
+      if (!accessToken || !userInfo) return
 
       const currentDate = currentSelectedDate ? currentSelectedDate.toISOString() : new Date().toISOString()
       const employeeIdValue = userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID
 
-      if (!employeeIdValue) {
-        return
-      }
-      try {
-        const employeeRuleData = await fetchEmployeeRule(employeeIdValue, currentDate, accessToken)
+      if (!employeeIdValue) return
 
-        if (employeeRuleData && employeeRuleData.expenseRuleId) {
-          setEmployeeRuleId(employeeRuleData.expenseRuleId)
-          setExpenseRuleError(null)
-        } else {
-          setExpenseRuleError(
-            t(
-              'lowcoder:create_expense_item.missing_expense_rule_message',
-              'There is no rule set for your user, please reach out to your administrator.'
-            )
-          )
-        }
-      } catch (ruleError) {
-        setExpenseRuleError(
-          t(
-            'lowcoder:create_expense_item.missing_expense_rule_message',
-            'There is no rule set for your user, please reach out to your administrator.'
-          )
-        )
-        showToast(
-          t(
-            'lowcoder:create_expense_item.missing_expense_rule_message',
-            'There is no rule set for your user, please reach out to your administrator.'
-          ),
-          'error'
-        )
-      }
+      // Fetch employee rule
+      await fetchEmployeeRuleData(employeeIdValue, currentDate)
 
-      try {
-        const generalData = await graphqlClient.query({
-          query: fetchExpenseRuleGeneralData,
-          variables: {
-            expenseRuleId: employeeRuleId,
-            activeUserLocale: getCurrentActiveUserLocale(),
-            objectFilter: { useInExpense: true }
-          }
-        })
-        setGeneralDataResponse(generalData)
-      } catch (generalDataError) {
-        showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
-      }
+      // Fetch general data
+      await fetchGeneralData()
 
+      // Fetch catalogue data and initialize if needed
       if (rerunRule === false) {
-        let catalogueData
-        try {
-          catalogueData = await graphqlClient.query({
-            query: fetchExpenseCatalogueData,
-            variables: {
-              employeeId: employeeIdValue,
-              expenseRuleId: employeeRuleId,
-              activeUserLocale: getCurrentActiveUserLocale(),
-              objectFilter: { useInExpense: true }
-            }
-          })
-          setCatalogueDataResponse(catalogueData)
-        } catch (catalogueError) {
-          showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
-        }
+        const catalogueData = await fetchCatalogueData(employeeIdValue)
 
         if (firstRunVariable === false && catalogueData?.data) {
           const employeePosition = catalogueData?.data?.EmployeePosition || []
           const structureId = employeePosition[0]?.structureId || ''
 
-          let costCenterData
-          try {
-            costCenterData = await graphqlClient.query({
-              query: getStructureCostCenter,
-              variables: {
-                structureId: structureId
-              }
-            })
-
-            const userCostCenters = costCenterData?.data?.userCostCenters || []
-            setCostCenters(userCostCenters)
-
-            // Set default cost center if available
-            if (userCostCenters.length > 0) {
-              const employeePositionCostCenterId = employeePosition[0]?.costCenterId
-              const firstCostCenterId = userCostCenters[0]?.id
-
-              const defaultCostCenter = employeePositionCostCenterId || firstCostCenterId
-
-              if (defaultCostCenter) {
-                form.setFieldsValue({
-                  costCenter: defaultCostCenter
-                })
-                setUserCostCenter(defaultCostCenter)
-              }
-            }
-          } catch (costCenterError) {
-            setCostCenters([])
-          }
-
-          try {
-            const currencyData = catalogueData?.data?.currency
-            if (currencyData && Array.isArray(currencyData)) {
-              const finalCurrencies = transformCurrencies(currencyData)
-              setCurrencies(finalCurrencies)
-            } else {
-              setCurrencies([])
-            }
-          } catch (currencyError) {
-            setCurrencies([])
-          }
+          await fetchAndSetCostCenters(structureId, employeePosition)
+          processCurrencies(catalogueData)
           setFirstRunVariable(true)
         }
       }
+
       setRerunRule(false)
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
     }
   }
@@ -398,7 +425,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
                         }
                       })
                     }
-                  } catch (error) {
+                  } catch {
                     showToast(
                       getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_type_item.process_error_data_fetch',
@@ -411,7 +438,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
               }, 300) // Wait for custom fields to be loaded
             }
           }, 500) // Wait 500ms for expense types to load
-        } catch (error) {
+        } catch {
           showToast(
             t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
             'error'
@@ -419,7 +446,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
         }
       }
       form.validateFields()
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.error_loading_item', 'Error loading expense plan item'), 'error')
     }
   }
@@ -463,32 +490,56 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     setItemValues({ id, version })
   }
 
-  const contextValue: ExpensePlanItemContextProps = {
-    form,
-    loading,
-    setLoading,
-    isFormDisabled,
-    setIsFormDisabled,
-    isEditMode,
-    setCurrentSelectedDate,
-    expenseGroups,
-    expenseTypes,
-    customFields,
-    costCenters,
-    currencies,
-    employeeRuleId,
-    expenseRuleError,
-    itemValues,
-    additionalData,
-    handleSubmit: handleSubmitWrapper,
-    handleCancel: handleCancelWrapper,
-    handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
-    handleExpenseTypeChange: handleExpenseTypeChangeWrapper,
-    handleCurrencyChange: handleCurrencyChangeWrapper,
-    fetchExpenseTypes: fetchExpenseTypesWrapper,
-    fetchCustomFields: fetchCustomFieldsWrapper,
-    setInitialItemValues: setInitialItemValues
-  }
+  const contextValue: ExpensePlanItemContextProps = useMemo(
+    () => ({
+      form,
+      loading,
+      setLoading,
+      isFormDisabled,
+      setIsFormDisabled,
+      isEditMode,
+      setCurrentSelectedDate,
+      expenseGroups,
+      expenseTypes,
+      customFields,
+      costCenters,
+      currencies,
+      employeeRuleId,
+      expenseRuleError,
+      itemValues,
+      additionalData,
+      handleSubmit: handleSubmitWrapper,
+      handleCancel: handleCancelWrapper,
+      handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
+      handleExpenseTypeChange: handleExpenseTypeChangeWrapper,
+      handleCurrencyChange: handleCurrencyChangeWrapper,
+      fetchExpenseTypes: fetchExpenseTypesWrapper,
+      fetchCustomFields: fetchCustomFieldsWrapper,
+      setInitialItemValues: setInitialItemValues
+    }),
+    [
+      form,
+      loading,
+      isFormDisabled,
+      isEditMode,
+      expenseGroups,
+      expenseTypes,
+      customFields,
+      costCenters,
+      currencies,
+      employeeRuleId,
+      expenseRuleError,
+      itemValues,
+      additionalData,
+      handleSubmitWrapper,
+      handleCancelWrapper,
+      handleExpenseGroupChangeWrapper,
+      handleExpenseTypeChangeWrapper,
+      handleCurrencyChangeWrapper,
+      fetchExpenseTypesWrapper,
+      fetchCustomFieldsWrapper
+    ]
+  )
 
   return <ExpensePlanItemContext.Provider value={contextValue}>{children}</ExpensePlanItemContext.Provider>
 }

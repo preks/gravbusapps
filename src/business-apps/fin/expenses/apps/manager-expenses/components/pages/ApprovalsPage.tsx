@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge, PageLayout } from '@newwork/nw-design-system'
-import { Toaster } from 'sonner'
+import React, { useState, useEffect } from 'react'
+import { PageLayout, Toaster } from '@newwork/nw-design-system'
 import { PiArrowLeft } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ApprovalRequest, ApprovalTabKey } from '../../types'
@@ -81,7 +80,6 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       [activeTab]: { ...prev[activeTab], ...updates }
     }))
   }
-
   return (
     <div data-testid="approvals-page-container">
       <div className="gba:px-6 gba:pt-6 gba:pb-0">

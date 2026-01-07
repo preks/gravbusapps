@@ -41,7 +41,7 @@ export const transformCurrencies = (currencyData: ApiCurrency[]): Currency[] => 
       code: c.code,
       name: c.value
     }))
-  } catch (error) {
+  } catch {
     const sortedCurrencies = [...currencyData].sort((a: ApiCurrency, b: ApiCurrency) => {
       if (a.code < b.code) return -1
       if (a.code > b.code) return 1

@@ -12,6 +12,9 @@ export interface OverviewTabLayoutProps {
 
   // Data props for widgets
   aggregatedFunnel: AggregatedFunnelStage[]
+  availableCurrencies?: string[]
+  selectedCurrency?: string
+  onCurrencyChange?: (currency: string) => void
   revenueBySource: LeadSourceItem[]
   totalRevenue: number
   totalLeadCount: number
@@ -26,8 +29,10 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   moduleColor = 'default',
   source = 'investments',
   aggregatedFunnel,
+  availableCurrencies,
+  selectedCurrency,
+  onCurrencyChange,
   revenueBySource,
-  totalRevenue,
   totalLeadCount,
   recentRecords,
   activeTasks,
@@ -40,7 +45,13 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
       {/* Main Dashboard Grid */}
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-12 gba:xl:grid-cols-3 gba:gap-6">
         <div className="gba:lg:col-span-4 gba:xl:col-span-1">
-          <PipelineFunnel aggregatedFunnel={aggregatedFunnel} moduleColor={moduleColor} />
+          <PipelineFunnel
+            aggregatedFunnel={aggregatedFunnel}
+            moduleColor={moduleColor}
+            availableCurrencies={availableCurrencies}
+            selectedCurrency={selectedCurrency}
+            onCurrencyChange={onCurrencyChange}
+          />
         </div>
         <div className="gba:lg:col-span-4 gba:xl:col-span-1">
           <LeadSourceChart items={revenueBySource} totalLeads={totalLeadCount} moduleColor={moduleColor} />

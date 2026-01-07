@@ -1,7 +1,16 @@
 import React, { useState, useEffect, SetStateAction, Dispatch, useRef, useCallback, useMemo } from 'react'
-import { Dialog, DialogContent, DialogTrigger, Button, Form, DialogTitle, Alert } from '@newwork/nw-design-system'
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  Button,
+  Form,
+  DialogTitle,
+  Alert,
+  toast
+} from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form'
-import { toast } from 'sonner'
+import type { ZodType } from 'zod'
 import { cn } from '@/common/utils/cn'
 
 export interface FormMessage {
@@ -30,9 +39,12 @@ interface FormWrapperModalProps {
   // Form handling
   form?: UseFormReturn<FieldValues>
   resolver?: Resolver<FieldValues>
+  schema?: ZodType<any>
   validateForm?: (_formData: FieldValues) => string[] | null
   isSubmitDisabled?: boolean
   preventDuplicateSubmission?: boolean
+  updateValues?: FieldValues
+  resetFields?: string[]
 
   // Error handling
   showErrorMessage?: boolean
@@ -51,6 +63,10 @@ interface FormWrapperModalProps {
   // Test IDs
   submitButtonTestId?: string
   cancelButtonTestId?: string
+
+  // Validation behavior
+  /** When false, submit button ignores form validity and validation happens only on submit. Default: true */
+  validateBeforeSubmit?: boolean
 }
 
 const FormWrapperModal = ({
@@ -74,9 +90,12 @@ const FormWrapperModal = ({
   // Form handling
   form: externalForm,
   resolver,
+  schema,
   validateForm,
   isSubmitDisabled = false,
   preventDuplicateSubmission = true,
+  updateValues,
+  resetFields,
 
   // Error handling
   showErrorMessage = false,
@@ -94,7 +113,10 @@ const FormWrapperModal = ({
 
   // Test IDs
   submitButtonTestId,
-  cancelButtonTestId
+  cancelButtonTestId,
+
+  // Validation behavior
+  validateBeforeSubmit = true
 }: FormWrapperModalProps) => {
   const [isOpen, setIsOpen] = useState(open)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -120,6 +142,27 @@ const FormWrapperModal = ({
       setMessage({ type: 'error', message: errorMessage })
     }
   }, [errorMessage])
+
+  // Update form values when updateValues prop changes
+  useEffect(() => {
+    if (updateValues && Object.keys(updateValues).length > 0) {
+      // Generic approach: iterate through all fields in updateValues
+      for (const [fieldName, value] of Object.entries(updateValues)) {
+        form.setValue(fieldName, value, { shouldDirty: true, shouldValidate: true })
+      }
+    }
+  }, [updateValues, form])
+
+  // Reset specific fields when resetFields prop changes
+  useEffect(() => {
+    if (resetFields && resetFields.length > 0) {
+      for (const fieldName of resetFields) {
+        form.setValue(fieldName, '', { shouldDirty: true, shouldValidate: false })
+      }
+      // Clear errors for reset fields
+      form.clearErrors(resetFields)
+    }
+  }, [resetFields, form])
 
   const handleSubmit = useCallback(
     async (values?: FieldValues) => {
@@ -221,7 +264,7 @@ const FormWrapperModal = ({
             </Alert>
           )}
 
-          <Form {...(form as UseFormReturn<FieldValues>)}>
+          <Form {...(form as UseFormReturn<FieldValues>)} schema={schema}>
             <form
               onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
               className={cn('gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full', formClassName)}
@@ -246,7 +289,9 @@ const FormWrapperModal = ({
                 )}
                 <Button
                   type="submit"
-                  disabled={loading || isSubmitting || isSubmitDisabled || !isValid || !isFormValid}
+                  disabled={
+                    loading || isSubmitting || isSubmitDisabled || !isValid || (validateBeforeSubmit && !isFormValid)
+                  }
                   variant={submitButtonVariant}
                   data-testid={submitButtonTestId || `${dataTestId}-submit-button`}
                 >

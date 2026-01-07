@@ -30,7 +30,7 @@ import {
   RiPlayLine as Play
 } from '@remixicon/react'
 
-interface FlowHubProps extends BusinessAppContextProps {}
+type FlowHubProps = BusinessAppContextProps
 
 const FlowHub: React.FC<FlowHubProps> = context => {
   const { stats, isLoading, error, refetch } = useFlowDashboardStats(context)

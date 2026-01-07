@@ -94,7 +94,7 @@ export const useStageTransitionData = (businessAppContext: BusinessAppContextPro
             name: string
             opportunityPipelineStage?: { id: string; value: string; code: string }
             opportunityPipeline?: { childEntries?: Array<{ id: string; value: string; code: string }> }
-            opportunityStageConditions?: Array<{
+            investmentOpportunityStageCondition?: Array<{
               id: string
               completed: boolean
               opportunityPipelineStageCondition?: {
@@ -120,7 +120,7 @@ export const useStageTransitionData = (businessAppContext: BusinessAppContextPro
         // 2) Pipeline stages are available in opp.opportunityPipeline?.childEntries if needed
 
         // 3) Process embedded stage conditions (same logic as CRM)
-        const conditions = opp.opportunityStageConditions || []
+        const conditions = opp.investmentOpportunityStageCondition || []
         const currentStageRef = opp.opportunityPipelineStage?.id
         const currentStageConds = conditions.filter(
           c => c?.opportunityPipelineStageCondition?.parentEntryId === currentStageRef

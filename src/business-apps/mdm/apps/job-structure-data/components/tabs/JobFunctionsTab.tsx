@@ -56,8 +56,6 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = context => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const [selectedRows, setSelectedRows] = useState<any[]>([])
-
   useEffect(() => {
     if (selectedFunction) {
       const newJobFunction = jobFunctions.find(jobFunction => jobFunction.id === selectedFunction.id)
@@ -261,10 +259,7 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = context => {
         columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
         sorting={sorting}
         onSortingChange={setSorting}
-        selectedRows={selectedRows}
-        onSelectionChange={setSelectedRows}
         enableSorting
-        enableSelection
         enablePagination
       />
     )

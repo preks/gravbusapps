@@ -26,11 +26,7 @@ export interface TaskSummaryProps {
   source?: 'investments' | 'customer-relations'
 }
 
-export const TaskSummary: React.FC<TaskSummaryProps> = ({
-  tasks,
-  moduleColor: _moduleColor = 'default',
-  source = 'investments'
-}) => {
+export const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks, source = 'investments' }) => {
   // Navigation handler for task clicks
   const handleTaskClick = useCallback(
     (task: TaskItem) => {
@@ -102,7 +98,7 @@ export const TaskSummary: React.FC<TaskSummaryProps> = ({
             {tasks.slice(0, 5).map(task => (
               <Card
                 key={task.id}
-                className="gba:transition-all gba:duration-200 hover:gba:shadow-md hover:gba:bg-gray-50 gba:cursor-pointer"
+                className="gba:transition-all gba:duration-200 gba:hover:shadow-md gba:hover:bg-accent gba:cursor-pointer"
                 data-testid={`task-item-${task.id}`}
                 onClick={e => {
                   e.stopPropagation()

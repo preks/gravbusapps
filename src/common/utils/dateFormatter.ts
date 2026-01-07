@@ -2,6 +2,22 @@
  * Date formatting utilities for consistent date handling across the application
  */
 
+import dayjs from 'dayjs'
+import 'dayjs/locale/ro' // Romanian
+import 'dayjs/locale/de' // German
+import 'dayjs/locale/en' // English
+import relativeTime from 'dayjs/plugin/relativeTime'
+import calendar from 'dayjs/plugin/calendar'
+
+// Load dayjs plugins
+dayjs.extend(relativeTime)
+dayjs.extend(calendar)
+
+/**
+ * Type representing a date value that can be a string, Date object, undefined, or null
+ */
+export type DateInput = string | Date | undefined | null
+
 /**
  * Converts a date string to ISO format
  * @param dateString - Date string in various formats (YYYY-MM-DD, ISO string, etc.)
@@ -21,7 +37,7 @@ export const toISOFormat = (dateString: string | undefined | null): string | und
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
     try {
       const date = new Date(trimmed)
-      if (isNaN(date.getTime())) {
+      if (Number.isNaN(date.getTime())) {
         console.error('Invalid datetime-local string:', trimmed)
         return undefined
       }
@@ -37,7 +53,7 @@ export const toISOFormat = (dateString: string | undefined | null): string | und
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       // Interpret as local midnight and convert to UTC
       const date = new Date(`${trimmed}T00:00`)
-      if (isNaN(date.getTime())) {
+      if (Number.isNaN(date.getTime())) {
         console.error('Invalid date string:', trimmed)
         return undefined
       }
@@ -47,7 +63,7 @@ export const toISOFormat = (dateString: string | undefined | null): string | und
     const date = new Date(trimmed)
 
     // Check if the date is valid
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       console.error('Invalid date string:', trimmed)
       return undefined
     }
@@ -80,7 +96,7 @@ export const toISOFormatWithTime = (
     const date = new Date(`${dateString}T${timeString}:00.000Z`)
 
     // Check if the date is valid
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       console.error('Invalid date string:', dateString)
       return undefined
     }
@@ -98,13 +114,13 @@ export const toISOFormatWithTime = (
  * @param locale - Locale for formatting (defaults to 'en-US')
  * @returns Formatted date string
  */
-export const formatForDisplay = (dateString: string | Date | undefined | null, locale: string = 'en-US'): string => {
+export const formatForDisplay = (dateString: DateInput, locale: string = 'en-US'): string => {
   if (!dateString) return ''
 
   try {
     const date = typeof dateString === 'string' ? new Date(dateString) : dateString
 
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       return ''
     }
 
@@ -129,8 +145,61 @@ export const isValidDate = (dateString: string | undefined | null): boolean => {
 
   try {
     const date = new Date(dateString)
-    return !isNaN(date.getTime())
-  } catch (error) {
+    return !Number.isNaN(date.getTime())
+  } catch {
     return false
   }
+}
+
+/**
+ * Formats a date for display using numeric format only (no month names)
+ * Provides locale-aware formatting while avoiding translation issues
+ * @param dateString - Date string or Date object
+ * @param locale - Locale for formatting (defaults to 'en-US')
+ * @returns Formatted date string with numeric month (e.g., 17.12.2025, 12/17/2025)
+ */
+export const formatForDisplayNumeric = (dateString: DateInput, locale: string = 'en-US'): string => {
+  if (!dateString) return ''
+
+  try {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString
+
+    if (Number.isNaN(date.getTime())) {
+      return ''
+    }
+
+    return date.toLocaleDateString(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+  } catch (error) {
+    console.error('Error formatting date for display (numeric):', error)
+    return ''
+  }
+}
+
+/**
+ * Format date and time with locale support and relative time (Today/Yesterday)
+ * Useful for displaying user-friendly timestamps with relative time indicators
+ *
+ * Uses dayjs calendar plugin which automatically provides locale-specific
+ * translations for "Today", "Yesterday", and date/time formats based on the locale.
+ *
+ * @param date - Date string or Date object
+ * @param locale - Optional locale (e.g., 'ro', 'de', 'en', defaults to 'en')
+ * @returns Formatted date and time string with locale support
+ */
+export const formatDateTime = (date: DateInput, locale: string = 'en'): string => {
+  if (!date) return ''
+
+  const d = dayjs(date)
+  if (!d.isValid()) return ''
+
+  // Set locale (support full locale codes like 'ro-RO', extract base)
+  const baseLocale = locale.split('-')[0].toLowerCase()
+
+  // Use dayjs calendar with built-in locale support
+  // This automatically provides "Today", "Yesterday" in the correct language
+  return d.locale(baseLocale).calendar()
 }

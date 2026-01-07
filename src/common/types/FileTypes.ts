@@ -77,6 +77,9 @@ export type FileMetadata = {
   uploadDate?: string
 }
 
+/**
+ * File upload response from file service
+ */
 export interface FileUploadResponse {
   fileInfo: {
     appName: string
@@ -91,5 +94,36 @@ export interface FileUploadResponse {
       updatedAt: string
     }
     uploadedAt: string
+  }
+}
+
+/**
+ * File information object from file service (used in documents, notes, activities, tasks)
+ */
+export interface FileInfo {
+  /** File path for accessing the file */
+  path: string
+  /** Unique file identifier */
+  fileId?: string
+  /** Application name */
+  appName?: string
+  /** Folder path where file is stored */
+  folderPath?: string
+  /** Upload timestamp */
+  uploadedAt?: string
+  /** Access scope (e.g., 'tenant') */
+  accessScope?: string
+  /** Associated DocuSign envelope ID for signed documents */
+  docusignEnvelopeId?: string
+  /** How the DocuSign envelope was initiated */
+  docusignEnvelopeMode?: 'embedded' | 'email'
+  /** File metadata (mimeType, originalFileName, etc.) */
+  fileMetadata?: {
+    /** MIME type of the file */
+    mimeType?: string
+    /** Original filename before upload */
+    originalFileName?: string
+    /** Additional metadata properties */
+    [key: string]: unknown
   }
 }

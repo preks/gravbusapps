@@ -1,14 +1,26 @@
-import React, { useState, useEffect } from 'react'
-import { Button, Alert, Spinner } from '@newwork/nw-design-system'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  Button,
+  Alert,
+  Spinner,
+  DataDisplay,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Label,
+  RecordLayout
+} from '@newwork/nw-design-system'
 import {
   PiUsers,
   PiTrendUp,
   PiCurrencyDollar,
   PiTarget,
-  PiArrowLeft,
   PiCalendar,
-  PiTable,
-  PiListChecks
+  PiListChecks,
+  PiChartLine,
+  PiUsersThree
 } from 'react-icons/pi'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -18,17 +30,48 @@ import TeamActivitiesCalendar from './components/TeamActivitiesCalendar'
 import TeamActivitiesTable from './components/TeamActivitiesTable'
 import TeamActivitiesStatistics from './components/TeamActivitiesStatistics'
 import TeamOverviewCharts from './components/TeamOverviewCharts'
-import { useSalesTeamDataIntegration } from '../sales-members-list/hooks/useSalesTeamDataIntegration'
-import { useSalesTeamTrendData } from '../sales-members-list/hooks/useSalesTeamTrendData'
+import { useSingleTeamPerformanceData } from '../../hooks/useSingleTeamPerformanceData'
+import { useTeamAnalyticsAggregates } from './hooks/useTeamAnalyticsAggregates'
 import { SalesTeamMember } from '../sales-members-list/types'
-import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
-import { DataContainer } from '@/components/layout/dataContainer'
+import { formatCurrency } from '@/common/utils/numberFormatter'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const DATA_TEST_ID_PREFIX = 'TeamPerformanceView'
+
+// Currency Filter Component
+interface CurrencyFilterProps {
+  selectedCurrency: string
+  currencies: Array<{ code: string; label: string }>
+  onCurrencyChange: (currencyCode: string) => void
+}
+
+const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, currencies, onCurrencyChange }) => {
+  if (currencies.length === 0) return null
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-currency-filter`}>
+      <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency:</Label>
+      <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
+        <SelectTrigger className="gba:w-32">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {currencies.map(currency => (
+            <SelectItem key={currency.code} value={currency.code}>
+              {currency.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
 
 interface TeamPerformanceViewProps extends BusinessAppContextProps {
   teamId: string
   teamName: string
+  teamMemberIds?: string[] // Optional: Member IDs from OrganizationalUnit
+  currencyCode?: string // Currency from Cross-Team Performance Analysis
   onBack?: () => void
   onMemberSelect?: (member: SalesTeamMember) => void
 }
@@ -38,118 +81,162 @@ type ViewMode = 'overview' | 'calendar' | 'activities' | 'individual'
 export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   teamId,
   teamName,
+  teamMemberIds,
+  currencyCode = 'EUR',
   onBack,
   onMemberSelect,
   accessToken,
   userInfo
 }) => {
-  const [viewMode, setViewMode] = useState<ViewMode>('overview')
+  // Get initial view from URL or default to 'overview'
+  const getInitialViewMode = (): ViewMode => {
+    const urlParams = new URLSearchParams(globalThis.location.search)
+    const viewFromUrl = urlParams.get('view') as ViewMode | null
+
+    // Validate that the view exists in our valid modes
+    const validModes: ViewMode[] = ['overview', 'calendar', 'activities', 'individual']
+    if (viewFromUrl && validModes.includes(viewFromUrl)) {
+      return viewFromUrl
+    }
+
+    return 'overview'
+  }
+
+  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode())
   const [selectedMember, setSelectedMember] = useState<SalesTeamMember | null>(null)
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'totalRevenue', desc: true }])
 
-  // Create context object from individual props
-  const context = React.useMemo(
-    () => ({
-      accessToken,
-      userInfo
-    }),
-    [accessToken, userInfo]
-  )
+  // Update URL when view changes
+  const updateUrl = useCallback((view: ViewMode) => {
+    const urlParams = new URLSearchParams(globalThis.location.search)
+    urlParams.set('view', view)
+    globalThis.history.pushState({}, '', `${globalThis.location.pathname}?${urlParams.toString()}`)
+  }, [])
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(currencyCode || 'EUR')
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([
+    'name',
+    'position',
+    'manager',
+    'totalRevenue',
+    'activityScore'
+  ])
 
-  // Use existing hooks but filter for specific team
-  const { members, total, isLoading, error: dataError, loadPage, refetch } = useSalesTeamDataIntegration(context)
+  // Use optimized single team performance hook with pagination and search
+  const {
+    members: rawMembers,
+    totalCount: serverTotalCount,
+    kpis,
+    availableCurrencies,
+    isLoading,
+    error: dataError,
+    refetch
+  } = useSingleTeamPerformanceData({
+    accessToken,
+    teamMemberIds: teamMemberIds || [],
+    currencyCode: selectedCurrency,
+    limit: pageSize,
+    offset: (currentPage - 1) * pageSize,
+    search: search,
+    orderBy: sorting
+  })
 
-  // Trigger initial data load (same pattern as main component)
-  useEffect(() => {
-    if (context.accessToken) {
-      console.log('TeamPerformanceView: Triggering initial data load via refetch...')
-      refetch()
+  // Get employee IDs for analytics aggregates
+  const employeeIds = React.useMemo(() => {
+    return (teamMemberIds || []).filter((id): id is string => !!id)
+  }, [teamMemberIds])
+
+  // Fetch analytics aggregates ONCE in parent (shared between Overview and Activities tabs)
+  const {
+    activityTypeAggregates,
+    employeeActivityAggregates,
+    entityTypeAggregates,
+    timelineAggregates,
+    totalActivities,
+    totalActivitiesLast30Days,
+    thisWeekActivities,
+    thisWeekActivitiesLast30Days,
+    loading: analyticsLoading,
+    error: analyticsError,
+    loadAggregates,
+    retry: retryAnalytics
+  } = useTeamAnalyticsAggregates({
+    employeeIds,
+    accessToken
+  })
+
+  // Track if aggregates have been loaded to avoid refetching when switching between Overview/Activities tabs
+  const aggregatesLoadedRef = React.useRef(false)
+  const lastEmployeeIdsRef = React.useRef<string>('')
+
+  // Load analytics aggregates ONCE when first entering Overview or Activities tab
+  React.useEffect(() => {
+    const needsAnalytics = viewMode === 'overview' || viewMode === 'activities'
+    const employeeIdsKey = employeeIds.join(',')
+    const employeeIdsChanged = employeeIdsKey !== lastEmployeeIdsRef.current
+
+    // Only load if:
+    // 1. We're on a tab that needs analytics (Overview or Activities)
+    // 2. AND either we haven't loaded yet OR the employee IDs changed
+    if (needsAnalytics && employeeIds.length > 0) {
+      if (!aggregatesLoadedRef.current || employeeIdsChanged) {
+        loadAggregates()
+        aggregatesLoadedRef.current = true
+        lastEmployeeIdsRef.current = employeeIdsKey
+      }
+    } else if (!needsAnalytics) {
+      // Reset flag when navigating away from Overview/Activities tabs
+      // So data will refresh if user comes back later
+      if (aggregatesLoadedRef.current) {
+        aggregatesLoadedRef.current = false
+      }
     }
-  }, [context.accessToken, refetch])
+  }, [employeeIds, viewMode, loadAggregates])
 
-  // Debug: Check if sales team data integration hook is working
-  useEffect(() => {
-    console.log('TeamPerformanceView: useSalesTeamDataIntegration hook result', {
-      membersCount: members?.length || 0,
-      total,
-      isLoading,
-      dataError: dataError || 'NO_ERROR',
-      hasAccessToken: !!context.accessToken,
-      accessTokenLength: context.accessToken?.length || 0
-    })
-  }, [members, isLoading, dataError, context.accessToken, total])
+  // Transform members to SalesTeamMember format (server-side pagination/search handled by hook)
+  const teamMembers = React.useMemo<SalesTeamMember[]>(() => {
+    return rawMembers.map(member => ({
+      id: member.employeeId,
+      employeeId: member.employeeId,
+      name: member.employeeName,
+      position: member.position,
+      totalRevenue: member.totalRevenue,
+      currencyId: selectedCurrency, // Use selected currency for display
+      activityScore: member.activityScore,
+      avatar: member.avatar,
+      manager: member.managerId
+        ? {
+            id: member.managerId,
+            name: member.managerName || 'Unknown Manager',
+            avatar: member.managerAvatar
+          }
+        : null
+    }))
+  }, [rawMembers, selectedCurrency])
 
-  const { trends, refetch: refetchTrends } = useSalesTeamTrendData(accessToken)
+  // Use server-provided total count (pagination/search/sort handled server-side)
+  const totalMembers = serverTotalCount
 
-  // Log loading state for debugging
-  useEffect(() => {
-    console.log('TeamPerformanceView loading state:', {
-      isLoading,
-      hasData: members.length > 0,
-      trendsLoading: trends.isLoading,
-      teamId,
-      teamName,
-      membersCount: members.length,
-      salesDataError: dataError,
-      accessToken: !!context.accessToken
-    })
-  }, [isLoading, trends.isLoading, teamId, teamName, members.length, dataError, context.accessToken])
-
-  // Filter members for current team based on organizational structure
-  const teamMembers = React.useMemo(() => {
-    if (!teamId || members.length === 0) {
-      console.log('TeamPerformanceView: Early return from teamMembers filtering', {
-        teamId: teamId || 'NO_TEAM_ID',
-        membersLength: members.length,
-        reason: !teamId ? 'No team ID' : 'No members available'
-      })
-      return members // Show all if no team selected or no members available
-    }
-
-    // Extract supervisor ID from composite team ID (format: "orgunitId-supervisorId")
-    // Since both IDs are UUIDs (36 chars), extract the supervisor ID from the end
-    const supervisorId = teamId.length > 36 ? teamId.substring(teamId.length - 36) : teamId
-
-    console.log('TeamPerformanceView: Parsing team ID', {
-      teamId,
-      extractedSupervisorId: supervisorId,
-      totalMembers: members.length,
-      sampleMemberManagerIds: members.slice(0, 3).map(m => ({ name: m.name, managerId: m.manager?.id }))
-    })
-
-    return members.filter(member => {
-      // Match members whose manager ID equals the team's supervisor ID
-      return member.manager?.id === supervisorId
-    })
-  }, [members, teamId])
-
-  // Calculate team-specific KPIs from real data
+  // Team KPIs are now provided by the optimized hook with 30-day comparisons
   const teamKPIs = React.useMemo(() => {
-    if (!teamMembers.length) {
-      return null
-    }
+    if (!kpis) return null
 
-    const teamTotalRevenue = teamMembers.reduce((sum, member) => sum + member.totalRevenue, 0)
-    const teamAvgActivity = teamMembers.reduce((sum, member) => sum + member.activityScore, 0) / teamMembers.length
-
-    // Company averages (in real implementation, fetch from API)
-    const companyAvgRevenue = trends.totalRevenue?.currentValue ? trends.totalRevenue.currentValue / 10 : 0
-    const companyAvgActivity = 75 // This should come from API in real implementation
-
+    // Transform to old format for compatibility with existing UI
     return {
-      totalRevenue: teamTotalRevenue,
-      avgActivityScore: teamAvgActivity,
-      memberCount: teamMembers.length,
-      revenueVsCompany: companyAvgRevenue ? ((teamTotalRevenue - companyAvgRevenue) / companyAvgRevenue) * 100 : 0,
-      activityVsCompany: ((teamAvgActivity - companyAvgActivity) / companyAvgActivity) * 100
+      totalRevenue: kpis.totalRevenue,
+      avgActivityScore: kpis.totalActivities / kpis.memberCount,
+      memberCount: kpis.memberCount,
+      revenueVsCompany: kpis.revenueChange, // Now shows 30-day change instead of company comparison
+      activityVsCompany: kpis.activitiesChange // Now shows 30-day change instead of company comparison
     }
-  }, [teamMembers, trends])
+  }, [kpis])
 
   const handleMemberClick = (member: SalesTeamMember) => {
     setSelectedMember(member)
     setViewMode('individual')
+    updateUrl('individual')
     if (onMemberSelect) {
       onMemberSelect(member)
     }
@@ -158,7 +245,57 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   const handleBackToTeam = () => {
     setSelectedMember(null)
     setViewMode('overview')
+    updateUrl('overview')
   }
+
+  // Handle tab change
+  const handleViewModeChange = (value: string) => {
+    const newMode = value as ViewMode
+    setViewMode(newMode)
+    updateUrl(newMode)
+  }
+
+  // Ensure URL always has view parameter on initial load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(globalThis.location.search)
+    if (!urlParams.has('view')) {
+      updateUrl(viewMode)
+    }
+  }, [])
+
+  const handleSearch = useCallback((value: string) => {
+    setSearch(value)
+    setCurrentPage(1) // Reset to first page when searching
+  }, [])
+
+  // Reset to first page when search or currency changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, selectedCurrency])
+
+  // Available columns for the team members table
+  const availableColumns = useMemo(
+    () => [
+      { id: 'name', label: 'Name' },
+      { id: 'position', label: 'Position' },
+      { id: 'manager', label: 'Manager' },
+      { id: 'totalRevenue', label: 'Total Sales' },
+      { id: 'activityScore', label: 'Activity Score' }
+    ],
+    []
+  )
+
+  // Sortable columns for the team members table
+  const sortableColumns = useMemo(
+    () => [
+      { id: 'name', label: 'Name' },
+      { id: 'position', label: 'Position' },
+      { id: 'manager', label: 'Manager' },
+      { id: 'totalRevenue', label: 'Total Sales' },
+      { id: 'activityScore', label: 'Activity Score' }
+    ],
+    []
+  )
 
   // Create team KPI widgets with company comparison
   const createTeamKPIWidgets = (): WidgetItem[] => {
@@ -168,15 +305,15 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
       {
         key: 'team-revenue',
         title: 'Team Revenue',
-        value: formatCurrency(teamKPIs.totalRevenue),
+        value: formatCurrency(teamKPIs.totalRevenue, selectedCurrency),
         prefix: <PiCurrencyDollar />,
-        color: '#10b981',
-        description: `${teamKPIs.revenueVsCompany >= 0 ? '+' : ''}${teamKPIs.revenueVsCompany.toFixed(1)}% vs company average`,
+        color: 'hsl(var(--success))',
+        description: `${kpis?.memberCount || teamKPIs.memberCount} team members`,
         valueIsString: true,
         trend: {
           value: `${Math.abs(teamKPIs.revenueVsCompany).toFixed(1)}%`,
           positive: teamKPIs.revenueVsCompany >= 0,
-          description: 'vs company average'
+          description: 'vs. 30 days ago'
         }
       },
       {
@@ -185,13 +322,13 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         value: teamKPIs.avgActivityScore,
         prefix: <PiTarget />,
         color: '#1677ff',
-        description: `${teamKPIs.activityVsCompany >= 0 ? '+' : ''}${teamKPIs.activityVsCompany.toFixed(1)}% vs company average`,
+        description: `Avg per member: ${Math.round(teamKPIs.avgActivityScore)}`,
         precision: 1,
         suffix: '%',
         trend: {
           value: `${Math.abs(teamKPIs.activityVsCompany).toFixed(1)}%`,
           positive: teamKPIs.activityVsCompany >= 0,
-          description: 'vs company average'
+          description: 'vs. 30 days ago'
         }
       },
       {
@@ -201,33 +338,240 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         prefix: <PiUsers />,
         color: '#722ed1',
         description: 'Active team members',
-        precision: 0
+        precision: 0,
+        trend:
+          kpis?.memberCountChange === undefined
+            ? undefined
+            : {
+                value: `${Math.abs(kpis.memberCountChange).toFixed(1)}%`,
+                positive: kpis.memberCountChange >= 0,
+                description: 'vs. last year'
+              }
       },
       {
         key: 'avg-per-member',
         title: 'Avg Revenue per Member',
-        value: formatCurrency(teamKPIs.totalRevenue / teamKPIs.memberCount),
+        value: formatCurrency(teamKPIs.totalRevenue / teamKPIs.memberCount, selectedCurrency),
         prefix: <PiTrendUp />,
-        color: '#ff9500',
+        color: 'hsl(var(--warning))',
         description: 'Average revenue contribution',
-        valueIsString: true
+        valueIsString: true,
+        trend:
+          kpis?.avgRevenuePerMemberChange === undefined
+            ? undefined
+            : {
+                value: `${Math.abs(kpis.avgRevenuePerMemberChange).toFixed(1)}%`,
+                positive: kpis.avgRevenuePerMemberChange >= 0,
+                description: 'vs. 30 days ago'
+              }
       }
     ]
   }
 
+  // Header metadata: Team member count (MUST be before early returns)
+  const headerMeta = useMemo(() => {
+    if (!teamKPIs) return null
+
+    return (
+      <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+        <span>
+          {teamKPIs.memberCount || 0} {teamKPIs.memberCount === 1 ? 'member' : 'members'}
+        </span>
+      </div>
+    )
+  }, [teamKPIs])
+
+  // Prepare subviews configuration (tabs) with WIDE content (MUST be before early returns)
+  const wideContentClassName = 'gba:py-4 gba:w-full gba:max-w-full'
+
+  const subViewsConfig = useMemo(
+    () => ({
+      defaultValue: viewMode,
+      onValueChange: handleViewModeChange,
+      items: [
+        {
+          value: 'overview',
+          label: getTranslationFromI18nKeyAndLabel('crm.performance.overview', 'Overview'),
+          icon: <PiChartLine className="gba:mr-2" />,
+          contentClassName: wideContentClassName,
+          content: (
+            <div data-testid={`${DATA_TEST_ID_PREFIX}-overview-content`} className="gba:space-y-6">
+              {/* Team KPI Statistics */}
+              <div className="gba:mb-6" data-testid={`${DATA_TEST_ID_PREFIX}-kpi-section`}>
+                <WidgetGroup
+                  widgets={createTeamKPIWidgets()}
+                  isLoading={isLoading}
+                  error={dataError ? new Error(dataError) : null}
+                  onRetry={refetch}
+                  skeletonCount={4}
+                  emptyText="No team performance statistics available."
+                  data-testid={`${DATA_TEST_ID_PREFIX}-kpi-widgets`}
+                />
+              </div>
+
+              {/* Team Members List */}
+              <div className="gba:mt-6">
+                <DataDisplay
+                  titleSections={[
+                    {
+                      id: 'all',
+                      label: 'Team Members',
+                      metadata: {
+                        count: totalMembers,
+                        isLoading: isLoading
+                      }
+                    }
+                  ]}
+                  currentSection="all"
+                  searchValue={search}
+                  searchPlaceholder="Search team members..."
+                  onSearchChange={handleSearch}
+                  sorting={sorting}
+                  sortableColumns={sortableColumns}
+                  onSortingChange={setSorting}
+                  availableColumns={availableColumns}
+                  visibleColumns={visibleColumns}
+                  onVisibleColumnsChange={setVisibleColumns}
+                  secondaryActions={
+                    <CurrencyFilter
+                      selectedCurrency={selectedCurrency}
+                      currencies={availableCurrencies}
+                      onCurrencyChange={setSelectedCurrency}
+                    />
+                  }
+                  toolbarDensity="default"
+                >
+                  <SalesTeamMembersList
+                    members={teamMembers}
+                    loading={isLoading}
+                    error={dataError ? new Error(dataError) : null}
+                    onRetry={refetch}
+                    onMemberClick={handleMemberClick}
+                    accessToken={accessToken}
+                    total={totalMembers}
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    search={search}
+                    sorting={sorting}
+                    onSearchChange={setSearch}
+                    onSortingChange={setSorting}
+                    onPaginationChange={(page, size) => {
+                      setCurrentPage(page)
+                      setPageSize(size || pageSize)
+                    }}
+                  />
+                </DataDisplay>
+              </div>
+
+              {/* Team Analytics Charts */}
+              <div className="gba:mt-6">
+                <TeamOverviewCharts
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  activityTypeAggregates={activityTypeAggregates}
+                  employeeActivityAggregates={employeeActivityAggregates}
+                  entityTypeAggregates={entityTypeAggregates}
+                  timelineAggregates={timelineAggregates}
+                  totalActivities={totalActivities}
+                  loading={analyticsLoading}
+                />
+              </div>
+            </div>
+          )
+        },
+        {
+          value: 'activities',
+          label: getTranslationFromI18nKeyAndLabel('crm.performance.activities', 'Activities'),
+          icon: <PiListChecks className="gba:mr-2" />,
+          contentClassName: wideContentClassName,
+          content: (
+            <div data-testid={`${DATA_TEST_ID_PREFIX}-activities-content`} className="gba:space-y-6">
+              {/* Activities Statistics Section */}
+              <div className="gba:mb-6">
+                <TeamActivitiesStatistics
+                  teamMembers={teamMembers}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  activityTypeAggregates={activityTypeAggregates}
+                  totalActivities={totalActivities}
+                  totalActivitiesLast30Days={totalActivitiesLast30Days}
+                  thisWeekActivities={thisWeekActivities}
+                  thisWeekActivitiesLast30Days={thisWeekActivitiesLast30Days}
+                  loading={analyticsLoading}
+                  error={analyticsError}
+                  retry={retryAnalytics}
+                />
+              </div>
+
+              {/* Activities Table */}
+              <TeamActivitiesTable teamMembers={teamMembers} accessToken={accessToken} userInfo={userInfo} />
+            </div>
+          )
+        },
+        {
+          value: 'calendar',
+          label: getTranslationFromI18nKeyAndLabel('crm.performance.calendar', 'Calendar'),
+          icon: <PiCalendar className="gba:mr-2" />,
+          contentClassName: wideContentClassName,
+          content: (
+            <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`}>
+              <TeamActivitiesCalendar
+                teamId={teamId}
+                teamMembers={teamMembers}
+                accessToken={accessToken}
+                userInfo={userInfo}
+              />
+            </div>
+          )
+        }
+      ]
+    }),
+    [
+      viewMode,
+      handleViewModeChange,
+      teamKPIs,
+      isLoading,
+      dataError,
+      refetch,
+      totalMembers,
+      search,
+      handleSearch,
+      sorting,
+      setSorting,
+      sortableColumns,
+      availableColumns,
+      visibleColumns,
+      setVisibleColumns,
+      selectedCurrency,
+      availableCurrencies,
+      setSelectedCurrency,
+      teamMembers,
+      handleMemberClick,
+      accessToken,
+      userInfo,
+      currentPage,
+      pageSize,
+      setSearch,
+      setSorting,
+      activityTypeAggregates,
+      employeeActivityAggregates,
+      entityTypeAggregates,
+      timelineAggregates,
+      totalActivities,
+      totalActivitiesLast30Days,
+      thisWeekActivities,
+      thisWeekActivitiesLast30Days,
+      analyticsLoading,
+      analyticsError,
+      retryAnalytics,
+      teamId
+    ]
+  )
+
   // Only show loading spinner if we have no data at all
   const showLoadingSpinner = isLoading && !teamKPIs && teamMembers.length === 0
 
-  console.log('TeamPerformanceView render states:', {
-    isLoading,
-    trendsLoading: trends.isLoading,
-    teamMembersCount: teamMembers.length,
-    teamKPIsAvailable: !!teamKPIs,
-    showLoadingSpinner
-  })
-
   if (showLoadingSpinner) {
-    console.log('TeamPerformanceView showing loading spinner')
     return (
       <div
         className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-screen"
@@ -267,140 +611,25 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   }
 
   return (
-    <div className="gba:bg-white gba:min-h-screen gba:p-6 gba:space-y-6" data-testid={DATA_TEST_ID_PREFIX}>
-      {/* Header Section */}
-      <div
-        className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-indigo-50 gba:rounded-lg gba:p-6"
-        data-testid={`${DATA_TEST_ID_PREFIX}-header`}
-      >
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div className="gba:flex gba:items-center gba:gap-4">
-            {onBack && (
-              <Button variant="ghost" size="sm" onClick={onBack} data-testid={`${DATA_TEST_ID_PREFIX}-back-button`}>
-                <PiArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-                Back to Overview
-              </Button>
-            )}
-            <div>
-              <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:mb-2">Team Performance: {teamName}</h1>
-              <p className="gba:text-gray-600">
-                Monitor your team's performance with benchmarks and individual insights
-              </p>
-            </div>
-          </div>
-          <div className="gba:flex gba:items-center gba:space-x-2 gba:text-sm gba:text-gray-500">
-            <PiUsers className="gba:w-4 gba:h-4" />
-            <span>{teamMembers.length} Team Members</span>
-          </div>
-        </div>
-      </div>
-
-      {/* View Mode Selector */}
-      <div className="gba:flex gba:gap-2 gba:mb-6">
-        <Button
-          variant={viewMode === 'overview' ? 'default' : 'outline'}
-          onClick={() => setViewMode('overview')}
-          data-testid={`${DATA_TEST_ID_PREFIX}-overview-tab`}
-        >
-          <PiTable className="gba:w-4 gba:h-4 gba:mr-2" />
-          Team Overview
-        </Button>
-        <Button
-          variant={viewMode === 'activities' ? 'default' : 'outline'}
-          onClick={() => setViewMode('activities')}
-          data-testid={`${DATA_TEST_ID_PREFIX}-activities-tab`}
-        >
-          <PiListChecks className="gba:w-4 gba:h-4 gba:mr-2" />
-          Activities List
-        </Button>
-        <Button
-          variant={viewMode === 'calendar' ? 'default' : 'outline'}
-          onClick={() => setViewMode('calendar')}
-          data-testid={`${DATA_TEST_ID_PREFIX}-calendar-tab`}
-        >
-          <PiCalendar className="gba:w-4 gba:h-4 gba:mr-2" />
-          Team Calendar
-        </Button>
-      </div>
-
-      {/* Team KPI Statistics */}
-      <div className="gba:mb-8" data-testid={`${DATA_TEST_ID_PREFIX}-kpi-section`}>
-        <WidgetGroup
-          widgets={createTeamKPIWidgets()}
-          isLoading={isLoading}
-          error={dataError ? new Error(dataError) : null}
-          onRetry={refetch}
-          skeletonCount={4}
-          emptyText="No team performance statistics available."
-          data-testid={`${DATA_TEST_ID_PREFIX}-kpi-widgets`}
-        />
-      </div>
-
-      {/* Content based on view mode */}
-      {viewMode === 'overview' && (
-        <div data-testid={`${DATA_TEST_ID_PREFIX}-overview-content`} className="gba:space-y-8">
-          {/* Team Members List */}
-          <DataContainer
-            contentBackground="white"
-            dataControllerProps={{
-              search,
-              setSearch,
-              listTitle: (
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <PiUsers className="gba:text-blue-600" />
-                  <span className="gba:text-lg gba:font-semibold">Team Members</span>
-                  <span className="gba:text-gray-500">({teamMembers.length})</span>
-                </div>
-              )
-            }}
-            dataBody={
-              <SalesTeamMembersList
-                members={teamMembers}
-                loading={isLoading}
-                error={dataError ? new Error(dataError) : null}
-                onRetry={refetch}
-                onMemberClick={handleMemberClick}
-                accessToken={accessToken}
-                total={teamMembers.length}
-                currentPage={currentPage}
-                pageSize={pageSize}
-                search={search}
-                onSearchChange={setSearch}
-                onPaginationChange={(page, size) => {
-                  setCurrentPage(page)
-                  setPageSize(size || pageSize)
-                }}
-              />
-            }
-          />
-
-          {/* Team Analytics Charts */}
-          <TeamOverviewCharts teamMembers={teamMembers} accessToken={accessToken} userInfo={userInfo} />
-        </div>
-      )}
-
-      {viewMode === 'activities' && (
-        <div data-testid={`${DATA_TEST_ID_PREFIX}-activities-content`}>
-          <div className="gba:flex gba:flex-col gba:gap-6">
-            {/* Activities Statistics Section */}
-            <TeamActivitiesStatistics teamMembers={teamMembers} accessToken={accessToken} userInfo={userInfo} />
-
-            {/* Activities Table Section */}
-            <TeamActivitiesTable teamMembers={teamMembers} accessToken={accessToken} userInfo={userInfo} />
-          </div>
-        </div>
-      )}
-
-      {viewMode === 'calendar' && (
-        <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`}>
-          <TeamActivitiesCalendar
-            teamId={teamId}
-            teamMembers={teamMembers}
-            accessToken={accessToken}
-            userInfo={userInfo}
-          />
-        </div>
-      )}
+    <div data-testid={DATA_TEST_ID_PREFIX}>
+      <style>
+        {`
+          .record-layout-content {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            max-width: 100% !important;
+          }
+        `}
+      </style>
+      <RecordLayout
+        headerOrientation="horizontal"
+        headerIcon={PiUsersThree}
+        headerCategory={getTranslationFromI18nKeyAndLabel('crm.performance.team', 'TEAM OVERVIEW')}
+        onBack={onBack}
+        headerTitle={teamName}
+        headerMeta={headerMeta}
+        subViews={subViewsConfig}
+      />
     </div>
   )
 }

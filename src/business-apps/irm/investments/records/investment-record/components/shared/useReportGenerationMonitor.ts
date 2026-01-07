@@ -95,7 +95,7 @@ export const useReportGenerationMonitor = ({
             if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
               try {
                 data = JSON.parse(text)
-              } catch (e) {
+              } catch {
                 // Not JSON
               }
             }
@@ -145,7 +145,7 @@ export const useReportGenerationMonitor = ({
               }
             }
           }
-        } catch (e) {
+        } catch {
           // Ignore parsing errors
         }
       }
@@ -202,15 +202,13 @@ export const useReportGenerationMonitor = ({
     }
 
     XMLHttpRequest.prototype.send = function (body?: Document | XMLHttpRequestBodyInit | null) {
-      const xhr = this
-
-      xhr.addEventListener('load', function () {
+      this.addEventListener('load', function (this: XMLHttpRequest) {
         if (
-          (xhr.status === 200 || xhr.status === 201) &&
-          xhr.getResponseHeader('content-type')?.includes('application/json')
+          (this.status === 200 || this.status === 201) &&
+          this.getResponseHeader('content-type')?.includes('application/json')
         ) {
           try {
-            const responseData = JSON.parse(xhr.responseText)
+            const responseData = JSON.parse(this.responseText)
 
             // Check for reportPath in XHR response
             if (responseData && responseData.reportPath) {
@@ -224,7 +222,7 @@ export const useReportGenerationMonitor = ({
                 setIsGenerating(false)
               }
             }
-          } catch (e) {
+          } catch {
             // Ignore parsing errors
           }
         }

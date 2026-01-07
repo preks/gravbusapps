@@ -1,20 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  IconAvatar,
-  Badge,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from '@newwork/nw-design-system'
+import React, { useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, IconAvatar, Badge } from '@newwork/nw-design-system'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { type LucideIcon } from 'lucide-react'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import { useCurrencySync } from '../../analytics-view/shared/hooks'
+import { CurrencyFilter } from '../../analytics-view/shared/components'
 
 // Type definitions
 export interface SubType {
@@ -40,10 +31,9 @@ interface InvestmentBreakdownCardProps {
   moduleColor?: 'ext1' | 'ext2' | 'ext3' | 'ext4' | 'ext5' | 'ext6' | 'ext7' | 'ext8'
   onNavigateToInvestmentType: (investmentType: string) => void
   formatGroupName: (groupName: string) => string
-  calculateTrendData: (investments: Investment[]) => TrendData
-  masterCurrency: string
-  availableCurrencies: string[]
-  formatCurrency: (amount: number, currency: string) => string
+  calculateTrendData: (investments: Investment[], groupName: string) => TrendData
+  masterCurrency: string // Currency code like "EUR", "USD", etc.
+  availableCurrencies: string[] // Array of currency codes
 }
 
 /**
@@ -57,29 +47,21 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
   formatGroupName,
   calculateTrendData,
   masterCurrency,
-  availableCurrencies,
-  formatCurrency
+  availableCurrencies
 }) => {
-  // Individual currency state for this card (starts with master currency)
-  const [selectedCurrency, setSelectedCurrency] = useState(masterCurrency)
+  // Use currency sync hook to sync with master currency
+  const [selectedCurrency, setSelectedCurrency] = useCurrencySync(masterCurrency)
 
-  // Reset to master currency when it changes
-  useEffect(() => {
-    setSelectedCurrency(masterCurrency)
-  }, [masterCurrency])
-
-  // Helper to extract currency from investment
-  const getInvestmentCurrency = React.useCallback((investment: Investment): string | null => {
+  // Helper to get investment currency code
+  const getInvestmentCurrencyCode = React.useCallback((investment: Investment): string | null => {
     if (!investment.currency) return null
     const currency = investment.currency as any
     if (typeof currency === 'string') {
-      const parts = currency.split(':')
-      return parts[parts.length - 1] || null
+      // Extract code from "Currency:v1:EUR" format
+      return currency.split(':').pop() || null
     }
     if (typeof currency === 'object' && currency !== null) {
-      const currencyStr = currency.code || currency.value
-      const parts = currencyStr?.split(':') || []
-      return parts[parts.length - 1] || null
+      return currency.code || null
     }
     return null
   }, [])
@@ -87,14 +69,16 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
   // Filter investments by selected currency
   const currencyFilteredInvestments = useMemo(() => {
     return group.groupInvestments.filter(inv => {
-      const currency = getInvestmentCurrency(inv)
-      return currency === selectedCurrency
+      const currencyCode = getInvestmentCurrencyCode(inv)
+      return currencyCode === selectedCurrency
     })
-  }, [group.groupInvestments, selectedCurrency])
+  }, [group.groupInvestments, selectedCurrency, getInvestmentCurrencyCode])
 
   // Calculate totals from filtered investments
   const totalInvested = useMemo(() => {
-    return currencyFilteredInvestments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
+    return currencyFilteredInvestments.reduce((sum, inv) => {
+      return sum + (inv.totalInvestmentAmount || 0)
+    }, 0)
   }, [currencyFilteredInvestments])
 
   // Calculate subTypes from filtered investments
@@ -110,16 +94,19 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
     })
 
     return Object.entries(typeGroups).map(([typeName, investments]) => {
-      const total = investments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
+      const total = investments.reduce((sum, inv) => {
+        return sum + (inv.totalInvestmentAmount || 0)
+      }, 0)
+
       const percentage = totalInvested > 0 ? (total / totalInvested) * 100 : 0
 
       return {
         name: typeName,
-        amount: formatCurrency(total, selectedCurrency),
+        amount: formatCurrencyCompact(total, selectedCurrency, undefined, 1, true),
         percentage: `${percentage.toFixed(1)}%`
       }
     })
-  }, [currencyFilteredInvestments, totalInvested, selectedCurrency, formatCurrency])
+  }, [currencyFilteredInvestments, totalInvested, selectedCurrency])
   const handleNavigateClick = () => {
     const subtabMap: { [key: string]: string } = {
       Equity: 'equity',
@@ -190,27 +177,22 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
             </div>
           </div>
           <div className="gba:ml-auto">
-            <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-              <SelectTrigger className="gba:w-[100px]">
-                <SelectValue placeholder="Currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCurrencies.map(currency => (
-                  <SelectItem key={currency} value={currency}>
-                    {currency}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CurrencyFilter
+              value={selectedCurrency}
+              onChange={setSelectedCurrency}
+              currencies={availableCurrencies}
+              showLabel={false}
+              dataTestId={`investment-breakdown-currency-filter-${group.name.toLowerCase().replace(' ', '-')}`}
+            />
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="gba:p-6">
-        {/* Trend indicator for last 30 days */}
+        {/* Trend indicator for last quarter */}
         <div className="gba:mb-4 gba:pb-4 gba:border-b gba:border-gray-200">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <p className="gba:text-xs gba:text-gray-500">Last 30 days activity</p>
+            <p className="gba:text-xs gba:text-gray-500">Last quarter activity</p>
             {renderTrendBadge(trendData)}
           </div>
         </div>
@@ -219,7 +201,7 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
         <div className="gba:mb-4">
           <p className="gba:text-sm gba:text-gray-600 gba:mb-1">Total Invested</p>
           <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
-            {formatCurrency(totalInvested, selectedCurrency)}
+            {formatCurrencyCompact(totalInvested, selectedCurrency, undefined, 1, true)}
           </p>
         </div>
 

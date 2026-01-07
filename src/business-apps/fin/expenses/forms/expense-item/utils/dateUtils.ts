@@ -44,7 +44,7 @@ export const formatDateToISOString = (date: Date | string | undefined): string =
       return getCurrentDateAsISOString()
     }
     return parsed.format('YYYY-MM-DD')
-  } catch (error) {
+  } catch {
     return getCurrentDateAsISOString()
   }
 }

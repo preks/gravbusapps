@@ -69,12 +69,13 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
   currencies: propCurrencies,
   isLoading: propIsLoading,
   showAllOption = true,
-  placeholder = getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.all_currencies', 'All Currencies'),
+  placeholder = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:manager_expense_landing_page.all_currencies',
+    'All Currencies'
+  ),
   className = '',
   'data-testid': dataTestId = 'currency-filter',
-  disabled = false,
-  accessToken = '',
-  managerId = ''
+  disabled = false
 }) => {
   // Use the global currency store for consistent state across components
   const {

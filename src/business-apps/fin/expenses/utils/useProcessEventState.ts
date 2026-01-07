@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
 /**
@@ -9,13 +9,11 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
  * @returns Object containing dispatchProcessContinueEventIfEnabled function
  */
 export const useProcessEventState = (additionalData?: any) => {
-  const [isProcessEventDispatched, setIsProcessEventDispatched] = useState(false)
   const isProcessEventDispatchedRef = useRef(false)
   const previousAdditionalDataRef = useRef(additionalData)
 
   useEffect(() => {
     const handleProcessContinue = () => {
-      setIsProcessEventDispatched(true)
       isProcessEventDispatchedRef.current = true
     }
 
@@ -30,7 +28,6 @@ export const useProcessEventState = (additionalData?: any) => {
   // Reset the state when additionalData actually changes (acts as a refresh)
   useEffect(() => {
     if (additionalData !== undefined && additionalData !== previousAdditionalDataRef.current) {
-      setIsProcessEventDispatched(false)
       isProcessEventDispatchedRef.current = false
       previousAdditionalDataRef.current = additionalData
     }
@@ -47,7 +44,6 @@ export const useProcessEventState = (additionalData?: any) => {
       return false
     }
 
-    setIsProcessEventDispatched(true)
     isProcessEventDispatchedRef.current = true
     dispatchProcessContinueEvent(event, payload)
     return true

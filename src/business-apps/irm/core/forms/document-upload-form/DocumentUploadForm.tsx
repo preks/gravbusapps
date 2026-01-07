@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -6,7 +6,6 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 type DocumentUploadFormProps = BusinessAppContextProps
 
 const DocumentUploadForm: React.FC<DocumentUploadFormProps> = () => {
-  const [file, setFile] = useState<File | null>(null)
   const dataTestId = 'investment-document-upload-form'
 
   return (

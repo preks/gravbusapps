@@ -184,7 +184,12 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}</span>
         </div>
       ),
-      children: <ExpensePlanItems expensePlanItems={expensePlan?.expensePlanItem || []} />
+      children: (
+        <ExpensePlanItems
+          expensePlanItems={expensePlan?.expensePlanItem || []}
+          currencyCode={expensePlan?.currency?.code}
+        />
+      )
     },
 
     // Allowances tab - only show if there are allowances
@@ -395,7 +400,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
   if (loading) {
     return (
       <PageLayout
-        headerIcon={<PiWalletDuotone color="#c92559" />}
+        headerIcon={<PiWalletDuotone className="gba:text-primary" />}
         headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
         headerTopLeft={<BackButton dataTestId="expense-plan-record-back-button" backUrl={backUrl} />}
         contentContainer={
@@ -441,7 +446,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
 
     return (
       <PageLayout
-        headerIcon={<PiWalletDuotone color="#c92559" />}
+        headerIcon={<PiWalletDuotone className="gba:text-primary" />}
         headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
         headerTopLeft={<BackButton dataTestId="expense-plan-record-back-button" backUrl={backUrl} />}
         contentContainer={
@@ -456,7 +461,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
 
   return (
     <PageLayout
-      headerIcon={<PiWalletDuotone color="#c92559" />}
+      headerIcon={<PiWalletDuotone className="gba:text-primary" />}
       headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
       headerTopLeft={
         <BackButton

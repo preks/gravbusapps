@@ -6,7 +6,7 @@ import ExpenseRequestsTable from './ExpenseRequestsTable'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
 import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
 
-export interface ExpenseRequestsTabProps extends BusinessAppContextProps {}
+export type ExpenseRequestsTabProps = BusinessAppContextProps
 
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
@@ -20,7 +20,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     handleDataFilterChange,
     filterLabelMap,
     addFilter,
-    removeFilter
+    removeFilter,
+    setFilters
   } = useExpenseRequestFilters({
     accessToken: props.accessToken,
     managerId,
@@ -30,7 +31,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   // Stats will be computed from overview (declared below)
 
   // Local paging + sorting managed here; overview hook refetches on dependency change
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [sortBy, setSortBy] = useState<string>('requestDate:desc')
 
@@ -137,6 +138,21 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const requestsError = overview.error
   const totalCount = overview.data?.expenseRequestsTotal ?? 0
 
+  // Reset pagination when filters or search change so filtered results are visible from page 1.
+  const prevFilterSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    const signature = JSON.stringify({
+      searchTerm,
+      selectedFilters,
+      primaryCurrency
+    })
+    const prev = prevFilterSignatureRef.current
+    if (prev !== null && prev !== signature) {
+      setCurrentPage(1)
+    }
+    prevFilterSignatureRef.current = signature
+  }, [searchTerm, selectedFilters, primaryCurrency])
+
   const fetchRequests = useCallback(
     (newSearchTerm?: string, page?: number, newPageSize?: number, newSortBy?: string) => {
       if (typeof newSearchTerm === 'string') setSearchTerm(newSearchTerm)
@@ -163,8 +179,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
           requestStatsError={requestStatsError}
           fetchRequestStatistics={fetchRequestStatistics}
           currencyFilter={primaryCurrency}
-          addFilter={addFilter}
-          removeFilter={removeFilter}
+          setFilters={setFilters}
           selectedFilters={selectedFilters}
         />
       </div>

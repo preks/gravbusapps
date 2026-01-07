@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Alert, AlertTitle, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
 import { LineChart } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -8,6 +8,7 @@ import { usePipelineData } from './hooks/usePipelineData'
 import EmptyState from '@/components/empty-state/EmptyState'
 import { formatCurrency } from './utils/dashboardUtils'
 import { DashboardLayout } from '@/common/components/common-relations/view-layouts/dashboard-layout/DashboardLayout'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface DashboardViewProps extends BusinessAppContextProps {
   pipelines: PipelineInfo[]
@@ -19,14 +20,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
   const [activeTab] = useState<string>('overview')
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>(pipelines.length > 0 ? pipelines[0].id : '')
 
-  const { overviewData, isLoading, error, refetch } = useOverviewData(context, pipelines, dateRange)
+  const { overviewData, isLoading, error, refetch, setSelectedCurrency } = useOverviewData(
+    context,
+    pipelines,
+    dateRange
+  )
 
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId)
-  const { pipelineData } = usePipelineData(context, selectedPipeline || null, dateRange)
+  const [pipelineCurrency, setPipelineCurrency] = useState<string | undefined>(undefined)
+  const { pipelineData, availableCurrencies: pipelineCurrencies } = usePipelineData(
+    context,
+    selectedPipeline || null,
+    dateRange,
+    pipelineCurrency
+  )
+
+  // Auto-select the first available currency when data loads
+  useEffect(() => {
+    if (pipelineCurrencies.length > 0 && !pipelineCurrency) {
+      setPipelineCurrency(pipelineCurrencies[0])
+    }
+  }, [pipelineCurrencies, pipelineCurrency])
 
   const handlePipelineChange = (pipelineId: string) => {
     setSelectedPipelineId(pipelineId)
   }
+
+  const handleDealClick = useCallback((opportunityId: string) => {
+    const url = buildPlatformUrl('/platform/crm/opportunity-record', {
+      opportunityId,
+      source: 'customer-relations',
+      fromView: 'dashboard'
+    })
+    navigateTo(url)
+  }, [])
 
   if (isLoading) {
     return (
@@ -68,6 +95,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
         overviewData
           ? {
               aggregatedFunnel: overviewData.aggregatedFunnel,
+              availableCurrencies: overviewData.availableCurrencies,
+              selectedCurrency: overviewData.selectedCurrency,
+              onCurrencyChange: setSelectedCurrency,
               revenueBySource: overviewData.revenueBySource,
               totalRevenue: overviewData.totalRevenue,
               totalLeadCount: overviewData.aggregatedFunnel.reduce((sum, stage) => sum + stage.count, 0),
@@ -81,7 +111,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
                 dueDate: t.dueDate ?? undefined,
                 isOverdue: t.isOverdue,
                 priority: t.priority,
-                status: t.status
+                status: t.status,
+                relatedEntity: t.relatedEntity
               })),
               todaysActivities: overviewData.todaysActivities.map(a => ({
                 id: a.id,
@@ -90,9 +121,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
                 owner: a.owner,
                 relatedTo: a.relatedTo,
                 createdAt: a.createdAt,
-                completedAt: a.completedAt ?? undefined
+                completedAt: a.completedAt ?? undefined,
+                relatedEntity: a.relatedEntity
               })),
-              keyDeals: overviewData.keyDeals
+              keyDeals: overviewData.keyDeals,
+              onDealClick: handleDealClick,
+              source: 'customer-relations' as const
             }
           : undefined
       }
@@ -109,15 +143,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
               pipelines: pipelines.map(p => ({ id: p.id, name: p.name })),
               selectedPipelineId,
               onPipelineChange: handlePipelineChange,
+              availableCurrencies: pipelineCurrencies,
+              selectedCurrency: pipelineCurrency,
+              onCurrencyChange: setPipelineCurrency,
               pipelineHeaderBadges: pipelineData
                 ? [
                     {
                       label: `${pipelineData.metrics.totalOpportunities} opportunities`,
                       variant: 'secondary' as const
                     },
-                    { label: `${formatCurrency(pipelineData.metrics.totalValue)}`, variant: 'default' as const },
                     {
-                      label: `${pipelineData.metrics.conversionRate.toFixed(1)}% conversion`,
+                      label: `${formatCurrency(pipelineData.metrics.totalValue, pipelineCurrency || 'EUR')}`,
+                      variant: 'default' as const
+                    },
+                    {
+                      label: `${pipelineData.metrics.dealsWon} won`,
                       variant: 'outline' as const
                     }
                   ]
@@ -127,14 +167,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
                 ? {
                     totalValue: pipelineData.metrics.totalValue,
                     avgDealSize: pipelineData.metrics.avgDealSize,
-                    conversionRate: pipelineData.metrics.conversionRate,
-                    avgSalesCycle: pipelineData.metrics.avgSalesCycle
+                    dealsWon: pipelineData.metrics.dealsWon,
+                    winRate: pipelineData.metrics.winRate
                   }
                 : {
                     totalValue: 0,
                     avgDealSize: 0,
-                    conversionRate: 0,
-                    avgSalesCycle: 0
+                    dealsWon: 0,
+                    winRate: 0
                   },
               funnelData: pipelineData?.funnelData || [],
               winRateMetrics: pipelineData?.winRateMetrics || { monthToDate: 0, quarterToDate: 0 },

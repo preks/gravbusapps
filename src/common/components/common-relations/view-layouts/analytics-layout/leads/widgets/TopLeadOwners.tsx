@@ -14,7 +14,7 @@ export interface TopLeadOwnersProps {
   moduleColor?: string
 }
 
-export const TopLeadOwners: React.FC<TopLeadOwnersProps> = ({ owners, moduleColor = 'default' }) => {
+export const TopLeadOwners: React.FC<TopLeadOwnersProps> = ({ owners }) => {
   return (
     <Card data-testid="top-lead-owners-section">
       <CardHeader>

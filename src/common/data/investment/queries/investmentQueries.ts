@@ -1,24 +1,14 @@
 // Investment Queries - Core investment entities and their specializations
 // Built using actual schema discovered via newwork-mcp
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
+import { buildDocumentFragment } from '@/common/data/relations/queries/relationFragments'
+import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
+import { INVESTMENT, INVESTMENT_SHAREHOLDER } from './fragments/investmentFragments'
 import {
-  INVESTMENT,
-  EQUITY_INVESTMENT_REF,
-  EQUITY_INVESTMENT,
-  REAL_ESTATE_INVESTMENT_REF,
-  REAL_ESTATE_INVESTMENT,
-  LIQUID_FUND_INVESTMENT_REF,
-  LIQUID_FUND_INVESTMENT
-} from './fragments/investmentFragments'
-import {
-  INVESTMENT_ACTIVITY,
-  INVESTMENT_TASK,
-  INVESTMENT_NOTE,
-  INVESTMENT_DOCUMENT,
-  INVESTMENT_ACCOUNT_REF,
-  INVESTMENT_CONTACT_REF,
-  INVESTMENT_OPPORTUNITY_REF
-} from './fragments/investmentRelationFragments'
+  INVESTMENT_ACTIVITY_REF,
+  INVESTMENT_TASK_REF,
+  INVESTMENT_ACCOUNT_REF
+} from './fragments/investmentReferenceFragments'
 
 export interface InvestmentQueryVariables {
   ids?: string[]
@@ -29,6 +19,7 @@ export interface InvestmentQueryVariables {
   investmentPhaseIds?: string[]
   investmentRiskLevelIds?: string[]
   currencyIds?: string[]
+  currencyCode?: string // Simple currency code like 'EUR', 'USD' - convenience parameter
   ownerEmployeeIds?: string[]
   accountIds?: string[]
   opportunityIds?: string[]
@@ -73,6 +64,13 @@ export interface InvestmentQueryVariables {
   }>
 }
 
+export interface InvestmentDocumentQueryVariables {
+  investmentId: string
+  createdBy?: string // Filter by creator user ID
+  limit?: number
+  offset?: number
+}
+
 // Build where condition for Investment queries
 export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }'
@@ -112,6 +110,9 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
 
   if (variables.currencyIds?.length) {
     whereClause += `, currency: { id: { _in: [${variables.currencyIds.map(id => `"${id}"`).join(', ')}] } }`
+  } else if (variables.currencyCode?.trim()) {
+    // Simple currency code filter - uses currency.code instead of currency.id
+    whereClause += `, currency: { code: { _eq: "${variables.currencyCode.trim()}" } }`
   }
 
   // Text contains filters
@@ -145,11 +146,14 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
   }
 
   if (variables.accountIds?.length) {
-    whereClause += `, investmentAccount: { id: { _in: [${variables.accountIds.map(id => `"${id}"`).join(', ')}] } }`
+    const accountIdsList = variables.accountIds.map(id => `"${id}"`).join(', ')
+    // Updated to use junction table path
+    whereClause += `, investmentAccounts: { investmentAccountId: { _in: [${accountIdsList}] } }`
   }
 
   if (variables.opportunityIds?.length) {
-    whereClause += `, investmentOpportunity: { id: { _in: [${variables.opportunityIds.map(id => `"${id}"`).join(', ')}] } }`
+    const opportunityIdsList = variables.opportunityIds.map(id => `"${id}"`).join(', ')
+    whereClause += `, investmentOpportunity: { id: { _in: [${opportunityIdsList}] } }`
   }
 
   // Numeric ranges
@@ -298,27 +302,6 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         ${where}
       ) {
         ${INVESTMENT}
-        
-        # Entity relationships (simplified)
-        investmentAccount {
-          ${INVESTMENT_ACCOUNT_REF}
-        }
-        investmentOpportunity {
-          ${INVESTMENT_OPPORTUNITY_REF}
-        }
-        
-        # Investment specializations (simplified)
-        equityInvestment {
-          ${EQUITY_INVESTMENT_REF}
-        }
-        
-        realEstateInvestment {
-          ${REAL_ESTATE_INVESTMENT_REF}
-        }
-        
-        liquidFundInvestment {
-          ${LIQUID_FUND_INVESTMENT_REF}
-        }
       }
       
       InvestmentAggregate(${where}) {
@@ -341,7 +324,12 @@ export const GET_INVESTMENT_ACTIVITIES_BY_INVESTMENT_ID = (investmentId: string)
         }
         orderBy: [{ occurredAt: DESC }]
       ) {
-        ${INVESTMENT_ACTIVITY}
+        ${INVESTMENT_ACTIVITY_REF}
+        
+        # Documents relation (includes fileInfo)
+        documents(where: { isDeleted: { _eq: false } }) {
+          ${buildDocumentFragment(InvestmentDocumentFields)}
+        }
         
         # Entity references
         investment {
@@ -365,121 +353,13 @@ export const GET_INVESTMENT_TASKS_BY_INVESTMENT_ID = (investmentId: string): str
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${INVESTMENT_TASK}
+        ${INVESTMENT_TASK_REF}
         
         # Entity references
         investment {
           id
           code
           name
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Notes by Investment ID
-export const GET_INVESTMENT_NOTES_BY_INVESTMENT_ID = (investmentId: string): string => {
-  return `
-    query GetInvestmentNotesByInvestmentId {
-      InvestmentNote(
-        where: { 
-          investment: { id: { _eq: "${investmentId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_NOTE}
-        
-        # Entity references
-        investment {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Note by ID
-export const GET_INVESTMENT_NOTE_BY_ID = (noteId: string): string => {
-  return `
-    query GetInvestmentNoteById {
-      InvestmentNote(
-        where: { 
-          id: { _eq: "${noteId}" }, 
-          isDeleted: { _eq: false } 
-        }
-      ) {
-        ${INVESTMENT_NOTE}
-        
-        # Entity references
-        investment {
-          id
-          code
-          name
-        }
-        account {
-          id
-          name
-        }
-        contact {
-          id
-          firstName
-          lastName
-        }
-        lead {
-          id
-          firstName
-          lastName
-        }
-        opportunity {
-          id
-          name
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Documents by Investment ID
-export const GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID = (investmentId: string): string => {
-  return `
-    query GetInvestmentDocumentsByInvestmentId {
-      InvestmentDocument(
-        where: { 
-          investment: { id: { _eq: "${investmentId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_DOCUMENT}
-        
-        # Entity references
-        investment {
-          id
-          code
-          name
-        }
-        
-        # Parent document reference (for folders)
-        parentDocument {
-          id
-          name
-          description
-        }
-        
-        # Related activity and task references
-        activity {
-          id
-          title
-          description
-        }
-        task {
-          id
-          name
-          description
         }
       }
     }
@@ -492,50 +372,6 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
     query GetInvestmentById {
       Investment(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${INVESTMENT}
-        
-        # Entity relationships
-        investmentAccount {
-          ${INVESTMENT_ACCOUNT_REF}
-          investmentAccountContact {
-            contactType
-            contact {
-              ${INVESTMENT_CONTACT_REF}
-            }
-          }
-        }
-        
-        # Loan recipient investment account
-        loanRecipientInvestmentAccount {
-          id
-          code
-          name
-          email
-          foundationDate
-          geographicPresence
-          companySize {
-            ${CATALOG_ENTRY}
-          }
-          accountAnnualRevenueBand {
-            ${CATALOG_ENTRY}
-          }
-          industryClass {
-            ${CATALOG_ENTRY}
-          }
-          ${AUDIT_FIELDS}
-        }
-        
-        # All investment specializations with full details
-        equityInvestment {
-          ${EQUITY_INVESTMENT}
-        }
-        
-        realEstateInvestment {
-          ${REAL_ESTATE_INVESTMENT}
-        }
-        
-        liquidFundInvestment {
-          ${LIQUID_FUND_INVESTMENT}
-        }
       }
     }
   `
@@ -588,9 +424,30 @@ export const SEARCH_INVESTMENTS = (variables: InvestmentQueryVariables): string 
           id
           displayName
         }
-        investmentAccount {
-          ${INVESTMENT_ACCOUNT_REF}
+        investmentAccounts(where: { isDeleted: { _eq: false } }) {
+          id
+          investmentAccountId
+          investmentAccount {
+            ${INVESTMENT_ACCOUNT_REF}
+          }
         }
+      }
+    }
+  `
+}
+
+// Get Investment Shareholders by Investment ID
+export const GET_INVESTMENT_SHAREHOLDERS_BY_INVESTMENT_ID = (investmentId: string): string => {
+  return `
+    query GetInvestmentShareholdersByInvestmentId {
+      InvestmentShareholder(
+        where: { 
+          investmentId: { _eq: "${investmentId}" }
+          isDeleted: { _eq: false }
+        }
+        orderBy: { stakePercentage: DESC_NULLS_LAST }
+      ) {
+        ${INVESTMENT_SHAREHOLDER}
       }
     }
   `

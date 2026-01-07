@@ -21,7 +21,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useGetInvestments } from '@/common/data/investment'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { useInvestmentFileUpload } from './hooks/useInvestmentFileUpload'
 import { AppActionForm } from '@/components/app-action-form'
 import type { InvestmentReportUploadFormProps, UploadFile } from './types'

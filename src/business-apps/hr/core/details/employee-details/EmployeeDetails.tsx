@@ -4,7 +4,7 @@ import React, { useCallback } from 'react'
 import dayjs from 'dayjs'
 import { Button, Avatar, Alert } from '@newwork/gravity-ui-catalog'
 import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
@@ -20,11 +20,14 @@ import {
   PiEnvelopeSimple
 } from 'react-icons/pi'
 import { useEmployeeDetailsData } from './hooks/useEmployeeDetailsData'
+import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import employeeDetailsTranslations from './_i18n'
 import { MatrixUnitEmployee, EmployeeCapability, EmployeeSkill } from './types'
 
 export interface EmployeeDetailsProps extends BusinessAppContextProps {
   employeeId: string
-  employeeData?: any // Optional - if provided, skip data fetching
+  employeeData?: any
 }
 
 interface ProfileInfoItemProps {
@@ -38,11 +41,11 @@ interface ProfileInfoItemProps {
 const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, linkTo, onClick }) => {
   return (
     <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-      <div className="gba:shrink-0 gba:text-gray-500">{icon}</div>
+      <div className="gba:shrink-0 gba:text-muted-foreground">{icon}</div>
       <div className="gba:grow">
-        <div className="gba:text-xs gba:text-gray-500">{label}</div>
+        <div className="gba:text-xs gba:text-muted-foreground">{label}</div>
         {linkTo ? (
-          <a href={linkTo} className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-baseline gba:flex-wrap">
+          <a href={linkTo} className="gba:text-sm gba:text-info gba:inline-flex gba:items-baseline gba:flex-wrap">
             <span className="gba:whitespace-normal">{value}</span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -62,7 +65,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, l
         ) : onClick ? (
           <button
             onClick={onClick}
-            className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-baseline gba:flex-wrap gba:bg-transparent gba:border-0 gba:cursor-pointer gba:p-0"
+            className="gba:text-sm gba:text-info gba:inline-flex gba:items-baseline gba:flex-wrap gba:bg-transparent gba:border-0 gba:cursor-pointer gba:p-0"
             data-testid={`profile-info-${label.toLowerCase()}-link`}
           >
             <span className="gba:whitespace-normal">{value}</span>
@@ -82,7 +85,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, l
             </svg>
           </button>
         ) : (
-          <div className="gba:text-sm gba:text-gray-700">{value}</div>
+          <div className="gba:text-sm gba:text-foreground">{value}</div>
         )}
       </div>
     </div>
@@ -95,6 +98,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, l
  */
 export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   const { employeeId, accessToken, employeeData: propEmployeeData } = context
+  const { t } = useTranslation(employeeDetailsTranslations)
 
   // Only fetch data if not provided as prop
   const {
@@ -135,16 +139,35 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   // Helper functions
   const getManagerName = () => {
     const supervisor = employeeData?.employeePosition?.supervisor
-    if (!supervisor || supervisor.id === employeeData?.id) return 'No manager'
-    return supervisor.displayName || `${supervisor.firstName} ${supervisor.lastName}`.trim() || 'Not assigned'
+    if (!supervisor || supervisor.id === employeeData?.id) return t('employee-details-no-manager')
+    return (
+      supervisor.displayName ||
+      `${supervisor.firstName} ${supervisor.lastName}`.trim() ||
+      t('employee-details-not-assigned')
+    )
+  }
+
+  const extractWorkEmail = (communications: any[] | null | undefined): string | undefined => {
+    if (!communications || !Array.isArray(communications)) {
+      return undefined
+    }
+
+    const emailComm = communications.find((c: any) => {
+      if (!c.value || c.value.trim() === '') return false
+      const channelValue = c.channel?.value?.toLowerCase() || ''
+      return channelValue.includes('email')
+    })
+
+    return emailComm?.value?.trim() || undefined
   }
 
   const getBusinessEmail = () => {
-    const email = employeeData?.communication?.find(
-      (c: any) => c?.channel?.code === 'e-mail' && !c?.isDeleted && c?.value
-    )?.value
-    return email || employeeData?.additionalProperties?.email || ''
+    // Use the same extraction logic as in EmployeeCard
+    const email = extractWorkEmail(employeeData?.communication)
+    return email || ''
   }
+
+  const hasWorkEmail = !!getBusinessEmail()
 
   const getBusinessPhone = () => {
     const phone = employeeData?.communication?.find(
@@ -172,15 +195,27 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
     let result = ''
 
     if (years > 0) {
-      result += `${years} ${years === 1 ? 'year' : 'years'}`
+      result += `${years} ${years === 1 ? t('employee-details-year') : t('employee-details-years')}`
     }
 
     if (months > 0 || years === 0) {
       if (years > 0) result += ' '
-      result += `${months} ${months === 1 ? 'month' : 'months'}`
+      result += `${months} ${months === 1 ? t('employee-details-month') : t('employee-details-months')}`
     }
 
     return result
+  }
+
+  const formatDateLocalized = (isoDate: string) => {
+    const locale = getCurrentActiveUserLocale?.() || 'en-US'
+    try {
+      return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(
+        new Date(isoDate)
+      )
+    } catch {
+      // Fallback to dayjs if Intl fails for any reason
+      return dayjs(isoDate).format('MMM D, YYYY')
+    }
   }
 
   // Error state (only when there's an actual error and not loading)
@@ -188,13 +223,13 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
     return (
       <div className="gba:bg-white gba:h-full gba:p-6">
         <Alert
-          message="Error Loading Employee Details"
+          message={t('employee-details-error-loading')}
           description={error}
           type="error"
           showIcon
           action={
             <Button size="small" onClick={refetch}>
-              Retry
+              {t('employee-details-retry')}
             </Button>
           }
         />
@@ -211,7 +246,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   if (propEmployeeData && !employeeData) {
     return (
       <div className="gba:bg-white gba:h-full gba:p-6">
-        <div className="gba:text-center gba:text-gray-500">Employee data not available</div>
+        <div className="gba:text-center gba:text-muted-foreground">{t('employee-details-not-available')}</div>
       </div>
     )
   }
@@ -227,7 +262,8 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
         {/* Action button in top right corner with absolute positioning */}
         {accessToken && (
           <div className="gba:absolute gba:top-4 gba:right-2" onClick={e => e.stopPropagation()}>
-            <AppActionButton
+            <AppAction
+              variant="header"
               data-testid="employee-details-action-button"
               contextsArray={[FlowContextName.employeeEntity]}
               externalContextData={{
@@ -238,9 +274,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               }}
               prefixDataTestId="employee-details-action"
               accessToken={accessToken}
-            >
-              Actions
-            </AppActionButton>
+            />
           </div>
         )}
 
@@ -253,14 +287,14 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                   ? undefined
                   : `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()
               }
-              // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+              // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
               contentType={employeeData.pictureThumbnail ? 'image' : 'initials'}
               alt={`${employeeData.firstName} ${employeeData.lastName}`}
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               size="xl"
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               shape="circle"
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               appearance="gradient"
               style={{ width: '100px', height: '100px', fontSize: '3rem' }}
             />
@@ -269,16 +303,16 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               className="gba:flex gba:items-center gba:justify-center gba:w-full"
             >
               <div className="gba:my-2 gba:pl-2 gba:text-center gba:flex gba:flex-col gba:items-center gba:w-auto gba:max-w-full gba:border-box">
-                <div className="gba:text-2xl gba:text-black gba:font-black gba:w-full gba:truncate">
+                <div className="gba:text-2xl gba:text-foreground gba:font-black gba:w-full gba:truncate">
                   {employeeData.displayName || `${employeeData.firstName} ${employeeData.lastName}`}
                 </div>
               </div>
               <div>
-                <PiCaretRight className="gba:mt-1" width={20} height={20} fill="black" />
+                <PiCaretRight className="gba:mt-1" width={20} height={20} fill="var(--nw-foreground)" />
               </div>
             </a>
-            <p className="gba:text-gray-500 gba:text-sm gba:text-center gba:mb-3">
-              {employeeData.employeePosition?.jobPosition?.name || 'Not assigned'}
+            <p className="gba:text-muted-foreground gba:text-sm gba:text-center gba:mb-3">
+              {employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
             </p>
 
             {/* Chat actions directly under the name */}
@@ -290,7 +324,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 icon={<ChatIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-chat-button"
-                disabled={!employeeData.additionalProperties?.userId}
+                disabled={!hasWorkEmail}
               />
               <Button
                 variant="secondary"
@@ -299,7 +333,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 icon={<VideoCallIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-video-button"
-                disabled={!employeeData.additionalProperties?.userId}
+                disabled={!hasWorkEmail}
               />
               <Button
                 variant="secondary"
@@ -308,56 +342,60 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 icon={<CallIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-audio-button"
-                disabled={!employeeData.additionalProperties?.userId}
+                disabled={!hasWorkEmail}
               />
             </div>
           </div>
 
-          <div className="gba:border-t gba:border-gray-200 gba:pt-4">
+          <div className="gba:border-t gba:border-border gba:pt-4">
             {/* Contact Information */}
             <div className="gba:mb-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-gray-500 gba:mb-4">Contact Information</h4>
+              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">
+                {t('employee-details-contact-information')}
+              </h4>
               <div className="gba:space-y-2">
                 {getBusinessEmail() ? (
                   <a
                     href={`mailto:${getBusinessEmail()}`}
-                    className="gba:inline-flex gba:items-center gba:text-blue-600 gba:hover:text-blue-800 gba:transition-colors gba:text-sm"
+                    className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
                   >
                     <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
                     {getBusinessEmail()}
                   </a>
                 ) : (
-                  <div className="gba:inline-flex gba:items-center gba:text-gray-500 gba:text-sm">
+                  <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
                     <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
-                    No email available
+                    {t('employee-details-no-email')}
                   </div>
                 )}
 
                 {getBusinessPhone() ? (
                   <a
                     href={`tel:${getBusinessPhone()}`}
-                    className="gba:inline-flex gba:items-center gba:text-blue-600 gba:hover:text-blue-800 gba:transition-colors gba:text-sm gba:block"
+                    className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
                   >
                     <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
                     {formatPhoneNumber(getBusinessPhone())}
                   </a>
                 ) : (
-                  <div className="gba:inline-flex gba:items-center gba:text-gray-500 gba:text-sm">
+                  <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
                     <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
-                    No phone available
+                    {t('employee-details-no-phone')}
                   </div>
                 )}
               </div>
             </div>
 
-            <h4 className="gba:text-sm gba:font-medium gba:text-gray-500 gba:mb-4">Profile Information</h4>
+            <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">
+              {t('employee-details-profile-information')}
+            </h4>
 
             <div className="gba:space-y-1">
               {/* Organization */}
               <ProfileInfoItem
                 icon={<PiBuildings className="gba:h-4 gba:w-4" />}
-                label="Organization"
-                value={employeeData.employeePosition?.organizationalUnit?.name || 'Not assigned'}
+                label={t('employee-details-organization')}
+                value={employeeData.employeePosition?.organizationalUnit?.name || t('employee-details-not-assigned')}
                 linkTo={
                   employeeData.employeePosition?.organizationalUnitId
                     ? `/orgchart/active/organization?organizationUnitId=${employeeData.employeePosition.organizationalUnitId}`
@@ -368,7 +406,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               {/* Manager */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
-                label="Manager"
+                label={t('employee-details-manager')}
                 value={getManagerName()}
                 onClick={
                   employeeData.employeePosition?.supervisor?.id &&
@@ -385,15 +423,15 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               {/* Job Position */}
               <ProfileInfoItem
                 icon={<PiMapPin className="gba:h-4 gba:w-4" />}
-                label="Job Position"
-                value={employeeData.employeePosition?.jobPosition?.name || 'Not assigned'}
+                label={t('employee-details-job-position')}
+                value={employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
               />
 
               {/* Cost Center */}
               <ProfileInfoItem
                 icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
-                label="Cost Center"
-                value={employeeData.employeePosition?.costCenter?.name || 'Not assigned'}
+                label={t('employee-details-cost-center')}
+                value={employeeData.employeePosition?.costCenter?.name || t('employee-details-not-assigned')}
                 linkTo={
                   employeeData.employeePosition?.costCenter?.id
                     ? `/orgchart/active/finance?costCenterDataId=${employeeData.employeePosition.costCenter.id}`
@@ -404,32 +442,40 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               {/* Hire Date */}
               <ProfileInfoItem
                 icon={<PiCalendar className="gba:h-4 gba:w-4" />}
-                label="Hire Date"
+                label={t('employee-details-hire-date')}
                 value={
                   employeeData.workingCondition?.[0]?.hireDate
-                    ? `${dayjs(employeeData.workingCondition[0].hireDate).format('MMM D, YYYY')} - ${calculateTimeSince()}`
-                    : 'Not available'
+                    ? `${formatDateLocalized(employeeData.workingCondition[0].hireDate)} - ${calculateTimeSince()}`
+                    : t('employee-details-not-available')
                 }
               />
 
               {/* Employment Type */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
-                label="Employment Type"
-                value={employeeData.workingCondition?.[0]?.employmentType?.value || 'Not specified'}
+                label={t('employee-details-employment-type')}
+                value={
+                  getCatalogValue(employeeData.workingCondition?.[0]?.employmentType) ||
+                  t('employee-details-not-specified')
+                }
               />
 
               {/* Contract Type */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
-                label="Contract Type"
-                value={employeeData.workingCondition?.[0]?.contractType?.value || 'Not specified'}
+                label={t('employee-details-contract-type')}
+                value={
+                  getCatalogValue(employeeData.workingCondition?.[0]?.contractType) ||
+                  t('employee-details-not-specified')
+                }
               />
             </div>
 
             {/* Teams Section */}
             <div className="gba:mt-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-gray-500 gba:mb-2">Teams</h4>
+              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('employee-details-teams')}
+              </h4>
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {employeeData.employeePosition?.matrixUnitEmployees &&
                 Array.isArray(employeeData.employeePosition.matrixUnitEmployees) &&
@@ -442,20 +488,22 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                     .map((teamItem: any) => (
                       <span
                         key={teamItem.matrixUnit.id}
-                        className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-blue-100 gba:text-blue-800"
+                        className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-info-secondary gba:text-info-secondary-foreground"
                       >
                         {teamItem.matrixUnit.name}
                       </span>
                     ))
                 ) : (
-                  <span className="gba:text-gray-500 gba:text-sm">No teams assigned</span>
+                  <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-teams')}</span>
                 )}
               </div>
             </div>
 
             {/* Capabilities Section */}
             <div className="gba:mt-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-gray-500 gba:mb-2">Capabilities</h4>
+              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('employee-details-capabilities')}
+              </h4>
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {employeeData.employeePosition?.employeeCapabilities &&
                 Array.isArray(employeeData.employeePosition.employeeCapabilities) &&
@@ -468,20 +516,22 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                     .map((capItem: any) => (
                       <span
                         key={capItem.capability.id}
-                        className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-green-100 gba:text-green-800"
+                        className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-success-secondary gba:text-success-secondary-foreground"
                       >
                         {capItem.capability.name}
                       </span>
                     ))
                 ) : (
-                  <span className="gba:text-gray-500 gba:text-sm">No capabilities assigned</span>
+                  <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-capabilities')}</span>
                 )}
               </div>
             </div>
 
             {/* Skills Section */}
             <div className="gba:mt-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-gray-500 gba:mb-2">Skills</h4>
+              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('employee-details-skills')}
+              </h4>
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {employeeData.skills && Array.isArray(employeeData.skills) && employeeData.skills.length > 0 ? (
                   employeeData.skills
@@ -494,8 +544,8 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                         key={skillItem.skill.id}
                         className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${
                           skillItem.level === 'Advanced'
-                            ? 'gba:bg-purple-100 gba:text-purple-800'
-                            : 'gba:bg-gray-100 gba:text-gray-800'
+                            ? 'gba:bg-info-secondary gba:text-info-secondary-foreground'
+                            : 'gba:bg-muted gba:text-muted-foreground'
                         }`}
                       >
                         {skillItem.skill.name}
@@ -505,7 +555,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                       </span>
                     ))
                 ) : (
-                  <span className="gba:text-gray-500 gba:text-sm">No skills recorded</span>
+                  <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-skills')}</span>
                 )}
               </div>
             </div>

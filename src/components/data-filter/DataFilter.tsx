@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { PiCaretUp, PiCaretDown } from 'react-icons/pi'
-import { Tooltip } from 'antd'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { cn } from '../../common/utils/cn'
 import { DebouncedInput } from './DebouncedInput'
 import { getTranslationFromI18nKeyAndLabel } from '../../common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import dfTranslations from './_i18n'
 
 /**
  * Data Filter Group type definition
@@ -63,15 +65,15 @@ export interface DataFilterProps {
 
 export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
   show,
-  onClose,
   filterGroups = [],
   onFilterChange,
   className = '',
   children
 }) => {
+  const { t } = useTranslation(dfTranslations)
   // State for global search functionality
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearchInput, setShowSearchInput] = useState(false)
+  const [searchQuery] = useState('')
+  const [showSearchInput] = useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     // Initialize all groups as expanded by default
@@ -176,13 +178,13 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
               if (loading) {
                 filterContent = (
                   <div className="gba:p-2 gba:text-gray-400" data-testid={`data-filter-group-loading-${group.id}`}>
-                    Loading...
+                    {t('df-loading')}
                   </div>
                 )
               } else if (error) {
                 filterContent = (
                   <div className="gba:p-2 gba:text-red-500" data-testid={`data-filter-group-error-${group.id}`}>
-                    Error loading filters
+                    {t('df-error-loading-filters')}
                   </div>
                 )
               } else if ((filterOptions ?? []).length > 0) {
@@ -207,19 +209,21 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         className="gba:w-4 gba:h-4 gba:text-primary-600 gba:bg-gray-100 gba:border-gray-300 gba:rounded gba:focus:ring-primary-500 gba:focus:ring-2"
                       />
                     </div>
-                    <Tooltip
-                      title={filter.label + (typeof filter.count === 'number' ? ` (${filter.count})` : '')}
-                      placement="right"
-                    >
-                      <span
-                        className={`gba:text-sm gba:text-left gba:truncate gba:block gba:max-w-[280px] ${
-                          filter.selected ? 'gba:font-medium gba:text-primary-500' : 'gba:text-gray-700'
-                        }`}
-                        data-testid={`data-filter-label-${filter.id}`}
-                      >
-                        {filter.label}
-                        {typeof filter.count === 'number' ? ` (${filter.count})` : ''}
-                      </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className={`gba:text-sm gba:text-left gba:truncate gba:block gba:max-w-[280px] ${
+                            filter.selected ? 'gba:font-medium gba:text-primary-500' : 'gba:text-gray-700'
+                          }`}
+                          data-testid={`data-filter-label-${filter.id}`}
+                        >
+                          {filter.label}
+                          {typeof filter.count === 'number' ? ` (${filter.count})` : ''}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {filter.label + (typeof filter.count === 'number' ? ` (${filter.count})` : '')}
+                      </TooltipContent>
                     </Tooltip>
                   </button>
                 ))
@@ -293,22 +297,10 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                             >
                               <DebouncedInput
                                 className="gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none"
-                                placeholder={`${getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:data_filter.search_in',
-                                  'Search in'
-                                )} ${getTranslationFromI18nKeyAndLabel(
-                                  `lowcoder:data_filter.group_title_${group.id}`,
-                                  group.title
-                                )}...`}
+                                placeholder={`${t('df-search-in')} ${group.title}...`}
                                 value={groupSearch}
                                 onChange={value => handleGroupSearchChange(group.id, value)}
-                                ariaLabel={`${getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:data_filter.search_filters_in',
-                                  'Search filters in'
-                                )} ${getTranslationFromI18nKeyAndLabel(
-                                  `lowcoder:data_filter.group_title_${group.id}`,
-                                  group.title
-                                )}`}
+                                ariaLabel={`${t('df-search-filters-in')} ${group.title}`}
                                 debounceDelay={300}
                                 data-testid={`data-filter-group-search-input-${group.id}`}
                               />

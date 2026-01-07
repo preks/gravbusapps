@@ -1,13 +1,14 @@
 import React, { useMemo } from 'react'
 import { Typography } from 'antd'
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WorkingConditionKpi } from '../../../../../hooks/useWorkingConditionForecast'
 import { useWorkingConditionForecast } from '../../../../../hooks/useWorkingConditionForecast'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { useState, useEffect, useCallback } from 'react'
 import HeadcountChangesChart from '../HeadcountChangesChart'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -18,6 +19,7 @@ interface WorkforceForecastingProps extends BusinessAppContextProps {
 export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props => {
   const { prefixDataTestId = 'WorkforceForecasting' } = props
   const kpiData = useWorkingConditionForecast(props)
+  const { t } = useTranslation(hrTranslations)
 
   // Add authoritative employee count hook
   const [totalEmployeeCount, setTotalEmployeeCount] = useState<number>(0)
@@ -56,45 +58,45 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       return [
         {
           id: 'current-headcount',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_headcount', 'Current Headcount'),
-          value: 'Loading...',
-          icon: 'users',
-          iconColor: '#722ed1'
+          title: t('hr-analytics-forecasting-kpi-headcount'),
+          value: t('hr-data-filter-loading'),
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
+          iconColor: 'var(--nw-chart-1)'
         },
         {
           id: 'ytd-hires',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_hires', 'YTD Hires'),
-          value: 'Loading...',
-          icon: 'users',
-          iconColor: '#52c41a'
+          title: t('hr-analytics-forecasting-kpi-ytd-hires'),
+          value: t('hr-data-filter-loading'),
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
+          iconColor: 'var(--nw-chart-2)'
         },
         {
           id: 'ytd-departures',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_departures', 'YTD Departures'),
-          value: 'Loading...',
-          icon: 'users',
-          iconColor: '#ff4d4f'
+          title: t('hr-analytics-forecasting-kpi-ytd-departures'),
+          value: t('hr-data-filter-loading'),
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
+          iconColor: 'var(--nw-chart-3)'
         },
         {
           id: 'net-change',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_net_change', 'Net Change (YTD)'),
-          value: 'Loading...',
-          icon: 'users',
-          iconColor: '#1890ff'
+          title: t('hr-analytics-forecasting-kpi-net-change'),
+          value: t('hr-data-filter-loading'),
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
+          iconColor: 'var(--nw-chart-4)'
         },
         {
           id: 'turnover-rate',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_turnover_rate', 'Turnover Rate'),
-          value: 'Loading...',
-          icon: 'calendar',
-          iconColor: '#fa8c16'
+          title: t('hr-analytics-forecasting-kpi-turnover-rate'),
+          value: t('hr-data-filter-loading'),
+          icon: <Icon icon={CalendarIcon} size="sm" decorative />,
+          iconColor: 'var(--nw-chart-5)'
         },
         {
           id: 'growth-rate',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_growth_rate', 'Growth Rate'),
-          value: 'Loading...',
-          icon: 'calendar',
-          iconColor: '#13c2c2'
+          title: t('hr-analytics-forecasting-kpi-growth-rate'),
+          value: t('hr-data-filter-loading'),
+          icon: <Icon icon={CalendarIcon} size="sm" decorative />,
+          iconColor: 'var(--nw-chart-6)'
         }
       ]
     }
@@ -121,51 +123,52 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
     return [
       {
         id: 'current-headcount',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_headcount', 'Current Headcount'),
+        title: t('hr-analytics-forecasting-kpi-headcount'),
         value: headcount,
-        icon: 'users',
-        iconColor: '#722ed1',
-        footer: 'Active employees (authoritative count)'
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
+        iconColor: 'var(--nw-chart-1)',
+        footer: t('hr-analytics-active-employees-authoritative')
       },
       {
         id: 'ytd-hires',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_hires', 'YTD Hires'),
+        title: t('hr-analytics-forecasting-kpi-ytd-hires'),
         value: `+${ytdHires}`,
-        icon: 'users',
-        iconColor: '#52c41a',
-        footer: 'Year-to-date new hires'
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
+        iconColor: 'var(--nw-chart-2)',
+        footer: t('hr-analytics-year-to-date-hires')
       },
       {
         id: 'ytd-departures',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_departures', 'YTD Departures'),
+        title: t('hr-analytics-forecasting-kpi-ytd-departures'),
         value: `-${ytdDepartures}`,
-        icon: 'users',
-        iconColor: '#ff4d4f',
-        footer: 'Year-to-date departures'
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
+        iconColor: 'var(--nw-chart-3)',
+        footer: t('hr-analytics-year-to-date-departures')
       },
       {
         id: 'net-change',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_net_change', 'Net Change (YTD)'),
+        title: t('hr-analytics-forecasting-kpi-net-change'),
         value: netChange > 0 ? `+${netChange}` : netChange.toString(),
-        icon: 'users',
-        iconColor: netChange >= 0 ? '#52c41a' : '#ff4d4f',
-        footer: 'Net headcount change'
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
+        iconColor: netChange >= 0 ? 'var(--nw-chart-2)' : 'var(--nw-chart-3)',
+        footer: t('hr-analytics-net-headcount-change')
       },
       {
         id: 'turnover-rate',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_turnover_rate', 'Turnover Rate'),
+        title: t('hr-analytics-forecasting-kpi-turnover-rate'),
         value: `${turnoverRate.toFixed(1)}%`,
-        icon: 'calendar',
-        iconColor: turnoverRate > 15 ? '#ff4d4f' : turnoverRate > 10 ? '#fa8c16' : '#52c41a',
-        footer: 'Year-to-date turnover'
+        icon: <Icon icon={CalendarIcon} size="sm" decorative />,
+        iconColor:
+          turnoverRate > 15 ? 'var(--nw-chart-3)' : turnoverRate > 10 ? 'var(--nw-chart-5)' : 'var(--nw-chart-2)',
+        footer: t('hr-analytics-year-to-date-turnover')
       },
       {
         id: 'growth-rate',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_growth_rate', 'Growth Rate'),
+        title: t('hr-analytics-forecasting-kpi-growth-rate'),
         value: `${growthRate > 0 ? '+' : ''}${growthRate.toFixed(1)}%`,
-        icon: 'calendar',
-        iconColor: growthRate >= 0 ? '#52c41a' : '#ff4d4f',
-        footer: 'Year-to-date growth'
+        icon: <Icon icon={CalendarIcon} size="sm" decorative />,
+        iconColor: growthRate >= 0 ? 'var(--nw-chart-2)' : 'var(--nw-chart-3)',
+        footer: t('hr-analytics-year-to-date-growth')
       }
     ]
   }, [kpiData, isLoadingEmployeeCount, totalEmployeeCount])
@@ -175,15 +178,10 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={4} className="gba:m-0 gba:text-gray-800">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_workforce_forecasting', 'Workforce Forecasting')}
+          <Title level={4} className="gba:m-0 gba:text-foreground">
+            {t('hr-analytics-workforce-forecasting')}
           </Title>
-          <Text className="gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_workforce_forecasting_description',
-              'Headcount trends, hiring projections, and workforce analytics'
-            )}
-          </Text>
+          <Text className="gba:text-muted-foreground">{t('hr-analytics-workforce-forecasting-description')}</Text>
         </div>
       </div>
 

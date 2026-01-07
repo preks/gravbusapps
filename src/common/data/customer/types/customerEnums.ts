@@ -1,13 +1,18 @@
 // Customer-related enums based on CRM schema
 
+/**
+ * SourceTable Enum for Customer Relations
+ * NOTE: SALES_ACTIVITY and SALES_TASK use incorrect prefixed naming
+ * TODO: Standardize to ACTIVITY and TASK in future schema migration
+ */
 export enum SourceTable {
   UNKNOWN_SOURCE = 'UNKNOWN_SOURCE',
   ACCOUNT = 'ACCOUNT',
   OPPORTUNITY = 'OPPORTUNITY',
   CONTACT = 'CONTACT',
   LEAD = 'LEAD',
-  ACTIVITY = 'ACTIVITY',
-  TASK = 'TASK'
+  SALES_ACTIVITY = 'SALES_ACTIVITY', // NOTE: Should be ACTIVITY (incorrect naming in schema)
+  SALES_TASK = 'SALES_TASK' // NOTE: Should be TASK (incorrect naming in schema)
 }
 
 export enum AddressType {

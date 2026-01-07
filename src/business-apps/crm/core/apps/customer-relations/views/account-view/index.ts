@@ -1,10 +1,4 @@
-export { default as AccountList } from './AccountList'
-export { AccountTable } from './components/AccountTable'
-export { AccountStatisticsWithTrend } from './components/AccountStatistics'
-export { useAccountListData } from './hooks/useAccountListData'
-export { useAccountStatisticsWithTrend } from './hooks/useAccountStatisticsWithTrend'
-export { useAccountFilters } from './hooks/useAccountFilters'
-export type { Account, UseAccountListDataReturn } from './types'
-
-// Default export for publishing
-export { default } from './AccountList'
+// AccountView using AccountLayout from common-relations
+export { AccountView as default } from './AccountView'
+export { AccountView } from './AccountView'
+export type { AccountViewProps } from './AccountView'

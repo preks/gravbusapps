@@ -8,6 +8,8 @@ import EngagementDataPage from './pages/engagement-data/EngagementDataPage'
 import PipelineDataPage from './pages/pipeline-data/PipelineDataPage'
 import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
 import TemplateDataPage from './pages/template-data/TemplateDataPage'
+import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
+import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 
 export interface InvestmentSettingsProps extends BusinessAppContextProps {
   className?: string
@@ -93,14 +95,22 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       ]
     },
     {
-      title: t('crm.document_templates', 'Document Templates'),
-      description: t('crm.document_templates_description', 'Create and manage HTML templates for investment documents'),
+      title: t('crm.templates', 'Templates'),
+      description: t('crm.templates_description', 'Manage document and task templates for investments'),
       icon: PiFileHtml,
       iconSize: 'md' as const,
       entries: [
         {
-          label: t('crm.templates', 'Templates'),
+          label: t('crm.document_templates', 'Document Templates'),
           onClick: () => handleInlinePageChange({ key: 'template-data' })
+        },
+        {
+          label: t('crm.folder_templates', 'Folder Templates'),
+          onClick: () => handleInlinePageChange({ key: 'folder-templates' })
+        },
+        {
+          label: t('crm.task_templates', 'Task Templates'),
+          onClick: () => handleInlinePageChange({ key: 'task-template-data' })
         }
       ]
     },
@@ -182,6 +192,16 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     )
   }
 
+  if (inlinePage?.key === 'task-template-data') {
+    return (
+      <TaskTemplateDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentTaskTemplateSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
   if (inlinePage?.key === 'lead') {
     const initialTab: LeadDataTab = isValidLeadTab(inlinePage.tab) ? inlinePage.tab : 'ratings'
 
@@ -210,6 +230,17 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       <PipelineDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentPipelineSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'folder-templates') {
+    return (
+      <FolderTemplateDataPage
+        accessToken={context.accessToken}
+        moduleType={ModuleType.IRM}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentFolderTemplateSettings`}
         onBack={() => handleInlinePageChange(null)}
       />
     )

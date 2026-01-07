@@ -9,6 +9,13 @@
 #   Example: "crm/common/apps/lead-record,hr/core/apps/employee-record,fin/expenses/forms/expense-form"
 # - Screen paths should be relative to src/business-apps/ directory
 #
+# PUBLISH_ALL_SCREENS:
+# - When set to "true", publishes ALL screens in the repository
+# - Supported in both 'publish-manual' (DEV) and 'publish-manual-prod' (PROD) custom pipelines
+# - Ignores SCREENS_TO_PUBLISH and change detection when enabled
+# - Use with caution: this will publish every screen found in src/business-apps/
+# - Default: "false"
+#
 # SKIP_RESOURCE_URL_SYNC (production only):
 # - Controls whether resource URL synchronization from dev to prod should be skipped
 # - Default: "true" (full resource URL sync disabled)
@@ -37,8 +44,11 @@ definitions:
   services:
     docker:
       memory: 3072
-    docker-large:
+    docker-medium:
       memory: 7168
+      type: docker
+    docker-large:
+      memory: 15360
       type: docker
   caches:
     nodecustom:
@@ -48,9 +58,38 @@ definitions:
       path: ./node_modules
 
   steps:
+    - step: &check-hash-file-change
+        name: Check hash file change
+        size: 1x
+        clone:
+          enabled: true
+          depth: full
+        script:
+          - set -e
+          - |
+            PROD_HASH_FILE="component-hashes-prod.json"
+
+            if [ -z "${BITBUCKET_PR_DESTINATION_BRANCH:-}" ]; then
+              echo "Not a PR build (BITBUCKET_PR_DESTINATION_BRANCH not set). Skipping."
+              exit 0
+            fi
+
+            echo "Verifying that ${PROD_HASH_FILE} was NOT changed in this PR..."
+
+            git fetch origin "${BITBUCKET_PR_DESTINATION_BRANCH}"
+
+            CHANGED_FILES="$(git diff --name-only "origin/${BITBUCKET_PR_DESTINATION_BRANCH}...HEAD" || true)"
+
+            if echo "${CHANGED_FILES}" | grep -Fxq "${PROD_HASH_FILE}"; then
+              echo "${PROD_HASH_FILE} was modified in this PR. Changes to this file are not allowed."
+              exit 1
+            fi
+
+            echo "OK - ${PROD_HASH_FILE} not changed."
+
     - step: &install_dependencies
         name: Install dependencies
-        size: 2x
+        size: 1x
         clone:
           enabled: true
           depth: full
@@ -70,11 +109,14 @@ definitions:
 
     - step: &detect-changed-screens
         name: Detect Changed Screens
-        size: 2x
+        size: 1x
         services:
           - docker
         script:
           - bash scripts/detect-changed-screens.sh
+          - |
+            echo "Changed screens:"
+            cat changed-tsx.txt
         artifacts:
           - changed-tsx.txt
 
@@ -90,8 +132,8 @@ definitions:
         artifacts:
           - changed-tsx.txt
 
-    - step: &build-validate-screens
-        name: Build Validate Changed Screens
+    - step: &build-screens
+        name: Build Screens
         size: 2x
         caches:
           - nodecustom
@@ -104,7 +146,7 @@ definitions:
               echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
               node scripts/build-changed-screens.js manual-screens.txt
             else
-              echo "No screens specified, using change detection to build screens"
+              echo "No screens specified, building all screens in batches"
               node scripts/build-changed-screens.js
             fi
         artifacts:
@@ -133,7 +175,11 @@ definitions:
           - docker
         script:
           - |
-            if [ -n "$SCREENS_TO_PUBLISH" ]; then
+            if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
+              echo "🌍 PUBLISH_ALL_SCREENS=true: Publishing ALL screens to development"
+              echo "⚠️  WARNING: This will publish every screen in the repository!"
+              node scripts/publish-all-screens.js
+            elif [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
               echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
               bash scripts/detect-and-publish-changed-screens.sh manual-screens.txt
@@ -154,7 +200,11 @@ definitions:
           - docker
         script:
           - |
-            if [ -n "$SCREENS_TO_PUBLISH" ]; then
+            if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
+              echo "🌍 PUBLISH_ALL_SCREENS=true: Publishing ALL screens to production"
+              echo "⚠️  WARNING: This will publish every screen in the repository!"
+              node scripts/publish-all-prod-screens.js
+            elif [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
               echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
               node scripts/publish-prod-screens.js manual-screens.txt
@@ -165,9 +215,10 @@ definitions:
         artifacts:
           - changed-tsx.txt
           - manual-screens.txt
+          - all-screens.txt
     - step: &sonar_scan
         name: Sonar scan
-        size: 2x
+        size: 4x
         clone:
           enabled: true
           depth: full # SonarCloud scanner needs the full history to assign issues properly
@@ -178,26 +229,42 @@ definitions:
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
-              SONAR_SCANNER_OPTS: -Xmx6144m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=4096']
+              SONAR_SCANNER_OPTS: -Xmx10240m
+              EXTRA_ARGS: ["-Dsonar.javascript.node.maxspace=9216"]
+
+    - step: &sonar_scan_main
+        name: Sonar scan (main)
+        size: 4x
+        clone:
+          enabled: true
+          depth: full # SonarCloud scanner needs the full history to assign issues properly
+        caches:
+          - nodecustom
+        services:
+          - docker-large
+        script:
+          - pipe: sonarsource/sonarcloud-scan:4.1.0
+            variables:
+              SONAR_SCANNER_OPTS: -Xmx14336m
+              EXTRA_ARGS: ["-Dsonar.javascript.node.maxspace=13312"]
 
 pipelines:
   pull-requests:
-    '**':
+    "**":
+      - step: *check-hash-file-change
       - step: *install_dependencies
-      - step: *build-validate-screens
-      - step: *sonar_scan
+      - parallel:
+          - step: *build-screens
+          - step: *sonar_scan
 
   branches:
     develop:
       - step: *install_dependencies
       - step: *publish-changed-screens
-    # Deactivated due to current SonarCloud sizing limits
-    #      - step: *sonar_scan
+
     hotfix/*:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
-      - step: *sonar_scan
 
     main:
       - step: *install_dependencies
@@ -207,25 +274,94 @@ pipelines:
     dry-run:
       - step: *detect-changed-screens
 
+    sonar-scan-main:
+      - step: *install_dependencies
+      - step: *sonar_scan_main
+
     build-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ''
+            default: ""
       - step: *install_dependencies
-      - step: *build-validate-screens
+      - step: *build-screens
 
     publish-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ''
+            default: ""
+          - name: PUBLISH_ALL_SCREENS
+            default: "false"
+            allowed-values:
+              - "true"
+              - "false"
       - step: *install_dependencies
       - step: *publish-manual-screens
 
     publish-manual-prod:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ''
+            default: ""
+          - name: PUBLISH_ALL_SCREENS
+            default: "false"
+            allowed-values:
+              - "true"
+              - "false"
           - name: SKIP_RESOURCE_URL_SYNC
-            default: 'true'
+            default: "true"
+            allowed-values:
+              - "true"
+              - "false"
+      - step:
+          name: Enforce develop/main branches for production publish
+          script:
+            - |
+              if [ "$BITBUCKET_BRANCH" != "develop" ] && [ "$BITBUCKET_BRANCH" != "main" ]; then
+                echo "publishing to production is restricted to develop or main branches. Current branch: $BITBUCKET_BRANCH"
+                exit 1
+              fi
       - step: *install_dependencies
       - step: *publish-manual-prod-screens
+
+    calculate-hashes:
+      - variables:
+          - name: HASH_ENV
+            default: "dev"
+            allowed-values:
+              - "dev"
+              - "prod"
+          - name: SCREENS
+            default: ""
+          - name: COMMIT_CHANGES
+            default: "false"
+            allowed-values:
+              - "true"
+              - "false"
+          - name: DRY_RUN
+            default: "true"
+            allowed-values:
+              - "true"
+              - "false"
+      - step: *install_dependencies
+      - step:
+          name: Calculate screen hashes
+          size: 2x
+          caches:
+            - nodecustom
+          script:
+            - echo "🔧 Calculating hashes for $HASH_ENV environment"
+            - |
+              ARGS="--env=$HASH_ENV"
+              if [ -n "$SCREENS" ]; then
+                ARGS="$ARGS --screens=$SCREENS"
+              fi
+              if [ "$COMMIT_CHANGES" = "true" ]; then
+                ARGS="$ARGS --commit"
+              fi
+              if [ "$DRY_RUN" = "true" ]; then
+                ARGS="$ARGS --dry-run"
+              fi
+              echo "Running: node scripts/calculate-hashes.js $ARGS"
+              node scripts/calculate-hashes.js $ARGS
+          artifacts:
+            - component-hashes.json
+            - component-hashes-prod.json

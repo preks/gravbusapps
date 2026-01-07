@@ -6,23 +6,19 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  Input,
+  DateInput,
   Textarea,
   Combobox,
-  Button,
-  Spinner
+  FileUpload
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
-import { Upload } from 'antd'
 import type { UploadFile } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useUploadDocumentLookups } from './queries/UploadDocumentQueries'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { env } from '@/common/env/EnvUtils'
 
@@ -49,7 +45,7 @@ export async function submitUploadDocument(
         'fileContent'
       )
 
-      const processesBase = env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
+      const processesBase = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
       const createDocUrl = `${processesBase}/employee/employeeDocuments`
       const body = {
         employeeDocument: {
@@ -113,8 +109,8 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
     mode: 'onChange'
   })
 
-  const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [isUploading] = useState(false)
+  const [, setFileList] = useState<UploadFile[]>([])
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const initialDefaultsRef = useRef(form.getValues())
 
   const title = useMemo(
@@ -124,14 +120,14 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
 
   const isSubmitDisabled = useMemo(() => {
     const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0
-    const hasFile = fileList.length > 0
+    const hasFile = Boolean(selectedFile)
     const vals = form.getValues()
     const requiredMissing = !vals.documentGroupId || !vals.documentTypeId
     return hasValidationErrors || !hasFile || requiredMissing
-  }, [form.formState, fileList])
+  }, [form.formState, selectedFile])
 
   // GraphQL lookups -> directly populate dropdowns
-  const { groups, types } = useUploadDocumentLookups(context)
+  const { groups, types, employee } = useUploadDocumentLookups(context)
   const selectedGroupId = form.watch('documentGroupId')
   const filteredTypes = useMemo(
     () => (types || []).filter(t => !selectedGroupId || t.parentEntryId === selectedGroupId),
@@ -139,14 +135,30 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
   )
 
   const fileClient = useFileClient({ accessToken: context.accessToken } as any)
-  const employeeId = context.userInfo?.employeeDetails?.employeeId
+  const flowEmployeeId = (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
+  const employeeId = flowEmployeeId || context.userInfo?.employeeDetails?.employeeId
 
   return (
     <div
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px] gba:gap-4 gba:[&>div[data-testid='upload-document-form']]:!p-0 gba:[&>div[data-testid='upload-document-form']>form]:!max-w-full gba:[&>div[data-testid='upload-document-form']>form]:!w-full"
       data-testid={formatDataTestId(dataTestId, 'Container')}
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: Array.isArray(employee.employeePosition)
+                  ? employee.employeePosition?.[0]?.jobPosition?.name
+                  : (employee.employeePosition as any)?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <AppActionForm
         processType="create"
@@ -162,7 +174,17 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
         handlePreSubmit={async (values: UploadDocumentValues) => {
           const res = await submitUploadDocument(values, {
             employeeId,
-            files: fileList,
+            // Provide a minimal UploadFile-like object carrying the actual File
+            files: selectedFile
+              ? ([
+                  {
+                    uid: 'selected-file',
+                    name: selectedFile.name,
+                    type: selectedFile.type,
+                    originFileObj: selectedFile
+                  } as any
+                ] as UploadFile[])
+              : ([] as UploadFile[]),
             accessToken: context.accessToken,
             fileClient
           })
@@ -175,19 +197,6 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             pso_exitStrategy: 'complete'
           }
         }}
-        onCancel={() => {
-          dispatchProcessContinueEvent('pse_abort', {
-            event: 'pse_abort',
-            pso_exitStrategy: 'abort',
-            pso_completeNotification: {
-              type: 'error',
-              messageKey: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_module.toast_notification_cancel_create_absence',
-                'The action has been canceled.'
-              )
-            }
-          })
-        }}
         onSubmit={() => ({})}
         data-testid={APP_FORM_TID}
       >
@@ -197,30 +206,26 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             <FormLabel>
               {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.upload_document', 'Upload Document')}
             </FormLabel>
-            <div className="gba:mt-2">
-              <Upload
-                fileList={fileList}
-                onChange={({ fileList: list }) => setFileList(list)}
-                beforeUpload={() => false}
-                maxCount={1}
-                data-testid="flw_documentModule_uploadFile"
-              >
-                <Button
-                  variant="secondary"
-                  type="button"
-                  disabled={isUploading}
-                  data-testid="flw_documentModule_uploadFile"
-                >
-                  {isUploading ? <Spinner size="sm" className="gba:mr-2" /> : null}
-                  <UploadOutlined />
-                  <span className="gba:ml-2">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:upload_document_form.upload_document',
-                      'Upload Document'
-                    )}
-                  </span>
-                </Button>
-              </Upload>
+            <div className="gba:mt-2" data-testid="flw_documentModule_uploadFile">
+              <FileUpload
+                multiple={false}
+                maxFiles={1}
+                accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
+                layout="list"
+                preview="icon"
+                onFilesChange={(files: any[]) => {
+                  // minimal UploadFile mapping without originFileObj to satisfy type
+                  const mapped = (files || []).map((f: any) => ({
+                    uid: f.id,
+                    name: f.file?.name || 'file',
+                    status: 'done' as const,
+                    type: (f.file as File)?.type
+                  })) as UploadFile[]
+                  setFileList(mapped)
+                  const first = (files || [])[0]
+                  setSelectedFile(first && first.file instanceof File ? (first.file as File) : null)
+                }}
+              />
             </div>
           </div>
 
@@ -306,12 +311,17 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
                   {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.expiry_date', 'Expiry Date')}
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    type="date"
-                    className="gba:w-full"
-                    data-testid="flw_uploadDocument_fld_expiryDate"
-                    {...field}
-                  />
+                  <div data-testid="flw_uploadDocument_fld_expiryDate">
+                    <DateInput
+                      type="date"
+                      value={field.value || ''}
+                      onChange={(v: string | [string | null, string | null] | null) => {
+                        const single = Array.isArray(v) ? v?.[0] : v
+                        field.onChange(single || '')
+                      }}
+                      className="gba:w-full"
+                    />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

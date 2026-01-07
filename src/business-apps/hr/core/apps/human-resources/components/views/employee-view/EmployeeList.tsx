@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useCallback, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters'
@@ -12,6 +11,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PlusSquareIcon } from '@/components/dataController/DataController'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
  * Employee List page component. Renders the employee list module with a table view.
@@ -19,7 +19,6 @@ import { PlusSquareIcon } from '@/components/dataController/DataController'
  */
 export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
   const { accessToken } = props
-  const { t } = useTranslation()
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [hasInitialLoad, setHasInitialLoad] = useState(false)
   const [currentPage, setCurrentPage] = useState<number>(1)
@@ -44,7 +43,11 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       // Use the appropriate function directly
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )
@@ -144,7 +147,10 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
           filter: selectedFilters,
           setFilter: setSelectedFilters,
           filterLabelMap: filterLabelMap,
-          listTitle: t('employee.list_title', 'Employees'),
+          listTitle: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:human_resources_page.employees_section.tab_label',
+            'Employees'
+          ),
           listIcon: <PiUsersThree size={20} />,
           listAmount: total,
           actions: (
@@ -165,7 +171,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
                   <PlusSquareIcon />
                 </span>
                 <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  Add
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.add', 'Add')}
                 </span>
               </button>
             </AppActionMenu>

@@ -1,378 +1,159 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { TeamInfo } from '../types/userRoles'
 
-interface UseTeamsDataProps {
-  accessToken: string
+interface OrganizationalUnitEmployee {
+  employeeId: string
+  employee: {
+    firstName: string
+    lastName: string
+  } | null // Can be null if employee is deleted or inactive
 }
 
-interface UseTeamsDataResult {
+interface OrganizationalUnitResponse {
+  id: string
+  name: string
+  code: string
+  type: string
+  description: string | null
+  organizationalUnitEmployeeAggregate: {
+    aggregate: {
+      count: number
+    }
+  }
+  organizationalUnitEmployee: OrganizationalUnitEmployee[]
+}
+
+interface GetTeamsDataResult {
+  OrganizationalUnit: OrganizationalUnitResponse[]
+}
+
+export interface UseTeamsDataProps {
+  accessToken: string
+  structureId?: string // Optional - will auto-detect from window if not provided
+}
+
+export interface UseTeamsDataResult {
   teams: TeamInfo[]
   isLoading: boolean
   error: string | null
   refetch: () => void
 }
 
-// GraphQL query to get employees with sales activities and organizational structure
-// This ensures teams are only created for supervisors who actually have sales team members
-const GET_SALES_EMPLOYEES_WITH_ORG_DATA = `
-  query GetSalesEmployeesWithOrgData {
-    # Get all employees who own leads
-    leadsOwners: Lead(
-      where: { 
-        isDeleted: { _eq: false }
-        ownerEmployeeId: { _neq: null }
-      }
-      limit: 100
-    ) {
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-        employeePosition {
-          organizationalUnit {
-            id
-            name
-          }
-          supervisor {
-            id
-            firstName
-            lastName
-            displayName
-          }
-        }
-      }
-    }
-    
-    # Get all employees who own accounts
-    accountsOwners: Account(
-      where: { 
-        isDeleted: { _eq: false }
-        ownerEmployeeId: { _neq: null }
-      }
-      limit: 100
-    ) {
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-        employeePosition {
-          organizationalUnit {
-            id
-            name
-          }
-          supervisor {
-            id
-            firstName
-            lastName
-            displayName
-          }
-        }
-      }
-    }
-    
-    # Get all employees who own opportunities
-    opportunitiesOwners: Opportunity(
-      where: { 
-        isDeleted: { _eq: false }
-        ownerEmployeeId: { _neq: null }
-      }
-      limit: 100
-    ) {
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-        employeePosition {
-          organizationalUnit {
-            id
-            name
-          }
-          supervisor {
-            id
-            firstName
-            lastName
-            displayName
-          }
-        }
-      }
-    }
-    
-    # Get all employees who own contacts
-    contactsOwners: Contact(
-      where: { 
-        isDeleted: { _eq: false }
-        ownerEmployeeId: { _neq: null }
-      }
-      limit: 100
-    ) {
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-        employeePosition {
-          organizationalUnit {
-            id
-            name
-          }
-          supervisor {
-            id
-            firstName
-            lastName
-            displayName
-          }
-        }
-      }
-    }
-  }
-`
-
 /**
- * Hook to fetch real sales teams data by deriving them from CRM employees' organizational structure
- * Only creates teams for employees who own CRM entities (Leads, Accounts, Opportunities, Contacts)
- * This ensures teams have actual sales team members with data
+ * Optimized hook to fetch teams directly from OrganizationalUnit table
+ * Returns teams with memberIds populated, compatible with useTeamPerformanceData
  */
-export const useTeamsData = ({ accessToken }: UseTeamsDataProps): UseTeamsDataResult => {
+export const useTeamsData = ({ accessToken, structureId: propStructureId }: UseTeamsDataProps): UseTeamsDataResult => {
+  const graphqlClient = useGraphQLClient(accessToken)
   const [teams, setTeams] = useState<TeamInfo[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphQLClient(accessToken)
+  // Get structure ID from prop or window context
+  const structureId = propStructureId || getCurrentActiveStructureId()
 
   const fetchTeams = useCallback(async () => {
-    if (!accessToken) {
-      console.log('⚠️ useTeamsData: No access token available, waiting...')
-      setError('Access token required')
+    if (!accessToken || !structureId) {
+      setTeams([])
       setIsLoading(false)
       return
     }
 
-    console.log('✅ useTeamsData: Access token available, fetching teams...')
     setIsLoading(true)
     setError(null)
 
     try {
-      console.log('useTeamsData: Fetching teams from sales employees with organizational structure...')
-
-      const response = await graphqlClient.request<{
-        leadsOwners: Array<{
-          ownerEmployee: {
-            id: string
-            firstName: string
-            lastName: string
-            displayName: string
-            employeePosition: {
-              organizationalUnit: {
-                id: string
-                name: string
-              }
-              supervisor: {
-                id: string
-                firstName: string
-                lastName: string
-                displayName: string
+      const query = `
+        query GetTeamsWithMembers($structureId: uuid!) {
+          OrganizationalUnit(
+            where: {
+              isDeleted: { _eq: false },
+              structureId: { _eq: $structureId },
+              type: { _in: ["TEAM", "DEPARTMENT", "UNIT"] }
+            }
+            orderBy: { name: ASC }
+          ) {
+            id
+            name
+            code
+            type
+            description
+            
+            # Get member count efficiently via aggregate
+            organizationalUnitEmployeeAggregate {
+              aggregate {
+                count
               }
             }
-          } | null
-        }>
-        accountsOwners: Array<{
-          ownerEmployee: {
-            id: string
-            firstName: string
-            lastName: string
-            displayName: string
-            employeePosition: {
-              organizationalUnit: {
-                id: string
-                name: string
+            
+            # Get all team members via relationship (filter at database level)
+            organizationalUnitEmployee(
+              where: {
+                employee: {
+                  isDeleted: { _eq: false }
+                }
               }
-              supervisor: {
-                id: string
-                firstName: string
-                lastName: string
-                displayName: string
+            ) {
+              employeeId
+              employee {
+                firstName
+                lastName
               }
             }
-          } | null
-        }>
-        opportunitiesOwners: Array<{
-          ownerEmployee: {
-            id: string
-            firstName: string
-            lastName: string
-            displayName: string
-            employeePosition: {
-              organizationalUnit: {
-                id: string
-                name: string
-              }
-              supervisor: {
-                id: string
-                firstName: string
-                lastName: string
-                displayName: string
-              }
-            }
-          } | null
-        }>
-        contactsOwners: Array<{
-          ownerEmployee: {
-            id: string
-            firstName: string
-            lastName: string
-            displayName: string
-            employeePosition: {
-              organizationalUnit: {
-                id: string
-                name: string
-              }
-              supervisor: {
-                id: string
-                firstName: string
-                lastName: string
-                displayName: string
-              }
-            }
-          } | null
-        }>
-      }>(GET_SALES_EMPLOYEES_WITH_ORG_DATA)
-
-      // Combine all sales employees from different CRM entity types
-      const allSalesEmployees: Array<{
-        id: string
-        firstName: string
-        lastName: string
-        displayName: string
-        employeePosition: {
-          organizationalUnit: {
-            id: string
-            name: string
-          }
-          supervisor: {
-            id: string
-            firstName: string
-            lastName: string
-            displayName: string
           }
         }
-      }> = []
+      `
 
-      // Extract employees from each CRM entity type
-      ;[response.leadsOwners, response.accountsOwners, response.opportunitiesOwners, response.contactsOwners].forEach(
-        owners => {
-          owners.forEach(item => {
-            if (item.ownerEmployee) {
-              // Check if employee already exists (deduplication)
-              if (!allSalesEmployees.find(emp => emp.id === item.ownerEmployee!.id)) {
-                allSalesEmployees.push(item.ownerEmployee)
-              }
-            }
-          })
+      const response = await graphqlClient.request<GetTeamsDataResult>(query, { structureId })
+
+      if (!response?.OrganizationalUnit) {
+        throw new Error('No teams data received from server')
+      }
+
+      // Transform to TeamInfo format (compatible with current implementation)
+      const teamsData: TeamInfo[] = response.OrganizationalUnit.map(unit => {
+        // Filter out null employees and extract member IDs
+        const validMembers = unit.organizationalUnitEmployee.filter(emp => emp.employee !== null)
+        const memberIds = validMembers.map(emp => emp.employeeId)
+
+        return {
+          id: unit.id,
+          name: unit.name,
+          code: unit.code,
+          type: unit.type,
+          description: unit.description || '',
+          memberCount: memberIds.length, // Count only valid members
+          memberIds, // 👈 Already populated from database!
+          // Optional: Store member details for future use
+          members: validMembers.map(emp => ({
+            employeeId: emp.employeeId,
+            firstName: emp.employee!.firstName,
+            lastName: emp.employee!.lastName,
+            fullName: `${emp.employee!.firstName} ${emp.employee!.lastName}`.trim()
+          }))
         }
-      )
-
-      console.log('useTeamsData: Found sales employees from CRM entities:', {
-        leadsOwners: response.leadsOwners.length,
-        accountsOwners: response.accountsOwners.length,
-        opportunitiesOwners: response.opportunitiesOwners.length,
-        contactsOwners: response.contactsOwners.length,
-        uniqueSalesEmployees: allSalesEmployees.length
       })
-
-      // Group employees by organizational unit and supervisor to create teams
-      const teamMap = new Map<
-        string,
-        {
-          orgUnitId: string
-          orgUnitName: string
-          supervisorId: string
-          supervisorName: string
-          members: string[]
-        }
-      >()
-
-      allSalesEmployees.forEach(employee => {
-        const orgUnit = employee.employeePosition?.organizationalUnit
-        const supervisor = employee.employeePosition?.supervisor
-
-        // Skip employees with missing organizational data (even though we filtered, relationships can be null)
-        if (!orgUnit || !supervisor || !orgUnit.id || !supervisor.id) {
-          console.warn('Skipping employee with incomplete org data:', {
-            employeeId: employee.id,
-            hasOrgUnit: !!orgUnit,
-            hasSupervisor: !!supervisor,
-            orgUnitId: orgUnit?.id,
-            supervisorId: supervisor?.id
-          })
-          return
-        }
-
-        // Create a unique team key combining org unit and supervisor
-        const teamKey = `${orgUnit.id}-${supervisor.id}`
-
-        if (!teamMap.has(teamKey)) {
-          teamMap.set(teamKey, {
-            orgUnitId: orgUnit.id,
-            orgUnitName: orgUnit.name,
-            supervisorId: supervisor.id,
-            supervisorName:
-              supervisor.displayName ||
-              `${supervisor.firstName || ''} ${supervisor.lastName || ''}`.trim() ||
-              'Unknown Supervisor',
-            members: []
-          })
-        }
-
-        teamMap.get(teamKey)!.members.push(employee.id)
-      })
-
-      // Convert map to TeamInfo array
-      const teamsData: TeamInfo[] = Array.from(teamMap.entries()).map(([teamKey, teamData]) => ({
-        id: teamKey,
-        name: `${teamData.orgUnitName} (${teamData.supervisorName})`,
-        managerId: teamData.supervisorId,
-        memberCount: teamData.members.length,
-        memberIds: teamData.members
-      }))
-
-      console.log('useTeamsData: Successfully derived', teamsData.length, 'sales teams from CRM employee data')
-      console.log(
-        'Sales teams found:',
-        teamsData.map(t => ({ name: t.name, memberCount: t.memberCount }))
-      )
 
       setTeams(teamsData)
     } catch (err) {
-      console.error('Error fetching teams data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch sales teams data from CRM employee structure')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch teams data'
+      setError(errorMessage)
       setTeams([])
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, graphqlClient])
-
-  const refetch = () => {
-    fetchTeams()
-  }
+  }, [accessToken, structureId, graphqlClient])
 
   useEffect(() => {
-    if (accessToken) {
-      fetchTeams()
-    } else {
-      console.log('⚠️ useTeamsData: Waiting for access token...')
-      setIsLoading(false)
-      setTeams([])
-    }
-  }, [accessToken, fetchTeams])
+    void fetchTeams()
+  }, [fetchTeams])
 
   return {
     teams,
     isLoading,
     error,
-    refetch
+    refetch: () => void fetchTeams()
   }
 }

@@ -1,6 +1,6 @@
-import type { InvestmentLead } from '@/common/data/investment'
+import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
 
-export type { InvestmentLead } from '@/common/data/investment'
+export type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
 
 export interface Note {
   id: string
@@ -58,10 +58,12 @@ export interface SalesTaskData {
   statusRef?: string
   priority?: any
   dueDate?: string
-  assignedEmployee?: any
+  taskAssignees?: Array<{
+    assignedEmployee?: any
+  }>
   creatorEmployee?: any
   createdAt: string
   createdBy: string
-  timingType?: string
+  taskTiming?: string
   typeRef?: string
 }

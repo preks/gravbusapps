@@ -20,7 +20,7 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
   return (
     <Card className="gba:hover:shadow-md gba:transition-shadow gba:p-4" data-testid="status-pie-chart-card">
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <RiPieChart2Line className="gba:text-green-600" size={20} />
+        <RiPieChart2Line className="gba:text-success" size={20} />
         <div>
           <h5 className="gba:text-sm gba:font-medium gba:m-0">
             {getTranslationFromI18nKeyAndLabel(
@@ -55,7 +55,7 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
               onClick={onPieClick}
             >
               {data.map((entry, index) => (
-                <Cell key={index} fill={statusColors[entry.status] || '#94a3b8'} />
+                <Cell key={index} fill={statusColors[entry.status] || 'var(--nw-muted-foreground)'} />
               ))}
             </Pie>
             <RechartsTooltip
@@ -66,7 +66,7 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
 
                   return (
                     <div
-                      className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow"
+                      className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow"
                       style={{ pointerEvents: 'none' }}
                     >
                       <p className="gba:font-medium">{entry.name}</p>
@@ -113,7 +113,7 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
             <span key={entry.name} className="gba:flex gba:items-center gba:gap-2">
               <span
                 className="gba:w-3 gba:h-3 gba:rounded gba:inline-block"
-                style={{ backgroundColor: statusColors[entry.status] || '#94a3b8' }}
+                style={{ backgroundColor: statusColors[entry.status] || 'var(--nw-muted-foreground)' }}
               />
               <span className="gba:text-xs">
                 {entry.name}: {percent}%

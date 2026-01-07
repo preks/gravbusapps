@@ -21,7 +21,7 @@ const JobPosition: React.FC<BusinessAppContextProps & JobPositionProps> = ({
   if (!structureId) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
+        <div className="gba:text-destructive">
           Error: No structure ID found. Please ensure you are in a valid organizational context.
         </div>
       </div>

@@ -57,6 +57,21 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
     }
   }
 
+  const handleContainerKeyDown = (e: React.KeyboardEvent) => {
+    if (!expanded && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault()
+      handleClick()
+    }
+  }
+
+  const handleClearKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      e.stopPropagation()
+      handleClear(e as any)
+    }
+  }
+
   return (
     <div className="gba:flex gba:items-center" style={{ gap: '12px' }} data-testid="search-bar-with-label-container">
       <div
@@ -69,14 +84,18 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
           transition: 'width 0.3s, padding 0.3s, background-color 0.3s',
           cursor: 'pointer',
           width: expanded ? '300px' : '44px',
-          border: '2px solid #EBEBEB',
-          background: expanded ? '#F7F7F7' : '#EBEBEB',
+          border: '2px solid border',
+          background: expanded ? 'muted' : 'border',
           position: 'relative',
           overflow: 'hidden',
           height: '32px',
           justifyContent: expanded ? 'flex-start' : 'center'
         }}
         onClick={handleClick}
+        onKeyDown={handleContainerKeyDown}
+        role="button"
+        tabIndex={expanded ? -1 : 0}
+        aria-label={expanded ? undefined : 'Expand search'}
         ref={containerRef}
         data-testid="plan-search-bar"
       >
@@ -94,7 +113,7 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
             transition: 'opacity 0.3s, width 0.3s',
             backgroundColor: 'transparent',
             paddingLeft: '30px',
-            color: '#333'
+            color: 'foreground'
           }}
           data-testid="plan-search-input"
         />
@@ -110,6 +129,10 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
               opacity: '1'
             }}
             onClick={handleClear}
+            onKeyDown={handleClearKeyDown}
+            role="button"
+            tabIndex={0}
+            aria-label="Clear search"
             data-testid="plan-search-clear"
           >
             <XCircleIcon data-testid="plan-search-clear-icon" />
@@ -134,7 +157,7 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
       </div>
       {!expanded && (
         <div
-          style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', whiteSpace: 'nowrap' }}
+          style={{ fontSize: '14px', fontWeight: 'bold', color: 'foreground', whiteSpace: 'nowrap' }}
           data-testid="plan-count-text"
         >
           {label}

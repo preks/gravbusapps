@@ -1,356 +1,173 @@
-// Investment Contact Queries - Complete queries using shared fragments
+/**
+ * Investment Contact Queries (New)
+ * GraphQL queries for Investment Contact entities using fields mapping
+ * Extends Common Contact Queries with InvestmentContactFields (with overrides)
+ */
+
 import {
-  INVESTMENT_TASK,
-  INVESTMENT_ACTIVITY,
-  INVESTMENT_NOTE,
-  INVESTMENT_DOCUMENT
-} from './fragments/investmentRelationFragments'
-import { INVESTMENT_CONTACT, INVESTMENT_ACCOUNT_REF } from './fragments/investmentRelationFragments'
-export interface InvestmentContactQueryVariables {
-  ids?: string[]
-  search?: string
-  academicTitleIds?: string[]
-  salutationIds?: string[]
-  languageIds?: string[]
-  ownerEmployeeIds?: string[]
+  buildContactQuery,
+  buildContactByIdQuery,
+  buildContactSearchQuery,
+  buildContactWhereCondition,
+  buildContactOrderBy,
+  type CommonContactQueryVariables,
+  type ContactRelationBuilders,
+  type ContactRelationFields
+} from '@/common/data/relations/queries/contactQueries'
+import { InvestmentContactFields, INVESTMENT_CONTACT_DESCRIPTORS } from '../types/investmentContactTypes'
+import { INVESTMENT_ADDRESS_FRAGMENT } from '../types/investmentAddressTypes'
+// ContactFields type is used implicitly through Record<keyof typeof ContactFields, string>
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+
+// Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
+import {
+  buildActivityFragment,
+  buildAccountFragment,
+  buildDocumentFragment,
+  buildLeadFragment,
+  buildNoteFragment,
+  buildOpportunityFragment
+} from '@/common/data/relations/queries/relationFragments'
+
+// Import IRM-specific task fragment (uses taskAssignees instead of assignedEmployee)
+import { buildInvestmentTaskFragmentForRelations } from './investmentTaskQueries'
+
+// Import Investment Fields
+import { InvestmentActivityFields } from '../types/investmentActivityTypes'
+import { InvestmentAccountFields } from '../types/investmentAccountTypes'
+import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
+import { InvestmentLeadFields } from '../types/investmentLeadTypes'
+import { InvestmentNoteFields } from '../types/investmentNoteTypes'
+import { InvestmentOpportunityFields } from '../types/investmentOpportunityTypes'
+import { InvestmentTaskFields } from '../types/investmentTaskTypes'
+
+/**
+ * Investment Contact Query Variables Interface
+ * Extends CommonContactQueryVariables with investment-specific filters
+ */
+export interface InvestmentContactQueryVariables extends CommonContactQueryVariables {
+  // Investment-specific filters
   accountIds?: string[]
   contactTypes?: string[]
   departments?: string[]
   fullNames?: string[]
-  // Created timestamps
-  createdAtFrom?: string
-  createdAtTo?: string
-  birthDateFrom?: string
-  birthDateTo?: string
-  // Contact info presence filters
   hasEmail?: boolean
   missingEmail?: boolean
   hasPhone?: boolean
   missingPhone?: boolean
-  limit?: number
-  offset?: number
-  orderBy?: Array<{
-    field: string
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
-  }>
+  birthDateFrom?: string
+  birthDateTo?: string
+  userIds?: string[] // Filter by Keycloak user IDs
 }
 
-// Build where condition for Investment Contact queries
-export const buildInvestmentContactWhereCondition = (variables: InvestmentContactQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }'
-
-  // Search across multiple fields (only using fields that exist in the schema)
-  if (variables.search?.trim()) {
-    const searchTerm = variables.search.trim()
-    whereClause += `, _or: [
-      { firstName: { _ilike: "%${searchTerm}%" } },
-      { lastName: { _ilike: "%${searchTerm}%" } },
-      { fullName: { _ilike: "%${searchTerm}%" } },
-      { email: { _ilike: "%${searchTerm}%" } },
-      { phone: { _ilike: "%${searchTerm}%" } },
-      { code: { _ilike: "%${searchTerm}%" } },
-      { department: { _ilike: "%${searchTerm}%" } },
-      { description: { _ilike: "%${searchTerm}%" } },
-      { jobPosition: { _ilike: "%${searchTerm}%" } }
-    ]`
+/**
+ * Build Investment Contact query with fields mapping
+ */
+export const buildInvestmentContactQuery = (
+  fields: typeof InvestmentContactFields = InvestmentContactFields
+): string => {
+  // Build relation builders and fields for accountContacts
+  const relationBuilders: Partial<ContactRelationBuilders> = {
+    buildAccountFragment
   }
 
-  // Filter by specific fields
-  if (variables.academicTitleIds?.length) {
-    whereClause += `, academicTitle: { id: { _in: [${variables.academicTitleIds.map(id => `"${id}"`).join(', ')}] } }`
+  const relationFields: Partial<ContactRelationFields> = {
+    accountFields: InvestmentAccountFields
   }
 
-  if (variables.salutationIds?.length) {
-    whereClause += `, salutation: { id: { _in: [${variables.salutationIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-
-  if (variables.languageIds?.length) {
-    whereClause += `, language: { id: { _in: [${variables.languageIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-
-  if (variables.ownerEmployeeIds?.length) {
-    whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-
-  if (variables.accountIds?.length) {
-    whereClause += `, investmentAccountContact: { account: { id: { _in: [${variables.accountIds.map(id => `"${id}"`).join(', ')}] } } }`
-  }
-
-  if (variables.contactTypes?.length) {
-    whereClause += `, type: { _in: [${variables.contactTypes.map(v => `"${v}"`).join(', ')}] }`
-  }
-
-  if (variables.departments?.length) {
-    whereClause += `, department: { _in: [${variables.departments.map(v => `"${v}"`).join(', ')}] }`
-  }
-
-  if (variables.fullNames?.length) {
-    whereClause += `, fullName: { _in: [${variables.fullNames.map(v => `"${v}"`).join(', ')}] }`
-  }
-
-  // CreatedAt range
-  if (variables.createdAtFrom) {
-    whereClause += `, createdAt: { _gte: "${variables.createdAtFrom}" }`
-  }
-  if (variables.createdAtTo) {
-    whereClause += `, createdAt: { _lte: "${variables.createdAtTo}" }`
-  }
-
-  if (variables.birthDateFrom) {
-    whereClause += `, birthDate: { _gte: "${variables.birthDateFrom}" }`
-  }
-
-  if (variables.birthDateTo) {
-    whereClause += `, birthDate: { _lte: "${variables.birthDateTo}" }`
-  }
-
-  // Contact info presence
-  if (variables.hasEmail) {
-    whereClause += `, email: { _isNull: false, _neq: "" }`
-  }
-  if (variables.missingEmail) {
-    whereClause += `, _or: [ { email: { _isNull: true } }, { email: { _eq: "" } } ]`
-  }
-  if (variables.hasPhone) {
-    whereClause += `, phone: { _isNull: false, _neq: "" }`
-  }
-  if (variables.missingPhone) {
-    whereClause += `, _or: [ { phone: { _isNull: true } }, { phone: { _eq: "" } } ]`
-  }
-
-  whereClause += ' }'
-  return whereClause
-}
-
-// Get Investment Contacts with full details
-export const GET_INVESTMENT_CONTACTS = (variables: InvestmentContactQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100)
-  const offset = variables.offset || 0
-  const where = buildInvestmentContactWhereCondition(variables)
-
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ fullName: ASC }]'
-
-  return `
-    query GetInvestmentContacts {
-      InvestmentContact(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${where}
-      ) {
-        ${INVESTMENT_CONTACT}
-        
-        # Aggregate counts for relationships
-        investmentAccountContactAggregate {
-          aggregate {
-            count
-          }
-        }
-        investmentActivityAggregate {
-          aggregate {
-            count
-          }
-        }
-        investmentDocumentAggregate {
-          aggregate {
-            count
-          }
-        }
-        investmentNoteAggregate {
-          aggregate {
-            count
-          }
-        }
-        investmentTaskAggregate {
-          aggregate {
-            count
-          }
-        }
-      }
-      
-      InvestmentContactAggregate(${where}) {
-        aggregate {
-          count
-        }
-      }
+  const entityFields = `
+    # Addresses relation (IRM uses "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${INVESTMENT_ADDRESS_FRAGMENT}
     }
+    
+    # Leads relation (IRM uses "investmentLead" as array, with where clause)
+    ${fields.leads}(where: { isDeleted: { _eq: false } }) {
+      ${buildLeadFragment(InvestmentLeadFields)}
+    }
+    
+    # IRM-specific fields
+    ${fields.userId}
   `
+  return buildContactQuery('InvestmentContact', fields, relationBuilders, relationFields, entityFields)
 }
 
-// Get Investment Contact by ID
-export const GET_INVESTMENT_CONTACT_BY_ID = (id: string): string => {
-  return `
-    query GetInvestmentContactById {
-      InvestmentContact(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        ${INVESTMENT_CONTACT}
-        
-        # Related accounts through account-contact relationships
-        investmentAccountContact {
-          id
-          contactType
-          account {
-            ${INVESTMENT_ACCOUNT_REF}
-          }
-        }
-      }
+/**
+ * Build Investment Contact by ID query
+ */
+export const buildInvestmentContactByIdQuery = (
+  fields: typeof InvestmentContactFields = InvestmentContactFields
+): string => {
+  // Build relation builders and fields for common relations
+  const relationBuilders: ContactRelationBuilders = {
+    buildActivityFragment,
+    buildAccountFragment,
+    buildDocumentFragment,
+    buildLeadFragment,
+    buildNoteFragment,
+    buildOpportunityFragment,
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations // Use IRM-specific version (taskAssignees)
+  }
+
+  const relationFields: ContactRelationFields = {
+    activityFields: InvestmentActivityFields,
+    accountFields: InvestmentAccountFields,
+    documentFields: InvestmentDocumentFields,
+    leadFields: InvestmentLeadFields,
+    noteFields: InvestmentNoteFields,
+    opportunityFields: InvestmentOpportunityFields,
+    taskFields: InvestmentTaskFields
+  }
+
+  // Domain-specific entity fields (addresses, leads)
+  const entityFields = `
+    # Addresses relation (IRM uses "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${INVESTMENT_ADDRESS_FRAGMENT}
     }
+    
+    # Leads relation (IRM uses "investmentLead" as array, with where clause)
+    ${fields.leads}(where: { isDeleted: { _eq: false } }) {
+      ${buildLeadFragment(InvestmentLeadFields)}
+    }
+    
+    # IRM-specific fields
+    ${fields.userId}
   `
+
+  return buildContactByIdQuery('InvestmentContact', fields, relationBuilders, relationFields, entityFields)
 }
 
-// Search Investment Contacts (lightweight for autocomplete)
-export const SEARCH_INVESTMENT_CONTACTS = (variables: InvestmentContactQueryVariables): string => {
-  const { search = '', limit = 10 } = variables
-
-  return `
-    query SearchInvestmentContacts {
-      InvestmentContact(
-        where: {
-          isDeleted: { _eq: false }
-          _and: [
-            {
-              _or: [
-                { firstName: { _ilike: "%${search}%" } },
-                { lastName: { _ilike: "%${search}%" } },
-                { fullName: { _ilike: "%${search}%" } },
-                { email: { _ilike: "%${search}%" } },
-                { code: { _ilike: "%${search}%" } }
-              ]
-            }
-          ]
-        }
-        limit: ${limit}
-        orderBy: [{ fullName: ASC }]
-      ) {
-        id
-        code
-        firstName
-        lastName
-        fullName
-        email
-        phone
-        jobPosition
-        department
-        academicTitle {
-          id
-          code
-          value
-        }
-        salutation {
-          id
-          code
-          value
-        }
-        ownerEmployee {
-          id
-          displayName
-        }
-      }
-    }
-  `
+/**
+ * Build Investment Contact search query
+ */
+export const buildInvestmentContactSearchQuery = (
+  fields: typeof InvestmentContactFields = InvestmentContactFields
+): string => {
+  return buildContactSearchQuery('InvestmentContact', fields)
 }
 
-// =====================================================
-// INVESTMENT CONTACT RELATED ENTITIES QUERIES
-// =====================================================
-
-// Get Investment Tasks by Contact ID
-export const GET_INVESTMENT_TASKS_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetInvestmentTasksByContactId {
-      InvestmentTask(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_TASK}
-        
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
-      }
-    }
-  `
+/**
+ * Build WHERE condition for Investment Contact queries
+ * Uses INVESTMENT_CONTACT_DESCRIPTORS which includes common descriptors
+ */
+export const buildInvestmentContactWhereCondition = (
+  variables: InvestmentContactQueryVariables = {},
+  additionalDescriptors: Descriptor[] = [],
+  customConditions: Record<string, any>[] = []
+): Record<string, any> => {
+  // INVESTMENT_CONTACT_DESCRIPTORS already includes common descriptors
+  const descriptors = [...INVESTMENT_CONTACT_DESCRIPTORS, ...additionalDescriptors]
+  return buildContactWhereCondition(variables, descriptors, customConditions)
 }
 
-// Get Investment Activities by Contact ID
-export const GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetInvestmentActivitiesByContactId {
-      InvestmentActivity(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ occurredAt: DESC }]
-      ) {
-        ${INVESTMENT_ACTIVITY}
-        
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Notes by Contact ID
-export const GET_INVESTMENT_NOTES_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetInvestmentNotesByContactId {
-      InvestmentNote(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_NOTE}
-        
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Documents by Contact ID
-export const GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetInvestmentDocumentsByContactId {
-      InvestmentDocument(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_DOCUMENT}
-        
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
-      }
-    }
-  `
+/**
+ * Build ORDER BY for Investment Contact queries
+ */
+export const buildInvestmentContactOrderBy = (
+  orderBy: InvestmentContactQueryVariables['orderBy'] = [],
+  additionalDescriptors: Descriptor[] = []
+): any[] => {
+  const descriptors = [...INVESTMENT_CONTACT_DESCRIPTORS, ...additionalDescriptors]
+  return buildContactOrderBy(orderBy, descriptors)
 }

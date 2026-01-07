@@ -1,51 +1,55 @@
 import React, { useState, useEffect } from 'react'
-import { Calendar, Button, Typography, Space, Tag, Spin, message, Alert, Drawer } from 'antd'
+import { Calendar, Spin, message, Alert, ConfigProvider } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
-import { LeftOutlined, RightOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetExpenseItems, ExpenseItem } from '../../../hooks/useGetExpenseItems'
 import { useGetExpensePlans, ExpensePlan } from '../../../hooks/useGetExpensePlans'
 import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
-import ExpenseItemDetails from '../expense-items-tab/ExpenseItemDetails'
-import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
-import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay } from '../../../utils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+//
+import CalendarHeader from './components/CalendarHeader'
+import DetailsSheet from './components/DetailsSheet'
+import FiltersBar from './components/FiltersBar'
+import DayCellEvents from './components/DayCellEvents'
+import { useCalendarLocale } from './hooks/useCalendarLocale'
+import { useStripRcPickerTitle } from './hooks/useStripRcPickerTitle'
+import type { CalendarExpenseItem } from './types'
+import { toCalendarItemFromExpense, toCalendarItemFromPlan, toCalendarItemFromRequest } from './utils/transform'
 
-interface CalendarExpenseItem {
-  id: string
-  title: string
-  expenseDate: Dayjs // For single day items, or start date for multi-day
-  endDate?: Dayjs // For multi-day items, optional
-  totalAmount: number
-  currencyCode: string
-  status: string
-  type: 'expense' | 'plan' | 'request'
-}
+// Import dayjs locales and plugins
+import 'dayjs/locale/en'
+import 'dayjs/locale/de'
+import 'dayjs/locale/ro'
+import localeData from 'dayjs/plugin/localeData'
+import updateLocale from 'dayjs/plugin/updateLocale'
+dayjs.extend(localeData)
+dayjs.extend(updateLocale)
 
-const getStatusColor = (status: CalendarExpenseItem['status']): string => {
-  switch (status) {
-    case 'PENDING':
-      return 'orange'
-    case 'APPROVED':
-      return 'blue'
-    case 'PAID':
-      return 'green'
-    case 'REJECTED':
-      return 'red'
-    default:
-      return 'default'
-  }
-}
+//
+
+// Types moved to ./types
+
+// Locale moved to hooks/useCalendarLocale
+
+// Status color is handled via nw-design-system Badge variants using existing mapping helpers
 
 const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
+  // Get user locale and configure dayjs + Ant Design locales
+  const userLocale = getCurrentActiveUserLocale() || 'en-US'
+  const { dayjsLocale, antdLocale } = useCalendarLocale(userLocale)
+  useEffect(() => {
+    setCalendarValue(prev => prev.locale(dayjsLocale))
+  }, [dayjsLocale])
+
+  // Track calendar value to trigger updates when month changes
+  const [calendarValue, setCalendarValue] = useState<Dayjs>(dayjs().locale(dayjsLocale))
   const {
     items: rawExpenseItems,
     isLoading: isLoadingExpenses,
     error: fetchExpensesErrorHook,
     fetchItems: fetchExpenseHookItems
-  } = useGetExpenseItems(props)
+  } = useGetExpenseItems(props, { autoFetch: false })
   const [calendarItems, setCalendarItems] = useState<CalendarExpenseItem[]>([])
   const [expensesError, setExpensesError] = useState<string | null>(null)
 
@@ -87,24 +91,24 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
       const fullExpenseItem = rawExpenseItems?.find(ei => ei.id === item.id)
       if (fullExpenseItem) {
         setSelectedItemForDetails(fullExpenseItem)
-        setSelectedPlanForDetails(null) // Clear plan details if any
-        setSelectedRequestForDetails(null) // Clear request details if any
+        setSelectedPlanForDetails(null)
+        setSelectedRequestForDetails(null)
         setIsDetailsDrawerVisible(true)
       }
     } else if (item.type === 'plan') {
       const fullExpensePlan = rawExpensePlans?.find(ep => ep.id === item.id)
       if (fullExpensePlan) {
         setSelectedPlanForDetails(fullExpensePlan)
-        setSelectedItemForDetails(null) // Clear item details if any
-        setSelectedRequestForDetails(null) // Clear request details if any
+        setSelectedItemForDetails(null)
+        setSelectedRequestForDetails(null)
         setIsDetailsDrawerVisible(true)
       }
     } else if (item.type === 'request') {
       const fullExpenseRequest = rawExpenseRequests?.find(er => er.id === item.id)
       if (fullExpenseRequest) {
         setSelectedRequestForDetails(fullExpenseRequest)
-        setSelectedItemForDetails(null) // Clear item details if any
-        setSelectedPlanForDetails(null) // Clear plan details if any
+        setSelectedItemForDetails(null)
+        setSelectedPlanForDetails(null)
         setIsDetailsDrawerVisible(true)
       }
     }
@@ -112,8 +116,8 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
 
   const handleCloseDrawer = () => {
     setIsDetailsDrawerVisible(false)
-    setSelectedItemForDetails(null) // Clear selected item when closing
-    setSelectedPlanForDetails(null) // Clear selected plan when closing
+    setSelectedItemForDetails(null)
+    setSelectedPlanForDetails(null)
   }
 
   const toggleFilter = (filterType: 'expense' | 'plan' | 'request') => {
@@ -157,49 +161,15 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
 
   useEffect(() => {
     if (rawExpenseItems) {
-      const transformedItems: CalendarExpenseItem[] = rawExpenseItems.map((item: ExpenseItem) => ({
-        id: item.id,
-        title: item.title,
-        expenseDate: dayjs(item.expenseDate),
-        totalAmount: item.totalAmount,
-        currencyCode: item.currency?.code ? item.currency.code.split(':').pop() || 'N/A' : 'N/A',
-        status: item.status || 'UNKNOWN',
-        type: 'expense'
-      }))
-      setCalendarItems(transformedItems)
+      setCalendarItems(rawExpenseItems.map(toCalendarItemFromExpense))
     }
   }, [rawExpenseItems])
 
   useEffect(() => {
     if (rawExpensePlans) {
-      const transformedPlans: CalendarExpenseItem[] = rawExpensePlans
-        .map((plan: ExpensePlan) => {
-          if (plan.startDate && plan.endDate) {
-            return {
-              id: plan.id,
-              title: plan.title,
-              expenseDate: dayjs(plan.startDate),
-              endDate: dayjs(plan.endDate),
-              totalAmount: plan.totalAmount,
-              currencyCode: plan.currency?.code ? plan.currency.code.split(':').pop() || 'N/A' : 'N/A',
-              status: plan.status || 'UNKNOWN',
-              type: 'plan'
-            } as CalendarExpenseItem
-          } else if (plan.planDate) {
-            return {
-              id: plan.id,
-              title: plan.title,
-              expenseDate: dayjs(plan.planDate),
-              totalAmount: plan.totalAmount,
-              currencyCode: plan.currency?.code ? plan.currency.code.split(':').pop() || 'N/A' : 'N/A',
-              status: plan.status || 'UNKNOWN',
-              type: 'plan'
-            } as CalendarExpenseItem
-          }
-          return null
-        })
-        .filter((item): item is CalendarExpenseItem => item !== null)
-
+      const transformedPlans = rawExpensePlans
+        .map(toCalendarItemFromPlan)
+        .filter((i): i is CalendarExpenseItem => i !== null)
       setCalendarPlanItems(transformedPlans)
     }
   }, [rawExpensePlans])
@@ -222,208 +192,33 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
 
   useEffect(() => {
     if (rawExpenseRequests) {
-      const transformedRequests: CalendarExpenseItem[] = rawExpenseRequests
-        .map((request: ExpenseRequest) => {
-          let calendarItem: CalendarExpenseItem | null = null
-          if (request.startDate && request.endDate) {
-            // Multi-day request
-            calendarItem = {
-              id: request.id,
-              title: request.title,
-              expenseDate: dayjs(request.startDate),
-              endDate: dayjs(request.endDate),
-              totalAmount: request.totalAmount,
-              currencyCode: request.currency?.code ? request.currency.code.split(':').pop() || 'N/A' : 'N/A',
-              status: request.status || 'UNKNOWN',
-              type: 'request'
-            }
-          } else if (request.requestDate) {
-            // Single-day request using requestDate
-            calendarItem = {
-              id: request.id,
-              title: request.title,
-              expenseDate: dayjs(request.requestDate),
-              totalAmount: request.totalAmount,
-              currencyCode: request.currency?.code ? request.currency.code.split(':').pop() || 'N/A' : 'N/A',
-              status: request.status || 'UNKNOWN',
-              type: 'request'
-            }
-          }
-          // If not multi-day and no requestDate, it will return null and be filtered out by the subsequent .filter().
-          return calendarItem
-        })
-        .filter((item): item is CalendarExpenseItem => item !== null)
+      const transformedRequests = rawExpenseRequests
+        .map(toCalendarItemFromRequest)
+        .filter((i): i is CalendarExpenseItem => i !== null)
       setCalendarRequestItems(transformedRequests)
     }
   }, [rawExpenseRequests])
 
-  const dateCellRender = (value: Dayjs) => {
-    const allAvailableItems = [
-      ...(activeFilters.expense ? calendarItems : []),
-      ...(activeFilters.plan ? calendarPlanItems : []),
-      ...(activeFilters.request ? calendarRequestItems : [])
-    ]
-
-    const itemsForDate = allAvailableItems.filter((item: CalendarExpenseItem) => {
-      if (item.endDate && (item.type === 'plan' || item.type === 'request')) {
-        // Multi-day plan or request
-        // Ensure value is between or equal to expenseDate and endDate
-        return (
-          (value.isSame(item.expenseDate, 'day') || value.isAfter(item.expenseDate, 'day')) &&
-          (value.isSame(item.endDate, 'day') || value.isBefore(item.endDate, 'day'))
-        )
-      } else {
-        // Single-day expense or plan
-        return item.expenseDate.isSame(value, 'day')
-      }
-    })
-
-    if (itemsForDate.length === 0) {
-      return null
-    }
-
-    return (
-      <ul className="gba-events-list" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-        {itemsForDate.map((item: CalendarExpenseItem) => (
-          <li
-            key={item.id}
-            className="gba-event-item-card"
-            style={{
-              marginBottom: '4px',
-              padding: '4px',
-              border: '1px solid #f0f0f0',
-              borderRadius: '4px',
-              backgroundColor: item.type === 'plan' ? '#e6f7ff' : item.type === 'request' ? '#e6fffb' : '#fafafa',
-              cursor: item.type === 'expense' || item.type === 'plan' || item.type === 'request' ? 'pointer' : 'default'
-            }}
-            onClick={() => handleCalendarItemClick(item)}
-          >
-            <div
-              style={{
-                fontSize: '0.8em',
-                fontWeight: 'bold',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}
-            >
-              {item.title}
-            </div>
-            {(item.type === 'expense' || !item.endDate || value.isSame(item.expenseDate, 'day')) && (
-              <div
-                style={{ fontSize: '0.75em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
-                <span>{formatCurrencyDisplay(item.totalAmount, item.currencyCode)}</span>
-                <Tag color={getStatusColor(item.status)} style={{ margin: 0, fontSize: '0.7em', padding: '0 4px' }}>
-                  {item.status}
-                </Tag>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    )
-  }
+  const dateCellRender = (value: Dayjs) => (
+    <DayCellEvents
+      value={value}
+      items={calendarItems}
+      planItems={calendarPlanItems}
+      requestItems={calendarRequestItems}
+      active={activeFilters}
+      onClick={handleCalendarItemClick}
+    />
+  )
 
   // Wrapper for antd v5: use cellRender instead of deprecated dateCellRender
-  const cellRender = (value: Dayjs, info: any) => {
-    if (info?.type === 'date') {
-      const rendered = dateCellRender(value)
-      return rendered ?? info.originNode
-    }
-    return info?.originNode
-  }
+  const cellRender = useStripRcPickerTitle(dateCellRender)
 
   return (
     <div
       style={{ padding: '20px', border: '1px solid #f0f0f0', borderRadius: '4px' }}
       className="gba-expense-calendar-tab"
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-          marginTop: '8px',
-          padding: '0 8px'
-        }}
-      >
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_calendar', 'Expense Calendar')}
-        </Typography.Title>
-        <Space direction="horizontal" wrap>
-          <Space
-            align="center"
-            onClick={() => toggleFilter('expense')}
-            style={{
-              cursor: 'pointer',
-              opacity: activeFilters.expense ? 1 : 0.5,
-              padding: '4px 8px',
-              borderRadius: '4px'
-            }}
-          >
-            <div
-              style={{
-                width: '14px',
-                height: '14px',
-                backgroundColor: '#fafafa',
-                border: '1px solid #d9d9d9',
-                borderRadius: '2px'
-              }}
-            />
-            <Typography.Text>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}
-            </Typography.Text>
-          </Space>
-          <Space
-            align="center"
-            onClick={() => toggleFilter('plan')}
-            style={{
-              cursor: 'pointer',
-              opacity: activeFilters.plan ? 1 : 0.5,
-              padding: '4px 8px',
-              borderRadius: '4px'
-            }}
-          >
-            <div
-              style={{
-                width: '14px',
-                height: '14px',
-                backgroundColor: '#e6f7ff',
-                border: '1px solid #d9d9d9',
-                borderRadius: '2px'
-              }}
-            />
-            <Typography.Text>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plans', 'Plans')}
-            </Typography.Text>
-          </Space>
-          <Space
-            align="center"
-            onClick={() => toggleFilter('request')}
-            style={{
-              cursor: 'pointer',
-              opacity: activeFilters.request ? 1 : 0.5,
-              padding: '4px 8px',
-              borderRadius: '4px'
-            }}
-          >
-            <div
-              style={{
-                width: '14px',
-                height: '14px',
-                backgroundColor: '#e6fffb',
-                border: '1px solid #d9d9d9',
-                borderRadius: '2px'
-              }}
-            />
-            <Typography.Text>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requests', 'Requests')}
-            </Typography.Text>
-          </Space>
-        </Space>
-      </div>
+      <FiltersBar active={activeFilters} toggle={toggleFilter} />
       {(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && (
         <div style={{ textAlign: 'center', padding: '20px' }}>
           <Spin
@@ -442,83 +237,38 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
       )}
       {!(isLoadingExpenses || isLoadingPlans || isLoadingRequests) &&
         !(expensesError || plansError || requestsError) && (
-          <Calendar
-            cellRender={cellRender}
-            headerRender={({ value, onChange }) => {
-              const currentMonth = value.format('MMMM')
-              const currentYear = value.format('YYYY')
-              return (
-                <div
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderBottom: '1px solid #f0f0f0'
-                  }}
-                >
-                  <Typography.Title
-                    level={4}
-                    style={{ margin: 0 }}
-                  >{`${currentMonth} ${currentYear}`}</Typography.Title>
-                  <Space>
-                    <Button
-                      shape="circle"
-                      icon={<LeftOutlined />}
-                      onClick={() => onChange(value.subtract(1, 'month'))}
-                      aria-label="Previous month"
-                    />
-                    <Button
-                      shape="circle"
-                      icon={<RightOutlined />}
-                      onClick={() => onChange(value.add(1, 'month'))}
-                      aria-label="Next month"
-                    />
-                  </Space>
-                </div>
-              )
-            }}
-          />
+          <ConfigProvider locale={antdLocale}>
+            <Calendar
+              data-testid="expense-calendar"
+              value={calendarValue}
+              onPanelChange={value => {
+                setCalendarValue(value)
+              }}
+              onChange={value => {
+                setCalendarValue(value)
+              }}
+              cellRender={cellRender}
+              headerRender={({ value, onChange }) => (
+                <CalendarHeader
+                  value={value}
+                  onChange={onChange}
+                  currentCalendarValue={calendarValue}
+                  setCalendarValue={setCalendarValue}
+                  {...props}
+                />
+              )}
+            />
+          </ConfigProvider>
         )}
-      <Drawer
-        title={
-          selectedItemForDetails
-            ? getTranslationFromI18nKeyAndLabel(
-                'lowcoder:approve_expense_plan.expense_item_details',
-                'Expense Item Details'
-              )
-            : selectedPlanForDetails
-              ? getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.expense_subtitle_details',
-                  'Expense Plan Details'
-                )
-              : selectedRequestForDetails
-                ? getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-                    'Expense Request Details'
-                  )
-                : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.details', 'Details')
-        }
-        placement="right"
-        width={500}
-        onClose={handleCloseDrawer}
+      <DetailsSheet
         open={isDetailsDrawerVisible}
-        destroyOnHidden
-      >
-        {selectedItemForDetails && (
-          <ExpenseItemDetails selectedItem={selectedItemForDetails} onClose={handleCloseDrawer} {...props} />
-        )}
-        {selectedPlanForDetails && (
-          <ExpensePlanDetails selectedItem={selectedPlanForDetails} onClose={handleCloseDrawer} {...props} />
-        )}
-        {selectedRequestForDetails && (
-          <ExpenseRequestDetails
-            selectedItem={selectedRequestForDetails}
-            onClose={handleCloseDrawer}
-            {...props} // Pass other context props if needed by ExpenseRequestDetails
-          />
-        )}
-      </Drawer>
+        onOpenChange={setIsDetailsDrawerVisible}
+        onClose={handleCloseDrawer}
+        selectedItemForDetails={selectedItemForDetails}
+        selectedPlanForDetails={selectedPlanForDetails}
+        selectedRequestForDetails={selectedRequestForDetails}
+        {...props}
+      />
     </div>
   )
 }

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { Employee, EmployeeResponse, EmployeeAbsence, EmployeeAbsenceResponse } from '../types/employee.types'
+import { Employee, EmployeeAbsence } from '../types/employee.types'
 
 export interface DirectReport {
+  displayName: string
   id: string
   firstName: string
   lastName: string
@@ -15,23 +16,26 @@ export interface DirectReport {
   // Absence information
   currentAbsence?: {
     type: string
+    parentEntryId?: string // e.g., 'AbsenceGroup:v1:HEALTH' for sick leave
     startDate: string
     endDate: string
     status: string // APPROVED, PENDING, etc.
   }
   nextAbsence?: {
     type: string
+    parentEntryId?: string
     startDate: string
     endDate: string
     status: string // APPROVED, PENDING, etc.
   }
+  userId: string
 }
 
 export interface UseDirectReportsResult {
   directReports: DirectReport[]
   loading: boolean
   error: Error | null
-  refetch: () => void
+  refetch: () => Promise<void>
 }
 
 interface UseDirectReportsProps {
@@ -85,6 +89,8 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
                 name
               }
             }
+            userId
+            displayName
           }
         }
       `
@@ -119,6 +125,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
             status
             type {
               value
+              parentEntryId
             }
           }
         }
@@ -186,7 +193,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
           const nextAbsence = futureAbsences.length > 0 ? futureAbsences[0] : null
 
           // Determine status based on absence approval status
-          let status: 'Available' | 'On Leave' | 'Away' = 'Available'
+          let status: 'Available' | 'On Leave' = 'Available'
 
           if (currentAbsence) {
             if (currentAbsence.status === 'APPROVED') {
@@ -199,17 +206,20 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
           }
 
           return {
+            displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
+            userId: employee.userId,
             id: employee.id,
             firstName: employee.firstName,
             lastName: employee.lastName,
             fullName: `${employee.firstName} ${employee.lastName}`,
             pictureThumbnail: employee.pictureThumbnail || employee.picture,
-            jobPositionName: employee.employeePosition?.[0]?.jobPosition?.name,
-            organizationalUnitName: employee.employeePosition?.[0]?.organizationalUnit?.name,
+            jobPositionName: employee.employeePosition?.jobPosition?.name,
+            organizationalUnitName: employee.employeePosition?.organizationalUnit?.name,
             status,
             currentAbsence: currentAbsence
               ? {
                   type: currentAbsence.type?.value || 'Leave',
+                  parentEntryId: currentAbsence.type?.parentEntryId,
                   startDate: currentAbsence.startDate,
                   endDate: currentAbsence.endDate,
                   status: currentAbsence.status
@@ -218,6 +228,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
             nextAbsence: nextAbsence
               ? {
                   type: nextAbsence.type?.value || 'Leave',
+                  parentEntryId: nextAbsence.type?.parentEntryId,
                   startDate: nextAbsence.startDate,
                   endDate: nextAbsence.endDate,
                   status: nextAbsence.status

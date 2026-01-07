@@ -696,7 +696,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       return (
         <div className="gba:flex gba:items-center gba:justify-center gba:py-8" data-testid="entitlements-table-error">
           <div className="gba:text-center">
-            <p className="gba:text-red-600 gba:mb-2">{error}</p>
+            <p className="gba:text-destructive gba:mb-2">{error}</p>
             <Button onClick={() => window.location.reload()}>
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_list.retry',
@@ -713,9 +713,9 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid="entitlements-table">
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
+              <TableRow className="gba:border-b gba:bg-muted">
                 <TableHead
-                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('employeeName')}
                   data-testid="entitlements-employee-header"
                 >
@@ -728,7 +728,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('organizationalUnit')}
                   data-testid="entitlements-org-unit-header"
                 >
@@ -741,7 +741,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('absenceType')}
                   data-testid="entitlements-absence-type-header"
                 >
@@ -754,7 +754,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('entitlement')}
                   data-testid="entitlements-entitlement-header"
                 >
@@ -767,7 +767,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('validFrom')}
                   data-testid="entitlements-valid-from-header"
                 >
@@ -780,7 +780,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('validTo')}
                   data-testid="entitlements-valid-to-header"
                 >
@@ -793,7 +793,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('used')}
                   data-testid="entitlements-used-header"
                 >
@@ -811,12 +811,12 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
               {entitlements.map(entitlement => (
                 <TableRow
                   key={entitlement.id}
-                  className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors"
+                  className="gba:border-b gba:hover:bg-muted gba:transition-colors"
                   data-testid={`entitlements-row-${entitlement.id}`}
                 >
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-employee-cell-${entitlement.id}`}>
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <PiUser size={16} className="gba:text-gray-400" />
+                      <PiUser size={16} className="gba:text-muted-foreground" />
                       <span className="gba:font-medium gba:text-sm">{entitlement.employeeName}</span>
                     </div>
                   </TableCell>
@@ -841,7 +841,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   >
                     {entitlement.validFrom ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-gray-400" />
+                        <PiCalendar size={16} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDateForDisplay(entitlement.validFrom)}</span>
                       </div>
                     ) : (
@@ -851,7 +851,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-valid-to-cell-${entitlement.id}`}>
                     {entitlement.validTo ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-gray-400" />
+                        <PiCalendar size={16} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDateForDisplay(entitlement.validTo)}</span>
                       </div>
                     ) : (
@@ -1021,15 +1021,15 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-3">
-            <PiUsers size={24} className="gba:text-purple-600" />
+            <PiUsers size={24} className="gba:text-info" />
             <div>
-              <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+              <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_management_hub_backoffice.summary_statistics.title_vacation',
                   'Vacation Entitlements Details'
                 )}
               </h1>
-              <p className="gba:text-gray-600 gba:mt-1">
+              <p className="gba:text-muted-foreground gba:mt-1">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_management_hub_backoffice.summary_statistics.description',
                   'Complete breakdown of all employee vacation entitlements and usage'
@@ -1044,52 +1044,52 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       {summaryStats && (
         <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
           <h3 className="gba:text-lg gba:font-medium gba:mb-4 gba:flex gba:items-center gba:gap-2">
-            <PiCalendarBlank size={20} className="gba:text-blue-600" />
+            <PiCalendarBlank size={20} className="gba:text-info" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.summary_statistics.title',
               'Summary Statistics (Filtered Results)'
             )}
           </h3>
           <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-5 gba:gap-4">
-            <div className="gba:text-center gba:p-3 gba:bg-blue-50 gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-blue-600">{summaryStats.totalEmployees}</div>
-              <div className="gba:text-xs gba:text-gray-600">
+            <div className="gba:text-center gba:p-3 gba:bg-info-secondary gba:rounded">
+              <div className="gba:text-lg gba:font-bold gba:text-info">{summaryStats.totalEmployees}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_management_hub_backoffice.summary_statistics.total_employees',
                   'Total Employees'
                 )}
               </div>
             </div>
-            <div className="gba:text-center gba:p-3 gba:bg-green-50 gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-green-600">{summaryStats.totalEntitlements}</div>
-              <div className="gba:text-xs gba:text-gray-600">
+            <div className="gba:text-center gba:p-3 gba:bg-success-secondary gba:rounded">
+              <div className="gba:text-lg gba:font-bold gba:text-success">{summaryStats.totalEntitlements}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_management_hub_backoffice.summary_statistics.total_entitlement_days',
                   'Total Entitlement Days'
                 )}
               </div>
             </div>
-            <div className="gba:text-center gba:p-3 gba:bg-orange-50 gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-orange-600">{summaryStats.totalUsed}</div>
-              <div className="gba:text-xs gba:text-gray-600">
+            <div className="gba:text-center gba:p-3 gba:bg-warning-secondary gba:rounded">
+              <div className="gba:text-lg gba:font-bold gba:text-warning">{summaryStats.totalUsed}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_management_hub_backoffice.summary_statistics.days_used',
                   'Days Used'
                 )}
               </div>
             </div>
-            <div className="gba:text-center gba:p-3 gba:bg-purple-50 gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-purple-600">{summaryStats.totalAvailable}</div>
-              <div className="gba:text-xs gba:text-gray-600">
+            <div className="gba:text-center gba:p-3 gba:bg-info-secondary gba:rounded">
+              <div className="gba:text-lg gba:font-bold gba:text-info">{summaryStats.totalAvailable}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_management_hub_backoffice.summary_statistics.days_available',
                   'Days Available'
                 )}
               </div>
             </div>
-            <div className="gba:text-center gba:p-3 gba:bg-gray-50 gba:rounded">
-              <div className="gba:text-lg gba:font-bold gba:text-gray-600">{summaryStats.utilizationRate}%</div>
-              <div className="gba:text-xs gba:text-gray-600">
+            <div className="gba:text-center gba:p-3 gba:bg-muted gba:rounded">
+              <div className="gba:text-lg gba:font-bold gba:text-muted-foreground">{summaryStats.utilizationRate}%</div>
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_management_hub_backoffice.summary_statistics.utilization_rate',
                   'Utilization Rate'
@@ -1118,7 +1118,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                     'Employee Entitlements'
                   )}
                 </span>
-                <span className="gba:text-gray-500">({total})</span>
+                <span className="gba:text-muted-foreground">({total})</span>
               </div>
             </div>
           )

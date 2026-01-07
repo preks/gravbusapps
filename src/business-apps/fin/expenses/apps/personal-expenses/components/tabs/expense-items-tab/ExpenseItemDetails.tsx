@@ -28,7 +28,7 @@ import {
 import { FileClient } from '@/common/network/files/FileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems'
 import { getExpenseItemStatusDisplay } from '../../../utils'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
@@ -129,98 +129,117 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
     return client
   }, [contextProps.accessToken])
 
+  /**
+   * Extracts file ID from URL or returns the provided ID
+   */
+  const extractFileId = (fileInfo: any): string => {
+    let fileId = fileInfo.id
+    if (fileInfo.fileUrl) {
+      const urlParts = fileInfo.fileUrl.split('/')
+      const potentialFileId = urlParts[urlParts.length - 1]
+      if (potentialFileId && potentialFileId !== 'files') {
+        fileId = potentialFileId
+      }
+    }
+    return fileId
+  }
+
+  /**
+   * Attempts to fetch file with fallback paths
+   */
+  const fetchFileWithFallback = async (fileId: string, employeeId: string, itemId: string): Promise<Blob | null> => {
+    const pathParams = {
+      accessScope: 'tenant',
+      fileId: fileId
+    }
+
+    // Try primary path
+    try {
+      return await fileClient.getFile(pathParams, {
+        appName: 'expenses',
+        folderPath: `/expenseItemsDocuments/${employeeId}`
+      })
+    } catch (firstError) {
+      console.log('First attempt failed, trying alternative path:', firstError)
+    }
+
+    // Try alternative path
+    try {
+      return await fileClient.getFile(pathParams, {
+        appName: 'expenses',
+        folderPath: `employees/${employeeId}/expense-items/${itemId}`
+      })
+    } catch (secondError) {
+      console.log('Second attempt also failed:', secondError)
+      return null
+    }
+  }
+
+  /**
+   * Processes a single file attachment
+   */
+  const processFileAttachment = async (
+    fileInfo: any,
+    employeeId: string,
+    itemId: string
+  ): Promise<UploadFile | null> => {
+    try {
+      const fileId = extractFileId(fileInfo)
+      const fileBlob = await fetchFileWithFallback(fileId, employeeId, itemId)
+
+      if (!fileBlob || !isMounted.current) {
+        return null
+      }
+
+      // Create object URL for the blob
+      const downloadUrl = URL.createObjectURL(fileBlob)
+
+      // Create UploadFile object
+      return {
+        uid: fileId,
+        name: fileInfo.fileName || fileId,
+        status: 'done',
+        url: downloadUrl,
+        size: fileBlob.size,
+        type: fileBlob.type || 'application/octet-stream'
+      }
+    } catch (fileError) {
+      console.error(`Error processing file ${fileInfo.id}:`, fileError)
+      return null
+    }
+  }
+
   // Fetch file attachments for an expense item
   const fetchFileAttachments = useCallback(
     async (item: ExpenseItem) => {
+      // Early returns for invalid state
       if (!item?.expenseItemFile || item.expenseItemFile.length === 0) {
         console.log('No expense item files found')
         setFileList([])
         return
       }
 
-      setFileLoading(true)
-
       const employeeId = contextProps.userInfo?.employeeDetails?.employeeId
-
-      // Ensure we have a valid employeeId for the folder path
       if (!employeeId) {
         console.error('No employee ID available for file path')
-        setFileLoading(false)
         return
       }
 
-      // Ensure we have an access token
       if (!contextProps.accessToken) {
         console.error('No access token available for file request')
-        setFileLoading(false)
         return
       }
 
+      setFileLoading(true)
+
       try {
-        // Process each file attachment
-        const processedFiles: UploadFile[] = []
+        // Process all files in parallel
+        const filePromises = item.expenseItemFile.map(fileInfo => processFileAttachment(fileInfo, employeeId, item.id))
 
-        for (const fileInfo of item.expenseItemFile) {
-          try {
-            // Extract file ID from fileUrl if available, otherwise use id
-            let fileId = fileInfo.id
-            if (fileInfo.fileUrl) {
-              // Try to extract file ID from URL (e.g., "https://.../files/123" -> "123")
-              const urlParts = fileInfo.fileUrl.split('/')
-              const potentialFileId = urlParts[urlParts.length - 1]
-              if (potentialFileId && potentialFileId !== 'files') {
-                fileId = potentialFileId
-              }
-            }
+        const results = await Promise.all(filePromises)
 
-            // Use the fileId as the file identifier
-            const pathParams = {
-              accessScope: 'tenant',
-              fileId: fileId
-            }
-
-            // Get file as blob and create object URL
-            let fileBlob
-            try {
-              fileBlob = await fileClient.getFile(pathParams, {
-                appName: 'expenses',
-                folderPath: `/expenseItemsDocuments/${employeeId}`
-              })
-            } catch (firstError) {
-              console.log('First attempt failed, trying alternative path:', firstError)
-              // Try alternative folder path
-              try {
-                fileBlob = await fileClient.getFile(pathParams, {
-                  appName: 'expenses',
-                  folderPath: `employees/${employeeId}/expense-items/${item.id}`
-                })
-              } catch (secondError) {
-                console.log('Second attempt also failed:', secondError)
-                throw secondError
-              }
-            }
-
-            if (fileBlob && isMounted.current) {
-              // Create object URL for the blob
-              const downloadUrl = URL.createObjectURL(fileBlob)
-
-              // Create UploadFile object
-              const uploadFile: UploadFile = {
-                uid: fileId,
-                name: fileInfo.fileName || fileId, // Use fileName from fileInfo
-                status: 'done',
-                url: downloadUrl,
-                size: fileBlob.size,
-                type: fileBlob.type || 'application/octet-stream'
-              }
-
-              processedFiles.push(uploadFile)
-            }
-          } catch (fileError) {
-            console.error(`Error processing file ${fileInfo.id}:`, fileError)
-            // Continue with other files even if one fails
-          }
-        }
+        // Filter out null results (failed files)
+        const processedFiles = results.filter((file): file is UploadFile => file !== null)
 
         if (isMounted.current) {
           setFileList(processedFiles)
@@ -342,7 +361,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
             return (
               <div
                 key={file.uid}
-                className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-white gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
+                className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-background gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
                 data-testid={`expense-file-card-${idx}`}
               >
                 {renderPreview()}
@@ -387,7 +406,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
         data-testid="expense-file-empty"
       >
         <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
-          <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
+          <FileImageOutlined style={{ fontSize: '48px', color: 'border' }} />
           <p className="gba:text-sm gba:text-gray-600">
             {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_receipt_attached', 'No receipt attached')}
           </p>
@@ -556,7 +575,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
                   )}
                   :
                 </span>
-                <span className="gba:text-gray-900">{String(displayItem.expenseClass.value)}</span>
+                <span className="gba:text-gray-900">{getCatalogValue(displayItem.expenseClass)}</span>
               </div>
             )}
             {displayItem.costCenter && displayItem.costCenter.name && (

@@ -15,9 +15,9 @@ export interface InvestmentKPIComparison {
 }
 
 export const GET_INVESTMENT_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
-  // Currency codes are stored as "Currency:v1:EUR" so we match the suffix pattern
-  // The _ilike pattern will naturally exclude null currency values
-  const currencyCondition = currencyFilter ? `{ currency: { code: { _ilike: "%${currencyFilter}%" } } }` : ''
+  // Currency codes are stored exactly as "EUR", "USD", etc.
+  // Use exact match for reliable filtering
+  const currencyCondition = currencyFilter ? `{ currency: { code: { _eq: "${currencyFilter}" } } }` : ''
 
   return `
     query GetInvestmentKPIsWithComparison {
@@ -47,7 +47,7 @@ export const GET_INVESTMENT_KPIS_WITH_COMPARISON = (comparisonDate: string, curr
         where: {
           _and: [
             { isDeleted: { _eq: false } }
-            { createdAt: { _lt: "${comparisonDate}" } }
+            { createdAt: { _lte: "${comparisonDate}" } }
             ${currencyCondition}
           ]
         }
@@ -125,11 +125,12 @@ export const useGetInvestmentKPIs = (context: BusinessAppContextProps, currency?
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentKPIs = useCallback(async (): Promise<InvestmentKPIComparison> => {
-    // Calculate date 30 days ago for comparison (stable within this call)
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const comparisonDate = thirtyDaysAgo.toISOString()
+    // Calculate date 91 days ago for comparison (stable within this call)
+    const quarterAgo = new Date()
+    quarterAgo.setDate(quarterAgo.getDate() - 91)
+    const comparisonDate = quarterAgo.toISOString()
 
+    // Currency is already a code (e.g., "EUR", "USD") - use directly
     const query = GET_INVESTMENT_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {
       const result = await graphqlClient.request<InvestmentKPIResponse>(query)

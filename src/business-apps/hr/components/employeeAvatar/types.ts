@@ -29,11 +29,11 @@ export enum AvailabilityLocation {
  * Map of online status to colors
  */
 export const ONLINE_STATUS_COLORS: Record<OnlineStatus, string> = {
-  [OnlineStatus.ONLINE]: '#22c55e', // Green
-  [OnlineStatus.BUSY]: '#ef4444', // Red
-  [OnlineStatus.DO_NOT_DISTURB]: '#ef4444', // Red
-  [OnlineStatus.AWAY]: '#f97316', // Orange
-  [OnlineStatus.BE_RIGHT_BACK]: '#f97316', // Orange
-  [OnlineStatus.OFFLINE]: '#9ca3af', // Grey
-  [OnlineStatus.OUT_OF_OFFICE]: '#a855f7' // Purple
+  [OnlineStatus.ONLINE]: 'var(--nw-success)', // Green
+  [OnlineStatus.BUSY]: 'var(--nw-destructive)', // Red
+  [OnlineStatus.DO_NOT_DISTURB]: 'var(--nw-destructive)', // Red
+  [OnlineStatus.AWAY]: 'var(--nw-warning)', // Orange
+  [OnlineStatus.BE_RIGHT_BACK]: 'var(--nw-warning)', // Orange
+  [OnlineStatus.OFFLINE]: 'var(--nw-muted-foreground)', // Grey
+  [OnlineStatus.OUT_OF_OFFICE]: 'var(--nw-info)' // Purple → Info
 }

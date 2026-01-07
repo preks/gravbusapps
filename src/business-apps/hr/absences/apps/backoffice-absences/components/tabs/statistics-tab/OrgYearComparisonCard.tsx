@@ -10,10 +10,10 @@ interface OrgYearComparisonCardProps {
 
 export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = () => {
   const { data, error } = useStatisticsData()
-  
+
   const rows = useMemo(() => {
     if (!data?.yearlyCounts) return []
-    
+
     const yearly = data.yearlyCounts
     const years = Object.keys(yearly)
       .map(Number)
@@ -23,16 +23,16 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = () =>
       const prev = Number(yearly[years[idx + 1] ?? -1] || 0)
       let changePercent: number | null = null
       let label = '0%'
-      let badgeClass = 'gba:text-gray-600 gba:bg-gray-100'
+      let badgeClass = 'gba:text-muted-foreground gba:bg-muted'
 
       if (prev === 0) {
         if (total > 0) {
           // New requests vs zero baseline
           label = `+${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.new_requests', 'New requests')}`
-          badgeClass = 'gba:text-blue-700 gba:bg-blue-50'
+          badgeClass = 'gba:text-info gba:bg-info-secondary'
         } else {
           label = '0%'
-          badgeClass = 'gba:text-gray-600 gba:bg-gray-100'
+          badgeClass = 'gba:text-muted-foreground gba:bg-muted'
         }
       } else {
         // Use precise float, then format to 2 decimals for display
@@ -40,18 +40,18 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = () =>
         if (total === 0) {
           // Exact elimination only when zero
           label = '↘-100%'
-          badgeClass = 'gba:text-green-700 gba:bg-green-50'
+          badgeClass = 'gba:text-success gba:bg-success-secondary'
         } else {
           const formatted = Math.abs(changePercent).toFixed(2)
           const sign = changePercent > 0 ? '↗+' : changePercent < 0 ? '↘-' : ''
           label = `${sign}${formatted}%`
         }
         if (changePercent > 0) {
-          badgeClass = 'gba:text-red-700 gba:bg-red-50'
+          badgeClass = 'gba:text-destructive gba:bg-destructive-secondary'
         } else if (changePercent < 0) {
-          badgeClass = 'gba:text-green-700 gba:bg-green-50'
+          badgeClass = 'gba:text-success gba:bg-success-secondary'
         } else {
-          badgeClass = 'gba:text-gray-600 gba:bg-gray-100'
+          badgeClass = 'gba:text-muted-foreground gba:bg-muted'
         }
       }
 
@@ -68,26 +68,33 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = () =>
       </CardHeader>
       <CardContent className="gba:pt-0">
         {error ? (
-          <div className="gba:text-sm gba:text-red-600">{error}</div>
+          <div className="gba:text-sm gba:text-destructive">{error}</div>
         ) : rows.length === 0 ? (
-          <div className="gba:text-sm gba:text-gray-500">No data available</div>
+          <div className="gba:text-sm gba:text-gray-muted-foreground">No data available</div>
         ) : (
           <div className="gba:flex gba:flex-col gba:gap-2.5">
             {(() => {
               const maxVal = Math.max(...rows.map(r => r.total))
-              return rows.map((row) => {
+              return rows.map(row => {
                 const pct = maxVal > 0 ? Math.max(4, Math.round((row.total / maxVal) * 100)) : 0
                 return (
                   <div key={row.year} className="gba:flex gba:items-center">
-                    <div className="gba:w-20 gba:text-sm gba:text-gray-700">{row.year}</div>
+                    <div className="gba:w-20 gba:text-sm gba:text-foreground">{row.year}</div>
                     <div className="gba:flex-1 gba:px-3">
-                      <div className="gba:bg-gray-100 gba:rounded">
-                        <div style={{ width: `${pct}%`, height: 10, background: '#3b82f6', borderRadius: 6 }} />
+                      <div className="gba:bg-muted gba:rounded">
+                        <div
+                          style={{ width: `${pct}%`, height: 10, background: 'var(--nw-chart-4)', borderRadius: 6 }}
+                        />
                       </div>
                     </div>
-                    <div className="gba:w-20 gba:text-right gba:text-sm gba:text-gray-900">{row.total}</div>
+                    <div className="gba:w-20 gba:text-right gba:text-sm gba:text-foreground">{row.total}</div>
                     <div className="gba:w-32 gba:text-right gba:text-xs gba:font-medium gba:whitespace-nowrap">
-                      <span className={row.badgeClass.replace('gba:bg-', 'gba:text-').replace('-50', '').replace('-100', '')}>
+                      <span
+                        className={row.badgeClass
+                          .replace('gba:bg-', 'gba:text-')
+                          .replace('-50', '')
+                          .replace('-100', '')}
+                      >
                         {row.label}
                       </span>
                     </div>
@@ -97,7 +104,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = () =>
             })()}
           </div>
         )}
-        <div className="gba:mt-2 gba:text-xs gba:text-gray-500">
+        <div className="gba:mt-2 gba:text-xs gba:text-gray-muted-foreground">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_hub.statuses_considered_approved',
             'Statuses considered: Approved'

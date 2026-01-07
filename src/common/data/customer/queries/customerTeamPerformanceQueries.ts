@@ -79,18 +79,57 @@ export interface CustomerTeamPerformanceQueryVariables {
 
 // Build where condition for Customer Team Performance queries
 export const buildCustomerTeamPerformanceWhereCondition = (variables: CustomerTeamPerformanceQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }'
+  const whereObj: Record<string, any> = {
+    isDeleted: { _eq: false }
+  }
 
   // Generic search across dot-paths from descriptors
-  const searchOr = buildSearch(variables.search || '', CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS)
-  if (searchOr) whereClause += `, ${searchOr}`
+  const searchObj = buildSearch(variables.search || '', CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS)
+  if (searchObj) {
+    whereObj._or = searchObj._or
+  }
 
   // Generic AND filters from descriptors
-  const andFilters = buildFilter(variables as any, CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS)
-  if (andFilters) whereClause += `, ${andFilters}`
+  const filterObj = buildFilter(variables as any, CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS)
+  if (filterObj && filterObj._and) {
+    if (whereObj._and) {
+      whereObj._and.push(...filterObj._and)
+    } else {
+      whereObj._and = filterObj._and
+    }
+  }
 
-  whereClause += ' }'
-  return whereClause
+  // Convert object to GraphQL string format
+  const buildWhereString = (obj: any, indent = 0): string => {
+    const spaces = '  '.repeat(indent)
+    if (Array.isArray(obj)) {
+      return `[${obj.map(item => buildWhereString(item, indent + 1)).join(', ')}]`
+    }
+    if (obj && typeof obj === 'object') {
+      const entries = Object.entries(obj)
+      if (entries.length === 0) return '{}'
+      return `{\n${entries
+        .map(([key, value]) => {
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            return `${spaces}  ${key}: ${buildWhereString(value, indent + 1)}`
+          }
+          if (Array.isArray(value)) {
+            return `${spaces}  ${key}: ${buildWhereString(value, indent + 1)}`
+          }
+          if (typeof value === 'string') {
+            return `${spaces}  ${key}: "${value}"`
+          }
+          return `${spaces}  ${key}: ${value}`
+        })
+        .join(',\n')}\n${spaces}}`
+    }
+    if (typeof obj === 'string') {
+      return `"${obj}"`
+    }
+    return String(obj)
+  }
+
+  return `where: ${buildWhereString(whereObj)}`
 }
 
 // Get Customer Team Performance Metrics with full details and aggregate count

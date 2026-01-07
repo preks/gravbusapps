@@ -25,9 +25,9 @@ export const calculateCustomerAccountOpportunityConversionRate = (accounts: any[
     return 0
   }
 
-  // Count accounts that have opportunities
+  // Count accounts that have opportunities (using opportunityAccounts junction table)
   const accountsWithOpportunities = accounts.filter(account =>
-    opportunities.some(opportunity => opportunity.accountId === account.id)
+    opportunities.some(opportunity => opportunity.opportunityAccounts?.some((oa: any) => oa.accountId === account.id))
   )
 
   return Math.round((accountsWithOpportunities.length / accounts.length) * 100)
@@ -57,7 +57,7 @@ export const calculateCustomerOpportunityWinRate = (opportunities: any[]): numbe
 }
 
 /**
- * Calculate average sales cycle length
+ * Calculate average opportunity cycle length
  */
 export const calculateCustomerSalesCycleLength = (opportunities: any[]): number => {
   if (!opportunities || opportunities.length === 0) {

@@ -1,34 +1,40 @@
 import React from 'react'
-import { Button, Spinner, Card, CardContent } from '@newwork/nw-design-system'
+import { Button, Spinner, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { PiArrowClockwise } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDemographicsDataIntegration } from '../../../hooks/useDemographicsDataIntegration'
 import DemographicsChartsView from './components/DemographicsChartsView'
 import DemographicsStatistics from './components/DemographicsStatistics'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { useEmployeeCount } from '../../../hooks/useEmployeeCount'
 
-interface DemographicsProps extends BusinessAppContextProps {}
-
-const Demographics: React.FC<DemographicsProps> = context => {
+const Demographics: React.FC<BusinessAppContextProps> = context => {
   const { demographicsData, statistics, isLoading, error, refetch } = useDemographicsDataIntegration(context)
+  const { t } = useTranslation(hrTranslations)
+  const { count: dashboardEmployeeCount } = useEmployeeCount(context.accessToken)
 
   const prefixDataTestId = 'Demographics'
+  // Prefer dashboardEmployeeCount; fall back to demographics total if undefined
+  const displayEmployeeCount = dashboardEmployeeCount ?? statistics.totalEmployees
 
   if (error) {
     return (
       <div
         data-testid={`${prefixDataTestId}-error`}
-        className="gba:bg-gradient-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
+        className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg"
       >
-        <Card className="gba:border-red-200 gba:bg-red-50">
+        <Card className="gba:border-destructive-secondary gba:bg-destructive-secondary">
           <CardContent className="gba:p-6">
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex-1">
-                <h3 className="gba:text-red-900 gba:font-medium gba:mb-2">Failed to Load Demographics Data</h3>
-                <p className="gba:text-red-700">{error}</p>
+                <h3 className="gba:text-destructive-secondary-foreground gba:font-medium gba:mb-2">
+                  {t('hr-analytics-failed-to-load-demographics')}
+                </h3>
+                <p className="gba:text-destructive-secondary-foreground">{error}</p>
               </div>
               <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
                 <PiArrowClockwise />
-                Retry
+                {t('common-retry')}
               </Button>
             </div>
           </CardContent>
@@ -41,10 +47,10 @@ const Demographics: React.FC<DemographicsProps> = context => {
     return (
       <div
         data-testid={`${prefixDataTestId}-loading`}
-        className="gba:bg-gradient-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center gba:flex-col"
+        className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center gba:flex-col"
       >
         <Spinner className="gba:w-8 gba:h-8" />
-        <p className="gba:mt-4 gba:text-gray-600">Loading demographics data and analytics...</p>
+        <p className="gba:mt-4 gba:text-muted-foreground">{t('hr-analytics-loading-demographics')}</p>
       </div>
     )
   }
@@ -57,9 +63,13 @@ const Demographics: React.FC<DemographicsProps> = context => {
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">
-          <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">Employee Demographics</h2>
-          <div className="gba:bg-white gba:px-3 gba:py-1 gba:rounded-full gba:border gba:border-gray-200">
-            <span className="gba:font-semibold gba:text-blue-600">{statistics.totalEmployees} Employees</span>
+          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:m-0">
+            {t('hr-analytics-employee-demographics')}
+          </h2>
+          <div className="gba:bg-primary-foreground gba:px-3 gba:py-1 gba:rounded-full gba:border gba:border-border">
+            <span className="gba:font-semibold gba:text-info">
+              {displayEmployeeCount} {t('hr-analytics-employees')}
+            </span>
           </div>
         </div>
         <Button
@@ -68,7 +78,7 @@ const Demographics: React.FC<DemographicsProps> = context => {
           className="gba:flex gba:items-center gba:gap-2"
         >
           <PiArrowClockwise />
-          Refresh Data
+          {t('common-refresh-data')}
         </Button>
       </div>
 
@@ -78,8 +88,10 @@ const Demographics: React.FC<DemographicsProps> = context => {
       {/* Interactive Charts with Expandable Tables */}
       <div className="gba:mt-6">
         <div className="gba:mb-4">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">Demographics Breakdown</h3>
-          <p className="gba:text-sm gba:text-gray-600">Click on any chart to view detailed data table</p>
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
+            {t('hr-analytics-demographics-breakdown')}
+          </h3>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
         </div>
 
         <DemographicsChartsView

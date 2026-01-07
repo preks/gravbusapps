@@ -618,10 +618,10 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
               }
               if (reportData && reportData.length > 0) {
                 return (
-                  <div className="gba:border gba:border-border gba:rounded-md gba:bg-white">
+                  <div className="gba:border gba:border-border gba:rounded-md gba:bg-background">
                     <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
                       <Table data-testid="expense-reports-table" className="gba:w-full">
-                        <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
+                        <TableHeader className="gba:sticky gba:top-0 gba:bg-background gba:z-10 gba:border-b gba:border-border">
                           <TableRow>
                             {columns.map(column => (
                               <TableHead

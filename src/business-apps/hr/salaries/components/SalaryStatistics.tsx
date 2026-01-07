@@ -32,7 +32,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       title: getTranslationFromI18nKeyAndLabel('salary.statistics.average', 'Average Salary'),
       value: formatCurrency(statistics.averageSalary, statistics.currency, locale),
       prefix: <DollarOutlined />,
-      color: '#1890ff',
+      color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'salary.statistics.average.description',
@@ -45,7 +45,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       title: getTranslationFromI18nKeyAndLabel('salary.statistics.median', 'Median Salary'),
       value: formatCurrency(statistics.medianSalary, statistics.currency, locale),
       prefix: <BarChartOutlined />,
-      color: '#722ed1',
+      color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'salary.statistics.median.description',
@@ -58,7 +58,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       title: getTranslationFromI18nKeyAndLabel('salary.statistics.total', 'Total Compensation'),
       value: formatCurrency(statistics.totalCompensation, statistics.currency, locale),
       prefix: <RiseOutlined />,
-      color: '#52c41a',
+      color: 'var(--nw-success)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'salary.statistics.total.description',
@@ -71,7 +71,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       title: getTranslationFromI18nKeyAndLabel('salary.statistics.employees', 'Employees'),
       value: statistics.employeeCount.toString(),
       prefix: <TeamOutlined />,
-      color: '#fa8c16',
+      color: 'var(--nw-warning)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'salary.statistics.employees.description',

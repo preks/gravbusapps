@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/business-apps/types'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseRequestRecord } from '../types/expenseRequestRecord.types'
 import { getExpenseRequestRecordQuery } from '../queries/getExpenseRequestRecord.ts'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 interface UseGetExpenseRequestRecordProps extends Pick<BusinessAppContextProps, 'accessToken'> {
   expenseRequestId?: string
@@ -37,7 +38,8 @@ export const useGetExpenseRequestRecord = ({
         setLoading(true)
         setError(null)
 
-        const data = await graphqlClient.request(getExpenseRequestRecordQuery, { expenseRequestId })
+        const activeUserLocale = getCurrentActiveUserLocale()
+        const data = await graphqlClient.request(getExpenseRequestRecordQuery, { expenseRequestId, activeUserLocale })
 
         if (!data?.expenseRequest) {
           throw new Error('No expense request data found')

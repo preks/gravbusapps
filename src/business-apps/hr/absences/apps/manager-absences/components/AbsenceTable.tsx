@@ -18,8 +18,7 @@ import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EnhancedAbsence } from '../types'
 import { useAbsenceColors } from '../utils/absenceColors'
-import dayjs from 'dayjs'
-import { getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { getAbsenceStatusLabel, getAbsenceStatusBadgeVariant } from '../../../utils/absenceStatusUtils'
 
 interface AbsenceTableProps extends BusinessAppContextProps {
@@ -60,6 +59,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
   ...props
 }) => {
   const { getColorForAbsence } = useAbsenceColors(props)
+
   const getEmployeeName = (absence: EnhancedAbsence) => {
     if (absence.employee.firstName || absence.employee.lastName) {
       return `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim()
@@ -98,10 +98,10 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
-        <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
+        <div className="gba:text-destructive gba:text-lg gba:font-medium gba:mb-2">
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.error_loading_absences', 'Error Loading Absences')}
         </div>
-        <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
+        <div className="gba:text-muted-foreground gba:mb-4">{error.message}</div>
         <Button variant="default" onClick={retry} data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}>
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.retry', 'Retry')}
         </Button>
@@ -142,9 +142,9 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
+              <TableRow className="gba:border-b gba:bg-muted">
                 <TableHead
-                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('employee.firstName')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-employee-header`}
                 >
@@ -154,7 +154,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('groupName')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-group-header`}
                 >
@@ -164,7 +164,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('startDate')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                 >
@@ -174,7 +174,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('endDate')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                 >
@@ -184,7 +184,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('status')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
@@ -197,7 +197,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[6%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[6%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('effectiveDays')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-days-header`}
                 >
@@ -207,7 +207,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('createdAt')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
                 >
@@ -225,7 +225,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
               {absences.map(record => (
                 <TableRow
                   key={record.id}
-                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedAbsenceId === record.id ? 'gba:bg-blue-50' : ''}`}
+                  className={`gba:border-b gba:hover:bg-muted gba:transition-colors ${selectedAbsenceId === record.id ? 'gba:bg-info-secondary' : ''}`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
                   <TableCell
@@ -233,7 +233,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-employee-cell-${record.id}`}
                   >
                     <div
-                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-muted gba:p-2 gba:rounded gba:transition-colors"
                       onClick={e => {
                         e.stopPropagation()
                         handleRowClick(record)
@@ -241,7 +241,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-employee-name-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiUser size={16} className="gba:text-gray-400" />
+                        <PiUser size={16} className="gba:text-muted-foreground" />
                         <span className="gba:font-medium gba:text-sm">{getEmployeeName(record)}</span>
                       </div>
                     </div>
@@ -254,7 +254,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                       variant="outline"
                       style={{
                         backgroundColor: getColorForAbsence(getOriginalGroupName(record)),
-                        color: 'white',
+                        color: 'var(--nw-primary-foreground)',
                         borderColor: getColorForAbsence(getOriginalGroupName(record))
                       }}
                     >
@@ -267,10 +267,8 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   >
                     {record.startDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-gray-400" />
-                        <span className="gba:text-sm">
-                          {dayjs(record.startDate).format(getDateFormat('date.short'))}
-                        </span>
+                        <PiCalendar size={16} className="gba:text-muted-foreground" />
+                        <span className="gba:text-sm">{formatDate(record.startDate, 'date.short') || '-'}</span>
                       </div>
                     ) : (
                       '-'
@@ -282,8 +280,8 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   >
                     {record.endDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-gray-400" />
-                        <span className="gba:text-sm">{dayjs(record.endDate).format(getDateFormat('date.short'))}</span>
+                        <PiCalendar size={16} className="gba:text-muted-foreground" />
+                        <span className="gba:text-sm">{formatDate(record.endDate, 'date.short') || '-'}</span>
                       </div>
                     ) : (
                       '-'
@@ -307,10 +305,8 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   >
                     {record.createdAt ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-gray-400" />
-                        <span className="gba:text-sm">
-                          {dayjs(record.createdAt).format(getDateFormat('date.short'))}
-                        </span>
+                        <PiCalendar size={16} className="gba:text-muted-foreground" />
+                        <span className="gba:text-sm">{formatDate(record.createdAt, 'date.short') || '-'}</span>
                       </div>
                     ) : (
                       '-'

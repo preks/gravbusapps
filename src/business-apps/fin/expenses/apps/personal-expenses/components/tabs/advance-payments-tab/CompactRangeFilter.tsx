@@ -15,7 +15,6 @@ export const CompactRangeFilter: React.FC<CompactRangeFilterProps> = ({
   onRangeChange,
   className = '',
   placeholder = ['Min', 'Max'],
-  label,
   dataTestIdPrefix
 }) => {
   const [minValue, setMinValue] = useState<string>(range?.min?.toString() || '')

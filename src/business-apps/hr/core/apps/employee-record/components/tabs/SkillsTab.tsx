@@ -2,11 +2,11 @@ import React, { useMemo } from 'react'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Empty, Progress } from 'antd'
 import { Employee } from '../../hooks/useEmployeeData'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { PiPencilSimple, PiStar, PiCheckCircle } from 'react-icons/pi'
+import { PiStar, PiCheckCircle } from 'react-icons/pi'
 import { calculateSkillStats, getLevelInfo, getSkillCategory, getTimeSince } from '../../utils/utils'
 
 interface SkillsTabProps {
@@ -14,14 +14,13 @@ interface SkillsTabProps {
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info for self-view check
-  isSelfView: boolean // Whether user is viewing their own profile
 }
 
 /**
  * Skills Tab Component
  * Displays skills for the employee with enhanced visual design
  */
-const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView }) => {
+const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
   // Use employee skills data directly
   const employeeSkills = useMemo(() => {
     return employee.skills || []
@@ -44,30 +43,26 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
           <div className="gba:font-bold gba:text-2xl" data-testid="skills-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:employee_record.skills_title', 'Employee Skills')}
           </div>
-          <div className="gba:text-gray-500 gba:text-lg" data-testid="skills-description">
+          <div className="gba:text-muted-foreground gba:text-lg" data-testid="skills-description">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:employee_record.skills_description',
               'View and manage employee skills and competencies'
             )}
           </div>
         </div>
-        {isSelfView && (
-          <AppActionMenu
-            data-testid="employee-skills-edit-button"
-            contextsArray={[FlowContextName.updateEmployeeSkill]}
-            externalContextData={{
-              employeeId: employee?.id
-            }}
-            prefixDataTestId="employee-skills-edit"
-            accessToken={accessToken}
-            autoExecuteSingleAction={true}
-          >
-            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-              <PiPencilSimple className="gba:cursor-pointer" />
-              Edit Skills
-            </div>
-          </AppActionMenu>
-        )}
+        <AppAction
+          variant="update-primary"
+          data-testid="employee-skills-edit-button"
+          contexts={[{ context: FlowContextName.updateEmployeeSkill, contextData: { employeeId: employee?.id } }]}
+          prefixDataTestId="employee-skills-edit"
+          accessToken={accessToken}
+          autoExecute={true}
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_profile.employee_tabs.flow_button.edit_skills',
+            'Edit Skills'
+          )}
+        </AppAction>
       </div>
 
       {validSkills.length === 0 ? (
@@ -79,27 +74,25 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
         <>
           {/* Skills Statistics */}
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-8" data-testid="skills-stats">
-            <Card className="gba:border gba:border-gray-200 gba:shadow-sm gba:hover:shadow-md gba:transition-all">
+            <Card className="gba:border gba:border-border gba:shadow-sm gba:hover:shadow-md gba:transition-all">
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-purple-500)' }}>
-                    {skillStats.total}
-                  </div>
-                  <div className="gba:text-sm gba:text-gray-600">Total Skills</div>
+                  <div className="gba:text-2xl gba:font-bold gba:text-info">{skillStats.total}</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">Total Skills</div>
                 </div>
-                <PiStar className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
+                <PiStar className="gba:h-8 gba:w-8 gba:text-info" />
               </div>
             </Card>
 
-            <Card className="gba:border gba:border-gray-200 gba:shadow-sm gba:hover:shadow-md gba:transition-all">
+            <Card className="gba:border gba:border-border gba:shadow-sm gba:hover:shadow-md gba:transition-all">
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <div className="gba:text-lg gba:font-bold gba:text-purple-500">
+                  <div className="gba:text-lg gba:font-bold gba:text-info">
                     {skillStats.highestSkills.length > 0
                       ? skillStats.highestSkills.map((skill: any) => skill.skill.name).join(', ')
                       : 'None'}
                   </div>
-                  <div className="gba:text-sm gba:text-gray-600">Highest Skills</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">Highest Skills</div>
                 </div>
                 <PiCheckCircle className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
               </div>
@@ -121,7 +114,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
               return (
                 <Card
                   key={skillItem.skill.id}
-                  className="gba:h-full gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:overflow-hidden"
+                  className="gba:h-full gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:overflow-hidden"
                   data-testid={`skill-card-${skillItem.skill.id}`}
                   style={{
                     background: 'var(--nw-color-white)',
@@ -166,7 +159,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
 
                       {/* Level Description */}
                       <div className="gba:mb-4">
-                        <p className="gba:text-sm gba:text-gray-600">{levelInfo.description}</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{levelInfo.description}</p>
                       </div>
 
                       {/* Additional Information */}

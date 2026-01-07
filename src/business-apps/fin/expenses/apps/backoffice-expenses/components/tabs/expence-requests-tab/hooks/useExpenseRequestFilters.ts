@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 
 interface Employee {
@@ -13,7 +13,6 @@ interface UseExpenseRequestFiltersProps {
   handleAmountFilter: (min: string, max: string) => void
   amountMinFilter: string
   amountMaxFilter: string
-  availableStatuses: string[]
 }
 
 export const useExpenseRequestFilters = ({
@@ -22,8 +21,7 @@ export const useExpenseRequestFilters = ({
   handleStatusFilter,
   handleAmountFilter,
   amountMinFilter,
-  amountMaxFilter,
-  availableStatuses
+  amountMaxFilter
 }: UseExpenseRequestFiltersProps) => {
   // Employee filter state
   const [employeeFilter, setEmployeeFilter] = useState('')
@@ -53,7 +51,7 @@ export const useExpenseRequestFilters = ({
         try {
           const results = await searchEmployees(debouncedEmployeeSearchText)
           setEmployeeSearchResults(results)
-        } catch (error) {
+        } catch {
           console.error('Error searching employees:', error)
           setEmployeeSearchResults([])
         } finally {

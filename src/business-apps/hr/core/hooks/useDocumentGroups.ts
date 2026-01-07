@@ -6,7 +6,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '@/common/types/CatalogTypes'
 import { message } from 'antd'
 
-export interface DocumentGroup extends CatalogEntry {}
+export type DocumentGroup = CatalogEntry
 
 const useDocumentGroups = (accessToken: string) => {
   const client = useCatalogManagerClient(accessToken)

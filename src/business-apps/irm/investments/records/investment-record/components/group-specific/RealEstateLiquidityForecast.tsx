@@ -1,6 +1,10 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
 import { TrendingUp } from 'lucide-react'
+import { PencilIcon } from '@phosphor-icons/react'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 // Liquidity Forecast Types
 export interface LiquidityForecastData {
@@ -43,24 +47,9 @@ export const parseLiquidityForecast = (liquidityForecast: any): LiquidityForecas
     }
 
     return null
-  } catch (error) {
+  } catch {
     return null
   }
-}
-
-// Helper function to format currency amounts
-export const formatLiquidityAmount = (amount: number | string, currency = 'EUR'): string => {
-  if (typeof amount === 'string') {
-    return amount
-  }
-
-  if (typeof amount === 'number' && amount > 0) {
-    // Format as millions
-    const millions = amount / 1000000
-    return `${millions.toFixed(1)} Mio. ${currency}`
-  }
-
-  return 'xxx Mio.'
 }
 
 interface RealEstateLiquidityForecastProps {
@@ -70,12 +59,14 @@ interface RealEstateLiquidityForecastProps {
     documents?: any[]
   } | null
   isLoading?: boolean
+  accessToken: string
   'data-testid'?: string
 }
 
 const RealEstateLiquidityForecast: React.FC<RealEstateLiquidityForecastProps> = ({
   realEstateData,
   isLoading,
+  accessToken,
   'data-testid': dataTestId = 'liquidity-forecast'
 }) => {
   if (isLoading) {
@@ -99,38 +90,49 @@ const RealEstateLiquidityForecast: React.FC<RealEstateLiquidityForecastProps> = 
     )
   }
 
-  // Check liquidity forecast data availability
-  React.useEffect(() => {
-    if (realEstateData?.realEstateInvestment) {
-      const hasLiquidityData = realEstateData.realEstateInvestment.liquidityForecast !== null
-      // Track liquidity forecast data availability
-    }
-  }, [realEstateData])
-
   // Parse liquidity forecast data from real estate investment
   const forecastData: LiquidityForecastData | null = parseLiquidityForecast(
     realEstateData?.realEstateInvestment?.liquidityForecast
   )
 
-  // Check if we have real liquidity forecast data vs placeholder data
-  const hasRealData =
-    forecastData &&
-    forecastData.amounts.some(
-      amount => typeof amount === 'number' || (typeof amount === 'string' && amount !== 'xxx Mio.')
-    )
+  // Check if we have real liquidity forecast data
+  const hasRealData = forecastData && forecastData.amounts.length > 0
 
-  // Get currency from investment data
-  const currencyCode = realEstateData?.investment?.currency?.code || 'EUR'
+  // Get currency from investment data and extract the currency code
+  const currencyCode = extractCurrencyCode(realEstateData?.investment?.currency?.code)
 
   // If no real data, show empty state message
-  if (!hasRealData) {
+  if (!hasRealData || !forecastData) {
     return (
       <Card data-testid={dataTestId}>
         <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
-            <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />
-            Liquidity Forecast
-          </CardTitle>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+              <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />
+              Liquidity Forecast
+            </CardTitle>
+            {realEstateData?.investment?.id && (
+              <AppAction
+                contexts={[
+                  {
+                    context: FlowContextName.investmentLiquidityForecastUpdate,
+                    contextData: {
+                      investmentId: realEstateData.investment.id,
+                      scope: 'liquidityForecast'
+                    }
+                  }
+                ]}
+                accessToken={accessToken}
+                emptyState="enable"
+                data-testid="liquidity-forecast-edit-action"
+              >
+                <Button variant="default" size="default" data-testid="liquidity-forecast-edit-button">
+                  <PencilIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                  Update Liquidity Forecast
+                </Button>
+              </AppAction>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="gba:text-center gba:py-8 gba:text-gray-500">
@@ -145,10 +147,33 @@ const RealEstateLiquidityForecast: React.FC<RealEstateLiquidityForecastProps> = 
   return (
     <Card data-testid={dataTestId}>
       <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
-          <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />
-          Liquidity Forecast
-        </CardTitle>
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+            <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />
+            Liquidity Forecast
+          </CardTitle>
+          {realEstateData?.investment?.id && (
+            <AppAction
+              contexts={[
+                {
+                  context: FlowContextName.investmentLiquidityForecastUpdate,
+                  contextData: {
+                    investmentId: realEstateData.investment.id,
+                    scope: 'liquidityForecast'
+                  }
+                }
+              ]}
+              accessToken={accessToken}
+              emptyState="enable"
+              data-testid="liquidity-forecast-edit-action"
+            >
+              <Button variant="default" size="default" data-testid="liquidity-forecast-edit-button">
+                <PencilIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                Update Liquidity Forecast
+              </Button>
+            </AppAction>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="gba:overflow-x-auto">
@@ -156,7 +181,7 @@ const RealEstateLiquidityForecast: React.FC<RealEstateLiquidityForecastProps> = 
             <thead>
               <tr className="gba:border-b gba:border-gray-200">
                 <th className="gba:text-left gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">Year</th>
-                {forecastData!.years.map(year => (
+                {forecastData.years.map(year => (
                   <th key={year} className="gba:text-center gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">
                     {year}
                   </th>
@@ -164,20 +189,20 @@ const RealEstateLiquidityForecast: React.FC<RealEstateLiquidityForecastProps> = 
                 <th className="gba:text-center gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">
                   Balanced Cashflow
                   <br />
-                  until {forecastData!.balancedCashflowDate}
+                  until {forecastData.balancedCashflowDate}
                 </th>
               </tr>
             </thead>
             <tbody>
               <tr className="gba:border-b gba:border-gray-100">
-                <td className="gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">Amount (Mio.)</td>
-                {forecastData!.amounts.map((amount, index) => (
+                <td className="gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">Amount</td>
+                {forecastData.amounts.map((amount, index) => (
                   <td key={index} className="gba:text-center gba:py-3 gba:px-4 gba:text-gray-700">
-                    {formatLiquidityAmount(amount, currencyCode)}
+                    {formatCurrency(Number(amount), currencyCode)}
                   </td>
                 ))}
                 <td className="gba:text-center gba:py-3 gba:px-4 gba:text-gray-700 gba:font-medium">
-                  {formatLiquidityAmount(forecastData!.balancedAmount, currencyCode)}
+                  {formatCurrency(Number(forecastData.balancedAmount), currencyCode)}
                 </td>
               </tr>
             </tbody>

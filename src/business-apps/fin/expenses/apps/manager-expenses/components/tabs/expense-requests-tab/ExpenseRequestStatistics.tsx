@@ -10,8 +10,7 @@ interface ExpenseRequestStatisticsProps {
   requestStatsError: string | null
   fetchRequestStatistics: () => Promise<void>
   currencyFilter?: string | null
-  addFilter: (filter: string) => void
-  removeFilter: (filter: string) => void
+  setFilters: (filters: string[]) => void
   selectedFilters: string[]
 }
 
@@ -21,57 +20,42 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   requestStatsError,
   fetchRequestStatistics,
   currencyFilter,
-  addFilter,
-  removeFilter,
+  setFilters,
   selectedFilters
 }) => {
   const displayCurrency = currencyFilter || 'EUR'
 
-  // Helper: Clear all current filters
-  const clearAllFilters = useCallback(() => {
-    for (const filter of selectedFilters) {
-      removeFilter(filter)
-    }
-  }, [selectedFilters, removeFilter])
-
-  // Helper: Apply multiple filters
-  const applyMultipleFilters = useCallback(
-    (filters: string[]) => {
-      for (const filter of filters) {
-        addFilter(filter)
-      }
-    },
-    [addFilter]
-  )
-
   // Helper: Toggle multi-filter set (e.g., all submitted statuses)
   const handleMultiFilterToggle = useCallback(
     (filtersToToggle: string[]) => {
+      // Check if all filters in the set are currently active
       const allFiltersActive = filtersToToggle.every(filter => selectedFilters.includes(filter))
 
       if (allFiltersActive) {
-        for (const filter of filtersToToggle) {
-          removeFilter(filter)
-        }
+        // All filters are active, remove all of them - set to empty array
+        setFilters([])
       } else {
-        clearAllFilters()
-        applyMultipleFilters(filtersToToggle)
+        // Not all filters are active - we want to set exactly these filters
+        // Use setFilters to set the final state in one update (prevents duplicates)
+        setFilters(filtersToToggle)
       }
     },
-    [selectedFilters, removeFilter, clearAllFilters, applyMultipleFilters]
+    [selectedFilters, setFilters]
   )
 
   // Helper: Toggle single filter (exclusive selection)
   const handleSingleFilterToggle = useCallback(
     (filterKey: string) => {
       if (selectedFilters.includes(filterKey)) {
-        removeFilter(filterKey)
+        // Filter is active, remove it - set to empty array
+        setFilters([])
       } else {
-        clearAllFilters()
-        addFilter(filterKey)
+        // Filter is not active - we want only this filter active
+        // Use setFilters to set exactly this filter in one update
+        setFilters([filterKey])
       }
     },
-    [selectedFilters, removeFilter, clearAllFilters, addFilter]
+    [selectedFilters, setFilters]
   )
 
   // Handle card click functionality with proper filtering logic

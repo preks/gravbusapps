@@ -12,11 +12,14 @@ export const useCatalogEntries = ({ accessToken }: UseCatalogEntriesProps) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchCatalogEntries = useCallback(
-    async (variables: CatalogEntryQueryVariables): Promise<{ entries: CatalogEntry[]; totalCount: number }> => {
+    async (
+      variables: CatalogEntryQueryVariables & { includeChildCatalogEntries?: boolean }
+    ): Promise<{ entries: CatalogEntry[]; totalCount: number }> => {
       const query = GET_CATALOG_ENTRIES(variables)
       const result = await graphqlClient.request<CatalogEntryResponse>(query)
       const baseEntries = (result.CatalogEntry || []) as BaseCatalogEntry[]
-      const entries: CatalogEntry[] = baseEntries.map(e => toCatalogEntry(e, baseEntries))
+      const mapChildEntries = !!variables.includeChildCatalogEntries
+      const entries: CatalogEntry[] = baseEntries.map(e => toCatalogEntry(e, baseEntries, mapChildEntries))
       const totalCount = result.CatalogEntryAggregate?.aggregate?.count || entries.length || 0
       return { entries, totalCount }
     },

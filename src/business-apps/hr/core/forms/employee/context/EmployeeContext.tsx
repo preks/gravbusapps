@@ -54,8 +54,7 @@ export const EmployeeProvider: React.FC<{
     error: organizationalUnitsError,
     hasMore: hasMoreOrganizationalUnits,
     loadMore: loadMoreOrganizationalUnits,
-    searchUnits: searchOrganizationalUnitsInternal,
-    retry: retryOrganizationalUnits
+    searchUnits: searchOrganizationalUnitsInternal
   } = useOrganizationalUnits({ accessToken, structureId, search: organizationalUnitSearch })
 
   // Job positions hook - filtered by organizational unit
@@ -66,8 +65,7 @@ export const EmployeeProvider: React.FC<{
     error: jobPositionsError,
     hasMore: hasMoreJobPositions,
     loadMore: loadMoreJobPositions,
-    searchPositions: searchJobPositionsInternal,
-    retry: retryJobPositions
+    searchPositions: searchJobPositionsInternal
   } = useJobPositions({
     accessToken,
     structureId,

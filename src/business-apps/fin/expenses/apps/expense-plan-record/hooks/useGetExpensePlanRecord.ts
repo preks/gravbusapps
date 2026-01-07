@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpensePlanRecord } from '../types/expensePlanRecord.types'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { getExpensePlanRecordQuery } from '../queries/getExpensePlanRecord.ts'
 
 interface UseGetExpensePlanRecordProps extends Pick<BusinessAppContextProps, 'accessToken'> {
@@ -37,7 +38,8 @@ export const useGetExpensePlanRecord = ({
         setLoading(true)
         setError(null)
 
-        const data = await graphqlClient.request(getExpensePlanRecordQuery, { expensePlanId })
+        const activeUserLocale = getCurrentActiveUserLocale()
+        const data = await graphqlClient.request(getExpensePlanRecordQuery, { expensePlanId, activeUserLocale })
 
         if (!data?.expensePlan) {
           throw new Error('No expense plan data found')

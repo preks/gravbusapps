@@ -1,7 +1,6 @@
-'use client'
-
 import { useEffect, useState, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 
 /**
  * Employee type definition for the directory.
@@ -15,11 +14,21 @@ export interface Employee {
   jobTitle: string
   organizationalUnit: string
   organizationalUnitId?: string
-  email: string
+  email?: string
+  workEmail?: string
   profilePicture: string
   employmentType?: string
   contractType?: string
   matrixTeams?: string[]
+  // Availability/status fields
+  status?: 'Available' | 'On Leave'
+  currentAbsence?: {
+    type: string
+    parentEntryId?: string // e.g., 'AbsenceGroup:v1:HEALTH' for sick leave
+    startDate: string
+    endDate: string
+    status: string
+  }
 }
 
 /**
@@ -56,6 +65,23 @@ function extractMatrixTeamNames(matrixUnitEmployees: any[] | null | undefined): 
   }
 
   return teamNames
+}
+
+/**
+ * Helper function to extract work email from communications array
+ */
+function extractWorkEmail(communications: any[] | null | undefined): string | undefined {
+  if (!communications || !Array.isArray(communications)) {
+    return undefined
+  }
+
+  const emailComm = communications.find((c: any) => {
+    if (!c.value || c.value.trim() === '') return false
+    const channelValue = c.channel?.value?.toLowerCase() || ''
+    return channelValue.includes('email')
+  })
+
+  return emailComm?.value?.trim() || undefined
 }
 
 // GraphQL query to fetch employee positions with employee and related info
@@ -101,9 +127,32 @@ const EMPLOYEE_POSITION_QUERY = `
         pictureThumbnail
         workingCondition {
           contractType {
-            value
-          }
+        value
+        id
+        code
+        catalogId
+        translations {
+          value
+          localeCode
+          id
+        }
+      }
           employmentType {
+        value
+        id
+        code
+        catalogId
+        translations {
+          value
+          localeCode
+          id
+        }
+      }
+        }
+        communication(where: { _and: [{ isDeleted: { _eq: false } }, { purpose: { _eq: "INTERNAL" } }] }) {
+          id
+          value
+          channel {
             value
           }
         }
@@ -133,8 +182,8 @@ const buildSortCondition = (sortField: string, sortOrder: 'ASC' | 'DESC', orderB
 
   switch (sortField) {
     case 'name':
-      // For name sorting, prioritize firstName then lastName
-      orderBy.firstName = sortDirection
+      // For name sorting, prioritize lastName then firstName
+      orderBy.lastName = sortDirection
       break
     case 'firstName':
       orderBy.firstName = sortDirection
@@ -260,7 +309,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         limit: EMPLOYEES_PER_PAGE,
         offset,
         where,
-        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ firstName: 'ASC_NULLS_LAST' }]
+        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ lastName: 'ASC_NULLS_LAST' }]
       })
       .then((res: any) => {
         if (!res) {
@@ -271,6 +320,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         const employeePositions = res.EmployeePosition ?? []
         const newEmployees = employeePositions.map((ep: any) => {
           const workingCondition = ep.employee?.workingCondition?.[0]
+          const workEmail = extractWorkEmail(ep.employee?.communication)
           return {
             id: ep.employeeId,
             userId: ep.userId,
@@ -280,27 +330,24 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
             jobTitle: ep.jobPosition?.name ?? '',
             organizationalUnit: ep.organizationalUnit?.name ?? '',
             organizationalUnitId: ep.organizationalUnit?.id,
-            email: '', // Email not provided in query, default empty
-            employmentType: workingCondition?.employmentType?.value ?? '',
-            contractType: workingCondition?.contractType?.value ?? '',
-            // Extract matrix team names and avoid deeply nested functions
+            workEmail: workEmail,
+            employmentType: getCatalogValue(workingCondition?.employmentType) || '',
+            contractType: getCatalogValue(workingCondition?.contractType) || '',
             matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
             profilePicture: ep.employee?.pictureThumbnail ?? ''
           }
         })
-        // For infinite scroll: Clear data if filters changed, otherwise append
         if (shouldClearData || employees.length === 0) {
-          setEmployees(newEmployees) // Replace data for filter changes or initial load
-          setShouldClearData(false) // Reset the flag
+          setEmployees(newEmployees)
+          setShouldClearData(false)
         } else {
-          setEmployees((prev: Employee[]) => [...prev, ...newEmployees]) // Append for infinite scroll
+          setEmployees((prev: Employee[]) => [...prev, ...newEmployees])
         }
 
         setTotal(res.EmployeePositionAggregate.aggregate.count)
         setOffset(prev => prev + EMPLOYEES_PER_PAGE)
         setHasMore(newEmployees.length === EMPLOYEES_PER_PAGE)
         setLoading(false)
-        // Mark initial load as complete after first successful load
         if (isInitialLoad) {
           setIsInitialLoad(false)
         }
@@ -353,13 +400,9 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
 
       const pageOffset = (page - 1) * pageSize
 
-      // Only show loading for true initial load (when component first mounts)
       if (isInitialLoad && employees.length === 0) {
         setLoading(true)
       }
-      // For pagination and filter changes: no loading indicator - seamless UX
-
-      // Dynamically build the where filter
       const where = {
         ...(alpha ? { lastName: { _ilike: alphaFilter } } : {}),
         ...(search
@@ -373,7 +416,6 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         ...matrixTeamObj
       }
 
-      // Build order by condition (matches AccountList pattern)
       const orderBy: any = {}
       if (sortField && sortField.trim() !== '' && sortOrder) {
         buildSortCondition(sortField, sortOrder, orderBy)
@@ -384,7 +426,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
           limit: pageSize,
           offset: pageOffset,
           where,
-          orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ firstName: 'ASC_NULLS_LAST' }]
+          orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ lastName: 'ASC_NULLS_LAST' }]
         })
         .then((res: any) => {
           if (!res) {
@@ -395,6 +437,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
           const employeePositions = res.EmployeePosition ?? []
           const newEmployees = employeePositions.map((ep: any) => {
             const workingCondition = ep.employee?.workingCondition?.[0]
+            const workEmail = extractWorkEmail(ep.employee?.communication)
             return {
               id: ep.employeeId,
               userId: ep.userId,
@@ -404,22 +447,19 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
               jobTitle: ep.jobPosition?.name ?? '',
               organizationalUnit: ep.organizationalUnit?.name ?? '',
               organizationalUnitId: ep.organizationalUnit?.id,
-              email: '', // Email not provided in query, default empty
-              employmentType: workingCondition?.employmentType?.value ?? '',
-              contractType: workingCondition?.contractType?.value ?? '',
-              // Extract matrix team names and avoid deeply nested functions
+              workEmail: workEmail,
+              employmentType: getCatalogValue(workingCondition?.employmentType) || '',
+              contractType: getCatalogValue(workingCondition?.contractType) || '',
               matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
               profilePicture: ep.employee?.pictureThumbnail ?? ''
             }
           })
 
-          // For pagination, replace the employees array with just the current page
           setEmployees(newEmployees)
           setTotal(res.EmployeePositionAggregate.aggregate.count)
           setOffset(pageOffset)
           setHasMore(newEmployees.length === pageSize)
           setLoading(false)
-          // Mark initial load as complete after first successful load
           if (isInitialLoad) {
             setIsInitialLoad(false)
           }
@@ -447,7 +487,6 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     ]
   )
 
-  // Initial load effect - trigger loadMore when filters change or on mount
   useEffect(() => {
     if (client && (employees.length === 0 || shouldClearData) && !loading) {
       loadMore()

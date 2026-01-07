@@ -1,25 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import {
-  Button,
-  Spinner,
-  RecordLayout,
-  Badge,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@newwork/nw-design-system'
-import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
+import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
+import { FileTextIcon, UserIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useContactData } from './hooks/useContactData'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { getContactTypeDisplayValue, getLanguageDisplayValue, getContactFullName } from './utils'
+import { getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
-import { Bot } from 'lucide-react'
+import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
 import {
   useGetInvestmentActivitiesByContactId,
   useGetInvestmentNotesByContactId,
@@ -28,6 +20,7 @@ import {
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
+import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface ContactRecordContentProps extends BusinessAppContextProps {
   contactId: string
@@ -41,22 +34,19 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   fromEntity,
   ...props
 }) => {
-  const [contact, setContact] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === 'undefined') return 'overview'
     const params = new URLSearchParams(window.location.search)
     return params.get('tab') || 'overview'
   })
 
+  // Use new declarative hook for contact data
   const {
     contact: contactData,
-    rawContactData,
-    loading: dataLoading,
-    error: dataError,
+    loading,
+    error,
     refetch: refetchContactData
-  } = useContactData(contactId, props.accessToken)
+  } = useInvestmentContact(props.accessToken, contactId)
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)
@@ -157,52 +147,16 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     loadSectionData()
   }, [loadSectionData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetchContactData()
+    loadSectionData()
+  }, [refetchContactData, loadSectionData])
+
   // Listen for process completion events to refresh contact data
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.contact) {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
-        }
-      } catch (err) {
-        console.error('Error handling process completion in ContactRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for contact updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [contactId, refetchContactData, loadSectionData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   // Get source from URL parameters to determine back navigation text
   const source = useMemo(() => {
@@ -237,40 +191,40 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.email', 'Email'),
             value:
-              contactData?.email || contact?.email || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+              getEmailChannel(contactData?.communicationChannels)?.value ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
             value:
-              contactData?.phone || contact?.phone || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+              getPhoneChannel(contactData?.communicationChannels)?.value ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.birthday', 'Birthday'),
-            value:
-              contactData?.birthDate || contact?.birthDate
-                ? new Date(contactData?.birthDate || contact?.birthDate || '').toLocaleDateString('en-GB')
-                : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            value: contactData?.birthDate
+              ? new Date(contactData.birthDate).toLocaleDateString('en-GB')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
-            value: getLanguageDisplayValue(contactData, contact),
+            value: contactData?.language?.value || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
-            value:
-              contactData?.ownerEmployee?.displayName ||
-              contact?.ownerEmployee?.displayName ||
-              getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
+            value: contactData?.ownerEmployee
+              ? `${contactData.ownerEmployee.firstName} ${contactData.ownerEmployee.lastName}`.trim()
+              : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
             icon: User
           }
         ]
       }
     ],
-    [contactData, contact]
+    [contactData]
   )
 
   const headerActions = useMemo(() => {
@@ -300,28 +254,37 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }, [aiSummaryHook, contactId])
 
+  // Calculate fullName early for use in headerActionButton
+  const fullName = getContactFullName(contactData, null)
+
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="investment-contact-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.investmentContactEntity]}
-        externalContextData={{
-          contactId: contactId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.investmentContactEntity,
+            contextData: { contactId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment-contact',
+          entityId: contactId,
+          entityName: fullName,
+          entityUrl: `/platform/irm/contact-record?contactId=${contactId}`
         }}
         prefixDataTestId="investment-contact-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [contactId, props.accessToken]
+    [contactId, fullName, props.accessToken]
   )
 
   // Action props for sections - must be defined before subViewsConfig
   const activityActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createInvestmentActivity],
+      contextsArray: [FlowContextName.investmentActivityCreate],
       externalContextData: { contactId },
       prefixDataTestId: 'contact-activity'
     }),
@@ -367,12 +330,11 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-          icon: <User className="gba:mr-2" />,
+          icon: <UserIcon className="gba:mr-2" />,
           content: (
             <HomeView
               contactId={contactId}
-              contact={contact}
-              rawContactData={rawContactData}
+              contactData={contactData!}
               activities={activities}
               notes={notes}
               tasks={tasks}
@@ -391,7 +353,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <CurrencyDollar className="gba:mr-2" />,
+          icon: <CurrencyDollarIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView contactId={contactId} {...props} />
@@ -401,7 +363,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView contactId={contactId} {...props} />
@@ -413,7 +375,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     [
       activeTab,
       handleTabChange,
-      contact,
+      contactData,
       contactId,
       props,
       tasks,
@@ -430,40 +392,6 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     ]
   )
 
-  useEffect(() => {
-    const fetchContactData = async () => {
-      if (!contactId) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        if (contactData) {
-          setContact(contactData)
-        } else if (dataError) {
-          setError(dataError)
-        }
-      } catch (err) {
-        console.error('Error fetching investment contact:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load investment contact')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (!dataLoading) {
-      fetchContactData()
-    }
-  }, [contactId, contactData, dataLoading, dataError])
-
-  // Update loading state based on data loading
-  useEffect(() => {
-    setLoading(dataLoading)
-  }, [dataLoading])
-
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
@@ -472,7 +400,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }
 
-  if (error || !contact) {
+  if (error || !contactData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
@@ -493,31 +421,8 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }
 
-  const fullName = getContactFullName(contactData, contact)
-
-  // Create header title with contact type badge
-  const contactType = contactData?.contactType || contact?.contactType
-  const contactTypeLabel = getContactTypeDisplayValue(contactData, contact)
-
-  const headerTitle = (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <span>{fullName}</span>
-      {contactType && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge data-testid="contact-type-badge" variant="outline" className="gba:text-sm">
-                {contactTypeLabel}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent data-testid="contact-type-tooltip">
-              {getTranslationFromI18nKeyAndLabel('crm.common.contactType', 'Contact Type')}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-    </div>
-  )
+  // Header title without contact type badge (contact type shown in Account Section)
+  const headerTitle = fullName
 
   return (
     <div data-testid="investment-contact-detail">

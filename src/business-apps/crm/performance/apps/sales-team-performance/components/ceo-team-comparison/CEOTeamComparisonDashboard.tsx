@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Card,
   CardContent,
@@ -12,63 +12,111 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Checkbox
+  Checkbox,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  ChartContainer,
+  ChartTooltip,
+  ChartLegend,
+  ChartLegendContent
 } from '@newwork/nw-design-system'
-import {
-  PiTrendUp,
-  PiTrendDown,
-  PiUsers,
-  PiTarget,
-  PiCurrencyDollar,
-  PiChartLine,
-  PiRanking,
-  PiArrowRight
-} from 'react-icons/pi'
+import { Check, ChevronsUpDown } from 'lucide-react'
+import { PiTarget, PiCurrencyDollar, PiChartLine, PiRanking, PiArrowRight, PiListChecks } from 'react-icons/pi'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency } from '@/common/utils/numberFormatter'
 import { TeamInfo } from '../../types/userRoles'
 import { useTeamPerformanceData } from '../../hooks/useTeamPerformanceData'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  ComposedChart,
-  Area,
-  AreaChart
-} from 'recharts'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
 
 const DATA_TEST_ID_PREFIX = 'CEOTeamComparison'
 
 interface CEOTeamComparisonDashboardProps extends BusinessAppContextProps {
   availableTeams: TeamInfo[]
-  onTeamSelect?: (teamId: string, teamName: string) => void
+  onTeamSelect?: (teamId: string, teamName: string, currency: string) => void
 }
 
 type ComparisonMetric = 'revenue' | 'winRate' | 'activities' | 'pipeline' | 'efficiency'
 
+// Extract tooltip component to avoid inline definition
+interface ComparisonChartTooltipProps {
+  active?: boolean
+  payload?: readonly any[]
+  comparisonMetric: ComparisonMetric
+  getMetricLabel: (metric: ComparisonMetric) => string
+}
+
+const ComparisonChartTooltip: React.FC<ComparisonChartTooltipProps> = ({
+  active,
+  payload,
+  comparisonMetric,
+  getMetricLabel
+}) => {
+  if (!active || !payload?.length) return null
+  const data = payload[0].payload
+  const teamKey = data.teamKey
+  return (
+    <div className="gba:bg-background gba:p-3 gba:border gba:border-border gba:rounded-lg gba:shadow-lg">
+      <div className="gba:mb-2 gba:font-medium gba:text-foreground">{data.fullName || data.name}</div>
+      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+        <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: `var(--color-${teamKey})` }} />
+        <span className="gba:font-medium">{getMetricLabel(comparisonMetric)}:</span>
+        <span className="gba:font-semibold">{payload[0].value}</span>
+      </div>
+    </div>
+  )
+}
+
+// Wrapper component to avoid inline function definition
+const ChartTooltipWrapper: React.FC<ComparisonChartTooltipProps> = props => <ComparisonChartTooltip {...props} />
+
 export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProps> = ({
   availableTeams,
   onTeamSelect,
-  accessToken
+  accessToken,
+  userInfo
 }) => {
   const [selectedTeams, setSelectedTeams] = useState<string[]>([])
   const [comparisonMetric, setComparisonMetric] = useState<ComparisonMetric>('revenue')
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
-  // Initialize with first 3 teams selected
-  useEffect(() => {
-    if (availableTeams.length > 0 && selectedTeams.length === 0) {
-      setSelectedTeams(availableTeams.slice(0, Math.min(3, availableTeams.length)).map(t => t.id))
+  // Helper: Determine initial team selection
+  const getInitialTeamSelection = useCallback((availableTeams: TeamInfo[], userInfo: any): string | null => {
+    if (!availableTeams.length) return null
+
+    const currentUserOrgUnitId = userInfo?.employeeDetails?.organizationalUnit?.id
+
+    if (currentUserOrgUnitId) {
+      const userTeam = availableTeams.find(team => team.id === currentUserOrgUnitId)
+      return userTeam ? userTeam.id : availableTeams[0].id
     }
-  }, [availableTeams, selectedTeams.length])
+
+    console.warn('⚠️ No organizational unit found for user, defaulting to first team')
+    return availableTeams[0].id
+  }, [])
+
+  // Initialize with current user's team selected by default
+  useEffect(() => {
+    if (availableTeams.length > 0 && selectedTeams.length === 0 && userInfo) {
+      const initialTeamId = getInitialTeamSelection(availableTeams, userInfo)
+      if (initialTeamId) {
+        setSelectedTeams([initialTeamId])
+      }
+    }
+  }, [availableTeams, userInfo, getInitialTeamSelection])
 
   // Prepare selected teams data for the hook
   const selectedTeamsData = useMemo(() => {
@@ -77,14 +125,59 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         const team = availableTeams.find(t => t.id === teamId)
         return team // Return the full TeamInfo object since it now has memberIds
       })
-      .filter(team => team && team.memberIds.length > 0) as TeamInfo[] // Only include teams with members
+      .filter(team => team?.memberIds && team.memberIds.length > 0) as TeamInfo[] // Only include teams with members
   }, [selectedTeams, availableTeams])
 
   // Fetch real team performance data
   const { teamsData, isLoading, error, refetch } = useTeamPerformanceData({
     accessToken,
-    teams: selectedTeamsData
+    teams: selectedTeamsData,
+    currencyCode: selectedCurrency
   })
+
+  // Fetch all available currencies from catalog
+  const [availableCurrencies, setAvailableCurrencies] = useState<Array<{ code: string; name: string }>>([])
+  const catalogClient = useCatalogManagerClient(accessToken)
+
+  // Helper: Fetch currencies from catalog
+  const fetchCurrencies = useCallback(async () => {
+    try {
+      const response = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'Currency', version: 'v1' },
+        { limit: 200, offset: 0, returnTotalRecords: true }
+      )
+      if (response?.data) {
+        const currencies = response.data
+          .map((entry: any) => ({
+            code: entry.code || '',
+            name: entry.value || ''
+          }))
+          .filter((c: any) => c.code)
+        setAvailableCurrencies(currencies)
+      }
+    } catch (err) {
+      console.error('Error fetching currencies:', err)
+    }
+  }, [catalogClient])
+
+  useEffect(() => {
+    if (accessToken) {
+      void fetchCurrencies()
+    }
+  }, [accessToken, fetchCurrencies])
+
+  // Dynamic chart configuration based on teams data
+  const comparisonChartConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    for (const team of teamsData) {
+      const key = team.teamName.toLowerCase().split(/\s+/).join('')
+      config[key] = { label: team.teamName }
+    }
+    return config
+  }, [teamsData])
+
+  // Use teams data directly without filtering
+  const filteredTeamsData = teamsData
 
   // Handle team selection
   const handleTeamSelection = (teamId: string, checked: boolean) => {
@@ -95,7 +188,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
     }
   }
 
-  // Create company-wide KPI widgets
+  // Create company-wide KPI widgets using latest SectionKpiCards style with 30-day comparisons
   const createCompanyKPIWidgets = (): WidgetItem[] => {
     if (teamsData.length === 0) return []
 
@@ -104,60 +197,93 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
     const totalActivities = teamsData.reduce((sum, team) => sum + team.totalActivities, 0)
     const totalPipeline = teamsData.reduce((sum, team) => sum + team.pipelineValue, 0)
 
-    // Get currency code from the first team (all teams should use same currency)
-    const currencyCode = teamsData.length > 0 ? teamsData[0].currencyCode : 'EUR'
+    // Calculate average percentage changes across all teams (30-day comparison)
+    const avgRevenueChange = teamsData.reduce((sum, team) => sum + team.revenueChange, 0) / teamsData.length
+    const avgWinRateChange = teamsData.reduce((sum, team) => sum + team.winRateChange, 0) / teamsData.length
+    const avgActivitiesChange = teamsData.reduce((sum, team) => sum + team.activitiesChange, 0) / teamsData.length
+    const avgPipelineChange = teamsData.reduce((sum, team) => sum + team.pipelineChange, 0) / teamsData.length
+
+    // Calculate per-team averages for descriptions
+    const avgRevenuePerTeam = totalRevenue / teamsData.length
+    const avgPipelinePerTeam = totalPipeline / teamsData.length
+    const avgActivitiesPerTeam = totalActivities / teamsData.length
 
     return [
       {
         key: 'company-revenue',
-        title: 'Total Company Revenue',
-        value: formatCurrency(totalRevenue, currencyCode),
+        title: `Total Revenue (${selectedCurrency})`,
+        value: formatCurrency(totalRevenue, selectedCurrency),
         prefix: <PiCurrencyDollar />,
-        color: '#10b981',
-        description: `Across ${teamsData.length} selected teams`,
-        valueIsString: true
+        color: '#1890ff',
+        description: `Avg per team: ${formatCurrency(avgRevenuePerTeam, selectedCurrency)}`,
+        valueIsString: true,
+        trend: {
+          value: `${avgRevenueChange >= 0 ? '+' : ''}${avgRevenueChange.toFixed(1)}%`,
+          positive: avgRevenueChange >= 0,
+          description: 'vs. 30 days ago'
+        }
+      },
+      {
+        key: 'company-pipeline',
+        title: `Pipeline Value (${selectedCurrency})`,
+        value: formatCurrency(totalPipeline, selectedCurrency),
+        prefix: <PiChartLine />,
+        color: '#52c41a',
+        description: `Avg per team: ${formatCurrency(avgPipelinePerTeam, selectedCurrency)}`,
+        valueIsString: true,
+        trend: {
+          value: `${avgPipelineChange >= 0 ? '+' : ''}${avgPipelineChange.toFixed(1)}%`,
+          positive: avgPipelineChange >= 0,
+          description: 'vs. 30 days ago'
+        }
       },
       {
         key: 'company-win-rate',
         title: 'Average Win Rate',
-        value: Math.round(avgWinRate * 10) / 10, // Round to 1 decimal place
+        value: Math.round(avgWinRate * 10) / 10,
         prefix: <PiTarget />,
-        color: '#1677ff',
-        description: 'Company-wide average',
+        color: '#722ed1',
+        description: `Across ${teamsData.length} team${teamsData.length === 1 ? '' : 's'}`,
         precision: 1,
-        suffix: '%'
+        suffix: '%',
+        trend: {
+          value: `${avgWinRateChange >= 0 ? '+' : ''}${avgWinRateChange.toFixed(1)}%`,
+          positive: avgWinRateChange >= 0,
+          description: 'vs. 30 days ago'
+        }
       },
       {
         key: 'company-activities',
         title: 'Total Activities',
         value: totalActivities,
-        prefix: <PiUsers />,
-        color: '#722ed1',
-        description: 'All team activities combined'
-      },
-      {
-        key: 'company-pipeline',
-        title: 'Total Pipeline Value',
-        value: formatCurrency(totalPipeline, currencyCode),
-        prefix: <PiChartLine />,
-        color: '#ff9500',
-        description: 'Company-wide pipeline',
-        valueIsString: true
+        prefix: <PiListChecks />,
+        color: '#fa8c16',
+        description: `Avg per team: ${Math.round(avgActivitiesPerTeam)}`,
+        trend: {
+          value: `${avgActivitiesChange >= 0 ? '+' : ''}${avgActivitiesChange.toFixed(1)}%`,
+          positive: avgActivitiesChange >= 0,
+          description: 'vs. 30 days ago'
+        }
       }
     ]
   }
 
-  // Prepare chart data
+  // Prepare chart data using design system color variables
   const chartData = useMemo(() => {
-    return teamsData.map(team => ({
-      name: team.teamName.length > 15 ? team.teamName.substring(0, 12) + '...' : team.teamName,
-      fullName: team.teamName,
-      revenue: team.totalRevenue / 1000, // Convert to thousands for better chart readability
-      winRate: team.winRate,
-      activities: team.totalActivities,
-      pipeline: team.pipelineValue / 1000,
-      efficiency: team.averageRevenuePerMember / 1000
-    }))
+    return teamsData.map(team => {
+      const key = team.teamName.toLowerCase().split(/\s+/).join('')
+      return {
+        name: team.teamName.length > 15 ? team.teamName.substring(0, 12) + '...' : team.teamName,
+        fullName: team.teamName,
+        teamKey: key,
+        revenue: team.totalRevenue / 1000,
+        winRate: team.winRate,
+        activities: team.totalActivities,
+        pipeline: team.pipelineValue / 1000,
+        efficiency: team.averageRevenuePerMember / 1000,
+        fill: `var(--color-${key})`
+      }
+    })
   }, [teamsData])
 
   const getMetricLabel = (metric: ComparisonMetric): string => {
@@ -177,63 +303,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
     }
   }
 
-  const getMetricColor = (metric: ComparisonMetric): string => {
-    switch (metric) {
-      case 'revenue':
-        return '#10b981'
-      case 'winRate':
-        return '#1677ff'
-      case 'activities':
-        return '#722ed1'
-      case 'pipeline':
-        return '#ff9500'
-      case 'efficiency':
-        return '#f59e0b'
-      default:
-        return '#10b981'
-    }
-  }
-
-  // Enhanced activities chart data
-  const activitiesChartData = useMemo(() => {
-    if (comparisonMetric !== 'activities') return []
-
-    return teamsData.map(team => ({
-      name: team.teamName.length > 12 ? team.teamName.substring(0, 10) + '...' : team.teamName,
-      fullName: team.teamName,
-      totalActivities: team.totalActivities,
-      activitiesPerMember: Math.round(team.totalActivities / Math.max(team.memberCount, 1)),
-      // Mock activity type breakdown (in real app, fetch from API)
-      calls: Math.round(team.totalActivities * 0.4),
-      emails: Math.round(team.totalActivities * 0.3),
-      meetings: Math.round(team.totalActivities * 0.2),
-      tasks: Math.round(team.totalActivities * 0.1),
-      efficiency: Math.round(team.totalRevenue / Math.max(team.totalActivities, 1) / 1000) // Revenue per activity (K)
-    }))
-  }, [teamsData, comparisonMetric])
-
-  // Activity type breakdown data for pie chart
-  const activityTypeData = useMemo(() => {
-    if (comparisonMetric !== 'activities' || activitiesChartData.length === 0) return []
-
-    const totals = activitiesChartData.reduce(
-      (acc, team) => ({
-        calls: acc.calls + team.calls,
-        emails: acc.emails + team.emails,
-        meetings: acc.meetings + team.meetings,
-        tasks: acc.tasks + team.tasks
-      }),
-      { calls: 0, emails: 0, meetings: 0, tasks: 0 }
-    )
-
-    return [
-      { name: 'Calls', value: totals.calls, color: '#10b981' },
-      { name: 'Emails', value: totals.emails, color: '#1677ff' },
-      { name: 'Meetings', value: totals.meetings, color: '#f59e0b' },
-      { name: 'Tasks', value: totals.tasks, color: '#ef4444' }
-    ]
-  }, [activitiesChartData, comparisonMetric])
-
+  // Enhanced activities chart data with dynamic colors
   if (error) {
     return (
       <div className="gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
@@ -258,55 +328,67 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
     )
   }
 
-  console.log('CEO Dashboard render states:', {
-    isLoading,
-    teamsDataCount: teamsData.length,
-    selectedTeamsCount: selectedTeams.length,
-    teamsDataSample:
-      teamsData.length > 0
-        ? {
-            firstTeam: {
-              name: teamsData[0].teamName,
-              revenue: teamsData[0].totalRevenue,
-              activities: teamsData[0].totalActivities,
-              memberCount: teamsData[0].memberCount,
-              winRate: teamsData[0].winRate
-            }
-          }
-        : null,
-    selectedTeamsDataCount: selectedTeamsData.length
-  })
-
   return (
-    <div className="gba:bg-white gba:min-h-screen gba:p-6 gba:space-y-6" data-testid={DATA_TEST_ID_PREFIX}>
-      {/* Header Section */}
-      <div
-        className="gba:bg-gradient-to-r gba:from-purple-50 gba:to-indigo-50 gba:rounded-lg gba:p-6"
-        data-testid={`${DATA_TEST_ID_PREFIX}-header`}
-      >
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:mb-2">Cross-Team Performance Analysis</h1>
-            <p className="gba:text-gray-600">
-              Compare performance across sales teams and identify strategic opportunities
-            </p>
-          </div>
-          <div className="gba:flex gba:items-center gba:space-x-2 gba:text-sm gba:text-gray-500">
-            <PiRanking className="gba:w-4 gba:h-4" />
-            <span>{selectedTeams.length} Teams Selected</span>
-          </div>
+    <div
+      className="gba:bg-linear-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
+      data-testid={DATA_TEST_ID_PREFIX}
+    >
+      {/* Currency Filter */}
+      <div className="gba:flex gba:justify-end gba:items-center gba:mb-6" data-testid={`${DATA_TEST_ID_PREFIX}-header`}>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-gray-700">Currency:</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                className="gba:w-32 gba:h-8 gba:justify-between"
+                data-testid={`${DATA_TEST_ID_PREFIX}-currency-filter`}
+              >
+                {selectedCurrency}
+                <ChevronsUpDown className="gba:ml-2 gba:h-4 gba:w-4 gba:shrink-0 gba:opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="gba:w-[280px] gba:p-0">
+              <Command>
+                <CommandInput placeholder="Search currency..." />
+                <CommandEmpty>No currency found.</CommandEmpty>
+                <CommandGroup className="gba:max-h-[200px] gba:overflow-y-auto">
+                  {availableCurrencies.map(currency => (
+                    <CommandItem
+                      key={currency.code}
+                      value={currency.code}
+                      onSelect={() => {
+                        setSelectedCurrency(currency.code)
+                      }}
+                    >
+                      <Check
+                        className={`gba:mr-2 gba:h-4 gba:w-4 gba:shrink-0 ${
+                          selectedCurrency === currency.code ? 'gba:opacity-100' : 'gba:opacity-0'
+                        }`}
+                      />
+                      <span className="gba:truncate">
+                        {currency.code} - {currency.name}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
-      {/* Company Overview KPIs - Moved Above */}
-      <div className="gba:mb-8" data-testid={`${DATA_TEST_ID_PREFIX}-kpi-section`}>
+      {/* Company Overview KPIs */}
+      <div className="gba:mb-6" data-testid={`${DATA_TEST_ID_PREFIX}-kpi-section`}>
         <WidgetGroup
           widgets={createCompanyKPIWidgets()}
           isLoading={isLoading}
           error={error ? new Error(error) : null}
           onRetry={() => refetch()}
           skeletonCount={4}
-          emptyText="Select teams to see company performance statistics."
+          emptyText="No teams selected. Please select one or more teams to view performance statistics."
           data-testid={`${DATA_TEST_ID_PREFIX}-kpi-widgets`}
         />
       </div>
@@ -348,350 +430,234 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
             </div>
           </CardContent>
         </Card>
-
-        {/* Comparison Metric */}
-        <Card data-testid={`${DATA_TEST_ID_PREFIX}-metric-selection`}>
-          <CardHeader>
-            <CardTitle>Comparison Metric</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={comparisonMetric} onValueChange={(value: ComparisonMetric) => setComparisonMetric(value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="revenue">Total Revenue</SelectItem>
-                <SelectItem value="winRate">Win Rate</SelectItem>
-                <SelectItem value="activities">Sales Activities</SelectItem>
-                <SelectItem value="pipeline">Pipeline Value</SelectItem>
-                <SelectItem value="efficiency">Revenue per Member</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="gba:text-sm gba:text-gray-600 gba:mt-2">Teams will be ranked by this metric</p>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Enhanced Sales Activities Dashboard */}
-      {selectedTeams.length > 0 && comparisonMetric === 'activities' && (
-        <div className="gba:space-y-6">
-          {/* Activities Overview Grid */}
-          <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-            {/* Total Activities by Team */}
-            <Card data-testid={`${DATA_TEST_ID_PREFIX}-activities-by-team`}>
-              <CardHeader>
-                <CardTitle className="gba:flex gba:items-center gba:gap-2">
-                  <PiChartLine className="gba:w-5 gba:h-5 gba:text-purple-600" />
-                  Sales Activities by Team
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="gba:flex gba:justify-center gba:p-8">
-                    <Spinner size="lg" />
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={activitiesChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 11 }}
-                        interval={0}
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                      />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip
-                        formatter={(value, name) => {
-                          if (name === 'totalActivities') return [value, 'Total Activities']
-                          if (name === 'activitiesPerMember') return [value, 'Activities per Member']
-                          return [value, name]
-                        }}
-                        labelFormatter={label => {
-                          const team = activitiesChartData.find(d => d.name === label)
-                          return team?.fullName || label
-                        }}
-                      />
-                      <Bar dataKey="totalActivities" fill="#722ed1" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Activity Types Breakdown */}
-            <Card data-testid={`${DATA_TEST_ID_PREFIX}-activity-types-breakdown`}>
-              <CardHeader>
-                <CardTitle className="gba:flex gba:items-center gba:gap-2">
-                  <PiTarget className="gba:w-5 gba:h-5 gba:text-blue-600" />
-                  Activity Types Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="gba:flex gba:justify-center gba:p-8">
-                    <Spinner size="lg" />
-                  </div>
-                ) : (
-                  <div className="gba:flex gba:items-center gba:justify-center">
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={activityTypeData}
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          dataKey="value"
-                          label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(1)}%`}
-                        >
-                          {activityTypeData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={value => [value, 'Activities']} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Activities Efficiency & Performance */}
-          <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-            {/* Activities vs Revenue Efficiency */}
-            <Card data-testid={`${DATA_TEST_ID_PREFIX}-activities-efficiency`}>
-              <CardHeader>
-                <CardTitle className="gba:flex gba:items-center gba:gap-2">
-                  <PiCurrencyDollar className="gba:w-5 gba:h-5 gba:text-green-600" />
-                  Activity Efficiency (Revenue per Activity)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="gba:flex gba:justify-center gba:p-8">
-                    <Spinner size="lg" />
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <ComposedChart data={activitiesChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 11 }}
-                        interval={0}
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                      />
-                      <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                      <Tooltip
-                        formatter={(value, name) => {
-                          if (name === 'totalActivities') return [value, 'Total Activities']
-                          if (name === 'efficiency') return [`€${value}K`, 'Revenue per Activity']
-                          return [value, name]
-                        }}
-                        labelFormatter={label => {
-                          const team = activitiesChartData.find(d => d.name === label)
-                          return team?.fullName || label
-                        }}
-                      />
-                      <Bar yAxisId="left" dataKey="totalActivities" fill="#722ed1" />
-                      <Line yAxisId="right" type="monotone" dataKey="efficiency" stroke="#10b981" strokeWidth={3} />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Activities per Member */}
-            <Card data-testid={`${DATA_TEST_ID_PREFIX}-activities-per-member`}>
-              <CardHeader>
-                <CardTitle className="gba:flex gba:items-center gba:gap-2">
-                  <PiUsers className="gba:w-5 gba:h-5 gba:text-orange-600" />
-                  Activities per Team Member
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="gba:flex gba:justify-center gba:p-8">
-                    <Spinner size="lg" />
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={activitiesChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 11 }}
-                        interval={0}
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                      />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip
-                        formatter={value => [value, 'Activities per Member']}
-                        labelFormatter={label => {
-                          const team = activitiesChartData.find(d => d.name === label)
-                          return team?.fullName || label
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="activitiesPerMember"
-                        stroke="#ff9500"
-                        fill="#ff9500"
-                        fillOpacity={0.3}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* Standard Team Comparison Chart (for non-activities metrics) */}
-      {selectedTeams.length > 0 && comparisonMetric !== 'activities' && (
-        <Card data-testid={`${DATA_TEST_ID_PREFIX}-comparison-chart`}>
+      {/* Team Performance Comparison Chart */}
+      {selectedTeams.length > 0 && (
+        <Card className="gba:mt-6" data-testid={`${DATA_TEST_ID_PREFIX}-comparison-chart`}>
           <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiChartLine className="gba:w-5 gba:h-5 gba:text-blue-600" />
-              Team Performance Comparison - {getMetricLabel(comparisonMetric)}
-            </CardTitle>
+            <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                <PiChartLine className="gba:w-5 gba:h-5 gba:text-blue-600" />
+                Team Performance Comparison - {getMetricLabel(comparisonMetric)}
+              </CardTitle>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Metric:</span>
+                <Select
+                  value={comparisonMetric}
+                  onValueChange={(value: ComparisonMetric) => setComparisonMetric(value)}
+                >
+                  <SelectTrigger className="gba:w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="revenue">Total Revenue</SelectItem>
+                    <SelectItem value="winRate">Win Rate</SelectItem>
+                    <SelectItem value="activities">Sales Activities</SelectItem>
+                    <SelectItem value="pipeline">Pipeline Value</SelectItem>
+                    <SelectItem value="efficiency">Revenue per Member</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="gba:flex gba:justify-center gba:p-8">
-                <Spinner size="lg" />
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} angle={-45} textAnchor="end" height={80} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    formatter={value => [value, getMetricLabel(comparisonMetric)]}
-                    labelFormatter={label => {
-                      const team = chartData.find(d => d.name === label)
-                      return team?.fullName || label
-                    }}
-                  />
-                  <Bar
-                    dataKey={comparisonMetric === 'winRate' ? 'winRate' : comparisonMetric}
-                    fill={getMetricColor(comparisonMetric)}
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            {(() => {
+              if (isLoading) {
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 400 }}>
+                    <Spinner size="lg" />
+                  </div>
+                )
+              }
+
+              if (chartData.length === 0) {
+                return (
+                  <div
+                    className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-12 gba:text-center"
+                    style={{ height: 400 }}
+                  >
+                    <PiChartLine className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4" />
+                    <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">No Teams Selected</h3>
+                    <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">
+                      Select one or more teams from the selector above to view team performance comparison.
+                    </p>
+                  </div>
+                )
+              }
+
+              return (
+                <ChartContainer config={comparisonChartConfig} className="gba:h-[400px] gba:w-full">
+                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="0" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipWrapper comparisonMetric={comparisonMetric} getMetricLabel={getMetricLabel} />
+                      }
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar
+                      dataKey={comparisonMetric === 'winRate' ? 'winRate' : comparisonMetric}
+                      name={getMetricLabel(comparisonMetric)}
+                      radius={[4, 4, 0, 0]}
+                    >
+                      {chartData.map(entry => (
+                        <Cell key={`cell-${entry.teamKey}`} fill={`var(--color-${entry.teamKey})`} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              )
+            })()}
           </CardContent>
         </Card>
       )}
 
-      {/* Team Performance Table */}
-      {teamsData.length > 0 && (
-        <Card data-testid={`${DATA_TEST_ID_PREFIX}-performance-table`}>
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiRanking className="gba:w-5 gba:h-5 gba:text-blue-600" />
-              Team Performance Rankings
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Team Performance Rankings Table */}
+      <Card className="gba:mt-6" data-testid={`${DATA_TEST_ID_PREFIX}-performance-table`}>
+        <CardHeader>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <PiRanking className="gba:w-5 gba:h-5 gba:text-blue-600" />
+            Team Performance Rankings
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:p-0">
+          {filteredTeamsData.length === 0 ? (
+            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-12 gba:text-center">
+              <PiRanking className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4" />
+              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">No Teams Selected</h3>
+              <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">
+                Select one or more teams from the selector above to view team performance rankings.
+              </p>
+            </div>
+          ) : (
             <div className="gba:overflow-x-auto">
-              <table className="gba:w-full gba:table-auto">
-                <thead>
-                  <tr className="gba:border-b">
-                    <th className="gba:text-left gba:p-3 gba:font-medium gba:text-gray-700">Rank</th>
-                    <th className="gba:text-left gba:p-3 gba:font-medium gba:text-gray-700">Team</th>
-                    <th className="gba:text-left gba:p-3 gba:font-medium gba:text-gray-700">Revenue</th>
-                    <th className="gba:text-left gba:p-3 gba:font-medium gba:text-gray-700">Win Rate</th>
-                    <th className="gba:text-left gba:p-3 gba:font-medium gba:text-gray-700">Activities</th>
-                    <th className="gba:text-left gba:p-3 gba:font-medium gba:text-gray-700">Pipeline</th>
-                    <th className="gba:text-left gba:p-3 gba:font-medium gba:text-gray-700">Trend</th>
-                    <th className="gba:text-left gba:p-3 gba:font-medium gba:text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teamsData.map(team => (
-                    <tr key={team.teamId} className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors">
-                      <td className="gba:p-3">
+              <Table data-testid={`${DATA_TEST_ID_PREFIX}-rankings-table`}>
+                <TableHeader>
+                  <TableRow className="gba:border-b gba:bg-gray-50">
+                    <TableHead className="gba:w-[80px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Rank
+                    </TableHead>
+                    <TableHead className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Team
+                    </TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Revenue ({selectedCurrency})
+                    </TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Win Rate
+                    </TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Activities
+                    </TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Pipeline ({selectedCurrency})
+                    </TableHead>
+                    <TableHead className="gba:w-[9%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTeamsData.map(team => (
+                    <TableRow
+                      key={team.teamId}
+                      className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-row-${team.teamId}`}
+                    >
+                      {/* Rank Column */}
+                      <TableCell
+                        className="gba:py-4 gba:px-6"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-rank-${team.teamId}`}
+                      >
                         <div
-                          className={`
-                          gba:w-8 gba:h-8 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-bold
-                          ${
+                          className={`gba:w-8 gba:h-8 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-bold ${
                             team.ranking === 1
                               ? 'gba:bg-yellow-100 gba:text-yellow-800'
                               : team.ranking <= 3
                                 ? 'gba:bg-blue-100 gba:text-blue-800'
                                 : 'gba:bg-gray-100 gba:text-gray-600'
-                          }
-                        `}
+                          }`}
                         >
                           {team.ranking}
                         </div>
-                      </td>
-                      <td className="gba:p-3">
+                      </TableCell>
+
+                      {/* Team Column */}
+                      <TableCell
+                        className="gba:py-4 gba:px-6"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-team-${team.teamId}`}
+                      >
                         <div>
-                          <div className="gba:font-medium">{team.teamName}</div>
+                          <div className="gba:font-medium gba:text-gray-900">{team.teamName}</div>
                           <div className="gba:text-sm gba:text-gray-500">{team.memberCount} members</div>
                         </div>
-                      </td>
-                      <td className="gba:p-3">{formatCurrency(team.totalRevenue)}</td>
-                      <td className="gba:p-3">{team.winRate.toFixed(1)}%</td>
-                      <td className="gba:p-3">{team.totalActivities}</td>
-                      <td className="gba:p-3">{formatCurrency(team.pipelineValue)}</td>
-                      <td className="gba:p-3">
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          {team.trend === 'up' ? (
-                            <PiTrendUp className="gba:w-4 gba:h-4 gba:text-green-600" />
-                          ) : team.trend === 'down' ? (
-                            <PiTrendDown className="gba:w-4 gba:h-4 gba:text-red-600" />
-                          ) : (
-                            <div className="gba:w-4 gba:h-4 gba:bg-gray-400 gba:rounded-full"></div>
-                          )}
-                          <span
-                            className={`
-                            gba:text-sm
-                            ${
-                              team.trend === 'up'
-                                ? 'gba:text-green-600'
-                                : team.trend === 'down'
-                                  ? 'gba:text-red-600'
-                                  : 'gba:text-gray-600'
-                            }
-                          `}
-                          >
-                            {team.trendPercentage.toFixed(1)}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="gba:p-3">
+                      </TableCell>
+
+                      {/* Revenue Column */}
+                      <TableCell
+                        className="gba:py-4 gba:px-6 gba:font-medium gba:text-gray-900"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-revenue-${team.teamId}`}
+                      >
+                        {formatCurrency(team.totalRevenue, selectedCurrency)}
+                      </TableCell>
+
+                      {/* Win Rate Column */}
+                      <TableCell
+                        className="gba:py-4 gba:px-6 gba:text-gray-900"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-winrate-${team.teamId}`}
+                      >
+                        {team.winRate.toFixed(1)}%
+                      </TableCell>
+
+                      {/* Activities Column */}
+                      <TableCell
+                        className="gba:py-4 gba:px-6 gba:text-gray-900"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-activities-${team.teamId}`}
+                      >
+                        {team.totalActivities}
+                      </TableCell>
+
+                      {/* Pipeline Column */}
+                      <TableCell
+                        className="gba:py-4 gba:px-6 gba:text-gray-900"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-${team.teamId}`}
+                      >
+                        {formatCurrency(team.pipelineValue, selectedCurrency)}
+                      </TableCell>
+
+                      {/* Actions Column */}
+                      <TableCell
+                        className="gba:py-4 gba:px-6"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-actions-${team.teamId}`}
+                      >
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onTeamSelect?.(team.teamId, team.teamName)}
+                          onClick={() => onTeamSelect?.(team.teamId, team.teamName, selectedCurrency)}
                           data-testid={`${DATA_TEST_ID_PREFIX}-drill-down-${team.teamId}`}
                         >
                           View Details
                           <PiArrowRight className="gba:w-4 gba:h-4 gba:ml-1" />
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

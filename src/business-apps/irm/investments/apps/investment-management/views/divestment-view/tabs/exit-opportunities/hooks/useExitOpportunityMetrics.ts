@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunityAggregates } from '@/common/data/investment/hooks/useInvestmentOpportunities'
-import { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
+import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { createTTLCache, createCacheUtils } from '@/common/utils/ttlCache'
 
 // Metrics interface for exit opportunities
@@ -18,7 +18,7 @@ export interface ExitOpportunityMetrics {
   winRateChange: number
 }
 
-const HISTORICAL_DAYS = 30
+const HISTORICAL_DAYS = 91
 
 // Global cache instance with TTL management - typed for metrics
 const metricsCache = createTTLCache<Partial<ExitOpportunityMetrics>>()
@@ -29,7 +29,7 @@ export interface UseExitOpportunityMetricsProps extends BusinessAppContextProps 
 
 export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOpportunityMetricsProps) => {
   const [metrics, setMetrics] = useState<ExitOpportunityMetrics | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { fetchInvestmentOpportunityAggregates } = useGetInvestmentOpportunityAggregates({ accessToken })
@@ -77,8 +77,8 @@ export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOppor
 
       // Add date range filtering at query level instead of client-side
       if (dateRange) {
-        baseVariables.createdAfter = dateRange.from
-        baseVariables.createdBefore = dateRange.to
+        baseVariables.createdAtFrom = dateRange.from
+        baseVariables.createdAtTo = dateRange.to
       }
 
       return baseVariables
@@ -150,7 +150,7 @@ export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOppor
         const historicalDate = new Date()
         historicalDate.setDate(currentDate.getDate() - HISTORICAL_DAYS)
 
-        // Create a proper historical range spanning from 30 days ago to now
+        // Create a proper historical range spanning from 91 days ago to now
         const historicalDateRange = {
           from: historicalDate.toISOString(),
           to: currentDate.toISOString()

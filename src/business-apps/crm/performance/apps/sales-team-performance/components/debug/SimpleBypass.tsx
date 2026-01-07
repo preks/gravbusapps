@@ -8,7 +8,7 @@ interface SimpleBypassProps {
 
 export const SimpleBypass: React.FC<SimpleBypassProps> = ({ onSelectView }) => {
   return (
-    <div className="gba:bg-white gba:min-h-screen gba:p-6">
+    <div className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6">
       <div className="gba:max-w-4xl gba:mx-auto">
         <Card>
           <CardHeader className="gba:text-center">

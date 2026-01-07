@@ -56,7 +56,6 @@ export interface UseAbsenceDataReturn {
 
 export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenceDataProps): UseAbsenceDataReturn => {
   const graphQLClient = useGraphQLClient(accessToken)
-  
 
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([])
   const [total, setTotal] = useState(0)
@@ -73,23 +72,23 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
 
   const filtersRef = useRef(filters)
   const onDataChangeRef = useRef(onDataChange)
-  
+
   useEffect(() => {
     filtersRef.current = filters
   }, [filters])
-  
+
   useEffect(() => {
     onDataChangeRef.current = onDataChange
   }, [onDataChange])
 
   const extractColorFromObjectValue = (objectValue: any): string => {
     if (!objectValue || typeof objectValue !== 'object') {
-      return '#6b7280'
+      return 'var(--nw-muted-foreground)'
     }
 
     const color = objectValue.color
     if (!color) {
-      return '#6b7280'
+      return 'var(--nw-muted-foreground)'
     }
 
     return color.startsWith('#') ? color : `#${color}`
@@ -149,7 +148,9 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
           },
           employeeName,
           groupName:
-            absence.type?.parentEntryId && currentFilters.absenceGroups && currentFilters.absenceGroups[absence.type.parentEntryId]
+            absence.type?.parentEntryId &&
+            currentFilters.absenceGroups &&
+            currentFilters.absenceGroups[absence.type.parentEntryId]
               ? currentFilters.absenceGroups[absence.type.parentEntryId]
               : 'Unknown Group',
           originalGroupName:
@@ -193,14 +194,7 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
     } finally {
       setLoading(false)
     }
-  }, [
-    accessToken,
-    graphQLClient,
-    currentPage,
-    pageSize,
-    sortField,
-    sortOrder
-  ])
+  }, [accessToken, graphQLClient, currentPage, pageSize, sortField, sortOrder])
 
   const prevValuesRef = useRef<{
     accessToken: string
@@ -229,10 +223,8 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
   })
 
   useEffect(() => {
-   
-
     if (!accessToken) return
-    
+
     const currentValues = {
       accessToken,
       absenceGroups: filters.absenceGroups,
@@ -248,17 +240,17 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
     }
 
     const prevValues = prevValuesRef.current
-    
+
     if (!initialLoadDone.current) {
       initialLoadDone.current = true
       prevValuesRef.current = currentValues
       fetchAbsences()
       return
     }
-    
+
     if (Object.keys(filters.absenceGroups).length === 0) return
-    
-    const hasChanged = 
+
+    const hasChanged =
       prevValues.accessToken !== currentValues.accessToken ||
       JSON.stringify(prevValues.absenceGroups) !== JSON.stringify(currentValues.absenceGroups) ||
       prevValues.search !== currentValues.search ||
@@ -272,19 +264,20 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
       prevValues.sortOrder !== currentValues.sortOrder
 
     if (!hasChanged) return
-    
-    if (currentPage !== 1 && (
-      prevValues.search !== currentValues.search ||
-      JSON.stringify(prevValues.selectedFilters) !== JSON.stringify(currentValues.selectedFilters) ||
-      prevValues.startDate !== currentValues.startDate ||
-      prevValues.endDate !== currentValues.endDate ||
-      prevValues.creationStartDate !== currentValues.creationStartDate ||
-      prevValues.creationEndDate !== currentValues.creationEndDate
-    )) {
+
+    if (
+      currentPage !== 1 &&
+      (prevValues.search !== currentValues.search ||
+        JSON.stringify(prevValues.selectedFilters) !== JSON.stringify(currentValues.selectedFilters) ||
+        prevValues.startDate !== currentValues.startDate ||
+        prevValues.endDate !== currentValues.endDate ||
+        prevValues.creationStartDate !== currentValues.creationStartDate ||
+        prevValues.creationEndDate !== currentValues.creationEndDate)
+    ) {
       setCurrentPage(1)
       return
     }
-    
+
     prevValuesRef.current = currentValues
     fetchAbsences()
   }, [

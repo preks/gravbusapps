@@ -64,7 +64,7 @@ export const fetchExpenseTypes = async (
     setExpenseTypes(expenseTypesByGroup)
 
     return expenseTypesList
-  } catch (error) {
+  } catch {
     showToast(
       t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
       'error'
@@ -126,12 +126,149 @@ export const fetchCustomFields = async (
     }))
 
     return customFieldsList
-  } catch (error) {
+  } catch {
     showToast(
       t('lowcoder:create_expense_type_item.process_error_expense_custom_groups', 'Error processing custom groups'),
       'error'
     )
     return []
+  }
+}
+
+/**
+ * Sets the expense date field if valid
+ */
+const setExpenseDate = (form: any, expenseDate: any): void => {
+  if (!expenseDate) return
+
+  try {
+    const dateObj = dayjs(expenseDate)
+    if (dateObj.isValid()) {
+      form.setFieldsValue({ date: dateObj.toDate() })
+    }
+  } catch {}
+}
+
+/**
+ * Creates a new position from expense item data
+ */
+const createNewPosition = (position: any, item: any): any => {
+  const positionId = `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+
+  const newPosition = {
+    id: positionId,
+    expenseGroup: position.expenseGroup?.id,
+    expenseType: undefined as string | undefined,
+    amount: position.totalAmount,
+    isReimbursable: position.reimbursable !== undefined ? position.reimbursable : true,
+    costCenter: position.costCenter?.id || item.costCenter?.id,
+    customField: '',
+    persistedId: position.id,
+    persistedVersion: position.version
+  }
+
+  // Extract custom field value if available
+  if (
+    position.additionalProperties?.customFields &&
+    Array.isArray(position.additionalProperties.customFields) &&
+    position.additionalProperties.customFields.length > 0
+  ) {
+    newPosition.customField = position.additionalProperties.customFields[0]?.value || ''
+  }
+
+  return newPosition
+}
+
+/**
+ * Sets form values for position fields
+ */
+const setPositionFormValues = (form: any, position: any, item: any): void => {
+  const formValues = {
+    [`expenseGroup-0`]: position.expenseGroup?.id,
+    [`amount-0`]: position.totalAmount,
+    [`costCenter-0`]: position.costCenter?.id || item.costCenter?.id
+  }
+  form.setFieldsValue(formValues)
+}
+
+/**
+ * Updates expense type field based on allowed types
+ */
+const updateExpenseTypeField = (
+  form: any,
+  position: any,
+  newPosition: any,
+  fetchedTypes: ExpenseType[],
+  setPositions: (positions: any[]) => void
+): void => {
+  if (!position.expenseRuleGeneralExpenseId) return
+
+  const allowedTypeIds = (fetchedTypes || []).map((typeItem: ExpenseType) => typeItem.id)
+  const isTypeAllowed = allowedTypeIds.includes(position.expenseRuleGeneralExpenseId)
+
+  form.setFieldsValue({
+    [`expenseType-0`]: isTypeAllowed ? position.expenseRuleGeneralExpenseId : undefined
+  })
+
+  const updatedPositions = [...(form.getFieldValue('positions') || [newPosition])]
+  if (updatedPositions[0]) {
+    ;(updatedPositions[0] as any).expenseType = isTypeAllowed ? position.expenseRuleGeneralExpenseId : undefined
+    setPositions(updatedPositions as any)
+  }
+
+  if (newPosition.customField) {
+    form.setFieldsValue({ [`customField-0`]: newPosition.customField })
+  }
+}
+
+/**
+ * Processes expense group for a position
+ */
+const processExpenseGroup = async (
+  position: any,
+  newPosition: any,
+  employeeRuleId: string | null | object,
+  graphqlClient: any,
+  setExpenseTypes: (types: { [classId: string]: any[] }) => void,
+  expenseTypes: { [classId: string]: any[] },
+  setPositions: (positions: any[]) => void,
+  handleExpenseGroupChange: any,
+  form: any,
+  t: (key: string, fallback: string) => string
+): Promise<void> => {
+  if (!position.expenseGroup?.id) return
+
+  try {
+    const fetchedTypes = await fetchExpenseTypes(
+      position.expenseGroup.id,
+      [newPosition],
+      employeeRuleId,
+      graphqlClient,
+      setExpenseTypes,
+      t
+    )
+
+    await handleExpenseGroupChange(
+      position.expenseGroup.id,
+      0,
+      [newPosition],
+      setPositions,
+      expenseTypes,
+      employeeRuleId,
+      graphqlClient,
+      setExpenseTypes,
+      t,
+      form
+    )
+
+    setTimeout(() => {
+      updateExpenseTypeField(form, position, newPosition, fetchedTypes, setPositions)
+    }, 500)
+  } catch {
+    showToast(
+      t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
+      'error'
+    )
   }
 }
 
@@ -148,133 +285,45 @@ export const setOnePositionItem = async (
   employeeRuleId: string | null | object,
   t: (key: string, fallback: string) => string
 ) => {
-  if (!expenseData || !expenseData.ExpenseItemByPk) {
-    return
-  }
+  if (!expenseData?.ExpenseItemByPk) return
 
   const item = expenseData.ExpenseItemByPk
   const position = item.expensePosition?.[0] || {}
 
-  form.setFieldsValue({
-    title: item.title
-  })
-
-  if (item.expenseDate) {
-    try {
-      const dateObj = dayjs(item.expenseDate)
-      if (dateObj.isValid()) {
-        form.setFieldsValue({
-          date: dateObj.toDate()
-        })
-      }
-    } catch (error) {}
-  }
+  // Set basic fields
+  form.setFieldsValue({ title: item.title })
+  setExpenseDate(form, item.expenseDate)
 
   const isMultiPosition = item.multiplePositions || (item.expensePosition && item.expensePosition.length > 1)
   setMultiPosition(isMultiPosition)
 
   if (item.currency?.id) {
-    form.setFieldsValue({
-      currency: item.currency.id
-    })
-  }
-
-  if (position) {
-    const positionId = `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-
-    const newPosition = {
-      id: positionId,
-      expenseGroup: position.expenseGroup?.id,
-      expenseType: undefined as string | undefined,
-      amount: position.totalAmount,
-      isReimbursable: position.reimbursable !== undefined ? position.reimbursable : true,
-      costCenter: position.costCenter?.id || item.costCenter?.id,
-      customField: '',
-      persistedId: position.id,
-      persistedVersion: position.version
-    }
-    if (
-      position.additionalProperties?.customFields &&
-      Array.isArray(position.additionalProperties.customFields) &&
-      position.additionalProperties.customFields.length > 0
-    ) {
-      newPosition.customField = position.additionalProperties.customFields[0]?.value || ''
-    }
-
-    setPositions([newPosition])
-
-    const formValues = {
-      [`expenseGroup-0`]: position.expenseGroup?.id,
-      [`amount-0`]: position.totalAmount,
-      [`costCenter-0`]: position.costCenter?.id || item.costCenter?.id
-    }
-
-    form.setFieldsValue(formValues)
-
-    if (position.expenseGroup?.id) {
-      try {
-        const fetchedTypes = await fetchExpenseTypes(
-          position.expenseGroup.id,
-          [newPosition],
-          employeeRuleId,
-          graphqlClient,
-          setExpenseTypes,
-          t
-        )
-
-        await handleExpenseGroupChange(
-          position.expenseGroup.id,
-          0,
-          [newPosition],
-          setPositions,
-          expenseTypes,
-          employeeRuleId,
-          graphqlClient,
-          setExpenseTypes,
-          t,
-          form
-        )
-
-        setTimeout(() => {
-          if (position.expenseRuleGeneralExpenseId) {
-            const allowedTypeIds = (fetchedTypes || []).map((typeItem: ExpenseType) => typeItem.id)
-            if (allowedTypeIds.includes(position.expenseRuleGeneralExpenseId)) {
-              form.setFieldsValue({ [`expenseType-0`]: position.expenseRuleGeneralExpenseId })
-              const updatedPositions = [...(form.getFieldValue('positions') || [newPosition])]
-              if (updatedPositions[0]) {
-                ;(updatedPositions[0] as any).expenseType = position.expenseRuleGeneralExpenseId
-                setPositions(updatedPositions as any)
-              }
-            } else {
-              form.setFieldsValue({ [`expenseType-0`]: undefined })
-              const updatedPositions = [...(form.getFieldValue('positions') || [newPosition])]
-              if (updatedPositions[0]) {
-                ;(updatedPositions[0] as any).expenseType = undefined
-                setPositions(updatedPositions as any)
-              }
-            }
-
-            if (newPosition.customField) {
-              form.setFieldsValue({
-                [`customField-0`]: newPosition.customField
-              })
-            }
-          }
-        }, 500)
-      } catch (error) {
-        showToast(
-          t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
-          'error'
-        )
-      }
-    }
+    form.setFieldsValue({ currency: item.currency.id })
   }
 
   if (item.costCenter?.id) {
-    form.setFieldsValue({
-      costCenter: item.costCenter.id
-    })
+    form.setFieldsValue({ costCenter: item.costCenter.id })
   }
+
+  // Process position if available
+  if (!position) return
+
+  const newPosition = createNewPosition(position, item)
+  setPositions([newPosition])
+  setPositionFormValues(form, position, item)
+
+  await processExpenseGroup(
+    position,
+    newPosition,
+    employeeRuleId,
+    graphqlClient,
+    setExpenseTypes,
+    expenseTypes,
+    setPositions,
+    handleExpenseGroupChange,
+    form,
+    t
+  )
 }
 
 export const setMultiPositionItem = async (
@@ -310,7 +359,7 @@ export const setMultiPositionItem = async (
           date: dateObj.toDate()
         })
       }
-    } catch (error) {}
+    } catch {}
   }
 
   setMultiPosition(true)
@@ -376,7 +425,7 @@ export const setMultiPositionItem = async (
               t,
               form
             )
-          } catch (error) {
+          } catch {
             showToast(
               t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
               'error'
@@ -517,7 +566,7 @@ export const setByEdit = async (
     }
 
     return response.data
-  } catch (error) {
+  } catch {
     showToast(t('lowcoder:create_expense_type_item.process_error_data_process', 'Error processing data'), 'error')
     return null
   }
@@ -533,7 +582,7 @@ export const addRequests = (
       setExpenseRequests([
         {
           id: '0',
-          name: t('lowcoder:create_expense_type_item.none', 'None')
+          title: t('lowcoder:create_expense_type_item.none', 'None')
         }
       ])
       return
@@ -547,7 +596,7 @@ export const addRequests = (
     )
 
     setExpenseRequests(formattedRequests)
-  } catch (error) {
+  } catch {
     showToast(
       t('lowcoder:create_expense_type_item.process_error_expense_requests_fetch', 'Error processing expense requests'),
       'error'
@@ -555,7 +604,7 @@ export const addRequests = (
     setExpenseRequests([
       {
         id: '0',
-        name: t('lowcoder:create_expense_type_item.none', 'None')
+        title: t('lowcoder:create_expense_type_item.none', 'None')
       }
     ])
   }

@@ -19,7 +19,7 @@ const PaymentMethodSelect: React.FC<PaymentMethodSelectProps> = ({
     <div className="gba:mb-4 gba:bg-gray-100" data-testid={dataTestId}>
       <label className="gba:block gba:text-xs gba:font-medium gba:text-black  gba:bg-gray-100 gba:px-3 gba:py-1 gba:rounded">
         {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.select_payment_method', 'Payment Method')}
-        <span className="gba:text-[#707070]"> *</span>
+        <span className="gba:text-muted-foreground"> *</span>
       </label>
       <Select
         value={value}

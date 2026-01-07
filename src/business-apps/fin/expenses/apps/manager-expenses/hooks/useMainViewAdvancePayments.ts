@@ -24,6 +24,10 @@ export interface AdvancePayment {
     startDate: string
     endDate: string
     currencyRef: string
+    expenseRequest?: Array<{
+      id: string
+      code?: string
+    }>
     employee: {
       id: string
       displayName?: string
@@ -94,12 +98,11 @@ interface UseMainViewAdvancePaymentsProps extends BusinessAppContextProps {
 export const useMainViewAdvancePayments = ({
   accessToken,
   userInfo,
-  pageSize = 10,
+  pageSize = 20,
   searchTerm,
   currentStatusFilter,
   currentPage: externalCurrentPage,
-  currentCurrencyFilter,
-  initialSorting = { field: 'createdAt', order: 'DESC' }
+  currentCurrencyFilter
 }: UseMainViewAdvancePaymentsProps) => {
   // Get currency from global store if not provided explicitly
   const { primaryCurrency } = useCurrencyStore()
@@ -461,47 +464,41 @@ export const useMainViewAdvancePayments = ({
     setInternalCurrentPage(1)
   }, [])
 
-  const approvePayment = useCallback(
-    async (_paymentId: string, _comments: string = '') => {
-      if (!accessToken || !managerId) return
+  const approvePayment = useCallback(async () => {
+    if (!accessToken || !managerId) return
 
-      setApproving(true)
-      try {
-        // Implementation for approving advance payments would go here
-        // For now, just show a success message and refresh the data
-        message.success('Advance payment approved successfully')
-        fetchPayments()
-        fetchPaymentStatistics()
-      } catch (err) {
-        console.error('Error approving advance payment:', err)
-        message.error('Failed to approve advance payment')
-      } finally {
-        setApproving(false)
-      }
-    },
-    [accessToken, managerId, fetchPayments, fetchPaymentStatistics]
-  )
+    setApproving(true)
+    try {
+      // Implementation for approving advance payments would go here
+      // For now, just show a success message and refresh the data
+      message.success('Advance payment approved successfully')
+      fetchPayments()
+      fetchPaymentStatistics()
+    } catch (err) {
+      console.error('Error approving advance payment:', err)
+      message.error('Failed to approve advance payment')
+    } finally {
+      setApproving(false)
+    }
+  }, [accessToken, managerId, fetchPayments, fetchPaymentStatistics])
 
-  const rejectPayment = useCallback(
-    async (_paymentId: string, _reason: string) => {
-      if (!accessToken || !managerId) return
+  const rejectPayment = useCallback(async () => {
+    if (!accessToken || !managerId) return
 
-      setRejecting(true)
-      try {
-        // Implementation for rejecting advance payments would go here
-        // For now, just show a success message and refresh the data
-        message.success('Advance payment rejected successfully')
-        fetchPayments()
-        fetchPaymentStatistics()
-      } catch (err) {
-        console.error('Error rejecting advance payment:', err)
-        message.error('Failed to reject advance payment')
-      } finally {
-        setRejecting(false)
-      }
-    },
-    [accessToken, managerId, fetchPayments, fetchPaymentStatistics]
-  )
+    setRejecting(true)
+    try {
+      // Implementation for rejecting advance payments would go here
+      // For now, just show a success message and refresh the data
+      message.success('Advance payment rejected successfully')
+      fetchPayments()
+      fetchPaymentStatistics()
+    } catch (err) {
+      console.error('Error rejecting advance payment:', err)
+      message.error('Failed to reject advance payment')
+    } finally {
+      setRejecting(false)
+    }
+  }, [accessToken, managerId, fetchPayments, fetchPaymentStatistics])
 
   return {
     loading,

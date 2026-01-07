@@ -131,7 +131,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
           <h1 className="gba:text-2xl gba:font-semibold gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('salary.detail.title', 'Employee Salary Detail')}
           </h1>
-          <p className="gba:text-gray-500">
+          <p className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'salary.detail.description',
               'View and manage detailed salary information'
@@ -181,7 +181,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
                         {new Date(salary.effectiveDate).toLocaleDateString(locale)}
                       </Descriptions.Item>
                       <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('salary.details.status', 'Status')}>
-                        <span className={salary.isActive ? 'gba:text-green-500' : 'gba:text-gray-500'}>
+                        <span className={salary.isActive ? 'gba:text-success' : 'gba:text-muted-foreground'}>
                           {salary.isActive
                             ? getTranslationFromI18nKeyAndLabel('salary.status.active', 'Active')
                             : getTranslationFromI18nKeyAndLabel('salary.status.inactive', 'Inactive')}
@@ -215,7 +215,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
                         label={getTranslationFromI18nKeyAndLabel('salary.details.totalMonthly', 'Total Monthly')}
                         className="gba:font-bold"
                       >
-                        <span className="gba:text-blue-500 gba:font-bold">
+                        <span className="gba:text-info gba:font-bold">
                           {formatCurrency(totalMonthlyCompensation, salary.currency, locale)}
                         </span>
                       </Descriptions.Item>

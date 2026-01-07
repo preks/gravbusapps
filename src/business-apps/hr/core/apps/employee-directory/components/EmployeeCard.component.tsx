@@ -16,13 +16,13 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
  */
 interface Employee {
   id: string
-  userId?: string // Keycloak user ID for chat functionality
+  userId?: string
   firstName: string
   lastName: string
   jobTitle: string
   organizationalUnit: string
   siteLocation?: string
-  email: string
+  workEmail?: string
   profilePicture: string
   employmentType?: string
   contractType?: string
@@ -34,9 +34,6 @@ interface Employee {
   }
 }
 
-// Function removed as we no longer need to calculate time spent
-
-// EmployeeCard component
 export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employee: Employee; isSelected?: boolean }>) {
   const initialsValue = employee.profilePicture
     ? undefined
@@ -46,9 +43,6 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
   const profileUrl = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id })
   const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat()
 
-  // No longer calculating time spent
-
-  // Handler functions for chat actions
   const handleChat = useCallback(() => {
     if (employee.userId) {
       openChatWithUser(employee.userId)
@@ -72,16 +66,13 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
   }, [profileUrl])
   return (
     <div
-      className={`gba:relative gba:group employee-card-wrapper gba:bg-white gba:rounded-lg gba:shadow-lg gba:!border gba:h-auto gba:w-full gba:transition gba:overflow-hidden ${isSelected ? 'gba:!border-blue-500 gba:!border-2 gba:!shadow-xl' : 'gba:!border-gray-100'}`}
+      className={`gba:relative gba:group employee-card-wrapper gba:bg-card gba:rounded-lg gba:shadow-lg gba:!border gba:h-auto gba:w-full gba:transition gba:overflow-hidden ${isSelected ? 'gba:!border-info gba:!border-2 gba:!shadow-xl' : 'gba:!border-border'}`}
     >
-      {/* The card itself - fixed height for consistency */}
       <div
         className="gba:flex gba:flex-col gba:p-4 gba:transition-all gba:duration-300 gba:group-hover:!blur-sm gba:group-focus-within:!blur-sm"
         style={{ color: 'inherit' }}
       >
-        {/* Header with avatar and name */}
         <div className="gba:flex gba:mb-3">
-          {/* Profile Picture */}
           <div className="gba:mr-3">
             <Avatar className="gba:w-12 gba:h-12">
               {avatarSrcValue && (
@@ -90,8 +81,6 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
               <AvatarFallback className="gba:text-sm gba:font-medium">{initialsValue}</AvatarFallback>
             </Avatar>
           </div>
-
-          {/* Name, job title, and org unit */}
           <div className="gba:flex gba:flex-col gba:justify-center gba:min-w-0">
             <div
               className="gba:font-semibold gba:truncate gba:w-full"
@@ -109,17 +98,15 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
               {employee.firstName} {employee.lastName}
             </div>
 
-            {/* Job Position */}
             <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-              <PiOfficeChairBold className="gba:text-gray-500 gba:mr-1.5" size={14} />
+              <PiOfficeChairBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
               <span className="gba:truncate" title={employee.jobTitle}>
                 {employee.jobTitle}
               </span>
             </div>
 
-            {/* Organizational Unit */}
             <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-              <PiBuildingsBold className="gba:text-gray-500 gba:mr-1.5" size={14} />
+              <PiBuildingsBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
               <span className="gba:truncate" title={employee.organizationalUnit}>
                 {employee.organizationalUnit}
               </span>
@@ -127,12 +114,12 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
           </div>
         </div>
       </div>
-      {/* Overlay actions appear on hover */}
       <EmployeeCardActionsOverlay
         onChat={handleChat}
         onCall={handleCall}
         onVideoCall={handleVideoCall}
         onProfile={handleProfile}
+        hasEmail={!!employee.workEmail}
       />
     </div>
   )
@@ -143,25 +130,25 @@ interface ActionsOverlayProps {
   onCall?: () => void
   onVideoCall?: () => void
   onProfile?: () => void
+  hasEmail?: boolean
 }
 
-/**
- * Overlay actions for EmployeeCard. Reveals on hover with blur and smooth transition.
- */
 export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>> = ({
   onChat,
   onCall,
   onVideoCall,
-  onProfile
+  onProfile,
+  hasEmail = false
 }) => (
-  <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
+  <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-foreground/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
     <div className="gba:flex gba:gap-2">
       <Button
         variant="ghost"
         size="icon"
         onClick={onChat}
+        disabled={!hasEmail}
         aria-label="Chat"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
         <PiChatBold size={24} />
       </Button>
@@ -169,8 +156,9 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         variant="ghost"
         size="icon"
         onClick={onCall}
+        disabled={!hasEmail}
         aria-label="Call"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
         <PiPhoneBold size={24} />
       </Button>
@@ -178,8 +166,9 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         variant="ghost"
         size="icon"
         onClick={onVideoCall}
+        disabled={!hasEmail}
         aria-label="Video Call"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
         <PiVideoCameraBold size={24} />
       </Button>
@@ -188,7 +177,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         size="icon"
         onClick={onProfile}
         aria-label="Go to Profile"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
         <PiUserBold size={24} />
       </Button>

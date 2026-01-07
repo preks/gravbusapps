@@ -3,7 +3,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea, Inp
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import CountryRegionFields from './CountryRegionFields'
 import AddressLines from './AddressLines'
-import UploadComponent from '../../components/UploadComponent'
+import { FileUpload } from '@newwork/nw-design-system'
 
 interface AddressCommonFieldsProps {
   form: any
@@ -29,7 +29,6 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
   addressLinesError,
   setAddressLinesError,
   getValues,
-  fileList,
   setFileList
 }) => {
   return (
@@ -160,16 +159,26 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
         )}
       />
 
-      <UploadComponent
-        dataTestIdPrefix="change-employee-address"
-        multiple={false}
-        fileList={fileList}
-        setFileList={setFileList}
-        labelText={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:hr_absences.create_absence.upload_document',
-          'Upload document'
-        )}
-      />
+      <div data-testid="change-employee-address-upload">
+        <FileUpload
+          multiple={false}
+          maxFiles={1}
+          accept={'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG'}
+          layout="list"
+          preview="icon"
+          onFilesChange={(files: any[]) => {
+            const mapped = (files || [])
+              .filter((f: any) => f.file instanceof File)
+              .map((f: any) => ({
+                uid: f.id,
+                name: (f.file as File).name,
+                status: 'done',
+                originFileObj: f.file as File
+              }))
+            setFileList(mapped)
+          }}
+        />
+      </div>
     </>
   )
 }

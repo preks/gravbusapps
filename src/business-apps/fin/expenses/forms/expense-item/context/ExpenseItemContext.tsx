@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+
 import { Form, message } from 'antd'
 import { ExpensePosition, ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
+import { useTranslation } from '@newwork/nw-design-system'
+import expenseItemTranslations from '../_i18n'
 
 import {
   getCurrentActiveUserLocale,
@@ -15,7 +17,13 @@ import {
   expenseRequestByCurrencyQuery
 } from '../ExpenseItemQueries'
 import { fetchEmployeeRule } from '../ExpenseItemQueries'
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION, FORM_STEPS, FormStepType } from '../constants/constants'
+import {
+  DEFAULT_CURRENCY_ID,
+  DEFAULT_EMPLOYEE_ID,
+  DEFAULT_POSITION,
+  FORM_STEPS,
+  FormStepType
+} from '../constants/constants'
 import { transformCurrencies } from '../utils/currencyUtils'
 import { createGraphQLClient } from '../services/graphqlClient'
 import {
@@ -40,6 +48,7 @@ interface ExpenseItemContextProps {
   setCurrentStep: (step: 'start' | 'form') => void
   loading: boolean
   setLoading: (loading: boolean) => void
+  isInitialized: boolean
   fileList: any[]
   setFileList: (files: any[]) => void
   isProcessingFiles: boolean
@@ -50,6 +59,7 @@ interface ExpenseItemContextProps {
   setMultiPosition: (isMulti: boolean) => void
   isEditMode: boolean
   setCurrentSelectedDate: (date: Date | null) => void
+  isCreating: boolean
 
   positions: ExpensePosition[]
   setPositions: (positions: ExpensePosition[]) => void
@@ -62,6 +72,7 @@ interface ExpenseItemContextProps {
 
   employeeRuleId: string | null | object
   expenseRuleError: string | null
+  receiptCurrencyError: string | null
   additionalData?: any
 
   calculateTotal: () => number
@@ -94,12 +105,17 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const { t } = useTranslation()
+  const { t: tNew } = useTranslation(expenseItemTranslations)
+  // Wrapper function for backward compatibility with old translation pattern
+  const t = (key: string, fallback?: string) => {
+    return getTranslationFromI18nKeyAndLabel(key, fallback || key)
+  }
 
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)
   const [loading, setLoading] = useState<boolean>(false)
-  const [fileList, setFileList] = useState<any[]>([])
+  const [isInitialized, setIsInitialized] = useState<boolean>(false)
+  const [fileList, setFileListState] = useState<any[]>([])
   const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false)
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false)
   const [multiPosition, setMultiPosition] = useState<boolean>(false)
@@ -128,6 +144,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [userCostCenter, setUserCostCenter] = useState<string>('')
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null)
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
+  const [receiptCurrencyError, setReceiptCurrencyError] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState<boolean>(false)
 
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
   const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
@@ -154,7 +172,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       const matchingItems = expenseGroups.filter((item: any) => uniqueExpenseGroupRefs.includes(item.id))
 
       setExpenseGroups(matchingItems)
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
         'error'
@@ -163,34 +181,67 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }, [generalDataResponse, catalogueDataResponse, accessToken])
 
+  const initialRequestsHydratedRef = useRef(false)
+
   useEffect(() => {
-    if (catalogueDataResponse && accessToken && !expenseRuleError) {
-      addRequestsWrapper()
+    if (!catalogueDataResponse || !accessToken || expenseRuleError || initialRequestsHydratedRef.current) {
+      return
+    }
 
-      // Get expenseRequestId from either the wizard or task payload
-      const expenseRequestId =
-        additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest
-      if (expenseRequestId) {
-        form.setFieldsValue({ expenseRequestId })
-      } else if (!isEditMode) {
-        form.setFieldsValue({ expenseRequestId: '0' })
-      }
+    const hydrateRequestsForInitialCurrency = async () => {
+      try {
+        let effectiveCurrencyId: string | undefined = form.getFieldValue('currency')
 
-      // Handle itemCurrency and useSingleCurrency if provided from wizard
-      if (additionalData?.itemCurrency && currencies.length > 0) {
-        const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency)
-        if (currencyToSet) {
-          if (typeof additionalData?.useSingleCurrency === 'boolean') {
-            form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency })
-          }
-          form.setFieldsValue({ currency: currencyToSet.id })
+        // If embedded in a wizard or task, prefer the provided itemCurrency
+        if (!effectiveCurrencyId && additionalData?.itemCurrency) {
+          effectiveCurrencyId = additionalData.itemCurrency
         }
+
+        // Fall back to default currency for brand new items
+        if (!effectiveCurrencyId) {
+          effectiveCurrencyId = DEFAULT_CURRENCY_ID
+        }
+
+        // Persist the chosen currency into the form (unless it already has one)
+        if (!form.getFieldValue('currency') && effectiveCurrencyId) {
+          form.setFieldsValue({ currency: effectiveCurrencyId })
+        }
+
+        // If a wizard forces a single currency, respect that flag
+        if (typeof additionalData?.useSingleCurrency === 'boolean') {
+          form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency })
+        }
+
+        if (effectiveCurrencyId) {
+          initialRequestsHydratedRef.current = true
+          suppressRequestResetRef.current = true
+          await handleCurrencyChangeWrapper(effectiveCurrencyId, { suppressRequestReset: true })
+          suppressRequestResetRef.current = false
+        } else {
+          addRequestsWrapper()
+          initialRequestsHydratedRef.current = true
+        }
+
+        // Get expenseRequestId from either the wizard or task payload
+        const expenseRequestId =
+          additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest
+        if (expenseRequestId) {
+          form.setFieldsValue({ expenseRequestId })
+        } else if (!isEditMode) {
+          form.setFieldsValue({ expenseRequestId: '0' })
+        }
+      } catch {
+        suppressRequestResetRef.current = false
       }
     }
-  }, [catalogueDataResponse, accessToken, additionalData, currencies])
+
+    void hydrateRequestsForInitialCurrency()
+  }, [catalogueDataResponse, accessToken, additionalData, expenseRuleError, isEditMode])
 
   // Avoid refetch loops: track attempted (requestId|currency) hydrations
   const attemptedLabelHydrationsRef = useRef<Set<string>>(new Set())
+  // Internal flag to avoid clearing request when currency is set programmatically (e.g. on init/label hydration)
+  const suppressRequestResetRef = useRef(false)
 
   // Ensure expense request labels are available after edits/flows
   useEffect(() => {
@@ -208,12 +259,20 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
     attemptedLabelHydrationsRef.current.add(hydrateKey)
 
-    handleCurrencyChangeWrapper(currencyId).catch(() => {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_expense_requests_fetch', 'Error fetching expense requests'),
-        'error'
-      )
-    })
+    suppressRequestResetRef.current = true
+    handleCurrencyChangeWrapper(currencyId, { suppressRequestReset: true })
+      .catch(() => {
+        showToast(
+          t(
+            'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
+            'Error fetching expense requests'
+          ),
+          'error'
+        )
+      })
+      .finally(() => {
+        suppressRequestResetRef.current = false
+      })
   }, [expenseRequests])
 
   useEffect(() => {
@@ -266,7 +325,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           expenseGroupLabel: expenseGroupLabel
         })
       })
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_ai_items', 'Error processing expense AI items'),
         'error'
@@ -293,7 +352,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
     try {
       addRequests(catalogueDataResponse, setExpenseRequests, t)
-    } catch (error) {
+    } catch {
       showToast(
         t(
           'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
@@ -311,13 +370,158 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }
 
-  const fetchInitialData = async () => {
+  /**
+   * Fetches employee rule data
+   */
+  const fetchEmployeeRuleData = async (employeeId: string, currentDate: string) => {
     try {
-      if (!accessToken) {
-        return
+      const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken)
+
+      if (employeeRuleData && employeeRuleData.expenseRuleId) {
+        setEmployeeRuleId(employeeRuleData.expenseRuleId)
+        setExpenseRuleError(null)
+      } else {
+        const errorMsg = t(
+          'lowcoder:create_expense_item.missing_expense_rule_message',
+          'There is no rule set for your user, please reach out to your administrator.'
+        )
+        setExpenseRuleError(errorMsg)
+        setIsInitialized(true)
+      }
+    } catch {
+      const errorMsg = t(
+        'lowcoder:create_expense_item.missing_expense_rule_message',
+        'There is no rule set for your user, please reach out to your administrator.'
+      )
+      setExpenseRuleError(errorMsg)
+      showToast(errorMsg, 'error')
+      setIsInitialized(true)
+    }
+  }
+
+  /**
+   * Fetches general expense data
+   */
+  const fetchGeneralData = async () => {
+    try {
+      const generalData = await graphqlClient.query({
+        query: fetchExpenseRuleGeneralData,
+        variables: {
+          expenseRuleId: employeeRuleId,
+          activeUserLocale: getCurrentActiveUserLocale(),
+          objectFilter: { useInExpense: true }
+        }
+      })
+      setGeneralDataResponse(generalData)
+    } catch {
+      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+    }
+  }
+
+  /**
+   * Fetches catalogue data
+   */
+  const fetchCatalogueData = async (employeeId: string) => {
+    try {
+      const catalogueData = await graphqlClient.query({
+        query: fetchExpenseCatalogueData,
+        variables: {
+          employeeId,
+          expenseRuleId: employeeRuleId,
+          activeUserLocale: getCurrentActiveUserLocale(),
+          objectFilter: { useInExpense: true }
+        }
+      })
+      setCatalogueDataResponse(catalogueData)
+      return catalogueData
+    } catch {
+      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      return null
+    }
+  }
+
+  /**
+   * Handles edit mode initialization
+   */
+  const initializeEditMode = async (expenseId: string) => {
+    setCurrentStep('form')
+    const editData = await setByEdit(
+      expenseId,
+      graphqlClient,
+      form,
+      setPositions,
+      setMultiPosition,
+      setExpenseRequests,
+      handleExpenseGroupChange,
+      handleExpenseTypeChange,
+      expenseTypes,
+      setExpenseTypes,
+      customFields,
+      setCustomFields,
+      employeeRuleId,
+      t,
+      setInitialItemValues
+    )
+    try {
+      const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency')
+      if (itemCurrencyId) {
+        suppressRequestResetRef.current = true
+        await handleCurrencyChangeWrapper(itemCurrencyId, { suppressRequestReset: true })
+        suppressRequestResetRef.current = false
+      }
+    } catch {
+      suppressRequestResetRef.current = false
+    }
+    setIsEditMode(true)
+  }
+
+  /**
+   * Initializes cost centers for employee position
+   */
+  const initializeCostCenters = async (employeePosition: any, costCenterData: any) => {
+    try {
+      const updatedPositions = [...positions]
+      const employeePositionCostCenterId = employeePosition[0]?.costCenterId
+      const firstCostCenterId = costCenterData?.data?.userCostCenters?.[0]?.id
+
+      if (employeePositionCostCenterId) {
+        updatedPositions[0].costCenter = employeePositionCostCenterId
+        setUserCostCenter(employeePositionCostCenterId)
+      } else if (firstCostCenterId) {
+        updatedPositions[0].costCenter = firstCostCenterId
+        setUserCostCenter(firstCostCenterId)
       }
 
-      if (!userInfo) {
+      setPositions(updatedPositions)
+
+      if (form && updatedPositions[0]?.costCenter) {
+        form.setFieldsValue({
+          [`costCenter-0`]: updatedPositions[0].costCenter
+        })
+      }
+    } catch {}
+  }
+
+  /**
+   * Initializes currencies from catalogue data
+   */
+  const initializeCurrencies = (catalogueData: any) => {
+    try {
+      const currencyData = catalogueData?.data?.currency
+      if (currencyData && Array.isArray(currencyData)) {
+        const finalCurrencies = transformCurrencies(currencyData)
+        setCurrencies(finalCurrencies)
+      } else {
+        setCurrencies([])
+      }
+    } catch {
+      setCurrencies([])
+    }
+  }
+
+  const fetchInitialData = async () => {
+    try {
+      if (!accessToken || !userInfo) {
         return
       }
 
@@ -327,154 +531,57 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       if (!employeeIdValue) {
         return
       }
-      try {
-        const employeeRuleData = await fetchEmployeeRule(employeeIdValue, currentDate, accessToken)
 
-        if (employeeRuleData && employeeRuleData.expenseRuleId) {
-          setEmployeeRuleId(employeeRuleData.expenseRuleId)
-          setExpenseRuleError(null)
-        } else {
-          setExpenseRuleError(
-            t(
-              'lowcoder:create_expense_item.missing_expense_rule_message',
-              'There is no rule set for your user, please reach out to your administrator.'
-            )
-          )
-        }
-      } catch (ruleError) {
-        setExpenseRuleError(
-          t(
-            'lowcoder:create_expense_item.missing_expense_rule_message',
-            'There is no rule set for your user, please reach out to your administrator.'
-          )
-        )
-        showToast(
-          t(
-            'lowcoder:create_expense_item.missing_expense_rule_message',
-            'There is no rule set for your user, please reach out to your administrator.'
-          ),
-          'error'
-        )
-      }
+      // Fetch employee rule
+      await fetchEmployeeRuleData(employeeIdValue, currentDate)
 
-      try {
-        const generalData = await graphqlClient.query({
-          query: fetchExpenseRuleGeneralData,
-          variables: {
-            expenseRuleId: employeeRuleId,
-            activeUserLocale: getCurrentActiveUserLocale(),
-            objectFilter: { useInExpense: true }
-          }
-        })
-        setGeneralDataResponse(generalData)
-      } catch (generalDataError) {
-        showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
-      }
+      // Fetch general data
+      await fetchGeneralData()
 
+      // Only fetch catalogue data if not rerunning rule
       if (rerunRule === false) {
-        let catalogueData
-        try {
-          catalogueData = await graphqlClient.query({
-            query: fetchExpenseCatalogueData,
-            variables: {
-              employeeId: employeeIdValue,
-              expenseRuleId: employeeRuleId,
-              activeUserLocale: getCurrentActiveUserLocale(),
-              objectFilter: { useInExpense: true }
-            }
-          })
-          setCatalogueDataResponse(catalogueData)
-        } catch (catalogueError) {
-          showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
-        }
+        const catalogueData = await fetchCatalogueData(employeeIdValue)
 
         if (firstRunVariable === false && catalogueData?.data) {
           const employeePosition = catalogueData?.data?.EmployeePosition || []
           const structureId = employeePosition[0]?.structureId || ''
           const expenseIdValue = additionalData?.psi_taskPayload?.psi_initialParameters?.expenseId
-          if (expenseIdValue) {
-            setCurrentStep('form')
 
-            const editData = await setByEdit(
-              expenseIdValue,
-              graphqlClient,
-              form,
-              setPositions,
-              setMultiPosition,
-              setExpenseRequests,
-              handleExpenseGroupChange,
-              handleExpenseTypeChange,
-              expenseTypes,
-              setExpenseTypes,
-              customFields,
-              setCustomFields,
-              employeeRuleId,
-              t,
-              setInitialItemValues
-            )
-            try {
-              const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency')
-              if (itemCurrencyId) {
-                await handleCurrencyChangeWrapper(itemCurrencyId)
-              }
-            } catch {}
-            setIsEditMode(true)
+          // Handle edit mode
+          if (expenseIdValue) {
+            await initializeEditMode(expenseIdValue)
           }
+
+          // Fetch and set cost centers
           let costCenterData
           try {
             costCenterData = await graphqlClient.query({
               query: getStructureCostCenter,
-              variables: {
-                structureId: structureId
-              }
+              variables: { structureId }
             })
-
             const userCostCenters = costCenterData?.data?.userCostCenters || []
             setCostCenters(userCostCenters)
-          } catch (costCenterError) {
+          } catch {
             setCostCenters([])
           }
 
-          try {
-            const updatedPositions = [...positions]
-
-            const employeePositionCostCenterId = employeePosition[0]?.costCenterId
-            const firstCostCenterId = costCenterData?.data?.userCostCenters?.[0]?.id
-
-            if (employeePositionCostCenterId) {
-              updatedPositions[0].costCenter = employeePositionCostCenterId
-              setUserCostCenter(employeePositionCostCenterId)
-            } else if (firstCostCenterId) {
-              updatedPositions[0].costCenter = firstCostCenterId
-              setUserCostCenter(firstCostCenterId)
-            }
-
-            setPositions(updatedPositions)
-
-            if (form && updatedPositions[0]?.costCenter) {
-              form.setFieldsValue({
-                [`costCenter-0`]: updatedPositions[0].costCenter
-              })
-            }
-          } catch (positionError) {}
-
-          try {
-            const currencyData = catalogueData?.data?.currency
-            if (currencyData && Array.isArray(currencyData)) {
-              const finalCurrencies = transformCurrencies(currencyData)
-              setCurrencies(finalCurrencies)
-            } else {
-              setCurrencies([])
-            }
-          } catch (currencyError) {
-            setCurrencies([])
+          // Initialize cost centers for positions only when creating a new item.
+          // In edit mode, the backend values (hydrated via setByEdit) must not be overridden.
+          if (!expenseIdValue) {
+            await initializeCostCenters(employeePosition, costCenterData)
           }
+
+          // Initialize currencies
+          initializeCurrencies(catalogueData)
+
           setFirstRunVariable(true)
         }
       }
       setRerunRule(false)
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+    } finally {
+      setIsInitialized(true)
     }
   }
 
@@ -490,163 +597,223 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     return calculateTotal(positions)
   }
 
-  const setByReceipts = (receiptData: any): void => {
-    if (!receiptData || !receiptData.data) {
-      return
+  const validateReceiptCurrency = (data: any): boolean => {
+    setReceiptCurrencyError(null)
+
+    if (!additionalData?.itemCurrency) {
+      return true
     }
+
+    const requestCurrency = currencies.find(c => c.id === additionalData.itemCurrency)
+
+    if (additionalData?.useSingleCurrency && !requestCurrency) {
+      const errorMsg = tNew('currency-validation-unavailable')
+      setReceiptCurrencyError(errorMsg)
+      return false
+    }
+
+    if (!requestCurrency || !data?.currencyCode) {
+      return true
+    }
+
+    if (requestCurrency.code === data.currencyCode) {
+      return true
+    }
+
+    const detailedMessage = tNew('currency-mismatch-detail', {
+      receiptCurrency: data.currencyCode,
+      requestCurrency: requestCurrency.code
+    } as Record<string, any>)
+
+    setReceiptCurrencyError(detailedMessage)
+
+    return false
+  }
+
+  const parseInvoiceDate = (invoiceDate: any): Date | null => {
+    try {
+      let dateValue: Date
+
+      if (typeof invoiceDate === 'string') {
+        if (invoiceDate.includes('T')) {
+          dateValue = new Date(invoiceDate)
+        } else {
+          const [year, month, day] = invoiceDate.split('-').map(Number)
+          dateValue = new Date(year, month - 1, day)
+        }
+      } else {
+        dateValue = new Date(invoiceDate)
+      }
+
+      const isValidDate = !Number.isNaN(dateValue.getTime())
+      return isValidDate ? dateValue : null
+    } catch {
+      return null
+    }
+  }
+
+  const populateBasicFields = (data: any): void => {
+    if (data.vendor?.name) {
+      form.setFieldsValue({ title: data.vendor.name })
+    }
+
+    if (data.invoiceDate) {
+      const dateValue = parseInvoiceDate(data.invoiceDate)
+      if (dateValue) {
+        form.setFieldsValue({ date: dateValue })
+      }
+    }
+
+    if (data.currencyCode) {
+      const currencyId = currencies.find(c => c.code === data.currencyCode)?.id
+      if (currencyId) {
+        form.setFieldsValue({ currency: currencyId })
+      }
+    }
+  }
+
+  /**
+   * Matches expense group from receipt item
+   */
+  const matchExpenseGroup = (item: any): string => {
+    if (!item.expenseDetails?.expenseGroupCode) return ''
+
+    // Try direct match first
+    const matchingGroup = expenseGroups.find(group => group.code === item.expenseDetails.expenseGroupCode)
+    if (matchingGroup) return matchingGroup.id
+
+    // Try AI match
+    const aiMatch = aiGroupsAndTypes.find(
+      ai =>
+        ai.expenseGroupCode === item.expenseDetails.expenseGroupCode &&
+        ai.expenseCode === item.expenseDetails.expenseCode
+    )
+
+    if (aiMatch) {
+      const aiMatchingGroup = expenseGroups.find(group => group.code === aiMatch.expenseGroupCode)
+      return aiMatchingGroup?.id || ''
+    }
+
+    return ''
+  }
+
+  /**
+   * Matches expense type from receipt item
+   */
+  const matchExpenseType = (item: any, groupId: string): string => {
+    if (!item.expenseDetails?.expenseCode || !groupId || !expenseTypes[groupId]) {
+      return ''
+    }
+
+    const matchingType = expenseTypes[groupId].find(type => type.code === item.expenseDetails.expenseCode)
+    return matchingType?.id || ''
+  }
+
+  /**
+   * Creates expense positions from receipt items
+   */
+  const createPositionsFromReceipt = (data: any): ExpensePosition[] => {
+    if (!data.items || data.items.length === 0) return []
+
+    const costCenterId = positions[0]?.costCenter || ''
+
+    return data.items.map((item: any, index: number) => {
+      const expenseGroupId = matchExpenseGroup(item)
+      const expenseTypeId = matchExpenseType(item, expenseGroupId)
+
+      return {
+        id: `position-${Date.now()}-${index}`,
+        expenseGroup: expenseGroupId,
+        expenseType: expenseTypeId,
+        amount: item.totalPrice || 0,
+        costCenter: costCenterId,
+        isReimbursable: true,
+        customField: ''
+      }
+    })
+  }
+
+  /**
+   * Syncs positions to form fields
+   */
+  const syncPositionsToForm = (newPositions: ExpensePosition[]): void => {
+    const formValuesBatch: Record<string, any> = {}
+    newPositions.forEach((pos, idx) => {
+      formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined
+      formValuesBatch[`amount-${idx}`] = pos.amount
+      formValuesBatch[`costCenter-${idx}`] = pos.costCenter
+      formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable
+    })
+    form.setFieldsValue(formValuesBatch)
+    setMultiPosition(newPositions.length > 1)
+  }
+
+  /**
+   * Fetches missing expense types for positions
+   */
+  const fetchMissingExpenseTypes = async (newPositions: ExpensePosition[], data: any): Promise<void> => {
+    const promises = newPositions.map(async (position, index) => {
+      if (!position.expenseGroup || position.expenseType) return
+
+      try {
+        const types = await fetchExpenseTypesWrapper(position.expenseGroup)
+        const expenseCode = data.items[index]?.expenseDetails?.expenseCode
+
+        if (expenseCode) {
+          const matchingType = types.find(type => type.code === expenseCode)
+          if (matchingType) {
+            const updatedPositions = [...newPositions]
+            updatedPositions[index].expenseType = matchingType.id
+            setPositions(updatedPositions)
+            form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id })
+          }
+        }
+      } catch {
+        showToast(
+          t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
+          'error'
+        )
+      }
+    })
+
+    await Promise.all(promises)
+  }
+
+  const setByReceipts = (receiptData: any): void => {
+    if (!receiptData?.data) return
 
     try {
       const data = receiptData.data
 
-      if (additionalData?.itemCurrency) {
-        const requestCurrency = currencies.find(c => c.id === additionalData?.itemCurrency)
-        if (requestCurrency && requestCurrency.code !== data.currencyCode) {
-          showToast(
-            t(
-              'lowcoder:expense_item.currency_mismatchlowcoder:create_expense_type_item.process_error_currency_mismatch_detail',
-              'The Receipt could not be added as it does not match the request currency.'
-            ),
-            'error',
-            t('lowcoder:create_expense_type_item.process_error_currency_mismatch_title', 'Currency Mismatch')
-          )
-
-          return
-        }
+      // Ensure we can validate against the configured request currency when provided
+      if (
+        additionalData?.itemCurrency &&
+        (currencies.length === 0 || !currencies.some(currency => currency.id === additionalData.itemCurrency))
+      ) {
+        const errorMsg = t(
+          'lowcoder:expense_item.currency_validation_unavailable',
+          'Unable to validate the receipt currency against your expense rule. Please try again or contact your administrator.'
+        )
+        setReceiptCurrencyError(errorMsg)
+        return
       }
 
-      if (data.vendor?.name) {
-        form.setFieldsValue({ title: data.vendor.name })
-      }
+      // Validate currency match
+      if (!validateReceiptCurrency(data)) return
 
-      if (data.invoiceDate) {
-        try {
-          let dateValue
+      // Populate basic form fields
+      populateBasicFields(data)
 
-          if (typeof data.invoiceDate === 'string') {
-            if (data.invoiceDate.includes('T')) {
-              dateValue = new Date(data.invoiceDate)
-            } else {
-              const [year, month, day] = data.invoiceDate.split('-').map(Number)
-              dateValue = new Date(year, month - 1, day)
-            }
-          } else {
-            dateValue = new Date(data.invoiceDate)
-          }
+      // Process items and create positions
+      const newPositions = createPositionsFromReceipt(data)
+      if (newPositions.length === 0) return
 
-          if (!isNaN(dateValue.getTime())) {
-            form.setFieldsValue({ date: dateValue })
-          }
-        } catch (error) {}
-      }
+      setPositions(newPositions)
+      syncPositionsToForm(newPositions)
 
-      if (data.currencyCode) {
-        const currencyId = currencies.find(c => c.code === data.currencyCode)?.id
-        if (currencyId) {
-          form.setFieldsValue({ currency: currencyId })
-        }
-      }
-
-      if (data.items && data.items.length > 0) {
-        const newPositions: ExpensePosition[] = []
-
-        const costCenterId = positions[0]?.costCenter || ''
-
-        data.items.forEach((item: any, index: number) => {
-          const newPosition: ExpensePosition = {
-            id: `position-${Date.now()}-${index}`,
-            expenseGroup: '',
-            expenseType: '',
-            amount: item.totalPrice || 0,
-            costCenter: costCenterId,
-            isReimbursable: true,
-            customField: ''
-          }
-
-          if (item.expenseDetails) {
-            if (item.expenseDetails.expenseGroupCode) {
-              const matchingGroup = expenseGroups.find(group => group.code === item.expenseDetails.expenseGroupCode)
-
-              if (matchingGroup) {
-                newPosition.expenseGroup = matchingGroup.id
-
-                if (item.expenseDetails.expenseCode && expenseTypes[matchingGroup.id]) {
-                  const matchingType = expenseTypes[matchingGroup.id].find(
-                    type => type.code === item.expenseDetails.expenseCode
-                  )
-
-                  if (matchingType) {
-                    newPosition.expenseType = matchingType.id
-                  }
-                }
-              }
-            }
-          }
-
-          if (!newPosition.expenseGroup && item.expenseDetails?.expenseGroupCode) {
-            const aiMatch = aiGroupsAndTypes.find(
-              ai =>
-                ai.expenseGroupCode === item.expenseDetails.expenseGroupCode &&
-                ai.expenseCode === item.expenseDetails.expenseCode
-            )
-
-            if (aiMatch) {
-              const matchingGroup = expenseGroups.find(group => group.code === aiMatch.expenseGroupCode)
-
-              if (matchingGroup) {
-                newPosition.expenseGroup = matchingGroup.id
-              }
-            }
-          }
-
-          newPositions.push(newPosition)
-        })
-
-        setPositions(newPositions)
-
-        // Sync form fields for all generated positions (amount, cost center, reimbursable)
-        const formValuesBatch: Record<string, any> = {}
-        newPositions.forEach((pos, idx) => {
-          formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined
-          formValuesBatch[`amount-${idx}`] = pos.amount
-          formValuesBatch[`costCenter-${idx}`] = pos.costCenter
-          formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable
-        })
-        form.setFieldsValue(formValuesBatch)
-
-        if (newPositions.length > 1) {
-          setMultiPosition(true)
-        } else {
-          setMultiPosition(false)
-        }
-
-        newPositions.forEach(async (position, index) => {
-          if (position.expenseGroup && !position.expenseType) {
-            try {
-              const types = await fetchExpenseTypesWrapper(position.expenseGroup)
-
-              if (data.items[index]?.expenseDetails?.expenseCode) {
-                const matchingType = types.find(type => type.code === data.items[index].expenseDetails.expenseCode)
-
-                if (matchingType) {
-                  const updatedPositions = [...newPositions]
-                  updatedPositions[index].expenseType = matchingType.id
-                  setPositions(updatedPositions)
-                  form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id })
-                }
-              }
-            } catch (error) {
-              showToast(
-                t(
-                  'lowcoder:create_expense_type_item.process_error_receipt_processing',
-                  'Error processing receipt data'
-                ),
-                'error'
-              )
-            }
-          }
-        })
-      }
-    } catch (error) {
+      // Fetch missing expense types asynchronously
+      fetchMissingExpenseTypes(newPositions, data)
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
         'error'
@@ -664,7 +831,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setIsProcessingFiles(true)
       setIsFormDisabled(true)
 
-      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes, t)
+      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes)
 
       if (result) {
         setByReceipts(result)
@@ -676,7 +843,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setIsFormDisabled(false)
 
       return result
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
         'error'
@@ -692,27 +859,50 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   }
 
   const handleSubmitWrapper = async (): Promise<void> => {
-    return await handleSubmit(
-      form,
-      positions,
-      customFields,
-      employeeRuleId,
-      catalogueDataResponse,
-      multiPosition,
-      setPositions,
-      setFileList,
-      setCurrentStep,
-      setLoading,
-      t,
-      fileList,
-      accessToken,
-      userInfo?.employeeDetails?.employeeId,
-      additionalData,
-      userInfo,
-      itemValues || undefined,
-      getIsProcessEventDispatched,
-      dispatchProcessContinueEventIfEnabled
-    )
+    // Block submission if receipt currency doesn't match request currency
+    if (receiptCurrencyError) {
+      showToast(receiptCurrencyError, 'error')
+      throw new Error(receiptCurrencyError)
+    }
+
+    // Show overlay spinner for 1 second
+    setIsCreating(true)
+    const startTime = Date.now()
+    const spinnerTimeout = setTimeout(() => {
+      setIsCreating(false)
+    }, 1000)
+
+    try {
+      return await handleSubmit(
+        form,
+        positions,
+        customFields,
+        employeeRuleId,
+        catalogueDataResponse,
+        multiPosition,
+        setPositions,
+        setFileListState,
+        setCurrentStep,
+        setLoading,
+        t,
+        fileList,
+        accessToken,
+        userInfo?.employeeDetails?.employeeId,
+        additionalData,
+        userInfo,
+        itemValues || undefined,
+        getIsProcessEventDispatched,
+        dispatchProcessContinueEventIfEnabled
+      )
+    } finally {
+      // Ensure spinner is hidden after exactly 1 second total
+      clearTimeout(spinnerTimeout)
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, 1000 - elapsedTime)
+      setTimeout(() => {
+        setIsCreating(false)
+      }, remainingTime)
+    }
   }
 
   const handleCancelWrapper = (noDispatchEvent: boolean = false) => {
@@ -735,11 +925,11 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           }
         })
       }
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
       form.resetFields()
       setPositions([DEFAULT_POSITION])
-      setFileList([])
+      setFileListState([])
       setCurrentStep('start')
     }
   }
@@ -759,7 +949,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     )
   }
 
-  const handleCurrencyChangeWrapper = async (currencyId: string): Promise<void> => {
+  const handleCurrencyChangeWrapper = async (
+    currencyId: string,
+    options?: { suppressRequestReset?: boolean }
+  ): Promise<void> => {
     if (!accessToken || !userInfo) {
       return
     }
@@ -768,6 +961,17 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       if (!employeeIdValue) {
         return
+      }
+
+      const currentRequestId = form.getFieldValue('expenseRequestId')
+      if (
+        isEditMode &&
+        !options?.suppressRequestReset &&
+        !suppressRequestResetRef.current &&
+        currentRequestId &&
+        currentRequestId !== '0'
+      ) {
+        form.setFieldsValue({ expenseRequestId: undefined })
       }
 
       const expenseRequestByCurrency = await graphqlClient.query({
@@ -779,7 +983,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       })
 
       addRequests(expenseRequestByCurrency, setExpenseRequests, t)
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
     }
   }
@@ -866,47 +1070,98 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     setItemValues({ id, version })
   }
 
-  const contextValue: ExpenseItemContextProps = {
-    form,
-    currentStep,
-    setCurrentStep,
-    loading,
-    setLoading,
-    fileList,
-    setFileList,
-    isProcessingFiles,
-    setIsProcessingFiles,
-    isFormDisabled,
-    setIsFormDisabled,
-    multiPosition,
-    setMultiPosition,
-    isEditMode,
-    setCurrentSelectedDate,
-    positions,
-    setPositions,
-    expenseGroups,
-    expenseTypes,
-    customFields,
-    costCenters,
-    currencies,
-    expenseRequests,
-    employeeRuleId,
-    expenseRuleError,
-    additionalData,
-    calculateTotal: calculateTotalWrapper,
-    handleFileUpload: handleFileUploadWrapper,
-    handleSubmit: handleSubmitWrapper,
-    handleCancel: handleCancelWrapper,
-    handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
-    handleExpenseTypeChange: handleExpenseTypeChangeWrapper,
-    handleAddPosition: handleAddPositionWrapper,
-    handleRemovePosition: handleRemovePositionWrapper,
-    handleAmountChange: handleAmountChangeWrapper,
-    handleCurrencyChange: handleCurrencyChangeWrapper,
-    fetchExpenseTypes: fetchExpenseTypesWrapper,
-    fetchCustomFields: fetchCustomFieldsWrapper,
-    setInitialItemValues: setInitialItemValues
+  const setFileList = (files: any[]) => {
+    setFileListState(files)
+
+    // Clear currency error when all files are removed
+    // When multiple files are uploaded together, they're treated as a batch
+    // User must remove all and re-upload only valid receipts
+    if (!files || files.length === 0) {
+      setReceiptCurrencyError(null)
+    }
   }
+
+  const contextValue: ExpenseItemContextProps = useMemo(
+    () => ({
+      form,
+      currentStep,
+      setCurrentStep,
+      loading,
+      setLoading,
+      isInitialized,
+      fileList,
+      setFileList,
+      isProcessingFiles,
+      setIsProcessingFiles,
+      isFormDisabled,
+      setIsFormDisabled,
+      multiPosition,
+      setMultiPosition,
+      isEditMode,
+      setCurrentSelectedDate,
+      isCreating,
+      positions,
+      setPositions,
+      expenseGroups,
+      expenseTypes,
+      customFields,
+      costCenters,
+      currencies,
+      expenseRequests,
+      employeeRuleId,
+      expenseRuleError,
+      receiptCurrencyError,
+      additionalData,
+      calculateTotal: calculateTotalWrapper,
+      handleFileUpload: handleFileUploadWrapper,
+      handleSubmit: handleSubmitWrapper,
+      handleCancel: handleCancelWrapper,
+      handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
+      handleExpenseTypeChange: handleExpenseTypeChangeWrapper,
+      handleAddPosition: handleAddPositionWrapper,
+      handleRemovePosition: handleRemovePositionWrapper,
+      handleAmountChange: handleAmountChangeWrapper,
+      handleCurrencyChange: handleCurrencyChangeWrapper,
+      fetchExpenseTypes: fetchExpenseTypesWrapper,
+      fetchCustomFields: fetchCustomFieldsWrapper,
+      setInitialItemValues: setInitialItemValues
+    }),
+    [
+      form,
+      currentStep,
+      loading,
+      isInitialized,
+      fileList,
+      isProcessingFiles,
+      isFormDisabled,
+      multiPosition,
+      isEditMode,
+      isCreating,
+      positions,
+      expenseGroups,
+      expenseTypes,
+      customFields,
+      costCenters,
+      currencies,
+      expenseRequests,
+      employeeRuleId,
+      expenseRuleError,
+      receiptCurrencyError,
+      additionalData,
+      calculateTotalWrapper,
+      handleFileUploadWrapper,
+      handleSubmitWrapper,
+      handleCancelWrapper,
+      handleExpenseGroupChangeWrapper,
+      handleExpenseTypeChangeWrapper,
+      handleAddPositionWrapper,
+      handleRemovePositionWrapper,
+      handleAmountChangeWrapper,
+      handleCurrencyChangeWrapper,
+      fetchExpenseTypesWrapper,
+      fetchCustomFieldsWrapper
+    ]
+  )
 
   return <ExpenseItemContext.Provider value={contextValue}>{children}</ExpenseItemContext.Provider>
 }

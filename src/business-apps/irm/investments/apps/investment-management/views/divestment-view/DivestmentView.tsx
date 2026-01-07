@@ -5,8 +5,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import PlannedExits from './tabs/planned-exits'
-import ExitOpportunities from './tabs/exit-opportunities'
-import Sales from './tabs/sales'
+import { ExitOpportunitiesTab } from './tabs/exit-opportunities'
+import { ExitsTab } from './tabs/exits'
 
 export type DivestmentViewProps = BusinessAppContextProps
 
@@ -23,9 +23,9 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
       label: getTranslationFromI18nKeyAndLabel('exit_opportunities', 'Exit Opportunities')
     },
     {
-      key: 'sales',
+      key: 'exits',
       icon: <DollarSign />,
-      label: getTranslationFromI18nKeyAndLabel('sales', 'Sales')
+      label: getTranslationFromI18nKeyAndLabel('exits', 'Exits')
     }
   ]
 
@@ -41,39 +41,12 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
     return tabOptions[0].key
   }
 
-  // Get initial subView from URL for exit opportunities tab
-  const getInitialExitOpportunitiesSubView = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const subViewFromUrl = urlParams.get('subView')
-
-    if (subViewFromUrl === 'pipeline') {
-      return 'board'
-    } else if (subViewFromUrl === 'list') {
-      return 'list'
-    }
-
-    return 'list'
-  }
-
   const [activeTab, setActiveTab] = useState<string>(getInitialTab())
-  const [exitOpportunitiesSubTab, setExitOpportunitiesSubTab] = useState<string>(getInitialExitOpportunitiesSubView())
 
   // Update URL when tab changes
-  const updateUrl = (tab: string, subView?: string) => {
+  const updateUrl = (tab: string) => {
     const urlParams = new URLSearchParams(window.location.search)
     urlParams.set('tab', tab)
-
-    if (tab === 'exit-opportunities' && subView) {
-      if (subView === 'board') {
-        urlParams.set('subView', 'pipeline')
-      } else if (subView === 'list') {
-        urlParams.set('subView', 'list')
-      }
-    } else {
-      if (urlParams.has('subView')) {
-        urlParams.delete('subView')
-      }
-    }
 
     try {
       const params: Record<string, string> = {}
@@ -96,28 +69,14 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
       return
     }
     setActiveTab(key)
-
-    if (key === 'exit-opportunities') {
-      updateUrl(key, exitOpportunitiesSubTab)
-    } else {
-      updateUrl(key)
-    }
-  }
-
-  const handleExitOpportunitiesSubTabChange = (subTab: string) => {
-    setExitOpportunitiesSubTab(subTab)
-    updateUrl(activeTab, subTab)
+    updateUrl(key)
   }
 
   // Ensure URL always has tab parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     if (!urlParams.has('tab')) {
-      let subView: string | undefined
-      if (activeTab === 'exit-opportunities') {
-        subView = exitOpportunitiesSubTab
-      }
-      updateUrl(activeTab, subView)
+      updateUrl(activeTab)
     }
   }, [])
 
@@ -126,11 +85,6 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
     const handlePopState = () => {
       const newTab = getInitialTab()
       setActiveTab(newTab)
-
-      if (newTab === 'exit-opportunities') {
-        const newExitOpportunitiesSubView = getInitialExitOpportunitiesSubView()
-        setExitOpportunitiesSubTab(newExitOpportunitiesSubView)
-      }
     }
 
     window.addEventListener('popstate', handlePopState)
@@ -139,6 +93,14 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
 
   return (
     <div data-testid="divestment-relations-tabs" className="gba:h-full gba:flex gba:flex-col">
+      {/* Header */}
+      <div className="gba:mb-6">
+        <div className="gba:mb-4">
+          <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Divestment Management</h1>
+          <p className="gba:text-gray-600">Track and manage planned exits, opportunities, and completed exits</p>
+        </div>
+      </div>
+
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-4">
           {tabOptions.map(option => (
@@ -169,17 +131,13 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
           data-testid="exit-opportunities-tab-content"
         >
           <div className="gba:p-6">
-            <ExitOpportunities
-              {...context}
-              initialSubTab={exitOpportunitiesSubTab}
-              onSubTabChange={handleExitOpportunitiesSubTabChange}
-            />
+            <ExitOpportunitiesTab {...context} />
           </div>
         </TabsContent>
 
-        <TabsContent value="sales" className="gba:flex-1 gba:overflow-auto gba:mt-0" data-testid="sales-tab-content">
+        <TabsContent value="exits" className="gba:flex-1 gba:overflow-auto gba:mt-0" data-testid="exits-tab-content">
           <div className="gba:p-6">
-            <Sales {...context} />
+            <ExitsTab {...context} />
           </div>
         </TabsContent>
       </Tabs>

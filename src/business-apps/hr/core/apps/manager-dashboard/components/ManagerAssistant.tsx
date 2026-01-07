@@ -5,11 +5,8 @@ import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
 import {
   PiPaperPlaneRight,
   PiX,
-  PiStar as PiSparkle, // Using PiStar as replacement for PiSparkle
-  PiUser,
-  PiRobot
+  PiStar as PiSparkle // Using PiStar as replacement for PiSparkle
 } from 'react-icons/pi'
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { UserInfo } from '../types/employee.types'
 
 // AI suggestions - keeping existing predefined prompts
@@ -51,7 +48,7 @@ interface ManagerAssistantProps {
  * AI-powered assistant for managers to get insights and help with team management
  * Now with conversation history following Every message pattern
  */
-export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, accessToken, userInfo }) => {
+export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, accessToken }) => {
   const [aiPrompt, setAiPrompt] = useState('')
   const [conversation, setConversation] = useState<ConversationTurn[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -228,8 +225,8 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
   // Render user message following Every message pattern
   const renderUserMessage = (turn: ConversationTurn, index: number) => (
     <div key={`user-${index}`} className="gba:flex gba:justify-end gba:mb-4">
-      <div className="gba:max-w-[80%] gba:bg-primary-50 gba:rounded-[18px] gba:px-4 gba:py-2">
-        <p className="gba:text-sm gba:text-neutral-800">{turn.text}</p>
+      <div className="gba:max-w-[80%] gba:bg-background gba:rounded-[18px] gba:px-4 gba:py-2">
+        <p className="gba:text-sm gba:text-primary">{turn.text}</p>
       </div>
     </div>
   )
@@ -239,21 +236,21 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
     <div key={`agent-${index}`} className="gba:flex gba:justify-start gba:mb-4">
       <div className="gba:flex gba:items-start gba:max-w-[85%]">
         <div className="gba:mr-2 gba:mt-1">
-          <div className="gba:h-6 gba:w-6 gba:bg-primary-100 gba:rounded-full gba:flex gba:items-center gba:justify-center">
-            <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary-600" />
+          <div className="gba:h-6 gba:w-6 gba:bg-primary-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center">
+            <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary" />
           </div>
         </div>
-        <div className="gba:bg-neutral-50 gba:rounded-lg gba:p-3 gba:border gba:border-neutral-200">
+        <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:border gba:border-border">
           {turn.outputs?.map((output, outputIndex) => {
             if (output.type === 'answer' && output.displayData) {
               return output.displayData.map((data, dataIndex) => (
-                <p key={`data-${dataIndex}`} className="gba:text-sm gba:text-neutral-700 gba:whitespace-pre-line">
+                <p key={`data-${dataIndex}`} className="gba:text-sm gba:text-foreground gba:whitespace-pre-line">
                   {data.text}
                 </p>
               ))
             } else if (output.type === 'error') {
               return (
-                <p key={`error-${outputIndex}`} className="gba:text-sm gba:text-red-600">
+                <p key={`error-${outputIndex}`} className="gba:text-sm gba:text-destructive">
                   {output.text}
                 </p>
               )
@@ -270,14 +267,14 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
     <div className="gba:flex gba:justify-start gba:mb-4">
       <div className="gba:flex gba:items-start">
         <div className="gba:mr-2 gba:mt-1">
-          <div className="gba:h-6 gba:w-6 gba:bg-primary-100 gba:rounded-full gba:flex gba:items-center gba:justify-center">
-            <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary-600" />
+          <div className="gba:h-6 gba:w-6 gba:bg-primary-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center">
+            <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary" />
           </div>
         </div>
-        <div className="gba:bg-neutral-50 gba:rounded-lg gba:p-3 gba:border gba:border-neutral-200">
+        <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:border gba:border-border">
           <div className="gba:flex gba:items-center gba:space-x-2">
-            <div className="gba:animate-spin gba:rounded-full gba:h-3 gba:w-3 gba:border-b-2 gba:border-primary-600"></div>
-            <p className="gba:text-sm gba:text-neutral-600">Thinking...</p>
+            <div className="gba:animate-spin gba:rounded-full gba:h-3 gba:w-3 gba:border-b-2 gba:border-primary"></div>
+            <p className="gba:text-sm gba:text-muted-foreground">Thinking...</p>
           </div>
         </div>
       </div>
@@ -290,17 +287,17 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
         {/* Header with clear conversation option */}
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <div className="gba:flex gba:items-center">
-            <div className="gba:h-6 gba:w-6 gba:bg-primary-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mr-2">
-              <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary-600" />
+            <div className="gba:h-6 gba:w-6 gba:bg-primary-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mr-2">
+              <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary" />
             </div>
             <div>
-              <h3 className="gba:text-sm gba:font-medium gba:text-neutral-900">Manager Assistant</h3>
-              <p className="gba:text-xs gba:text-neutral-500">Ask me anything about your team</p>
+              <h3 className="gba:text-sm gba:font-medium gba:text-foreground">Manager Assistant</h3>
+              <p className="gba:text-xs gba:text-muted-foreground">Ask me anything about your team</p>
             </div>
           </div>
           {isChatMode && conversation.length > 0 && (
             <button
-              className="gba:text-neutral-400 gba:hover:text-neutral-600 gba:text-xs"
+              className="gba:text-muted-foreground gba:hover:text-foreground gba:text-xs"
               onClick={clearConversation}
               data-testid="manager-dashboard-ai-clear-button"
             >
@@ -313,7 +310,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
         {isChatMode && conversation.length > 0 && (
           <div
             ref={scrollRef}
-            className="gba:mb-3 gba:overflow-y-auto gba:border gba:border-neutral-200 gba:rounded-lg gba:p-2"
+            className="gba:mb-3 gba:overflow-y-auto gba:border gba:border-border gba:rounded-lg gba:p-2"
             style={{ maxHeight: `${MAX_CHAT_HEIGHT}px` }}
             data-testid="manager-dashboard-ai-conversation"
           >
@@ -352,7 +349,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
             {aiSuggestions.map((suggestion, index) => (
               <button
                 key={index}
-                className="gba:text-xs gba:bg-neutral-100 gba:hover:bg-neutral-200 gba:text-neutral-700 gba:px-2 gba:py-1 gba:rounded-full gba:transition-colors"
+                className="gba:text-xs gba:bg-muted gba:hover:bg-muted/80 gba:text-foreground gba:px-2 gba:py-1 gba:rounded-full gba:transition-colors"
                 onClick={() => handleSuggestionClick(suggestion)}
                 disabled={isLoading}
                 data-testid={`manager-dashboard-ai-suggestion-${index}`}

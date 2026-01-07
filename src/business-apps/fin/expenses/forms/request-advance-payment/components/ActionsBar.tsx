@@ -34,7 +34,7 @@ const ActionsBar: React.FC<ActionsBarProps> = ({
       <Button
         onClick={onSubmit}
         disabled={isSubmitting || isSubmitDisabled}
-        className="gba:px-6 gba:py-2 gba:bg-blue-600 gba:text-white gba:hover:bg-blue-700 gba:disabled:bg-gray-300"
+        className="gba:px-6 gba:py-2 gba:bg-blue-600 gba:text-background gba:hover:bg-blue-700 gba:disabled:bg-gray-300"
         data-testid="request-advance-payment-submit-button"
       >
         {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}

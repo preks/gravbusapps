@@ -117,7 +117,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
               cursor={false}
               content={
                 <ChartTooltipContent
-                  formatter={(value: any, _name: string) => {
+                  formatter={(value: any) => {
                     if (valueType === 'count') {
                       const num = typeof value === 'number' ? value : Number(value ?? 0)
                       const itemsLabel = getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.items', countLabel)

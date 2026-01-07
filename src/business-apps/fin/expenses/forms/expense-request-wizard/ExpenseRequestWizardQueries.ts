@@ -24,7 +24,7 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
       const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
 
       return await flowClient.getResource(path)
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_type_item.process_error_data_fetch',
@@ -56,7 +56,7 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
 
     // Use the getResource method
     return await flowClient.getResource(path)
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_type_item.process_error_data_fetch',

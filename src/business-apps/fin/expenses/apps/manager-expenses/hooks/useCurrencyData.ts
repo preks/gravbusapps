@@ -18,7 +18,7 @@ const processCurrencyCollection = (
   if (!items) return
 
   for (const item of items) {
-    const code = extractCurrencyCode(item.currencyRef)
+    const code = extractCurrencyCode(item.currencyRef || '')
     if (code) {
       currencyMap.set(code, (currencyMap.get(code) || 0) + 1)
     }
@@ -127,7 +127,6 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
       setLocalMostUsedCurrency(storeMostUsedCurrency)
       setIsLoading(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, managerId, fetchCurrencyData, isInitialized])
 
   // Default to most used currency, fallback to primary currency from store

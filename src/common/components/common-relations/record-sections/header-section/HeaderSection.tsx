@@ -99,7 +99,6 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
       className={`gba:header-section ${containerClassName}`}
       style={{
         marginBottom: '24px',
-        backgroundColor: 'white',
         borderRadius: '8px',
         padding: '20px',
         ...containerStyle
@@ -131,9 +130,9 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
 
             <div style={{ marginLeft: '16px' }}>
               <div
+                className="gba:text-muted-foreground"
                 style={{
                   fontSize: '16px',
-                  color: '#8c8c8c',
                   fontWeight: 'normal',
                   letterSpacing: '0.5px'
                 }}
@@ -146,18 +145,16 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
             {/* Primary Badge */}
             {primaryBadge && (
               <div
+                className={`gba:bg-success-secondary gba:text-success ${primaryBadge.className || ''}`}
                 style={{
-                  backgroundColor: '#f6ffed',
-                  border: '1px solid #b7eb8f',
+                  border: '1px solid var(--nw-color-success-500)',
                   borderRadius: '6px',
                   padding: '8px 12px',
                   fontSize: '16px',
                   fontWeight: 'bold',
-                  color: '#389e0d',
                   marginLeft: '16px',
                   ...primaryBadge.style
                 }}
-                className={primaryBadge.className}
                 data-testid={primaryBadge.testId || `${dataTestId}-primary-badge`}
               >
                 {primaryBadge.content}
@@ -187,8 +184,8 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
           {/* Bottom row: Information items in one line */}
           {infoItems.length > 0 && (
             <div
+              className="gba:text-muted-foreground"
               style={{
-                color: '#8c8c8c',
                 fontSize: '14px',
                 display: 'flex',
                 alignItems: 'center',

@@ -3,7 +3,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   LauncherLayout,
   type LauncherSectionConfig,
-  type NavigationCardData,
   type KpiData,
   Spinner,
   Alert,
@@ -11,19 +10,18 @@ import {
   AlertDescription,
   Button
 } from '@newwork/nw-design-system'
-import { hrAreas, categoryLabels, hrQuickActions } from './utils/hrAreas'
+import { hrAreas, hrQuickActions } from './utils/hrAreas'
 import { HrArea, HrQuickAction } from './types'
 import { useHrStats } from './hooks/useHrStats'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { startProcess } from '@/common/utils/start-process'
 import * as RemixIcons from '@remixicon/react'
 // Import PhosphorIcons for LauncherLayout
-import { Users, UserCheck, Briefcase, CalendarX, ChartBar, Gear } from '@phosphor-icons/react'
+import { UsersIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
 
-interface HrLauncherProps extends BusinessAppContextProps {}
 const moduleColor = MODULE_COLORS.HR
-const HrLauncher: React.FC<HrLauncherProps> = context => {
+const HrLauncher: React.FC<BusinessAppContextProps> = context => {
   const { stats, isLoading, error, refetch } = useHrStats(context)
 
   // Format numbers for display
@@ -76,9 +74,9 @@ const HrLauncher: React.FC<HrLauncherProps> = context => {
     const areas: HrArea[] = hrAreas
 
     // Convert areas to NavigationCardData format
-    const cards: NavigationCardData[] = areas.map(area => {
+    const cards = areas.map(area => {
       // Get area stats
-      const getAreaStats = (areaId: string, kpiType?: string) => {
+      const getAreaStats = (areaId: string) => {
         switch (areaId) {
           case 'employee-directory':
             return {
@@ -115,7 +113,7 @@ const HrLauncher: React.FC<HrLauncherProps> = context => {
         }
       }
 
-      const areaStats = getAreaStats(area.id, area.kpiType)
+      const areaStats = getAreaStats(area.id)
 
       return {
         id: area.id,
@@ -256,7 +254,7 @@ const HrLauncher: React.FC<HrLauncherProps> = context => {
     <LauncherLayout
       title="Human Resources Management Hub"
       description="Comprehensive HR tools for employee management, workforce analytics, and organizational operations"
-      icon={Users}
+      icon={UsersIcon}
       headerKpis={headerKpis}
       sections={sections}
       quickActions={hrQuickActions.map(action => ({

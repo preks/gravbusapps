@@ -7,14 +7,13 @@ import {
   FormMessage,
   Input,
   Alert,
-  Spinner,
   Switch
 } from '@newwork/nw-design-system'
-import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentExitComponentProps, ExitFormData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
@@ -110,78 +109,17 @@ export const InvestmentExitComponent: React.FC<InvestmentExitComponentProps> = (
       additionalData
     }
 
-    // Determine investment group type
-    const groupRef = investment.investmentGroup?.id || ''
-    const groupType = groupRef.split(':').pop()
-
-    // Create investment form data using new nested structure with full objects
-    const investmentFormData: any = {
+    // Spread investment and only override the exit fields
+    const investmentFormData = {
       investment: {
-        id: investmentId,
-        version: investment.version,
-        name: investment.name || '',
-        initialInvestmentAmount: investment.initialInvestmentAmount || 0,
-        investmentGroup: investment.investmentGroup, // Full object
-        ownerEmployee: investment.ownerEmployee, // Full object
-
-        // Include ALL existing investment fields to preserve them
-        code: investment.code,
-        isin: investment.isin,
-        investmentType: investment.investmentType, // Full object
-        investmentStakeType: investment.investmentStakeType, // Full object
-        investmentPhase: investment.investmentPhase, // Full object
-        investmentStatus: investment.investmentStatus, // Full object
-        investmentRiskLevel: investment.investmentRiskLevel, // Full object
-        acquisitionDate: investment.acquisitionDate,
-        planedExit: formData.plannedExit, // This is the field we're updating
-        plannedExitDate: plannedExitDate || undefined, // This is the field we're updating
-        exitDate: investment.exitDate,
-        totalInvestmentAmount: investment.totalInvestmentAmount,
-        investmentMarketValue: investment.investmentMarketValue,
-        debtFinancingAmount: investment.debtFinancingAmount,
-        requiredCapitalAmount: investment.requiredCapitalAmount,
-        forecastedRevenueAmount: investment.forecastedRevenueAmount,
-        forecastedProfitAmount: investment.forecastedProfitAmount,
-        stakePercentage: investment.stakePercentage,
-        loanRecipientName: investment.loanRecipientName,
-        loanAmount: investment.loanAmount,
-        loanOpenCommitmentAmount: investment.loanOpenCommitmentAmount,
-        loanInterestRate: investment.loanInterestRate,
-        loanStartDate: investment.loanStartDate,
-        loanEndDate: investment.loanEndDate,
-        loanInterestClaim: investment.loanInterestClaim,
-        totalCommitmentAmount: investment.totalCommitmentAmount,
-        totalDistributionAmount: investment.totalDistributionAmount,
-        currency: investment.currency, // Full object
-        fundManagerName: investment.fundManagerName,
-        identification: investment.identification,
-        investmentAccount: investment.investmentAccount, // Full object
-        investmentOpportunity: investment.investmentOpportunity?.id,
-        loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id,
-        additionalProperties: investment.additionalProperties
+        ...investment,
+        planedExit: formData.plannedExit,
+        plannedExitDate: plannedExitDate || undefined
       }
     }
 
-    // CRITICAL: Add the appropriate subtype based on investment group (required by API)
-    if (groupType === 'EQUITY') {
-      const existingEquity = Array.isArray((investment as any).equityInvestment)
-        ? (investment as any).equityInvestment[0]
-        : (investment as any).equityInvestment
-      investmentFormData.equityInvestment = existingEquity || {}
-    } else if (groupType === 'REAL_ESTATE') {
-      const existingRealEstate = Array.isArray((investment as any).realEstateInvestment)
-        ? (investment as any).realEstateInvestment[0]
-        : (investment as any).realEstateInvestment
-      investmentFormData.realEstateInvestment = existingRealEstate || {}
-    } else if (groupType === 'LIQUID_FUND') {
-      const existingLiquidFund = Array.isArray((investment as any).liquidFundInvestment)
-        ? (investment as any).liquidFundInvestment[0]
-        : (investment as any).liquidFundInvestment
-      investmentFormData.liquidFundInvestment = existingLiquidFund || {}
-    }
-
-    // Use the central payload builder to preserve all existing data
-    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
+    // Use the central payload builder (it will extract subtypes from rawInvestmentData)
+    const payload = buildInvestmentPayload(investmentFormData as any, businessAppContext, {
       isUpdate: true,
       rawInvestmentData: investment
     })
@@ -198,43 +136,17 @@ export const InvestmentExitComponent: React.FC<InvestmentExitComponentProps> = (
     return payload
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:py-8"
-        data-testid={`${prefixDataTestId}-loading`}
-      >
-        <Spinner size="lg" />
-        <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel('investment.exit.loading', 'Loading investment data...')}
-        </span>
-      </div>
-    )
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
-        {error}
-      </Alert>
-    )
-  }
-
-  // Show form when investment data is loaded
-  if (!investment) {
-    return null
-  }
-
   return (
-    <AppActionForm
-      processType="update"
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
       onSubmit={handleSubmit}
-      onCancel={onClose}
-      formData={form.getValues()}
+      onClose={onClose}
       form={form}
       businessAppContext={businessAppContext}
+      prefixDataTestId={prefixDataTestId}
+      loadingMessage={getTranslationFromI18nKeyAndLabel('investment.exit.loading', 'Loading investment data...')}
       data-testid={`${prefixDataTestId}-form`}
       submitButtonText={getTranslationFromI18nKeyAndLabel('investment.exit.button.save', 'Save Planned Exit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
@@ -292,13 +204,13 @@ export const InvestmentExitComponent: React.FC<InvestmentExitComponentProps> = (
         )}
 
         {/* Current planned exit info display */}
-        {investment.planedExit && investment.plannedExitDate && (
+        {investment && investment.planedExit && investment.plannedExitDate && (
           <div className="gba:text-sm gba:text-gray-600" data-testid={`${prefixDataTestId}-current-planned-exit`}>
             {getTranslationFromI18nKeyAndLabel('investment.exit.currentDate', 'Current planned exit date')}:{' '}
             {new Date(investment.plannedExitDate).toLocaleDateString()}
           </div>
         )}
       </div>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }

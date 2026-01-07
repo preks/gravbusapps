@@ -1,9 +1,11 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, createElement } from 'react'
 import { ActionOption } from '@newwork/nw-design-system'
 import { useMainContextsData } from './useMainContextsData'
 import { useFlowItems, ExternalContextData } from './useFlowItems'
 import { FlowContextName } from '../types/FlowRegistryTypes'
 import { formatDataTestId } from '../utils/formatDataTestId'
+import { Share2 } from 'lucide-react'
+import { useBlinkOptional } from '@/common/providers/BlinkProvider'
 
 /**
  * Shared comparison function for AppAction components to prevent unnecessary re-renders
@@ -29,7 +31,8 @@ export const appActionPropsComparison = (prevProps: any, nextProps: any): boolea
     'accessToken',
     'prefixDataTestId',
     'emptyStateBehavior',
-    'deferMainContextRequestsUntilClick'
+    'deferMainContextRequestsUntilClick',
+    'blinkContext'
   ] as const
 
   for (const key of propsToCompare) {
@@ -56,6 +59,16 @@ export const EMPTY_CONTEXTS_ARRAY: FlowContextName[] = []
 export const EMPTY_EXTERNAL_CONTEXT_DATA: ExternalContextData = {}
 
 /**
+ * Blink context configuration for share functionality
+ */
+export interface ShareContext {
+  entityType: string
+  entityId: string
+  entityName: string
+  entityUrl: string
+}
+
+/**
  * Common props interface for App Action components
  */
 export interface AppActionCommonProps {
@@ -69,6 +82,7 @@ export interface AppActionCommonProps {
   'data-testid'?: string
   loadingText?: string
   noActionsText?: string
+  shareContext?: ShareContext
 }
 
 /**
@@ -84,6 +98,7 @@ export interface UseAppActionDataConfig {
   emptyStateBehavior?: 'disable' | 'hide' | 'enable'
   loadingText?: string
   noActionsText?: string
+  shareContext?: ShareContext
 }
 
 /**
@@ -121,6 +136,10 @@ export const useAppActionData = (config: UseAppActionDataConfig, dataTestIdPrefi
   // Track whether a deferred fetch has been attempted
   const [hasDeferredFetchAttempted, setHasDeferredFetchAttempted] = useState(false)
 
+  // Use optional blink hook - returns null if not in provider context
+  const blinkContext = useBlinkOptional()
+  const openShareDialog = blinkContext?.openShareDialog ?? null
+
   // Memoize the contexts array to prevent unnecessary re-renders
   const contextsArray = useMemo(() => config.contextsArray ?? EMPTY_CONTEXTS_ARRAY, [config.contextsArray])
 
@@ -152,14 +171,42 @@ export const useAppActionData = (config: UseAppActionDataConfig, dataTestIdPrefi
   // Track overall loading state - true if either contexts or flows are loading
   const isLoading = isLoadingContexts || isLoadingFlows
 
-  // Combined data from static and flow sources
-  const combinedData = [...(config.staticFlowData ?? []), ...flowData]
+  // Generate share action if shareContext is provided and BlinkProvider is available
+  const shareAction: ActionOption | null = useMemo(() => {
+    if (!config.shareContext || !openShareDialog) {
+      return null
+    }
+
+    return {
+      key: `share-${config.shareContext.entityType}-${config.shareContext.entityId}`,
+      label: 'Share via Blink',
+      icon: createElement(Share2, { className: 'gba:w-4 gba:h-4' }),
+      onClick: () => {
+        if (openShareDialog && config.shareContext) {
+          openShareDialog(config.shareContext)
+        }
+      },
+      category: 'Sharing'
+    }
+  }, [config.shareContext, openShareDialog])
+
+  // Combined data from static, share, and flow sources
+  const combinedData = useMemo(() => {
+    const actions: ActionOption[] = [
+      ...(config.staticFlowData ?? []),
+      ...(shareAction ? [shareAction] : []),
+      ...flowData
+    ]
+    return actions
+  }, [config.staticFlowData, shareAction, flowData])
 
   // Calculate whether to show loading state
-  // If staticFlowData is provided, we never show the loading overlay
+  // If staticFlowData OR shareAction is provided, we never show the loading overlay
   const hasStaticData = (config.staticFlowData?.length ?? 0) > 0
+  const hasShareAction = shareAction !== null
   const shouldShowLoading =
     !hasStaticData &&
+    !hasShareAction &&
     (isLoading ||
       (!!config.deferMainContextRequestsUntilClick && combinedData.length === 0 && !hasDeferredFetchAttempted))
 
@@ -233,6 +280,7 @@ export const extractAppActionProps = <T extends AppActionCommonProps>(
     'data-testid': customDataTestId,
     loadingText,
     noActionsText,
+    shareContext,
     ...cleanProps
   } = props
 
@@ -245,7 +293,8 @@ export const extractAppActionProps = <T extends AppActionCommonProps>(
     deferMainContextRequestsUntilClick,
     emptyStateBehavior,
     loadingText,
-    noActionsText
+    noActionsText,
+    shareContext
   }
 
   return {

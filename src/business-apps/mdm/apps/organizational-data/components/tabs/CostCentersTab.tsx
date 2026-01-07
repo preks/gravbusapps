@@ -24,7 +24,11 @@ import {
   AlertTitle,
   AlertDescription,
   Icon,
-  DataTable
+  DataTable,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent
 } from '@newwork/nw-design-system'
 import CardTabHeaderComponent from '../../../generic-components/card'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -219,8 +223,8 @@ const CostCentersTab: React.FC<CostCentersTabProps> = context => {
         firstName: string
         lastName: string
         name: string
-        jobPosition?: { jobPositionName?: string }
-        organizationalUnit?: { organizationalUnitName?: string }
+        jobPosition: string | undefined
+        organizationalUnit: string | undefined
       }>[] = [
         {
           accessorKey: 'name',
@@ -370,23 +374,36 @@ const CostCentersTab: React.FC<CostCentersTabProps> = context => {
       }
 
       return (
-        <DataTable
-          defaultDataSetId="cost-centers"
-          dataSets={[
-            {
-              id: 'employees',
-              label: `Employees (${costCenterDataForId?.employees?.length})`,
-              data: employeeData,
-              columns: employeeColumns
-            },
-            {
-              id: 'org-units',
-              label: `Organizational Units (${costCenterDataForId?.orgUnits?.length})`,
-              data: organizationalUnitData,
-              columns: orgUnitColumns
-            }
-          ]}
-        />
+        <Tabs defaultValue="employees" className="gba:w-full">
+          <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
+            <TabsTrigger value="employees" data-testid={`${dataTestId}-employees-tab`}>
+              Employees ({costCenterDataForId?.employees?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="org-units" data-testid={`${dataTestId}-org-units-tab`}>
+              Organizational Units ({costCenterDataForId?.orgUnits?.length || 0})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="employees" className="gba:mt-4">
+            <DataTable
+              data={employeeData}
+              columns={employeeColumns}
+              enableSorting
+              enablePagination
+              data-testid={`${dataTestId}-employees-table`}
+            />
+          </TabsContent>
+
+          <TabsContent value="org-units" className="gba:mt-4">
+            <DataTable
+              data={organizationalUnitData}
+              columns={orgUnitColumns}
+              enableSorting
+              enablePagination
+              data-testid={`${dataTestId}-org-units-table`}
+            />
+          </TabsContent>
+        </Tabs>
       )
     },
     [costCenterData, employeeDataTable, organizationalUnitDataTable]

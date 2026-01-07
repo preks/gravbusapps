@@ -1,12 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  buildAdvancePaymentsQuery,
-  validateFilters,
-  AdvancePaymentFilters,
-  FilterState
-} from '../queries/advancePayments'
+import { buildAdvancePaymentsQuery, validateFilters, AdvancePaymentFilters } from '../queries/advancePayments'
 
 export interface AdvancePaymentData {
   id: string

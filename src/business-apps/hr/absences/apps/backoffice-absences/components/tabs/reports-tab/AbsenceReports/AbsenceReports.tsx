@@ -74,7 +74,7 @@ const transformMenuItemsToReports = (menuItems: MenuItem[], currentLocale: strin
             icon: <RiBarChartLine className="h-5 w-5" />,
             category: getTranslatedValue(item.resourceUrl.name_i18n, item.resourceUrl.name || 'Report', currentLocale),
             favorite: false,
-            url: `https://newwork-dev.newwork.com${item.resourceUrl.url}`
+            url: `${env('NEXT_PUBLIC_BASE_URL') || ''}${item.resourceUrl.url}`
           })
         }
       }
@@ -87,19 +87,6 @@ const transformMenuItemsToReports = (menuItems: MenuItem[], currentLocale: strin
 
   processItems(menuItems)
   return reports
-}
-
-const findMenuItem = (items: MenuItem[], name: string): MenuItem | undefined => {
-  for (const item of items) {
-    if (item.name === name) {
-      return item
-    }
-    if (item.children) {
-      const found = findMenuItem(item.children, name)
-      if (found) return found
-    }
-  }
-  return undefined
 }
 
 export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
@@ -191,7 +178,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
 
   return (
     <div className="gba:w-full">
-      <div className="gba:bg-white gba:rounded-lg gba:border gba:border-gray-200">
+      <div className="gba:bg-card gba:rounded-lg gba:border">
         <div className="gba:p-4">
           <a
             href={absenceReport.url}
@@ -207,13 +194,13 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
             >
               <div className="gba:p-4">
                 <div className="gba:flex gba:items-center gba:gap-4">
-                  <div className="gba:bg-gray-100 gba:p-3 gba:rounded-lg">
-                    <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-600" />
+                  <div className="gba:bg-muted gba:p-3 gba:rounded-lg">
+                    <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
                   </div>
                   <div>
-                    <h3 className="gba:text-base gba:font-medium gba:text-gray-900">{absenceReport.title}</h3>
+                    <h3 className="gba:text-base gba:font-medium gba:text-foreground">{absenceReport.title}</h3>
                     {absenceReport.category && (
-                      <p className="gba:text-sm gba:text-gray-500 gba:mt-1">{absenceReport.category}</p>
+                      <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{absenceReport.category}</p>
                     )}
                   </div>
                 </div>

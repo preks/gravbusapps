@@ -1,4 +1,4 @@
-import { useEmployeeById } from '../../../../../crm/common/forms/lead-form/hooks/useEmployeeById'
+import { useEmployeeById } from '@/common/data/employee/hooks/useEmployeeById'
 import { EmployeeOption } from '../types'
 
 export const useEmployeeDetails = (accessToken: string, employeeId?: string) => {

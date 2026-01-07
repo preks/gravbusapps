@@ -5,7 +5,6 @@ import { useGetHierarchyData } from '../queries/HierarchyQueries'
 import {
   processHierarchyData,
   buildSunburstData,
-  generateCountryColorMap,
   generateCompanyColorMap,
   generateCostCenterColorMap,
   generateTableData

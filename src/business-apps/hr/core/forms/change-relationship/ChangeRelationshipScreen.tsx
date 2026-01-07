@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Button,
   Input,
   Label,
   Switch,
@@ -9,22 +8,22 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Spinner
+  DateInput,
+  FileUpload
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import flowSmall from '@/assets/icons/flowSmall.svg'
+import FormHeader from '../components/FormHeader'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import dayjs from 'dayjs'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { Upload } from 'antd'
-import type { UploadFile } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
 import { env } from '@/common/env/EnvUtils'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { CongratulationsModal } from './CongratulationsModal'
+import { PhoneInput } from './components/PhoneInput'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
 
@@ -36,10 +35,18 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isEmergencyContact, setIsEmergencyContact] = useState(false)
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<string>('new')
-  const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [isUploading, setIsUploading] = useState(false)
+  const [fileList, setFileList] = useState<any[]>([])
+  const [, setIsUploading] = useState(false)
+  const [firstNameTouched, setFirstNameTouched] = useState(false)
+  const [lastNameTouched, setLastNameTouched] = useState(false)
+  const [phoneTouched, setPhoneTouched] = useState(false)
+  const [relationshipTypeTouched, setRelationshipTypeTouched] = useState(false)
 
-  const { options: relationshipTypeOptions, relationships } = useRelationshipTypes({
+  const {
+    options: relationshipTypeOptions,
+    relationships,
+    employee
+  } = useRelationshipTypes({
     accessToken,
     userInfo,
     additionalData
@@ -47,7 +54,8 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
 
   const fileClient = useFileClient({ accessToken, userInfo })
 
-  const employeeId = userInfo?.employeeDetails?.employeeId
+  const employeeId =
+    (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId || userInfo?.employeeDetails?.employeeId
 
   const initialPayload = useMemo(() => (additionalData as any) || {}, [additionalData])
   const [successOpen, setSuccessOpen] = useState(false)
@@ -100,6 +108,88 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     return false
   }, [isValid, selectedExisting, isUnchanged])
 
+  // Determine if an emergency contact already exists for the employee
+  const hasExistingEmergencyContact = useMemo(() => {
+    return (relationships || []).some((rel: any) => rel?.isEmergencyContact === true)
+  }, [relationships])
+
+  // Field validations
+  const validatePhoneForEmergency = (receivedValue: string): string => {
+    if (!isEmergencyContact) return ''
+    const trimmed = (receivedValue || '').trim()
+    if (trimmed.length === 0) {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:change_relationship.container_relationship.phone_required_error',
+        'The Phone Number field is required. Please enter a phone number.'
+      )
+    }
+    // Allow international format: +countrycode followed by digits
+    const regexTest = /^\+?\d{6,}$/
+    if (!regexTest.test(trimmed)) {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:change_relationship.container_relationship.phone_only_numbers_error',
+        'The Phone Number field is invalid. Please enter a valid phone number.'
+      )
+    }
+    return ''
+  }
+
+  const validateNameFunction = (name: string, which: 'first' | 'last'): string => {
+    const nameRegex =
+      /^[A-Za-zÀ-ÿ\u0100-\u017F\u0218-\u021B]{2,}(?:(?:\s*-\s*|\s)[A-Za-zÀ-ÿ\u0100-\u017F\u0218-\u021B]{2,})*$/
+    const trimmed = (name || '').trim()
+    if (trimmed.length === 0) {
+      return which === 'first'
+        ? getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.first_name_empty_error',
+            'The First Name field is required. Please enter a first name.'
+          )
+        : getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.last_name_empty_error',
+            'The Last Name field is required. Please enter a last name.'
+          )
+    }
+    if (trimmed.length < 2) {
+      return which === 'first'
+        ? getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.first_name_few_char_error',
+            'The First Name field should have more than 2 characters. Please enter your first name.'
+          )
+        : getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.last_name_few_char_error',
+            'The Last Name field should have more than 2 characters. Please enter your last name.'
+          )
+    }
+    if (!nameRegex.test(trimmed)) {
+      return which === 'first'
+        ? getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.first_name_numbers_error',
+            'The First Name field is invalid. Please use only alphabetic characters.'
+          )
+        : getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.last_name_numbers_error',
+            'The Last Name field is invalid. Please use only alphabetic characters.'
+          )
+    }
+    return ''
+  }
+
+  const firstNameError = validateNameFunction(firstName, 'first')
+  const lastNameError = validateNameFunction(lastName, 'last')
+  const phoneError = validatePhoneForEmergency(phoneNumber)
+  const relationshipTypeError = !relationshipTypeId
+    ? getTranslationFromI18nKeyAndLabel(
+        'lowcoder:change_relationship.container_relationship.relationship_type_error',
+        'The Type field is required. Please select the relationship type.'
+      )
+    : ''
+  const relationshipSelectionError = !selectedRelationshipId
+    ? getTranslationFromI18nKeyAndLabel(
+        'lowcoder:change_relationship.container_relationship.relationship_error',
+        'The Relationship field is required. Please select the relationship type.'
+      )
+    : ''
+
   // Initialize selection and fields if flow provided an existing relationship
   useEffect(() => {
     const rel = initialPayload?.relationship
@@ -141,29 +231,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
 
   const validateForm = () => {
     const errors: string[] = []
-    if (!relationshipTypeId) {
-      errors.push(
-        getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.type_required', 'Relationship Type is required')
-      )
-    }
-    if (!firstName.trim()) {
-      errors.push(
-        getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.first_name_required', 'First Name is required')
-      )
-    }
-    if (!lastName.trim()) {
-      errors.push(
-        getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.last_name_required', 'Last Name is required')
-      )
-    }
-    if (isEmergencyContact && !phoneNumber.trim()) {
-      errors.push(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:relationship_form.phone_required',
-          'Phone Number is required for emergency contacts'
-        )
-      )
-    }
+    if (relationshipSelectionError) errors.push(relationshipSelectionError)
+    if (relationshipTypeError) errors.push(relationshipTypeError)
+    if (firstNameError) errors.push(firstNameError)
+    if (lastNameError) errors.push(lastNameError)
+    if (phoneError) errors.push(phoneError)
     return errors.length ? errors : null
   }
 
@@ -237,21 +309,36 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       lastName: lastName.trim() || undefined,
       phoneNumber: phoneNumber.trim() || undefined,
       typeRef: relationshipTypeId || undefined,
-      birthDate: birthDate ? dayjs(birthDate).toISOString() : undefined,
+      birthDate: birthDate ? (formatDateToISO(new Date(birthDate)) as string) : undefined,
       emergencyContact: isEmergencyContact,
       relationshipDocument: uploadedDocumentId
     } as any
 
     const relationshipChange = {
-      employeeRelationship
+      event: 'pse_submit',
+      employeeRelationship,
+      oldEmployeeRelationship: selectedExisting
+        ? {
+            id: selectedExisting.id,
+            version: selectedExisting.version,
+            businessKey: initialPayload?.relationship?.businessKey || '',
+            additionalProperties: initialPayload?.relationship?.additionalProperties || {},
+            employeeId,
+            firstName: selectedExisting.firstName || '',
+            lastName: selectedExisting.lastName || '',
+            phoneNumber: selectedExisting.phoneNumber || '',
+            typeRef: selectedExisting.typeRef || '',
+            birthDate: selectedExisting.birthDate || '',
+            emergencyContact: Boolean(selectedExisting.isEmergencyContact),
+            relationshipDocument: selectedExisting.relationshipDocumentId || ''
+          }
+        : {}
     }
 
     // Only show modal for specific relationship types (Child or Marriage)
     const idSelected = relationshipTypeId.toLowerCase()
     const shouldShowCongrats =
       idSelected.includes('child') || idSelected.includes('marriage') || idSelected.includes('mariage')
-
-    console.log(relationshipTypeOptions, 'relationshipTypeOptions')
 
     if (shouldShowCongrats) {
       // Show Congratulations modal first and resolve payload after user confirms
@@ -271,57 +358,34 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       processType={initialPayload?.relationship?.id ? 'update' : 'create'}
       formData={{}}
       onSubmit={data => data}
-      // Prevent platform hooks here; let outer flow listen to pse events
-      submitEventType={undefined as any}
-      cancelEventType={undefined as any}
+      submitEventType="pse_submit"
+      cancelEventType="pse_abort"
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={isSubmitDisabled}
-      // Pre-submit modal controls the flow; no need for post success modal
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      onCancel={() => {
-        dispatchProcessContinueEvent('pse_abort', {
-          event: 'pse_abort',
-          pso_exitStrategy: 'abort',
-          pso_completeNotification: {
-            type: 'error',
-            messageKey: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_module.toast_notification_cancel_create_absence',
-              'The action has been canceled.'
-            )
-          }
-        })
-      }}
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
-        {/* Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:px-0 gba:py-6">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <img
-              src={flowSmall}
-              alt="Flow Small"
-              data-testid={formatDataTestId(prefixDataTestId, 'FlowIcon')}
-              className="gba:w-6 gba:h-6"
-              style={{ filter: 'brightness(0)' }}
-            />
-            <h2
-              className="gba:text-xl gba:font-semibold"
-              style={{ color: 'var(--nw-color-text-primary)' }}
-              data-testid={formatDataTestId(prefixDataTestId, 'Title')}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.title', 'Change Relationship Data')}
-            </h2>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="gba:border-t gba:border-gray-200" />
+        <FormHeader
+          title={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.title', 'Change Relationship Data')}
+          flowIconUrl={flowSmall}
+          employee={
+            employee
+              ? {
+                  firstName: employee.firstName,
+                  lastName: employee.lastName,
+                  pictureThumbnail: employee.pictureThumbnail,
+                  jobTitle: employee.jobTitle
+                }
+              : undefined
+          }
+        />
 
         {/* Content */}
-        <div className="gba:px-0 gba:py-6 gba:flex gba:flex-col gba:gap-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+        <div className="gba:px-0 gba:py-6 gba:flex gba:flex-col gba:gap-4">
           {/* Relationship selector (Add New or choose existing) */}
           <div>
             <Label>
@@ -352,13 +416,27 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 </SelectContent>
               </Select>
             </div>
+            {!selectedRelationshipId && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_relationshipError">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:change_relationship.container_relationship.relationship_error',
+                  'The Relationship field is required. Please select the relationship type.'
+                )}
+              </div>
+            )}
           </div>
 
           {/* Relationship Type */}
           <div>
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.type', 'Relationship Type')}*</Label>
             <div className="gba:mt-2">
-              <Select value={relationshipTypeId} onValueChange={setRelationshipTypeId}>
+              <Select
+                value={relationshipTypeId}
+                onValueChange={v => {
+                  setRelationshipTypeTouched(true)
+                  setRelationshipTypeId(v)
+                }}
+              >
                 <SelectTrigger data-testid="flw_changeRelationship_currentRelationshipType">
                   <SelectValue
                     placeholder={getTranslationFromI18nKeyAndLabel(
@@ -376,6 +454,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 </SelectContent>
               </Select>
             </div>
+            {relationshipTypeTouched && relationshipTypeError && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_relationshipTypeError">
+                {relationshipTypeError}
+              </div>
+            )}
           </div>
 
           {/* First Name */}
@@ -385,6 +468,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               <Input
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
+                onBlur={() => setFirstNameTouched(true)}
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:relationship_form.first_name_placeholder',
                   'Enter First Name'
@@ -392,6 +476,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 data-testid="flw_changeRelationship_currentFirstName"
               />
             </div>
+            {firstNameTouched && firstNameError && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_firstNameError">
+                {firstNameError}
+              </div>
+            )}
           </div>
 
           {/* Last Name */}
@@ -401,6 +490,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               <Input
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
+                onBlur={() => setLastNameTouched(true)}
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:relationship_form.last_name_placeholder',
                   'Enter Last Name'
@@ -408,22 +498,29 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 data-testid="flw_changeRelationship_currentLastName"
               />
             </div>
+            {lastNameTouched && lastNameError && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_lastNameError">
+                {lastNameError}
+              </div>
+            )}
           </div>
 
           {/* Birth Date */}
           <div>
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.birth_date', 'Birth Date')}</Label>
             <div className="gba:mt-2">
-              <Input
-                type="date"
-                value={birthDate || ''}
-                onChange={e => setBirthDate(e.target.value)}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:relationship_form.birth_date_placeholder',
-                  'YYYY-MM-DD'
-                )}
-                data-testid="flw_changeRelationship_currentBirthDate"
-              />
+              <div data-testid="flw_changeRelationship_currentBirthDate">
+                <DateInput
+                  type="date"
+                  value={birthDate || ''}
+                  onChange={value => setBirthDate(Array.isArray(value) ? (value?.[0] ?? '') : (value ?? ''))}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:relationship_form.birth_date_placeholder',
+                    'YYYY-MM-DD'
+                  )}
+                  className="gba:w-full"
+                />
+              </div>
             </div>
           </div>
 
@@ -434,13 +531,12 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               {isEmergencyContact ? '*' : ''}
             </Label>
             <div className="gba:mt-2">
-              <Input
+              <PhoneInput
                 value={phoneNumber}
-                onChange={e => setPhoneNumber(e.target.value)}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:relationship_form.phone_number_placeholder',
-                  'Enter Phone Number'
-                )}
+                onChange={setPhoneNumber}
+                onBlur={() => setPhoneTouched(true)}
+                error={isEmergencyContact ? phoneError : undefined}
+                touched={phoneTouched}
                 data-testid="flw_changeRelationship_currentPhoneNumber"
               />
             </div>
@@ -457,33 +553,38 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               data-testid="flw_changeRelationship_currentEmergencyContact"
             />
           </div>
+          {isEmergencyContact && hasExistingEmergencyContact && (
+            <div data-testid="flw_changeRelationship_emergencyNote">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:change_relationship.container_relationship.emergency_note',
+                'Note: This will overwrite your current emergency contact!'
+              )}
+            </div>
+          )}
 
           {/* Upload Document */}
           <div>
             <Label>
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.upload_document', 'Upload Document')}
             </Label>
-            <div className="gba:mt-2">
-              <Upload
-                fileList={fileList}
-                onChange={({ fileList: list }) => setFileList(list)}
-                beforeUpload={() => false}
-                maxCount={1}
-                data-testid={formatDataTestId(prefixDataTestId, 'UploadDocument')}
-              >
-                <Button
-                  variant="secondary"
-                  type="button"
-                  disabled={isUploading}
-                  data-testid="flw_changeRelationship_fileAddDocument"
-                >
-                  {isUploading ? <Spinner size="sm" className="gba:mr-2" /> : null}
-                  <UploadOutlined />
-                  <span className="gba:ml-2">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.upload', 'Upload Document')}
-                  </span>
-                </Button>
-              </Upload>
+            <div className="gba:mt-2" data-testid={formatDataTestId(prefixDataTestId, 'UploadDocument')}>
+              <FileUpload
+                multiple={false}
+                maxFiles={1}
+                accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
+                layout="list"
+                preview="icon"
+                onFilesChange={(files: any[]) => {
+                  const mapped = (files || []).map((f: any) => ({
+                    uid: f.id,
+                    name: f.file?.name || 'file',
+                    status: 'done',
+                    originFileObj: f.file as File,
+                    type: (f.file as File)?.type
+                  }))
+                  setFileList(mapped)
+                }}
+              />
             </div>
           </div>
         </div>

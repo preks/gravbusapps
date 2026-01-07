@@ -17,7 +17,8 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { Line, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
-import { formatCurrency } from '@/common/data/investment'
+import { formatCurrency } from '@/common/data/investment/utils/formatters'
+import { formatCompactNumber } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { LiquidFundInvestmentSummary } from '../../shared/types'
 import dayjs from 'dayjs'
@@ -99,7 +100,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
 
     const dataMap = new Map()
 
-    filteredFunds.forEach(fund => {
+    for (const fund of filteredFunds) {
       const date = dayjs(fund.investment.acquisitionDate).format('YYYY-MM')
       const totalInvestmentAmount = fund.investment.totalInvestmentAmount || 0
       const marketValue = fund.investment.investmentMarketValue || 0
@@ -115,7 +116,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           totalMarketValue: marketValue
         })
       }
-    })
+    }
 
     return Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date))
   }, [rawLiquidFunds, valueCurrencyFilter])
@@ -166,10 +167,15 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
             <ComposedChart data={investmentPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 12 }}
+                tickFormatter={value => formatCompactNumber(value, 1)}
+              />
               <ChartTooltip
                 content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
+                  if (active && payload?.length) {
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                         <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
@@ -271,10 +277,10 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           >
             <ComposedChart data={valueTrendsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={value => dayjs(value).format('MMM YY')} />
-              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCurrency(value, valueCurrencyFilter)} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
+                  if (active && payload?.length) {
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                         <div className="gba:mb-2 gba:font-medium gba:text-gray-700">

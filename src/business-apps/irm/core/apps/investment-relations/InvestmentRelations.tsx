@@ -1,7 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
-import { DollarSign, Users, Building2, Contact as ContactIcon, BarChart3 } from 'lucide-react'
-import { TrendUpIcon } from '@phosphor-icons/react'
+import {
+  TrendUpIcon,
+  HouseIcon,
+  ListIcon,
+  UsersThreeIcon,
+  BuildingsIcon,
+  UsersIcon,
+  CurrencyDollarIcon,
+  ChartBarIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { LeadView } from './views/lead-view'
@@ -22,7 +30,7 @@ const moduleColor = MODULE_COLORS.IRM
 export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context => {
   const { fetchPipelines } = useDashboardQueries(context)
   const [pipelines, setPipelines] = useState<PipelineInfo[]>([])
-  const [dateRange, setDateRange] = useState<{ startDate: Date; endDate: Date }>(() => {
+  const [dateRange] = useState<{ startDate: Date; endDate: Date }>(() => {
     const now = new Date()
     const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0)
     const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
@@ -50,63 +58,88 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
       mounted = false
     }
   }, [fetchPipelines])
-  const viewOptions = [
-    {
-      key: 'dashboard',
-      icon: <BarChart3 />,
-      label: 'Dashboard'
+  const viewOptions = useMemo(
+    () => [
+      {
+        key: 'dashboard',
+        icon: <HouseIcon />,
+        label: 'Dashboard'
+      },
+      {
+        key: 'tasks',
+        icon: <ListIcon />,
+        label: 'Tasks'
+      },
+      {
+        key: 'leads',
+        icon: <UsersThreeIcon />,
+        label: 'Leads'
+      },
+      {
+        key: 'accounts',
+        icon: <BuildingsIcon />,
+        label: 'Accounts'
+      },
+      {
+        key: 'contacts',
+        icon: <UsersIcon />,
+        label: 'Contacts'
+      },
+      {
+        key: 'opportunities',
+        icon: <CurrencyDollarIcon />,
+        label: 'Opportunities'
+      },
+      {
+        key: 'analytics',
+        icon: <ChartBarIcon />,
+        label: 'Analytics'
+      }
+    ],
+    []
+  )
+
+  const resolveViewKey = useCallback(
+    (candidate?: string | null) => {
+      if (!candidate) {
+        return null
+      }
+      return viewOptions.some(option => option.key === candidate) ? candidate : null
     },
-    {
-      key: 'tasks',
-      icon: <BarChart3 />,
-      label: 'Tasks'
-    },
-    {
-      key: 'leads',
-      icon: <Users />,
-      label: 'Leads'
-    },
-    {
-      key: 'accounts',
-      icon: <Building2 />,
-      label: 'Accounts'
-    },
-    {
-      key: 'contacts',
-      icon: <ContactIcon />,
-      label: 'Contacts'
-    },
-    {
-      key: 'opportunities',
-      icon: <DollarSign />,
-      label: 'Opportunities'
-    },
-    {
-      key: 'analytics',
-      icon: <BarChart3 />,
-      label: 'Analytics'
-    }
-  ]
+    [viewOptions]
+  )
+
+  const getUrlView = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    return resolveViewKey(urlParams.get('view'))
+  }, [resolveViewKey])
 
   // Get initial view from URL or default to first view
   const getInitialView = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const viewFromUrl = urlParams.get('view')
-
-    // Validate that the view exists in our options
-    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
+    const contextViewValue = context.additionalData?.view
+    if (typeof contextViewValue === 'string') {
+      const validated = resolveViewKey(contextViewValue)
+      if (validated) {
+        return validated
+      }
+    }
+    const viewFromUrl = getUrlView()
+    if (viewFromUrl) {
       return viewFromUrl
     }
-
-    // Default to first view
     return viewOptions[0].key
   }
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView())
 
   // Update URL when view changes
-  const updateUrl = (view: string) => {
+  const updateUrl = useCallback((view: string) => {
     const urlParams = new URLSearchParams(window.location.search)
+    const currentView = urlParams.get('view')
+    const hasSubView = urlParams.has('subView')
+    if (currentView === view && !hasSubView) {
+      return
+    }
 
     // Always set the view parameter (including for default)
     urlParams.set('view', view)
@@ -118,7 +151,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`
     window.history.replaceState({}, '', newUrl)
-  }
+  }, [])
 
   const handleTabChange = (key: string) => {
     // Prevent deselection - if key is empty or same as current, ignore the change
@@ -135,18 +168,37 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
     if (!urlParams.has('view')) {
       updateUrl(activeTab)
     }
-  }, [])
+  }, [activeTab, updateUrl])
 
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const newView = getInitialView()
+      const newView = getUrlView() ?? viewOptions[0].key
       setActiveTab(newView)
     }
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
+  }, [getUrlView, viewOptions])
+
+  const hostViewParam = typeof context.additionalData?.view === 'string' ? context.additionalData?.view : undefined
+
+  useEffect(() => {
+    if (!hostViewParam) {
+      return
+    }
+    const validated = resolveViewKey(hostViewParam)
+    if (!validated) {
+      return
+    }
+    setActiveTab(previous => {
+      if (previous === validated) {
+        return previous
+      }
+      updateUrl(validated)
+      return validated
+    })
+  }, [hostViewParam, resolveViewKey, updateUrl])
 
   const renderTabContent = () => {
     switch (activeTab) {

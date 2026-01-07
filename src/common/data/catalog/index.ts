@@ -6,6 +6,9 @@
 // Types
 export * from './types/catalogTypes'
 
+// Mappers
+export { toCatalog, toCatalogEntry, toTranslationsArray, prepareCatalogEntryForApi } from './mappers/catalogMappers'
+
 // Hooks
 export { default as useCatalogs } from './hooks/useCatalogs'
 export { default as useCatalog } from './hooks/useCatalog'
@@ -20,3 +23,6 @@ export { default as useDeleteCatalog } from './hooks/useDeleteCatalog'
 export { default as useCreateCatalogEntry } from './hooks/useCreateCatalogEntry'
 export { default as useUpdateCatalogEntry } from './hooks/useUpdateCatalogEntry'
 export { default as useDeleteCatalogEntry } from './hooks/useDeleteCatalogEntry'
+
+// Utils - Translation utilities
+export * from './utils'

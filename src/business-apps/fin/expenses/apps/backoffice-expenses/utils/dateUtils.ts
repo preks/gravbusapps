@@ -35,7 +35,7 @@ export const formatDateLocalized = (dateValue: string | Date | null | undefined,
     // Extract base locale (e.g., 'en' from 'en-US', 'de' from 'de-DE')
     const baseLocale = userLocale?.split('-')[0] || 'en'
     return dayjs(dateValue).locale(baseLocale).format(format)
-  } catch (error) {
+  } catch {
     console.error('Error formatting date:', error)
     return getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
   }

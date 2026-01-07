@@ -187,7 +187,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       }
 
       setSelectItemsList(finalItems)
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_fetch_items',
@@ -345,84 +345,112 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     return expenseItems.slice(startIndex, endIndex)
   }, [expenseItems, initialCurrentPage, itemListLimit])
 
+  /**
+   * Extracts valid item IDs from payload
+   */
+  const extractPayloadItemIds = (additionalData: any): string[] => {
+    if (
+      !additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems ||
+      additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length === 0
+    ) {
+      return []
+    }
+
+    return additionalData.psi_taskPayload.psi_initialParameters.expenseItems
+      .filter((item: any) => item.itemId)
+      .map((item: any) => item.itemId)
+  }
+
+  /**
+   * Determines the currency to use for items
+   */
+  const determineItemCurrency = (currentCurrency: string, expenseRequestData: any, additionalData: any): string => {
+    // Use current currency if available
+    if (currentCurrency) return currentCurrency
+
+    // Try expense request currency
+    if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
+      return expenseRequestData.ExpenseRequestByPk.currencyRef
+    }
+
+    // Try first expense item currency
+    if (expenseRequestData?.ExpenseItem?.length > 0) {
+      return expenseRequestData.ExpenseItem[0].currencyRef
+    }
+
+    // Try payload currency
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems?.length > 0) {
+      const itemWithCurrency = additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find(
+        (item: any) => item.itemId && item.currencyId
+      )
+      return itemWithCurrency?.currencyId || ''
+    }
+
+    return ''
+  }
+
+  /**
+   * Fetches and adds new items from payload
+   */
+  const fetchAndAddPayloadItems = async (newItemIds: string[], itemCurrency: string): Promise<void> => {
+    const userLocale = getCurrentActiveUserLocale()
+    const variables = {
+      employeeId,
+      status: REQUEST_STATUS.CREATED,
+      activeUserLocale: userLocale,
+      idsArray: newItemIds,
+      itemCurrency: itemCurrency
+    }
+
+    const response = await graphQLClient.request(fetchEmployeeExpenseItemsFromPayload, variables)
+    const payloadItems = response?.ExpenseItemEmployee || []
+
+    if (payloadItems.length === 0) return
+
+    const itemsToAdd = payloadItems.map((item: any) => ({ ...item }))
+    const currentItems = expenseRequestData?.ExpenseItem || []
+    const updatedItems = [...currentItems, ...itemsToAdd]
+
+    setExpenseRequestData({
+      ...expenseRequestData,
+      ExpenseItem: updatedItems
+    })
+
+    setSelectedItemsToInitial((prev: any[]) => [...prev, ...itemsToAdd])
+    setPayloadItemsLoaded(true)
+  }
+
   useEffect(() => {
     const fetchItemsFromPayload = async () => {
-      if (payloadItemsLoaded) return
-      if (
-        additionalData &&
-        additionalData.psi_taskPayload &&
-        additionalData.psi_taskPayload.psi_initialParameters &&
-        additionalData.psi_taskPayload.psi_initialParameters.expenseItems &&
-        additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0
-      ) {
-        try {
-          setIsLoading(true)
-          const extractedPayloadItemIds = additionalData.psi_taskPayload.psi_initialParameters.expenseItems
-            .filter((item: any) => item.itemId)
-            .map((item: any) => item.itemId)
+      // Early returns for invalid states
+      if (payloadItemsLoaded || !expenseRequestData) return
 
-          if (extractedPayloadItemIds.length === 0) return
-          setPayloadItemIds(extractedPayloadItemIds)
-          if (!expenseRequestData) return
-          const existingItemIds = expenseRequestData?.ExpenseItem?.map((item: any) => item.id) || []
-          const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id))
+      const extractedPayloadItemIds = extractPayloadItemIds(additionalData)
+      if (extractedPayloadItemIds.length === 0) return
 
-          if (newItemIds.length === 0) return
-          let itemCurrency = currentCurrency || ''
-          if (expenseRequestData?.ExpenseRequestByPk?.currencyRef && !itemCurrency) {
-            itemCurrency = expenseRequestData.ExpenseRequestByPk.currencyRef
-          } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0 && !itemCurrency) {
-            itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef
-          } else if (
-            additionalData.psi_taskPayload.psi_initialParameters.expenseItems &&
-            additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 &&
-            !itemCurrency
-          ) {
-            itemCurrency =
-              additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find(
-                (item: any) => item.itemId && item.currencyId
-              )?.currencyId || ''
-          }
+      try {
+        setIsLoading(true)
+        setPayloadItemIds(extractedPayloadItemIds)
 
-          const userLocale = getCurrentActiveUserLocale()
+        // Filter out items that already exist
+        const existingItemIds = expenseRequestData?.ExpenseItem?.map((item: any) => item.id) || []
+        const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id))
 
-          const variables = {
-            employeeId,
-            status: REQUEST_STATUS.CREATED,
-            activeUserLocale: userLocale,
-            idsArray: newItemIds,
-            itemCurrency: itemCurrency
-          }
-          const response = await graphQLClient.request(fetchEmployeeExpenseItemsFromPayload, variables)
-          const payloadItems = response?.ExpenseItemEmployee || []
+        if (newItemIds.length === 0) return
 
-          if (payloadItems.length > 0) {
-            const itemsToAdd = payloadItems.map((item: any) => ({
-              ...item
-            }))
-
-            const currentItems = expenseRequestData?.ExpenseItem || []
-            const updatedItems = [...currentItems, ...itemsToAdd]
-
-            setExpenseRequestData({
-              ...expenseRequestData,
-              ExpenseItem: updatedItems
-            })
-
-            setSelectedItemsToInitial((prev: any[]) => [...prev, ...itemsToAdd])
-            setPayloadItemsLoaded(true)
-          }
-        } catch (error) {
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:modify_expense_request.error_fetch_items_payload',
-              'Error fetching items from payload'
-            ),
-            'error'
-          )
-        } finally {
-          setIsLoading(false)
-        }
+        // Determine currency and fetch items
+        const itemCurrency = determineItemCurrency(currentCurrency, expenseRequestData, additionalData)
+        await fetchAndAddPayloadItems(newItemIds, itemCurrency)
+      } catch {
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:modify_expense_request.error_fetch_items_payload',
+            'Error fetching items from payload'
+          ),
+          'error'
+        )
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -527,6 +555,16 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     setInitialCurrentPage(page)
   }
 
+  /**
+   * Returns the default total display when no expense totals are available
+   */
+  const getDefaultTotalDisplay = (): string => {
+    if (expenseRequestData?.ExpenseRequestByPk && expenseRequestData.ExpenseRequestByPk.currency) {
+      return `0.00 ${expenseRequestData.ExpenseRequestByPk.currency.code}`
+    }
+    return `0.00 ${DEFAULT_CURRENCY_FALLBACK}`
+  }
+
   if (showSelectItems) {
     return (
       <div data-testid="expense-request-wizard-select-items-screen" style={{ flexGrow: 1 }}>
@@ -551,11 +589,11 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         </div>
 
         <div
-          className="gba:bg-[#F7F7F7] gba:border-t gba:border-b gba:border-[#F7F7F7] gba:py-2 gba:px-2"
+          className="gba:bg-muted gba:border-t gba:border-b gba:border-muted gba:py-2 gba:px-2"
           data-testid="expense-request-wizard-select-items-content"
         >
           {isLoading ? (
-            <div className="gba:text-center gba:p-8 gba:bg-[#F7F7F7]" data-testid="loading-message">
+            <div className="gba:text-center gba:p-8 gba:bg-muted" data-testid="loading-message">
               {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.loading_text', 'Loading items...')}
             </div>
           ) : selectItemsList.length > 0 ? (
@@ -605,7 +643,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               )}
             </>
           ) : (
-            <div className="gba:text-center gba:p-8 bg-[#F7F7F7]" data-testid="no-items-message">
+            <div className="gba:text-center gba:p-8 gba:bg-muted" data-testid="no-items-message">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:modify_expense_request.no_items_to_select',
                 'No expense items available to select'
@@ -634,15 +672,17 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
             className="gba:m-0 gba:text-[16px] gba:font-bold"
             data-testid="expense-request-wizard-items-screen-title"
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_overview.expense_items.expense_items_title',
+              'Expense Items'
+            )}
             {expenseItems.length > 0 && ` (${expenseItems.length})`}
           </div>
           <div className="gba:flex gba:gap-2">
             <Button
               variant="secondary"
               icon={<img src={ICONS.ADD_CIRCLE} alt="Add" className="gba:w-4 gba:h-4" />}
-              className="gba:flex gba:items-center gba:gap-1"
-              style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight: 600 }}
+              className="gba:flex gba:items-center gba:gap-1 gba:bg-border gba:rounded-full gba:font-semibold"
               data-testid="add-item-button"
               onClick={toggleSelectItemsView}
             >
@@ -651,8 +691,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
             <Button
               variant="secondary"
               icon={<img src={ICONS.FOCUS} alt="Create" className="gba:w-4 gba:h-4" />}
-              className="gba:flex gba:items-center gba:gap-1"
-              style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight: 600 }}
+              className="gba:flex gba:items-center gba:gap-1 gba:bg-border gba:rounded-full gba:font-semibold"
               data-testid="create-item-button"
               onClick={handleCreateItem}
             >
@@ -663,7 +702,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       )}
 
       <div
-        className="gba:bg-[#F7F7F7] gba:flex gba:flex-col gba:flex-grow gba:border-t gba:border-b gba:border-[#F7F7F7]"
+        className="gba:bg-muted gba:flex gba:flex-col gba:flex-grow gba:border-t gba:border-b gba:border-muted"
         data-testid="expense-request-wizard-items-screen-content"
         style={{ flex: '1 1 auto', minHeight: expenseItems.length === 0 ? '50vh' : 'auto' }}
       >
@@ -707,7 +746,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
           </div>
         ) : (
           <div
-            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-[#F7F7F7] gba:gap-8"
+            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-muted gba:gap-8"
             data-testid="empty-items-container"
             style={{
               flex: '1 1 auto',
@@ -780,9 +819,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               ))
             ) : (
               <span className="gba:text-3xl gba:font-bold" data-testid="expense-items-total-default">
-                {expenseRequestData?.ExpenseRequestByPk && expenseRequestData.ExpenseRequestByPk.currency
-                  ? `0.00 ${expenseRequestData.ExpenseRequestByPk.currency.code}`
-                  : `0.00 ${DEFAULT_CURRENCY_FALLBACK}`}
+                {getDefaultTotalDisplay()}
               </span>
             )}
           </div>

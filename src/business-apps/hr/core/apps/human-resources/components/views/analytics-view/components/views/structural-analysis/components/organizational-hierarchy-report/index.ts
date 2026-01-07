@@ -1,5 +1,4 @@
 export { default } from './OrgHierarchyReport'
-export type { OrganizationalHierarchyReportProps } from './OrgHierarchyReport'
 
 // Export components for external use
 export { default as RadialBarChart } from './components/RadialBarChart'

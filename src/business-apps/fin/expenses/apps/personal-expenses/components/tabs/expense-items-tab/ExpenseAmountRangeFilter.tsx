@@ -19,7 +19,6 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount', 'Min Amount'),
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount', 'Max Amount')
   ],
-  label,
   dataTestIdPrefix
 }) => {
   const [minValue, setMinValue] = useState<string>(amountRange?.min?.toString() || '')

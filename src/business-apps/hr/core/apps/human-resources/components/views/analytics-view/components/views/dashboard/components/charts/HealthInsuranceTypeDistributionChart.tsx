@@ -1,10 +1,11 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { Card, Typography, Spin, Empty, theme } from 'antd'
+import { Card, Typography, Spin, Empty } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useHealthInsuranceTypeDistribution } from '../../../../../hooks/useHealthInsuranceTypeDistribution'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title } = Typography
 
@@ -13,8 +14,8 @@ const { Title } = Typography
  * as a pie chart with a center statistic showing total employee count
  */
 export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
-  const { token } = theme.useToken()
   const [activeIndex, setActiveIndex] = React.useState<number>(-1)
+  const { t } = useTranslation(hrTranslations)
 
   // Fetch health insurance type distribution data
   const { distribution: data, loading, error, totalEmployees } = useHealthInsuranceTypeDistribution(accessToken)
@@ -29,26 +30,16 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
     }))
   }, [data])
 
-  // Purple color palette for health insurance type chart
+  // Chart color palette using design system tokens - cycle through 8 colors
   const COLORS = [
-    '#9370DB',
-    '#8A2BE2',
-    '#9932CC',
-    '#800080',
-    '#4B0082',
-    '#6A5ACD',
-    '#BA55D3',
-    '#7B68EE',
-    '#9966CC',
-    '#663399',
-    '#D8BFD8',
-    '#C3B1E1',
-    '#5D3FD3',
-    '#BDB2FF',
-    '#DCD0FF',
-    '#DDB4FF',
-    '#A15DC9',
-    '#A569BD'
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
   ]
 
   // Custom active shape for the pie chart when hovering
@@ -76,13 +67,13 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
           outerRadius={innerRadius - 2}
           fill={fill}
         />
-        <text x={cx} y={cy - 20} textAnchor="middle" fill={token.colorText} fontSize={18} fontWeight="600">
+        <text x={cx} y={cy - 20} textAnchor="middle" fill="var(--nw-foreground)" fontSize={18} fontWeight="600">
           {payload.name}
         </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill={token.colorTextSecondary} fontSize={14}>
+        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--nw-muted-foreground)" fontSize={14}>
           {value.toLocaleString()} employees
         </text>
-        <text x={cx} y={cy + 35} textAnchor="middle" fill={token.colorPrimary} fontSize={14} fontWeight="600">
+        <text x={cx} y={cy + 35} textAnchor="middle" fill="var(--nw-info)" fontSize={14} fontWeight="600">
           {payload.percentage}%
         </text>
       </g>
@@ -102,15 +93,11 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
     <Card
       title={
         <div className="gba:flex gba:justify-between gba:items-center">
-          <Title level={4} style={{ margin: 0 }}>
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_health_insurance_type_distribution',
-              'Health Insurance Type Distribution'
-            )}
-          </Title>
+          <Title level={4} style={{ margin: 0 }}>{t('hr-analytics-health-insurance-type-distribution')}</Title>
           <div className="gba:flex gba:items-center">
             <InfoCircleOutlined
-              style={{ fontSize: '16px', color: token.colorTextSecondary }}
+              className="gba:text-muted-foreground"
+              style={{ fontSize: '16px' }}
               data-testid="health-insurance-type-distribution-info-icon"
             />
           </div>
@@ -127,17 +114,11 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
           </div>
         ) : error ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_error_loading', 'Error loading data')}
-              data-testid="health-insurance-type-distribution-error"
-            />
+            <Empty description={t('hr-analytics-error-loading')} data-testid="health-insurance-type-distribution-error" />
           </div>
         ) : data.length === 0 ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-              data-testid="health-insurance-type-distribution-empty"
-            />
+            <Empty description={t('hr-analytics-no-data')} data-testid="health-insurance-type-distribution-empty" />
           </div>
         ) : (
           <ResponsiveContainer
@@ -167,7 +148,7 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}
-                    stroke={token.colorBgContainer}
+                    stroke="var(--nw-card)"
                     strokeWidth={2}
                   />
                 ))}
@@ -177,16 +158,16 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
                   y="47%"
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  style={{ fontSize: '18px', fill: token.colorText, fontWeight: 600 }}
+                  style={{ fontSize: '18px', fill: 'var(--nw-foreground)', fontWeight: 600 }}
                 >
-                  {getTranslationFromI18nKeyAndLabel('hr_analytics_insurance_types', 'Insurance Types')}
+                  {t('hr-analytics-insurance-types')}
                 </text>
                 <text
                   x="50%"
                   y="57%"
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  style={{ fontSize: '24px', fontWeight: 'bold', fill: token.colorTextHeading }}
+                  style={{ fontSize: '24px', fontWeight: 'bold', fill: 'var(--nw-foreground)' }}
                 >
                   {totalEmployees.toLocaleString()}
                 </text>
@@ -199,15 +180,8 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
       {/* Custom Legend at bottom */}
       {!loading && !error && data.length > 0 && (
         <div
-          className="gba:mt-4 gba:pt-2 gba:border-t gba:border-gray-200"
+          className="gba:mt-4 gba:pt-2 gba:border-t gba:border-border gba:flex gba:flex-wrap gba:justify-center gba:gap-2 gba:px-2"
           data-testid="health-insurance-type-distribution-legend"
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            gap: '8px',
-            padding: '8px 8px 0'
-          }}
         >
           {chartData.map((item, index) => {
             const colorIndex = index % COLORS.length
@@ -215,30 +189,18 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
             return (
               <div
                 key={`legend-${index}`}
-                className="gba:flex gba:items-center gba:mb-2"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px 10px',
-                  backgroundColor: 'rgba(0,0,0,0.02)',
-                  borderRadius: '4px',
-                  border: '1px solid rgba(0,0,0,0.05)'
-                }}
+                className="gba:flex gba:items-center gba:mb-2 gba:px-2.5 gba:py-1 gba:bg-muted gba:rounded gba:border gba:border-border"
               >
                 <div
-                  className="gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
+                  className="gba:w-3 gba:h-3 gba:rounded-full gba:mr-2 gba:shadow-sm"
                   style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
                     backgroundColor: COLORS[colorIndex],
-                    marginRight: '8px',
-                    boxShadow: '0 0 0 1px rgba(0,0,0,0.1)'
+                    boxShadow: '0 0 0 1px var(--nw-border)'
                   }}
                 />
-                <div style={{ fontWeight: 500, fontSize: '14px' }}>
-                  <span style={{ marginRight: '6px' }}>{item.name}:</span>
-                  <span style={{ fontWeight: 700 }}>
+                <div className="gba:font-medium gba:text-sm">
+                  <span className="gba:mr-1.5">{item.name}:</span>
+                  <span className="gba:font-bold">
                     {item.value.toLocaleString()} ({item.percentage}%)
                   </span>
                 </div>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Checkbox } from '@newwork/gravity-ui-catalog'
+import { Switch, Label } from '@newwork/nw-design-system'
 
 interface LabeledToggleProps {
   label: string
@@ -12,22 +12,23 @@ interface LabeledToggleProps {
 
 const LabeledToggle: React.FC<LabeledToggleProps> = ({ label, name, value, disabled, onChange, testId }) => {
   return (
-    <div className={`gba:mb-4`} data-testid={`${testId}-container`}>
-      <div className={`gba:relative`}>
-        <div
-          className={`${disabled ? 'gba:bg-[#eeeff0] gba:cursor-not-allowed' : 'gba:bg-[#F7F7F7]'} gba:flex gba:items-center gba:justify-between gba:w-[100%] gba:h-[64px] gba:px-4 gba:rounded`}
+    <div className="gba:mb-4" data-testid={`${testId}-container`}>
+      <div
+        className={`${disabled ? 'gba:cursor-not-allowed' : ''} gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:px-4 gba:rounded gba:bg-card gba:border gba:border-input`}
+      >
+        <Label
+          htmlFor={name}
+          className={`${disabled ? 'gba:text-muted-foreground' : 'gba:text-foreground'} gba:text-sm gba:font-medium`}
         >
-          <span className={`${disabled ? 'gba:text-[#b5b6b6]' : 'gba:text-[#707070]'} gba:text-[12px] gba:font-medium`}>
-            {label}
-          </span>
-          <Checkbox
-            name={name}
-            data-testid={testId}
-            value={value}
-            disabled={disabled}
-            onChange={(f: any) => onChange(!!f?.value)}
-          />
-        </div>
+          {label}
+        </Label>
+        <Switch
+          id={name}
+          data-testid={testId}
+          checked={value}
+          disabled={disabled}
+          onCheckedChange={checked => onChange(!!checked)}
+        />
       </div>
     </div>
   )

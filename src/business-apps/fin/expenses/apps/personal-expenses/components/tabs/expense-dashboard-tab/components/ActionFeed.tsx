@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Spinner } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardContent, CardTitle, Button, Alert } from '@newwork/nw-design-system'
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 import { DashboardStats, RecentActivity } from '../types'
 // import { formatNumberFunction } from '@/common/utils/windowUtils';
@@ -19,9 +19,16 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
   if (isLoading) {
     return (
       <Card className="gba:action-feed-card" data-testid="action-feed-loading">
-        <div className="gba:flex gba:justify-center gba:p-6">
-          <Spinner size="lg" />
-        </div>
+        <CardContent>
+          <div className="gba:py-8 gba:text-center">
+            <div className="gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.no_activity_data_available',
+                'No activity data available.'
+              )}
+            </div>
+          </div>
+        </CardContent>
       </Card>
     )
   }

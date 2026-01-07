@@ -8,7 +8,8 @@ import {
   Gear,
   UserPlus,
   FileText,
-  FolderOpen
+  FolderOpen,
+  Desktop
 } from '@phosphor-icons/react'
 
 export const hrAreas: HrArea[] = [
@@ -119,6 +120,20 @@ export const hrAreas: HrArea[] = [
       {
         label: 'Job Structure Data',
         action: '/platform/mdm/job-structure-data'
+      }
+    ]
+  },
+  {
+    id: 'asset-management',
+    title: 'Asset Management',
+    description: 'Manage IT equipment inventory, track allocations, and monitor asset lifecycle',
+    icon: Desktop,
+    category: 'management',
+    kpiType: 'assets',
+    links: [
+      {
+        label: 'Asset Management',
+        action: '/platform/hr/assets'
       }
     ]
   }

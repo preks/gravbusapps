@@ -1,16 +1,32 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { Spinner, Tabs, TabsList, TabsTrigger, TabsContent, Button } from '@newwork/nw-design-system'
-import { ArrowLeftOutlined, UserOutlined, FileOutlined } from '@ant-design/icons'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import {
+  Spinner,
+  RecordLayout,
+  Badge,
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@newwork/nw-design-system'
+import { UserIcon, FileTextIcon, FlagIcon } from '@phosphor-icons/react'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo } from '@/common/utils/navigationUtils'
-import { useLeadData } from './hooks/useLeadData'
-import { LeadHeader } from './components/LeadHeader'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
+import { buildLeadStatusesQuery } from '@/common/data/relations/queries/leadQueries'
+import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
+import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
+import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { useAiSummary } from './hooks/useAiSummary'
 import { StatusProgression } from './components/StatusProgression'
-import { CompanyInformation } from './components/CompanyInformation'
-import { ContactInformation } from './components/ContactInformation'
-import { ActivityTimeline } from './components/ActivityTimeline'
-import { TasksSection } from './components/TasksSection'
-import { LeadDocuments } from './components/LeadDocuments'
+import { HomeView } from './views/home-view/HomeView'
+import { DocumentView } from './views/document-view/DocumentView'
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
   leadId: string
@@ -19,67 +35,420 @@ interface LeadRecordContentProps extends BusinessAppContextProps {
 }
 
 const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, fromEntity, ...props }) => {
-  const [activeTab, setActiveTab] = useState('overview')
-  const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(
-    leadId,
-    props.accessToken
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'overview'
+    const params = new URLSearchParams(window.location.search)
+    return params.get('tab') || 'overview'
+  })
+
+  // Use new declarative hook for lead data with additional leadStatuses query
+  const additionalQueries = useMemo(
+    () => [
+      {
+        query: buildLeadStatusesQuery('SalesLeadStatus'),
+        data: (result: any) => result.leadStatuses || [],
+        key: 'leadStatuses' as const
+      }
+    ],
+    []
   )
+
+  const {
+    lead: leadData,
+    leadStatuses,
+    loading,
+    error,
+    refetch
+  } = useCustomerLead(props.accessToken, leadId, {
+    additionalQueries
+  })
+
+  // Fetch lead data function for refetch
+  const fetchLeadData = useCallback(async () => {
+    await refetch()
+  }, [refetch])
+
+  // AI Summary hook - must be called before any conditional returns
+  const aiSummaryHook = useAiSummary(leadId, props.accessToken)
+
+  // Data fetching hooks for sections
+  const { fetchCustomerActivitiesByLeadId } = useCustomerActivities(props)
+  const { fetchCustomerNotesByLeadId } = useCustomerNotes(props)
+  const { fetchCustomerTasksByLeadId } = useCustomerTasks(props)
+
+  // State for section data
+  const [activities, setActivities] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [approvals, setApprovals] = useState<any[]>([])
+  const [sectionsLoading, setSectionsLoading] = useState(true)
+  const [sectionsError, setSectionsError] = useState<string | null>(null)
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', value)
+    window.history.replaceState(null, '', url.toString())
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (!params.get('tab')) {
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', activeTab)
+      window.history.replaceState(null, '', url.toString())
+    }
+    const onPop = () => {
+      const next = new URLSearchParams(window.location.search).get('tab') || 'overview'
+      setActiveTab(next)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [activeTab])
+
+  // Load section data
+  const loadSectionData = useCallback(async () => {
+    if (!leadId || !props.accessToken) return
+
+    setSectionsLoading(true)
+    setSectionsError(null)
+
+    try {
+      // Helpers: sleep and retry with exponential backoff on 429s
+      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+      const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, baseDelayMs = 400): Promise<T> => {
+        let attempt = 0
+
+        while (true) {
+          try {
+            return await fn()
+          } catch (err: any) {
+            const message = typeof err?.message === 'string' ? err.message : ''
+            const status = (err && (err.status || err.code)) as number | undefined
+            const isRateLimited = status === 429 || message.includes('429') || message.includes('Too Many Requests')
+            if (!isRateLimited || attempt >= maxRetries - 1) {
+              throw err
+            }
+            const jitter = Math.floor(Math.random() * 150)
+            const delay = baseDelayMs * Math.pow(2, attempt) + jitter
+            attempt += 1
+            await sleep(delay)
+          }
+        }
+      }
+
+      // Staggered serial execution to reduce burst load on API
+      const activitiesData = await withRetry(() => fetchCustomerActivitiesByLeadId(leadId))
+      await sleep(120)
+      const notesData = await withRetry(() => fetchCustomerNotesByLeadId(leadId))
+      await sleep(120)
+      const tasksData = await withRetry(() => fetchCustomerTasksByLeadId(leadId))
+
+      const sortedActivities = (activitiesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      )
+      const sortedNotes = (notesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      )
+      const sortedTasks = (tasksData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      )
+
+      // Separate regular tasks from approvals based on taskType catalog entry
+      const regularTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
+        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
+      })
+      const approvalTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
+        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
+      })
+
+      setActivities(sortedActivities)
+      setNotes(sortedNotes)
+      setTasks(regularTasks)
+      setApprovals(approvalTasks)
+    } catch (error: any) {
+      console.error('Error loading section data:', error)
+      const message = typeof error?.message === 'string' ? error.message : ''
+      const status = (error && (error.status || error.code)) as number | undefined
+      const is429 = status === 429 || message.includes('429') || message.includes('Too Many Requests')
+      setSectionsError(
+        is429
+          ? getTranslationFromI18nKeyAndLabel('crm.errors.rateLimited', 'Rate limited. Please try again in a moment.')
+          : error instanceof Error
+            ? error.message
+            : 'Failed to load data'
+      )
+    } finally {
+      setSectionsLoading(false)
+    }
+  }, [
+    leadId,
+    props.accessToken,
+    fetchCustomerActivitiesByLeadId,
+    fetchCustomerNotesByLeadId,
+    fetchCustomerTasksByLeadId
+  ])
+
+  // Load section data on mount
+  useEffect(() => {
+    loadSectionData()
+  }, [loadSectionData])
+
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    fetchLeadData()
+    loadSectionData()
+  }, [fetchLeadData, loadSectionData])
+
+  // Listen for process completion events to refresh lead data
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   const getBackButtonText = () => {
     if (fromEntity === 'salesPerformance') {
-      return 'Back to Sales Performance'
+      return getTranslationFromI18nKeyAndLabel('crm.navigation.backToSalesPerformance', 'Back to Sales Performance')
     }
-    return 'Back to Leads'
+    return getTranslationFromI18nKeyAndLabel('crm.navigation.backToLeads', 'Back to Leads')
   }
 
-  // Listen for process completion events to refresh lead data (including status updates)
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        console.log('LeadRecord: Process completion event received:', event)
-
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          console.log('LeadRecord: Refreshing lead data...')
-          refetchLeadData()
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.lead) {
-          console.log('LeadRecord: Refreshing lead data from response...')
-          refetchLeadData()
-        }
-      } catch (err) {
-        console.error('Error handling process completion in LeadRecord:', err)
+  // Memoize header data - must be called before conditional returns
+  const headerDetailGroups = useMemo(
+    () => [
+      {
+        id: 'lead-details',
+        items: [
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.source', 'Source'),
+            value: leadData?.leadSource?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+            icon: User
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.rating', 'Rating'),
+            value: leadData?.leadRating?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+            icon: User
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
+            value: leadData?.ownerEmployee
+              ? `${leadData.ownerEmployee.firstName} ${leadData.ownerEmployee.lastName}`.trim()
+              : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
+            icon: User
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.status', 'Status'),
+            value: leadData?.leadStatus?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+            icon: User
+          }
+        ]
       }
-    }
+    ],
+    [leadData]
+  )
 
-    // Listen to multiple possible event names for lead updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
+  const headerActions = useMemo(() => {
+    const actions: AiAction[] = [
+      {
+        key: 'ai-summary',
+        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+        icon: <Bot size={16} />,
+        hook: aiSummaryHook,
+        config: {
+          entityType: 'lead',
+          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
+          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
+            'crm.ai.summary.lead.subtitle',
+            'Analyzing lead data and activities'
+          )
+        }
+      }
     ]
 
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
+    return (
+      <AiActions
+        actions={actions}
+        dataTestId={`lead-update-button-${leadId}`}
+        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
+      />
+    )
+  }, [aiSummaryHook, leadId])
 
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
+  // Calculate leadName early for use in headerActionButton
+  const leadName =
+    leadData?.companyName ||
+    (leadData?.firstName && leadData?.lastName ? `${leadData.firstName} ${leadData.lastName}`.trim() : '') ||
+    getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
+
+  const headerActionButton = useMemo(
+    () => (
+      <AppAction
+        data-testid="lead-record-action-button"
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerLeadEntity,
+            contextData: { leadId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'lead',
+          entityId: leadId,
+          entityName: leadName,
+          entityUrl: `/platform/crm/lead-record?leadId=${leadId}`
+        }}
+        prefixDataTestId="lead-record-action"
+        accessToken={props.accessToken}
+      />
+    ),
+    [leadId, leadName, props.accessToken]
+  )
+
+  // Action props for sections - must be defined before subViewsConfig
+  const activityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerActivityCreate],
+      externalContextData: {
+        leadId,
+        lead: leadId,
+        salesActivity: { lead: leadId },
+        // Set current user as default owner
+        ...(props.userInfo?.employeeDetails?.employeeId && {
+          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+        }),
+        // Ensure employee details are present
+        ...(props.userInfo?.id && {
+          employeeId: props.userInfo.id,
+          userId: props.userInfo.id,
+          employeeDetails: { userId: props.userInfo.id }
+        })
+      },
+      prefixDataTestId: 'lead-activity'
+    }),
+    [leadId, props.userInfo]
+  )
+
+  const noteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerNoteCreate],
+      externalContextData: {
+        leadId,
+        lead: leadId,
+        crmNote: { lead: leadId }
+      },
+      prefixDataTestId: 'lead-note'
+    }),
+    [leadId]
+  )
+
+  const taskActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerTaskCreate],
+      externalContextData: { leadId },
+      prefixDataTestId: 'lead-task',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [leadId]
+  )
+
+  const approvalActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerTaskCreate],
+      externalContextData: {
+        leadId,
+        typeRef: 'SalesTaskType:v1:APPROVAL',
+        salesTask: { lead: leadId, type: 'SalesTaskType:v1:APPROVAL' }
+      },
+      prefixDataTestId: 'lead-approval',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [leadId]
+  )
+
+  // Header content with status progression
+  const headerContent = useMemo(() => {
+    if (leadStatuses && Array.isArray(leadStatuses) && leadStatuses.length > 0 && leadData) {
+      return (
+        <StatusProgression
+          currentStatus={leadData?.leadStatus?.value || 'New'}
+          statuses={leadStatuses}
+          leadId={leadId}
+          leadVersion={Number.parseInt(leadData?.version || '1', 10) || 0}
+          accessToken={props.accessToken}
+          onStatusUpdate={fetchLeadData}
+        />
+      )
     }
-  }, [leadId, refetchLeadData])
+    return null
+  }, [leadStatuses, leadData, leadId, props.accessToken, fetchLeadData])
+
+  const subViewsConfig = useMemo(
+    () => ({
+      defaultValue: activeTab,
+      onValueChange: handleTabChange,
+      items: [
+        {
+          value: 'overview',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
+          icon: <UserIcon className="gba:mr-2" />,
+          content: (
+            <HomeView
+              leadId={leadId}
+              lead={leadData}
+              rawLeadData={leadData}
+              activities={activities}
+              notes={notes}
+              tasks={tasks}
+              approvals={approvals}
+              sectionsLoading={sectionsLoading}
+              sectionsError={sectionsError}
+              loadSectionData={loadSectionData}
+              activityActionProps={activityActionProps}
+              noteActionProps={noteActionProps}
+              taskActionProps={taskActionProps}
+              approvalActionProps={approvalActionProps}
+              {...props}
+            />
+          )
+        },
+        {
+          value: 'documents',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
+          icon: <FileTextIcon className="gba:mr-2" />,
+          content: (
+            <div className="gba:col-span-12">
+              <DocumentView leadId={leadId} {...props} />
+            </div>
+          )
+        }
+      ]
+    }),
+    [
+      activeTab,
+      handleTabChange,
+      leadId,
+      leadData,
+      props,
+      tasks,
+      approvals,
+      notes,
+      activities,
+      sectionsLoading,
+      sectionsError,
+      loadSectionData,
+      taskActionProps,
+      approvalActionProps,
+      noteActionProps,
+      activityActionProps,
+      leadStatuses,
+      fetchLeadData
+    ]
+  )
 
   if (loading) {
     return (
@@ -89,12 +458,19 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }
 
-  if (error || !lead) {
+  if (error || !leadData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">{error || 'Lead not found'}</p>
-          <Button onClick={onBack} className="gba:mt-4" variant="default">
+          <p className="gba:text-lg" style={{ color: 'var(--nw-color-destructive-600)' }}>
+            {error || getTranslationFromI18nKeyAndLabel('crm.lead.notFound', 'Lead not found')}
+          </p>
+          <Button
+            onClick={onBack}
+            style={{ marginTop: 'var(--nw-spacing-sm)' }}
+            variant="default"
+            data-testid="lead-error-back-button"
+          >
             {getBackButtonText()}
           </Button>
         </div>
@@ -102,93 +478,41 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }
 
-  return (
-    <div
-      className="gba:lead-details-container"
-      data-testid="lead-opportunity-investment-detail"
-      style={{ backgroundColor: 'white', padding: '16px' }}
-    >
-      {/* Back navigation */}
-      <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
-        <button
-          onClick={onBack}
-          className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
-          data-testid="back-button"
-        >
-          <ArrowLeftOutlined className="gba:mr-2" />
-          <span>{getBackButtonText()}</span>
-        </button>
-      </div>
-
-      {/* Lead header */}
-      <LeadHeader
-        lead={lead}
-        leadData={leadData}
-        leadId={leadId}
-        additionalData={props}
-        accessToken={props.accessToken}
-        onStatusUpdate={refetchLeadData}
-      />
-
-      {/* Status Progression */}
-      {!loadingStatuses && leadStatuses.length > 0 && lead && (
-        <StatusProgression
-          currentStatus={leadData?.leadStatus?.value || lead?.status || 'New'}
-          statuses={leadStatuses}
-          leadId={leadId}
-          leadVersion={parseInt(lead.version) || 0}
-          accessToken={props.accessToken}
-          onStatusUpdate={refetchLeadData}
-        />
+  // Create header title with sensitive badge
+  const headerTitle = (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <span>{leadName}</span>
+      {leadData?.sensitive === true && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge data-testid="lead-sensitive-badge" variant="warning" className="gba:text-sm">
+                <FlagIcon className="gba:h-3 gba:w-3" />
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent data-testid="lead-sensitive-tooltip">
+              {getTranslationFromI18nKeyAndLabel('crm.common.sensitive', 'Sensitive')}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
+    </div>
+  )
 
-      {/* Main content with tabs */}
-      <div className="gba:lead-details-content" data-testid="lead-details-content">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
-            <TabsTrigger value="overview" data-testid="overview-tab">
-              <UserOutlined className="gba:mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="documents" data-testid="documents-tab">
-              <FileOutlined className="gba:mr-2" />
-              Documents
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" data-testid="overview-content">
-            {/* First Row: Company Information + Contacts */}
-            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
-              {/* Company Information - 3/4 width */}
-              <div className="gba:col-span-3 gba:flex">
-                <CompanyInformation lead={lead} leadData={leadData} />
-              </div>
-
-              {/* Contacts - 1/4 width */}
-              <div className="gba:col-span-1 gba:flex">
-                <ContactInformation leadData={leadData} leadId={leadId} context={props} />
-              </div>
-            </div>
-
-            {/* Second Row: Activity Timeline + Tasks */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-              {/* Activity Timeline - 1/2 width */}
-              <div>
-                <ActivityTimeline leadId={leadId} context={props} />
-              </div>
-
-              {/* Tasks - 1/2 width */}
-              <div>
-                <TasksSection leadId={leadId} context={props} />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="documents" data-testid="documents-content">
-            <LeadDocuments leadId={leadId} context={props} />
-          </TabsContent>
-        </Tabs>
-      </div>
+  return (
+    <div data-testid="lead-opportunity-investment-detail">
+      <RecordLayout
+        headerOrientation="horizontal"
+        headerIcon={User}
+        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.lead', 'LEAD')}
+        onBack={onBack}
+        headerTitle={headerTitle}
+        headerDetailGroups={headerDetailGroups}
+        headerActions={headerActions}
+        headerActionButton={headerActionButton}
+        headerContent={headerContent}
+        subViews={subViewsConfig}
+      />
     </div>
   )
 }
@@ -210,7 +534,7 @@ const LeadRecord: React.FC<LeadRecordProps> = props => {
   const fromEntity = useMemo(() => {
     const urlFromEntity = new URLSearchParams(window.location.search).get('fromEntity')
     return props.fromEntity || urlFromEntity
-  }, [props.fromEntity, window.location.search])
+  }, [props.fromEntity])
 
   const handleBack = () => {
     if (props.onBack) {
@@ -221,8 +545,8 @@ const LeadRecord: React.FC<LeadRecordProps> = props => {
         // Check if there's an employee ID to navigate back to specific employee performance
         const employeeId = new URLSearchParams(window.location.search).get('employeeId')
         const salesPerformanceUrl = employeeId
-          ? `/platform/crm/sales-performance?employeeId=${employeeId}`
-          : '/platform/crm/sales-performance'
+          ? buildPlatformUrl('/platform/crm/sales-performance', { employeeId })
+          : buildPlatformUrl('/platform/crm/sales-performance', {})
         navigateTo(salesPerformanceUrl)
         return
       }
@@ -230,11 +554,11 @@ const LeadRecord: React.FC<LeadRecordProps> = props => {
       // Default navigation based on source
       switch (source) {
         case 'investments':
-          navigateTo('/platform/irm/investment-relations?view=leads')
+          navigateTo(buildPlatformUrl('/platform/irm/investment-relations', { view: 'leads' }))
           break
         case 'customer-relations':
         default:
-          navigateTo('/platform/crm/customer-relations?view=leads')
+          navigateTo(buildPlatformUrl('/platform/crm/customer-relations', { view: 'leads' }))
           break
       }
     }
@@ -242,12 +566,29 @@ const LeadRecord: React.FC<LeadRecordProps> = props => {
 
   if (!leadId) {
     return (
-      <div data-testid="lead-record-no-id">
-        <p>No lead ID provided</p>
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <div className="gba:text-center">
+          <p
+            className="gba:text-lg"
+            style={{ color: 'var(--nw-color-destructive-600)' }}
+            data-testid="lead-no-id-message"
+          >
+            {getTranslationFromI18nKeyAndLabel('crm.lead.idRequired', 'Lead ID is required')}
+          </p>
+          <Button
+            onClick={handleBack}
+            style={{ marginTop: 'var(--nw-spacing-sm)' }}
+            variant="default"
+            data-testid="lead-no-id-back-button"
+          >
+            {getTranslationFromI18nKeyAndLabel('crm.navigation.backToLeads', 'Back to Leads')}
+          </Button>
+        </div>
       </div>
     )
   }
-  return <LeadRecordContent {...props} leadId={leadId} onBack={handleBack} fromEntity={fromEntity || undefined} />
+
+  return <LeadRecordContent leadId={leadId} onBack={handleBack} fromEntity={fromEntity || undefined} {...props} />
 }
 
 export { LeadRecord, LeadRecordContent }

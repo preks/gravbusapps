@@ -31,7 +31,7 @@ const HeadcountByOrgUnitChart: React.FC<HeadcountByOrgUnitChartProps> = ({ data,
   if (!data || data.length === 0) {
     return (
       <div data-testid={`${dataTestId}-empty`} className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <p className="gba:text-gray-500">No organizational unit data available</p>
+        <p className="gba:text-muted-foreground">No organizational unit data available</p>
       </div>
     )
   }
@@ -40,11 +40,11 @@ const HeadcountByOrgUnitChart: React.FC<HeadcountByOrgUnitChartProps> = ({ data,
     <div data-testid={dataTestId} className="gba:w-full gba:h-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-muted)" />
           <XAxis
             dataKey="orgUnit"
             tick={{ fontSize: 11 }}
-            stroke="#666"
+            stroke="var(--nw-muted-foreground)"
             angle={-45}
             textAnchor="end"
             interval={0}
@@ -52,20 +52,20 @@ const HeadcountByOrgUnitChart: React.FC<HeadcountByOrgUnitChartProps> = ({ data,
           />
           <YAxis
             tick={{ fontSize: 12 }}
-            stroke="#666"
+            stroke="var(--nw-muted-foreground)"
             label={{ value: 'Headcount', angle: -90, position: 'insideLeft' }}
           />
           <Tooltip
             labelFormatter={value => `Department: ${value}`}
             formatter={(value: number) => [value, 'Headcount']}
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #d1d5db',
+              backgroundColor: 'var(--nw-card)',
+              border: '1px solid var(--nw-border)',
               borderRadius: '6px',
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }}
           />
-          <Bar dataKey="headcount" fill="#1890ff" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="headcount" fill="var(--nw-chart-2)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

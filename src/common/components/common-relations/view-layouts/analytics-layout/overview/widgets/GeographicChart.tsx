@@ -1,6 +1,16 @@
 import React, { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, IconAvatar } from '@newwork/nw-design-system'
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  IconAvatar,
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis } from 'recharts'
 import { GlobeIcon } from '@phosphor-icons/react'
 

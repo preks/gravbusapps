@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -98,8 +98,8 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
   const supervisorId = userInfo?.employeeDetails?.employeeId
   const structureId = getCurrentActiveStructureId()
 
-  const [orgUnitCoverage, setOrgUnitCoverage] = useState<CoverageData[]>([])
-  const [matrixCoverage, setMatrixCoverage] = useState<CoverageData[]>([])
+  const [orgUnitCoverage] = useState<CoverageData[]>([])
+  const [matrixCoverage] = useState<CoverageData[]>([])
   const [matrixTeamImpacts, setMatrixTeamImpacts] = useState<MatrixTeamImpact[]>([])
   const [orgUnitImpacts, setOrgUnitImpacts] = useState<OrgUnitImpact[]>([]) // Initialize new state
   const [isLoading, setIsLoading] = useState(true)
@@ -141,7 +141,6 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
 
       const employees = result.employees || []
       const currentAbsences = result.currentAbsences || []
-      const allCapabilities = result.allCapabilities || []
 
       // Create set of absent employee IDs for quick lookup
       const absentEmployeeIds = new Set(currentAbsences.map((absence: any) => absence.employee.id))
@@ -164,20 +163,6 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
         }
       })
 
-      const orgUnitCoverageData: CoverageData[] = Array.from(orgUnitMap.values()).map(unit => {
-        const coverage = calculateCoverage(unit.employees.length, unit.absentEmployees.length)
-        return {
-          id: `org-${unit.name}`,
-          name: unit.name,
-          risk: getRiskLevel(coverage),
-          primaryResources: unit.employees.map((emp: any) => `${emp.firstName} ${emp.lastName}`),
-          backupResources: [], // No backup for org units
-          coverage,
-          totalPeople: unit.employees.length,
-          peopleOff: unit.absentEmployees.length
-        }
-      })
-
       // Calculate Matrix Team Coverage (separate from org units)
       const matrixMap = new Map<string, { name: string; employees: any[]; absentEmployees: any[] }>()
 
@@ -194,20 +179,6 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
             matrix.absentEmployees.push(employee)
           }
         })
-      })
-
-      const matrixCoverageData: CoverageData[] = Array.from(matrixMap.values()).map(matrix => {
-        const coverage = calculateCoverage(matrix.employees.length, matrix.absentEmployees.length)
-        return {
-          id: `matrix-${matrix.name}`,
-          name: matrix.name,
-          risk: getRiskLevel(coverage),
-          primaryResources: matrix.employees.map((emp: any) => `${emp.firstName} ${emp.lastName}`),
-          backupResources: [], // No backup for matrix teams
-          coverage,
-          totalPeople: matrix.employees.length,
-          peopleOff: matrix.absentEmployees.length
-        }
       })
 
       // Calculate Matrix Team Impact Scenarios

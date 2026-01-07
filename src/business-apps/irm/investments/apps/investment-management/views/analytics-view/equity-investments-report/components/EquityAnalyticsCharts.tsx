@@ -17,6 +17,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { ComposedChart, ScatterChart, Scatter, Bar, Line, XAxis, YAxis } from 'recharts'
+import { formatCompactNumber } from '@/common/utils/numberFormatter'
 import { ChartScatterIcon, ChartBarIcon } from '@phosphor-icons/react'
 import type { EquityInvestmentSummary } from '../../../shared/types'
 
@@ -178,7 +179,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
               />
               <ChartTooltip
                 content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
+                  if (active && payload?.length) {
                     const data = payload[0].payload // Get the actual data point
 
                     return (
@@ -263,7 +264,11 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
                 domain={[0, 4]}
                 ticks={[1, 2, 3]}
                 tick={{ fontSize: 12 }}
-                tickFormatter={value => (value === 1 ? 'Follow-on' : value === 2 ? 'Co-Investor' : 'Lead')}
+                tickFormatter={value => {
+                  if (value === 1) return 'Follow-on'
+                  if (value === 2) return 'Co-Investor'
+                  return 'Lead'
+                }}
               />
               <YAxis
                 type="number"
@@ -274,10 +279,15 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
               />
               <ChartTooltip
                 content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
+                  if (active && payload?.length) {
                     const data = payload[0].payload // Get the actual data point
                     const roleValue = data.role
-                    const roleLabel = roleValue === 1 ? 'Follow-on' : roleValue === 2 ? 'Co-Investor' : 'Lead'
+                    let roleLabel = 'Lead'
+                    if (roleValue === 1) {
+                      roleLabel = 'Follow-on'
+                    } else if (roleValue === 2) {
+                      roleLabel = 'Co-Investor'
+                    }
 
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
@@ -354,10 +364,15 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
             <ComposedChart data={concentrationByRoleData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="role" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 12 }}
+                tickFormatter={value => formatCompactNumber(value, 1)}
+              />
               <ChartTooltip
                 content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
+                  if (active && payload?.length) {
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                         <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>

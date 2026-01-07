@@ -1,8 +1,15 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { PiCircle, PiCheckCircle, PiList, PiWarning } from 'react-icons/pi'
 import { VacancyFilter } from '../hooks/useJobPositionListData'
+import translations from '../_i18n'
 
 export type ExtendedVacancyFilter = VacancyFilter | 'missing-profile'
 
@@ -23,30 +30,30 @@ export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
   missingJobProfileCount = 0,
   className = ''
 }) => {
-  const { t } = useTranslation()
+  const { t } = useTranslation(translations)
 
   const options = [
     {
       key: 'vacant' as ExtendedVacancyFilter,
-      label: t('job_position.vacant', 'Vacant'),
+      label: t('hr-positions-vacant'),
       icon: <PiCircle size={16} />,
       color: 'warning'
     },
     {
       key: 'filled' as ExtendedVacancyFilter,
-      label: t('job_position.filled', 'Filled'),
+      label: t('hr-positions-filled'),
       icon: <PiCheckCircle size={16} />,
       color: 'success'
     },
     {
       key: 'all' as ExtendedVacancyFilter,
-      label: t('job_position.all', 'All'),
+      label: t('hr-positions-all'),
       icon: <PiList size={16} />,
       color: 'info'
     },
     {
       key: 'missing-profile' as ExtendedVacancyFilter,
-      label: `${t('job_position.missing_profile', 'Missing Job Profile')} (${missingJobProfileCount})`,
+      label: `${t('hr-positions-missing-profile')} (${missingJobProfileCount})`,
       icon: <PiWarning size={16} />,
       color: 'destructive'
     }

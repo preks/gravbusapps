@@ -3,7 +3,7 @@ import { Table, Card, Typography, Timeline, Button, Space } from 'antd'
 import Pill from '@/components/pill'
 import type { ColumnsType } from 'antd/es/table'
 import { ExpenseRequestTrip } from '../types/expensePlanRecord.types'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi'
 
 interface ExpensePlanTripProps {
@@ -80,10 +80,7 @@ const ExpensePlanTrip: React.FC<ExpensePlanTripProps> = ({ expenseRequestTrips }
   const getDirectionLabel = (direction: string) => {
     switch (direction) {
       case 'GO':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.add_request_trip_details.destination_info',
-          'Outbound'
-        )
+        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.outbound', 'Outbound')
       case 'BACK':
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:expense_request_overview.trip_list.location_title.start_location',
@@ -202,7 +199,13 @@ const ExpensePlanTrip: React.FC<ExpensePlanTripProps> = ({ expenseRequestTrips }
       ),
       dataIndex: ['country', 'value'],
       key: 'country',
-      render: (text: string) => <Pill type="waiting" label={text} data-testid="country-pill" />
+      render: (_: string, record) => (
+        <Pill
+          type="waiting"
+          label={getCatalogValue((record as any)?.country) || (record as any)?.country?.value || '-'}
+          data-testid="country-pill"
+        />
+      )
     },
     {
       title: getTranslationFromI18nKeyAndLabel(
@@ -211,7 +214,13 @@ const ExpensePlanTrip: React.FC<ExpensePlanTripProps> = ({ expenseRequestTrips }
       ),
       dataIndex: ['travelRegion', 'value'],
       key: 'travelRegion',
-      render: (text: string) => <Pill type="task" label={text} data-testid="travel-region-pill" />
+      render: (_: string, record) => (
+        <Pill
+          type="task"
+          label={getCatalogValue((record as any)?.travelRegion) || (record as any)?.travelRegion?.value || '-'}
+          data-testid="travel-region-pill"
+        />
+      )
     }
   ]
 
@@ -233,8 +242,16 @@ const ExpensePlanTrip: React.FC<ExpensePlanTripProps> = ({ expenseRequestTrips }
               </div>
               <Text>{trip.address}</Text>
               <div className="gba:mt-1">
-                <Pill type="waiting" label={trip.country.value} data-testid="timeline-country-pill" />
-                <Pill type="task" label={trip.travelRegion.value} data-testid="timeline-travel-region-pill" />
+                <Pill
+                  type="waiting"
+                  label={getCatalogValue(trip.country) || trip.country.value}
+                  data-testid="timeline-country-pill"
+                />
+                <Pill
+                  type="task"
+                  label={getCatalogValue(trip.travelRegion) || trip.travelRegion.value}
+                  data-testid="timeline-travel-region-pill"
+                />
               </div>
             </div>
           ),

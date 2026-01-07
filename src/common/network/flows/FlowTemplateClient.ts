@@ -118,7 +118,7 @@ interface ApiResponse<T> {
 export class FlowTemplateClient extends RestClient {
   constructor(accessToken: string) {
     // Use our custom flow engine API endpoint
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
     super(`${baseUrl}/api/templates`, {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json'

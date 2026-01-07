@@ -8,7 +8,12 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
 } from '@newwork/nw-design-system'
 import { PieChartOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons'
 import { BarChart } from 'lucide-react'
@@ -17,8 +22,8 @@ import { WidgetGroup } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useInvestmentPortfolioIntegration, usePortfolioChartData } from './hooks'
-import { formatCurrency } from './utils'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
+import { useInvestmentPortfolioIntegration } from './hooks'
 import { PortfolioTimelineCharts } from './components/PortfolioTimelineCharts'
 import { PortfolioAnalyticsCharts } from './components/PortfolioAnalyticsCharts'
 import { PortfolioDistributionCharts } from './components/PortfolioDistributionCharts'
@@ -41,9 +46,15 @@ const calculateChange = (current: number, previous: number): { value: string; po
 const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'InvestmentPortfolioOverview'
   const [activeTab, setActiveTab] = useState('distribution')
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
-  const { investments, kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props)
-  const chartData = usePortfolioChartData(investments)
+  const { kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props, selectedCurrency)
+
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(props, {
+    filters: { entity: 'Investment' },
+    returnFormat: 'codes'
+  })
 
   if (isLoading) {
     return (
@@ -86,6 +97,26 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             {getTranslationFromI18nKeyAndLabel('investment.portfolio.items', 'investments')}
           </Badge>
         </div>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+            {getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:')}
+          </span>
+          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+            <SelectTrigger
+              className="gba:w-24 gba:h-8"
+              data-testid={formatDataTestId(prefixDataTestId, 'CurrencyFilter')}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCurrencies.map(currency => (
+                <SelectItem key={currency} value={currency}>
+                  {currency}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -95,16 +126,23 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             {
               key: 'total-portfolio-value',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalPortfolioValue', 'Total Portfolio Value'),
-              value: formatCurrency(kpis.totalPortfolioValue),
+              value: new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: selectedCurrency,
+                notation: 'compact',
+                compactDisplay: 'short',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 1
+              }).format(kpis.totalPortfolioValue),
               prefix: <PieChartOutlined />,
               color: 'var(--nw-color-primary-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Current market valuation across all investments',
+              description: 'All investments',
               trend: {
                 value: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).value,
                 positive: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).positive,
-                description: 'vs 7 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -114,26 +152,33 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               prefix: <BarChartOutlined />,
               color: 'var(--nw-color-success-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Total number of investment positions',
+              description: 'Investment count',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs 7 days ago'
+                description: 'vs last quarter'
               }
             },
             {
               key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
-              value: formatCurrency(kpis.totalAmountInvested),
+              value: new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: selectedCurrency,
+                notation: 'compact',
+                compactDisplay: 'short',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 1
+              }).format(kpis.totalAmountInvested),
               prefix: <BarChartOutlined />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Sum of all total invested amounts',
+              description: 'Total capital',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs 7 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -143,11 +188,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               prefix: <RiseOutlined />,
               color: 'var(--nw-color-purple-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Currently active investment positions',
+              description: 'Active positions',
               trend: {
                 value: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).value,
                 positive: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).positive,
-                description: 'vs 7 days ago'
+                description: 'vs last quarter'
               }
             }
           ]}
@@ -191,10 +236,9 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             data-testid={formatDataTestId(prefixDataTestId, 'DistributionContent')}
           >
             <PortfolioDistributionCharts
-              investmentGroupData={chartData.investmentGroupData}
-              statusData={chartData.statusData}
-              currencyData={chartData.currencyData}
-              rawInvestments={investments}
+              {...props}
+              masterCurrency={selectedCurrency}
+              availableCurrencies={availableCurrencies}
             />
           </TabsContent>
 
@@ -204,9 +248,9 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             data-testid={formatDataTestId(prefixDataTestId, 'TimelineContent')}
           >
             <PortfolioTimelineCharts
-              performanceTimelineData={chartData.performanceTimelineData}
-              valueOverTimeData={chartData.valueOverTimeData}
-              rawInvestments={investments}
+              {...props}
+              masterCurrency={selectedCurrency}
+              availableCurrencies={availableCurrencies}
             />
           </TabsContent>
 
@@ -217,8 +261,9 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
           >
             <div className="gba:grid gba:grid-cols-1 gba:lg:gba:grid-cols-2 gba:gap-6">
               <PortfolioAnalyticsCharts
-                concentrationByGroupData={chartData.concentrationByGroupData}
-                valueByAccountData={chartData.valueByAccountData}
+                masterCurrency={selectedCurrency}
+                availableCurrencies={availableCurrencies}
+                accessToken={props.accessToken}
               />
             </div>
           </TabsContent>

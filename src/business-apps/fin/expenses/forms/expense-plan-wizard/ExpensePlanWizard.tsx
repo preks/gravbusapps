@@ -45,7 +45,8 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
     showExpenseItem,
     expenseItemParams,
     hideExpenseItem,
-    setRequestAdvancePayment
+    setRequestAdvancePayment,
+    refetchExpenseData
   } = useExpensePlanWizardContext()
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.LOAD_TAB)
@@ -181,16 +182,45 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
     setIsEditingTitle(false)
   }
 
-  // useEffect for screen navigation based on data
+  // useEffect for initial screen setup ONLY
+  const hasInitializedRef = React.useRef(false)
   useEffect(() => {
-    setInitialScreen(additionalData, expensePlanData, isTrip, setCurrentScreen, setRequestAdvancePayment, currentScreen)
-  }, [expensePlanData, isTrip, loading, additionalData])
+    if (!loading && expensePlanData && !hasInitializedRef.current) {
+      setInitialScreen(
+        additionalData,
+        expensePlanData,
+        isTrip,
+        setCurrentScreen,
+        setRequestAdvancePayment,
+        currentScreen
+      )
+      hasInitializedRef.current = true
+    }
+  }, [loading, expensePlanData])
+
+  // Listen for process events (Next/Back button clicks) to navigate
+  useEffect(() => {
+    if (hasInitializedRef.current && expensePlanData) {
+      setInitialScreen(
+        additionalData,
+        expensePlanData,
+        isTrip,
+        setCurrentScreen,
+        setRequestAdvancePayment,
+        currentScreen
+      )
+    }
+  }, [additionalData])
 
   const navigateToNextScreen = () => {
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
-        if (!isTrip) setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB)
-        else setCurrentScreen(SCREEN_NAMES_ENUM.PAYMENT_TAB)
+        if (!isTrip) {
+          refetchExpenseData() // Refetch data before showing summary
+          setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB)
+        } else {
+          setCurrentScreen(SCREEN_NAMES_ENUM.PAYMENT_TAB)
+        }
         break
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB)
@@ -199,6 +229,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB)
         break
       case SCREEN_NAMES_ENUM.PAYMENT_TAB:
+        refetchExpenseData() // Refetch data before showing summary
         setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB)
         break
       default:
@@ -293,7 +324,10 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
       <ExpensePlanItem
         accessToken={accessToken}
         userInfo={userInfo}
-        additionalData={expenseItemParams}
+        additionalData={{
+          ...expenseItemParams
+          // DO NOT pass psi_taskPayload - prevents ExpensePlanItem from dispatching process events
+        }}
         onClose={hideExpenseItem}
       />
     )
@@ -704,7 +738,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                   }}
                 >
                   {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
-                    ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.btn_submit', 'Submit')
+                    ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
                     : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
                 </Button>
               </div>

@@ -29,7 +29,8 @@ export interface UsePerformanceStatisticsDataReturn {
 
 export const usePerformanceStatisticsData = (
   context: BusinessAppContextProps,
-  employeeId: string
+  employeeId: string,
+  currencyCode?: string
 ): UsePerformanceStatisticsDataReturn => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -85,23 +86,24 @@ export const usePerformanceStatisticsData = (
     setError(null)
 
     try {
-      const response = await graphqlClient.request<PerformanceStatisticsResponse>(GET_ALL_PERFORMANCE_STATISTICS, {
+      const query = GET_ALL_PERFORMANCE_STATISTICS(currencyCode)
+      const response = await graphqlClient.request<PerformanceStatisticsResponse>(query, {
         employeeId
       })
 
-      // Extract counts from response
-      const totalLeads = response.totalLeads?.aggregate?.count || 0
-      const convertedLeads = response.convertedLeads?.aggregate?.count || 0
-      const totalContacts = response.totalContacts?.aggregate?.count || 0
-      const contactsWithSalesActivity = response.contactsWithSalesActivity?.aggregate?.count || 0
-      const totalOpportunities = response.totalOpportunities?.aggregate?.count || 0
-      const wonOpportunities = response.wonOpportunities?.aggregate?.count || 0
-      const totalAccounts = response.totalAccounts?.aggregate?.count || 0
-      const accountsRevenue = response.accountsRevenue?.aggregate?.sum?.estimatedAmount || 0
+      // Extract counts from response - handle both possible response structures
+      const totalLeads = response.totalLeads?.aggregate?.count ?? 0
+      const convertedLeads = response.convertedLeads?.aggregate?.count ?? 0
+      const totalContacts = response.totalContacts?.aggregate?.count ?? 0
+      const contactsWithSalesActivity = response.contactsWithSalesActivity?.aggregate?.count ?? 0
+      const totalOpportunities = response.totalOpportunities?.aggregate?.count ?? 0
+      const wonOpportunities = response.wonOpportunities?.aggregate?.count ?? 0
+      const totalAccounts = response.totalAccounts?.aggregate?.count ?? 0
+      const accountsRevenue = response.accountsRevenue?.aggregate?.sum?.estimatedAmount ?? 0
 
       // Get currency from sample opportunity
       const sampleOpp = response.sampleOpportunity?.[0]
-      const currencyCode = extractCurrencyCode(sampleOpp?.currencyRef, sampleOpp?.currency)
+      const detectedCurrencyCode = extractCurrencyCode(sampleOpp?.currencyRef, sampleOpp?.currency)
 
       // Calculate percentages
       const leadsConversionRate = calculatePercentage(convertedLeads, totalLeads)
@@ -128,7 +130,7 @@ export const usePerformanceStatisticsData = (
         accountsManaged: {
           total: totalAccounts,
           revenue: accountsRevenue,
-          currencyId: currencyCode
+          currencyId: detectedCurrencyCode
         }
       }
 
@@ -140,7 +142,7 @@ export const usePerformanceStatisticsData = (
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, employeeId, graphqlClient, extractCurrencyCode, calculatePercentage])
+  }, [context.accessToken, employeeId, currencyCode, graphqlClient, extractCurrencyCode, calculatePercentage])
 
   // Fetch data when dependencies change
   useEffect(() => {

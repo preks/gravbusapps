@@ -38,20 +38,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       {/* Time Filter */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.dashboard_analytics',
               'Dashboard Analytics'
             )}
           </h2>
-          <p className="gba:text-sm gba:text-gray-500">
+          <p className="gba:text-sm gba:text-muted-foreground">
             {dashboardData?.isLoading
               ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.loading', 'Loading...')
               : `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.showing_absences', 'Showing')} ${dashboardData?.totalAbsences || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absences', 'absences')}`}
           </p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-3">
-          <span className="gba:text-sm gba:text-gray-600">
+          <span className="gba:text-sm gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.time_period', 'Time Period')}
             :
           </span>

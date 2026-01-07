@@ -1,11 +1,11 @@
-import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, ReactNode, useMemo, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
 import ExpenseRequestStatistics from './ExpenseRequestStatistics'
 import ExpenseRequestsTable from './ExpenseRequestsTable'
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests'
 import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters'
-import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies'
+import { useExpenseRequestCurrencies } from '../../../hooks/useExpenseRequestCurrencies'
 import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
 import { message } from 'antd'
 import { getRequestCardStrategies, preserveCurrencyAndReset } from './cardStrategies'
@@ -48,7 +48,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     setStartDateRange,
     setEndDateRange,
     setRequestDateRange,
-    // @ts-ignore - new field exists in hook state
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
@@ -60,12 +59,18 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     () => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'),
     [selectedFilters]
   )
-  // Only apply currency filter to table data when a currency is explicitly selected
   const explicitSelectedCurrencyRef = useMemo(() => {
     const token = selectedFilters.find(f => f.startsWith('currency:'))
     return token ? token.substring('currency:'.length) : undefined
   }, [selectedFilters])
-  const { currencyStats } = useExpenseCurrencies(contextProps, selectedFilters, setFilters)
+  const { currencyStats, initialized: currenciesInitialized } = useExpenseRequestCurrencies(
+    contextProps,
+    selectedFilters,
+    setFilters
+  )
+
+  // Track previous filters to reset pagination when filters change.
+  const prevSelectedFiltersRef = useRef<string | null>(null)
 
   // Helper function to get current month date range
   // Removed local getCurrentMonthRange; card strategy handles current month range
@@ -104,19 +109,29 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     ]
   )
 
-  // Memoize the filters to prevent unnecessary API calls
+  // Memoize the filters to prevent unnecessary API calls.
+  // When a currency is selected, we match either by exact currencyRef OR by currency.code
+  // so that different ref versions (v1/v2) still produce correct results.
   const memoizedFilters = useMemo(() => {
     const base = getFilters()
-    // Do NOT filter by currency unless explicitly selected by the user
     if (explicitSelectedCurrencyRef) {
+      const selectedCode = (explicitSelectedCurrencyRef.split(':').pop() || '').toUpperCase()
       base._and = base._and || []
-      base._and.push({ currencyRef: { _eq: explicitSelectedCurrencyRef } })
+      base._and.push({
+        _or: [
+          { currencyRef: { _eq: explicitSelectedCurrencyRef } },
+          ...(selectedCode ? [{ currency: { code: { _eq: selectedCode } } }] : [])
+        ]
+      } as any)
     }
     return base
   }, [getFilters, explicitSelectedCurrencyRef])
 
   // Only fetch when filters, page, pageSize, or sorting changes
   useEffect(() => {
+    // Avoid duplicate initial queries: wait until currency preselection flow completes
+    if (!currenciesInitialized) return
+
     if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
       fetchItems(memoizedFilters, currentPage, pageSize, sortField, sortOrder)
     }
@@ -128,8 +143,21 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     sortField,
     sortOrder,
     contextProps.accessToken,
-    contextProps.userInfo?.employeeDetails?.employeeId
+    contextProps.userInfo?.employeeDetails?.employeeId,
+    currenciesInitialized
   ])
+
+  // Reset pagination when filters change (e.g., applying a status filter while on a later page).
+  useEffect(() => {
+    const currentFiltersKey = JSON.stringify(selectedFilters)
+    const previousFiltersKey = prevSelectedFiltersRef.current
+
+    if (previousFiltersKey !== null && previousFiltersKey !== currentFiltersKey) {
+      setCurrentPage(1)
+    }
+
+    prevSelectedFiltersRef.current = currentFiltersKey
+  }, [selectedFilters])
 
   // Process completion event listener to refresh data
   useEffect(() => {
@@ -137,7 +165,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       try {
         if (event.detail?.resolution === 'success') {
           // Refresh expense requests data after successful process completion
-          if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
+          if (currenciesInitialized && contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
             fetchItems(memoizedFilters, currentPage, pageSize, sortField, sortOrder)
           }
 
@@ -191,6 +219,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
         {...contextProps}
         currencyCode={selectedCurrencyRef?.split(':').pop() || 'EUR'}
         {...({ selectedCurrencyRef } as any)}
+        {...({ currencyInitialized: currenciesInitialized } as any)}
         onWidgetClick={handleWidgetClick}
         activeWidgetKey={activeWidget || undefined}
       />
@@ -272,7 +301,11 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   // Adapter function for DataFilter component
   const handleFilterChangeCallback = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )

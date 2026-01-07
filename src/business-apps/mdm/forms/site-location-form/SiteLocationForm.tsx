@@ -51,7 +51,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   const { t } = useTranslation('master-data')
   const restClient = useRestClient(ORGCHART_BASE_URL)
   const [countriesOptions, setCountriesOptions] = useState<Array<{ value: string; label: string; code: string }>>([])
-  const [regions, setRegions] = useState<Array<{ value: string; label: string }>>([])
+  const [regions, setRegions] = useState<Array<{ value: string; label: string; code: string }>>([])
   const [isLoadingRegions, setIsLoadingRegions] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -135,6 +135,10 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
       setLoading(true)
+      const regionCode = values.region ? regions.find(region => region.value === values.region)?.code : undefined
+      const countryCode = values.country
+        ? countriesOptions.find(country => country.value === values.country)?.code
+        : undefined
 
       const siteLocationData = {
         structureId,
@@ -151,8 +155,8 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
           : {}),
         ...(values.postalCode ? { postalCode: values.postalCode } : {}),
         locality: values.city,
-        ...(values.region ? { region_ref: `CountryRegion:v1:${values.region}` } : {}),
-        country_ref: values.country ? `Country:v1:${values.country}` : undefined
+        ...(regionCode ? { region_ref: `CountryRegion:v1:${regionCode}` } : {}),
+        country_ref: countryCode ? `Country:v1:${countryCode}` : undefined
       }
 
       if (isEditSiteLocation && siteLocation?.id) {

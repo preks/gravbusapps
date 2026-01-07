@@ -6,6 +6,7 @@ import { useEmployeeDetails } from '../hooks/useEmployeeDetails'
 
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { FeedbackRequestClient } from '@/common/network/feedback-request/FeedbackRequestClient'
 
 interface FeedbackRequestFormContextType {
   formValues: FeedbackRequestFormValues
@@ -43,13 +44,14 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
   children,
   businessAppContext,
   initialValues = {},
-  onSubmit = async () => {},
   onCancel = async () => {},
   preSelectedEmployeeId
 }) => {
   const [formValues, setFormValues] = useState<FeedbackRequestFormValues>({
     employeeId: undefined,
     employeeName: undefined,
+    employeeIds: [],
+    employeeNames: [],
     requestMessage: '',
     ...initialValues
   })
@@ -80,19 +82,46 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
     getEmployeeById
   } = useStructureEmployees(businessAppContext.accessToken, !hasPreSelectedEmployee, currentUserEmployeeId)
 
+  // Keep a map of all employees we've seen across searches so we can resolve
+  // selected IDs even if they are not in the latest search result list
+  const [knownEmployees, setKnownEmployees] = useState<Map<string, EmployeeOption>>(new Map())
+
+  useEffect(() => {
+    if (employees && employees.length > 0) {
+      setKnownEmployees(prev => {
+        const next = new Map(prev)
+        employees.forEach(emp => next.set(emp.id, emp))
+        return next
+      })
+    }
+  }, [employees])
+
+  useEffect(() => {
+    if (preSelectedEmployee) {
+      setKnownEmployees(prev => {
+        const next = new Map(prev)
+        next.set(preSelectedEmployee.id, preSelectedEmployee)
+        return next
+      })
+    }
+  }, [preSelectedEmployee])
+
   const updateFormValues = useCallback((values: Partial<FeedbackRequestFormValues>) => {
     setFormValues(prev => ({ ...prev, ...values }))
   }, [])
 
   // Handle pre-selected employee
   useEffect(() => {
-    if (preSelectedEmployee && !formValues.employeeId && !isPreSelectedEmployeeCurrentUser) {
+    if (preSelectedEmployee && !isPreSelectedEmployeeCurrentUser) {
+      // Set both single and multi-select values for compatibility
       updateFormValues({
         employeeId: preSelectedEmployee.id,
-        employeeName: preSelectedEmployee.name
+        employeeName: preSelectedEmployee.name,
+        employeeIds: [preSelectedEmployee.id],
+        employeeNames: [preSelectedEmployee.name]
       })
     }
-  }, [preSelectedEmployee, formValues.employeeId, updateFormValues, isPreSelectedEmployeeCurrentUser])
+  }, [preSelectedEmployee, updateFormValues, isPreSelectedEmployeeCurrentUser])
 
   const clearError = useCallback(() => {
     setError(null)
@@ -108,11 +137,20 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
   )
 
   const handleSubmit = useCallback(async () => {
-    if (!formValues.employeeId) {
+    const selectedIds =
+      formValues.employeeIds && formValues.employeeIds.length > 0
+        ? formValues.employeeIds
+        : formValues.employeeId
+          ? [formValues.employeeId]
+          : []
+
+    console.log(selectedIds, 'selectedIds')
+
+    if (selectedIds.length === 0) {
       setError(
         getTranslationFromI18nKeyAndLabel(
           'feedback.request.noEmployee',
-          'Please select an employee to request feedback from'
+          'Please select at least one employee to request feedback from'
         )
       )
       return
@@ -127,36 +165,65 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
     setError(null)
 
     try {
-      // Get the selected employee to access their user ID
-      const selectedEmployee = formValues.employeeId
-        ? preSelectedEmployee?.id === formValues.employeeId
-          ? preSelectedEmployee
-          : getEmployeeById(formValues.employeeId)
-        : null
+      // Resolve employees and collect userIds (fallback to employeeId)
+      const resolvedEmployees = selectedIds
+        .map(id => {
+          if (preSelectedEmployee?.id === id) return preSelectedEmployee
+          return knownEmployees.get(id) || getEmployeeById(id)
+        })
+        .filter(Boolean) as EmployeeOption[]
 
-      if (!selectedEmployee) {
+      if (resolvedEmployees.length === 0) {
         throw new Error(
           getTranslationFromI18nKeyAndLabel('feedback.request.employeeNotFound', 'Selected employee not found')
         )
       }
 
-      // Create payload for the request feedback endpoint
-      const payload: FeedbackRequestPayload = {
-        requestedFrom: selectedEmployee.userId || selectedEmployee.id, // userId of the person to request feedback from (fallback to employeeId if userId not available)
-        creatorUserId: currentUserEmployeeId, // employeeId of the logged in person (creator)
-        requestMessage: formValues.requestMessage // optional message to include with the request
-      }
+      console.log(resolvedEmployees, 'resolvedEmployees')
 
-      // Dispatch submit event to close the modal and continue the process
-      // The actual API call will be handled by the Kogito process
-      dispatchProcessContinueEvent('pse_submit', payload)
+      const requestedFromList = resolvedEmployees.map(emp => emp.userId || emp.id)
+
+      console.log(requestedFromList, 'requestedFromList')
+
+      // If multiple selections, send first via process event and the rest via bulk endpoint
+      if (requestedFromList.length > 1) {
+        const client = new FeedbackRequestClient()
+        client.setAccessToken(businessAppContext.accessToken)
+
+        const [firstRequested, ...remainingRequested] = requestedFromList
+
+        await client.bulkRequestFeedback({
+          requestedFromList: remainingRequested,
+          creatorUserId: currentUserEmployeeId,
+          requestMessage: formValues.requestMessage
+        })
+
+        // Dispatch the first request through the process event to keep compatibility
+        const payload: FeedbackRequestPayload = {
+          requestedFrom: firstRequested,
+          requestedFromList,
+          creatorUserId: currentUserEmployeeId,
+          requestMessage: formValues.requestMessage
+        }
+        dispatchProcessContinueEvent('pse_submit', payload)
+      } else {
+        // Single selection - preserve original behavior
+        const payload: FeedbackRequestPayload = {
+          requestedFrom: requestedFromList[0],
+          requestedFromList,
+          creatorUserId: currentUserEmployeeId,
+          requestMessage: formValues.requestMessage
+        }
+        dispatchProcessContinueEvent('pse_submit', payload)
+      }
+      // Do not reset isLoading here; allow host to close the screen
+      return
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : getTranslationFromI18nKeyAndLabel('feedback.request.error', 'Failed to send feedback request')
       )
-    } finally {
       setIsLoading(false)
     }
   }, [formValues, currentUserEmployeeId, preSelectedEmployee, getEmployeeById, businessAppContext.accessToken])
@@ -172,6 +239,7 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
       dispatchProcessContinueEvent('pse_cancel', {})
     } catch (err) {
       // Silent error handling for cancellation
+      console.error('Error :', err)
     }
   }, [onCancel])
 

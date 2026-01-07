@@ -69,28 +69,28 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
           iconBg: 'gba:bg-green-50',
           iconColor: 'gba:text-green-500',
           statsBg: '#10B981',
-          statsText: 'gba:text-white'
+          statsText: 'gba:text-hsl(var(--background))'
         }
       case 'customer':
         return {
           iconBg: 'gba:bg-blue-50',
           iconColor: 'gba:text-blue-500',
           statsBg: '#3B82F6',
-          statsText: 'gba:text-white'
+          statsText: 'gba:text-hsl(var(--background))'
         }
       case 'intelligence':
         return {
           iconBg: 'gba:bg-purple-50',
           iconColor: 'gba:text-purple-500',
           statsBg: '#8B5CF6',
-          statsText: 'gba:text-white'
+          statsText: 'gba:text-hsl(var(--background))'
         }
       default:
         return {
           iconBg: 'gba:bg-gray-50',
           iconColor: 'gba:text-gray-600',
           statsBg: '#6B7280',
-          statsText: 'gba:text-white'
+          statsText: 'gba:text-hsl(var(--background))'
         }
     }
   }
@@ -137,7 +137,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
 
   return (
     <Card
-      className="gba:group gba:cursor-pointer gba:transition-all gba:duration-300 gba:h-full gba:min-h-96 gba:bg-white/95 gba:backdrop-blur-md gba:border gba:border-white/30 hover:gba:shadow-2xl hover:gba:border-white/50 hover:gba:bg-white hover:gba:scale-105 gba:rounded-xl gba:overflow-hidden gba:flex gba:flex-col"
+      className="gba:group gba:cursor-pointer gba:transition-all gba:duration-300 gba:h-full gba:min-h-96 gba:bg-hsl(var(--background))/95 gba:backdrop-blur-md gba:border gba:border-hsl(var(--background))/30 hover:gba:shadow-2xl hover:gba:border-hsl(var(--background))/50 hover:gba:bg-hsl(var(--background)) hover:gba:scale-105 gba:rounded-xl gba:overflow-hidden gba:flex gba:flex-col"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}

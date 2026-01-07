@@ -38,7 +38,7 @@ const MessageSection: React.FC<MessageSectionProps> = ({
         value={message}
         onChange={e => onMessageChange(e.target.value)}
         className="gba:border-none gba:resize-none gba:p-2 gba:text-xs gba:rounded-none"
-        style={{ backgroundColor: '#f3f4f6' }}
+        style={{ backgroundColor: 'muted' }}
         data-testid={`${prefixDataTestId}-message-textarea`}
       />
 

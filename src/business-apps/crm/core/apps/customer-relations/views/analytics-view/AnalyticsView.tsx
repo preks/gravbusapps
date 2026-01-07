@@ -1,77 +1,221 @@
-import React, { useState } from 'react'
-import { Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
+import React, { useEffect } from 'react'
+import { Alert, AlertTitle, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AnalyticsLayout } from '@/common/components/common-relations/view-layouts/analytics-layout/AnalyticsLayout'
+import {
+  buildAccountsProps,
+  buildLeadsProps,
+  buildOpportunitiesProps,
+  buildContactsProps,
+  buildOverviewProps
+} from '@/common/components/common-relations/view-layouts/analytics-layout/utils/propBuilders'
+import { useAnalyticsState } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useAnalyticsState'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'
-import { useOpportunityTrendData } from './hooks/useOpportunityTrendData'
 import { useOpportunitiesByStage } from './hooks/useOpportunitiesByStage'
-import { useContactsOverTime as useCustomerContactsOverTime } from './hooks/useContactsOverTime'
+import { useContactsOverTime } from './hooks/useContactsOverTime'
+import { useContactsStaticData } from './hooks/useContactsStaticData'
 import { useContactInsights } from './hooks/useContactInsights'
 import { useContactQualityData } from './hooks/useContactQualityData'
 import { useTopRevenueEarners } from './hooks/useTopRevenueEarners'
-import { useAccountsCount } from './hooks/useAccountsCount'
 import { useCrmAnalyticsData } from './hooks/useCrmAnalyticsData'
-import { useKpiTrendData } from './hooks/useKpiTrendData'
+import { useOverviewData } from './hooks/useOverviewData'
 import { useRevenueTrends } from './hooks/useRevenueTrends'
 import { usePipelineHealth } from './hooks/usePipelineHealth'
 import { useActivityHeatmap } from './hooks/useActivityHeatmap'
-import { useGeographicDistribution } from './hooks/useGeographicDistribution'
+import { usePipelines } from './hooks/usePipelines'
 import { useOpportunityVelocityData } from './hooks/useOpportunityVelocityData'
 import { useDealHealthData } from './hooks/useDealHealthData'
 import { useLeadsTrendData } from './hooks/useLeadsTrendData'
+import { useLeadsOverTime } from './hooks/useLeadsOverTime'
+import { useLeadsStaticData } from './hooks/useLeadsStaticData'
+import { useAccountsStaticData } from './hooks/useAccountsStaticData'
+import { useAccountsOverTime } from './hooks/useAccountsOverTime'
+import { useTopAccountsByRevenue } from './hooks/useTopAccountsByRevenue'
+import { useOpportunitiesStaticData } from './hooks/useOpportunitiesStaticData'
+import { useTopDeals } from './hooks/useTopDeals'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
   moduleColor?: string
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'default', ...context }) => {
-  const [leadsTimeFilter, setLeadsTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
-    'quarter'
-  )
-  const [oppTimeFilter, setOppTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
-    'quarter'
-  )
-  const [contactsTimeFilter, setContactsTimeFilter] = useState<
-    'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
-  >('quarter')
-  const [revenueTimeFilter, setRevenueTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
-    'sixMonths'
-  )
-  const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined)
-
-  // Helper function to convert our time filter to contacts time filter
-  const convertToContactsTimeFilter = (
-    filter: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
-  ): 'month' | 'quarter' | 'year' | 'historical' => {
-    if (filter === 'sixMonths') return 'quarter' // Map sixMonths to quarter for contacts
-    return filter
-  }
-
-  // Data hooks
-  const { data, isLoading, error, refetch } = useCrmAnalyticsData(context)
-  const { trendData: kpiTrendData } = useKpiTrendData(context.accessToken)
-  const { revenueTrends, isLoading: revenueLoading } = useRevenueTrends(context.accessToken, revenueTimeFilter)
-  const { pipelineHealth, isLoading: pipelineHealthLoading } = usePipelineHealth(context.accessToken)
-  const { activityData: activityHeatmap, isLoading: activityLoading } = useActivityHeatmap(context.accessToken)
-  const { geographicData, isLoading: geoLoading } = useGeographicDistribution(context.accessToken)
-  const { data: oppVelocityData } = useOpportunityVelocityData(context.accessToken)
-  const { data: oppHealthData } = useDealHealthData(context.accessToken)
-  const { trendData: leadsTrendData, isLoading: leadsTrendLoading } = useLeadsTrendData(
-    context.accessToken,
-    leadsTimeFilter as 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
-  )
-  const { data: oppLifecycleData } = useOpportunitiesOverTime(context.accessToken, oppTimeFilter, selectedPipelineId)
-  const { trendData: oppTrendData } = useOpportunityTrendData(context.accessToken, 'quarter')
-  const { data: oppStageAll } = useOpportunitiesByStage(context.accessToken)
-  const { data: contactsMetrics } = useCustomerContactsOverTime({
-    accessToken: context.accessToken,
-    timeFilter: convertToContactsTimeFilter(contactsTimeFilter)
+  // Shared state management hook - handles all tab state, filters, and currencies
+  const {
+    activeTab: activeAnalyticsTab,
+    handleTabChange: handleAnalyticsTabChange,
+    leadsTimeFilter,
+    setLeadsTimeFilter,
+    accountsTimeFilter,
+    setAccountsTimeFilter,
+    oppTimeFilter,
+    setOppTimeFilter,
+    contactsTimeFilter,
+    setContactsTimeFilter,
+    revenueTimeFilter,
+    setRevenueTimeFilter,
+    revenuePipelineId,
+    setRevenuePipelineId,
+    healthPipelineId,
+    setHealthPipelineId,
+    oppLifecyclePipelineId,
+    setOppLifecyclePipelineId,
+    selectedStagePipelineId,
+    setSelectedStagePipelineId,
+    kpiCurrency,
+    setKpiCurrency,
+    revenueCurrency,
+    setRevenueCurrency,
+    accountsCurrency,
+    setAccountsCurrency,
+    opportunitiesKpiCurrency,
+    setOpportunitiesKpiCurrency,
+    topDealsCurrency,
+    setTopDealsCurrency,
+    topPerformersCurrency,
+    setTopPerformersCurrency
+  } = useAnalyticsState({
+    defaultCurrency: 'EUR',
+    defaultTimeFilter: 'quarter',
+    enableTopPerformersCurrency: true // CRM has top performers
   })
-  const { data: contactInsights } = useContactInsights(context.accessToken)
-  const { data: contactQuality } = useContactQualityData(context.accessToken)
-  const { contacts: topRevenueContacts, isLoading: topRevenueLoading } = useTopRevenueEarners(context.accessToken)
-  const { count: customerAccountCount } = useAccountsCount(context.accessToken)
+
+  // Fetch available currencies
+  const { currencies: currencyOptions } = useAvailableCurrencies(context, {
+    filters: {
+      entity: 'Opportunity'
+    },
+    returnFormat: 'codes'
+  })
+
+  const availableCurrencies = currencyOptions as string[]
+
+  // Fetch available pipelines for filtering (for Overview and Opportunities tabs)
+  const { pipelines } = usePipelines(
+    activeAnalyticsTab === 'overview' || activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
+  )
+
+  // Overview tab - Use dedicated hook
+  const { data: overviewData } = useOverviewData(
+    activeAnalyticsTab === 'overview' ? context.accessToken : '',
+    kpiCurrency
+  )
+
+  // Legacy hook - kept for backward compatibility (can be removed once all tabs use dedicated hooks)
+  const { isLoading, error, refetch } = useCrmAnalyticsData(
+    context,
+    activeAnalyticsTab, // Only fetch data for active tab (Overview only)
+    kpiCurrency
+  )
+
+  // Overview tab data - get trend data from useOverviewData hook
+  const kpiTrendData = activeAnalyticsTab === 'overview' ? overviewData?.overviewTrendData || null : null
+  const geographicData = activeAnalyticsTab === 'overview' ? overviewData?.overviewGeographicData || [] : []
+
+  const { revenueTrends, isLoading: revenueLoading } = useRevenueTrends(
+    activeAnalyticsTab === 'overview' ? context.accessToken : '',
+    revenueTimeFilter,
+    revenuePipelineId,
+    revenueCurrency
+  )
+  const { pipelineHealth, isLoading: pipelineHealthLoading } = usePipelineHealth(
+    activeAnalyticsTab === 'overview' ? context.accessToken : '',
+    healthPipelineId
+  )
+  const { activityData: activityHeatmap, isLoading: activityLoading } = useActivityHeatmap(
+    activeAnalyticsTab === 'overview' ? context.accessToken : ''
+  )
+  const { contacts: topRevenueContacts, isLoading: topPerformersLoading } = useTopRevenueEarners(
+    activeAnalyticsTab === 'overview' ? context.accessToken : '',
+    topPerformersCurrency
+  )
+
+  // Leads tab data
+  // KPI trend data uses fixed 'month' period (current month vs last month) - independent of chart filter
+  const { trendData: leadsTrendData, isLoading: leadsTrendLoading } = useLeadsTrendData(
+    activeAnalyticsTab === 'leads' ? context.accessToken : '',
+    'month' // Fixed period for KPIs - don't use leadsTimeFilter
+  )
+  // Combined static leads data (source, rating, status, velocity) - single query
+  const { data: leadsStaticData, isLoading: leadsStaticLoading } = useLeadsStaticData(
+    activeAnalyticsTab === 'leads' ? context.accessToken : ''
+  )
+
+  // Accounts static data (KPIs + trends) - single query
+  const { data: accountsStaticData, isLoading: accountsStaticLoading } = useAccountsStaticData(
+    activeAnalyticsTab === 'accounts' ? context.accessToken : ''
+  )
+
+  // Top Accounts by Revenue - separate query with currency filter (only refetches on currency change)
+  const { data: topAccountsByRevenue, isLoading: topAccountsLoading } = useTopAccountsByRevenue(
+    activeAnalyticsTab === 'accounts' ? context.accessToken : '',
+    accountsCurrency
+  )
+
+  // Accounts lifecycle chart data - dynamic time filter
+  const { accountsOverTime: accountsLifecycleData, isLoading: accountsLifecycleLoading } = useAccountsOverTime(
+    activeAnalyticsTab === 'accounts' ? context.accessToken : '',
+    accountsTimeFilter
+  )
+
+  // Lifecycle chart data uses dynamic time filter selected by user
+  // Pass statusCatalogCodes from leadsStaticData to avoid duplicate catalog fetch
+  const { leadsOverTime: leadsLifecycleData, isLoading: leadsLifecycleLoading } = useLeadsOverTime(
+    activeAnalyticsTab === 'leads' ? context.accessToken : '',
+    leadsTimeFilter,
+    leadsStaticData?.statusCatalogCodes
+  )
+
+  // Accounts tab data (no additional hooks needed - data comes from useCrmAnalyticsData)
+
+  // Opportunities tab data
+  // Static KPIs with 30-day trends
+  const { data: opportunitiesStaticData, isLoading: opportunitiesStaticLoading } = useOpportunitiesStaticData(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
+    opportunitiesKpiCurrency
+  )
+  const { data: oppVelocityData } = useOpportunityVelocityData(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
+  )
+  const { data: oppHealthData } = useDealHealthData(activeAnalyticsTab === 'opportunities' ? context.accessToken : '')
+  const { data: oppLifecycleData, isLoading: oppLifecycleLoading } = useOpportunitiesOverTime(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
+    oppTimeFilter,
+    oppLifecyclePipelineId
+  )
+  const { data: oppStageData } = useOpportunitiesByStage(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
+    selectedStagePipelineId
+  )
+  const { data: topDealsData, isLoading: topDealsLoading } = useTopDeals(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
+    topDealsCurrency
+  )
+
+  // Contacts tab static data (KPIs)
+  const { data: contactsStaticData, isLoading: contactsStaticLoading } = useContactsStaticData(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
+  )
+
+  // Contacts lifecycle chart data - dynamic time filter
+  const { contactsOverTime: contactsLifecycleData, isLoading: contactsLifecycleLoading } = useContactsOverTime(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : '',
+    contactsTimeFilter
+  )
+
+  const { data: contactInsights, isLoading: contactInsightsLoading } = useContactInsights(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
+  )
+  const { data: contactQuality, isLoading: contactQualityLoading } = useContactQualityData(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
+  )
+
+  // Initialize selectedStagePipelineId to first pipeline when pipelines are loaded
+  useEffect(() => {
+    if (pipelines && pipelines.length > 0 && !selectedStagePipelineId) {
+      setSelectedStagePipelineId(pipelines[0].id)
+    }
+  }, [pipelines, selectedStagePipelineId])
 
   if (isLoading) {
     return (
@@ -106,158 +250,135 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     )
   }
 
-  // Prepare Overview Props
-  const overviewProps = data?.overview
-    ? {
-        title: 'CRM Overview',
-        counts: data.overview.totalCounts,
-        conversionMetrics: data.overview.conversionMetrics,
-        trendData: kpiTrendData || null,
-        trendLoading: false,
-        pipelines: [],
-        selectedPipelineId: selectedPipelineId,
-        onPipelineChange: setSelectedPipelineId,
-        revenueTimeFilter: revenueTimeFilter,
-        onRevenueTimeFilterChange: setRevenueTimeFilter,
-        revenueTrends: revenueTrends || [],
-        revenueLoading: revenueLoading,
-        pipelineHealth: {
-          data: pipelineHealth,
-          isLoading: pipelineHealthLoading
-        },
-        geographicDistribution: {
-          data: geographicData || [],
-          isLoading: geoLoading
-        },
-        activityHeatmap: {
-          data: activityHeatmap || [],
-          isLoading: activityLoading
-        },
-        topPerformers: data.overview.topPerformers
-      }
-    : undefined
+  // Prepare Overview Props - Uses shared builder
+  const overviewProps = buildOverviewProps(
+    {
+      overviewData,
+      kpiTrendData,
+      pipelines: pipelines || [],
+      revenuePipelineId,
+      onRevenuePipelineChange: setRevenuePipelineId,
+      revenueTimeFilter,
+      onRevenueTimeFilterChange: setRevenueTimeFilter,
+      revenueTrends: revenueTrends || [],
+      revenueLoading,
+      pipelineHealth,
+      pipelineHealthLoading,
+      healthPipelineId,
+      onHealthPipelineChange: setHealthPipelineId,
+      geographicData: geographicData || [],
+      geographicLoading: isLoading,
+      activityHeatmap: activityHeatmap || [],
+      activityLoading,
+      topPerformers: topRevenueContacts.map(contact => ({
+        employeeId: contact.id,
+        employeeName: `${contact.firstName} ${contact.lastName}`,
+        dealsWon: contact.wonOpportunities,
+        totalValue: contact.totalRevenue
+      })),
+      topPerformersLoading,
+      topPerformersCurrency,
+      onTopPerformersCurrencyChange: setTopPerformersCurrency
+    },
+    {
+      title: 'CRM Overview',
+      moduleColor,
+      kpiCurrency,
+      onKpiCurrencyChange: setKpiCurrency,
+      revenueCurrency,
+      onRevenueCurrencyChange: setRevenueCurrency,
+      availableCurrencies
+    }
+  )
 
-  // Prepare Leads Props
-  const leadsProps = data?.leads
-    ? {
-        title: 'Leads Analytics',
-        totalLeads: data.leads.totalLeads,
-        conversionRate: data.leads.conversionRate,
-        avgTimeToConversion: data.leads.avgTimeToConversion,
-        trendData: leadsTrendData || null,
-        trendLoading: leadsTrendLoading,
-        leadsOverTime: data.leads.leadsOverTime, // Pass raw data, let component handle filtering
-        selectedTimeFilter: leadsTimeFilter,
-        onTimeFilterChange: setLeadsTimeFilter,
-        leadsBySource: data.leads.leadsBySource.map(x => ({
-          source: x.source,
-          count: x.count,
-          percentage: x.percentage
-        })),
-        leadsBySourceType: data.leads.leadsBySourceType.map(x => ({ sourceType: x.sourceType, count: x.count })),
-        leadsByStatus: data.leads.leadsByStatus.map(x => ({ status: x.status, count: x.count })),
-        topOwners: data.leads.topOwners.map(o => ({
-          employeeId: o.employeeId,
-          employeeName: o.employeeName,
-          leadCount: o.leadCount,
-          conversionRate: o.conversionRate
-        })),
-        leadsByRating: data.leads.leadsByRating.map(r => ({
-          rating: r.rating,
-          count: r.count,
-          percentage: r.percentage
-        }))
-      }
-    : undefined
+  const leadsProps = buildLeadsProps(
+    {
+      leadsStaticData,
+      leadsTrendData,
+      leadsTrendLoading,
+      leadsStaticLoading,
+      leadsOverTime: leadsLifecycleData || [],
+      leadsOverTimeLoading: leadsLifecycleLoading,
+      leadsTimeFilter,
+      onLeadsTimeFilterChange: setLeadsTimeFilter
+    },
+    {
+      title: 'Leads Analytics'
+    }
+  )
 
-  // Prepare Accounts Props
-  const accountsProps = data?.accounts
-    ? {
-        title: 'Accounts Analytics',
-        totalAccounts: data.accounts.totalAccounts,
-        accountsWithOpportunities: data.accounts.accountsWithOpportunities,
-        avgOpportunitiesPerAccount: data.accounts.avgOpportunitiesPerAccount,
-        trendData: kpiTrendData
-          ? {
-              currentMonthAccounts: kpiTrendData.currentMonthAccounts,
-              previousMonthAccounts: kpiTrendData.previousMonthAccounts,
-              currentMonthOpportunities: kpiTrendData.currentMonthOpportunities,
-              previousMonthOpportunities: kpiTrendData.previousMonthOpportunities
-            }
-          : null,
-        trendLoading: false,
-        accountsOverTime: data.accounts.accountsOverTime,
-        accountsByIndustry: data.accounts.accountsByIndustry,
-        accountsBySize: data.accounts.accountsBySize,
-        topAccounts: data.accounts.topAccounts
-      }
-    : undefined
+  // Prepare Accounts Props - Always show tab
+  const accountsProps = buildAccountsProps(
+    {
+      accountsStaticData,
+      accountsStaticLoading,
+      accountsOverTime: accountsLifecycleData || [],
+      accountsOverTimeLoading: accountsLifecycleLoading,
+      accountsTimeFilter,
+      onAccountsTimeFilterChange: setAccountsTimeFilter,
+      topAccounts: topAccountsByRevenue || [],
+      topAccountsLoading,
+      accountsCurrency,
+      onAccountsCurrencyChange: setAccountsCurrency,
+      availableCurrencies
+    },
+    {
+      title: 'Accounts Analytics',
+      showTopAccounts: true
+    }
+  )
 
-  // Prepare Opportunities Props
-  const opportunitiesProps = data?.opportunities
-    ? {
-        title: 'Opportunities Analytics',
-        totalOpportunities: data.opportunities.totalOpportunities,
-        totalValue: data.opportunities.totalValue,
-        winRate: data.opportunities.winRate,
-        avgDealSize: data.opportunities.avgDealSize,
-        avgSalesCycle: data.opportunities.avgSalesCycle,
-        pipelineVelocity: data.opportunities.pipelineVelocity,
-        trendData: oppTrendData || null,
-        trendLoading: false,
-        lifecycleData: (oppLifecycleData || []).map(d => ({
-          date: d.date,
-          opportunitiesCreated: d.opportunitiesCreated,
-          opportunitiesWon: d.opportunitiesWon
-        })),
-        pipelines: (data.opportunities.opportunitiesByPipeline || []).map(p => ({ id: p.pipeline, name: p.pipeline })),
-        selectedPipelineId: selectedPipelineId,
-        onPipelineChange: (id: string) => setSelectedPipelineId(id === 'all' ? undefined : id),
-        selectedTimeFilter: oppTimeFilter,
-        onTimeFilterChange: setOppTimeFilter,
-        opportunitiesByStage: (oppStageAll || []).map(s => ({ stage: s.stage, count: s.count, value: s.value })),
-        opportunitiesByPipeline: data.opportunities.opportunitiesByPipeline.map(p => ({
-          pipeline: p.pipeline,
-          count: p.count,
-          percentage: p.percentage
-        })),
-        topDeals: data.opportunities.topDeals,
-        velocityData: oppVelocityData || null,
-        dealHealthData: oppHealthData || null
-      }
-    : undefined
+  // Prepare Opportunities Props - Always show tab
+  const opportunitiesProps = buildOpportunitiesProps(
+    {
+      opportunitiesStaticData,
+      opportunitiesStaticLoading,
+      oppLifecycleData: oppLifecycleData || [],
+      oppLifecycleLoading,
+      oppTimeFilter,
+      onOppTimeFilterChange: setOppTimeFilter,
+      pipelines: pipelines || [],
+      selectedPipelineId: oppLifecyclePipelineId,
+      onPipelineChange: (id: string) => setOppLifecyclePipelineId(id === 'all' ? undefined : id),
+      oppStageData: oppStageData || [],
+      selectedStagePipelineId,
+      onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
+      topDeals: topDealsData,
+      topDealsLoading,
+      velocityData: oppVelocityData || null,
+      dealHealthData: oppHealthData || null,
+      kpiCurrency: opportunitiesKpiCurrency,
+      onKpiCurrencyChange: setOpportunitiesKpiCurrency,
+      topDealsCurrency,
+      onTopDealsCurrencyChange: setTopDealsCurrency,
+      availableCurrencies
+    },
+    {
+      title: 'Opportunities Analytics',
+      showTopDeals: true,
+      useTrendData: false // CRM calculates from static data
+    }
+  )
 
-  // Prepare Contacts Props
-  const contactsProps =
-    contactsMetrics && contactInsights
-      ? {
-          title: 'Contacts Analytics',
-          totalContacts: contactsMetrics.total,
-          thisMonth: contactsMetrics.thisMonth,
-          lastMonth: contactsMetrics.lastMonth,
-          growth: contactsMetrics.growth,
-          totalLastMonth: contactsMetrics.totalLastMonth,
-          totalGrowth: contactsMetrics.totalGrowth,
-          selectedTimeFilter: convertToContactsTimeFilter(contactsTimeFilter),
-          onTimeFilterChange: (filter: 'month' | 'quarter' | 'year' | 'historical') => setContactsTimeFilter(filter),
-          overTimeData: contactsMetrics.data,
-          topAccountsByContacts: contactInsights.topAccountsByContacts,
-          recentContacts: contactInsights.recentContacts,
-          insightsData: {
-            totalContacts: contactInsights.totalContacts,
-            contactsByType: contactInsights.contactsByType,
-            contactsByAccount: contactInsights.topAccountsByContacts,
-            recentContacts: contactInsights.recentContacts
-          },
-          qualityData: contactQuality || undefined,
-          topRevenueContacts: topRevenueContacts,
-          topRevenueLoading: topRevenueLoading,
-          avgPerAccount:
-            customerAccountCount > 0 ? Math.round((contactsMetrics.total / customerAccountCount) * 10) / 10 : 0,
-          avgPerAccountLastMonth:
-            customerAccountCount > 0 ? Math.round((contactsMetrics.totalLastMonth / customerAccountCount) * 10) / 10 : 0
-        }
-      : undefined
+  // Prepare Contacts Props - Always show tab (matches Leads/Accounts pattern)
+  const contactsProps = buildContactsProps(
+    {
+      contactsStaticData,
+      contactsStaticLoading,
+      contactsOverTime: contactsLifecycleData || [],
+      contactsOverTimeLoading: contactsLifecycleLoading,
+      contactsTimeFilter,
+      onContactsTimeFilterChange: setContactsTimeFilter,
+      contactInsights,
+      contactInsightsLoading,
+      contactQuality,
+      contactQualityLoading
+    },
+    {
+      title: 'Contacts Analytics',
+      module: 'crm'
+    }
+  )
 
   // Note: Customer Relations includes campaigns, but this would need to be extended in AnalyticsLayout
   // For now, we'll use the AnalyticsLayout as-is and can extend it later for campaigns
@@ -265,7 +386,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   return (
     <div data-testid="crm-analytics" className="gba:h-full gba:p-6">
       <AnalyticsLayout
-        defaultTab="overview"
+        defaultTab={activeAnalyticsTab}
+        onTabChange={handleAnalyticsTabChange}
         overviewProps={overviewProps}
         leadsProps={leadsProps}
         accountsProps={accountsProps}

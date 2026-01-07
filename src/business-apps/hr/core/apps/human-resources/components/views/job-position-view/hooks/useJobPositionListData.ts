@@ -120,6 +120,12 @@ export interface EmployeePosition {
   lastName: string
   employeeId: string
   employee: Employee
+  supervisor?: {
+    id: string
+    firstName: string
+    lastName: string
+    pictureThumbnail?: string | null
+  }
 }
 
 /**
@@ -128,6 +134,7 @@ export interface EmployeePosition {
 export interface JobPosition {
   id: string
   name: string
+  activeTo?: string | null
   jobFunction: JobFunction | null
   jobLevel: JobLevel | null
   jobProfile: JobProfile | null
@@ -179,6 +186,11 @@ const buildSortCondition = (sortField: string, sortOrder: 'ASC' | 'DESC', orderB
       // Fixed: Use correct GraphQL path for employee sorting
       orderBy.employeePositionsAggregate = { max: { firstName: sortDirection } }
       break
+    case 'markedForTermination':
+      // Sort by activeTo with desired null handling:
+      // ASC -> NULLS FIRST, DESC -> NULLS LAST
+      orderBy.activeTo = sortField && sortOrder === 'ASC' ? 'ASC_NULLS_FIRST' : 'DESC_NULLS_LAST'
+      break
   }
 }
 
@@ -193,7 +205,6 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
-  const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const { search, departments, jobProfiles, jobFunctions, vacant, missingJobProfile, sortField, sortOrder } = filters
 
@@ -202,7 +213,6 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
 
   // Reset pagination state on filter change (but keep data visible)
   useEffect(() => {
-    setOffset(0)
     setHasMore(true)
     // Note: We intentionally DON'T clear jobPositions to avoid loading flicker
     // The data will be replaced when the new query completes
@@ -247,6 +257,11 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
 
       // Build filter object for all filter types
       const filterConditions: any[] = []
+      // Always show only positions still active: activeTo is null or in the future
+      const todayIso = new Date().toISOString()
+      filterConditions.push({
+        _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: todayIso } }]
+      })
 
       // Handle both departments and organizationalUnits (for backward compatibility)
       const orgUnits = currentFilters.departments
@@ -298,7 +313,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
         limit: pageSize,
         offset: pageOffset,
         filter: filterConditions.length > 0 ? { _and: filterConditions } : {},
-        search: hasActiveSearch ? `%${currentFilters.search.trim()}%` : '%%', // Match all if no search
+        search: hasActiveSearch ? `%${currentFilters.search?.trim()}%` : '%%', // Match all if no search
         // Always provide vacant parameter, but set to undefined to ignore vacancy when filtering by missing job profile
         vacant: currentFilters.missingJobProfile ? undefined : currentFilters.vacant,
         orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ name: 'ASC_NULLS_LAST' }]
@@ -318,7 +333,6 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
           // Server-side filtering is now handled in the GraphQL query
           setJobPositions(positions)
           setTotal(res.JobPositionAggregate.aggregate.count)
-          setOffset(pageOffset)
 
           // Check if there are more positions to load
           const hasMoreData =
@@ -348,7 +362,6 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   const retry = useCallback(() => {
     setError(null)
     setHasMore(true)
-    setOffset(0)
     setJobPositions([])
     setTotal(0)
     loadPage(1)

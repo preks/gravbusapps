@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { DateRange, PipelineInfo } from '../types/dashboardTypes'
+import { PipelineInfo } from '../types/dashboardTypes'
 import { useDashboardQueries } from '../queries/DashboardQueries'
 
 export interface UseSalesDashboardReturn {
@@ -11,7 +11,7 @@ export interface UseSalesDashboardReturn {
   lastUpdated: Date | null
 }
 
-export const useSalesDashboard = (context: BusinessAppContextProps, dateRange: DateRange): UseSalesDashboardReturn => {
+export const useSalesDashboard = (context: BusinessAppContextProps): UseSalesDashboardReturn => {
   const [pipelines, setPipelines] = useState<PipelineInfo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,10 +34,12 @@ export const useSalesDashboard = (context: BusinessAppContextProps, dateRange: D
       const pipelineData = await fetchPipelines()
 
       // Transform pipeline data to our interface
+      // Note: pipeline.id is a string reference like "OpportunityPipeline:v1:STANDARD" (not a UUID)
+      // Both opportunityPipelineRef and parentEntryId use this same format
       const transformedPipelines: PipelineInfo[] = pipelineData.map((pipeline: any) => ({
         id: pipeline.id,
         name: pipeline.value,
-        ref: pipeline.id, // Use ID as the reference, not code
+        ref: pipeline.id, // Use id as the reference (e.g. "OpportunityPipeline:v1:STANDARD")
         description: pipeline.additionalValue1,
         color: pipeline.additionalValue2 || '#1890ff'
       }))

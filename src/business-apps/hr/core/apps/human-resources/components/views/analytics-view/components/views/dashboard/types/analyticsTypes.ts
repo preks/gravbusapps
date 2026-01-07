@@ -1,6 +1,6 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-export interface DashboardProps extends BusinessAppContextProps {}
+export type DashboardProps = BusinessAppContextProps
 
 export interface AnalyticsKpiData {
   employeeCount: {

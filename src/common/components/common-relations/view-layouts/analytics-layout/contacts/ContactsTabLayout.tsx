@@ -4,15 +4,13 @@ import { ContactsOutlined, TeamOutlined, DollarCircleOutlined, RiseOutlined } fr
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { ContactInsightsDashboard, ContactInsightsDashboardData } from './widgets/ContactInsightsDashboard'
 import { ContactQualityMatrix, ContactQualityData } from './widgets/ContactQualityMatrix'
-import { TopRevenueEarners, TopRevenueContact } from './widgets/TopRevenueEarners'
 import { ContactLifecycleChart } from './widgets/ContactLifecycleChart'
 
-export type TimeFilter = 'month' | 'quarter' | 'year' | 'historical'
+export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
 export interface ContactsOverTimePoint {
   date: string
-  count: number
-  cumulative: number
+  contactsCreated: number
 }
 
 export interface ContactsTabLayoutProps {
@@ -23,11 +21,12 @@ export interface ContactsTabLayoutProps {
   growth?: number
   totalLastMonth?: number
   totalGrowth?: number
+  trendLoading?: boolean
   avgPerAccount?: number
   avgPerAccountLastMonth?: number
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
-  overTimeData: ContactsOverTimePoint[]
+  contactsOverTime: ContactsOverTimePoint[]
   topAccountsByContacts: Array<{ accountName: string; contactCount: number }>
   recentContacts: Array<{
     id: string
@@ -38,9 +37,8 @@ export interface ContactsTabLayoutProps {
   }>
   insightsData?: ContactInsightsDashboardData // optional: if provided, show dashboard widget
   qualityData?: ContactQualityData
-  topRevenueContacts?: TopRevenueContact[]
-  topRevenueLoading?: boolean
   moduleColor?: string
+  module: 'crm' | 'irm'
 }
 
 export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
@@ -51,35 +49,35 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   growth,
   totalLastMonth,
   totalGrowth,
+  trendLoading,
   avgPerAccount,
   avgPerAccountLastMonth,
   selectedTimeFilter,
   onTimeFilterChange,
-  overTimeData,
+  contactsOverTime,
   topAccountsByContacts,
   recentContacts,
   insightsData,
   qualityData,
-  topRevenueContacts,
-  topRevenueLoading,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  module
 }) => {
+  // Helper to calculate trend percentage
+  const calculateTrendPercent = (current: number, previous: number): number => {
+    if (previous > 0) {
+      return Math.abs(((current - previous) / previous) * 100)
+    }
+    return current > 0 ? 100 : 0
+  }
+
   const safeThisMonth = thisMonth || 0
   const safeLastMonth = lastMonth || 0
-  const newThisMonthTrendPercent =
-    safeLastMonth > 0 ? Math.abs(((safeThisMonth - safeLastMonth) / safeLastMonth) * 100) : safeThisMonth > 0 ? 100 : 0
+  const newThisMonthTrendPercent = calculateTrendPercent(safeThisMonth, safeLastMonth)
   const newThisMonthPositive = safeThisMonth >= safeLastMonth
 
   const safeAvg = avgPerAccount || 0
   const safeAvgLast = avgPerAccountLastMonth ?? undefined
-  const avgPerAccountTrendPercent =
-    safeAvgLast !== undefined
-      ? safeAvgLast > 0
-        ? Math.abs(((safeAvg - safeAvgLast) / safeAvgLast) * 100)
-        : safeAvg > 0
-          ? 100
-          : 0
-      : undefined
+  const avgPerAccountTrendPercent = safeAvgLast !== undefined ? calculateTrendPercent(safeAvg, safeAvgLast) : undefined
   const avgPerAccountPositive = safeAvgLast !== undefined ? safeAvg >= safeAvgLast : undefined
   const kpis = [
     {
@@ -91,9 +89,9 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       ...(totalGrowth !== undefined && totalLastMonth !== undefined
         ? {
             trend: {
-              value: `${Math.abs(totalGrowth).toFixed(1)}%`,
+              value: `${(totalGrowth || 0) >= 0 ? '+' : ''}${totalGrowth.toFixed(1)}%`,
               positive: (totalGrowth || 0) >= 0,
-              description: `${totalContacts} total vs ${totalLastMonth} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -107,9 +105,9 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       ...(thisMonth !== undefined && lastMonth !== undefined
         ? {
             trend: {
-              value: `${newThisMonthTrendPercent.toFixed(1)}%`,
+              value: `${newThisMonthPositive ? '+' : ''}${newThisMonthTrendPercent.toFixed(1)}%`,
               positive: newThisMonthPositive,
-              description: `${thisMonth} this month vs ${lastMonth} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -124,9 +122,9 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       ...(growth !== undefined
         ? {
             trend: {
-              value: `${Math.abs(growth || 0).toFixed(1)}%`,
+              value: `${(growth || 0) >= 0 ? '+' : ''}${(growth || 0).toFixed(1)}%`,
               positive: (growth || 0) >= 0,
-              description: `${safeThisMonth} this month vs ${safeLastMonth} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -141,9 +139,9 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       ...(avgPerAccount !== undefined && avgPerAccountLastMonth !== undefined
         ? {
             trend: {
-              value: `${(avgPerAccountTrendPercent ?? 0).toFixed(1)}%`,
+              value: `${avgPerAccountPositive ? '+' : ''}${(avgPerAccountTrendPercent ?? 0).toFixed(1)}%`,
               positive: !!avgPerAccountPositive,
-              description: `${(avgPerAccount ?? 0).toFixed(1)} now vs ${(avgPerAccountLastMonth ?? 0).toFixed(1)} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -154,18 +152,20 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
     <div className="gba:space-y-6" data-testid="contacts-analytics-tab">
       <div>
         <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
-        <WidgetGroup widgets={kpis} data-testid="contacts-key-metrics" />
+        <WidgetGroup widgets={kpis} isLoading={trendLoading} data-testid="contacts-key-metrics" />
       </div>
 
       <ContactLifecycleChart
-        data={overTimeData}
+        key={`contact-lifecycle-${selectedTimeFilter}`}
+        data={contactsOverTime}
+        isLoading={trendLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}
       />
 
       {/** Optional full insights dashboard (exact copy from originals) */}
-      {insightsData && <ContactInsightsDashboard data={insightsData} moduleColor={moduleColor} />}
+      {insightsData && <ContactInsightsDashboard data={insightsData} moduleColor={moduleColor} module={module} />}
 
       {!insightsData && (
         <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
@@ -229,8 +229,6 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       )}
 
       {qualityData && <ContactQualityMatrix data={qualityData} moduleColor={moduleColor} />}
-
-      {topRevenueContacts && <TopRevenueEarners contacts={topRevenueContacts} isLoading={topRevenueLoading} />}
     </div>
   )
 }

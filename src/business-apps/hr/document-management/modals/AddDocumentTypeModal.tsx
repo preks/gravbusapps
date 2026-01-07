@@ -250,9 +250,9 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
           valuePropName="checked"
           className="gba:mb-0"
         >
-          <div className="gba:flex gba:flex items-center gba:justify-between">
+          <div className="gba:flex items-center gba:justify-between">
             <div>
-              <div className="gba:text-xs gba:text-gray-500">
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {t('documentType.gdpr_help', 'This document contains personal data')}
               </div>
             </div>
@@ -263,7 +263,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
                   form.setFieldsValue({ gdprRelevant: checked })
                   handleValuesChange({}, { ...form.getFieldsValue(), gdprRelevant: checked })
                 }}
-                className={form.getFieldValue('gdprRelevant') ? 'gba:bg-blue-500' : 'gba:bg-gray-300'}
+                className={form.getFieldValue('gdprRelevant') ? 'gba:bg-info' : 'gba:bg-muted'}
               />
             </Form.Item>
           </div>
@@ -281,10 +281,10 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
           valuePropName="checked"
           className="gba:mb-0"
         >
-          <div className="gba:flex gba:flex items-center gba:justify-between">
+          <div className="gba:flex items-center gba:justify-between">
             <div>
               <div className="gba:text-medium">{t('documentType.active_label', 'Active')}</div>
-              <div className="gba:text-xs gba:text-gray-500">
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {t('documentType.active_help', 'Document type will be available for use')}
               </div>
             </div>
@@ -295,7 +295,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
                   form.setFieldsValue({ isActive: checked })
                   handleValuesChange({}, { ...form.getFieldsValue(), isActive: checked })
                 }}
-                className={form.getFieldValue('isActive') ? 'gba:bg-blue-500' : 'gba:bg-gray-300'}
+                className={form.getFieldValue('isActive') ? 'gba:bg-info' : 'gba:bg-muted'}
               />
             </Form.Item>
           </div>
@@ -332,7 +332,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
   )
 
   const renderPermissionsTab = () => (
-    <div className="gba:py-4 gba:text-center gba:text-gray-500">
+    <div className="gba:py-4 gba:text-center gba:text-muted-foreground">
       {t('documentType.permissions_coming_soon', 'Permissions configuration will be available soon.')}
     </div>
   )

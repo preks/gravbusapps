@@ -1,7 +1,7 @@
 // GraphQL query for fetching expense plan record data
 
 export const getExpensePlanRecordQuery = `
-    query MyQuery($expensePlanId:uuid!){
+    query MyQuery($expensePlanId:uuid!, $activeUserLocale:String!){
       expensePlan:ExpensePlanByPk(id:$expensePlanId){
         code
         title
@@ -64,9 +64,17 @@ export const getExpensePlanRecordQuery = `
           }
           expenseGroup{
             value
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+              localeCode
+              value
+            }
           }
           expenseClass{
-            value
+            value 
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+              localeCode
+              value
+            }
           }
           expenseDate
           totalAmount
@@ -97,9 +105,17 @@ export const getExpensePlanRecordQuery = `
           pointType
           country{
             value
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+              localeCode
+              value
+            }
           }
           travelRegion{
             value
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+              localeCode
+              value
+            }
           }
         }
         advancePayment(orderBy:{decisionDate:ASC}){

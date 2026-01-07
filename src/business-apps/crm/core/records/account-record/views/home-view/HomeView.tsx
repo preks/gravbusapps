@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
+import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 
@@ -21,9 +24,11 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
   // Data fetching hooks for CRM customer sections
   const { fetchCustomerActivitiesByAccountId } = useCustomerActivities(props)
   const { fetchCustomerTasksByAccountId } = useCustomerTasks(props)
+  const { fetchCustomerNotesByAccountId } = useCustomerNotes(props)
 
   // State for section data
   const [activities, setActivities] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [approvals, setApprovals] = useState<any[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
@@ -53,31 +58,36 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     setSectionsError(null)
 
     try {
-      const [activitiesData, tasksData] = await Promise.all([
+      const [activitiesData, notesData, tasksData] = await Promise.all([
         fetchCustomerActivitiesByAccountId(accountId),
+        fetchCustomerNotesByAccountId(accountId),
         fetchCustomerTasksByAccountId(accountId)
       ])
 
       const sortedActivities = (activitiesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
+      const sortedNotes = (notesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
       const sortedTasks = (tasksData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
-      // Separate regular tasks from approvals based on taskType catalog entry
+      // Separate regular tasks from approvals based on type catalog entry
       const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
         return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
       const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
       setActivities(sortedActivities)
+      setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)
     } catch (error) {
@@ -90,7 +100,13 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     } finally {
       setSectionsLoading(false)
     }
-  }, [accountId, props.accessToken, fetchCustomerActivitiesByAccountId, fetchCustomerTasksByAccountId])
+  }, [
+    accountId,
+    props.accessToken,
+    fetchCustomerActivitiesByAccountId,
+    fetchCustomerNotesByAccountId,
+    fetchCustomerTasksByAccountId
+  ])
 
   // Load section data on mount
   useEffect(() => {
@@ -98,78 +114,99 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
   }, [loadSectionData])
 
   // Listen for process completion events to refresh section data
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          loadSectionData()
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.account) {
-          loadSectionData()
-        }
-      } catch (err) {
-        console.error('Error handling process completion in HomeView:', err)
-      }
+  useProcessCompletion({
+    onSuccess: () => {
+      loadSectionData()
     }
+  })
 
-    // Listen to multiple possible event names
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [loadSectionData])
-
-  // Action props for sections
+  // Action props for sections - MUST be fully memoized to prevent infinite loops
   const activityActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.customerActivityCreate],
+      externalContextData: {
+        accountId,
+        // Set current user as default owner
+        ...(props.userInfo?.employeeDetails?.employeeId && {
+          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+        })
+      },
+      prefixDataTestId: 'account-activity',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId, props.userInfo?.employeeDetails?.employeeId]
+  )
+
+  const activityEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerActivityEntity],
       externalContextData: { accountId },
-      prefixDataTestId: 'account-activity'
+      prefixDataTestId: 'account-activity-entity',
+      emptyStateBehavior: 'enable' as const
     }),
     [accountId]
   )
 
   const taskActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: { accountId },
-      prefixDataTestId: 'account-task'
+      prefixDataTestId: 'account-task',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const taskEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerTaskEntity],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-task-entity',
+      emptyStateBehavior: 'enable' as const
     }),
     [accountId]
   )
 
   const approvalActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         accountId,
         typeRef: 'SalesTaskType:v1:APPROVAL',
         salesTask: { account: accountId, type: 'SalesTaskType:v1:APPROVAL' }
       },
-      prefixDataTestId: 'account-approval'
+      prefixDataTestId: 'account-approval',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const approvalEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerTaskEntity],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-approval-entity',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const noteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerNoteCreate],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-note',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const noteEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerNoteEntity],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-note-entity',
+      emptyStateBehavior: 'enable' as const
     }),
     [accountId]
   )
@@ -185,40 +222,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: AccountSection,
             props: {
               ...props,
-              account: accountData
-                ? {
-                    id: accountData.id,
-                    name: accountData.name,
-                    website: accountData.website,
-                    email: accountData.email,
-                    phone: accountData.phone,
-                    // Map catalog entries to expected format
-                    legalForm: accountData.legalForm?.value,
-                    industry: accountData.industry?.value,
-                    size: accountData.numberOfEmployees?.value,
-                    revenue: accountData.annualRevenue?.value,
-                    // Map other fields
-                    numberOfEmployees: accountData.numberOfEmployees,
-                    annualRevenue: accountData.annualRevenue
-                  }
-                : undefined,
-              address: accountData
-                ? (() => {
-                    const addresses = accountData.addresses || []
-                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.locality,
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
+              account: accountData, // ✅ Vollständiges CustomerAccount-Objekt
               accountId: accountId,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
@@ -241,20 +245,17 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             props: {
               ...props,
               contacts:
-                (accountData as any)?.accountContact
-                  ?.map((accountContact: any) => {
-                    const c = accountContact.contact
-                    return c ? { ...c, jobTitle: c.jobPosition } : null
-                  })
+                accountData?.accountContacts
+                  ?.map((ac: any) => ({
+                    ...ac.contact,
+                    jobPosition: ac.contact?.jobTitle, // Map CRM jobTitle to jobPosition for ContactSection
+                    contactType: ac.contactType
+                  }))
                   .filter(Boolean) || [],
-              contact: (() => {
-                const c = (accountData as any)?.accountContact?.[0]?.contact
-                return c ? { ...c, jobTitle: c.jobPosition } : undefined
-              })(),
-              contactId: (accountData as any)?.accountContact?.[0]?.contact?.id || undefined,
-              recordUrl: (accountData as any)?.accountContact?.[0]?.contact?.id
+              contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
+              recordUrl: accountData?.accountContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/crm/contact-record', {
-                    contactId: (accountData as any).accountContact[0].contact.id,
+                    contactId: accountData.accountContacts[0].contact.id,
                     source: 'account-relations',
                     fromEntity: 'accounts'
                   })
@@ -284,16 +285,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
               activitiesError: sectionsError,
               onReloadActivities: loadSectionData,
               alignment: 'right',
-              activitySectionActionProps: {
-                ...activityActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              activityEntityActionProps: {
-                contextsArray: [FlowContextName.customerActivityEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-activity-entity',
-                emptyStateBehavior: 'enable'
-              }
+              activitySectionActionProps: activityActionProps,
+              activityEntityActionProps: activityEntityActionProps
             }
           }
         ]}
@@ -310,63 +303,9 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             props: {
               ...props,
               buildReferenceUrl,
-              tasks: tasks.map(task => ({
-                id: task.id,
-                title:
-                  task.name ||
-                  task.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'),
-                description: task.description,
-                createdAt: task.createdAt,
-                due: task.dueDate,
-                assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
-                statusCode: task.taskStatus?.value?.toUpperCase() as any,
-                taskStatus: task.taskStatus,
-                taskPriority: task.taskPriority,
-                assigneeEmployee: task.assignedEmployee,
-                taskTiming: task.taskTiming,
-                startDate: task.startDate,
-                creatorEmployee: task.creatorEmployee,
-                reference: task.lead
-                  ? {
-                      type: 'lead' as const,
-                      id: task.lead.id,
-                      name:
-                        `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() || task.lead.code || 'Lead'
-                    }
-                  : task.account
-                    ? {
-                        type: 'account' as const,
-                        id: task.account.id,
-                        name: task.account.name || task.account.code || 'Account'
-                      }
-                    : task.contact
-                      ? {
-                          type: 'contact' as const,
-                          id: task.contact.id,
-                          name:
-                            `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() ||
-                            task.contact.code ||
-                            'Contact'
-                        }
-                      : task.opportunity
-                        ? {
-                            type: 'opportunity' as const,
-                            id: task.opportunity.id,
-                            name: task.opportunity.name || task.opportunity.code || 'Opportunity'
-                          }
-                        : undefined
-              })),
-              taskActionProps: {
-                ...taskActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-task-entity',
-                emptyStateBehavior: 'enable'
-              }
+              tasks: tasks,
+              taskActionProps: taskActionProps,
+              taskEntityActionProps: taskEntityActionProps
             }
           },
           {
@@ -376,69 +315,32 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
               ...props,
               sectionTitle: 'Approval Tasks',
               buildReferenceUrl,
-              tasks: approvals.map(approval => ({
-                id: approval.id,
-                title:
-                  approval.name ||
-                  approval.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request'),
-                description: approval.description,
-                createdAt: approval.createdAt,
-                due: approval.dueDate,
-                assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
-                statusCode: approval.taskStatus?.value?.toUpperCase() as any,
-                taskStatus: approval.taskStatus,
-                taskPriority: approval.taskPriority,
-                assigneeEmployee: approval.assignedEmployee,
-                taskTiming: approval.taskTiming,
-                startDate: approval.startDate,
-                creatorEmployee: approval.creatorEmployee,
-                reference: approval.lead
-                  ? {
-                      type: 'lead' as const,
-                      id: approval.lead.id,
-                      name:
-                        `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() ||
-                        approval.lead.code ||
-                        'Lead'
-                    }
-                  : approval.account
-                    ? {
-                        type: 'account' as const,
-                        id: approval.account.id,
-                        name: approval.account.name || approval.account.code || 'Account'
-                      }
-                    : approval.contact
-                      ? {
-                          type: 'contact' as const,
-                          id: approval.contact.id,
-                          name:
-                            `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() ||
-                            approval.contact.code ||
-                            'Contact'
-                        }
-                      : approval.opportunity
-                        ? {
-                            type: 'opportunity' as const,
-                            id: approval.opportunity.id,
-                            name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
-                          }
-                        : undefined
-              })),
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-approval-entity',
-                emptyStateBehavior: 'enable'
-              },
-              taskActionProps: {
-                ...approvalActionProps,
-                emptyStateBehavior: 'enable'
-              }
+              tasks: approvals,
+              taskEntityActionProps: approvalEntityActionProps,
+              taskActionProps: approvalActionProps
             }
           }
         ]}
         data-testid="account-tasks-approvals-section-wrapper"
+      />
+
+      {/* Notes Section - 2/3 width, spans 3 rows */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-3"
+        sections={[
+          {
+            id: 'notes-section',
+            component: NoteSection,
+            props: {
+              ...props,
+              notes: notes,
+              noteActionProps: noteActionProps,
+              noteEntityActionProps: noteEntityActionProps,
+              'data-testid': 'account-notes-section'
+            }
+          }
+        ]}
+        data-testid="account-notes-section-wrapper"
       />
     </>
   )

@@ -1,17 +1,26 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { employeeCountQuery } from '../queries/getEmployeeCount'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * GraphQL response type for employee count query
  */
 interface EmployeeCountResponse {
-  EmployeePositionAggregate: {
+  thisYear: {
+    aggregate: {
+      count: number
+    }
+  }
+  lastYear: {
     aggregate: {
       count: number
     }
   }
 }
+
+// Module-level in-flight cache to dedupe concurrent/duplicate requests (per token and date range)
+const employeeCountRequestCache = new Map<string, Promise<EmployeeCountResponse>>()
 
 /**
  * Hook to fetch employee count from the GraphQL API
@@ -20,7 +29,9 @@ interface EmployeeCountResponse {
  */
 export const useEmployeeCount = (accessToken: string) => {
   // Define all hooks at the top level to ensure consistent order
-  const [count, setCount] = useState<number>(0)
+  const [count, setCount] = useState<number>(0) // this year count (backward compatible)
+  const [lastYearCount, setLastYearCount] = useState<number>(0)
+  const [diffYoY, setDiffYoY] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
@@ -46,24 +57,38 @@ export const useEmployeeCount = (accessToken: string) => {
         setError(null)
       }
 
-      // Execute the GraphQL query using the imported query with isDeleted filter
-      const response = await graphQLClient.request<EmployeeCountResponse>(employeeCountQuery)
-      console.log('[useEmployeeCount] GraphQL response:', response)
+      // Use end-of-today for current year to keep a stable key across calls in the same day,
+      // and Dec 31 (23:59:59.999) for last year
+      const now = new Date()
+      const thisYearEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
 
-      // Validate response structure
-      if (!response || !response.EmployeePositionAggregate || !response.EmployeePositionAggregate.aggregate) {
-        throw new Error('Invalid response structure from GraphQL API')
+      const thisYearEndIso = formatDate(thisYearEnd, 'fullDateTime.ISO') as string
+      const lastYearEndIso = formatDate(lastYearEnd, 'fullDateTime.ISO') as string
+      const cacheKey = `${accessToken}|${thisYearEndIso}|${lastYearEndIso}`
+
+      let promise = employeeCountRequestCache.get(cacheKey)
+      if (!promise) {
+        promise = graphQLClient.request<EmployeeCountResponse>(employeeCountQuery, {
+          thisYearEnd: thisYearEndIso,
+          lastYearEnd: lastYearEndIso
+        })
+        employeeCountRequestCache.set(cacheKey, promise)
       }
 
-      // Extract and validate count
-      const employeeCount = Number(response.EmployeePositionAggregate.aggregate.count)
-      if (isNaN(employeeCount)) {
+      const combinedResponse = await promise
+
+      const thisYearCount = Number(combinedResponse?.thisYear?.aggregate?.count ?? 0)
+      const prevYearCount = Number(combinedResponse?.lastYear?.aggregate?.count ?? 0)
+
+      if (isNaN(thisYearCount) || isNaN(prevYearCount)) {
         throw new Error('Employee count is not a valid number')
       }
 
-      // Update state if component is still mounted
       if (isMounted.current) {
-        setCount(employeeCount)
+        setCount(thisYearCount)
+        setLastYearCount(prevYearCount)
+        setDiffYoY(thisYearCount - prevYearCount)
         setError(null)
       }
     } catch (err) {
@@ -99,6 +124,8 @@ export const useEmployeeCount = (accessToken: string) => {
 
   return {
     count,
+    lastYearCount,
+    diffYoY,
     loading,
     error,
     refetch

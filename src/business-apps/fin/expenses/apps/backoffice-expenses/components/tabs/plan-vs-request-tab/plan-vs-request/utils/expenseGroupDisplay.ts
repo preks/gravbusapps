@@ -71,10 +71,7 @@ export const getExpenseGroupPluralName = (expenseGroupCode: string): string => {
       return getTranslationFromI18nKeyAndLabel('lowcoder:cards.mileage', 'Mileage')
 
     case 'OTHER_TRANSPORT':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:cards.other_transport_costs',
-        'Other Transport Costs'
-      )
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.other_transport_costs', 'Other Transport Costs')
 
     case 'OTHER':
       return getTranslationFromI18nKeyAndLabel('lowcoder:cards.others', 'Others')

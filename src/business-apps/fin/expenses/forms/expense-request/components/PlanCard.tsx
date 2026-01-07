@@ -1,6 +1,6 @@
 import React from 'react'
 import { formatDate } from '@/common/utils/windowUtils'
-import { useTranslation } from 'react-i18next'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ICONS } from '../../../utils/icons'
 import { PLAN_TYPE_ENUM, DEFAULT_PLAN_CURRENCY_CODE } from '../constants/constants'
 
@@ -28,11 +28,9 @@ interface PlanCardProps {
 const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true }) => {
   const { planType, title, creationDate, tripInterval, paymentAmount, paymentCurrency, planAmount, planCurrency } = plan
 
-  const { t } = useTranslation()
-
   const formattedCreationDate = creationDate
     ? formatDate(creationDate, 'date.long')
-    : t('lowcoder:expense_summary_request.no_creation_date', 'No creation date')
+    : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date')
 
   const iconPath = planType === PLAN_TYPE_ENUM.TRIP ? ICONS.TRIP_ICON : ICONS.RECEIPT_ICON
   const iconTitle = planType === PLAN_TYPE_ENUM.TRIP ? 'Trip' : 'Expense'
@@ -43,15 +41,27 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
     }
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (selectable && onClick && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault()
+      onClick()
+    }
+  }
+
+  const CardWrapper = selectable ? 'button' : 'div'
+
   return (
-    <div
+    <CardWrapper
+      type={selectable ? 'button' : undefined}
       className="gba:flex gba:flex-col"
       style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'background',
         padding: '16px',
         width: '100%',
         cursor: selectable ? 'pointer' : 'default',
         transition: selectable ? 'all 0.2s ease' : 'none',
+        border: 'none',
+        textAlign: 'left',
         ...(selectable && {
           ':hover': {
             boxShadow: '0 0 12px rgba(0, 0, 0, 0.15)',
@@ -64,9 +74,8 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
         })
       }}
       data-testid={`plan-card-${plan.id}`}
-      onClick={handleClick}
-      role={selectable ? 'button' : undefined}
-      tabIndex={selectable ? 0 : undefined}
+      onClick={selectable ? handleClick : undefined}
+      onKeyDown={selectable ? handleKeyDown : undefined}
     >
       <div className="gba:flex gba:items-center" style={{ marginBottom: '12px' }} data-testid="plan-card-header">
         <div
@@ -76,7 +85,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
         >
           <img src={`${iconPath}`} alt={iconTitle} width="20" height="20" data-testid="plan-card-icon-image" />
         </div>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: '#333333' }} data-testid="plan-card-type">
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'foreground333' }} data-testid="plan-card-type">
           {iconTitle}
         </span>
       </div>
@@ -88,10 +97,13 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
           data-testid="plan-card-title-container"
         >
           <span style={{ fontSize: '18px', fontWeight: 500 }} data-testid="plan-card-title">
-            {title || t('lowcoder:expense_item_request_card.no_title', 'No Title')}
+            {title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.no_title', 'No Title')}
           </span>
           {tripInterval && (
-            <span style={{ fontSize: '14px', fontWeight: 400, color: '#666666' }} data-testid="plan-card-interval">
+            <span
+              style={{ fontSize: '14px', fontWeight: 400, color: 'muted-foreground' }}
+              data-testid="plan-card-interval"
+            >
               {tripInterval}
             </span>
           )}
@@ -106,7 +118,8 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
             style={{ fontSize: '14px', fontWeight: 'normal', width: '33%', textAlign: 'left', display: 'inline-block' }}
             data-testid="plan-card-creation-date"
           >
-            {t('lowcoder:expense_item_request_card.created', 'Created')}: {formattedCreationDate}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.created', 'Created')}:{' '}
+            {formattedCreationDate}
           </span>
 
           {paymentAmount ? (
@@ -129,7 +142,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
                 />
               </div>
               <span
-                style={{ fontSize: '14px', fontWeight: 'normal', color: '#A2519A' }}
+                style={{ fontSize: '14px', fontWeight: 'normal', color: 'primary' }}
                 data-testid="plan-card-payment-amount"
               >
                 {paymentAmount} {paymentCurrency}
@@ -147,7 +160,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
           </span>
         </div>
       </div>
-    </div>
+    </CardWrapper>
   )
 }
 

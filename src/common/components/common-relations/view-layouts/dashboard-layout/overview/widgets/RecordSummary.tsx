@@ -139,18 +139,17 @@ export const RecordSummary: React.FC<RecordSummaryProps> = ({
               <Card
                 key={record.id}
                 data-testid={`recent-record-item-${record.id}`}
-                className="gba:transition-all gba:duration-200 hover:gba:shadow-md hover:gba:bg-gray-50 gba:cursor-pointer gba:border-l-4 gba:relative"
+                className="gba:transition-all gba:duration-200 gba:hover:shadow-md gba:hover:bg-accent gba:cursor-pointer gba:border-l-4 gba:relative"
                 style={{ borderLeftColor: entityInfo.color }}
                 onClick={() => handleRecordClick(record)}
               >
                 {/* Badge positioned at very top right of card */}
                 <Badge
                   variant="secondary"
-                  className="gba:absolute gba:-top-2 gba:right-2 gba:text-xs gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded-full gba:leading-none gba:z-10"
+                  className={`gba:absolute gba:-top-2 gba:right-2 gba:text-xs gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded-full gba:leading-none gba:z-10 gba:border-none`}
                   style={{
                     backgroundColor: entityInfo.color,
-                    color: 'white',
-                    border: 'none',
+                    color: 'var(--nw-color-background)',
                     boxShadow: `0 1px 3px ${entityInfo.color}40`
                   }}
                 >

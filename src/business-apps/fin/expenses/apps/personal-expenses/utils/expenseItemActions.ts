@@ -25,8 +25,8 @@ export const generateExpenseItemActions = (
 
   const actions: any[] = []
 
-  // Update action - available for CREATED or ASSIGNED status
-  if (item.status === 'CREATED' || item.status === 'ASSIGNED') {
+  // Update action - available for CREATED status
+  if (item.status === 'CREATED' || item.status === 'ASSIGNED' || item.status === 'REJECTED') {
     actions.push({
       category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
       key: 'update-expense-item',
@@ -72,8 +72,8 @@ export const generateExpenseItemActions = (
     })
   }
 
-  // Assign to request action - available for CREATED or ASSIGNED status
-  if (includeAssignToRequest && (item.status === 'CREATED' || item.status === 'ASSIGNED')) {
+  // Assign to request action - available for CREATED status
+  if (includeAssignToRequest && item.status === 'CREATED') {
     actions.push({
       category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
       key: 'assign-to-request',

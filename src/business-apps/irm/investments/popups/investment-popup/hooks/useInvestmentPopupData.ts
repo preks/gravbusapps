@@ -1,15 +1,27 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentById } from '@/common/data/investment'
+import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { useCatalogEntries } from '@/common/data/catalog'
-import { Investment } from '@/common/data/investment/types'
+import { Investment } from '@/common/data/investment/types/investmentTypes'
 import { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 
 interface UseInvestmentPopupDataParams {
   context: BusinessAppContextProps
   investmentId: string
-  scope: 'tile' | 'exit' | 'status'
-  tileKey?: string // Only needed for tile scope
+  scope:
+    | 'tile'
+    | 'text'
+    | 'kpi'
+    | 'table'
+    | 'chart'
+    | 'exit'
+    | 'status'
+    | 'liquidity'
+    | 'ppmforecast'
+    | 'kpiforecast'
+    | 'liquidityForecast'
+    | 'delete'
+  tileKey?: string // Only needed for legacy tile scope
   enabled?: boolean // Optional flag to disable data fetching
 }
 

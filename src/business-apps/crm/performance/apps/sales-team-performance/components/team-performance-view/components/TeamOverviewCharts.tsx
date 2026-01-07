@@ -1,219 +1,255 @@
-import React, { useMemo, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Spinner, Alert, Button } from '@newwork/nw-design-system'
+import React, { useMemo, useCallback } from 'react'
 import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Line,
-  ComposedChart,
-  Area,
-  Legend
-} from 'recharts'
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  ChartContainer,
+  ChartTooltip,
+  ChartLegend,
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Area } from 'recharts'
 import { PiChartPie, PiChartBar, PiTrendUp, PiUsers, PiTarget } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { SalesTeamMember } from '../../sales-members-list/types'
-import { useTeamAnalyticsData } from '../hooks/useTeamAnalyticsData'
-import dayjs from 'dayjs'
+import { ActivityTimelineTooltip } from '@/common/components/common-relations/view-layouts/analytics-layout/shared/tooltips/ActivityTimelineTooltip'
 
 const DATA_TEST_ID_PREFIX = 'TeamOverviewCharts'
 
+// Tooltip Components
+interface ActivityPieTooltipProps {
+  active?: boolean
+  payload?: readonly any[]
+  activityTypesData: any[]
+}
+
+const ActivityPieTooltip: React.FC<ActivityPieTooltipProps> = ({ active, payload, activityTypesData }) => {
+  if (active && payload?.length) {
+    const data = payload[0]
+    const total = activityTypesData.reduce((sum, item) => sum + item.value, 0)
+    const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+          />
+          <span className="gba:font-medium gba:text-gray-700">{data.payload.type}</span>
+        </div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} activities</div>
+        <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
+      </div>
+    )
+  }
+  return null
+}
+
+interface MemberBarTooltipProps {
+  active?: boolean
+  payload?: readonly any[]
+}
+
+const MemberBarTooltip: React.FC<MemberBarTooltipProps> = ({ active, payload }) => {
+  if (active && payload?.length) {
+    const data = payload[0]
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: `var(--color-${data.payload.memberKey})` }}
+          />
+          <span className="gba:font-medium gba:text-gray-700">{data.payload.fullName}</span>
+        </div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} activities</div>
+      </div>
+    )
+  }
+  return null
+}
+
+interface EntityPieTooltipProps {
+  active?: boolean
+  payload?: readonly any[]
+  entityTypesData: any[]
+}
+
+const EntityPieTooltip: React.FC<EntityPieTooltipProps> = ({ active, payload, entityTypesData }) => {
+  if (active && payload?.length) {
+    const data = payload[0]
+    const total = entityTypesData.reduce((sum, item) => sum + item.value, 0)
+    const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+          />
+          <span className="gba:font-medium gba:text-gray-700">{data.payload.type}</span>
+        </div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} activities</div>
+        <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
+      </div>
+    )
+  }
+  return null
+}
+
+interface ActivityTypeAggregate {
+  activityType: string
+  count: number
+}
+
+interface EmployeeActivityAggregate {
+  employeeId: string
+  employeeName: string
+  count: number
+}
+
+interface EntityTypeAggregate {
+  entityType: string
+  count: number
+}
+
+interface TimelineAggregate {
+  date: string
+  count: number
+}
+
 interface TeamOverviewChartsProps extends BusinessAppContextProps {
-  teamMembers: SalesTeamMember[]
+  activityTypeAggregates: ActivityTypeAggregate[]
+  employeeActivityAggregates: EmployeeActivityAggregate[]
+  entityTypeAggregates: EntityTypeAggregate[]
+  timelineAggregates: TimelineAggregate[]
+  totalActivities: number
+  loading: boolean
 }
 
-// Chart color palette
-const CHART_COLORS = ['#1677ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96', '#13c2c2', '#fadb14']
-const ACTIVITY_TYPE_COLORS = {
-  Call: '#52c41a', // Green
-  Email: '#1677ff', // Blue
-  Meeting: '#fa8c16', // Orange
-  Task: '#722ed1', // Purple
-  Other: '#8c8c8c' // Gray
-}
+export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
+  activityTypeAggregates,
+  employeeActivityAggregates,
+  entityTypeAggregates,
+  timelineAggregates,
+  totalActivities,
+  loading
+}) => {
+  // Data is passed from parent component (TeamPerformanceView)
 
-export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({ teamMembers, accessToken, userInfo }) => {
-  // Get employee IDs for data fetching
-  const employeeIds = useMemo(() => {
-    const memberIds = teamMembers.map(member => member.employeeId || member.id).filter((id): id is string => !!id)
-
-    const managerIds = teamMembers.map(member => member.manager?.id).filter((id): id is string => !!id)
-
-    return Array.from(new Set([...memberIds, ...managerIds]))
-  }, [teamMembers])
-
-  // Use the specialized analytics data hook (no query limits for comprehensive data)
-  const { activities, total, loading, error, loadAnalyticsData, retry } = useTeamAnalyticsData({
-    employeeIds,
-    accessToken,
-    userInfo
-  })
-
-  // Load data when component mounts
-  useEffect(() => {
-    if (employeeIds.length > 0) {
-      loadAnalyticsData()
-    }
-  }, [employeeIds, loadAnalyticsData])
-
-  // Activity Types Distribution (Pie Chart Data)
+  // Activity Types Distribution (Pie Chart Data) - Using aggregates with design system pattern
   const activityTypesData = useMemo(() => {
-    if (!activities.length) return []
+    if (!activityTypeAggregates.length) return []
 
-    const typeCounts = activities.reduce(
-      (acc, activity) => {
-        const type = activity.activityType?.value || 'Other'
-        acc[type] = (acc[type] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>
-    )
-
-    return Object.entries(typeCounts).map(([name, value]) => ({
-      name,
-      value,
-      color: ACTIVITY_TYPE_COLORS[name as keyof typeof ACTIVITY_TYPE_COLORS] || ACTIVITY_TYPE_COLORS.Other
+    return activityTypeAggregates.map(aggregate => ({
+      type: aggregate.activityType,
+      name: aggregate.activityType.toLowerCase().replaceAll(/\s+/g, ''),
+      value: aggregate.count
     }))
-  }, [activities])
+  }, [activityTypeAggregates])
 
-  // Team Member Activity Distribution (Bar Chart Data)
+  // Chart config for activity types
+  const activityTypesChartConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    activityTypesData.forEach(item => {
+      config[item.name] = { label: item.type }
+    })
+    return config
+  }, [activityTypesData])
+
+  // Team Member Activity Distribution (Bar Chart Data) - Using aggregates with design system pattern
   const memberActivityData = useMemo(() => {
-    if (!activities.length) return []
+    if (!employeeActivityAggregates.length) return []
 
-    const memberCounts = activities.reduce(
-      (acc, activity) => {
-        const memberName = activity.ownerEmployee?.fullName || 'Unknown'
-        acc[memberName] = (acc[memberName] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>
-    )
-
-    return Object.entries(memberCounts)
-      .map(([name, activities]) => ({
-        name: name.split(' ')[0], // First name only for space
-        fullName: name,
-        activities
-      }))
+    return employeeActivityAggregates
+      .filter(aggregate => aggregate.employeeName) // Filter out null/undefined names
+      .map(aggregate => {
+        const firstName = aggregate.employeeName?.split(' ')[0] || 'Unknown'
+        return {
+          member: firstName,
+          memberKey: firstName.toLowerCase().replaceAll(/\s+/g, ''),
+          fullName: aggregate.employeeName || 'Unknown',
+          activities: aggregate.count
+        }
+      })
       .sort((a, b) => b.activities - a.activities)
       .slice(0, 10) // Top 10 most active
-  }, [activities])
+  }, [employeeActivityAggregates])
 
-  // Activity Timeline (Line Chart Data) - Last 30 days
+  // Chart config for team members
+  const memberActivityChartConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    memberActivityData.forEach(item => {
+      config[item.memberKey] = { label: item.fullName }
+    })
+    return config
+  }, [memberActivityData])
+
+  // Activity Timeline - Format data for chart
   const activityTimelineData = useMemo(() => {
-    if (!activities.length) return []
+    if (!timelineAggregates.length) return []
 
-    const last30Days = Array.from({ length: 30 }, (_, i) => {
-      const date = dayjs().subtract(29 - i, 'days')
+    return timelineAggregates.map(aggregate => {
+      // Format date as "MMM DD" for display
+      const date = new Date(aggregate.date)
+      const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
       return {
-        date: date.format('MMM DD'),
-        fullDate: date.format('YYYY-MM-DD'),
-        activities: 0,
-        calls: 0,
-        emails: 0,
-        meetings: 0,
-        tasks: 0
+        date: formattedDate,
+        fullDate: aggregate.date,
+        activities: aggregate.count
       }
     })
+  }, [timelineAggregates])
 
-    activities.forEach(activity => {
-      if (!activity.createdAt) return
+  // Chart config for timeline
+  const timelineChartConfig = useMemo(
+    () => ({
+      activities: { label: 'Total Activities' }
+    }),
+    []
+  )
 
-      const activityDate = dayjs(activity.createdAt).format('YYYY-MM-DD')
-      const dayData = last30Days.find(day => day.fullDate === activityDate)
-
-      if (dayData) {
-        dayData.activities += 1
-
-        const type = activity.activityType?.value || 'Other'
-        switch (type.toLowerCase()) {
-          case 'call':
-            dayData.calls += 1
-            break
-          case 'email':
-            dayData.emails += 1
-            break
-          case 'meeting':
-            dayData.meetings += 1
-            break
-          case 'task':
-            dayData.tasks += 1
-            break
-        }
-      }
-    })
-
-    return last30Days
-  }, [activities])
-
-  // Entity Type Distribution (Pie Chart Data)
+  // Entity Type Distribution - Using design system pattern
   const entityTypesData = useMemo(() => {
-    if (!activities.length) return []
+    if (!entityTypeAggregates.length) return []
 
-    const entityCounts = activities.reduce(
-      (acc, activity) => {
-        let entityType = 'Other'
-        if (activity.account?.name) entityType = 'Account'
-        else if (activity.contact?.firstName || activity.contact?.lastName) entityType = 'Contact'
-        else if (activity.lead?.name || activity.lead?.contact) entityType = 'Lead'
-        else if (activity.opportunity?.name) entityType = 'Opportunity'
-
-        acc[entityType] = (acc[entityType] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>
-    )
-
-    return Object.entries(entityCounts).map(([name, value], index) => ({
-      name,
-      value,
-      color: CHART_COLORS[index % CHART_COLORS.length]
+    return entityTypeAggregates.map(aggregate => ({
+      type: aggregate.entityType,
+      name: aggregate.entityType.toLowerCase(),
+      value: aggregate.count
     }))
-  }, [activities])
+  }, [entityTypeAggregates])
 
-  // Loading state
-  if (loading && activities.length === 0) {
-    return (
-      <Card data-testid={`${DATA_TEST_ID_PREFIX}-loading`}>
-        <CardContent className="gba:flex gba:justify-center gba:p-8">
-          <Spinner size="lg" />
-        </CardContent>
-      </Card>
-    )
-  }
+  // Chart config for entity types
+  const entityTypesChartConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    entityTypesData.forEach(item => {
+      config[item.name] = { label: item.type }
+    })
+    return config
+  }, [entityTypesData])
 
-  // Error state
-  if (error && activities.length === 0) {
-    return (
-      <Alert variant="destructive" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div>
-            <h4 className="gba:text-sm gba:font-medium">Error Loading Team Analytics</h4>
-            <p className="gba:text-sm gba:text-muted-foreground">Failed to load team activity data for charts</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={retry} data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}>
-            Retry
-          </Button>
-        </div>
-      </Alert>
-    )
-  }
+  // Memoized tooltip renderers
+  const renderActivityTooltip = useCallback(
+    (props: any) => <ActivityPieTooltip {...props} activityTypesData={activityTypesData} />,
+    [activityTypesData]
+  )
 
-  // No data state
-  if (activities.length === 0) {
+  const renderEntityTooltip = useCallback(
+    (props: any) => <EntityPieTooltip {...props} entityTypesData={entityTypesData} />,
+    [entityTypesData]
+  )
+
+  // Only show charts if we have data
+  if (totalActivities === 0) {
     return (
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-empty`}>
         <CardContent className="gba:text-center gba:p-8">
           <PiChartPie size={48} className="gba:text-gray-400 gba:mx-auto gba:mb-4" />
           <h3 className="gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">No Activity Data</h3>
           <p className="gba:text-sm gba:text-gray-500">
-            Analytics will appear here once the team has recorded activities.
+            {loading ? 'Loading analytics...' : 'Analytics will appear here once the team has recorded activities.'}
           </p>
         </CardContent>
       </Card>
@@ -226,7 +262,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({ teamMemb
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
         <PiChartBar className="gba:text-blue-600" size={24} />
         <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">Team Activity Analytics</h2>
-        <span className="gba:text-gray-500 gba:text-sm">({total} activities analyzed)</span>
+        <span className="gba:text-gray-500 gba:text-sm">({totalActivities} activities analyzed)</span>
       </div>
 
       {/* First Row - Activity Types & Member Distribution */}
@@ -240,25 +276,26 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({ teamMemb
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer config={activityTypesChartConfig} className="gba:h-[300px] gba:w-full">
               <PieChart>
                 <Pie
                   data={activityTypesData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
-                  outerRadius={120}
-                  paddingAngle={5}
+                  outerRadius={100}
+                  paddingAngle={2}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(1) : '0'}%`}
+                  nameKey="name"
                 >
-                  {activityTypesData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {activityTypesData.map(entry => (
+                    <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                   ))}
                 </Pie>
-                <Tooltip formatter={value => [value, 'Activities']} />
+                <ChartTooltip content={renderActivityTooltip} />
+                <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -271,15 +308,23 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({ teamMemb
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer config={memberActivityChartConfig} className="gba:h-[300px] gba:w-full">
               <BarChart data={memberActivityData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip formatter={value => [value, 'Activities']} />
-                <Bar dataKey="activities" fill="#1677ff" />
+                <CartesianGrid strokeDasharray="0" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="member"
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  stroke="hsl(var(--border))"
+                />
+                <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} stroke="hsl(var(--border))" />
+                <ChartTooltip content={MemberBarTooltip} />
+                <Bar dataKey="activities" radius={[8, 8, 0, 0]}>
+                  {memberActivityData.map(entry => (
+                    <Cell key={`cell-${entry.memberKey}`} fill={`var(--color-${entry.memberKey})`} />
+                  ))}
+                </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>
@@ -291,30 +336,36 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({ teamMemb
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
               <PiTrendUp className="gba:text-orange-600" size={20} />
-              Activity Timeline (30 Days)
+              Activity Timeline (Last 30 Days)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer config={timelineChartConfig} className="gba:h-[300px] gba:w-full">
               <ComposedChart data={activityTimelineData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval="preserveStartEnd"
+                />
+                <YAxis tick={{ fontSize: 12 }} />
+                <ChartTooltip content={ActivityTimelineTooltip} />
+                <ChartLegend content={<ChartLegendContent />} />
                 <Area
                   type="monotone"
                   dataKey="activities"
-                  fill="#1677ff"
-                  fillOpacity={0.3}
-                  stroke="#1677ff"
+                  fill="var(--color-activities)"
+                  fillOpacity={0.2}
+                  stroke="var(--color-activities)"
+                  strokeWidth={2}
                   name="Total Activities"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
                 />
-                <Line type="monotone" dataKey="calls" stroke="#52c41a" name="Calls" strokeWidth={2} />
-                <Line type="monotone" dataKey="emails" stroke="#1677ff" name="Emails" strokeWidth={2} />
-                <Line type="monotone" dataKey="meetings" stroke="#fa8c16" name="Meetings" strokeWidth={2} />
               </ComposedChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -327,24 +378,25 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({ teamMemb
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer config={entityTypesChartConfig} className="gba:h-[300px] gba:w-full">
               <PieChart>
                 <Pie
                   data={entityTypesData}
                   cx="50%"
                   cy="50%"
-                  outerRadius={120}
-                  paddingAngle={5}
+                  outerRadius={100}
+                  paddingAngle={2}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(1) : '0'}%`}
+                  nameKey="name"
                 >
-                  {entityTypesData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {entityTypesData.map(entry => (
+                    <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                   ))}
                 </Pie>
-                <Tooltip formatter={value => [value, 'Activities']} />
+                <ChartTooltip content={renderEntityTooltip} />
+                <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>

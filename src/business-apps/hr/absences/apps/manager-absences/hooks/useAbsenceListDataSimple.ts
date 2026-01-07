@@ -91,7 +91,14 @@ const buildWhereConditions = (filters: {
     }
   }
 
-  if (startDate && endDate) {
+  const isValidDateString = (dateStr?: string): boolean => {
+    if (!dateStr) return false
+    if (dateStr.includes('Invalid')) return false
+    const date = new Date(dateStr.split(' ')[0])
+    return !isNaN(date.getTime())
+  }
+
+  if (startDate && endDate && isValidDateString(startDate) && isValidDateString(endDate)) {
     const startDateTime = startDate.includes(' ') ? startDate : `${startDate} 00:00:00+00`
     const endDateTime = endDate.includes(' ') ? endDate : `${endDate} 23:59:59+00`
 
@@ -109,25 +116,30 @@ const buildWhereConditions = (filters: {
       conditions.startDate = { _gte: startDateTime }
       conditions.endDate = { _lte: endDateTime }
     }
-  } else if (startDate) {
+  } else if (startDate && isValidDateString(startDate)) {
     const startDateTime = startDate.includes(' ') ? startDate : `${startDate} 00:00:00+00`
     conditions.startDate = { _gte: startDateTime }
-  } else if (endDate) {
+  } else if (endDate && isValidDateString(endDate)) {
     const endDateTime = endDate.includes(' ') ? endDate : `${endDate} 23:59:59+00`
     conditions.endDate = { _lte: endDateTime }
   }
 
-  if (creationStartDate && creationEndDate) {
+  if (
+    creationStartDate &&
+    creationEndDate &&
+    isValidDateString(creationStartDate) &&
+    isValidDateString(creationEndDate)
+  ) {
     const creationStartDateTime = `${creationStartDate} 00:00:00+00`
     const creationEndDateTime = `${creationEndDate} 23:59:59+00`
     conditions.createdAt = {
       _gte: creationStartDateTime,
       _lte: creationEndDateTime
     }
-  } else if (creationStartDate) {
+  } else if (creationStartDate && isValidDateString(creationStartDate)) {
     const creationStartDateTime = `${creationStartDate} 00:00:00+00`
     conditions.createdAt = { _gte: creationStartDateTime }
-  } else if (creationEndDate) {
+  } else if (creationEndDate && isValidDateString(creationEndDate)) {
     const creationEndDateTime = `${creationEndDate} 23:59:59+00`
     conditions.createdAt = { _lte: creationEndDateTime }
   }
@@ -311,13 +323,7 @@ export const useAbsenceListDataSimple = ({
         const fetchLimit = shouldFetchAllData ? Math.min(2000, newPageSize) : newPageSize
         const fetchOffset = shouldFetchAllData ? 0 : page
 
-        const query = GET_SUPERVISOR_ABSENCES_WITH_FILTERS({
-          supervisorId,
-          offset: fetchOffset,
-          limit: fetchLimit,
-          where: finalWhereConditions,
-          orderBy
-        })
+        const query = GET_SUPERVISOR_ABSENCES_WITH_FILTERS()
 
         try {
           const result = await graphqlClient.request<{

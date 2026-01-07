@@ -1,9 +1,42 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentPortfolioKPIs, InvestmentQueryVariables } from '../types'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { useGetPortfolioKPIs } from '../queries/PortfolioKPIQueries'
-import type { Investment as CentralInvestment } from '@/common/data/investment/types'
+import type { Investment as CentralInvestment } from '@/common/data/investment/types/investmentTypes'
+import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
+import { calculateInvestmentDuration } from '../../shared/utils/dateUtils'
+
+// Helper functions for investment-specific business logic
+const getInvestmentStatusColor = (status: string): string => {
+  switch (status?.toLowerCase()) {
+    case 'active':
+      return 'green'
+    case 'inactive':
+      return 'red'
+    case 'pending':
+      return 'orange'
+    case 'completed':
+      return 'blue'
+    case 'cancelled':
+      return 'gray'
+    default:
+      return 'blue'
+  }
+}
+
+const getRiskLevelColor = (riskLevel: string): string => {
+  switch (riskLevel?.toLowerCase()) {
+    case 'low':
+      return 'green'
+    case 'medium':
+      return 'orange'
+    case 'high':
+      return 'red'
+    default:
+      return 'blue'
+  }
+}
 
 export interface EnhancedInvestmentSummary {
   id: string
@@ -41,69 +74,53 @@ export interface EnhancedInvestmentSummary {
   opportunityName?: string
 }
 
-export const useInvestmentPortfolioIntegration = (context: BusinessAppContextProps) => {
+export const useInvestmentPortfolioIntegration = (context: BusinessAppContextProps, selectedCurrency?: string) => {
   const [investments, setInvestments] = useState<EnhancedInvestmentSummary[]>([])
   const [kpis, setKPIs] = useState<InvestmentPortfolioKPIs>({
     totalPortfolioValue: 0,
     totalInvestments: 0,
     totalAmountInvested: 0,
-    activeInvestments: 0
+    activeInvestments: 0,
+    averageInvestmentValue: 0,
+    averageMarketValue: 0
   })
   const [previousKpis, setPreviousKPIs] = useState<InvestmentPortfolioKPIs>({
     totalPortfolioValue: 0,
     totalInvestments: 0,
     totalAmountInvested: 0,
-    activeInvestments: 0
+    activeInvestments: 0,
+    averageInvestmentValue: 0,
+    averageMarketValue: 0
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Prevent duplicate queries (React Strict Mode calls effects twice)
+  const isLoadingRef = useRef(false)
+
   const { fetchInvestments } = useGetInvestments(context)
   const { fetchPortfolioKPIs } = useGetPortfolioKPIs(context)
 
-  const extractCurrencyCode = (inv: CentralInvestment): string => inv.currency?.code || 'EUR'
+  /**
+   * Extract currency code from investment, using shared utility for safe extraction
+   */
+  const extractCurrencyCode = (inv: CentralInvestment): string => {
+    return safeCurrencyExtraction(inv.currency) || 'EUR'
+  }
 
+  /**
+   * Calculate ROI (Return on Investment) percentage
+   */
   const calculateROI = (marketValue: number, initialInvestment: number): number => {
     if (!initialInvestment || initialInvestment === 0) return 0
     return ((marketValue - initialInvestment) / initialInvestment) * 100
   }
 
+  /**
+   * Calculate investment age in days using shared utility
+   */
   const calculateInvestmentAge = (acquisitionDate: string): number => {
-    if (!acquisitionDate) return 0
-    const today = new Date()
-    const acquired = new Date(acquisitionDate)
-    const diffTime = Math.abs(today.getTime() - acquired.getTime())
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  }
-
-  const getStatusColor = (status: string): string => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return 'green'
-      case 'pending':
-        return 'orange'
-      case 'exited':
-        return 'red'
-      case 'liquidated':
-        return 'blue'
-      default:
-        return 'gray'
-    }
-  }
-
-  const getRiskLevelColor = (riskLevel: string): string => {
-    switch (riskLevel?.toLowerCase()) {
-      case 'low':
-        return 'green'
-      case 'medium':
-        return 'orange'
-      case 'high':
-        return 'red'
-      case 'very high':
-        return 'volcano'
-      default:
-        return 'gray'
-    }
+    return calculateInvestmentDuration(acquisitionDate)
   }
 
   const transformInvestmentData = useCallback((central: CentralInvestment[]): EnhancedInvestmentSummary[] => {
@@ -143,7 +160,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
         leverageRatio,
         notesSummary: (inv as any).notesSummary,
         displayName: inv.displayName || inv.name || inv.code || `Investment ${inv.id}`,
-        statusColor: getStatusColor(statusLabel),
+        statusColor: getInvestmentStatusColor(statusLabel),
         riskLevelColor: getRiskLevelColor(riskLabel),
         currencyCode: extractCurrencyCode(inv),
         roi: calculateROI(marketValue, initial),
@@ -156,22 +173,13 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     })
   }, [])
 
-  const calculateKPIs = useCallback((enhancedInvestments: EnhancedInvestmentSummary[]): InvestmentPortfolioKPIs => {
-    const totalPortfolioValue = enhancedInvestments.reduce((sum, inv) => sum + (inv.marketValue || 0), 0)
-    const totalInvestments = enhancedInvestments.length
-    const activeInvestments = enhancedInvestments.filter(inv => inv.isActive).length
-    const totalAmountInvested = enhancedInvestments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
-    return { totalPortfolioValue, totalInvestments, totalAmountInvested, activeInvestments }
-  }, [])
-
   const loadData = useCallback(
     async (variables: InvestmentQueryVariables = {}) => {
-      if (!context.accessToken) {
-        setError('Access token not available')
-        setIsLoading(false)
+      if (!context.accessToken || isLoadingRef.current) {
         return
       }
 
+      isLoadingRef.current = true
       setIsLoading(true)
       setError(null)
 
@@ -187,7 +195,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
               direction: (o.direction || 'DESC') as 'ASC' | 'DESC'
             }))
           }),
-          fetchPortfolioKPIs()
+          fetchPortfolioKPIs(selectedCurrency)
         ])
 
         // Process investment data for list display
@@ -203,16 +211,17 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setIsLoading(false)
+        isLoadingRef.current = false
       }
     },
-    [context.accessToken, fetchInvestments, fetchPortfolioKPIs, transformInvestmentData]
+    [context.accessToken, fetchInvestments, fetchPortfolioKPIs, transformInvestmentData, selectedCurrency]
   )
 
   useEffect(() => {
     if (context.accessToken) {
-      loadData()
+      void loadData()
     }
-  }, [context.accessToken]) // Only depend on accessToken, not loadData
+  }, [context.accessToken, selectedCurrency])
 
   return {
     investments,
@@ -220,6 +229,6 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     previousKpis,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

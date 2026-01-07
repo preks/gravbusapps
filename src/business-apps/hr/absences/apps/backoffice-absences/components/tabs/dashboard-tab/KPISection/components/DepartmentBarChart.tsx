@@ -13,7 +13,7 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
   return (
     <Card className="gba:hover:shadow-md gba:transition-shadow gba:p-4" data-testid="department-chart-card">
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <RiBarChartLine className="gba:text-blue-600" size={20} />
+        <RiBarChartLine className="gba:text-info" size={20} />
         <div>
           <h5 className="gba:text-sm gba:font-medium gba:m-0">
             {getTranslationFromI18nKeyAndLabel(
@@ -41,7 +41,7 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
                   const data = payload[0].payload
                   return (
                     <div
-                      className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-[200px] gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow gba:select-none"
+                      className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-[200px] gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow gba:select-none"
                       onClick={() => onBarClick(data)}
                       onMouseDown={() => onBarClick(data)}
                       title={getTranslationFromI18nKeyAndLabel(
@@ -51,35 +51,35 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
                     >
                       <p className="gba:font-medium gba:mb-2">{data.fullName}</p>
                       <div className="gba:space-y-1 gba:text-sm">
-                        <p className="gba:text-blue-600">
+                        <p className="gba:text-info">
                           📊 {data.absences}{' '}
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.total_absence_days',
                             'total absence days'
                           )}
                         </p>
-                        <p className="gba:text-purple-600">
+                        <p className="gba:text-info">
                           👥 {data.uniqueEmployees}{' '}
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.employees',
                             'employees'
                           )}
                         </p>
-                        <p className="gba:text-green-600">
+                        <p className="gba:text-success">
                           📈 {data.avgDaysPerEmployee}{' '}
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.avg_days_per_employee',
                             'avg days/employee'
                           )}
                         </p>
-                        <p className="gba:text-orange-600">
+                        <p className="gba:text-warning">
                           📋 {data.avgRequestsPerEmployee}{' '}
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.avg_requests_per_employee',
                             'avg requests/employee'
                           )}
                         </p>
-                        <p className="gba:text-gray-600 gba:text-xs gba:mt-2">
+                        <p className="gba:text-muted-foreground gba:text-xs gba:mt-2">
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_backoffice.total',
                             'Total'
@@ -91,7 +91,7 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
                           )}
                         </p>
                       </div>
-                      <div className="gba:text-xs gba:text-blue-500 gba:mt-3 gba:pt-2 gba:border-t gba:border-gray-200 gba:text-center">
+                      <div className="gba:text-xs gba:text-info gba:mt-3 gba:pt-2 gba:border-t gba:text-center">
                         💡{' '}
                         {getTranslationFromI18nKeyAndLabel(
                           'lowcoder:absence_management_hub_backoffice.click_to_view_department_details',
@@ -116,7 +116,7 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
 
             <Bar
               dataKey="absences"
-              fill="#3498db"
+              fill="var(--nw-chart-3)"
               onClick={data => onBarClick(data)}
               onMouseDown={data => onBarClick(data)}
               style={{ cursor: 'pointer' }}

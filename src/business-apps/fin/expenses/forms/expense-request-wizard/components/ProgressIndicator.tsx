@@ -92,7 +92,7 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen, is
       {lineStates.map((isFilled, index) => (
         <div
           key={`progress-line-${index}`}
-          className={` gba:h-[3px] gba:w-1/4 gba:rounded-[1.5px] ${isFilled ? 'gba:bg-[#000000]' : 'gba:bg-[#C2C2C2]'}`}
+          className={`gba:h-[3px] gba:w-1/4 gba:rounded-[1.5px] ${isFilled ? 'gba:bg-foreground' : 'gba:bg-muted'}`}
           style={getLineStyle()}
           data-testid={`expense-request-wizard-progress-line-${index}`}
         />

@@ -22,7 +22,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       value: statistics.teamMembersAway,
       prefix: <PiUsers />,
-      color: '#722ed1',
+      color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_manager.dashboard.employees_away_today',
@@ -51,7 +51,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       value: statistics.pendingRequests,
       prefix: <PiClock />,
-      color: '#faad14',
+      color: 'var(--nw-warning)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_manager.dashboard.requests_awaiting_approval',
@@ -80,7 +80,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       value: statistics.sickAbsencesByMonth.count,
       prefix: <PiFirstAid />,
-      color: '#ff4d4f',
+      color: 'var(--nw-destructive)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_manager.dashboard.most_requests_month',
@@ -89,13 +89,11 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       onClick: () => {
         const currentYear = new Date().getFullYear()
-        const monthName = statistics.sickAbsencesByMonth.month
+        const monthNumber = statistics.sickAbsencesByMonth.monthNumber
 
-        const monthNumber = dayjs(`${monthName} 1, ${currentYear}`).month()
-
-        const startOfMonth = dayjs(`${currentYear}-${String(monthNumber + 1).padStart(2, '0')}-01`)
+        const targetMonth = monthNumber !== null ? monthNumber : dayjs().month()
+        const startOfMonth = dayjs(`${currentYear}-${String(targetMonth + 1).padStart(2, '0')}-01`)
         const endOfMonth = startOfMonth.endOf('month')
-
         const startDate = startOfMonth.format('YYYY-MM-DD')
         const endDate = endOfMonth.format('YYYY-MM-DD')
 
@@ -118,7 +116,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       value: statistics.upcomingAbsences,
       prefix: <PiCalendar />,
-      color: '#1677ff',
+      color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_manager.dashboard.future_scheduled_absences',

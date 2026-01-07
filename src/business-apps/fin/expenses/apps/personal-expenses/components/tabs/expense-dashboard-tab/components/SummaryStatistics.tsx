@@ -1,131 +1,166 @@
 import React from 'react'
-import { Card, Alert, Spinner } from '@newwork/nw-design-system'
-import { ArrowUpOutlined, ArrowDownOutlined, GlobalOutlined } from '@ant-design/icons'
+import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
+import { ArrowUpOutlined, GlobalOutlined } from '@ant-design/icons'
 import { PiCurrencyCircleDollar } from 'react-icons/pi'
 import { calculatePercentChange } from '../utils/formatters'
 import { DashboardStats } from '../types'
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatCurrencyDisplay } from '../../../../utils'
 
 interface SummaryStatisticsProps {
-  stats: DashboardStats | undefined
+  statistics: DashboardStats | undefined
   isLoading: boolean
   error: Error | null
+  period: 'monthly' | 'quarterly' | 'yearly'
+  currencyCode: string
+  onRetry?: () => void
+  onWidgetClick?: (key: string) => void
 }
 
-export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isLoading, error }) => {
-  if (isLoading) {
-    return (
-      <div className="gba:summary-stats" data-testid="summary-statistics-loading">
-        <div className="gba:flex gba:justify-center gba:p-6">
-          <Spinner size="lg" />
-        </div>
-      </div>
-    )
-  }
+export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
+  statistics,
+  isLoading,
+  error,
+  period,
+  currencyCode,
+  onRetry,
+  onWidgetClick
+}) => {
+  const [hoveredWidgetKey, setHoveredWidgetKey] = React.useState<string | null>(null)
 
-  if (error) {
-    return (
-      <div className="gba:summary-stats" data-testid="summary-statistics-error">
-        <Alert variant="destructive">
-          <h4 className="gba:font-semibold">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.error_loading_statistics',
-              'Error loading statistics'
-            )}
-          </h4>
-          <p>{error.message}</p>
-        </Alert>
-      </div>
-    )
-  }
+  // Provide simple defaults so widgets always show numeric values (0) when stats are missing
+  const stats =
+    statistics ||
+    ({
+      currentMonthExpenses: { total: 0, count: 0 },
+      previousMonthExpenses: { total: 0, count: 0 },
+      currentQuarterExpenses: { total: 0, count: 0 },
+      previousQuarterExpenses: { total: 0, count: 0 },
+      currentYearExpenses: { total: 0, count: 0 },
+      previousYearExpenses: { total: 0, count: 0 },
+      pendingPayouts: 0,
+      bookedAndPendingCount: 0,
+      upcomingTrips: 0,
+      pendingItems: 0
+    } as DashboardStats)
 
-  if (!stats) return null
+  const periodCurrent =
+    period === 'yearly'
+      ? stats.currentYearExpenses?.total || 0
+      : period === 'quarterly'
+        ? stats.currentQuarterExpenses?.total || 0
+        : stats.currentMonthExpenses?.total || 0
+  const periodPrevious =
+    period === 'yearly'
+      ? stats.previousYearExpenses?.total || 0
+      : period === 'quarterly'
+        ? stats.previousQuarterExpenses?.total || 0
+        : stats.previousMonthExpenses?.total || 0
 
-  const currentTotal = stats.currentMonthExpenses?.total || 0
-  const previousTotal = stats.previousMonthExpenses?.total || 0
+  const currentTotal = periodCurrent
+  const previousTotal = periodPrevious
   const percentChange = calculatePercentChange(currentTotal, previousTotal)
   const isPositiveChange = percentChange >= 0
 
-  return (
-    <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:summary-stats" data-testid="summary-statistics">
-      <Card className="gba:h-full" data-testid="current-month-expenses-card">
-        <div className="gba:space-y-2">
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.current_month_expenses_title',
+  const widgets: WidgetItem[] = [
+    {
+      key: 'current-month-expenses',
+      title:
+        period === 'yearly'
+          ? getTranslationFromI18nKeyAndLabel(
+              'lowcoder:personal_expenses.current_year_expenses',
+              'Current Year Expenses'
+            )
+          : period === 'quarterly'
+            ? getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.current_quarter_expenses',
+                'Current Quarter Expenses'
+              )
+            : getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.current_month_expenses',
                 'Current Month Expenses'
-              )}
-            </h3>
-            <div
-              className="gba:flex gba:items-center gba:space-x-1"
-              title={`${Math.abs(percentChange).toFixed(1)}% ${isPositiveChange ? 'increase' : 'decrease'} from last month`}
-            >
-              {isPositiveChange ? (
-                <ArrowUpOutlined className="gba:text-red-500" />
-              ) : (
-                <ArrowDownOutlined className="gba:text-green-600" />
-              )}
-            </div>
-          </div>
-          <div className="gba:flex gba:items-center gba:space-x-2">
-            <PiCurrencyCircleDollar
-              size={24}
-              className={isPositiveChange ? 'gba:text-red-500' : 'gba:text-green-600'}
-            />
-            <span
-              className={`gba:text-2xl gba:font-bold ${isPositiveChange ? 'gba:text-red-500' : 'gba:text-green-600'}`}
-              data-testid="current-month-value"
-            >
-              {formatNumberFunction(String(currentTotal), '0,0.00[,]00')}
-            </span>
-          </div>
-          <p className="gba:text-sm gba:text-gray-500 gba:m-0">
-            {stats?.currentMonthExpenses?.count || 0}{' '}
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_requests', 'expense requests')}
-          </p>
-        </div>
-      </Card>
+              ),
+      value: formatCurrencyDisplay(currentTotal, currencyCode),
+      prefix: <PiCurrencyCircleDollar />,
+      color: isPositiveChange ? '#cf1322' : '#3f8600',
+      valueIsString: true,
+      description: `${stats.currentMonthExpenses?.count || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`,
+      trend: {
+        value: `${Math.abs(percentChange).toFixed(1)}%`,
+        positive: isPositiveChange,
+        description: `${isPositiveChange ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.increase', 'increase') : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decrease', 'decrease')} ${
+          period === 'yearly'
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_year', 'from last year')
+            : period === 'quarterly'
+              ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_quarter', 'from last quarter')
+              : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        }`
+      }
+    },
+    {
+      key: 'pending-payouts',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payouts', 'Pending Payouts'),
+      value: formatCurrencyDisplay(stats.pendingPayouts || 0, currencyCode),
+      prefix: <PiCurrencyCircleDollar />,
+      color: '#1890ff',
+      valueIsString: true,
+      description: `${statistics?.bookedAndPendingCount || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment', 'Awaiting payment')}`
+    },
+    {
+      key: 'upcoming-trips',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.upcoming_trips', 'Upcoming Trips'),
+      value: stats.upcomingTrips || 0,
+      prefix: <GlobalOutlined />,
+      color: '#722ed1',
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:personal_expenses.planned_business_trips',
+        'Planned business trips'
+      )
+    },
+    {
+      key: 'unallocated-expenses',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:personal_expenses.unallocated_expenses',
+        'Unallocated Expenses'
+      ),
+      value: stats.pendingItems || 0,
+      prefix: <ArrowUpOutlined />,
+      color: '#8c8c8c',
+      valueIsString: true,
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:personal_expenses.unlinked_items',
+        'Expense items not linked to a request'
+      ),
+      onClick: () => onWidgetClick?.('unallocated-expenses')
+    }
+  ]
 
-      <Card className="gba:h-full" data-testid="pending-payouts-card">
-        <div className="gba:space-y-2">
-          <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payouts_title', 'Pending Payouts')}
-          </h3>
-          <div className="gba:flex gba:items-center gba:space-x-2">
-            <PiCurrencyCircleDollar size={24} className="gba:text-blue-500" />
-            <span className="gba:text-2xl gba:font-bold gba:text-blue-500" data-testid="pending-payouts-value">
-              {formatNumberFunction(String(stats?.pendingPayouts || 0), '0,0.00[,]00')}
-            </span>
-          </div>
-          <p className="gba:text-sm gba:text-gray-500 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.awaiting_payment_description',
-              'Awaiting payment'
-            )}
-          </p>
-        </div>
-      </Card>
-
-      <Card className="gba:h-full" data-testid="upcoming-trips-card">
-        <div className="gba:space-y-2">
-          <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.upcoming_trips_title', 'Upcoming Trips')}
-          </h3>
-          <div className="gba:flex gba:items-center gba:space-x-2">
-            <GlobalOutlined className="gba:text-2xl gba:text-purple-600" />
-            <span className="gba:text-2xl gba:font-bold gba:text-purple-600" data-testid="upcoming-trips-value">
-              {stats?.upcomingTrips || 0}
-            </span>
-          </div>
-          <p className="gba:text-sm gba:text-gray-500 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.planned_business_trips_description',
-              'Planned business trips'
-            )}
-          </p>
-        </div>
-      </Card>
+  return (
+    <div
+      data-testid="dashboard-statistics-section"
+      className={hoveredWidgetKey === 'unallocated-expenses' ? 'gba:cursor-pointer' : ''}
+      onMouseOver={e => {
+        const target = e.target as HTMLElement
+        const cardEl = target.closest('[data-widget-key]') as HTMLElement | null
+        const key = cardEl?.getAttribute('data-widget-key') || null
+        setHoveredWidgetKey(key)
+      }}
+      onMouseLeave={() => setHoveredWidgetKey(null)}
+    >
+      <WidgetGroup
+        widgets={widgets}
+        // Show skeletons while loading; after load, always show cards (with 0s when no data)
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
+        onWidgetClick={onWidgetClick}
+        skeletonCount={4}
+        emptyText={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.no_statistics_available',
+          'No statistics available.'
+        )}
+        data-testid="dashboard-statistics"
+      />
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { ApprovalRequest } from '../types'
 import { createApprovalPayload } from '../utils/approvalPayloadCreator'
 import { getTabByKey } from '../constants/approvalTabs'
 import { env } from '@/common/env/EnvUtils'
-import { toast } from 'sonner'
+import { toast } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface UseApprovalHandlingProps {
@@ -311,10 +311,10 @@ export const useApprovalHandling = ({
         } else {
           failedTasks.push({ id: task.id, error: result.error || 'Unknown error' })
         }
-      } catch (error) {
+      } catch (err) {
         const errorMessage =
-          error instanceof Error
-            ? error.message
+          err instanceof Error
+            ? err.message
             : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.unknown_error', 'Unknown error')
         failedTasks.push({ id: task.id, error: errorMessage })
       } finally {
@@ -355,7 +355,6 @@ export const useApprovalHandling = ({
         userInfo,
         rawTasks
       )
-
       setTotalToApprove(selectedTasks.length)
       setCurrentProgressIndex(0)
 
@@ -365,10 +364,10 @@ export const useApprovalHandling = ({
       showSummaryToasts(approvedCount, failedTasks)
 
       return { success: true, approvedCount, failedCount: failedTasks.length }
-    } catch (error) {
+    } catch (err) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
+        err instanceof Error
+          ? err.message
           : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.failed_to_approve', 'Failed to approve tasks')
       setApprovalError(errorMessage)
 

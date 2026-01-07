@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useCallback, memo } from 'react'
-import { useTranslation } from 'react-i18next'
 import {
   Table,
   TableBody,
@@ -22,6 +21,7 @@ import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Memoized AppActionButton to prevent unnecessary re-renders and API calls
 const MemoizedAppActionButton = memo<{
@@ -89,8 +89,6 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   sortOrder,
   onSortingChange
 }) => {
-  const { t } = useTranslation()
-
   // Calculate pagination values
   const totalPages = Math.ceil(total / pageSize)
 
@@ -207,16 +205,19 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
             data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'error-state')}
           >
-            <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-              {t('employee.error.title', 'Error Loading Employees')}
+            <div className="gba:text-destructive gba:text-lg gba:font-medium gba:mb-2">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:human_resources_page.employees_section.error_loading_employees',
+                'Error Loading Employees'
+              )}
             </div>
-            <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
+            <div className="gba:text-muted-foreground gba:mb-4">{error.message}</div>
             <Button
               variant="default"
               onClick={retry}
               data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'retry-button')}
             >
-              {t('common.retry', 'Retry')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.retry', 'Retry')}
             </Button>
           </div>
         </CardContent>
@@ -231,62 +232,77 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'table')}>
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
+              <TableRow className="gba:border-b gba:bg-muted">
                 <TableHead
-                  className="gba:w-[30%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[30%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('name')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'name-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('employee.name', 'Name')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.name', 'Name')}
                     {renderSortIcon('name')}
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('jobTitle')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'job-title-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('employee.job_title', 'Job Title')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.employees_section.job_title',
+                      'Job Title'
+                    )}
                     {renderSortIcon('jobTitle')}
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('organizationalUnit')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'organizational-unit-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('employee.organizational_unit', 'Department')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.employees_section.organizational_unit',
+                      'Department'
+                    )}
                     {renderSortIcon('organizationalUnit')}
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('employmentType')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'employment-type-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('employee.employment_type', 'Employment Type')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.employees_section.employment_type',
+                      'Employment Type'
+                    )}
                     {renderSortIcon('employmentType')}
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('contractType')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'contract-type-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('employee.contract_type', 'Contract Type')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.employees_section.contract_type',
+                      'Contract Type'
+                    )}
                     {renderSortIcon('contractType')}
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[5%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                  className="gba:w-[5%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6"
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'actions-header')}
                 >
-                  ACTIONS
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.employees_section.actions',
+                    'Actions'
+                  )}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -296,8 +312,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   key={employee.id}
                   onClick={() => handleRowClick(employee)}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `row-${employee.id}`)}
-                  className={`gba:cursor-pointer hover:gba:bg-gray-50 ${
-                    selectedEmployeeId === employee.id ? 'gba:bg-gray-100' : ''
+                  className={`gba:cursor-pointer hover:gba:bg-muted ${
+                    selectedEmployeeId === employee.id ? 'gba:bg-muted' : ''
                   }`}
                 >
                   {/* Employee Name with Avatar */}
@@ -365,7 +381,10 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     className="text-center text-muted-foreground"
                     style={{ padding: 'var(--nw-spacing-8)' }}
                   >
-                    {t('employee.no_employees', 'No employees found')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.employees_section.no_employees_found',
+                      'No employees found'
+                    )}
                   </TableCell>
                 </TableRow>
               )}
@@ -383,11 +402,25 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             className="gba:text-sm gba:text-muted-foreground"
             data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'pagination-info')}
           >
-            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} employees`}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:human_resources_page.employees_section.pagination_range_of_total',
+              `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} employees`,
+              {
+                from: (currentPage - 1) * pageSize + 1,
+                to: Math.min(currentPage * pageSize, total),
+                total,
+                interpolation: { escapeValue: false }
+              }
+            )}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">Rows per page</p>
+              <p className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.employees_section.rows_per_page',
+                  'Rows per page'
+                )}
+              </p>
               <select
                 value={pageSize}
                 onChange={e => handlePageSizeChange(Number(e.target.value))}
@@ -404,7 +437,15 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
               className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
               data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'page-info')}
             >
-              Page {currentPage} of {Math.ceil(total / pageSize)}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:human_resources_page.pagination.page_of',
+                `Page ${currentPage} of ${Math.ceil(total / pageSize)}`,
+                {
+                  current: currentPage,
+                  totalPages: Math.ceil(total / pageSize),
+                  interpolation: { escapeValue: false }
+                }
+              )}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-2">
               <Button
@@ -414,7 +455,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                 disabled={currentPage === 1 || loading}
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'first-page-button')}
               >
-                <span className="gba:sr-only">Go to first page</span>
+                <span className="gba:sr-only">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.pagination.first_page_sr',
+                    'Go to first page'
+                  )}
+                </span>
                 ⟨⟨
               </Button>
               <Button
@@ -424,7 +470,13 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                 disabled={currentPage === 1 || loading}
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'previous-page-button')}
               >
-                <span className="gba:sr-only">Go to previous page</span>⟨
+                <span className="gba:sr-only">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.pagination.prev_page_sr',
+                    'Go to previous page'
+                  )}
+                </span>
+                ⟨
               </Button>
               <Button
                 variant="outline"
@@ -433,7 +485,13 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                 disabled={currentPage === totalPages || loading}
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'next-page-button')}
               >
-                <span className="gba:sr-only">Go to next page</span>⟩
+                <span className="gba:sr-only">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.pagination.next_page_sr',
+                    'Go to next page'
+                  )}
+                </span>
+                ⟩
               </Button>
               <Button
                 variant="outline"
@@ -442,7 +500,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                 disabled={currentPage === totalPages || loading}
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'last-page-button')}
               >
-                <span className="gba:sr-only">Go to last page</span>
+                <span className="gba:sr-only">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.pagination.last_page_sr',
+                    'Go to last page'
+                  )}
+                </span>
                 ⟩⟩
               </Button>
             </div>

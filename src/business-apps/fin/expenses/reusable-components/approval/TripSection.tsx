@@ -32,10 +32,6 @@ const formatTimeOnly = (dateValue: string | undefined): string => {
 
 const TripSection: React.FC<TripSectionProps> = ({
   expenseRequestTrip,
-  startDate,
-  endDate,
-  destinations,
-  numberOfDestinations,
   countriesSummary,
   prefixDataTestId = 'approve-expense'
 }) => {

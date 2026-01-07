@@ -1,5 +1,5 @@
 import React from 'react'
-import { InputField } from '@newwork/gravity-ui-catalog'
+import { Input, Label } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface RuleIdentitySectionProps {
@@ -29,64 +29,62 @@ const RuleIdentitySection: React.FC<RuleIdentitySectionProps> = ({
 }) => {
   return (
     <>
-      <div className={`gba:mb-4`} data-testid="ccr-rule-code-container">
-        <div className={`gba:relative`}>
-          <InputField
-            label={getTranslationFromI18nKeyAndLabel(
+      <div className="gba:mb-4" data-testid="ccr-rule-code-container">
+        <div className="gba:space-y-2">
+          <Label htmlFor="ccrRuleCode">
+            {getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_code_label',
               'Rule Code'
-            )}
+            )}{' '}
+            *
+          </Label>
+          <Input
+            id="ccrRuleCode"
             name="ccrRuleCode"
+            className="gba:w-full"
             placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_code_placeholder',
               'Enter Rule Code'
             )}
             data-testid="ccr-code-input"
-            autoFocus={false}
             value={ruleCode}
             disabled={isUpdate}
-            onChange={(field: any) => onChangeCode(field?.value ?? '')}
+            onChange={e => onChangeCode(e.target.value)}
             onBlur={onBlurCode}
-            required
           />
           {showCodeError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-code-error"
-            >
+            <div className="gba:text-sm gba:text-destructive" data-testid="ccr-code-error">
               {errors.code}
             </div>
           )}
         </div>
       </div>
 
-      <div className={`gba:mb-4`} data-testid="ccr-rule-name-container">
-        <div className={`gba:relative`}>
-          <InputField
-            label={getTranslationFromI18nKeyAndLabel(
+      <div className="gba:mb-4" data-testid="ccr-rule-name-container">
+        <div className="gba:space-y-2">
+          <Label htmlFor="ccrRuleName">
+            {getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_name_label',
               'Rule Name'
-            )}
+            )}{' '}
+            *
+          </Label>
+          <Input
+            id="ccrRuleName"
             name="ccrRuleName"
+            className="gba:w-full"
             placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_name_placeholder',
               'Enter Rule Name'
             )}
             data-testid="ccr-name-input"
-            autoFocus={false}
             value={ruleName}
             disabled={isUpdate}
-            onChange={(field: any) => onChangeName(field?.value ?? '')}
+            onChange={e => onChangeName(e.target.value)}
             onBlur={onBlurName}
-            required
           />
           {showNameError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-name-error"
-            >
+            <div className="gba:text-sm gba:text-destructive" data-testid="ccr-name-error">
               {errors.name}
             </div>
           )}

@@ -3,7 +3,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { Card, Typography, Spin, Empty, Tooltip, theme } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { useContractTypeDistribution } from '../../../../../hooks/useContractTypeDistribution'
 
 const { Title } = Typography
@@ -14,7 +15,7 @@ const { Title } = Typography
  */
 export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const { token } = theme.useToken()
-  const [activeIndex, setActiveIndex] = React.useState<number>(-1)
+  const { t } = useTranslation(hrTranslations)
 
   // Fetch contract type distribution data
   const { distribution: data, loading, error } = useContractTypeDistribution(accessToken)
@@ -30,26 +31,16 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
     }))
   }, [data])
 
-  // Standard Ant Design colors to match the chart's default color palette
+  // Get chart colors that automatically update with theme changes
   const COLORS = [
-    '#1890FF',
-    '#2FC25B',
-    '#FACC14',
-    '#223273',
-    '#8543E0',
-    '#13C2C2',
-    '#3436C7',
-    '#F04864',
-    '#D0021B',
-    '#5B8FF9',
-    '#5AD8A6',
-    '#5D7092',
-    '#F6BD16',
-    '#E8684A',
-    '#6DC8EC',
-    '#9270CA',
-    '#FF9D4D',
-    '#269A99'
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
   ]
 
   // Calculate the total number of employees
@@ -86,7 +77,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
           {payload.name}
         </text>
         <text x={cx} y={cy + 10} textAnchor="middle" fill={token.colorTextSecondary} fontSize={16}>
-          {value.toLocaleString()} employees
+          {value.toLocaleString()} {t('hr-analytics-employees')}
         </text>
         <text x={cx} y={cy + 35} textAnchor="middle" fill={token.colorPrimary} fontSize={16} fontWeight="600">
           {payload.percentage}%
@@ -97,68 +88,39 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
 
   // Tooltip has been removed as per requirement
 
-  // Event handlers for pie slice hover
-  const onPieEnter = (_: any, index: number) => {
-    setActiveIndex(index)
-  }
-
-  const onPieLeave = () => {
-    setActiveIndex(-1)
-  }
-
   return (
     <Card
       title={
         <div>
-          <Title level={4} style={{ margin: 0 }}>
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')}
-          </Title>
+          <Title level={4} className="gba:m-0">{t('hr-analytics-contract-types')}</Title>
           <Tooltip
-            title={getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_contract_types_tooltip',
-              'Distribution of employees by contract types such as permanent, fixed-term, etc.'
-            )}
+            title={t('hr-analytics-contract-types-tooltip')}
           >
             <InfoCircleOutlined className="gba:ml-2" />
           </Tooltip>
         </div>
       }
       className="gba:shadow-lg gba:rounded-lg gba:mb-6 gba:overflow-hidden gba:border-0"
-      style={{ background: 'linear-gradient(to bottom, #ffffff, #f0f2f5)' }}
+      style={{ background: 'var(--gradient-decorative-1)' }}
       data-testid="contract-type-pie-chart"
     >
       <div
-        className="gba:flex gba:flex-col gba:w-full gba:transition-all gba:duration-500"
-        style={{
-          width: '100%',
-          position: 'relative',
-          margin: '0',
-          borderRadius: '12px',
-          padding: '30px 20px',
-          backgroundColor: '#ffffff',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-          border: '1px solid #e8e8e8'
-        }}
+        className="gba:flex gba:flex-col gba:w-full gba:transition-all gba:duration-500 gba:relative gba:m-0 gba:rounded-xl gba:px-5 gba:py-8 gba:bg-card gba:shadow-lg gba:border gba:border-border"
         data-testid="contract-type-pie-chart-container"
       >
         {/* Chart container with fixed height */}
-        <div className="gba:h-[400px] gba:w-full" style={{ height: '400px' }}>
+        <div className="gba:h-[400px] gba:w-full">
           {loading ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
               <Spin size="large" data-testid="contract-type-pie-chart-loading" />
             </div>
           ) : error ? (
-            <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-red-500">
-              <div data-testid="contract-type-pie-chart-error">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-              </div>
+            <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
+              <div data-testid="contract-type-pie-chart-error">{t('hr-analytics-error-message')}</div>
             </div>
           ) : data.length === 0 ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty
-                description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-                data-testid="contract-type-pie-chart-empty"
-              />
+              <Empty description={t('hr-analytics-no-data')} data-testid="contract-type-pie-chart-empty" />
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%" data-testid="contract-type-pie-chart-rendered">
@@ -169,13 +131,10 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  activeIndex={activeIndex}
                   activeShape={renderActiveShape}
                   innerRadius="60%"
                   outerRadius="80%"
                   dataKey="value"
-                  onMouseEnter={onPieEnter}
-                  onMouseLeave={onPieLeave}
                   animationBegin={0}
                   animationDuration={1200}
                   animationEasing="ease-out"
@@ -196,7 +155,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
                     dominantBaseline="middle"
                     style={{ fontSize: '20px', fill: token.colorText, fontWeight: 600 }}
                   >
-                    {getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')}
+                    {t('hr-analytics-contract-types')}
                   </text>
                   <text
                     x="50%"
@@ -216,67 +175,28 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
         {/* Custom Legend at bottom with proper colors and formatting */}
         {!loading && !error && data.length > 0 && (
           <div
-            className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200"
+            className="gba:mt-6 gba:pt-4 gba:border-t gba:border-border gba:flex gba:flex-wrap gba:justify-center gba:gap-2 gba:px-2"
             data-testid="contract-type-legend"
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '16px 8px 0'
-            }}
           >
             {chartData.map((item, index) => {
-              // Standard Ant Design Plots colors to match the chart's default color palette
-              const colors = [
-                '#1890FF',
-                '#2FC25B',
-                '#FACC14',
-                '#223273',
-                '#8543E0',
-                '#13C2C2',
-                '#3436C7',
-                '#F04864',
-                '#D0021B',
-                '#5B8FF9',
-                '#5AD8A6',
-                '#5D7092',
-                '#F6BD16',
-                '#E8684A',
-                '#6DC8EC',
-                '#9270CA',
-                '#FF9D4D',
-                '#269A99'
-              ]
-              const colorIndex = index % colors.length
+              // Use the same dynamic colors as the chart
+              const colorIndex = index % COLORS.length
 
               return (
                 <div
                   key={`legend-${index}`}
-                  className="gba:flex gba:items-center gba:mb-3"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '6px 12px',
-                    backgroundColor: 'rgba(0,0,0,0.02)',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(0,0,0,0.05)'
-                  }}
+                  className="gba:flex gba:items-center gba:mb-3 gba:px-3 gba:py-1.5 gba:bg-muted gba:rounded gba:border gba:border-border"
                 >
                   <div
-                    className="gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
+                    className="gba:w-3.5 gba:h-3.5 gba:rounded-full gba:mr-2.5 gba:shadow-sm"
                     style={{
-                      width: '14px',
-                      height: '14px',
-                      borderRadius: '50%',
-                      backgroundColor: colors[colorIndex],
-                      marginRight: '10px',
-                      boxShadow: '0 0 0 1px rgba(0,0,0,0.1)'
+                      backgroundColor: COLORS[colorIndex],
+                      boxShadow: '0 0 0 1px var(--color-border)'
                     }}
                   />
-                  <div style={{ fontWeight: 500, fontSize: '16px' }}>
-                    <span style={{ marginRight: '8px' }}>{item.name}:</span>
-                    <span style={{ fontWeight: 700 }}>
+                  <div className="gba:font-medium gba:text-base">
+                    <span className="gba:mr-2">{item.name}:</span>
+                    <span className="gba:font-bold">
                       {item.value.toLocaleString()} ({item.percentage}%)
                     </span>
                   </div>

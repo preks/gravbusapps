@@ -94,7 +94,7 @@ export const useExpenseItemStatistics = (context: BusinessAppContextProps, curre
         pendingReimbursementTotal: currentMonthPending,
         previousMonthPendingReimbursementTotal: previousMonthPending
       }))
-    } catch (error) {
+    } catch {
       if (!isMounted.current) return
       setStats(s => ({ ...s, error: error instanceof Error ? error.message : 'Unknown error' }))
     } finally {
@@ -141,7 +141,7 @@ export const useExpenseItemStatistics = (context: BusinessAppContextProps, curre
       }))
       if (!isMounted.current) return
       setStats(s => ({ ...s, allItems: mappedItems, hasLoadedAllItems: true }))
-    } catch (e) {
+    } catch {
       return
     }
   }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, currencyRef, graphqlClient])
@@ -155,7 +155,7 @@ export const useExpenseItemStatistics = (context: BusinessAppContextProps, curre
       const count = result?.pendingExcludingAllowance?.aggregate?.count ?? 0
       if (!isMounted.current) return
       setStats(s => ({ ...s, pendingItemCountFromApi: count }))
-    } catch (error) {
+    } catch {
       console.error('Error refreshing pending item count', {
         employeeId,
         currencyRef,

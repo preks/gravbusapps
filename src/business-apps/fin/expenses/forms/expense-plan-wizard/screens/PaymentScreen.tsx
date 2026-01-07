@@ -31,12 +31,12 @@ const DIRECT_DEPOSIT = 'DIRECT_DEPOSIT'
 const CASH_PAYMENT = 'CASH_PAYMENT'
 
 const PaymentScreen: React.FC<PaymentScreenProps> = props => {
-  const { accessToken, userInfo, additionalData } = props
+  const { accessToken, additionalData } = props
   const { expensePlanData, employeeRuleId, currentTitle, updateTripFormValidation } = useExpensePlanWizardContext()
   const graphQLClient = useGraphqlClient(accessToken)
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
 
-  const [amount, setAmount] = useState<string>('0.00')
+  const [amount, setAmount] = useState<string>('')
   const [currency, setCurrency] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<string>('')
   const [currencies, setCurrencies] = useState<any[]>([])
@@ -85,9 +85,9 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
         paymentMethod: paymentMethodValue
       })
     } else {
-      // Default values
+      // Default values - leave amount empty so placeholder shows
       form.setFieldsValue({
-        amount: formatNumberFunction('0.00', '0.00[,]00'),
+        amount: '',
         currency: currency
         // Don't set paymentMethod initially so placeholder shows
       })
@@ -127,7 +127,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
           activeUserLocale: getCurrentActiveUserLocale()
         })
         setCurrencies(response.currency || [])
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
@@ -232,14 +232,28 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
   // Handle amount change
   const handleAmountChange = (field: any) => {
     let value = field.value as string
-    if (value.includes('.')) {
-      const parts = value.split('.')
+
+    // Handle both period and comma as decimal separators
+    // Normalize to period for internal storage
+    const normalizedValue = value.replace(',', '.')
+
+    if (normalizedValue.includes('.')) {
+      const parts = normalizedValue.split('.')
       if (parts[1] && parts[1].length > 2) {
         value = `${parts[0]}.${parts[1].substring(0, 2)}`
+      } else {
+        value = normalizedValue
       }
+    } else {
+      value = normalizedValue
     }
 
-    // Store the raw value for calculations
+    // Store the normalized value for calculations
+    console.log('[PaymentScreen] handleAmountChange:', {
+      rawInput: field.target.value,
+      normalizedValue: value,
+      locale: getCurrentActiveUserLocale()
+    })
     setAmount(value)
 
     // Validate amount
@@ -261,7 +275,14 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
 
   const handleAmountBlur = () => {
     const currentValue = form.getFieldValue('amount')
+    console.log('[PaymentScreen] handleAmountBlur START:', {
+      currentValue,
+      currentAmountState: amount,
+      locale: getCurrentActiveUserLocale()
+    })
+
     if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
+      console.log('[PaymentScreen] handleAmountBlur: empty value, returning')
       return
     }
     const normalized = String(currentValue)
@@ -269,10 +290,14 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
       .replace(/,(?=\d{1,2}$)/, '.')
       .replace(/,/g, '')
 
+    console.log('[PaymentScreen] handleAmountBlur normalized:', normalized)
+
     const num = parseFloat(normalized)
     if (isNaN(num)) {
+      console.log('[PaymentScreen] handleAmountBlur: NaN, returning')
       return
     }
+
     const platformFormatted = formatNumberFunction(String(num), '0.00[,]00')
     const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
       minimumFractionDigits: 2,
@@ -281,7 +306,19 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
 
     const finalDisplay = platformFormatted && platformFormatted !== String(num) ? platformFormatted : intlFormatted
 
+    console.log('[PaymentScreen] handleAmountBlur formatting:', {
+      num,
+      platformFormatted,
+      intlFormatted,
+      finalDisplay,
+      willSetStateTo: num.toFixed(2)
+    })
+
     form.setFieldsValue({ amount: finalDisplay })
+    // Update state with normalized value (period as decimal) for saving
+    setAmount(num.toFixed(2))
+
+    console.log('[PaymentScreen] handleAmountBlur END')
   }
 
   // Validation functions
@@ -352,6 +389,14 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
         expensePlanData
       )
 
+      console.log('[PaymentScreen] handleSave:', {
+        currency,
+        amount,
+        amountState: amount,
+        paymentMethod,
+        advanceObject
+      })
+
       const logObject = createPaymentScreenLogObject(
         expensePlanData.ExpensePlanByPk,
         employeeRuleId || '',
@@ -378,6 +423,14 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
         paymentMethod,
         expensePlanData
       )
+
+      console.log('[PaymentScreen] handleNext:', {
+        currency,
+        amount,
+        amountState: amount,
+        paymentMethod,
+        advanceObject
+      })
 
       const logObject = createPaymentScreenLogObject(
         expensePlanData.ExpensePlanByPk,
@@ -466,22 +519,13 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
               >
                 <InputField
                   label={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.current_amount_label',
+                    'lowcoder:create_expense_item.change_expense_item_container.current_amount_label',
                     'Amount'
                   )}
                   name="amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="gba:[&>input[type=number]]:appearance-textfield 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.current_amount_placeholder',
-                    'Enter Amount'
-                  )}
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
                   data-testid="payment-amount-input"
                   onChange={field => {
                     const prev = amount || ''
@@ -502,6 +546,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                       }
                     }
                     form.setFieldsValue({ amount: value })
+
+                    // Normalize for state storage (replace comma with period)
+                    const normalizedValue = value.replace(',', '.')
+                    setAmount(normalizedValue)
+
+                    // Validate and handle errors
                     handleAmountChange({ ...field, value })
                   }}
                   onBlur={handleAmountBlur}
@@ -527,12 +577,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                 <SelectField
                   allowClear={!isCurrencyDisabled}
                   label={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.current_currency_label',
+                    'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
                     'Currency'
                   )}
                   name="currency"
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.current_currency_placeholder',
+                    'lowcoder:change_expense_item_container.current_currency_placeholder',
                     'Select Currency'
                   )}
                   data-testid="payment-currency-select"
@@ -546,7 +596,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                     handleCurrencyChange(value)
                   }}
                   required={true}
-                  disabled={isCurrencyDisabled}
+                  disabled={isCurrencyDisabled || isLoadingCurrencies}
                 />
               </Form.Item>
             </div>
@@ -645,7 +695,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payment', 'Advance Payment')}
             </span>
             <span
-              className={`gba:text-sm gba:font-bold gba:text-${advancePaymentTotal ? '[#A2519A]' : '[#999999]'}`}
+              className={`gba:text-sm gba:font-bold gba:text-${advancePaymentTotal ? '[primary]' : '[#999999]'}`}
               data-testid="advance-payment-value"
             >
               {formatNumberFunction(advancePaymentTotal.toString(), '0.00[,]00')} {selectedCurrencyCode}

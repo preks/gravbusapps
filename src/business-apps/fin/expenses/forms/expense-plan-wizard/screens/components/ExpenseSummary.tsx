@@ -148,7 +148,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
                   'Not Reimbursable Amount'
                 )}
               </span>
-              <span className="gba:text-sm gba:font-bold gba:text-[#A2519A]">
+              <span className="gba:text-sm gba:font-bold gba:text-primary">
                 {formatNumberFunction(values.nonReimbursable.amount, '0.00[,]00')} {values.nonReimbursable.currency}
               </span>
             </div>
@@ -167,7 +167,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
                   'Reimbursable Amount'
                 )}
               </span>
-              <span className="gba:text-sm gba:font-bold gba:text-[#0DBC7B]">
+              <span className="gba:text-sm gba:font-bold gba:text-success">
                 {formatNumberFunction(values.reimbursable.amount, '0.00[,]00')} {values.reimbursable.currency}
               </span>
             </div>
@@ -183,7 +183,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
               <span className="gba:text-sm gba:font-normal">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payment', 'Advance Payment')}
               </span>
-              <span className="gba:text-sm gba:font-bold gba:text-[#000000]">
+              <span className="gba:text-sm gba:font-bold gba:text-foreground">
                 {formatNumberFunction(values.advancePayment.amount, '0.00[,]00')} {values.advancePayment.currency}
               </span>
             </div>

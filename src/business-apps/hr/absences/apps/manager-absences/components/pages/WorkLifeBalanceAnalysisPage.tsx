@@ -1,22 +1,12 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Card, Badge, Button } from '@newwork/nw-design-system'
-import { PiArrowLeft, PiUsers, PiCalendar, PiClock } from 'react-icons/pi'
+import { PiArrowLeft } from 'react-icons/pi'
 import { useEmployeeWorkLifeBalance } from '../../hooks/useEmployeeWorkLifeBalance'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface WorkLifeBalanceAnalysisPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void
-}
-
-interface EmployeeWorkLifeBalance {
-  id: string
-  name: string
-  initials: string
-  status: 'excellent' | 'good' | 'needs-attention'
-  avgStreak: number
-  longestStreak: number
-  avgBreak: number
 }
 
 export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPageProps> = ({
@@ -67,16 +57,16 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="work-life-balance-error">
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="work-life-balance-error">
         {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error', 'Error:')} {error}
       </div>
     )
   }
 
   return (
-    <div className="gba:min-h-screen gba:bg-white" data-testid="work-life-balance-analysis-page">
+    <div className="gba:min-h-screen gba:bg-primary-foreground" data-testid="work-life-balance-analysis-page">
       {/* Header */}
-      <div className="gba:bg-white gba:border-b gba:border-gray-200 gba:px-6 gba:py-4">
+      <div className="gba:bg-primary-foreground gba:border-b gba:border gba:px-6 gba:py-4">
         <div className="gba:space-y-4">
           {/* Back Button */}
           <Button
@@ -94,13 +84,13 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
 
           {/* Title and Subtitle */}
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="work-life-balance-title">
+            <h1 className="gba:text-2xl gba:font-bold gba:text-foreground" data-testid="work-life-balance-title">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_manager.statistics_tab.individual_work_life_balance_analysis',
                 'Individual Work-Life Balance Analysis'
               )}
             </h1>
-            <p className="gba:text-gray-600 gba:mt-1" data-testid="work-life-balance-subtitle">
+            <p className="gba:text-muted-foreground gba:mt-1" data-testid="work-life-balance-subtitle">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_manager.statistics_tab.detailed_breakdown_indicators',
                 "Detailed breakdown of each team member's work patterns and wellness indicators"
@@ -119,13 +109,13 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
                 {/* Employee Info */}
                 <div className="gba:flex gba:items-center gba:gap-4">
                   <div
-                    className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-blue-100 gba:flex gba:items-center gba:justify-center gba:text-blue-600 gba:font-semibold"
+                    className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-info-secondary gba:flex gba:items-center gba:justify-center gba:text-info gba:font-semibold"
                     data-testid={`employee-avatar-${employee.id}`}
                   >
                     {employee.initials}
                   </div>
                   <div>
-                    <h3 className="gba:font-semibold gba:text-gray-900" data-testid={`employee-name-${employee.id}`}>
+                    <h3 className="gba:font-semibold gba:text-foreground" data-testid={`employee-name-${employee.id}`}>
                       {employee.name}
                     </h3>
                     <Badge
@@ -142,8 +132,8 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
                 <div className="gba:flex gba:gap-4">
                   {/* Average Streak */}
                   <div className="gba:text-center gba:min-w-[80px]" data-testid={`employee-avg-streak-${employee.id}`}>
-                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{employee.avgStreak}</div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                    <div className="gba:text-2xl gba:font-bold gba:text-foreground">{employee.avgStreak}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:absence_management_hub_manager.statistics_tab.avg_streak',
                         'Avg Streak'
@@ -156,8 +146,8 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
                     className="gba:text-center gba:min-w-[80px]"
                     data-testid={`employee-longest-streak-${employee.id}`}
                   >
-                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{employee.longestStreak}</div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                    <div className="gba:text-2xl gba:font-bold gba:text-foreground">{employee.longestStreak}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:absence_management_hub_manager.statistics_tab.longest_streak',
                         'Longest Streak'
@@ -167,8 +157,8 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
 
                   {/* Average Break */}
                   <div className="gba:text-center gba:min-w-[80px]" data-testid={`employee-avg-break-${employee.id}`}>
-                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{employee.avgBreak}</div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                    <div className="gba:text-2xl gba:font-bold gba:text-foreground">{employee.avgBreak}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:absence_management_hub_manager.statistics_tab.avg_break',
                         'Avg Break'

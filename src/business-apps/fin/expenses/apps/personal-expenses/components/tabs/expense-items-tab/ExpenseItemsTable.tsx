@@ -9,7 +9,6 @@ import {
   TableCell,
   Card,
   CardContent,
-  Spinner,
   Button,
   Alert,
   Checkbox,
@@ -19,6 +18,7 @@ import {
   SheetTitle,
   Badge
 } from '@newwork/nw-design-system'
+import { TablePagination } from '../../../../../components'
 import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems'
@@ -62,7 +62,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     filterLabelMap,
     getFilters,
     setFilters,
-    availableStatuses,
     ...contextProps
   } = props
 
@@ -87,7 +86,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps, { autoFetch: false })
 
-  const { currencyStats, selectedCurrencyRef } = useExpenseCurrencies(contextProps, allSelectedFilters, setFilters)
+  const { currencyStats, selectedCurrencyRef, initialized } = useExpenseCurrencies(
+    contextProps,
+    allSelectedFilters,
+    setFilters
+  )
 
   const currencyLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -107,11 +110,13 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   // currency fetching now handled by useExpenseCurrencies
 
-  useEffect(() => {
+  const buildApiFilters = useCallback(() => {
     const apiFilters = { ...getFilters(allSelectedFilters) } as ExpenseFilter
+
     if (selectedCurrencyRef) {
       apiFilters.currencyRef = selectedCurrencyRef
     }
+
     // Apply widget-driven filters directly to API request
     if (props.activeWidgetKey === 'total-expenses') {
       const start = new Date()
@@ -128,39 +133,25 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       apiFilters.expenseDateEnd = end.toISOString().split('T')[0]
       apiFilters.status = ['PENDING']
     }
+
+    return apiFilters
+  }, [getFilters, allSelectedFilters, selectedCurrencyRef, props.activeWidgetKey])
+
+  useEffect(() => {
+    if (!initialized) return
+    const apiFilters = buildApiFilters()
     fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder)
-  }, [
-    fetchItems,
-    currentPage,
-    pageSize,
-    search,
-    allSelectedFilters,
-    getFilters,
-    sortField,
-    sortOrder,
-    selectedCurrencyRef,
-    props.activeWidgetKey
-  ])
+  }, [fetchItems, currentPage, pageSize, search, sortField, sortOrder, initialized, buildApiFilters])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      const apiFilters = getFilters(allSelectedFilters)
+      const apiFilters = buildApiFilters()
       fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder)
       // Clear selection when table is refreshed (process finished)
       setSelectedRowKeys([])
     }
-  }, [
-    props.tableRefreshTrigger,
-    fetchItems,
-    search,
-    currentPage,
-    pageSize,
-    allSelectedFilters,
-    getFilters,
-    sortField,
-    sortOrder
-  ])
+  }, [props.tableRefreshTrigger, fetchItems, search, currentPage, pageSize, sortField, sortOrder, buildApiFilters])
 
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
@@ -401,6 +392,14 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     [pageSize]
   )
 
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      handlePaginationChange(pagination.current, pagination.pageSize)
+    },
+    [handlePaginationChange]
+  )
+
   // Show error state
   if (error) {
     return (
@@ -507,7 +506,10 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
               currencyStats.length > 0
                 ? {
                     id: 'currency',
-                    title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+                    title: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                      'Currency'
+                    ),
                     filters: currencyStats.map(cs => ({
                       id: `currency:${cs.ref}`,
                       label: cs.code,
@@ -524,12 +526,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           <div className="">
             <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
               <CardContent className="gba:p-0">
-                {isLoading && (
-                  <div className="gba:flex gba:justify-center gba:p-4">
-                    <Spinner />
-                  </div>
-                )}
-
                 <div className="gba:overflow-x-auto">
                   <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
                     <TableHeader>
@@ -554,7 +550,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                           )}
                         </TableHead>
                         <TableHead
-                          className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                          className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                           onClick={() => handleSort('title')}
                           data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
                         >
@@ -567,7 +563,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                           </div>
                         </TableHead>
                         <TableHead
-                          className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                          className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                           onClick={() => handleSort('expenseDate')}
                           data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-header`}
                         >
@@ -580,7 +576,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                           </div>
                         </TableHead>
                         <TableHead
-                          className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                          className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                           onClick={() => handleSort('status')}
                           data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                         >
@@ -602,7 +598,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                           )}
                         </TableHead>
                         <TableHead
-                          className="gba:w-[18%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                          className="gba:w-[18%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                           onClick={() => handleSort('reimbursableAmount')}
                           data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
                         >
@@ -668,7 +664,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                                     },
                                     {
                                       includeDetails: true,
-                                      includeAssignToRequest: false
+                                      includeAssignToRequest: true
                                     }
                                   ).map(action => {
                                     // Override the details action onClick to use the table's handleSelectItem
@@ -707,7 +703,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                                   {(() => {
                                     try {
                                       return formatDate(record.expenseDate, 'date.long') || 'N/A'
-                                    } catch (error) {
+                                    } catch {
                                       return 'N/A'
                                     }
                                   })()}
@@ -761,112 +757,19 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                   </Table>
                 </div>
 
-                {/* Pagination - Only show if there are multiple pages */}
-                {totalCount > pageSize ? (
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
-                  >
-                    <div
-                      className="gba:text-sm gba:text-muted-foreground"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
-                    >
-                      {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items_count', 'expense items')}`}
-                    </div>
-                    <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                      <div className="gba:flex gba:items-center gba:space-x-2">
-                        <p className="gba:text-sm gba:font-medium">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:personal_expenses.rows_per_page',
-                            'Rows per page'
-                          )}
-                        </p>
-                        <select
-                          value={pageSize}
-                          onChange={e => handlePaginationChange(1, Number(e.target.value))}
-                          className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                          data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                          <option value={100}>100</option>
-                        </select>
-                      </div>
-                      <div
-                        className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                        data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
-                      >
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                        {Math.ceil(totalCount / pageSize)}
-                      </div>
-                      <div className="gba:flex gba:items-center gba:space-x-2">
-                        <Button
-                          variant="outline"
-                          className="gba:h-8 gba:w-8 gba:p-0"
-                          onClick={() => handlePaginationChange(1)}
-                          disabled={currentPage === 1}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                        >
-                          <span className="gba:sr-only">Go to first page</span>
-                          ⟨⟨
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="gba:h-8 gba:w-8 gba:p-0"
-                          onClick={() => handlePaginationChange(currentPage - 1)}
-                          disabled={currentPage === 1}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                        >
-                          <span className="gba:sr-only">Go to previous page</span>⟨
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="gba:h-8 gba:w-8 gba:p-0"
-                          onClick={() => handlePaginationChange(currentPage + 1)}
-                          disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                        >
-                          <span className="gba:sr-only">Go to next page</span>⟩
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="gba:h-8 gba:w-8 gba:p-0"
-                          onClick={() => handlePaginationChange(Math.ceil(totalCount / pageSize))}
-                          disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                        >
-                          <span className="gba:sr-only">Go to last page</span>
-                          ⟩⟩
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
-                  >
-                    <div className="gba:text-sm gba:text-muted-foreground">
-                      {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items', 'Expense Items')}`}
-                    </div>
-                    <div className="gba:flex gba:items-center gba:space-x-2">
-                      <p className="gba:text-sm gba:font-medium">Rows per page</p>
-                      <select
-                        value={pageSize}
-                        onChange={e => handlePaginationChange(1, Number(e.target.value))}
-                        className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                        data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
-                      >
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
+                {/* Pagination */}
+                <TablePagination
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalItems={totalCount}
+                  onPageChange={handleTablePaginationChange}
+                  entityNamePlural={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:personal_expenses.expense_items_count',
+                    'Expense Items'
+                  )}
+                  dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+                  showBorder={false}
+                />
               </CardContent>
             </Card>
           </div>
@@ -883,7 +786,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details', 'Expense Item Details')
         }
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {selectedItem?.title || 'Expense Item Details'}

@@ -71,50 +71,59 @@ export interface OpportunityResponse {
     firstName: string
     lastName: string
   }
-  account?: {
+  opportunityAccounts?: Array<{
     id: string
-    version: string
-    name: string
-    industryRef: string
-    industry: {
+    accountId: string
+    accountType?: {
       id: string
       value: string
-      type: string
       code: string
     }
-    numberOfEmployees: {
+    account: {
       id: string
-      value: string
-      type: string
-      code: string
-    }
-    addresses?: Array<{
-      addressLine?: any
-      city?: string
-      country?: {
+      version: string
+      name: string
+      industryRef: string
+      industry: {
         id: string
         value: string
+        type: string
         code: string
       }
-      region?: {
+      numberOfEmployees: {
         id: string
         value: string
+        type: string
         code: string
       }
-    }>
-    foundationDate: string
-    annualRevenue: {
-      id: string
-      value: string
-      type: string
-      code: string
+      addresses?: Array<{
+        addressLine?: any
+        city?: string
+        country?: {
+          id: string
+          value: string
+          code: string
+        }
+        region?: {
+          id: string
+          value: string
+          code: string
+        }
+      }>
+      foundationDate: string
+      annualRevenue: {
+        id: string
+        value: string
+        type: string
+        code: string
+      }
+      website: string
+      ownerEmployee?: {
+        firstName: string
+        lastName: string
+      }
     }
-    website: string
-    ownerEmployee?: {
-      firstName: string
-      lastName: string
-    }
-  }
+  }>
   lead?: {
     id: string
     companyName: string
@@ -129,6 +138,40 @@ export interface OpportunityResponse {
   stageConditionStatuses?: StageConditionStatusResponse[]
   createdAt: string
   updatedAt: string
+}
+
+export interface OpportunityContactResponse {
+  id: string
+  version?: number
+  contactType?: string
+  contactId: string
+  contact: {
+    id: string
+    version?: number
+    firstName: string
+    lastName: string
+    email?: string
+    phone?: string
+    jobTitle?: string
+    department?: string
+    contactType?: string
+    pictureUrl?: string
+    academicTitle?: {
+      id: string
+      value: string
+      code: string
+    }
+    communicationChannels?: Array<{
+      id: string
+      communicationChannelRef: string
+      value: string
+    }>
+  }
+}
+
+export interface GetOpportunityByIdResponse {
+  Opportunity: OpportunityResponse[]
+  OpportunityContact?: OpportunityContactResponse[]
 }
 
 export const GET_OPPORTUNITY_BY_ID = `
@@ -173,48 +216,59 @@ export const GET_OPPORTUNITY_BY_ID = `
         firstName
         lastName
       }
-      account {
+      opportunityAccounts(where: { isDeleted: { _eq: false } }) {
         id
-        version
-        name
-        industryRef
-        industry {
+        accountId
+        accountType {
           id
           value
-          type
           code
         }
-        numberOfEmployees {
+        account {
           id
-          value
-          type
-          code
-        }
-        addresses {
-          addressLine
-          city
-          country {
+          version
+          name
+          email
+          phone
+          website
+          industryRef
+          industry {
             id
             value
+            type
             code
           }
-          region {
+          numberOfEmployees {
             id
             value
+            type
             code
           }
-        }
-        foundationDate
-        annualRevenue {
-          id
-          value
-          type
-          code
-        }
-        website
-        ownerEmployee {
-          firstName
-          lastName
+          addresses {
+            addressLine
+            city
+            country {
+              id
+              value
+              code
+            }
+            region {
+              id
+              value
+              code
+            }
+          }
+          foundationDate
+          annualRevenue {
+            id
+            value
+            type
+            code
+          }
+          ownerEmployee {
+            firstName
+            lastName
+          }
         }
       }
       lead {
@@ -254,6 +308,34 @@ export const GET_OPPORTUNITY_BY_ID = `
       }
       createdAt
       updatedAt
+    }
+    OpportunityContact(where: { opportunityId: { _eq: $id }, isDeleted: { _eq: false } }) {
+      id
+      version
+      contactType
+      contactId
+      contact {
+        id
+        version
+        firstName
+        lastName
+        email
+        phone
+        jobTitle
+        department
+        contactType
+        pictureUrl
+        academicTitle {
+          id
+          value
+          code
+        }
+        communicationChannels(where: { isDeleted: { _eq: false } }) {
+          id
+          communicationChannelRef
+          value
+        }
+      }
     }
   }
 `

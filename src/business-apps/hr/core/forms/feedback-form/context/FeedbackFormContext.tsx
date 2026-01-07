@@ -26,6 +26,7 @@ interface FeedbackFormContextType {
   preSelectedEmployeeError: string | null
   hasPreSelectedEmployee: boolean
   isPreSelectedEmployeeCurrentUser: boolean
+  isRequestedFeedbackFlow: boolean
 }
 
 const FeedbackFormContext = createContext<FeedbackFormContextType | undefined>(undefined)
@@ -54,6 +55,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
     targetLanguage: undefined,
     employeeId: undefined,
     employeeName: undefined,
+    feedbackPublic: false,
     ...initialValues
   })
 
@@ -79,6 +81,20 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
 
   // Only fetch all employees if no pre-selected employee is provided OR if pre-selected employee is current user
   const hasPreSelectedEmployee = !!preSelectedEmployeeId && !isPreSelectedEmployeeCurrentUser
+
+  // Detect "Enter Requested Employee Feedback" flow from process metadata
+  const flowTaskName = (businessAppContext?.additionalData as any)?.psi_processMetadata?.lastOpenedTask?.name || ''
+  const screenKey =
+    (businessAppContext?.additionalData as any)?.psi_processMetadata?.lastOpenedTask?.screenKey ||
+    (businessAppContext?.additionalData as any)?.psi_processMetadata?.lastOpenedTask?.screen?.screenComponents
+      ?.screenKey ||
+    ''
+  const receiverId = (businessAppContext?.additionalData as any)?.psi_taskPayload?.receiverId
+
+  const isRequestedFeedbackFlow =
+    String(flowTaskName).toLowerCase() === 'enterrequestedfeedback' ||
+    String(screenKey).toLowerCase().includes('enterrequestedfeedback') ||
+    !!receiverId
 
   const {
     employees,
@@ -163,7 +179,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
           feedbackDate: new Date().toISOString(),
           employeeId: formValues.employeeId,
           senderEmployeeId: businessAppContext.userInfo?.employeeDetails?.employeeId, // Current user
-          public: true // Default to public,
+          feedbackPublic: !!formValues.feedbackPublic // Match API field name
         },
         receiverId: selectedEmployee?.userId, // The user ID of the employee receiving the feedback
         event: 'submit_feedback'
@@ -184,14 +200,14 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
   const handleCancel = useCallback(async () => {
     try {
       // Dispatch the process pause event
-      dispatchProcessContinueEvent('pse_pause', {})
+      dispatchProcessContinueEvent('pse_abort', {})
 
       // Also call the original onCancel if provided (for backward compatibility)
       if (onCancel) {
         await onCancel()
       }
     } catch (err) {
-      // Silent error handling for cancellation
+      console.error('Error :', err)
     }
   }, [onCancel])
 
@@ -214,7 +230,8 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
     preSelectedEmployeeLoading,
     preSelectedEmployeeError,
     hasPreSelectedEmployee,
-    isPreSelectedEmployeeCurrentUser
+    isPreSelectedEmployeeCurrentUser,
+    isRequestedFeedbackFlow
   }
 
   return <FeedbackFormContext.Provider value={contextValue}>{children}</FeedbackFormContext.Provider>

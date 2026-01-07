@@ -1,9 +1,9 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import React, { useMemo, useCallback } from 'react'
-import dayjs from 'dayjs'
 import { FileTextOutlined, DollarOutlined, CalendarOutlined, CompassOutlined } from '@ant-design/icons'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyDisplay } from '../../../utils'
+import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
 
 interface ExpensePlanStatisticsProps {
   plans: any[]
@@ -11,7 +11,7 @@ interface ExpensePlanStatisticsProps {
   previousMonthTotal: number
   totalEstimated: number
   pendingApproval: number
-  topDestination: string
+  topDestination: string | any // Can be string or catalog entry object
   statsLoading?: boolean
   statsError?: Error | null
   fetchPlanStatistics?: () => void
@@ -39,7 +39,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   currencyCode = 'EUR'
 }) => {
   // Calculate summary statistics with memoization
-  const currentMonthName = dayjs().format('MMMM')
+  const currentMonthName = getTranslatedMonthName(new Date())
 
   // Use closed plans data for total plans widget
   const totalPlans = useMemo(() => currentMonthClosedPlans, [currentMonthClosedPlans])
@@ -178,7 +178,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'top-destinations',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination'),
-        value: topDestination,
+        value: topDestination && topDestination !== 'N/A' ? getCatalogValue(topDestination) : topDestination,
         prefix: <CompassOutlined />,
         color: '#722ed1',
         span: { xs: 24, sm: 12, md: 6 },

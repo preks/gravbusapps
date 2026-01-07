@@ -1,26 +1,9 @@
 import React, { useState, useCallback } from 'react'
-import {
-  Settings,
-  ChevronDown,
-  UserCircle,
-  Users,
-  Building2,
-  DollarSign,
-  FileCheck,
-  X,
-  Search,
-  Plus
-} from 'lucide-react'
+import { Settings, ChevronDown, UserCircle, Users, Building2, DollarSign, FileCheck, Search, Plus } from 'lucide-react'
 import { AssignmentMode, TaskAssignment } from '../../types/flowTemplate'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { Button, Input, Popover, Tag, Select } from 'antd'
 import { useMockData } from '../../../../providers/MockDataProvider'
-
-interface AssignmentConfigurationProps {
-  step: any
-  testId: string
-  onUpdateStep: (updates: any) => void
-}
 
 interface AssignmentTriggerProps {
   step: any
@@ -46,7 +29,7 @@ const ASSIGNMENT_TYPES = [
     key: 'users',
     label: 'Specific Users',
     icon: UserCircle,
-    field: 'userIds',
+    field: 'users',
     dataSource: 'users'
   },
   {
@@ -371,7 +354,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
   )
 }
 
-export const AssignmentTrigger: React.FC<AssignmentTriggerProps> = ({ step, testId, onUpdateStep }) => {
+export const AssignmentTrigger: React.FC<AssignmentTriggerProps> = ({ step }) => {
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
       <div className="gba:flex gba:items-center gba:gap-2">

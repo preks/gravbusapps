@@ -1,100 +1,158 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import React, { useMemo, useState, useCallback } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { OpportunityList } from './opportunity-list'
-import { OpportunityBoard } from './opportunity-board'
-import { OpportunityStatisticsWithTrend } from './opportunity-list/components/OpportunityStatistics'
-import { useOpportunityStatisticsWithTrend } from './opportunity-list/hooks/useOpportunityStatisticsWithTrend'
+import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
+import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
+import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+import type { OpportunityStatisticsData } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
+import { createOpportunityColumns } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
+import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
+import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
+import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
+import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
+import {
+  insertCustomerColumnsAfter,
+  CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS,
+  CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS
+} from '@/common/components/customer/view-layouts/opportunity-layout/config/opportunityColumns'
+
+// Separate component to properly use hooks with currency filtering
+const CustomerOpportunityStatistics: React.FC<{
+  context: BusinessAppContextProps
+  selectedCurrency?: string // Full currency ID like "Currency:v1:EUR" or undefined
+}> = ({ context, selectedCurrency }) => {
+  const opportunityStatistics = useCustomerOpportunityStatistics(context, selectedCurrency)
+
+  if (!opportunityStatistics.trendData) return null
+
+  return (
+    <OpportunityStatisticsLayout
+      statistics={{
+        recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+        totalOpportunities: opportunityStatistics.trendData.totalOpportunities,
+        // CRM still uses winRate from hook - mapping to opportunitiesThisQuarter for shared layout compatibility
+        opportunitiesThisQuarter: opportunityStatistics.trendData.winRate,
+        opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+        isLoading: opportunityStatistics.isLoading,
+        error: opportunityStatistics.error,
+        refetch: () => void opportunityStatistics.refetch()
+      }}
+    />
+  )
+}
 
 export type OpportunityViewProps = BusinessAppContextProps
 
-// Map URL subView values to internal tab values and vice versa
-const mapUrlToTab = (subView: string | null): 'list' | 'board' => {
-  if (subView === 'pipeline') return 'board'
-  return 'list'
-}
-
-const mapTabToUrl = (tab: 'list' | 'board'): 'list' | 'pipeline' => {
-  return tab === 'board' ? 'pipeline' : 'list'
-}
-
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
-  const getInitialSubTab = useCallback((): 'list' | 'board' => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return mapUrlToTab(urlParams.get('subView'))
+  const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
+
+  // State to trigger statistics refresh
+  const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0)
+
+  // Create a refetch callback for statistics
+  const refetchStatistics = useCallback(() => {
+    setStatisticsRefreshKey(prev => prev + 1)
   }, [])
 
-  const [activeSubTab, setActiveSubTab] = useState<'list' | 'board'>(getInitialSubTab())
-
-  const updateSubViewInUrl = useCallback((tab: 'list' | 'board') => {
-    const urlParams = new URLSearchParams(window.location.search)
-    urlParams.set('subView', mapTabToUrl(tab))
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
-  }, [])
-
-  useEffect(() => {
-    // Ensure subView param is present on mount using current tab
-    const urlParams = new URLSearchParams(window.location.search)
-    if (!urlParams.has('subView')) {
-      updateSubViewInUrl(getInitialSubTab())
+  // Statistics data with refetch callback
+  const opportunityStatisticsData: OpportunityStatisticsData | undefined = useMemo(() => {
+    return {
+      recentOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      totalOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisQuarter: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisYear: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      isLoading: false,
+      error: null,
+      refetch: refetchStatistics
     }
-  }, [getInitialSubTab, updateSubViewInUrl])
+  }, [refetchStatistics])
 
-  // Listen for browser navigation to keep tab in sync
-  useEffect(() => {
-    const handlePopState = () => {
-      setActiveSubTab(getInitialSubTab())
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [getInitialSubTab])
+  const config = useMemo(() => {
+    const baseConfig = createOpportunityConfig<CustomerOpportunity, CustomerOpportunityQueryVariables>({
+      contextType: 'customer',
 
-  const handleSubTabChange = (value: string) => {
-    const tab = (value === 'board' ? 'board' : 'list') as 'list' | 'board'
-    setActiveSubTab(tab)
-    updateSubViewInUrl(tab)
-  }
+      fetchOpportunities: async variables => {
+        return await fetchCustomerOpportunities(variables)
+      },
 
-  // Load statistics once at view level (shared across tabs)
-  const opportunityStatistics = useOpportunityStatisticsWithTrend({ ...context, sourceApp: 'CRM' })
-  const handleRetryStatistics = useCallback(() => {
-    opportunityStatistics.refetch()
-  }, [opportunityStatistics])
+      filterDataHook: useCustomerOpportunityFilters,
+
+      viewDescriptors: CUSTOMER_OPPORTUNITY_DESCRIPTORS,
+
+      columnMappings: {
+        pipeline: 'salesPipeline',
+        stage: 'salesPipelineStage'
+      },
+
+      flowContexts: {
+        entity: FlowContextName.customerOpportunityEntity,
+        create: FlowContextName.customerOpportunityCreate
+      },
+
+      urlPaths: {
+        opportunityRecord: '/platform/crm/opportunity-record',
+        accountRecord: '/platform/crm/account-record',
+        source: 'customer-relations'
+      },
+
+      boardConfig: {
+        pipelineCatalog: 'SalesPipeline',
+        pipelineStageCatalog: 'SalesPipelineStage',
+        opportunityType: 'CustomerOpportunity',
+        processName: 'transitionOpportunity',
+        processDomain: 'customer-relations'
+      },
+
+      fetchBoardOpportunities: fetchCustomerOpportunities,
+      extractBoardOpportunities: result => result.opportunities || [],
+      extractBoardTotalCount: result => result.total || 0,
+
+      // Provide statistics data for refetch in handleProcessComplete
+      opportunityStatistics: opportunityStatisticsData,
+
+      // Use renderStatistics to support currency filtering
+      renderStatistics: (selectedCurrency?: string) => (
+        <CustomerOpportunityStatistics
+          key={statisticsRefreshKey}
+          context={context}
+          selectedCurrency={selectedCurrency}
+        />
+      ),
+
+      rowActionsContextArray: [FlowContextName.customerOpportunityEntity],
+      buildRowActionsExternalContextData: (row: { original: CustomerOpportunity }) => ({
+        opportunityId: row.original.id
+      })
+    })
+
+    // CRM-specific: Override createColumns to add customer-specific columns
+    return {
+      ...baseConfig,
+      createColumns: (buildAccountUrl: (id: string) => string) => {
+        const baseColumns = createOpportunityColumns(buildAccountUrl) as ColumnDef<CustomerOpportunity>[]
+        return insertCustomerColumnsAfter(baseColumns, 'amount')
+      },
+      createSortableColumns: (availableColumnIds?: string[]) => {
+        const baseSortable = baseConfig.createSortableColumns(availableColumnIds)
+        // Add CRM-specific sortable columns
+        const additionalSortable = CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS.filter(
+          col => !availableColumnIds || availableColumnIds.includes(col.id)
+        )
+        return [...baseSortable, ...additionalSortable]
+      }
+    } as typeof baseConfig
+  }, [context, fetchCustomerOpportunities, opportunityStatisticsData, statisticsRefreshKey])
 
   return (
-    <div data-testid="customer-opportunities-view">
-      {/* Statistics above tabs */}
-      <div data-testid="customer-opportunity-statistics" className="gba:mb-6">
-        {opportunityStatistics.trendData ? (
-          <OpportunityStatisticsWithTrend
-            trendData={opportunityStatistics.trendData}
-            isLoading={opportunityStatistics.isLoading}
-            error={opportunityStatistics.error}
-            onRetry={handleRetryStatistics}
-          />
-        ) : (
-          <div>Loading statistics...</div>
-        )}
-      </div>
-
-      <Tabs value={activeSubTab} onValueChange={handleSubTabChange}>
-        <TabsList className="gba:mb-4">
-          <TabsTrigger value="list" data-testid="opportunities-list-tab">
-            List View
-          </TabsTrigger>
-          <TabsTrigger value="board" data-testid="opportunities-board-tab">
-            Board View
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="list">
-          <OpportunityList {...context} sourceApp="CRM" />
-        </TabsContent>
-        <TabsContent value="board">
-          <OpportunityBoard {...context} sourceApp="CRM" />
-        </TabsContent>
-      </Tabs>
-    </div>
+    <OpportunityLayout
+      context={context}
+      config={config}
+      dataTestId="customer-opportunities-view"
+      extendVisibleColumns={CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS}
+    />
   )
 }
 

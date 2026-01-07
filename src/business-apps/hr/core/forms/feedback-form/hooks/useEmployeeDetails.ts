@@ -1,4 +1,4 @@
-import { useEmployeeById } from '../../../../../crm/common/forms/lead-form/hooks/useEmployeeById'
+import { useEmployeeById } from '@/common/data/employee/hooks/useEmployeeById'
 import { EmployeeOption } from '../types'
 
 export const useEmployeeDetails = (accessToken: string, employeeId?: string) => {
@@ -15,7 +15,8 @@ export const useEmployeeDetails = (accessToken: string, employeeId?: string) => 
       name: employee.employee.displayName || `${employee.firstName} ${employee.lastName}`,
       jobTitle: employee.jobPosition?.name,
       department: employee.organizationalUnit?.name,
-      userId: employee.employee?.userId || undefined // Include the user ID, convert null to undefined
+      userId: employee.employee?.userId || undefined, // Include the user ID, convert null to undefined
+      pictureThumbnail: employee.employee.pictureThumbnail || undefined // Include picture thumbnail
     }
   }
 

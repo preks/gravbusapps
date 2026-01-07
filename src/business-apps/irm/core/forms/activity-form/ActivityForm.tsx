@@ -1,72 +1,65 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useMemo, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import ActivitySegment, {
-  Activity,
-  createActivitySegmentResolver
-} from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
+import { ActivityLayout, activitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
+import { zodResolver } from '@hookform/resolvers/zod'
+import type { ActivitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
 import { validateActivityData } from '@/common/components/common-relations/form-segments/activity-segment/utils'
-import { buildActivityPayload } from '@/common/data/investment/payloads'
-import { useGetInvestmentActivityById, useInvestmentEntities } from '@/common/data/investment/hooks'
-import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
+import {
+  type InvestmentActivity,
+  buildInvestmentActivityPayload
+} from '@/common/data/investment/types/investmentActivityTypes'
+import { useInvestmentActivity } from '@/common/data/investment/hooks/useInvestmentActivity'
+import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
 import { AppActionForm } from '@/components/app-action-form'
+import { CatalogSelect } from '@/components/catalog-select'
 import { useForm } from 'react-hook-form'
-
-const initialFormData: Activity = {
-  title: '',
-  activityTypeRef: '',
-  occurredAt: '',
-  description: '',
-  files: []
-}
-
-const INVESTMENT_ACTIVITY_TYPE_CATALOG = 'InvestmentActivityType'
-const INVESTMENT_ACTIVITY_TYPE_VERSION = 'v1'
+import { z } from 'zod'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { mapToFormValues } from '@/common/utils/formMappingUtils'
+import { ErrorAlert } from '@/components/error-alert'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getReferenceEntityType } from '@/common/data/investment/utils'
+import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 
 export interface ActivityFormProps extends BusinessAppContextProps {
-  initialData?: Partial<Activity>
-  onSuccess?: (activity: Activity) => void
+  onSuccess?: (activity: Partial<ActivitySchema>) => void
   onCancel?: () => void
 }
 
-const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  const [formData, setFormData] = useState<Activity>({
-    ...initialFormData,
-    ownerEmployee: userInfo?.employeeDetails?.employeeId ? { id: userInfo.employeeDetails.employeeId } : undefined
-  })
-
-  // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
-  const platformParams = React.useMemo(() => {
-    const nested =
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
-      (additionalData as any)?.psi_initialParameters ||
-      {}
-    return {
-      activityId: (additionalData as any)?.activityId || nested?.activityId,
-      investmentId: (additionalData as any)?.investmentId || nested?.investmentId,
-      accountId: (additionalData as any)?.accountId || nested?.accountId,
-      contactId: (additionalData as any)?.contactId || nested?.contactId,
-      opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
-      leadId: (additionalData as any)?.leadId || nested?.leadId
-    }
+export const ActivityForm: React.FC<ActivityFormProps> = ({
+  accessToken,
+  userInfo,
+  additionalData,
+  onSuccess,
+  onCancel
+}) => {
+  const initialParameters = useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters || null
   }, [additionalData])
 
   // Check if we're in update mode
-  const activityId = platformParams.activityId
+  const activityId = additionalData?.activityId || initialParameters?.activityId || null
   const isUpdateMode = !!activityId
 
-  // Get entity IDs from platform params
-  const { accountId, leadId, contactId, opportunityId } = platformParams
+  // Investment activity hook - declarative single-by-PK
+  const { activity, loading: activityLoading, error } = useInvestmentActivity(accessToken || '', activityId)
 
-  // For investment activities, we hide entity selection since investment + account context is sufficient
-  // In the investment record context, this specialized form must never ask for a related entity
-  // Always hide the related entity selector
-  const shouldShowEntitySelection = false
+  // Get entity IDs from additionalData or initialParameters
+  const accountId = additionalData?.accountId || initialParameters?.accountId || null
+  const contactId = additionalData?.contactId || initialParameters?.contactId || null
+  const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
+  const leadId = additionalData?.leadId || initialParameters?.leadId || null
+  const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
-  // Investment activity hooks
-  const { fetchInvestmentActivityById } = useGetInvestmentActivityById({ accessToken, additionalData })
+  // Determine if entity selection should be shown
+  // For investment context, we hide entity selection since investment + account context is sufficient
+  // Otherwise, show selection if no entity is provided from context
+  const isInvestmentContext = Boolean(investmentId)
+  const hasEntityFromContext = accountId || leadId || contactId || opportunityId
+  const shouldShowEntitySelection = !isInvestmentContext && !hasEntityFromContext
 
-  // Entity search hook (controlled search/path)
   const {
     entities,
     loading: entitiesLoading,
@@ -76,127 +69,86 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     hydrateEntityById
   } = useInvestmentEntities({ accessToken, additionalData })
 
-  // Employee search hook for assignee selection
-  const {
-    employees,
-    search: searchEmployees,
-    loading: employeesLoading,
-    hasMore: employeesHasMore,
-    loadMore: loadMoreEmployees,
-    hydrateById
-  } = useEmployeeSearch(accessToken)
-  const [assigneePrefill, setAssigneePrefill] = useState<
-    Array<{
-      id: string
-      displayName: string
-      userId?: string
-      pictureThumbnail?: string
-      organizationalUnitName?: string
-      jobPositionName?: string
-    }>
-  >([])
+  const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  // Prefill current user as default assignee in create mode
+  const form = useForm<z.infer<typeof activitySchema>>({
+    resolver: zodResolver(activitySchema),
+    defaultValues: mapToFormValues(activity || {}, activitySchema) as any,
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit'
+  })
+
+  const relatedEntityIds = useMemo(
+    () => ({
+      accountId: activity?.accountId || accountId,
+      contactId: activity?.contactId || contactId,
+      opportunityId: activity?.opportunityId || opportunityId,
+      leadId: activity?.leadId || leadId,
+      investmentId: activity?.investmentId || investmentId
+    }),
+    [accountId, contactId, opportunityId, leadId, investmentId, activity]
+  )
+
+  const activityRef = useRef(activity)
   useEffect(() => {
-    if (isUpdateMode) return // Only for create mode
-    const employeeId = userInfo?.employeeDetails?.employeeId
-    if (!employeeId) return
+    if (activityRef.current?.id !== activity?.id) {
+      form.reset(mapToFormValues(activity || {}, activitySchema) as any)
+      activityRef.current = activity
 
-    const displayName =
-      `${userInfo?.employeeDetails?.firstName || ''} ${userInfo?.employeeDetails?.lastName || ''}`.trim() ||
-      userInfo?.userName ||
-      'Current User'
+      // Hydrate first found entity
+      const entity = [
+        { type: 'investment' as const, id: activity?.investmentId },
+        { type: 'account' as const, id: activity?.accountId },
+        { type: 'contact' as const, id: activity?.contactId },
+        { type: 'opportunity' as const, id: activity?.opportunityId },
+        { type: 'lead' as const, id: activity?.leadId }
+      ].find(e => e.id)
 
-    setAssigneePrefill([{ id: employeeId, displayName }])
-    // Hydrate employee details for better display
-    hydrateById(employeeId)
-  }, [
-    isUpdateMode,
-    userInfo?.employeeDetails?.employeeId,
-    userInfo?.employeeDetails?.firstName,
-    userInfo?.employeeDetails?.lastName,
-    userInfo?.userName,
-    hydrateById
-  ])
-
-  // Merge prefilled assignee with live search results
-  const mergedAssignees = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        id: string
-        displayName: string
-        userId?: string
-        pictureThumbnail?: string
-        organizationalUnitName?: string
-        jobPositionName?: string
+      if (entity?.id) {
+        hydrateEntityById(entity.type, entity.id)
       }
-    >()
-    assigneePrefill.forEach(o => map.set(o.id, o))
-    employees.forEach(e =>
-      map.set(e.id, {
-        id: e.id,
-        displayName: e.displayName,
-        userId: e.userId,
-        pictureThumbnail: (e as any).pictureThumbnail,
-        organizationalUnitName: (e as any).organizationalUnitName,
-        jobPositionName: (e as any).jobPositionName
-      })
-    )
-    return Array.from(map.values())
-  }, [assigneePrefill, employees])
-
-  // Load existing activity if in update mode
-  useEffect(() => {
-    if (isUpdateMode && activityId) {
-      fetchInvestmentActivityById(activityId).then((result: any) => {
-        if (result.activity) {
-          const activity = result.activity
-
-          // Set form data
-          setFormData({
-            id: activity.id,
-            title: activity.title || '',
-            activityTypeRef: activity.activityType?.id || '',
-            occurredAt: activity.occurredAt || '',
-            description: activity.description || '',
-            files: [],
-            account: activity.account,
-            contact: activity.contact,
-            opportunity: activity.opportunity,
-            lead: activity.lead,
-            ownerEmployee: activity.ownerEmployee,
-            version: activity.version,
-            // keep relatedEntityId for validation convenience
-            ...(activity.account?.id ? { relatedEntityId: activity.account.id } : {}),
-            ...(activity.contact?.id ? { relatedEntityId: activity.contact.id } : {}),
-            ...(activity.opportunity?.id ? { relatedEntityId: activity.opportunity.id } : {}),
-            ...(activity.lead?.id ? { relatedEntityId: activity.lead.id } : {})
-          } as any)
-
-          // Hydrate and pin related entity if present so combobox trigger keeps rich label
-          const relId = activity.account?.id || activity.contact?.id || activity.opportunity?.id || activity.lead?.id
-          if (relId) {
-            if (activity.account?.id) hydrateEntityById('account', activity.account.id)
-            else if (activity.contact?.id) hydrateEntityById('contact', activity.contact.id)
-            else if (activity.opportunity?.id) hydrateEntityById('opportunity', activity.opportunity.id)
-            else if (activity.lead?.id) hydrateEntityById('lead', activity.lead.id)
-          }
-
-          // Prefill owner employee for the combobox
-          if (activity.ownerEmployee?.id) {
-            const displayName =
-              activity.ownerEmployee.displayName ||
-              `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
-              'Unknown'
-            setAssigneePrefill([{ id: activity.ownerEmployee.id, displayName }])
-            // Hydrate details for the selected employee so avatar/job/unit appear immediately
-            hydrateById(activity.ownerEmployee.id)
-          }
-        }
-      })
     }
-  }, [isUpdateMode, activityId, fetchInvestmentActivityById, hydrateEntityById, hydrateById])
+  }, [activity?.id, activity, form, hydrateEntityById])
+
+  const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
+    try {
+      delete data.files
+      delete data._pendingFiles
+      delete data.relatedEntityId
+
+      // Build payload (buildPayload will include creator fields from activityData)
+      const { investmentActivity } = buildInvestmentActivityPayload(data as Partial<InvestmentActivity>)
+
+      return {
+        investmentActivity
+      }
+    } catch (error) {
+      console.error('Error submitting activity:', error)
+      throw error
+    }
+  }, [])
+
+  const handlePreSubmit = useCallback(
+    createFormPreSubmitHandler({
+      userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true,
+      additionalEntityIdFields: ['investmentId']
+    }),
+    [userInfo, fileClient]
+  )
+
+  const handleSuccess = useCallback(() => {
+    onSuccess?.(form.getValues())
+  }, [onSuccess, form])
+
+  const handleCancel = useCallback(() => {
+    onCancel?.()
+  }, [onCancel])
 
   const handleEntitySearch = useCallback(
     (searchTerm: string) => {
@@ -206,14 +158,86 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     [searchEntities]
   )
 
-  // Prefetch entities on mount if selection is visible
+  const handleFilesChange = useCallback(
+    (files: File[]) => {
+      form.setValue('_pendingFiles', files, { shouldDirty: true })
+    },
+    [form]
+  )
+
+  const handleDocumentRemove = useCallback(
+    (documentId: string) => {
+      const currentDocs = form.getValues('documents') || []
+      form.setValue(
+        'documents',
+        currentDocs.filter((doc: any) => doc.id !== documentId),
+        { shouldDirty: true }
+      )
+    },
+    [form]
+  )
+
   useEffect(() => {
     if (shouldShowEntitySelection) {
       searchEntities('')
     }
   }, [shouldShowEntitySelection, searchEntities])
 
-  // Compose validation using the shared util, with domain toggle on entity requirement
+  useEffect(() => {
+    if (!accountId && !contactId && !opportunityId && !leadId) return
+    const hasEntity = Boolean(
+      form.getValues('accountId') ||
+        form.getValues('contactId') ||
+        form.getValues('opportunityId') ||
+        form.getValues('leadId')
+    )
+    if (hasEntity) return
+
+    // Set entity in form based on what's available
+    if (accountId) {
+      form.setValue('accountId', accountId)
+      form.setValue('relatedEntityId', accountId)
+      hydrateEntityById('account', accountId)
+    } else if (contactId) {
+      form.setValue('contactId', contactId)
+      form.setValue('relatedEntityId', contactId)
+      hydrateEntityById('contact', contactId)
+    } else if (opportunityId) {
+      form.setValue('opportunityId', opportunityId)
+      form.setValue('relatedEntityId', opportunityId)
+      hydrateEntityById('opportunity', opportunityId)
+    } else if (leadId) {
+      form.setValue('leadId', leadId)
+      form.setValue('relatedEntityId', leadId)
+      hydrateEntityById('lead', leadId)
+    }
+  }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
+
+  const handleAdditionalEntityChange = useCallback(
+    (type: string, entityId: string | null) => {
+      if (type === 'investment') {
+        if (entityId) {
+          form.setValue('investmentId', entityId)
+          form.setValue('relatedEntityId', entityId)
+          hydrateEntityById('investment', entityId)
+        } else {
+          form.setValue('investmentId', undefined)
+        }
+      }
+    },
+    [form, hydrateEntityById]
+  )
+
+  useEffect(() => {
+    const contextInvestmentId = relatedEntityIds.investmentId
+    if (!contextInvestmentId) return
+
+    const currentInvestmentId = form.getValues('investmentId')
+    if (currentInvestmentId !== contextInvestmentId) {
+      handleAdditionalEntityChange('investment', contextInvestmentId)
+    }
+  }, [relatedEntityIds.investmentId, form, handleAdditionalEntityChange])
+
   const validateForm = useCallback(
     (data: any): string[] | null => {
       // For investment context, we don't require entity selection since investment context is sufficient
@@ -222,93 +246,73 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     [shouldShowEntitySelection]
   )
 
-  // Form submission handler - business logic only
-  const handleSubmit = useCallback(
-    async (data: Activity) => {
-      // Merge form data with state to include id and version
-      const activityData = formData.id ? { ...data, id: formData.id, version: formData.version } : data
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load activity data' })
+  }
 
-      const payload = buildActivityPayload(activityData, { accessToken, userInfo, additionalData } as any, {
-        isUpdate: isUpdateMode
-      })
-      return payload
-    },
-    [accessToken, userInfo, additionalData, isUpdateMode, formData]
-  )
+  if (errors.length > 0) {
+    return <ErrorAlert errors={errors} prefixDataTestId="investment-activity-form" />
+  }
 
-  // Success handler
-  const handleSuccess = useCallback(() => {
-    if (onSuccess) {
-      onSuccess(formData)
-    }
-  }, [formData, onSuccess])
-
-  // RHF + Zod resolver provided to AppActionForm
-  const form = useForm<any>({
-    resolver: createActivitySegmentResolver(),
-    defaultValues: {
-      ...formData,
-      ownerEmployeeId: userInfo?.employeeDetails?.employeeId || ''
-    },
-    mode: 'onChange'
-  })
-
-  // Only reset form data when formData changes, not when user ID changes
-  // This preserves user selections in the form
-  useEffect(() => {
-    form.reset({
-      ...formData,
-      // Only set ownerEmployeeId if it's not already set (preserve user selections)
-      ...(formData.ownerEmployee?.id
-        ? { ownerEmployeeId: formData.ownerEmployee.id }
-        : !form.getValues('ownerEmployeeId')
-          ? { ownerEmployeeId: userInfo?.employeeDetails?.employeeId || '' }
-          : {})
-    } as any)
-  }, [formData])
+  const processType = isUpdateMode ? 'update' : 'create'
 
   return (
-    <AppActionForm
-      processType={isUpdateMode ? 'update' : 'create'}
-      onSubmit={handleSubmit}
-      onSuccess={handleSuccess}
-      onCancel={onCancel}
-      formData={formData}
-      form={form}
-      validateForm={validateForm}
-      submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
-      data-testid="investment-activity-process-dialog"
-    >
-      {/* Investment context header intentionally removed as requested */}
-
-      <ActivitySegment
-        // Let segment load type options from catalog
-        accessToken={accessToken}
-        typeCatalog={{ identifier: INVESTMENT_ACTIVITY_TYPE_CATALOG, version: INVESTMENT_ACTIVITY_TYPE_VERSION }}
-        // Use controlled entity search from hook
-        entities={entities}
-        entitiesLoading={entitiesLoading}
-        entitiesHasMore={entitiesHasMore}
-        onEntityLoadMore={loadMoreEntities}
-        onEntitySearch={handleEntitySearch}
-        showEntitySelection={shouldShowEntitySelection}
-        showOwnerSelection={true}
-        assignees={mergedAssignees}
-        assigneesLoading={employeesLoading}
-        onAssigneeSearch={searchEmployees}
-        assigneesHasMore={employeesHasMore}
-        onAssigneeLoadMore={loadMoreEmployees}
-        initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
-        titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
-        typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
-        dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date & Time')}
-        descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
-        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Upload File')}
-        entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.relatedEntity', 'Related Entity')}
-        data-testid="activity-segment"
-      />
-    </AppActionForm>
+    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
+      <AppActionForm
+        processType={processType}
+        onSubmit={handleSubmit}
+        handlePreSubmit={handlePreSubmit}
+        onSuccess={handleSuccess}
+        onCancel={handleCancel}
+        formData={form.getValues()}
+        form={form}
+        schema={activitySchema}
+        validateForm={validateForm}
+        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
+        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+        data-testid={formatDataTestId('investment-activity-form', 'Form')}
+        isSubmitDisabled={activityLoading}
+      >
+        <ActivityLayout
+          accessToken={accessToken}
+          businessAppContext={{ accessToken, userInfo, additionalData }}
+          ownerEmployee={activity?.ownerEmployee}
+          entityId={activity?.id}
+          // Let segment load type options from catalog
+          typeCatalog={'InvestmentActivityType:v1'}
+          // Use controlled entity search from hook
+          entities={entities}
+          entitiesLoading={entitiesLoading}
+          entitiesHasMore={entitiesHasMore}
+          onEntityLoadMore={loadMoreEntities}
+          onEntitySearch={handleEntitySearch}
+          showEntitySelection={shouldShowEntitySelection}
+          initialEntityFromContext={{
+            // Only pass standard entities to ActivitySegment (investmentId handled separately via onAdditionalEntityChange)
+            accountId: relatedEntityIds.accountId,
+            contactId: relatedEntityIds.contactId,
+            opportunityId: relatedEntityIds.opportunityId,
+            leadId: relatedEntityIds.leadId
+          }}
+          onAdditionalEntityChange={handleAdditionalEntityChange}
+          titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
+          typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
+          dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date & Time')}
+          descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
+          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Attach Documents')}
+          entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.relatedEntity', 'Related Entity')}
+          onFilesChange={handleFilesChange}
+          existingDocuments={form.watch('documents') || []}
+          onDocumentRemove={handleDocumentRemove}
+          loading={activityLoading && isUpdateMode}
+          data-testid="investment-activity-layout"
+        />
+      </AppActionForm>
+    </CatalogSelect.Provider>
   )
 }
 

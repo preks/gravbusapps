@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useGetInvestmentNoteById } from '@/common/data/investment/hooks'
+import { useGetInvestmentNoteById } from '@/common/data/investment/hooks/useInvestmentNotes'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -89,7 +89,7 @@ const NoteDeletePopup: React.FC<NoteDeletePopupProps> = ({ initialValues = {}, .
     loadNote()
   }, [noteId, props.accessToken, fetchInvestmentNoteById])
 
-  const handleSubmit = async (_formData: NoteDeletePopupValues) => {
+  const handleSubmit = async () => {
     if (!note) {
       throw new Error(getTranslationFromI18nKeyAndLabel('note.delete.error.noData', 'Note data not loaded'))
     }
@@ -105,7 +105,7 @@ const NoteDeletePopup: React.FC<NoteDeletePopupProps> = ({ initialValues = {}, .
     return deletePayload
   }
 
-  const validateForm = (_formData: NoteDeletePopupValues): string[] | null => {
+  const validateForm = (): string[] | null => {
     if (!note) {
       return [getTranslationFromI18nKeyAndLabel('note.delete.error.noData', 'Note data not loaded')]
     }

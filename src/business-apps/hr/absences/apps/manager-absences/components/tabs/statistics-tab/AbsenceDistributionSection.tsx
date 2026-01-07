@@ -3,30 +3,20 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Card } from '@newwork/nw-design-system'
 import { useAbsenceKPIData } from '../../../hooks/useAbsenceKPIData'
 import { AbsenceDistributionChart } from '../../KPISection/AbsenceDistributionChart'
-import { AbsenceFilters } from '../../../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export interface AbsenceDistributionSectionProps extends BusinessAppContextProps {}
-
-export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProps> = props => {
-  const filters: AbsenceFilters = {
-    search: '',
-    statuses: [],
-    types: [],
-    groups: [],
-    employees: [],
-    startDate: undefined,
-    endDate: undefined
-  }
-
-  const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props, filters)
+export const AbsenceDistributionSection: React.FC<BusinessAppContextProps> = props => {
+  const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props)
 
   const loading = dataLoading
   const error = dataError
 
   if (!props.userInfo?.employeeDetails?.employeeId) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="absence-distribution-error-no-employee">
+      <div
+        className="gba:p-6 gba:text-center gba:text-destructive"
+        data-testid="absence-distribution-error-no-employee"
+      >
         Error: Employee ID not found. Please check your user profile.
       </div>
     )
@@ -42,7 +32,7 @@ export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProp
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="absence-distribution-error">
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="absence-distribution-error">
         Error: {error}
       </div>
     )

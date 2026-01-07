@@ -7,9 +7,7 @@ import { useAbsenceFilters } from '../../../hooks/useAbsenceFilters'
 import { useAbsenceListDataSimple } from '../../../hooks/useAbsenceListDataSimple'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-interface AbsenceListModernProps extends BusinessAppContextProps {}
-
-export const AbsenceListModern: React.FC<AbsenceListModernProps> = props => {
+export const AbsenceListModern: React.FC<BusinessAppContextProps> = props => {
   const { accessToken, userInfo } = props
   const supervisorId = userInfo?.employeeDetails?.employeeId
 
@@ -65,7 +63,11 @@ export const AbsenceListModern: React.FC<AbsenceListModernProps> = props => {
 
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
       setCurrentPage(1)
     },
     [addFilter, removeFilter]
@@ -136,7 +138,7 @@ export const AbsenceListModern: React.FC<AbsenceListModernProps> = props => {
                     'Absences'
                   )}
                 </span>
-                <span className="gba:text-gray-500">({total})</span>
+                <span className="gba:text-muted-foreground">({total})</span>
               </div>
             </div>
           )

@@ -272,8 +272,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
           { title: { _ilike: $searchTerm } },
           { employee: { fullName: { _ilike: $searchTerm } } }
         ],
-        _and: [ $reqCurrencyWhere ]
-        ${'' /* status filter injected only when variable provided */}
+        _and: [ $reqCurrencyWhere, $reqStatusWhere ]
       }
     ) { aggregate { count } }
 
@@ -312,7 +311,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
           { title: { _ilike: $searchTerm } },
           { employee: { fullName: { _ilike: $searchTerm } } }
         ],
-        _and: [ $planCurrencyWhere ]
+        _and: [ $planCurrencyWhere, $planStatusWhere ]
       }
     ) { aggregate { count } }
 
@@ -359,7 +358,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
           { expensePlan: { title: { _ilike: $searchTerm } } },
           { expensePlan: { employee: { fullName: { _ilike: $searchTerm } } } }
         ],
-        _and: [ $payCurrencyWhere ]
+        _and: [ $payCurrencyWhere, $payStatusWhere ]
       }
     ) { aggregate { count } }
 

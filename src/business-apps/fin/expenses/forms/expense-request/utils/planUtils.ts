@@ -16,7 +16,7 @@ export const getCatalogTypeTransformer = (typeNeeded: string, expenseCatalogueDa
         element.code.toLowerCase().includes(typeNeeded.toLowerCase())
       ) ?? {}
     return catalogValue
-  } catch (error) {
+  } catch {
     return {}
   }
 }

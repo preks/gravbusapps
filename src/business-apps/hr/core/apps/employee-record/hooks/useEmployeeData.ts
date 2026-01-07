@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from 'react'
 import { useGraphqlClient } from '../../../../../../common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windowUtils'
+import { getTranslatedValue } from '../utils/formatters'
 
 /**
  * GraphQL query to fetch employee data including:
@@ -12,9 +13,20 @@ import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windo
  */
 export const GET_EMPLOYEE_DATA = /*sql*/ `
  query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!, $activeUserLocale: String!) {
+ Catalog(where: {identifier: {_eq: "AcademicTitle"}}) {
+    id
+    catalogEntries {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+  }
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     id
     organizationalUnitId
+    supervisorEmployeeId
     organizationalUnit {
       id
       name
@@ -88,7 +100,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       displayName
       workspace
       version
+      externalId
+      hrReferenceCode
       pictureThumbnail
+      userId
       additionalProperties
       skills(where: {isDeleted: {_eq: false}}) {
         level
@@ -104,12 +119,21 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       salutation {
         value
         id
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          value
+        }
       }
       maritalStatus {
         id
         value
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          value
+        }
       }
       gender {
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          value
+        }
         value
         id
       }
@@ -256,6 +280,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
   EmployeeFeedback(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
     feedback
     feedbackDate
+    feedbackPublic
     senderEmployeeId
     senderEmployee {
       firstName
@@ -283,6 +308,8 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
     pending
     total
     approved
+    validFrom
+    validTo
   }
   EmployeePerformanceGoal(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}, orderBy: {progressPercent: DESC}) {
     id 
@@ -364,6 +391,14 @@ export const useEmployeeData = (
     }
   }
 
+  if (employee?.academicTitleRef) {
+    const employeeAcademicTitles = new Set(employee?.academicTitleRef ?? [])
+    const filteredAcademicTitles =
+      data?.Catalog?.[0]?.catalogEntries?.filter(academicTitle => employeeAcademicTitles.has(academicTitle.id)) ?? []
+    const translatedAcademicTitles = filteredAcademicTitles.map(academicTitle => getTranslatedValue(academicTitle))
+    employee.academicTitleRef = translatedAcademicTitles.join(' ')
+  }
+
   return {
     employeeData: data,
     employee,
@@ -381,6 +416,16 @@ export const useEmployeeData = (
  * Types for employee data response
  */
 export interface EmployeeData {
+  Catalog: {
+    id: string
+    catalogEntries: {
+      id: string
+      value: string
+      translations: {
+        value: string
+      }[]
+    }[]
+  }[]
   EmployeePosition: EmployeePosition[]
   Subordinates: {
     employee: {
@@ -397,11 +442,6 @@ export interface EmployeeData {
   EmployeeFeedback: EmployeeFeedback[]
   EmployeeAbsenceEntitlement: EmployeeAbsenceEntitlement[]
   EmployeePerformanceGoal: EmployeePerformanceGoal[]
-}
-
-interface Skill {
-  id: string
-  name: string
 }
 
 interface EmployeeSkill {
@@ -422,13 +462,17 @@ export interface Employee {
   code: string
   workspace: string
   version: number
+  externalId?: string | null
+  hrReferenceCode?: string | null
   pictureThumbnail: string
+  userId?: string
   skills: EmployeeSkill[]
   additionalProperties: {
     email: string
     phone: string
     mobile: string
     userId?: string
+    SAPNumber?: string
   }
   salutation: CodeValue
   maritalStatus: CodeValue
@@ -441,7 +485,7 @@ export interface Employee {
   lastName: string
   displayName: string
   ethnicity: CodeValue
-  birthPlace: CodeValue
+  birthPlace: string
   nationality: CodeValue
   language: CodeValue
   jobHistories: JobHistory[]
@@ -459,6 +503,7 @@ export interface Employee {
 
 interface EmployeePosition {
   organizationalUnitId: string
+  supervisorEmployeeId?: string | null
   organizationalUnit: {
     name: string
   }
@@ -624,13 +669,6 @@ interface WorkingHours {
   weeklyDays: number
 }
 
-interface Skill {
-  skill: {
-    name: string
-    id: string
-  }
-}
-
 interface WorkPermit {
   type: {
     value: string
@@ -688,6 +726,8 @@ export interface EmployeeAbsenceEntitlement {
   pending: number
   total: number
   approved: number
+  validFrom: string
+  validTo: string
 }
 
 export interface EmployeePerformanceGoal {

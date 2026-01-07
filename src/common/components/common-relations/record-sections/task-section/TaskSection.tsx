@@ -1,25 +1,22 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Button,
   TimelineLayout,
   Badge,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { AppAction } from '@/components/app-action'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   TaskDetailSheet,
-  Task as CommonTask,
-  TaskReference
+  Task,
+  TaskReference,
+  TaskEmployee
 } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import dayjs from 'dayjs'
 import {
@@ -32,17 +29,41 @@ import {
   CalendarCheck
 } from '@phosphor-icons/react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import EmptyState from '@/components/empty-state/EmptyState'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-
-export type CatalogEntry = {
-  id?: string
-  code?: string
-  value?: string
-  type?: string
-}
+import { FileInfo } from '@/common/types/FileTypes'
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
+import type { Task as BaseTask, TaskAssignee } from '@/common/data/relations/types/taskTypes'
+import { transformTaskOrApproval } from './utils/taskMappers'
+import { DocuSignSignatureModal } from '@/common/components/docusign/DocuSignSignatureModal'
+import { type InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
+import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
+import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
+import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
+import {
+  computeTaskStatus,
+  formatTaskProgress,
+  getTaskAssigneeDisplayName,
+  getEmployeeDisplayName
+} from '../../utils/taskStatusUtils'
 
 export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
 export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
+
+export type TaskDocument = {
+  id: string
+  name: string
+  mimeType?: string
+  fileSize?: number
+  file?: string
+  version?: number
+  description?: string
+  documentGroupRef?: string
+  documentTypeRef?: string
+  envelopeId?: string
+  envelopeStatus?: string
+  fileInfo?: FileInfo
+}
 
 export type TaskItem = {
   id: string
@@ -54,13 +75,25 @@ export type TaskItem = {
   statusCode?: TaskStatusCode
   taskStatus?: CatalogEntry
   taskPriority?: CatalogEntry
-  assigneeEmployee?: {
-    id: string
-    displayName?: string
-    firstName?: string
-    lastName?: string
-    pictureThumbnail?: string
-  }
+  taskType?: CatalogEntry
+  assigneeEmployee?:
+    | {
+        id: string
+        displayName?: string
+        firstName?: string
+        lastName?: string
+        pictureThumbnail?: string
+        userId?: string
+      }
+    | Array<{
+        id: string
+        displayName?: string
+        firstName?: string
+        lastName?: string
+        pictureThumbnail?: string
+        userId?: string
+      }> // Support both single (CRM) and multiple (IRM) assignees
+  taskAssignees?: TaskAssignee[] // Full junction table data with individual statuses
   creatorEmployee?: {
     id: string
     displayName?: string
@@ -71,6 +104,23 @@ export type TaskItem = {
   reference?: TaskReference
   taskTiming?: TaskTimingType
   startDate?: string
+  documents?: TaskDocument[]
+  rawTask?: BaseTask
+}
+
+// Helper functions to reduce cognitive complexity
+const formatTaskDate = (dateString: string | undefined): string => {
+  if (!dateString) return ''
+  const date = dayjs(dateString)
+  return date.isValid() ? date.format('MMM D, YYYY [at] h:mm A') : dateString
+}
+
+const buildTaskDescription = (dueDate: string): string[] => {
+  const descParts: string[] = []
+  if (dueDate) {
+    descParts.push(`Due ${dueDate}`)
+  }
+  return descParts
 }
 
 export interface TaskSectionProps extends BusinessAppContextProps {
@@ -79,7 +129,7 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   opportunityId?: string
   leadId?: string
   investmentId?: string
-  tasks?: TaskItem[]
+  tasks?: BaseTask[]
   'data-testid'?: string
   taskActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   taskEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
@@ -87,20 +137,141 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   buildReferenceUrl?: (reference: TaskReference) => string
 }
 
-const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntityActionProps, buildReferenceUrl }) => {
-  const [selectedTask, setSelectedTask] = useState<CommonTask | null>(null)
-  // Determine color and icon based on status
-  const getStatusColorAndIcon = (statusCode?: string) => {
+const TaskSection: React.FC<TaskSectionProps> = ({
+  accessToken,
+  userInfo,
+  additionalData,
+  tasks: rawTasks,
+  taskEntityActionProps,
+  buildReferenceUrl
+}) => {
+  const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
+
+  useEffect(() => {
+    if (!rawTasks || rawTasks.length === 0) {
+      return
+    }
+    const envelopeIds = new Set<string>()
+    rawTasks.forEach(task => {
+      ;(task.documents || []).forEach(doc => {
+        const envelopeId = (doc.fileInfo as any)?.docusignEnvelopeId
+        if (envelopeId) {
+          envelopeIds.add(envelopeId)
+        }
+      })
+    })
+    envelopeIds.forEach(id => {
+      ensureStatus(id)
+    })
+  }, [rawTasks, ensureStatus])
+
+  // Map raw tasks to TaskItem format
+  const tasks = useMemo(() => {
+    if (!rawTasks || rawTasks.length === 0) return []
+
+    return rawTasks.map((task: BaseTask) => {
+      const transformed = transformTaskOrApproval(
+        {
+          id: task.id,
+          name: task.name,
+          displayName: task.name,
+          description: task.description,
+          createdAt: task.createdAt,
+          dueDate: task.dueDate,
+          taskAssignees: task.taskAssignees,
+          taskStatus: task.taskStatus,
+          taskPriority: task.taskPriority,
+          taskType: task.taskType,
+          taskTiming: task.taskTiming,
+          startDate: task.startDate,
+          creatorEmployee: task.creatorEmployee,
+          documents: task.documents?.map(doc => {
+            const envelopeId = (doc.fileInfo as any)?.docusignEnvelopeId
+            const envelopeStatus = envelopeId ? statusMap[envelopeId]?.status?.toLowerCase() : undefined
+            return {
+              id: doc.id,
+              name: doc.name,
+              mimeType: doc.mimeType,
+              fileSize: doc.fileSize,
+              file: (doc as any).file,
+              version: (doc as any).version,
+              description: (doc as any).description,
+              documentGroupRef: (doc as any).documentGroupRef,
+              documentTypeRef: (doc as any).documentTypeRef,
+              envelopeId,
+              envelopeStatus,
+              fileInfo: doc.fileInfo
+            } as TaskDocument
+          }),
+          lead: task.lead,
+          account: task.account,
+          contact: task.contact,
+          opportunity: task.opportunity,
+          investment: (task as any).investment
+        },
+        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
+      )
+      return {
+        ...transformed,
+        rawTask: task
+      }
+    })
+  }, [rawTasks, statusVersion])
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [isDocuSignOpen, setIsDocuSignOpen] = useState(false)
+  const [docuSignDocs, setDocuSignDocs] = useState<TaskDocument[]>([])
+  const [docuSignAssignedUserId, setDocuSignAssignedUserId] = useState<string | undefined>(undefined)
+  const [docuSignTask, setDocuSignTask] = useState<Task | null>(null)
+  const [docuSignTaskFormData, setDocuSignTaskFormData] = useState<Partial<InvestmentTask> | null>(null)
+  const businessAppContext = useMemo(
+    () => ({
+      accessToken,
+      userInfo,
+      additionalData
+    }),
+    [accessToken, userInfo, additionalData]
+  )
+
+  // Handle document download
+  const handleDocumentClick = (document: TaskDocument, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!document.fileInfo) {
+      return
+    }
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch {
+      // Silent fail - fileInfo structure invalid
+    }
+  }
+
+  // Check if task is overdue based on due date and completion status
+  const isTaskOverdue = (dueDate?: string, statusCode?: string): boolean => {
+    if (!dueDate || statusCode === 'COMPLETED') {
+      return false
+    }
+    const now = dayjs()
+    const due = dayjs(dueDate)
+    return due.isValid() && due.isBefore(now)
+  }
+
+  // Determine color and icon based on status (with overdue calculation)
+  const getStatusColorAndIcon = (statusCode?: string, dueDate?: string) => {
+    // Check if task is overdue regardless of status code
+    if (isTaskOverdue(dueDate, statusCode)) {
+      return {
+        color: 'destructive',
+        icon: (props: any) => <WarningIcon weight="bold" {...props} />
+      }
+    }
+
     if (statusCode === 'COMPLETED') {
       return {
         color: 'success',
         icon: (props: any) => <CheckIcon weight="bold" {...props} />
-      }
-    }
-    if (statusCode === 'OVERDUE') {
-      return {
-        color: 'destructive',
-        icon: (props: any) => <WarningIcon weight="bold" {...props} />
       }
     }
     if (statusCode === 'IN_PROGRESS') {
@@ -148,57 +319,102 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
     }
   }
 
-  // Convert TaskItem to CommonTask format
-  const convertToCommonTask = (taskItem: TaskItem): CommonTask => {
+  // Convert TaskItem to Task format
+  const convertToCommonTask = (taskItem: TaskItem): Task => {
+    const rawTask = taskItem.rawTask as BaseTask | undefined
+
+    // assigneeEmployee is already an array (or undefined) from transformTaskOrApproval
+    const assigneeEmployee = taskItem.assigneeEmployee
+    const creatorEmployee = taskItem.creatorEmployee || rawTask?.creatorEmployee
+
+    // Convert assignee array to Task format (can be single or array)
+    let assignedTo: TaskEmployee | TaskEmployee[] | undefined
+    if (assigneeEmployee && Array.isArray(assigneeEmployee)) {
+      assignedTo = assigneeEmployee.map(emp => ({
+        id: emp.id,
+        firstName: emp.firstName || '',
+        lastName: emp.lastName || '',
+        displayName: getEmployeeDisplayName(emp),
+        pictureThumbnail: emp.pictureThumbnail
+      }))
+      // If single assignee, unwrap from array for cleaner detail sheet display
+      if (assignedTo.length === 1) {
+        assignedTo = assignedTo[0]
+      }
+    }
+
+    const documentsSource =
+      (taskItem.documents as TaskDocument[] | undefined)?.map(doc => ({
+        ...doc
+      })) || []
+
     return {
       id: taskItem.id,
       name: taskItem.title,
-      description: taskItem.description || '',
-      assignedTo: {
-        id: taskItem.assigneeEmployee?.id || '',
-        firstName: taskItem.assigneeEmployee?.firstName || '',
-        lastName: taskItem.assigneeEmployee?.lastName || '',
-        displayName: taskItem.assigneeEmployee?.displayName || taskItem.assignee || 'Unknown',
-        pictureThumbnail: taskItem.assigneeEmployee?.pictureThumbnail
-      },
-      creatorEmployee: taskItem.creatorEmployee
+      code: rawTask?.code,
+      description: taskItem.description || rawTask?.description || '',
+      assignedTo,
+      creatorEmployee: creatorEmployee
         ? {
-            id: taskItem.creatorEmployee.id,
-            firstName: taskItem.creatorEmployee.firstName || '',
-            lastName: taskItem.creatorEmployee.lastName || '',
+            id: creatorEmployee.id,
+            firstName: creatorEmployee.firstName || '',
+            lastName: creatorEmployee.lastName || '',
             displayName:
-              taskItem.creatorEmployee.displayName ||
-              `${taskItem.creatorEmployee.firstName || ''} ${taskItem.creatorEmployee.lastName || ''}`.trim() ||
+              creatorEmployee.displayName ||
+              `${creatorEmployee.firstName || ''} ${creatorEmployee.lastName || ''}`.trim() ||
               'Unknown',
-            pictureThumbnail: taskItem.creatorEmployee.pictureThumbnail
+            pictureThumbnail: creatorEmployee.pictureThumbnail
           }
         : undefined,
-      type: taskItem.taskPriority?.type || '',
-      priority: (taskItem.taskPriority?.type?.toLowerCase() as any) || 'medium',
-      status: (taskItem.statusCode?.toLowerCase() as any) || 'pending',
-      dueDate: taskItem.due || taskItem.createdAt || '',
-      createdAt: taskItem.createdAt || '',
-      updatedAt: taskItem.createdAt || '',
+      taskType: rawTask?.taskType || taskItem.taskType,
+      taskPriority: rawTask?.taskPriority || taskItem.taskPriority,
+      taskStatus: rawTask?.taskStatus || taskItem.taskStatus,
+      taskTypeRef: rawTask?.taskTypeRef,
+      taskPriorityRef: rawTask?.taskPriorityRef,
+      taskStatusRef: rawTask?.taskStatusRef,
+      dueDate: rawTask?.dueDate || taskItem.due || taskItem.createdAt || '',
+      createdAt: taskItem.createdAt || rawTask?.createdAt || '',
+      updatedAt: rawTask?.updatedAt || taskItem.createdAt || '',
       reference: taskItem.reference,
-      timingType: taskItem.taskTiming as any,
-      scheduleDate: taskItem.startDate
+      timingType: (rawTask?.taskTiming || taskItem.taskTiming) as any,
+      taskTiming: rawTask?.taskTiming,
+      scheduleDate: rawTask?.startDate || taskItem.startDate,
+      templateStartDate: rawTask?.templateStartDate,
+      startDate: rawTask?.startDate,
+      endDate: rawTask?.endDate,
+      version: rawTask?.version,
+      creatorEmployeeId: rawTask?.creatorEmployeeId,
+      creatorUserId: rawTask?.creatorUserId,
+      investmentId: (rawTask as any)?.investmentId || (rawTask as any)?.investment?.id,
+      accountId: rawTask?.accountId,
+      contactId: rawTask?.contactId,
+      opportunityId: rawTask?.opportunityId,
+      leadId: rawTask?.leadId,
+      documents: documentsSource,
+      rawInvestmentTask: rawTask
     }
   }
 
   const handleTaskClick = (taskItem: TaskItem) => {
-    const commonTask = convertToCommonTask(taskItem)
-    setSelectedTask(commonTask)
+    const Task = convertToCommonTask(taskItem)
+    setSelectedTask(Task)
   }
 
-  const getEmployeeDisplayName = (emp: any) => {
-    if (!emp) return 'Unknown User'
+  // Helper: Get first assignee from single or array
+  const getFirstAssignee = (assigneeEmployee: any) => {
+    if (!assigneeEmployee) return undefined
+    return Array.isArray(assigneeEmployee) ? assigneeEmployee[0] : assigneeEmployee
+  }
 
-    // Use firstName + lastName first
-    const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim()
-    if (fullName) return fullName
+  // Helper: Check if user is assignee (handles both single and array)
+  const isUserAssignee = (assigneeEmployee: any, userId?: string) => {
+    if (!assigneeEmployee || !userId) return false
 
-    // Fallback to displayName
-    return emp.displayName || 'Unknown User'
+    if (Array.isArray(assigneeEmployee)) {
+      return assigneeEmployee.some(emp => emp?.userId === userId)
+    }
+
+    return assigneeEmployee?.userId === userId
   }
 
   // Map task priority type to badge variant
@@ -216,16 +432,23 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
     }
   }
 
-  // Map task status type to badge variant
-  const getStatusBadgeVariant = (status?: CatalogEntry): 'success' | 'info' | 'destructive' | 'warning' => {
+  // Map task status type to badge variant (with overdue calculation)
+  const getStatusBadgeVariant = (
+    status?: CatalogEntry,
+    dueDate?: string,
+    statusCode?: string
+  ): 'success' | 'info' | 'destructive' | 'warning' => {
+    // Check if task is overdue regardless of status badge
+    if (isTaskOverdue(dueDate, statusCode)) {
+      return 'destructive'
+    }
+
     const type = status?.type?.toUpperCase()
     switch (type) {
       case 'COMPLETED':
         return 'success'
       case 'IN_PROGRESS':
         return 'info'
-      case 'OVERDUE':
-        return 'destructive'
       case 'PENDING':
         return 'warning'
       default:
@@ -240,24 +463,18 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
           <TooltipProvider>
             <TimelineLayout
               items={tasks.map((t, idx) => {
-                const createdDate = t.createdAt
-                  ? dayjs(t.createdAt).isValid()
-                    ? dayjs(t.createdAt).format('MMM D, YYYY [at] h:mm A')
-                    : t.createdAt
-                  : ''
-                const due = t.due
-                  ? dayjs(t.due).isValid()
-                    ? dayjs(t.due).format('MMM D, YYYY [at] h:mm A')
-                    : t.due
-                  : ''
-                const descParts: string[] = []
-                if (due) descParts.push(`Due ${due}`)
+                const createdDate = formatTaskDate(t.createdAt)
+                const due = formatTaskDate(t.due)
+                const descParts = buildTaskDescription(due)
                 const code = t.statusCode
 
-                const { color, icon } = getStatusColorAndIcon(code)
+                const { color, icon } = getStatusColorAndIcon(code, t.due)
 
-                const assigneeName = t.assigneeEmployee ? getEmployeeDisplayName(t.assigneeEmployee) : t.assignee
-                const assigneeId = t.assigneeEmployee?.id
+                const assigneeName = getTaskAssigneeDisplayName(t.assigneeEmployee, {
+                  fallback: t.assignee,
+                  showCount: true
+                })
+                const assigneeId = getFirstAssignee(t.assigneeEmployee)?.id
 
                 // Get timing type icon and tooltip once to avoid duplicate function calls
                 const timingTypeData = t.taskTiming ? getTimingTypeIcon(t.taskTiming) : null
@@ -282,6 +499,40 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                     </div>
                   </AppActionMenu>
                 ) : null
+                const documentsForTask = (t.documents as TaskDocument[]) || []
+                const isAssigneeItem = isUserAssignee(t.assigneeEmployee, userInfo?.id)
+                const { hasSignableDocs: hasSignableDocs, label: docuSignButtonLabel } = getDocuSignButtonState(
+                  documentsForTask,
+                  isAssigneeItem
+                )
+
+                // Compute task status for multi-assignee tasks
+                const taskStatusInfo =
+                  t.taskAssignees && t.taskAssignees.length > 1
+                    ? (() => {
+                        const { overallStatus, progress } = computeTaskStatus(t.taskAssignees as any)
+
+                        let statusLabel: string
+                        if (overallStatus === 'COMPLETED') {
+                          statusLabel = 'Completed'
+                        } else if (overallStatus === 'IN_PROGRESS') {
+                          statusLabel = 'In Progress'
+                        } else {
+                          statusLabel = 'Pending'
+                        }
+
+                        let variant: 'success' | 'info' | 'warning'
+                        if (overallStatus === 'COMPLETED') {
+                          variant = 'success'
+                        } else if (overallStatus === 'IN_PROGRESS') {
+                          variant = 'info'
+                        } else {
+                          variant = 'warning'
+                        }
+
+                        return { statusLabel, variant, progress }
+                      })()
+                    : null
 
                 return {
                   id: t.id || `task-${idx}`,
@@ -294,10 +545,26 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                         data-testid={`task-item-${t.id}`}
                       >
                         <span className="gba:truncate">{t.title}</span>
-                        {t.taskStatus && (
-                          <Badge variant={getStatusBadgeVariant(t.taskStatus)} size="sm">
-                            {t.taskStatus.value || t.taskStatus.code}
-                          </Badge>
+                        {/* Show computed status for multi-assignee tasks */}
+                        {taskStatusInfo ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant={taskStatusInfo.variant} size="sm">
+                                {taskStatusInfo.statusLabel} ({taskStatusInfo.progress.completed}/
+                                {taskStatusInfo.progress.total})
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{formatTaskProgress(taskStatusInfo.progress)}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          /* Show regular status for single or no assignee tasks */
+                          t.taskStatus && (
+                            <Badge variant={getStatusBadgeVariant(t.taskStatus, t.due, t.statusCode)} size="sm">
+                              {isTaskOverdue(t.due, t.statusCode) ? 'Overdue' : t.taskStatus.value || t.taskStatus.code}
+                            </Badge>
+                          )
                         )}
                         {t.taskPriority && (
                           <Badge variant={getPriorityBadgeVariant(t.taskPriority)} size="sm">
@@ -305,7 +572,26 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                           </Badge>
                         )}
                       </div>
-                      {taskActions}
+                      <div className="gba:flex gba:items-center gba:gap-1">
+                        {taskActions}
+                        {hasSignableDocs && (
+                          <Button
+                            size="sm"
+                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                              e.stopPropagation()
+                              const commonTask = convertToCommonTask(t)
+                              setDocuSignTask(commonTask)
+                              const formData = buildInvestmentTaskFormDataFromTask(commonTask)
+                              setDocuSignTaskFormData(formData)
+                              setDocuSignDocs(documentsForTask)
+                              setDocuSignAssignedUserId(getFirstAssignee(t.assigneeEmployee)?.userId)
+                              setIsDocuSignOpen(true)
+                            }}
+                          >
+                            {docuSignButtonLabel}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ),
                   actor: assigneeName ? (
@@ -323,18 +609,39 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                     )
                   ) : undefined,
                   description: (
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      {timingTypeData && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="gba:flex gba:items-center">{timingTypeData.icon}</div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{timingTypeData.tooltip}</p>
-                          </TooltipContent>
-                        </Tooltip>
+                    <div className="gba:flex gba:flex-col gba:gap-2">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        {timingTypeData && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="gba:flex gba:items-center">{timingTypeData.icon}</div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{timingTypeData.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        <span>{descParts.join(' • ')}</span>
+                      </div>
+                      {t.documents && t.documents.length > 0 && (
+                        <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                          {t.documents.map(doc => {
+                            const FileIcon = getFileIcon(doc.mimeType)
+                            return (
+                              <button
+                                key={doc.id}
+                                onClick={e => handleDocumentClick(doc, e)}
+                                className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                                data-testid={`task-document-${t.id}-${doc.id}`}
+                                title={doc.name}
+                              >
+                                <FileIcon size={14} weight="bold" />
+                                <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
                       )}
-                      <span>{descParts.join(' • ')}</span>
                     </div>
                   ),
                   color,
@@ -348,65 +655,80 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
             />
           </TooltipProvider>
         ) : (
-          <div className="gba:text-center gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('tasks.emptyState', 'No tasks yet. Create your first task.')}
-          </div>
+          <EmptyState
+            title="No Tasks"
+            description={getTranslationFromI18nKeyAndLabel('tasks.emptyState', 'No tasks yet. Create your first task.')}
+          />
         )}
       </div>
 
-      {/* Task Details Sheet */}
-      <Sheet
+      {/* Task Details Sheet - now self-contained */}
+      <TaskDetailSheet
+        task={selectedTask}
         open={!!selectedTask}
         onOpenChange={open => {
           if (!open) setSelectedTask(null)
         }}
-        title="Task Details"
-      >
-        <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
-          <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
-              {selectedTask?.name || getTranslationFromI18nKeyAndLabel('tasks.taskDetails', 'Task Details')}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
-            {selectedTask ? (
-              <TaskDetailSheet
-                task={selectedTask}
-                buildReferenceUrl={buildReferenceUrl}
-                data-testid="task-section-detail-sheet"
-              />
-            ) : (
-              <div className="gba:p-4 gba:text-center gba:text-muted-foreground">No task selected</div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+        buildReferenceUrl={buildReferenceUrl}
+        data-testid="task-section-detail-sheet"
+        accessToken={accessToken}
+        assignedUserId={getFirstAssignee((tasks || []).find(x => x.id === selectedTask?.id)?.assigneeEmployee)?.userId}
+        currentUserId={userInfo?.id}
+        businessAppContext={businessAppContext}
+      />
+
+      {/* DocuSign Modal (from list actions) */}
+      <DocuSignSignatureModal
+        isOpen={isDocuSignOpen}
+        onClose={() => setIsDocuSignOpen(false)}
+        accessToken={accessToken}
+        assignedUserId={docuSignAssignedUserId}
+        emailOnly={!(docuSignAssignedUserId && userInfo?.id && docuSignAssignedUserId === (userInfo?.id as any))}
+        businessAppContext={businessAppContext}
+        taskContext={
+          docuSignTask && docuSignTaskFormData
+            ? {
+                taskId: docuSignTask.id,
+                taskFormData: docuSignTaskFormData
+              }
+            : undefined
+        }
+        documents={(docuSignDocs || []).map(d => ({
+          id: d.id,
+          name: d.name,
+          mimeType: d.mimeType,
+          version: d.version,
+          envelopeStatus: d.envelopeStatus,
+          fileInfo: d.fileInfo
+        }))}
+      />
     </>
   )
 }
 
 // Static properties for SectionWrapper
 ;(TaskSection as any).sectionTitle = (props: TaskSectionProps) => props.sectionTitle || 'Tasks'
-;(TaskSection as any).sectionActions = (props: TaskSectionProps) => {
+;(TaskSection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: TaskSectionProps) => {
   const { accessToken, taskActionProps } = props
 
-  if (!taskActionProps) {
+  if (!taskActionProps || !accessToken) {
     return null
   }
 
-  return (
-    <AppAction
-      accessToken={accessToken}
-      contextsArray={taskActionProps.contextsArray}
-      externalContextData={taskActionProps.externalContextData}
-      prefixDataTestId={taskActionProps.prefixDataTestId}
-      emptyStateBehavior={taskActionProps.emptyStateBehavior}
-    >
-      <Button data-testid="add-task-button" variant="secondary" size="icon">
-        <PlusIcon />
-      </Button>
-    </AppAction>
-  )
+  return {
+    type: 'AppAction' as const,
+    config: {
+      contextsArray: taskActionProps.contextsArray,
+      externalContextData: taskActionProps.externalContextData,
+      prefixDataTestId: taskActionProps.prefixDataTestId,
+      emptyStateBehavior: taskActionProps.emptyStateBehavior || 'enable',
+      children: (
+        <Button data-testid="add-task-button" variant="secondary" size="icon">
+          <PlusIcon />
+        </Button>
+      )
+    }
+  }
 }
 
 export default TaskSection

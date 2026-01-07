@@ -47,8 +47,7 @@ export const ChangeEmployeeAddressProvider: React.FC<ProviderProps> = ({
 
   const employeeId: string | undefined = useMemo(() => {
     return (
-      additionalData?.psi_taskPayload?.employeeId ||
-      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
       userInfo?.employeeDetails?.employeeId
     )
   }, [additionalData, userInfo])
@@ -90,7 +89,7 @@ export const ChangeEmployeeAddressProvider: React.FC<ProviderProps> = ({
       const addrVariables = { id: employeeId } as any
       const addressData = await graphqlClient.request<EmployeeAddressDataResponse>(GET_EMPLOYEE_ADDRESS, addrVariables)
       setData(prev => ({ address: addressData, catalogs: prev?.catalogs ?? null }))
-    } catch (e) {
+    } catch {
       // swallow errors here; primary fetch handles messaging
     }
   }

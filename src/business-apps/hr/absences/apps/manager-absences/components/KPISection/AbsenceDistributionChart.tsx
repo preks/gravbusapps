@@ -34,7 +34,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
         <text
           x={entry.cx + entry.outerRadius * 1.3 * Math.cos((-entry.midAngle * Math.PI) / 180) + 15}
           y={entry.cy + entry.outerRadius * 1.3 * Math.sin((-entry.midAngle * Math.PI) / 180) + 15}
-          fill={groupColors[entry.name] || '#34d399'}
+          fill={groupColors[entry.name] || 'var(--nw-chart-3)'}
           textAnchor="middle"
           dominantBaseline="central"
           fontSize={14}
@@ -74,7 +74,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
             )}
           </div>
         </div>
-        <RiPieChart2Line className="gba:h-6 gba:w-6 gba:text-gray-500" />
+        <RiPieChart2Line className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
       </div>
       <div className="gba:h-[415px] gba:w-full gba:px-6 gba:pb-6">
         <ResponsiveContainer width="100%" height="100%">
@@ -87,7 +87,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
               label={renderLabel}
               outerRadius={100}
               innerRadius={0}
-              fill="#8884d8"
+              fill="var(--nw-chart-1)"
               dataKey="value"
               stroke="none"
               fontSize={14}
@@ -109,37 +109,22 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
                     currentYearTotal > 0 ? (((value as number) / currentYearTotal) * 100).toFixed(1) : '0.0'
 
                   return (
-                    <div
-                      style={{
-                        background: 'white',
-                        borderRadius: 8,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        padding: 12,
-                        fontSize: 13,
-                        border: '1px solid #e5e7eb'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+                    <div className="gba:bg-card gba:rounded-lg gba:shadow-lg gba:p-3 gba:text-sm gba:border gba:border-border">
+                      <div className="gba:flex gba:items-center gba:mb-1">
                         <span
-                          style={{
-                            width: 12,
-                            height: 12,
-                            background: color,
-                            display: 'inline-block',
-                            borderRadius: 3,
-                            marginRight: 6
-                          }}
+                          className="gba:w-3 gba:h-3 gba:inline-block gba:rounded-sm gba:mr-2"
+                          style={{ background: color }}
                         />
-                        <span style={{ fontWeight: 600 }}>{name}</span>
+                        <span className="gba:font-semibold">{name}</span>
                       </div>
-                      <div style={{ color: '#666' }}>
+                      <div className="gba:text-muted-foreground">
                         {getTranslationFromI18nKeyAndLabel(
                           'lowcoder:absence_management_hub_manager.dashboard.days',
                           'days'
                         )}{' '}
                         {value}
                       </div>
-                      <div style={{ color: '#666' }}>
+                      <div className="gba:text-muted-foreground">
                         {getTranslationFromI18nKeyAndLabel(
                           'lowcoder:absence_management_hub_manager.dashboard.of_total',
                           'of total'
@@ -161,7 +146,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
                 className="gba:w-3 gba:h-3 gba:rounded-sm"
                 style={{ backgroundColor: groupColors[entry.name] || undefined }}
               />
-              <span className="gba:text-xs gba:text-gray-600">{entry.name}</span>
+              <span className="gba:text-xs gba:text-muted-foreground">{entry.name}</span>
             </div>
           ))}
         </div>

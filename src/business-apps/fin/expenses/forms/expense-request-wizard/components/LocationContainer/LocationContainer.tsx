@@ -38,7 +38,7 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
       data-testid={`location-container-${title.toLowerCase().replace(/\s+/g, '-')}`}
     >
       <div
-        className="gba:flex gba:justify-between gba:items-center gba:bg-[#ffffff]"
+        className="gba:flex gba:justify-between gba:items-center gba:bg-[background]"
         style={{ padding: '10px 0', borderBottom: 'none' }}
         data-testid={`location-header-${title.toLowerCase().replace(/\s+/g, '-')}`}
       >
@@ -53,7 +53,7 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
             data-testid={`location-icon-${title.toLowerCase().replace(/\s+/g, '-')}`}
           />
           <span
-            style={{ fontSize: '16px', fontWeight: 600, color: '#000000' }}
+            style={{ fontSize: '16px', fontWeight: 600, color: 'foreground' }}
             data-testid={`location-title-${title.toLowerCase().replace(/\s+/g, '-')}`}
           >
             {title}

@@ -3,8 +3,8 @@ import { TrendingDown, DollarSign, TrendingUp, BarChart3 } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestments } from '@/common/data/investment'
-import { formatCurrencyCompact } from '../../../../../utils/currencyUtils'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 interface PlannedExitsMetrics {
   totalCount: number
@@ -21,9 +21,10 @@ interface PlannedExitsMetrics {
 
 interface PlannedExitsMetricsProps {
   context: BusinessAppContextProps
+  currencyCode?: string
 }
 
-const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) => {
+const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, currencyCode }) => {
   const [metrics, setMetrics] = useState<PlannedExitsMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,13 +36,16 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       setIsLoading(true)
       setError(null)
 
-      // Get current date and 30 days ago for comparison
+      // Get current date and 91 days ago for comparison
       const currentDate = new Date()
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(currentDate.getDate() - 30)
+      const quarterAgo = new Date()
+      quarterAgo.setDate(currentDate.getDate() - 91)
 
-      // Use central hook to get all investments, then filter for planned exits
-      const response = await fetchInvestments({ limit: 1000 })
+      // Use central hook to get all investments with currency filter, then filter for planned exits
+      const response = await fetchInvestments({
+        limit: 1000,
+        currencyCode: currencyCode || undefined
+      })
 
       // Helper function to filter and calculate metrics
       const calculateMetrics = (beforeDate?: Date) => {
@@ -61,8 +65,11 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
           return true
         })
 
-        // Use EUR as the currency code for all metrics
-        const currencyCode = 'EUR'
+        // Extract currency from first investment or use provided currencyCode
+        const extractedCurrency =
+          filteredInvestments.length > 0
+            ? extractCurrencyCode(filteredInvestments[0].currency?.id || filteredInvestments[0].currency?.code)
+            : currencyCode || 'EUR'
 
         const totalCount = filteredInvestments.length
         const totalMarketValue = filteredInvestments.reduce(
@@ -84,12 +91,18 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
               }, 0) / totalCount
             : 0
 
-        return { totalCount, totalMarketValue, totalInvestmentValue, averagePerformance, currencyCode }
+        return {
+          totalCount,
+          totalMarketValue,
+          totalInvestmentValue,
+          averagePerformance,
+          currencyCode: extractedCurrency
+        }
       }
 
       // Calculate current and historical metrics
       const current = calculateMetrics()
-      const historical = calculateMetrics(thirtyDaysAgo)
+      const historical = calculateMetrics(quarterAgo)
 
       // Calculate percentage changes
       const calculatePercentageChange = (current: number, previous: number): number => {
@@ -120,7 +133,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
         totalMarketValue: 0,
         totalInvestmentValue: 0,
         averagePerformance: 0,
-        currencyCode: 'EUR',
+        currencyCode: currencyCode || 'EUR',
         countChange: 0,
         marketValueChange: 0,
         investmentValueChange: 0,
@@ -129,7 +142,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
     } finally {
       setIsLoading(false)
     }
-  }, [fetchInvestments])
+  }, [fetchInvestments, currencyCode])
 
   useEffect(() => {
     if (context.accessToken) {
@@ -163,13 +176,13 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
           trend: {
             value: formatPercentageChange(metrics.countChange),
             positive: metrics.countChange < 0, // Fewer exits is positive from portfolio perspective
-            description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+            description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
           }
         },
         {
           key: 'total-investment-value',
           title: getTranslationFromI18nKeyAndLabel('total_investment_value', 'Total Investment Value'),
-          value: formatCurrencyCompact(metrics.totalInvestmentValue, metrics.currencyCode),
+          value: formatCurrencyCompact(metrics.totalInvestmentValue, metrics.currencyCode, undefined, 1, true),
           valueIsString: true,
           prefix: <TrendingUp className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-primary-500)' }} />,
           color: 'var(--nw-color-primary-500)', // Blue theme for investments
@@ -178,13 +191,13 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
           trend: {
             value: formatPercentageChange(metrics.investmentValueChange),
             positive: metrics.investmentValueChange >= 0,
-            description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+            description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
           }
         },
         {
           key: 'total-market-value',
           title: getTranslationFromI18nKeyAndLabel('total_market_value', 'Total Market Value'),
-          value: formatCurrencyCompact(metrics.totalMarketValue, metrics.currencyCode),
+          value: formatCurrencyCompact(metrics.totalMarketValue, metrics.currencyCode, undefined, 1, true),
           valueIsString: true,
           prefix: <DollarSign className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-success-500)' }} />,
           color: 'var(--nw-color-success-500)', // Green theme for money
@@ -193,7 +206,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
           trend: {
             value: formatPercentageChange(metrics.marketValueChange),
             positive: metrics.marketValueChange >= 0,
-            description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+            description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
           }
         },
         {
@@ -212,7 +225,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
           trend: {
             value: formatPercentageChange(metrics.performanceChange),
             positive: metrics.performanceChange >= 0,
-            description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+            description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
           }
         }
       ]

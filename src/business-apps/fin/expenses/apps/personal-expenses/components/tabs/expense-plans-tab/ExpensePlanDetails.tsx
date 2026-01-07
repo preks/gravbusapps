@@ -30,6 +30,20 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
     return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase()
   }
 
+  // Translate known plan/request type values; fallback to formatted text
+  const translatePlanTypeValue = (raw?: string) => {
+    if (!raw) return 'N/A'
+    const code = raw.includes(':') ? raw.split(':').pop()?.toUpperCase() : raw.toUpperCase()
+    switch (code) {
+      case 'TRIP':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+      case 'EXPENSE':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+      default:
+        return formatTypeLabel(raw)
+    }
+  }
+
   const getPlanType = () => {
     if (selectedItem.requestType?.value) return selectedItem.requestType.value
     if (selectedItem.type?.value) return selectedItem.type.value
@@ -208,7 +222,9 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type')}
               </span>
-              <span className="gba:text-sm gba:text-gray-900">{formatTypeLabel(planTypeLabel ?? getPlanType())}</span>
+              <span className="gba:text-sm gba:text-gray-900">
+                {translatePlanTypeValue(planTypeLabel ?? getPlanType())}
+              </span>
             </div>
 
             <div className="gba:flex gba:justify-between gba:items-center">

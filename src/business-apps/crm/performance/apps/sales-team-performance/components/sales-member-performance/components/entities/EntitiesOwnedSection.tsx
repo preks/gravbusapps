@@ -27,12 +27,7 @@ interface EntitiesOwnedSectionProps {
   isLoading?: boolean
 }
 
-export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
-  employeeId,
-  entitiesOwned: _entitiesOwned,
-  accessToken,
-  isLoading: _isLoading = false
-}) => {
+export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({ employeeId, accessToken }) => {
   const [activeEntityTab, setActiveEntityTab] = useState<EntityType>('leads')
   const [leadsTotal, setLeadsTotal] = useState<number>(0)
   const [contactsTotal, setContactsTotal] = useState<number>(0)

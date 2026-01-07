@@ -1,7 +1,5 @@
 import React from 'react'
-import { message } from 'antd'
 import FeedbackForm from './FeedbackForm'
-import { FeedbackFormValues } from './types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useEmployeeByUserId } from './hooks/useEmployeeByUserId'
@@ -28,11 +26,7 @@ const FeedbackFormScreen: React.FC<FeedbackFormScreenProps> = ({
   const receiverId = additionalData?.psi_taskPayload?.receiverId
 
   // Use the new hook to map receiverId (userId) to employeeId
-  const {
-    employeeId: mappedEmployeeId,
-    loading: mappingLoading,
-    error: mappingError
-  } = useEmployeeByUserId({
+  const { employeeId: mappedEmployeeId } = useEmployeeByUserId({
     accessToken,
     userId: receiverId
   })
@@ -40,7 +34,7 @@ const FeedbackFormScreen: React.FC<FeedbackFormScreenProps> = ({
   // Use mapped employeeId if available, otherwise fall back to the existing employeeId logic
   const finalEmployeeId = mappedEmployeeId || employeeId
 
-  const handleSubmitFeedback = async (values: FeedbackFormValues) => {
+  const handleSubmitFeedback = async () => {
     // Feedback submission is now handled by Kogito process via dispatchProcessContinueEvent
     // This function is kept for backward compatibility but the actual submission happens in the context
   }

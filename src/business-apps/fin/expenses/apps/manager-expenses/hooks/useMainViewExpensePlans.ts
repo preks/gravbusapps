@@ -117,12 +117,11 @@ interface UseMainViewExpensePlansProps extends Partial<BusinessAppContextProps> 
 export const useMainViewExpensePlans = ({
   accessToken,
   userInfo,
-  pageSize = 10,
+  pageSize = 20,
   searchTerm,
   currentStatusFilter,
   currentCurrencyFilter,
-  statisticsOnly = false,
-  sortConfig = { field: null, order: null, lastField: null }
+  statisticsOnly = false
 }: UseMainViewExpensePlansProps) => {
   const hookId = useMemo(() => Math.random().toString(36).substring(7), [])
 

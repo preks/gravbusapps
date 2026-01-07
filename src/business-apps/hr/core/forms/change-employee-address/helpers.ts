@@ -25,12 +25,19 @@ export const populateFormFromRecord = (form: any, record: any, options: Populate
   setIsSwitchingSelection?.(true)
 
   try {
-    form.clearErrors && form.clearErrors(['regionId'])
-  } catch {}
+    if (form.clearErrors) {
+      form.clearErrors(['regionId'])
+    }
+  } catch {
+    // Ignore clearErrors errors
+  }
   try {
-    form.resetField &&
+    if (form.resetField) {
       form.resetField('regionId', { keepError: false, keepDirty: false, keepTouched: false, defaultValue: null })
-  } catch {}
+    }
+  } catch {
+    // Ignore resetField errors
+  }
 
   if (setSelectedAddressId) {
     form.setValue('selectedAddressId', String(record.id), { shouldDirty: false, shouldValidate: false } as any)
@@ -65,8 +72,12 @@ export const populateFormFromRecord = (form: any, record: any, options: Populate
         shouldTouch: false
       } as any)
       try {
-        form.trigger && form.trigger(['countryId', 'regionId'])
-      } catch {}
+        if (form.trigger) {
+          form.trigger(['countryId', 'regionId'])
+        }
+      } catch {
+        // Ignore trigger errors
+      }
     }
     setIsSwitchingSelection?.(false)
   }, 0)

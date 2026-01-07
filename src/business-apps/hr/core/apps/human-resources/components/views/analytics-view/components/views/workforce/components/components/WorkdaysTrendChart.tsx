@@ -21,7 +21,7 @@ const WorkdaysTrendChart: React.FC<WorkdaysTrendChartProps> = ({ data, isLoading
   if (!data || data.length === 0) {
     return (
       <div data-testid={`${dataTestId}-empty`} className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <div className="gba:text-center gba:text-gray-500">
+        <div className="gba:text-center gba:text-muted-foreground">
           <p>No trend data available</p>
           <p className="gba:text-sm gba:mt-1">Workdays trend will appear when data is available</p>
         </div>
@@ -59,11 +59,16 @@ const WorkdaysTrendChart: React.FC<WorkdaysTrendChartProps> = ({ data, isLoading
     <div data-testid={dataTestId} className="gba:w-full gba:h-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#666" tickFormatter={formatMonth} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-muted)" />
+          <XAxis
+            dataKey="month"
+            tick={{ fontSize: 12 }}
+            stroke="var(--nw-muted-foreground)"
+            tickFormatter={formatMonth}
+          />
           <YAxis
             tick={{ fontSize: 12 }}
-            stroke="#666"
+            stroke="var(--nw-muted-foreground)"
             label={{
               value: 'Workdays',
               angle: -90,
@@ -93,8 +98,8 @@ const WorkdaysTrendChart: React.FC<WorkdaysTrendChartProps> = ({ data, isLoading
               return [value, name]
             }}
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #d1d5db',
+              backgroundColor: 'var(--nw-primary-foreground)',
+              border: '1px solid var(--nw-border)',
               borderRadius: '6px',
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }}
@@ -102,18 +107,18 @@ const WorkdaysTrendChart: React.FC<WorkdaysTrendChartProps> = ({ data, isLoading
           <Line
             type="monotone"
             dataKey="workdays"
-            stroke="#1890ff"
+            stroke="var(--nw-chart-4)"
             strokeWidth={3}
             dot={{
-              fill: '#1890ff',
+              fill: 'var(--nw-chart-4)',
               strokeWidth: 2,
               r: 4
             }}
             activeDot={{
               r: 6,
-              stroke: '#1890ff',
+              stroke: 'var(--nw-chart-4)',
               strokeWidth: 2,
-              fill: 'white'
+              fill: 'var(--nw-primary-foreground)'
             }}
           />
         </LineChart>

@@ -1,16 +1,5 @@
 import React from 'react'
-import {
-  Button,
-  Alert,
-  AlertTitle,
-  AlertDescription,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
+import { Button, Alert, AlertTitle, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BarChart3, Home, Banknote } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -18,21 +7,13 @@ import { InvestmentStatistics } from './components/InvestmentStatistics'
 import InvestmentBreakdownCard, { type InvestmentGroup, type TrendData } from './components/InvestmentBreakdownCard'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useInvestmentGroupsAndTypes } from './hooks/useInvestmentGroupsAndTypes'
+import { CurrencyFilter } from '../analytics-view/shared/components'
 
 interface DashboardViewProps extends BusinessAppContextProps {
   moduleColor?: string
   onNavigateToInvestments?: (subTab?: string) => void
-}
-
-// Helper function to format currency
-const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
 }
 
 // Helper function to format group names for display
@@ -61,21 +42,21 @@ const getIconComponent = (groupName: string) => {
   }
 }
 
-// Helper function to calculate trend data - matches KPI card logic
-// Compares current total investment vs total investment 30 days ago (based on createdAt)
+// Helper function to calculate trend data
+// Compares current total investment vs total investment 91 days ago (based on createdAt)
 const calculateTrendData = (investments: Investment[]): TrendData => {
   const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const quarterAgo = new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000)
 
   // Current total: all investments
   const currentTotal = investments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
 
-  // Previous total: investments that existed 30 days ago (created before 30 days ago)
+  // Previous total: investments that existed 91 days ago (created before 91 days ago)
   const previousTotal = investments
     .filter(inv => {
       if (!inv.createdAt) return true // Include if no createdAt (assume old)
       const createdDate = new Date(inv.createdAt)
-      return createdDate < thirtyDaysAgo
+      return createdDate < quarterAgo
     })
     .reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
 
@@ -131,71 +112,29 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [masterCurrency, setMasterCurrency] = React.useState<string>('EUR')
-  const [availableCurrencies, setAvailableCurrencies] = React.useState<string[]>(['EUR'])
 
-  // Fetch all investments once to get available currencies
-  React.useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        // Fetch ALL investments without currency filter to get available currencies
-        const result = await fetchInvestments({ limit: 1000 })
-        if (!mounted) return
-
-        // Extract unique currencies
-        const currencies = new Set<string>()
-        result?.Investment?.forEach((inv: Investment) => {
-          if (inv.currency) {
-            let currencyCode: string | null = null
-            if (typeof inv.currency === 'string') {
-              const parts = inv.currency.split(':')
-              currencyCode = parts[parts.length - 1] || null
-            } else if (typeof inv.currency === 'object' && inv.currency !== null) {
-              const currencyObj = inv.currency as any
-              const currencyStr = currencyObj.code || currencyObj.value
-              const parts = currencyStr?.split(':') || []
-              currencyCode = parts[parts.length - 1] || null
-            }
-            if (currencyCode) {
-              currencies.add(currencyCode)
-            }
-          }
-        })
-
-        const currencyArray = Array.from(currencies)
-        // Sort with EUR first, then alphabetically
-        const sorted = currencyArray.sort((a, b) => {
-          if (a === 'EUR') return -1
-          if (b === 'EUR') return 1
-          return a.localeCompare(b)
-        })
-
-        if (mounted) {
-          setAvailableCurrencies(sorted.length > 0 ? sorted : ['EUR'])
-        }
-      } catch (err) {
-        console.error('Error fetching available currencies:', err)
-        if (mounted) {
-          setAvailableCurrencies(['EUR', 'USD', 'GBP']) // Fallback
-        }
-      }
-    })()
-    return () => {
-      mounted = false
+  // Fetch available currencies efficiently using distinctOn (code-only format)
+  const { currencies: availableCurrencies } = useAvailableCurrencies(
+    { accessToken, userInfo },
+    {
+      filters: { entity: 'Investment' },
+      returnFormat: 'codes'
     }
-  }, [fetchInvestments])
+  )
 
   // Use centralized groups and types data
   const { data: groupsData, error: groupsError, isLoading: groupsLoading } = useInvestmentGroupsAndTypes(accessToken)
 
-  // Fetch all investments once (cards will do their own currency filtering)
+  // Fetch ALL investments once (cards can filter by their individual currency)
   React.useEffect(() => {
     let mounted = true
     ;(async () => {
       try {
         setIsLoading(true)
-        // Fetch ALL investments - currency filtering is done at card level
-        const result = await fetchInvestments({ limit: 100 })
+        // Fetch ALL investments - cards will do their own currency filtering
+        const result = await fetchInvestments({
+          limit: 1000
+        })
         if (!mounted) return
 
         setInvestments(result?.Investment || [])
@@ -334,30 +273,17 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div data-testid="dashboard-content">
-      {/* Header with Currency Selector */}
+      {/* Header with Currency Filter */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('dashboard.title', 'Investment Dashboard')}
-          </h1>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-            {getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:')}
-          </span>
-          <Select value={masterCurrency} onValueChange={setMasterCurrency}>
-            <SelectTrigger className="gba:w-24 gba:h-8" data-testid="dashboard-master-currency-selector">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCurrencies.map(currency => (
-                <SelectItem key={currency} value={currency}>
-                  {currency}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:m-0">
+          {getTranslationFromI18nKeyAndLabel('dashboard.title', 'Investment Dashboard')}
+        </h1>
+        <CurrencyFilter
+          value={masterCurrency}
+          onChange={setMasterCurrency}
+          currencies={availableCurrencies}
+          dataTestId="dashboard-master-currency-filter"
+        />
       </div>
 
       {/* Key Metrics Cards */}
@@ -411,7 +337,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                 calculateTrendData={calculateTrendData}
                 masterCurrency={masterCurrency}
                 availableCurrencies={availableCurrencies}
-                formatCurrency={formatCurrency}
               />
             ))
           )}

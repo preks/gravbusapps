@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { useJobPositionContext } from '../context/JobPositionContext'
 import { Button, Input, Label, Combobox } from '@newwork/nw-design-system'
 import { CustomSelect } from './CustomSelect'
@@ -28,7 +28,6 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
     jobFunctions,
     allJobFunctions,
     jobProfiles,
-    allJobProfiles,
     loading,
     error,
     submit,
@@ -40,9 +39,8 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
     hasMoreJobProfiles,
     jobProfilesError,
     jobProfilesLoading,
-    enableJobProfilesLoading,
+    enableJobProfilesLoading
     // Job functions loading
-    jobFunctionsLoading
   } = useJobPositionContext()
 
   // Check if all mandatory fields are filled
@@ -67,7 +65,7 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
       {/* Form Title */}
       <div className="gba:mb-6">
-        <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+        <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">
           {modalTitle || (isEdit ? 'Update Job Position' : 'Create Job Position')}
         </h1>
       </div>
@@ -85,7 +83,7 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6">
           {/* Job Position Information Section */}
           <div className="gba:space-y-4">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
               Job Position Information
             </h3>
 
@@ -186,7 +184,7 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
 
           {/* Optional Information Section */}
           <div className="gba:space-y-4">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
               Additional Information
             </h3>
 
@@ -207,7 +205,7 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
                 onPopupScrollEnd={loadMoreJobProfiles}
                 hasMore={hasMoreJobProfiles}
                 allowClear={true}
-                className="gba:w-full"
+                style={{ width: '100%' }}
                 data-testid="job-profile-select"
                 onFocus={enableJobProfilesLoading}
               />

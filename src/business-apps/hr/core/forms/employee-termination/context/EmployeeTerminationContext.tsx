@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { useEmployeeTerminationData, EmployeeTerminationData } from '../hooks/useEmployeeTerminationData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs, { Dayjs } from 'dayjs'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
 export interface EmployeeTerminationFormValues {
   employeeId: string
@@ -16,8 +15,6 @@ export interface EmployeeTerminationContextState {
   employee: EmployeeTerminationData | null
   loading: boolean
   error: string | null
-  submit: () => void
-  cancel: () => void
 }
 
 const EmployeeTerminationContext = createContext<EmployeeTerminationContextState | undefined>(undefined)
@@ -36,16 +33,13 @@ export const EmployeeTerminationProvider: React.FC<{
   userInfo?: BusinessAppContextProps['userInfo']
   additionalData?: BusinessAppContextProps['additionalData']
   children: React.ReactNode
-}> = ({ employeeId, accessToken, userInfo, additionalData, children }) => {
+}> = ({ employeeId, accessToken, children }) => {
   // Form state
   const [formValuesState, setFormValuesState] = useState<EmployeeTerminationFormValues>({
     employeeId,
     terminationDate: dayjs(),
     terminateJobPosition: false
   })
-
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   // Log the employeeId detection (like job-position form)
   useEffect(() => {
@@ -72,40 +66,21 @@ export const EmployeeTerminationProvider: React.FC<{
     setFormValuesState(prev => ({ ...prev, ...values }))
   }, [])
 
-  // Submit handler
-  const submit = useCallback(() => {
-    setLoading(true)
-    setError(null)
-
-    // Dispatch process continue event
-    const payload = {
-      employeeId: formValuesState.employeeId,
-      terminationDate: formValuesState.terminationDate?.isValid() ? formValuesState.terminationDate : undefined,
-      terminateJobPosition: formValuesState.terminateJobPosition
-    }
-
-    dispatchProcessContinueEvent('pse_submit', payload)
-
-    console.log('Employee termination payload:', payload)
-    setLoading(false)
-  }, [formValuesState])
-
-  // Cancel handler
-  const cancel = useCallback(() => {
-    // Reset form to initial state
-    setFormValuesState({
-      employeeId,
-      terminationDate: dayjs(),
-      terminateJobPosition: false
-    })
-
-    // Dispatch cancel event
-    dispatchProcessContinueEvent('pse_cancel', {})
-  }, [employeeId])
+  // Initialize form from employee data: exitDate -> terminationDate, activeTo -> terminateJobPosition
+  useEffect(() => {
+    if (!employee) return
+    const exitDate = employee.employeePosition?.exitDate
+    const activeTo = employee.employeePosition?.activeTo ?? employee.employeePosition?.jobPosition?.activeTo
+    setFormValuesState(prev => ({
+      ...prev,
+      terminationDate: exitDate ? dayjs(exitDate) : prev.terminationDate,
+      terminateJobPosition: activeTo != null ? true : prev.terminateJobPosition
+    }))
+  }, [employee])
 
   // Combine errors
-  const combinedError = error || employeeError
-  const combinedLoading = loading || employeeLoading
+  const combinedError = employeeError
+  const combinedLoading = employeeLoading
 
   return (
     <EmployeeTerminationContext.Provider
@@ -114,9 +89,7 @@ export const EmployeeTerminationProvider: React.FC<{
         setFormValues,
         employee,
         loading: combinedLoading,
-        error: combinedError,
-        submit,
-        cancel
+        error: combinedError
       }}
     >
       {children}

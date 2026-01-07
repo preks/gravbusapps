@@ -17,7 +17,41 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ApprovalsPage, ExpenseReportsPage } from './components/pages'
 import TeamSpendingAnalyticsPage from './components/pages/TeamSpendingAnalyticsPage'
 
-export interface ManagerExpensesProps extends BusinessAppContextProps {}
+const MANAGER_VIEW_KEYS = ['tabs', 'approvals', 'reports', 'analytics'] as const
+type ManagerView = (typeof MANAGER_VIEW_KEYS)[number]
+const isValidView = (value?: string | null): value is ManagerView =>
+  Boolean(value && (MANAGER_VIEW_KEYS as readonly string[]).includes(value))
+
+const MANAGER_TAB_KEYS = [
+  'dashboard',
+  'expense-plans',
+  'advance-payments',
+  'expense-requests',
+  'expense-calendar'
+] as const
+type ManagerTabKey = (typeof MANAGER_TAB_KEYS)[number]
+const isValidTab = (value?: string | null): value is ManagerTabKey =>
+  Boolean(value && (MANAGER_TAB_KEYS as readonly string[]).includes(value))
+
+const getViewFromUrl = (): ManagerView => {
+  if (typeof window === 'undefined') {
+    return 'tabs'
+  }
+  const params = new URLSearchParams(window.location.search)
+  const viewFromUrl = params.get('view')
+  return isValidView(viewFromUrl) && viewFromUrl !== 'tabs' ? viewFromUrl : 'tabs'
+}
+
+const getTabFromUrl = (): ManagerTabKey => {
+  if (typeof window === 'undefined') {
+    return MANAGER_TAB_KEYS[0]
+  }
+  const params = new URLSearchParams(window.location.search)
+  const tabFromUrl = params.get('tab')
+  return isValidTab(tabFromUrl) ? tabFromUrl : MANAGER_TAB_KEYS[0]
+}
+
+export type ManagerExpensesProps = BusinessAppContextProps
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
   const viewOptions = [
@@ -57,110 +91,166 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
     }
   ]
 
-  // State for current view/page
-  const [currentView, setCurrentView] = useState<'tabs' | 'approvals' | 'reports' | 'analytics'>(() => {
-    const urlParams = new URLSearchParams(globalThis.location?.search || '')
-    const viewFromUrl = urlParams.get('view')
-    const validViews = ['approvals', 'reports', 'analytics']
+  const hostViewParam = typeof props.additionalData?.view === 'string' ? props.additionalData.view : undefined
+  const contextView = isValidView(hostViewParam) ? hostViewParam : null
+  const hostTabParam = typeof props.additionalData?.tab === 'string' ? props.additionalData.tab : undefined
+  const contextTab = isValidTab(hostTabParam) ? hostTabParam : null
 
-    if (validViews.includes(viewFromUrl ?? '')) {
-      return viewFromUrl as 'approvals' | 'reports' | 'analytics'
+  const getInitialTab = () => {
+    if (contextView && contextView !== 'tabs') {
+      return MANAGER_TAB_KEYS[0]
     }
-    return 'tabs'
-  })
+    if (contextTab) {
+      return contextTab
+    }
+    const viewFromUrl = getViewFromUrl()
+    if (viewFromUrl !== 'tabs') {
+      return MANAGER_TAB_KEYS[0]
+    }
+    const urlTab = getTabFromUrl()
+    if (urlTab) {
+      return urlTab
+    }
+    return MANAGER_TAB_KEYS[0]
+  }
+
+  // State for current view/page
+  const [currentView, setCurrentView] = useState<ManagerView>(() => contextView ?? getViewFromUrl())
 
   // State for active tab within the tabs view
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    const urlParams = new URLSearchParams(globalThis.location?.search || '')
-    const viewFromUrl = urlParams.get('view')
+  const [activeTab, setActiveTab] = useState<ManagerTabKey>(getInitialTab)
 
-    // If we're on a different view (not tabs), don't touch the URL
-    if (viewFromUrl && ['approvals', 'reports', 'analytics'].includes(viewFromUrl)) {
-      return viewOptions[0].key // Return default without modifying URL
+  const updateUrl = useCallback((view: ManagerView, tab?: ManagerTabKey, mode: 'push' | 'replace' = 'replace') => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    const url = new URL(window.location.href)
+    const currentViewParam = url.searchParams.get('view')
+    const currentTabParam = url.searchParams.get('tab')
+    let changed = false
+
+    if (view === 'tabs') {
+      if (currentViewParam) {
+        url.searchParams.delete('view')
+        changed = true
+      }
+      if (tab) {
+        if (currentTabParam !== tab) {
+          url.searchParams.set('tab', tab)
+          changed = true
+        }
+      } else if (currentTabParam) {
+        url.searchParams.delete('tab')
+        changed = true
+      }
+    } else {
+      if (currentViewParam !== view) {
+        url.searchParams.set('view', view)
+        changed = true
+      }
+      if (currentTabParam) {
+        url.searchParams.delete('tab')
+        changed = true
+      }
     }
 
-    const tabFromUrl = urlParams.get('tab')
-    const validTabs = viewOptions.map(item => item.key)
-
-    if (validTabs.includes(tabFromUrl ?? '')) {
-      return tabFromUrl!
+    if (!changed) {
+      return
     }
 
-    // Only set default tab in URL if we're in tabs view (no view parameter)
-    const defaultTab = viewOptions[0].key
-    if (!viewFromUrl) {
-      const url = new URL(globalThis.location?.href || 'http://localhost')
-      url.searchParams.set('tab', defaultTab)
-      globalThis.history?.replaceState?.({}, '', url.toString())
-    }
-    return defaultTab
-  })
+    const historyMethod = mode === 'push' ? window.history.pushState : window.history.replaceState
+    historyMethod.call(window.history, {}, '', url.toString())
+  }, [])
 
   // Navigation handlers
   const handleNavigateToApprovals = useCallback(() => {
     setCurrentView('approvals')
-    const url = new URL(globalThis.location?.href || 'http://localhost')
-    url.searchParams.set('view', 'approvals')
-    url.searchParams.delete('tab')
-    globalThis.history?.pushState?.({}, '', url.toString())
-  }, [])
+    updateUrl('approvals', undefined, 'push')
+  }, [updateUrl])
 
   const handleNavigateToReports = useCallback(() => {
     setCurrentView('reports')
-    const url = new URL(globalThis.location?.href || 'http://localhost')
-    url.searchParams.set('view', 'reports')
-    url.searchParams.delete('tab')
-    globalThis.history?.pushState?.({}, '', url.toString())
-  }, [])
+    updateUrl('reports', undefined, 'push')
+  }, [updateUrl])
 
   const handleNavigateToAnalytics = useCallback(() => {
     setCurrentView('analytics')
-    const url = new URL(globalThis.location?.href || 'http://localhost')
-    url.searchParams.set('view', 'analytics')
-    url.searchParams.delete('tab')
-    globalThis.history?.pushState?.({}, '', url.toString())
-  }, [])
+    updateUrl('analytics', undefined, 'push')
+  }, [updateUrl])
 
   const handleNavigateBackToDashboard = useCallback(() => {
     setCurrentView('tabs')
     setActiveTab('dashboard')
-    const url = new URL(globalThis.location?.href || 'http://localhost')
-    url.searchParams.delete('view')
-    url.searchParams.set('tab', 'dashboard')
-    globalThis.history?.pushState?.({}, '', url.toString())
-  }, [])
+    updateUrl('tabs', 'dashboard', 'push')
+  }, [updateUrl])
 
-  const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab)
-    const url = new URL(globalThis.location?.href || 'http://localhost')
-    url.searchParams.set('tab', tab)
-    globalThis.history?.pushState?.({}, '', url.toString())
-  }, [])
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      if (!isValidTab(tab) || tab === activeTab) {
+        return
+      }
+      setActiveTab(tab)
+      setCurrentView('tabs')
+      updateUrl('tabs', tab as ManagerTabKey, 'push')
+    },
+    [activeTab, updateUrl]
+  )
 
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const urlParams = new URLSearchParams(globalThis.location?.search || '')
-
-      // Check for view parameter
-      const viewFromUrl = urlParams.get('view')
-      const validViews = ['approvals', 'reports', 'analytics']
-      if (validViews.includes(viewFromUrl ?? '')) {
-        setCurrentView(viewFromUrl as 'approvals' | 'reports' | 'analytics')
-      } else {
-        setCurrentView('tabs')
-
-        // If in tabs view, check for tab parameter
-        const tabFromUrl = urlParams.get('tab')
-        const validTabs = viewOptions.map(item => item.key)
-        const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : viewOptions[0].key
-        setActiveTab(newTab)
+      const nextView = getViewFromUrl()
+      setCurrentView(nextView)
+      if (nextView === 'tabs') {
+        setActiveTab(getTabFromUrl())
       }
     }
 
-    globalThis.addEventListener?.('popstate', handlePopState)
-    return () => globalThis.removeEventListener?.('popstate', handlePopState)
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [])
+
+  // Keep URL synchronized with current state
+  useEffect(() => {
+    if (currentView === 'tabs') {
+      updateUrl('tabs', activeTab, 'replace')
+    } else {
+      updateUrl(currentView, undefined, 'replace')
+    }
+  }, [currentView, activeTab, updateUrl])
+
+  // React to external view changes
+  useEffect(() => {
+    if (!contextView) {
+      return
+    }
+
+    if (contextView === 'tabs') {
+      setCurrentView('tabs')
+      setActiveTab(previous => {
+        const nextTab = contextTab && contextTab !== previous ? contextTab : previous
+        updateUrl('tabs', nextTab)
+        return nextTab
+      })
+    } else {
+      setCurrentView(contextView)
+      updateUrl(contextView)
+    }
+  }, [contextView, contextTab, updateUrl])
+
+  // React to external tab changes when host only controls tabs
+  useEffect(() => {
+    if (!contextTab || contextView) {
+      return
+    }
+    setActiveTab(previous => {
+      if (previous === contextTab) {
+        return previous
+      }
+      updateUrl('tabs', contextTab)
+      return contextTab
+    })
+  }, [contextTab, contextView, updateUrl])
 
   // Create tab props for passing to tab components
   const tabProps = {
@@ -213,7 +303,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
   return (
     <div data-testid="manager-expenses-container">
       <PageLayout
-        headerIcon={PiWalletDuotone}
+        headerIcon={PiWalletDuotone as any}
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.team_expenses_title',
           'Team Expenses'

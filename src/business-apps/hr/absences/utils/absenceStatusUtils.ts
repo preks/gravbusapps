@@ -28,7 +28,7 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
     return {
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown'),
       variant: 'outline',
-      color: '#6b7280',
+      color: 'var(--nw-muted-foreground)',
       type: 'unknown',
       status: 'UNKNOWN'
     }
@@ -39,7 +39,7 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
         variant: 'secondary', // Gray - indicates draft/planned state
-        color: '#6b7280',
+        color: 'var(--nw-muted-foreground)',
         type: 'draft',
         status: 'PLANNED'
       }
@@ -48,7 +48,7 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
         variant: 'warning', // Orange - indicates pending approval
-        color: '#f59e0b',
+        color: 'var(--nw-warning)',
         type: 'pending',
         status: 'PENDING'
       }
@@ -57,7 +57,7 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
         variant: 'success', // Green - indicates approved
-        color: '#10b981',
+        color: 'var(--nw-success)',
         type: 'approved',
         status: 'APPROVED'
       }
@@ -66,7 +66,7 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
         variant: 'destructive', // Red - indicates rejected
-        color: '#ef4444',
+        color: 'var(--nw-destructive)',
         type: 'rejected',
         status: 'REJECTED'
       }
@@ -75,7 +75,7 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled'),
         variant: 'secondary', // Gray - indicates cancelled
-        color: '#6b7280',
+        color: 'var(--nw-muted-foreground)',
         type: 'cancelled',
         status: 'CANCELLED'
       }
@@ -84,7 +84,7 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
       return {
         label: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : 'Unknown',
         variant: 'secondary',
-        color: '#6b7280',
+        color: 'var(--nw-muted-foreground)',
         type: 'unknown',
         status: status ? status.toUpperCase() : 'UNKNOWN'
       }
@@ -107,6 +107,39 @@ export function getAbsenceStatusLabel(status?: string): string {
  */
 export function getAbsenceStatusBadgeVariant(status?: string): BadgeProps['variant'] {
   return getAbsenceStatusConfig(status).variant
+}
+
+/**
+ * Get the Tailwind background class for a Badge variant (matches Badge component styling)
+ * Uses secondary colors with /80 opacity to exactly match Badge component background colors
+ * The Badge component internally maps variants like "success" to "bg-success-secondary/80"
+ * @param variant - The Badge variant
+ * @returns Tailwind background class name
+ */
+export function getBadgeVariantBackgroundClass(variant: BadgeProps['variant']): string {
+  if (!variant) return 'gba:bg-muted'
+
+  // For semantic variants, use the secondary color with /80 opacity (matches Badge component background exactly)
+  // Badge component uses: bg-{variant}-secondary/80 for these variants
+  if (variant === 'success') return 'gba:bg-success-secondary/80'
+  if (variant === 'warning') return 'gba:bg-warning-secondary/80'
+  if (variant === 'destructive') return 'gba:bg-destructive-secondary/80'
+  if (variant === 'info') return 'gba:bg-info-secondary/80'
+  if (variant === 'offline') return 'gba:bg-offline-secondary/80'
+
+  // For other variants, use muted
+  return 'gba:bg-muted'
+}
+
+/**
+ * Get the Tailwind background class directly from absence status (convenience function)
+ * Combines getAbsenceStatusBadgeVariant and getBadgeVariantBackgroundClass
+ * @param status - The absence status
+ * @returns Tailwind background class name that matches Badge component styling
+ */
+export function getAbsenceStatusBackgroundClass(status?: string): string {
+  const variant = getAbsenceStatusBadgeVariant(status)
+  return getBadgeVariantBackgroundClass(variant)
 }
 
 /**

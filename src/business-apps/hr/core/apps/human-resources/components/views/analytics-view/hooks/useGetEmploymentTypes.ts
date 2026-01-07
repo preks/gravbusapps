@@ -74,7 +74,6 @@ export function useGetEmploymentTypes(
         setTypes([])
         setHasMore(false)
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchRegex, offset, userLocale, client])
 
   return { types, loading: false, error, hasMore }

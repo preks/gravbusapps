@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react'
 
-import { useTranslation } from 'react-i18next'
 import { showToast } from '../../../utils/notificationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getCurrentActiveUserLocale, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import {
+  getCurrentActiveUserLocale,
+  getCurrentActiveStructureId,
+  getTranslationFromI18nKeyAndLabel
+} from '@/common/utils/windowUtils'
 import { wrapGraphQLClient } from '../../expense-request/services/graphqlClient'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -41,7 +44,6 @@ export const ExpensePlanProvider: React.FC<BusinessAppContextProps & { children:
   userInfo,
   children
 }) => {
-  const { t } = useTranslation()
   const baseGraphQLClient = useGraphqlClient(accessToken)
   const graphQLClient = useMemo(() => wrapGraphQLClient(baseGraphQLClient), [baseGraphQLClient])
 
@@ -63,7 +65,13 @@ export const ExpensePlanProvider: React.FC<BusinessAppContextProps & { children:
     try {
       const employeeId = userInfo?.employeeDetails.employeeId
       if (!employeeId) {
-        showToast(t('lowcoder:create_expense_request.employee_id_not_found', 'Employee ID not found'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.employee_id_not_found',
+            'Employee ID not found'
+          ),
+          'error'
+        )
         setLoading(false)
         return
       }
@@ -88,7 +96,13 @@ export const ExpensePlanProvider: React.FC<BusinessAppContextProps & { children:
       const employeePosition = fetchExpenseCatalogueData?.data?.EmployeePosition || []
       const structureId = employeePosition[0]?.structureId || getCurrentActiveStructureId()
       if (!structureId) {
-        showToast(t('lowcoder:create_expense_request.structure_not_found', 'Employee structure not found'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.structure_not_found',
+            'Employee structure not found'
+          ),
+          'error'
+        )
         setLoading(false)
         return
       }
@@ -119,8 +133,14 @@ export const ExpensePlanProvider: React.FC<BusinessAppContextProps & { children:
       if (selectedCostCenter === '' && userCostCenters.length > 0 && userCostCenters[0].id) {
         setSelectedCostCenter(userCostCenters[0].id)
       }
-    } catch (error) {
-      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+    } catch {
+      showToast(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_type_item.process_error_data_fetch',
+          'Error fetching data'
+        ),
+        'error'
+      )
     } finally {
       setLoading(false)
     }

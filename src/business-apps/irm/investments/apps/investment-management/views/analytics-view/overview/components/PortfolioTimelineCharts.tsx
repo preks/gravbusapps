@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -6,118 +6,130 @@ import {
   CardContent,
   CardDescription,
   IconAvatar,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   ChartContainer,
   ChartTooltip,
   ChartLegend,
-  ChartLegendContent
+  ChartLegendContent,
+  Spinner,
+  Alert,
+  Button
 } from '@newwork/nw-design-system'
-import { AreaChart, Area, ComposedChart, Bar, Line, XAxis, YAxis } from 'recharts'
-import { formatCurrency } from '@/common/data/investment'
+import { Bar, ComposedChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
-import dayjs from 'dayjs'
+import { CurrencyFilter } from '../../shared/components'
+import { useCurrencySync } from '../../shared/hooks'
+import { usePortfolioTimelineAggregate } from '../hooks'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface PortfolioTimelineChartsProps {
-  rawInvestments: any[] // Raw investment data for filtering
+interface PortfolioTimelineChartsProps extends BusinessAppContextProps {
+  masterCurrency: string
+  availableCurrencies: string[]
 }
 
-export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = ({ rawInvestments }) => {
-  // Get available currencies from the data
-  const availableCurrencies = useMemo(() => {
-    const currencies = [...new Set(rawInvestments.map(inv => inv.currencyCode || 'EUR'))]
-    return currencies.sort()
-  }, [rawInvestments])
+interface TimelineTooltipProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  currencyFilter: string
+}
 
-  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useState<string>('EUR')
-  const [valueCurrencyFilter, setValueCurrencyFilter] = useState<string>('EUR')
+const TimelineTooltip: React.FC<TimelineTooltipProps> = ({ active, payload, label, currencyFilter }) => {
+  if (active && payload?.length) {
+    const totalInvestedEntry = payload.find(p => p.dataKey === 'total')
+    const marketValueEntry = payload.find(p => p.dataKey === 'totalMarketValue')
 
-  // Update currency filters when currencies become available
-  useEffect(() => {
-    if (availableCurrencies.length > 0) {
-      const defaultCurrency = availableCurrencies[0]
-      setPerformanceCurrencyFilter(defaultCurrency)
-      setValueCurrencyFilter(defaultCurrency)
-    }
-  }, [availableCurrencies])
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+        {totalInvestedEntry && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: 'var(--color-total)' }} />
+            <span className="gba:font-medium">Total Invested Amount:</span>
+            <span className="gba:font-semibold">
+              {formatCurrencyCompact(
+                totalInvestedEntry.value as number,
+                extractCurrencyCode(currencyFilter),
+                undefined,
+                1,
+                true
+              )}
+            </span>
+          </div>
+        )}
+        {marketValueEntry && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <div
+              className="gba:w-3 gba:h-3 gba:rounded-full"
+              style={{ backgroundColor: 'var(--color-totalmarketvalue)' }}
+            />
+            <span className="gba:font-medium">Total Market Value:</span>
+            <span className="gba:font-semibold">
+              {formatCurrencyCompact(
+                marketValueEntry.value as number,
+                extractCurrencyCode(currencyFilter),
+                undefined,
+                1,
+                true
+              )}
+            </span>
+          </div>
+        )}
+      </div>
+    )
+  }
+  return null
+}
 
-  // Filter and regenerate performance timeline data
-  const filteredPerformanceData = useMemo(() => {
-    const filteredInvestments = rawInvestments.filter(inv => (inv.currencyCode || 'EUR') === performanceCurrencyFilter)
+export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = props => {
+  const { masterCurrency, availableCurrencies } = props
 
-    return filteredInvestments
-      .filter(investment => investment.acquisitionDate)
-      .sort((a, b) => dayjs(a.acquisitionDate).unix() - dayjs(b.acquisitionDate).unix())
-      .reduce((acc, investment) => {
-        const date = dayjs(investment.acquisitionDate).format('YYYY-MM')
-        const existing = acc.find((item: any) => item.month === date)
-        const totalInvestmentAmount = investment.totalInvestmentAmount || 0
-        const marketValue = investment.marketValue || investment.bookValue || 0
+  // Currency sync hooks - automatically sync with master currency
+  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useCurrencySync(masterCurrency)
+  const [valueCurrencyFilter, setValueCurrencyFilter] = useCurrencySync(masterCurrency)
 
-        if (existing) {
-          existing.investmentCount += 1
-          existing.totalInvestmentAmount += totalInvestmentAmount
-          existing.totalMarketValue += marketValue
-        } else {
-          acc.push({
-            month: date,
-            investmentCount: 1,
-            totalInvestmentAmount: totalInvestmentAmount,
-            totalMarketValue: marketValue
-          })
-        }
-        return acc
-      }, [] as any[])
-      .sort((a: any, b: any) => a.month.localeCompare(b.month))
-      .map((item: any, index: number, array: any[]) => {
-        let cumulativeCount = 0
-        let cumulativeTotalInvested = 0
-        for (let i = 0; i <= index; i++) {
-          cumulativeCount += array[i].investmentCount
-          cumulativeTotalInvested += array[i].totalInvestmentAmount
-        }
-        return {
-          ...item,
-          cumulativeInvestments: cumulativeCount,
-          cumulativeTotalInvested: cumulativeTotalInvested
-        }
-      })
-  }, [rawInvestments, performanceCurrencyFilter])
+  // Fetch timeline data for performance chart (last 5 years)
+  const {
+    timelineData: performanceData,
+    isLoading: isLoadingPerformance,
+    error: performanceError,
+    refetch: refetchPerformance
+  } = usePortfolioTimelineAggregate(props, 5, performanceCurrencyFilter)
 
-  // Filter and regenerate value over time data with both invested amount and market value
-  const filteredValueData = useMemo(() => {
-    const filteredInvestments = rawInvestments.filter(inv => (inv.currencyCode || 'EUR') === valueCurrencyFilter)
+  // Fetch timeline data for value chart (last 5 years)
+  const {
+    timelineData: valueData,
+    isLoading: isLoadingValue,
+    error: valueError,
+    refetch: refetchValue
+  } = usePortfolioTimelineAggregate(props, 5, valueCurrencyFilter)
 
-    const dataMap = new Map()
+  // Memoized tooltip renderers to prevent component definition inside render
+  const renderValueTooltip = useCallback(
+    (tooltipProps: any) => <TimelineTooltip {...tooltipProps} currencyFilter={valueCurrencyFilter} />,
+    [valueCurrencyFilter]
+  )
 
-    filteredInvestments
-      .filter(investment => investment.acquisitionDate)
-      .forEach(investment => {
-        const date = dayjs(investment.acquisitionDate).format('YYYY-MM')
-        const totalInvestmentAmount = investment.totalInvestmentAmount || 0
-        const marketValue = investment.marketValue || 0
+  // Pre-compute chart configs
+  const performanceChartConfig = useMemo(
+    () => ({
+      count: { label: 'Investment Count' },
+      total: { label: 'Total Investment Amount' }
+    }),
+    []
+  )
 
-        if (dataMap.has(date)) {
-          const existing = dataMap.get(date)
-          existing.totalInvestmentAmount += totalInvestmentAmount
-          existing.totalMarketValue += marketValue
-        } else {
-          dataMap.set(date, {
-            date,
-            totalInvestmentAmount: totalInvestmentAmount,
-            totalMarketValue: marketValue
-          })
-        }
-      })
-
-    return Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date))
-  }, [rawInvestments, valueCurrencyFilter])
+  const valueChartConfig = useMemo(
+    () => ({
+      total: { label: 'Total Invested Amount' },
+      totalmarketvalue: { label: 'Total Market Value' }
+    }),
+    []
+  )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+    <div className="gba:flex gba:flex-col gba:gap-6 gba:w-full">
+      {/* Performance Timeline Chart */}
       <Card>
         <CardHeader>
           <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
@@ -125,107 +137,129 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
               <IconAvatar icon={ChartLineUpIcon} variant="default" size="md" decorative />
               <div>
                 <CardTitle>Investment Performance Timeline ({performanceCurrencyFilter})</CardTitle>
-                <CardDescription>Investment count and cumulative amounts over time</CardDescription>
+                <CardDescription>Investment count and total investment amount over the last 5 years</CardDescription>
               </div>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
               <span className="gba:text-xs gba:text-gray-500">Currency:</span>
-              <Select value={performanceCurrencyFilter} onValueChange={setPerformanceCurrencyFilter}>
-                <SelectTrigger className="gba:w-20 gba:h-8 gba:text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCurrencies.map(currency => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CurrencyFilter
+                value={performanceCurrencyFilter}
+                onChange={setPerformanceCurrencyFilter}
+                currencies={availableCurrencies}
+                showLabel={false}
+                dataTestId="performance-currency-filter"
+              />
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer
-            config={useMemo(() => {
-              const config = {
-                investmentcount: { label: 'New Investments' },
-                totalinvestmentamount: { label: 'Total Invested Amount' }
-              }
-              return config
-            }, [])}
-            className="gba:h-[350px] gba:w-full"
-          >
-            <ComposedChart data={filteredPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-              <ChartTooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                        {payload
-                          .filter(entry => {
-                            // Only show items that have actual visual chart elements
-                            return entry.dataKey === 'investmentCount' || entry.dataKey === 'totalInvestmentAmount'
-                          })
-                          .map((entry, index) => {
-                            let formattedValue = ''
-                            let properLabel = ''
-                            let dotColor = ''
+          {(() => {
+            if (isLoadingPerformance) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-[350px]">
+                  <Spinner size="lg" />
+                </div>
+              )
+            }
+            if (performanceError) {
+              return (
+                <Alert variant="destructive" className="gba:mb-4">
+                  <div className="gba:flex gba:justify-between gba:items-center">
+                    <span>Error loading performance timeline: {performanceError}</span>
+                    <Button variant="outline" size="sm" onClick={refetchPerformance}>
+                      Retry
+                    </Button>
+                  </div>
+                </Alert>
+              )
+            }
+            return (
+              <ChartContainer config={performanceChartConfig} className="gba:h-[350px] gba:w-full">
+                <ComposedChart data={performanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 12 }}
+                    label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(performanceCurrencyFilter),
+                        undefined,
+                        1,
+                        true
+                      ).replaceAll(/[€$£¥]/g, '')
+                    }
+                    label={{ value: 'Amount', angle: 90, position: 'insideRight' }}
+                  />
+                  <ChartTooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload?.length) {
+                        const countEntry = payload.find(p => p.dataKey === 'count')
+                        const totalEntry = payload.find(p => p.dataKey === 'total')
 
-                            if (entry.dataKey === 'investmentCount') {
-                              formattedValue = `${entry.value}`
-                              properLabel = 'New Investments'
-                              dotColor = 'var(--color-investmentcount)'
-                            } else if (entry.dataKey === 'totalInvestmentAmount') {
-                              formattedValue = formatCurrency(entry.value as number, performanceCurrencyFilter)
-                              properLabel = 'Total Invested Amount'
-                              dotColor = 'var(--color-totalinvestmentamount)'
-                            }
-
-                            return (
-                              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+                            {countEntry && (
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
                                 <div
                                   className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: dotColor }}
+                                  style={{ backgroundColor: 'var(--color-count)' }}
                                 />
-                                <span className="gba:font-medium">{properLabel}:</span>
-                                <span className="gba:font-semibold">{formattedValue}</span>
+                                <span className="gba:font-medium">Investment Count:</span>
+                                <span className="gba:font-semibold">{countEntry.value}</span>
                               </div>
-                            )
-                          })}
-                      </div>
-                    )
-                  }
-                  return null
-                }}
-              />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Bar
-                yAxisId="left"
-                dataKey="investmentCount"
-                name="investmentcount"
-                fill="var(--color-investmentcount)"
-                radius={[4, 4, 0, 0]}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="totalInvestmentAmount"
-                name="totalinvestmentamount"
-                stroke="var(--color-totalinvestmentamount)"
-                strokeWidth={3}
-                dot={false}
-                activeDot={{ r: 4 }}
-              />
-            </ComposedChart>
-          </ChartContainer>
+                            )}
+                            {totalEntry && (
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: 'var(--color-total)' }}
+                                />
+                                <span className="gba:font-medium">Total Investment Amount:</span>
+                                <span className="gba:font-semibold">
+                                  {formatCurrencyCompact(
+                                    totalEntry.value as number,
+                                    extractCurrencyCode(performanceCurrencyFilter),
+                                    undefined,
+                                    1,
+                                    true
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="total"
+                    stroke="var(--color-total)"
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                </ComposedChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
 
+      {/* Value Trends Chart */}
       <Card>
         <CardHeader>
           <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
@@ -233,98 +267,81 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
               <IconAvatar icon={TrendUpIcon} variant="success" size="md" decorative />
               <div>
                 <CardTitle>Investment Value Trends Over Time ({valueCurrencyFilter})</CardTitle>
-                <CardDescription>Comparison of invested amount vs market value over time</CardDescription>
+                <CardDescription>Comparison of invested amount vs market value over the last 5 years</CardDescription>
               </div>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
               <span className="gba:text-xs gba:text-gray-500">Currency:</span>
-              <Select value={valueCurrencyFilter} onValueChange={setValueCurrencyFilter}>
-                <SelectTrigger className="gba:w-20 gba:h-8 gba:text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCurrencies.map(currency => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CurrencyFilter
+                value={valueCurrencyFilter}
+                onChange={setValueCurrencyFilter}
+                currencies={availableCurrencies}
+                showLabel={false}
+                dataTestId="value-currency-filter"
+              />
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer
-            config={useMemo(() => {
-              const config = {
-                totalinvestmentamount: { label: 'Total Invested Amount' },
-                totalmarketvalue: { label: 'Total Market Value' }
-              }
-              return config
-            }, [])}
-            className="gba:h-[300px] gba:w-full"
-          >
-            <AreaChart data={filteredValueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis
-                tick={{ fontSize: 12 }}
-                tickFormatter={value => formatCurrency(value, valueCurrencyFilter).replace(/[€$£¥]/g, '')}
-              />
-              <ChartTooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                        {payload.map((entry, index) => {
-                          let properLabel = ''
-                          let dotColor = ''
-
-                          if (entry.dataKey === 'totalInvestmentAmount') {
-                            properLabel = 'Total Invested Amount'
-                            dotColor = 'var(--color-totalinvestmentamount)'
-                          } else if (entry.dataKey === 'totalMarketValue') {
-                            properLabel = 'Total Market Value'
-                            dotColor = 'var(--color-totalmarketvalue)'
-                          }
-
-                          return (
-                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
-                              <span className="gba:font-medium">{properLabel}:</span>
-                              <span className="gba:font-semibold">
-                                {formatCurrency(entry.value as number, valueCurrencyFilter)}
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  }
-                  return null
-                }}
-              />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Area
-                type="monotone"
-                dataKey="totalInvestmentAmount"
-                name="totalinvestmentamount"
-                stackId="1"
-                stroke="var(--color-totalinvestmentamount)"
-                fill="var(--color-totalinvestmentamount)"
-                fillOpacity={0.8}
-              />
-              <Area
-                type="monotone"
-                dataKey="totalMarketValue"
-                name="totalmarketvalue"
-                stackId="2"
-                stroke="var(--color-totalmarketvalue)"
-                fill="var(--color-totalmarketvalue)"
-                fillOpacity={0.6}
-              />
-            </AreaChart>
-          </ChartContainer>
+          {(() => {
+            if (isLoadingValue) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
+                  <Spinner size="lg" />
+                </div>
+              )
+            }
+            if (valueError) {
+              return (
+                <Alert variant="destructive" className="gba:mb-4">
+                  <div className="gba:flex gba:justify-between gba:items-center">
+                    <span>Error loading value trends: {valueError}</span>
+                    <Button variant="outline" size="sm" onClick={refetchValue}>
+                      Retry
+                    </Button>
+                  </div>
+                </Alert>
+              )
+            }
+            return (
+              <ChartContainer config={valueChartConfig} className="gba:h-[300px] gba:w-full">
+                <ComposedChart data={valueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(valueCurrencyFilter),
+                        undefined,
+                        1,
+                        true
+                      ).replaceAll(/[€$£¥]/g, '')
+                    }
+                  />
+                  <ChartTooltip content={renderValueTooltip} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    stroke="var(--color-total)"
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="totalMarketValue"
+                    stroke="var(--color-totalmarketvalue)"
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                </ComposedChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
     </div>

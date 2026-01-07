@@ -1,9 +1,13 @@
 // Utility functions for divestment views
 
-export const formatCurrency = (amount: number): string => {
+/**
+ * @deprecated Use formatCurrencyParts from @/common/utils/numberFormatter instead
+ * This function is kept for backward compatibility but should be replaced
+ */
+export const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'EUR',
+    currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
   }).format(amount)

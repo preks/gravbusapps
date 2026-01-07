@@ -45,7 +45,9 @@ export const buildEmployeeSkillsPayload = (args: {
   const skillsPayload = (selectedSkillIds || []).map(skillId => {
     const existing = existingBySkillId[skillId]
     if (existing?.id && existing?.version !== undefined) {
-      return { id: existing.id, version: existing.version, employeeId, skill: skillId }
+      const rawVersion = (existing as any)?.version
+      const versionToSend = rawVersion === null ? 0 : rawVersion
+      return { id: existing.id, version: versionToSend, employeeId, skill: skillId }
     }
     return { employeeId, skill: skillId }
   })

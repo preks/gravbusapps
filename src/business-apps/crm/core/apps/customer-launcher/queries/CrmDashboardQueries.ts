@@ -1,27 +1,13 @@
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface CrmDashboardQueryVariables {
   // No variables needed for dashboard stats, but keeping interface for consistency
 }
 
 export const GET_CRM_DASHBOARD_STATS = (): string => {
   return `query GetCrmDashboardStats {
-    # Count accounts that have at least 1 opportunity in closed_won stage
-    totalCustomers: AccountAggregate(
-      where: {
-        sourceApp: { _eq: "CRM" }
-        isDeleted: { _eq: false }
-        opportunity: {
-          stage: { _eq: "closed_won" }
-        }
-      }
-    ) {
-      aggregate {
-        count
-      }
-    }
-    
     # Count opportunities that are NOT in closed_won or closed_lost stages
     activeOpportunities: OpportunityAggregate(
       where: {
@@ -100,11 +86,6 @@ export const GET_CRM_DASHBOARD_STATS = (): string => {
 }
 
 export type CrmDashboardStatsData = {
-  totalCustomers: {
-    aggregate: {
-      count: number
-    }
-  }
   activeOpportunities: {
     aggregate: {
       count: number
@@ -139,6 +120,7 @@ export type CrmDashboardStatsData = {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface GetCrmDashboardStatsVariables {
   // No variables needed for this query
 }
