@@ -19,7 +19,8 @@ import {
   ChevronDown,
   MapPin,
   Code,
-  PlayCircle
+  PlayCircle,
+  Receipt
 } from 'lucide-react'
 import { CalculationStep, StepCategory } from '../hooks/useCalculationTrace'
 
@@ -52,6 +53,7 @@ const categoryIcons: Record<StepCategory, React.ReactNode> = {
   AMOUNT_CALCULATION: <Calculator className="gba:w-3.5 gba:h-3.5" />,
   DEDUCTION: <Minus className="gba:w-3.5 gba:h-3.5" />,
   MILEAGE: <Car className="gba:w-3.5 gba:h-3.5" />,
+  EXPENSE_ITEM: <Receipt className="gba:w-3.5 gba:h-3.5" />,
   AGGREGATION: <BarChart3 className="gba:w-3.5 gba:h-3.5" />,
   VALIDATION: <CheckSquare className="gba:w-3.5 gba:h-3.5" />,
   COUNTRY_RULE: <Globe className="gba:w-3.5 gba:h-3.5" />,
@@ -72,6 +74,7 @@ const categoryNames: Record<StepCategory, string> = {
   AMOUNT_CALCULATION: 'Calculation',
   DEDUCTION: 'Deduction',
   MILEAGE: 'Mileage',
+  EXPENSE_ITEM: 'Expense Item',
   AGGREGATION: 'Aggregation',
   VALIDATION: 'Validation',
   COUNTRY_RULE: 'Country Rule',
@@ -418,6 +421,50 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
                             </div>
                           </div>
                         )
+                      }
+
+                      // For mileage steps, show the mileage amount prominently
+                      if (step.category === 'MILEAGE') {
+                        const outputs = step.outputs as Record<string, any>
+                        const amount = step.calculatedValue ?? outputs?.amount
+                        if (amount !== undefined && amount !== null && Number(amount) !== 0) {
+                          return (
+                            <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-blue-50 gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-blue-200 gba:text-sm">
+                              <Car className="gba:w-3.5 gba:h-3.5 gba:text-blue-500" />
+                              <span className="gba:text-blue-500">Mileage:</span>
+                              <span className="gba:font-semibold gba:text-blue-600">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                  Number(amount)
+                                )}
+                              </span>
+                            </div>
+                          )
+                        }
+                      }
+
+                      // For expense items (AMOUNT_CALCULATION with expense class), show as expense
+                      if (step.category === 'AMOUNT_CALCULATION' && step.stepName.startsWith('Expense:')) {
+                        const inputs = step.inputs as Record<string, any>
+                        const outputs = step.outputs as Record<string, any>
+                        // Check calculatedValue first, then outputs.amount
+                        const amount = step.calculatedValue ?? outputs?.amount
+                        if (amount !== undefined && amount !== null && Number(amount) !== 0) {
+                          return (
+                            <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-cyan-50 gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-cyan-200 gba:text-sm">
+                              <span className="gba:text-cyan-500">Expense:</span>
+                              <span className="gba:font-semibold gba:text-cyan-600">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                  Number(amount)
+                                )}
+                              </span>
+                              {inputs?.reimbursable === false && (
+                                <span className="gba:text-xs gba:text-orange-600 gba:bg-orange-50 gba:px-1.5 gba:py-0.5 gba:rounded">
+                                  Non-reimbursable
+                                </span>
+                              )}
+                            </div>
+                          )
+                        }
                       }
 
                       // Default result display

@@ -28,22 +28,49 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
     const allPoints: ChartPoint[] = []
     let runningTotal = 0
 
-    // Count AMOUNT_CALCULATION, DEDUCTION, and MILEAGE steps
+    // Filter relevant steps:
+    // Include all calculation steps EXCEPT generated allowances (which would double-count)
     const relevantSteps = steps.filter(step => {
-      return step.category === 'AMOUNT_CALCULATION' || step.category === 'DEDUCTION' || step.category === 'MILEAGE'
+      // Always include deductions and mileage
+      if (step.category === 'DEDUCTION') return true
+      if (step.category === 'MILEAGE') return true
+
+      // For AMOUNT_CALCULATION and EXPENSE_ITEM, exclude generated allowances
+      if (step.category === 'AMOUNT_CALCULATION' || step.category === 'EXPENSE_ITEM') {
+        // Exclude by expenseClass containing ALLOWANCE
+        const expenseClass = step.inputs?.expenseClass || ''
+        if (expenseClass.includes('ALLOWANCE')) {
+          return false
+        }
+        // Exclude by title being "Generated Allowance"
+        const title = step.inputs?.title || ''
+        if (title === 'Generated Allowance') {
+          return false
+        }
+        return true
+      }
+
+      return false
     })
 
     relevantSteps.forEach((step, index) => {
       let change = 0
 
-      if (step.category === 'AMOUNT_CALCULATION' || step.category === 'MILEAGE') {
-        if (step.calculatedValue !== undefined && typeof step.calculatedValue === 'number') {
+      if (step.category === 'AMOUNT_CALCULATION' || step.category === 'MILEAGE' || step.category === 'EXPENSE_ITEM') {
+        // Try calculatedValue first (if it's a real number), then outputs.amount
+        if (typeof step.calculatedValue === 'number' && !isNaN(step.calculatedValue)) {
           change = step.calculatedValue
+        } else if (step.outputs?.amount != null) {
+          change = Number(step.outputs.amount)
+        } else if (step.outputs?.itemAmount != null) {
+          change = Number(step.outputs.itemAmount)
+        } else if (step.outputs?.result != null && typeof step.outputs.result === 'number') {
+          change = step.outputs.result
         }
       } else if (step.category === 'DEDUCTION') {
-        if (step.outputs?.deductionAmount) {
+        if (step.outputs?.deductionAmount != null) {
           change = -Math.abs(Number(step.outputs.deductionAmount))
-        } else if (step.calculatedValue !== undefined && typeof step.calculatedValue === 'number') {
+        } else if (typeof step.calculatedValue === 'number' && !isNaN(step.calculatedValue)) {
           change = -Math.abs(step.calculatedValue)
         }
       }
@@ -173,7 +200,11 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
         <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs">
           <div className="gba:flex gba:items-center gba:gap-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-emerald-500" />
-            <span className="gba:text-gray-600">Allowance</span>
+            <span className="gba:text-gray-600">Allowance/Expense</span>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-blue-500" />
+            <span className="gba:text-gray-600">Mileage</span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-red-500" />
@@ -254,7 +285,19 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
         {/* Data points */}
         {points.map((point, i) => {
           const isDeduction = point.change < 0
+          const isMileage = point.step.category === 'MILEAGE'
           const isHovered = hoveredPoint?.index === point.index
+
+          // Determine point color based on type
+          let pointColorClass = 'gba:fill-emerald-500'
+          let textColorClass = 'gba:fill-emerald-600'
+          if (isDeduction) {
+            pointColorClass = 'gba:fill-red-500'
+            textColorClass = 'gba:fill-red-600'
+          } else if (isMileage) {
+            pointColorClass = 'gba:fill-blue-500'
+            textColorClass = 'gba:fill-blue-600'
+          }
 
           return (
             <g key={i}>
@@ -275,7 +318,7 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
                 cx={point.x}
                 cy={point.y}
                 r={isHovered ? 8 : 6}
-                className={`gba:cursor-pointer gba:transition-all gba:duration-150 ${isDeduction ? 'gba:fill-red-500' : 'gba:fill-emerald-500'}`}
+                className={`gba:cursor-pointer gba:transition-all gba:duration-150 ${pointColorClass}`}
                 strokeWidth="2"
                 style={{ stroke: 'var(--color-white, #fff)' }}
                 onMouseEnter={() => setHoveredPoint(point)}
@@ -287,7 +330,7 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
                   x={point.x}
                   y={point.y - 16}
                   textAnchor="middle"
-                  className={`gba:text-xs gba:font-medium ${isDeduction ? 'gba:fill-red-600' : 'gba:fill-emerald-600'}`}
+                  className={`gba:text-xs gba:font-medium ${textColorClass}`}
                 >
                   {isDeduction ? '' : '+'}
                   {formatCurrency(point.change)}

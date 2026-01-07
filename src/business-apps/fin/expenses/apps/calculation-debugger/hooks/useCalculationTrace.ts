@@ -37,6 +37,7 @@ export type StepCategory =
   | 'AMOUNT_CALCULATION'
   | 'DEDUCTION'
   | 'MILEAGE'
+  | 'EXPENSE_ITEM'
   | 'AGGREGATION'
   | 'VALIDATION'
   | 'COUNTRY_RULE'
@@ -57,6 +58,9 @@ export interface RuleInfo {
   currencyRef?: string
   activeFrom?: string
   activeTo?: string
+  /** When the assignment of this rule to the employee became effective */
+  assignmentActiveFrom?: string
+  assignmentActiveTo?: string
 }
 
 export interface CalculationSummary {
@@ -97,7 +101,17 @@ export interface CalculationTrace {
 }
 
 export interface RequestAnalysis {
-  request: {
+  request?: {
+    id: string
+    code: string
+    status: string
+    totalAmount: number
+    totalAmountAllowance: number
+    totalAmountMileage: number
+    totalAmountExpense: number
+    employeeId: string
+  }
+  plan?: {
     id: string
     code: string
     status: string
@@ -147,6 +161,7 @@ interface UseCalculationTraceReturn {
   triggerTraceForRequest: (requestId: string) => Promise<void>
   triggerTraceForPlan: (planId: string) => Promise<void>
   analyzeRequest: (requestId: string) => Promise<void>
+  analyzePlan: (planId: string) => Promise<void>
   debugRuleAssignment: (employeeId: string, date: Date) => Promise<void>
   compareTraces: (traceId1: string, traceId2: string) => Promise<any>
   clearTraces: () => void
@@ -640,6 +655,84 @@ export function useCalculationTrace(accessToken: string): UseCalculationTraceRet
     [baseUrl, headers, resolveAnalysisCatalogs, resolveTraceStepCatalogs]
   )
 
+  const analyzePlan = useCallback(
+    async (planId: string) => {
+      setLoading(true)
+      setError(null)
+      // Clear previous trace before starting new analysis
+      setCurrentTrace(null)
+      setAnalysis(null)
+      try {
+        const response = await fetch(`${baseUrl}/analyze/plan/${planId}`, { headers })
+        const data = await parseResponse(response, 'Analyze plan')
+        console.log('[CalculationDebugger] Analyze plan response keys:', Object.keys(data))
+        console.log('[CalculationDebugger] calculationTrace exists:', !!data.calculationTrace)
+        console.log('[CalculationDebugger] calculationTrace steps:', data.calculationTrace?.steps?.length || 0)
+
+        // Log trip data for debugging
+        if (data.trips && data.trips.length > 0) {
+          console.log('[CalculationDebugger] First trip raw data:', {
+            point: data.trips[0].point,
+            address: data.trips[0].address,
+            countryRef: data.trips[0].countryRef,
+            travelRegionRef: data.trips[0].travelRegionRef
+          })
+        }
+
+        // Resolve catalog refs to display names (on FE)
+        console.log('[CalculationDebugger] Starting catalog resolution...')
+        const resolvedData = await resolveAnalysisCatalogs(data)
+        console.log('[CalculationDebugger] Catalog refs resolved')
+
+        // Log resolved trip data
+        if (resolvedData.trips && resolvedData.trips.length > 0) {
+          console.log('[CalculationDebugger] First trip resolved data:', {
+            address: resolvedData.trips[0].address,
+            countryName: resolvedData.trips[0].countryName,
+            travelRegionName: resolvedData.trips[0].travelRegionName
+          })
+        }
+
+        // Set analysis with resolved names
+        setAnalysis(resolvedData)
+
+        // Then set trace (ensure it's set even if empty)
+        if (resolvedData.calculationTrace) {
+          console.log('[CalculationDebugger] Setting currentTrace with:', {
+            traceId: resolvedData.calculationTrace.traceId,
+            status: resolvedData.calculationTrace.status,
+            stepsCount: resolvedData.calculationTrace.steps?.length || 0
+          })
+
+          // Resolve catalog refs in trace steps
+          if (resolvedData.calculationTrace.steps?.length) {
+            console.log('[CalculationDebugger] Resolving catalog refs in trace steps...')
+            const resolvedSteps = await resolveTraceStepCatalogs(resolvedData.calculationTrace.steps)
+            setCurrentTrace({
+              ...resolvedData.calculationTrace,
+              steps: resolvedSteps
+            })
+          } else {
+            setCurrentTrace(resolvedData.calculationTrace)
+          }
+        } else {
+          console.warn(
+            '[CalculationDebugger] No calculationTrace in response - keys available:',
+            Object.keys(resolvedData)
+          )
+          setCurrentTrace(null)
+        }
+      } catch (err) {
+        console.error('[CalculationDebugger] Error:', err)
+        setError(err instanceof Error ? err.message : 'Unknown error')
+        setCurrentTrace(null)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [baseUrl, headers, resolveAnalysisCatalogs, resolveTraceStepCatalogs]
+  )
+
   const debugRuleAssignment = useCallback(
     async (employeeId: string, date: Date) => {
       setLoading(true)
@@ -700,6 +793,7 @@ export function useCalculationTrace(accessToken: string): UseCalculationTraceRet
     triggerTraceForRequest,
     triggerTraceForPlan,
     analyzeRequest,
+    analyzePlan,
     debugRuleAssignment,
     compareTraces,
     clearTraces
