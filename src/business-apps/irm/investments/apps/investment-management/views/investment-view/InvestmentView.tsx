@@ -62,20 +62,27 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     setCurrentSection(normalize(initialSubTab))
   }, [initialSubTab, normalize])
 
-  // Set initial currency filter when currencies are loaded
+  // Unified filter state for all tabs
+  // Initialize with currency filter immediately if available, otherwise wait
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  const [filtersReady, setFiltersReady] = useState(false)
+
+  // Set initial currency filter when currencies are loaded (only once)
   useEffect(() => {
-    if (availableCurrencies && availableCurrencies.length > 0) {
+    if (!filtersReady && availableCurrencies && availableCurrencies.length > 0) {
       const currencyObj = (Array.isArray(availableCurrencies) ? availableCurrencies : []).find(
         (c): c is { id: string; code: string; value: string } => typeof c !== 'string' && c?.code === selectedCurrency
       )
       if (currencyObj) {
+        // Preserve any existing filters while adding currency filter
         setSelectedFilters(prev => ({
           ...prev,
           currencyIds: [currencyObj.id]
         }))
       }
+      setFiltersReady(true)
     }
-  }, [availableCurrencies, selectedCurrency])
+  }, [availableCurrencies, selectedCurrency, filtersReady])
 
   const handleSectionChange = useCallback(
     (value: string) => {
@@ -106,27 +113,31 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     return commonFilterConfig
   }, [currentSection, overviewFilterConfig, commonFilterConfig])
 
-  // Unified filter state for all tabs
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  // Use section state hooks - only fetch when currency filter is ready AND section is active
+  // This prevents unnecessary API calls for non-visible sections
+  // Empty accessToken prevents useInvestments from fetching (see useInvestments.new.ts line 78-81)
+  const shouldFetchOverview = filtersReady && currentSection === 'overview'
+  const shouldFetchLiquidFund = filtersReady && currentSection === 'liquid-funds'
+  const shouldFetchRealEstate = filtersReady && currentSection === 'real-estate'
+  const shouldFetchEquity = filtersReady && currentSection === 'equity'
 
-  // Use section state hooks
   const overviewState = useInvestmentSectionState({
-    accessToken: accessToken || '',
+    accessToken: shouldFetchOverview ? accessToken || '' : '',
     selectedFilters
   })
 
   const liquidFundState = useLiquidFundSectionState({
-    accessToken: accessToken || '',
+    accessToken: shouldFetchLiquidFund ? accessToken || '' : '',
     selectedFilters
   })
 
   const realEstateState = useRealEstateSectionState({
-    accessToken: accessToken || '',
+    accessToken: shouldFetchRealEstate ? accessToken || '' : '',
     selectedFilters
   })
 
   const equityState = useEquitySectionState({
-    accessToken: accessToken || '',
+    accessToken: shouldFetchEquity ? accessToken || '' : '',
     selectedFilters
   })
 
@@ -416,39 +427,39 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         </div>
       </div>
 
-      {/* DataDisplay with titleSections */}
+      {/* DataDisplay with titleSections - Using statistics for counts (lightweight query) */}
       <DataDisplay
         titleSections={[
           {
             id: 'overview',
             label: 'Overview',
             metadata: {
-              count: overviewState.totalCount,
-              isLoading: overviewState.isInitialLoading
+              count: investmentStatistics.overview.current.totalInvestments,
+              isLoading: investmentStatistics.isLoading
             }
           },
           {
             id: 'liquid-funds',
             label: 'Liquid Fund',
             metadata: {
-              count: liquidFundState.totalCount,
-              isLoading: liquidFundState.isInitialLoading
+              count: investmentStatistics.liquidFund.current.totalInvestments,
+              isLoading: investmentStatistics.isLoading
             }
           },
           {
             id: 'real-estate',
             label: 'Real Estate',
             metadata: {
-              count: realEstateState.totalCount,
-              isLoading: realEstateState.isInitialLoading
+              count: investmentStatistics.realEstate.current.totalInvestments,
+              isLoading: investmentStatistics.isLoading
             }
           },
           {
             id: 'equity',
             label: 'Equity',
             metadata: {
-              count: equityState.totalCount,
-              isLoading: equityState.isInitialLoading
+              count: investmentStatistics.equity.current.totalInvestments,
+              isLoading: investmentStatistics.isLoading
             }
           }
         ]}

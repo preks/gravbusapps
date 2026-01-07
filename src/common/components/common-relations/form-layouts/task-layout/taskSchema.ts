@@ -23,7 +23,7 @@ export const taskSchema = z.object({
   // Task catalog references
   taskTypeRef: z.string().nullable().optional(),
   taskPriorityRef: z.string().min(1, 'Priority is required'),
-  taskStatusRef: z.string().min(1, 'Status is required'),
+  taskStatusRef: z.string().nullable().optional(), // Backend computed, not required from user
   taskTemplateId: z.string().nullable().optional(),
 
   // Related entities (IDs only for form)
@@ -39,6 +39,24 @@ export const taskSchema = z.object({
   // Employee objects (for EmployeeSelect initialEmployee prop - avoids extra request)
   assignedEmployee: z.any().optional(),
   creatorEmployee: z.any().optional(),
+
+  // Task Assignees (multiple assignees support - junction table)
+  taskAssignees: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        version: z.number().optional(),
+        assignedEmployeeId: z.string().optional(),
+        assignedUserId: z.string().nullable().optional(),
+        taskStatus: z.string().nullable().optional(),
+        completedAt: z.string().nullable().optional()
+      })
+    )
+    .optional(),
+
+  // Helper fields for MultiEmployeeSelect (not sent to backend)
+  assignedEmployeeIds: z.array(z.string()).optional(),
+  assignedEmployees: z.array(z.any()).optional(),
 
   // Documents
   documents: z

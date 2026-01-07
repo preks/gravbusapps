@@ -104,12 +104,45 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
 /**
  * Build Customer Task Payload
  * Uses buildPayload utility with CustomerTaskFormFields mapping
+ * Transforms assignee data to taskAssignees array
  */
 export const buildCustomerTaskPayload = (task: Partial<CustomerTask> & Record<string, any>) => {
-  // Build base payload using buildPayload utility
+  // Build base payload using buildPayload utility (handles most fields)
   const payload = buildPayload(task, CustomerTaskFormFields)
 
+  // Manually construct taskAssignees to preserve assignedUserId field name
+  // (buildPayload's transformIdFields would transform assignedUserId → assignedUser, which is wrong)
+  // taskAssignees array comes from form with id/version already set by TaskForm's useEffect
+  if (task.taskAssignees && Array.isArray(task.taskAssignees)) {
+    payload.taskAssignees = task.taskAssignees.map((ta: any) => ({
+      ...(ta.id && { id: ta.id }),
+      ...(ta.version !== undefined && { version: ta.version }),
+      assignedEmployee: ta.assignedEmployeeId, // Transform assignedEmployeeId → assignedEmployee
+      assignedUserId: ta.assignedUserId, // Preserve assignedUserId field name (don't transform!)
+      taskStatus: ta.taskStatus || 'SCHEDULED_TASK_STATUS', // Default to SCHEDULED for new instances
+      completedAt: ta.completedAt || null
+    }))
+  }
+
+  // Get creator employee details (from task or context)
+  // Priority: _creatorEmployee (set by formPreSubmitUtils) > creatorEmployee > creatorUserId
+  const creatorEmployee = task._creatorEmployee || task.creatorEmployee
+  const userId = creatorEmployee?.userId || task.creatorUserId
+
+  if (!userId) {
+    console.error('Task operation failed: Missing creator user ID', {
+      task: { ...task, _creatorEmployee: undefined },
+      creatorEmployee
+    })
+    throw new Error('Unable to determine current user. Please ensure you are logged in and try again.')
+  }
+
   return {
+    // TOP-LEVEL: Creator's employee details (required by Kogito process)
+    // Only userId is needed - backend will look up full employee record
+    employeeDetails: {
+      userId: userId
+    },
     salesTask: payload
   }
 }

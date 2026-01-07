@@ -1,5 +1,5 @@
 import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
-import { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads'
+import { type InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 
 const buildEntityRef = (value?: any): { id: string } | undefined => {
   if (!value) return undefined
@@ -12,7 +12,7 @@ const buildEntityRef = (value?: any): { id: string } | undefined => {
   return undefined
 }
 
-export const buildInvestmentTaskFormDataFromTask = (task?: Task | null): InvestmentTaskFormData | null => {
+export const buildInvestmentTaskFormDataFromTask = (task?: Task | null): Partial<InvestmentTask> | null => {
   if (!task) return null
 
   const raw = (task.rawInvestmentTask as any) || {}
@@ -57,4 +57,3 @@ export const buildInvestmentTaskFormDataFromTask = (task?: Task | null): Investm
     documents
   }
 }
-
