@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
-import { Users, FileText, User, DollarSign } from 'lucide-react'
+import { FileTextIcon, UserIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -299,7 +299,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-          icon: <User className="gba:mr-2" />,
+          icon: <UserIcon className="gba:mr-2" />,
           content: (
             <HomeView
               contactId={contactId}
@@ -322,7 +322,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <DollarSign className="gba:mr-2" />,
+          icon: <CurrencyDollarIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView contactId={contactId} {...props} />
@@ -332,7 +332,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView contactId={contactId} {...props} />

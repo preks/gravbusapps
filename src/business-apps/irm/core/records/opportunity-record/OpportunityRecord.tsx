@@ -9,14 +9,8 @@ import {
   TooltipTrigger,
   TooltipContent
 } from '@newwork/nw-design-system'
-import {
-  User,
-  FileText,
-  Star,
-  Lightbulb as LightbulbIcon,
-  Trash as Trash2,
-  PencilSimple as Edit
-} from '@phosphor-icons/react'
+import { UserIcon, FileTextIcon, LightbulbIcon, TrashIcon, PencilSimpleIcon } from '@phosphor-icons/react'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -27,7 +21,6 @@ import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } 
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action'
-import { Bot } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
 import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
@@ -873,7 +866,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       {
         value: 'overview',
         label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-        icon: <User size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <UserIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <>
             {/* Account Information - 1/4 width */}
@@ -1126,7 +1119,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileText size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <FileTextIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <div className="gba:col-span-12">
             <DocumentSection
@@ -1140,14 +1133,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                 {
                   key: 'delete',
                   label: 'Delete',
-                  icon: <Trash2 size={16} />,
+                  icon: <TrashIcon size={16} />,
                   apiEndpoint: '/investment-relations/deleteInvestmentDocument',
                   confirmMessage: 'Are you sure you want to delete this document? This action cannot be undone.'
                 },
                 {
                   key: 'update',
                   label: 'Update',
-                  icon: <Edit size={16} />,
+                  icon: <PencilSimpleIcon size={16} />,
                   onClick: (documentId: string, document: any, entityId: string) => {
                     // Open the document update popup
                     startProcess({

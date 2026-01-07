@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
   TooltipContent
 } from '@newwork/nw-design-system'
-import { Users, FileText, AddressBook } from '@phosphor-icons/react'
+import { UsersIcon, FileTextIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -498,7 +498,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       {
         value: 'overview',
         label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-        icon: <Users />,
+        icon: <UsersIcon />,
         content: (
           <>
             {/* Account Information - 1/4 width */}
@@ -670,7 +670,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileText />,
+        icon: <FileTextIcon />,
         content: (
           <div className="gba:col-span-12">
             <LeadDocuments leadId={leadId} context={props} />

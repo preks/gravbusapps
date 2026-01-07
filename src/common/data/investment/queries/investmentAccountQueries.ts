@@ -25,8 +25,7 @@ import {
   buildContactFragment,
   buildDocumentFragment,
   buildNoteFragment,
-  buildLeadFragment,
-  buildOpportunityFragment
+  buildLeadFragment
 } from '@/common/data/relations/queries/relationFragments'
 
 // Import IRM-specific task fragment (uses taskAssignees instead of assignedEmployee)
@@ -39,7 +38,6 @@ import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
-import { InvestmentOpportunityFields } from '../types/investmentOpportunityTypes'
 
 /**
  * Investment Account Query Variables Interface
@@ -92,8 +90,8 @@ export const buildInvestmentAccountByIdQuery = (
     buildDocumentFragment,
     buildNoteFragment,
     buildTaskFragment: buildInvestmentTaskFragmentForRelations, // Use IRM-specific version (taskAssignees)
-    buildLeadFragment,
-    buildOpportunityFragment
+    buildLeadFragment
+    // Note: opportunities are fetched separately via useRecordOpportunities (not from Account query)
   }
 
   const relationFields: AccountRelationFields = {
@@ -102,8 +100,8 @@ export const buildInvestmentAccountByIdQuery = (
     documentFields: InvestmentDocumentFields,
     noteFields: InvestmentNoteFields,
     taskFields: InvestmentTaskFields,
-    leadFields: InvestmentLeadFields,
-    opportunityFields: InvestmentOpportunityFields
+    leadFields: InvestmentLeadFields
+    // Note: opportunities are fetched separately via useRecordOpportunities (not from Account query)
   }
 
   // Domain-specific entity fields (addresses, activities, investment, investmentReport)
