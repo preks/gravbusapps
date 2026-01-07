@@ -9,7 +9,8 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
+  EmptyState
 } from '@newwork/nw-design-system'
 import { FunnelChart, Funnel, LabelList } from 'recharts'
 import { FunnelSimpleIcon } from '@phosphor-icons/react'
@@ -319,9 +320,12 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
             </div>
           </div>
         ) : (
-          <div className="gba:text-center gba:py-8">
-            <div className="gba:text-gray-500">No funnel data available</div>
-          </div>
+          <EmptyState
+            type="no-data"
+            title="No Funnel Data"
+            description="No funnel data available"
+            data-testid="pipeline-funnel-empty-state"
+          />
         )}
       </CardContent>
     </Card>

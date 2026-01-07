@@ -5,7 +5,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PipelineInfo, DateRange } from './types/dashboardTypes'
 import { useOverviewData } from './hooks/useOverviewData'
 import { usePipelineData } from './hooks/usePipelineData'
-import EmptyState from '@/components/empty-state/EmptyState'
 import { formatCurrency } from './utils/dashboardUtils'
 import { DashboardLayout } from '@/common/components/common-relations/view-layouts/dashboard-layout/DashboardLayout'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -77,12 +76,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
           </Button>
         </Alert>
       </div>
-    )
-  }
-
-  if (!overviewData && pipelines.length === 0) {
-    return (
-      <EmptyState title="No Dashboard Data" description="Unable to load dashboard data or no pipelines available" />
     )
   }
 
@@ -177,8 +170,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
                     winRate: 0
                   },
               funnelData: pipelineData?.funnelData || [],
-              winRateMetrics: pipelineData?.winRateMetrics || { monthToDate: 0, quarterToDate: 0 },
-              activityVolume: pipelineData?.activityVolume || { last7Days: 0, last30Days: 0 },
+              winRateMetrics: pipelineData?.winRateMetrics || {
+                monthToDate: { won: 0, lost: 0, winRate: 0 },
+                quarterToDate: { won: 0, lost: 0, winRate: 0 }
+              },
+              activityVolume: pipelineData?.activityVolume || {
+                last7Days: { total: 0, calls: 0, emails: 0, meetings: 0 },
+                last30Days: { total: 0, calls: 0, emails: 0, meetings: 0 }
+              },
               leaderboard: pipelineData?.leaderboard || []
             }
           : undefined

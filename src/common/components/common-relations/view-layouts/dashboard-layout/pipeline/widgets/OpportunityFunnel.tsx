@@ -1,7 +1,6 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Progress, EmptyState } from '@newwork/nw-design-system'
 import { TrendingDown, BarChart3 } from 'lucide-react'
-import EmptyState from '@/components/empty-state/EmptyState'
 
 export interface OpportunityStage {
   id: string
@@ -54,7 +53,12 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({ funnelData
           </div>
         </CardHeader>
         <CardContent>
-          <EmptyState title="No Funnel Data" description="No opportunities found for this pipeline" />
+          <EmptyState
+            type="no-data"
+            title="No Funnel Data"
+            description="No opportunities found for this pipeline"
+            data-testid="opportunity-funnel-empty-state"
+          />
         </CardContent>
       </Card>
     )

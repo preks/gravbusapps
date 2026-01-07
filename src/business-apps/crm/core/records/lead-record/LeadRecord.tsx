@@ -227,24 +227,24 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.source', 'Source'),
             value: leadData?.leadSource?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-            icon: User
+            icon: UserIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.rating', 'Rating'),
             value: leadData?.leadRating?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-            icon: User
+            icon: UserIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
             value: leadData?.ownerEmployee
               ? `${leadData.ownerEmployee.firstName} ${leadData.ownerEmployee.lastName}`.trim()
               : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
-            icon: User
+            icon: UserIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.status', 'Status'),
             value: leadData?.leadStatus?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-            icon: User
+            icon: UserIcon
           }
         ]
       }
