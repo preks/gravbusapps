@@ -18,6 +18,7 @@ import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import { formatWorkingDaysAndHours } from '@/business-apps/hr/absences/utils/absenceDurationFormatter'
 import { formatDateTime } from '@/common/utils/dateFormatter'
+import { formatDate } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import translations from './_i18n'
 
@@ -146,12 +147,16 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
 
   // Prepare chat context (only if task is not completed and we have requester info)
   const chatWithRequester = useMemo(() => {
-    if (!(!isTaskCompleted && requesterUserId && employeeAbsence?.startDate && employeeAbsence?.endDate)) {
+    const shouldShowChat = !isTaskCompleted && requesterUserId && employeeAbsence?.startDate && employeeAbsence?.endDate
+
+    if (!shouldShowChat) {
       return undefined
     }
 
-    const startDate = dayjs(employeeAbsence.startDate).format('MMM D')
-    const endDate = dayjs(employeeAbsence.endDate).format('MMM D, YYYY')
+    const startDate =
+      formatDate(employeeAbsence.startDate, 'date.short') || dayjs(employeeAbsence.startDate).format('MMM D')
+    const endDate =
+      formatDate(employeeAbsence.endDate, 'date.short') || dayjs(employeeAbsence.endDate).format('MMM D, YYYY')
 
     return {
       requesterId: requesterUserId,

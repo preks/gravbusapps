@@ -1,9 +1,11 @@
 import { MessageCircle, Sparkles } from 'lucide-react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { useTaskSummary } from '@/common/hooks/useTaskSummary'
 import { extractTaskInfo } from '@/common/utils/taskDataExtractor'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useState } from 'react'
+import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils'
+import translations from './_i18n'
 
 interface UniversalChatWithTaskButtonProps {
   context: BusinessAppContextProps
@@ -23,13 +25,17 @@ export const UniversalChatWithTaskButton: React.FC<UniversalChatWithTaskButtonPr
   context,
   variant = 'outline',
   size = 'sm',
-  buttonText = 'Ask Question',
+  buttonText,
   customTaskData,
   customTaskType,
   onError
 }) => {
+  const { t } = useTranslation(translations)
   const { generateSummary, isGenerating } = useTaskSummary()
   const [useFallback, setUseFallback] = useState(false)
+
+  // Use provided buttonText or fall back to translated default
+  const displayButtonText = buttonText ?? t('chat-button-ask-question')
 
   // Extract task information automatically
   const taskInfo = extractTaskInfo(context.additionalData)
@@ -75,24 +81,22 @@ export const UniversalChatWithTaskButton: React.FC<UniversalChatWithTaskButtonPr
       contextMessage = buildManualSummary(requesterName, taskType, taskData)
     }
 
-    // Send message to platform to open chat
-    window.postMessage(
-      {
-        type: 'OPEN_CHAT_WITH_USER',
-        payload: {
-          userId: requesterId!,
-          userName: requesterName,
-          prefilledMessage: contextMessage,
-          metadata: {
-            source: 'every-box',
-            taskType: taskType.toLowerCase().replace(/\s+/g, '-'),
-            taskId: taskInfo.taskId,
-            aiGenerated: !useFallback
-          }
+    // Send CustomEvent to platform to open chat
+    const chatEvent = new CustomEvent('chat:open-with-user', {
+      detail: {
+        userId: requesterId!,
+        userName: requesterName,
+        prefilledMessage: contextMessage,
+        metadata: {
+          source: 'every-box',
+          taskType: taskType.toLowerCase().replace(/\s+/g, '-'),
+          taskId: taskInfo.taskId,
+          aiGenerated: !useFallback
         }
-      },
-      '*'
-    )
+      }
+    })
+
+    window.dispatchEvent(chatEvent)
   }
 
   return (
@@ -107,12 +111,12 @@ export const UniversalChatWithTaskButton: React.FC<UniversalChatWithTaskButtonPr
       {isGenerating ? (
         <>
           <Sparkles className="gba:h-4 gba:w-4 gba:animate-pulse" />
-          Generating...
+          {t('chat-button-generating')}
         </>
       ) : (
         <>
           <MessageCircle className="gba:h-4 gba:w-4" />
-          {buttonText}
+          {displayButtonText}
         </>
       )}
     </Button>
@@ -176,7 +180,7 @@ const formatDisplayValue = (value: any): string => {
   // Format dates nicely if it looks like a date
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
     try {
-      return new Date(value).toLocaleDateString()
+      return formatDate(value) || value
     } catch {
       return value
     }
@@ -184,7 +188,7 @@ const formatDisplayValue = (value: any): string => {
 
   // Format numbers with commas
   if (typeof value === 'number') {
-    return value.toLocaleString()
+    return formatNumberFunction(value)
   }
 
   return String(value)

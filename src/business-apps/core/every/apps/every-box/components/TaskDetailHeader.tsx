@@ -108,18 +108,17 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
   const handleChatClick = () => {
     if (!chatWithRequester) return
 
-    window.postMessage(
-      {
-        type: 'OPEN_CHAT_WITH_USER',
-        payload: {
-          userId: chatWithRequester.requesterId,
-          userName: chatWithRequester.requesterName,
-          prefilledMessage: chatWithRequester.prefilledMessage,
-          metadata: chatWithRequester.taskContext
-        }
-      },
-      '*'
-    )
+    // Dispatch a CustomEvent that the chat hook can listen for
+    const chatEvent = new CustomEvent('chat:open-with-user', {
+      detail: {
+        userId: chatWithRequester.requesterId,
+        userName: chatWithRequester.requesterName,
+        prefilledMessage: chatWithRequester.prefilledMessage,
+        metadata: chatWithRequester.taskContext
+      }
+    })
+
+    window.dispatchEvent(chatEvent)
 
     console.log('📨 [TaskDetailHeader] Chat with requester initiated:', {
       userId: chatWithRequester.requesterId,

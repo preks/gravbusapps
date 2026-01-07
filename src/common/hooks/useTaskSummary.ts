@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
-import axios from 'axios'
-import { env } from '@/common/env/EnvUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 
 interface TaskSummaryOptions {
   accessToken: string
@@ -21,32 +20,17 @@ export const useTaskSummary = () => {
       setError(null)
 
       try {
-        // Get base URL from environment
-        let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-        baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-
-        const endpoint = `${baseUrl}/flowbot/api/text-generation/generate`
-
         // Build structured text to summarize
         const taskDescription = formatTaskForAI(taskType, taskData)
 
-        // Call FlowBot summarize API
-        const response = await axios.post(
-          endpoint,
-          {
-            texts: [taskDescription],
-            action: 'summarize' // Use the SUMMARIZE action
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        )
+        // Set access token for this request
+        flowbotClient.setAccessToken(accessToken)
 
-        if (response.data?.generated_texts?.[0]) {
-          return response.data.generated_texts[0]
+        // Call FlowBot summarize API using the client
+        const response = await flowbotClient.generateText([taskDescription], 'summarize')
+
+        if (response.generated_texts?.[0]) {
+          return response.generated_texts[0]
         }
 
         return null
