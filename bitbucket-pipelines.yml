@@ -89,9 +89,6 @@ definitions:
 
     - step: &install_dependencies
         name: Install dependencies
-        runs-on:
-          - 'self.hosted'
-          - 'do.global.runner.size1'
         size: 1x
         clone:
           enabled: true
@@ -243,6 +240,9 @@ definitions:
 
     - step: &sonar_scan_main
         name: Sonar scan (main)
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size4'
         size: 4x
         clone:
           enabled: true
