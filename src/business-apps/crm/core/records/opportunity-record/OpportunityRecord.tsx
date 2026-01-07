@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon } from '@phosphor-icons/react'
+import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon, LightbulbIcon } from '@phosphor-icons/react'
 import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -611,7 +611,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     <div className="gba:opportunity-details-container" data-testid="opportunity-record-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={Lightbulb}
+        headerIcon={LightbulbIcon}
         headerCategory="OPPORTUNITY"
         onBack={onBack}
         headerTitle={opportunityData.name || 'Unnamed Opportunity'}

@@ -503,7 +503,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     <div data-testid="lead-opportunity-investment-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={User}
+        headerIcon={UserIcon}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.lead', 'LEAD')}
         onBack={onBack}
         headerTitle={headerTitle}

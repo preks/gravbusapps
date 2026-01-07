@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
   TooltipContent
 } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, LightbulbIcon, TrashIcon, PencilSimpleIcon } from '@phosphor-icons/react'
+import { UserIcon, FileTextIcon, LightbulbIcon, TrashIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react'
 import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -694,7 +694,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType', 'Deal Type'),
             value: getDealTypeDisplayValue(opportunityData?.dealType),
-            icon: Star
+            icon: StarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
@@ -718,7 +718,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
             value: opportunityData?.ownerEmployee
               ? `${opportunityData.ownerEmployee.firstName} ${opportunityData.ownerEmployee.lastName}`
               : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
-            icon: User
+            icon: UserIcon
           }
         ]
       }
