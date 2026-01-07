@@ -161,6 +161,7 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
             markAsSubmitted()
 
             const payload = {
+              event: 'pse_submit',
               // Manager context for Kogito flow
               employeeIdManager: managerEmployeeId,
               requireManagerApproval: false,
