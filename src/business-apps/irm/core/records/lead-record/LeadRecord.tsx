@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
   TooltipContent
 } from '@newwork/nw-design-system'
-import { Users, FileText, AddressBook } from '@phosphor-icons/react'
+import { UsersIcon, FileTextIcon, AddressBookIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -348,19 +348,19 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
           {
             label: getTranslationFromI18nKeyAndLabel('crm.lead.source', 'Source'),
             value: lead?.leadSource?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.lead.rating', 'Rating'),
             value: lead?.leadRating?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-            icon: AddressBook
+            icon: AddressBookIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
             value: lead?.ownerEmployee
               ? `${lead.ownerEmployee.firstName} ${lead.ownerEmployee.lastName}`
               : getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-            icon: Users
+            icon: UsersIcon
           }
         ]
       }
@@ -498,7 +498,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       {
         value: 'overview',
         label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-        icon: <Users />,
+        icon: <UsersIcon />,
         content: (
           <>
             {/* Account Information - 1/4 width */}
@@ -670,7 +670,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileText />,
+        icon: <FileTextIcon />,
         content: (
           <div className="gba:col-span-12">
             <LeadDocuments leadId={leadId} context={props} />
@@ -684,7 +684,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     <div data-testid="investment-lead-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={AddressBook}
+        headerIcon={AddressBookIcon}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
         onBack={onBack}
         headerTitle={headerTitle}

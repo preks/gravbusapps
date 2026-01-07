@@ -75,7 +75,10 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
     > = {}
 
     for (const stage of convertToStageFormat(stages)) {
-      const isCurrentStage = stage.code === currentStage
+      // Use case-insensitive comparison for both value and code, matching StageProgression logic
+      const isCurrentStage =
+        stage.value.toLowerCase() === currentStage.toLowerCase() ||
+        stage.code.toLowerCase() === currentStage.toLowerCase()
       const isDisabled = readonly && !isCurrentStage
 
       props[stage.id] = {

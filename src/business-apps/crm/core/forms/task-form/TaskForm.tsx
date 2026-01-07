@@ -133,25 +133,22 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     form.setValue('taskAssignees', newTaskAssignees)
   }, [assignedEmployeeIds, task?.taskAssignees, form])
 
-  const handleSubmit = useCallback(
-    async (data: z.infer<typeof taskSchema>) => {
-      try {
-        delete data.files
-        delete data._pendingFiles
-        delete data.relatedEntityId
-        // Delete helper fields (not sent to backend)
-        delete data.assignedEmployeeIds
-        delete data.assignedEmployees
+  const handleSubmit = useCallback(async (data: z.infer<typeof taskSchema>) => {
+    try {
+      delete data.files
+      delete data._pendingFiles
+      delete data.relatedEntityId
+      // Delete helper fields (not sent to backend)
+      delete data.assignedEmployeeIds
+      delete data.assignedEmployees
 
-        // Build payload (returns { employeeDetails, salesTask })
-        return buildCustomerTaskPayload(data as Partial<CustomerTask>)
-      } catch (error) {
-        console.error('Error submitting task:', error)
-        throw error
-      }
-    },
-    [userInfo]
-  )
+      // Build payload (returns { employeeDetails, salesTask })
+      return buildCustomerTaskPayload(data as Partial<CustomerTask>)
+    } catch (error) {
+      console.error('Error submitting task:', error)
+      throw error
+    }
+  }, [])
 
   const handlePreSubmit = useCallback(
     createFormPreSubmitHandler({

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
-import { User, FileText, Star, Lightbulb, Bot, TrendingUp } from 'lucide-react'
+import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon, LightbulbIcon } from '@phosphor-icons/react'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -8,7 +9,6 @@ import { useCustomerOpportunity } from '@/common/data/customer/hooks/useCustomer
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
-import { useSalesPipelineStages } from './hooks/useSalesPipelineStages'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
@@ -18,8 +18,10 @@ import { AppAction } from '@/components/app-action'
 import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
 import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
 import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
+import { useOpportunityPipelineStages } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/hooks/useOpportunityPipelineStages'
 import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { isOpportunityOpen } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityStatusUtils'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view'
 
@@ -67,15 +69,16 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     error,
     refetch
   } = useCustomerOpportunity(props.accessToken, opportunityId)
-  const {
-    pipelineStages: opportunityStages,
-    catalogStageConditions,
-    loadingPipelineStages: loadingStages,
-    errorPipelineStages: stagesError
-  } = useSalesPipelineStages(opportunityData?.opportunityPipelineRef, props.accessToken)
 
-  // Extract stageConditionStatuses from opportunityData
-  const stageConditionStatuses = opportunityData?.opportunityStageConditions || []
+  const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
+
+  // Use shared hook for fetching pipeline stages and catalog conditions
+  const { opportunityStages, catalogStageConditions, loadingStages, stagesError } = useOpportunityPipelineStages({
+    opportunityData,
+    stageConditionCatalog: 'SalesPipelineStageCondition',
+    accessToken: props.accessToken,
+    contextLabel: 'customer'
+  })
 
   /**
    * Transforms a catalog condition to a stage condition
@@ -108,27 +111,28 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   /**
    * Helper function to extract CRM stage conditions
    */
-  const extractCrmStageConditions = useMemo(
-    () =>
-      (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
-        const stageCatalogConditions = catalogStageConditions.filter(
-          catalogCondition => catalogCondition.parentEntryId === stage.id
-        )
+  const extractCrmStageConditions = useCallback(
+    (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+      const stageCatalogConditions = catalogStageConditions.filter(
+        catalogCondition => catalogCondition.parentEntryId === stage.id
+      )
 
-        return stageCatalogConditions.map(catalogCondition => {
-          const statusRecord = findStatusRecord(stageConditionStatuses, catalogCondition.id)
-          return transformCatalogConditionToStageCondition(catalogCondition, statusRecord)
-        })
-      },
+      return stageCatalogConditions.map(catalogCondition => {
+        const statusRecord = findStatusRecord(stageConditionStatuses, catalogCondition.id)
+        return transformCatalogConditionToStageCondition(catalogCondition, statusRecord)
+      })
+    },
     [catalogStageConditions, transformCatalogConditionToStageCondition]
   )
 
-  // Check if opportunity is open (for tooltip enabling)
-  const isOpportunityOpen = (status?: string): boolean => {
-    if (!status) return false
-    const openStatuses = ['OPPORTUNITY_OPEN', 'OPEN', 'IN_PROGRESS']
-    return openStatuses.some(openStatus => status.toUpperCase().includes(openStatus))
-  }
+  // Extract stageConditionStatuses from opportunityData
+  useEffect(() => {
+    if (opportunityData?.opportunityStageConditions) {
+      setStageConditionStatuses(opportunityData.opportunityStageConditions)
+    } else {
+      setStageConditionStatuses([])
+    }
+  }, [opportunityData?.opportunityStageConditions])
 
   // CRM-specific configuration for OpportunityStageProgression
   const crmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
@@ -139,7 +143,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       extractStageConditions: extractCrmStageConditions,
       isTooltipEnabled: (status?: string) => isOpportunityOpen(status)
     }),
-    [extractCrmStageConditions]
+    [extractCrmStageConditions, opportunityData?.opportunityStatus?.value]
   )
 
   // AI Summary hook for HeaderSection
@@ -359,14 +363,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             value: opportunityData?.opportunityStatus
               ? formatStatus(rawStatus)
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Star
+            icon: StarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage', 'Stage'),
             value:
               opportunityData?.opportunityPipelineStage?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Star
+            icon: StarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
@@ -389,7 +393,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
               opportunityData?.winningChance !== undefined && opportunityData?.winningChance !== null
                 ? `${opportunityData.winningChance}%`
                 : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: TrendingUp
+            icon: TrendUpIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
@@ -404,7 +408,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
               (opportunityData?.ownerEmployee?.firstName && opportunityData?.ownerEmployee?.lastName
                 ? `${opportunityData.ownerEmployee.firstName} ${opportunityData.ownerEmployee.lastName}`.trim()
                 : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned')),
-            icon: User
+            icon: UserIcon
           }
         ]
       }
@@ -451,7 +455,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     if (!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.opportunityPipelineRef) {
       return (
         <OpportunityStageProgression
-          currentStage={opportunityData?.opportunityPipelineStage?.code || 'Discovery'}
+          currentStage={opportunityData?.opportunityPipelineStage?.value || 'Discovery'}
           stages={opportunityStages}
           opportunityId={opportunityId || ''}
           opportunityVersion={opportunityData?.version}
@@ -520,7 +524,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     opportunityStages,
     opportunityData?.opportunityPipelineRef,
     crmPipelineConfig,
-    opportunityData?.opportunityPipelineStage?.code,
+    opportunityData?.opportunityPipelineStage?.value,
     opportunityId,
     opportunityData?.version,
     stageConditionStatuses,
@@ -572,7 +576,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       {
         value: 'overview',
         label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-        icon: <User size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <UserIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <HomeView
             opportunityId={opportunityId}
@@ -593,7 +597,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileText size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <FileTextIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <div className="gba:col-span-12">
             <DocumentView opportunityId={opportunityId} {...props} />
@@ -607,7 +611,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     <div className="gba:opportunity-details-container" data-testid="opportunity-record-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={Lightbulb}
+        headerIcon={LightbulbIcon}
         headerCategory="OPPORTUNITY"
         onBack={onBack}
         headerTitle={opportunityData.name || 'Unnamed Opportunity'}

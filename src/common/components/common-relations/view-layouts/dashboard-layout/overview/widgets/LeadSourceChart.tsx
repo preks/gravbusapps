@@ -12,7 +12,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent
+  ChartLegendContent,
+  EmptyState
 } from '@newwork/nw-design-system'
 import { getQualityLevelBadgeVariant } from '@/common/utils/badgeUtils'
 import { PieChart, Pie } from 'recharts'
@@ -191,11 +192,15 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLe
             </div>
           </div>
         ) : (
-          <div className="gba:text-center gba:py-8">
-            <div className="gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel('noLeadSourceDataAvailable', 'No lead source data available')}
-            </div>
-          </div>
+          <EmptyState
+            type="no-data"
+            title="No Lead Sources"
+            description={getTranslationFromI18nKeyAndLabel(
+              'noLeadSourceDataAvailable',
+              'No lead source data available'
+            )}
+            data-testid="lead-source-chart-empty-state"
+          />
         )}
       </CardContent>
     </Card>

@@ -9,14 +9,8 @@ import {
   TooltipTrigger,
   TooltipContent
 } from '@newwork/nw-design-system'
-import {
-  User,
-  FileText,
-  Star,
-  Lightbulb as LightbulbIcon,
-  Trash as Trash2,
-  PencilSimple as Edit
-} from '@phosphor-icons/react'
+import { UserIcon, FileTextIcon, LightbulbIcon, TrashIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -27,7 +21,6 @@ import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } 
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action'
-import { Bot } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
 import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
@@ -37,8 +30,9 @@ import InvestmentSection from '@/common/components/common-relations/record-secti
 import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
 import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
 import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
+import { useOpportunityPipelineStages } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/hooks/useOpportunityPipelineStages'
 import type { Stage, StageCondition } from '@/components/stage-progression/types'
-import { isOpportunityOpen } from './utils/opportunityStatusUtils'
+import { isOpportunityOpen } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityStatusUtils'
 import { buildInvestmentFromOpportunity } from './utils/opportunityDataTransformers'
 import { buildFormFieldsFromCatalogData } from '../utils/investmentFieldsBuilder'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
@@ -61,7 +55,6 @@ import {
   useGetIrmDocuments,
   transformInvestmentDocuments
 } from '@/business-apps/irm/common/utils/documentUtils'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -99,13 +92,17 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     error,
     refetch
   } = useInvestmentOpportunity(props.accessToken, opportunityId)
-  const graphQLClient = useGraphQLClient(props.accessToken)
 
   const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
-  const [opportunityStages, setOpportunityStages] = useState<any[]>([])
-  const [catalogStageConditions, setCatalogStageConditions] = useState<any[]>([])
-  const [loadingStages, setLoadingStages] = useState(false)
-  const [stagesError, setStagesError] = useState<string | null>(null)
+
+  // Use shared hook for fetching pipeline stages and catalog conditions
+  const { opportunityStages, catalogStageConditions, loadingStages, stagesError, fetchOpportunityStages } =
+    useOpportunityPipelineStages({
+      opportunityData,
+      stageConditionCatalog: 'InvestmentOpportunityPipelineStageCondition',
+      accessToken: props.accessToken,
+      contextLabel: 'investment'
+    })
 
   // Divestment investment data (fetched separately for DIVESTMENT_DEAL using declarative hook)
   const divestmentId = opportunityData?.dealType === 'DIVESTMENT_DEAL' ? opportunityData?.divestmentId : undefined
@@ -189,87 +186,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const refetchOpportunityData = useCallback(async () => {
     await refetch()
   }, [refetch])
-
-  // Fetch catalog conditions for stages
-  const fetchCatalogConditions = useCallback(
-    async (stageIds: string[]) => {
-      if (!stageIds.length || !props.accessToken) {
-        setCatalogStageConditions([])
-        return
-      }
-
-      try {
-        const GET_STAGE_CONDITIONS = `
-        query GetStageConditions($stageIds: [String!]!) {
-          conditions: CatalogEntry(
-            where: {
-              catalog: { identifier: { _eq: "InvestmentOpportunityPipelineStageCondition" } }
-              parentEntryId: { _in: $stageIds }
-              isDeleted: { _eq: false }
-            }
-            orderBy: { additionalValue1: ASC }
-          ) {
-            id
-            code
-            value
-            parentEntryId
-            additionalValue1
-            objectValue
-            type
-          }
-        }
-      `
-
-        const result = await graphQLClient.request<{ conditions: any[] }>(GET_STAGE_CONDITIONS, { stageIds })
-        setCatalogStageConditions(result.conditions || [])
-      } catch (err) {
-        console.error('Error fetching catalog stage conditions:', err)
-        setCatalogStageConditions([])
-      }
-    },
-    [props.accessToken, graphQLClient]
-  )
-
-  // Fetch opportunity stages from pipeline childEntries
-  const fetchOpportunityStages = useCallback(async () => {
-    try {
-      setLoadingStages(true)
-      setStagesError(null)
-      const childEntries = (opportunityData?.opportunityPipeline as any)?.childEntries
-      if (childEntries?.length) {
-        const sorted = [...(childEntries as any[])].sort(
-          (a: any, b: any) => (a?.displayOrder ?? 0) - (b?.displayOrder ?? 0)
-        )
-        const stageData = sorted.map((entry: any) => ({
-          id: entry.id,
-          code: entry.code,
-          value: entry.value,
-          alternativeCode: entry.alternativeCode
-        }))
-        setOpportunityStages(stageData)
-
-        // Fetch catalog conditions for all stages
-        await fetchCatalogConditions(stageData.map(s => s.id))
-      } else {
-        setOpportunityStages([])
-        setCatalogStageConditions([])
-      }
-    } catch (err) {
-      console.error('Error mapping investment opportunity pipeline stages:', err)
-      setStagesError(err instanceof Error ? err.message : 'Failed to fetch stages')
-      setOpportunityStages([])
-      setCatalogStageConditions([])
-    } finally {
-      setLoadingStages(false)
-    }
-  }, [opportunityData?.opportunityPipeline, fetchCatalogConditions])
-
-  // Fetch stages when opportunityData is available
-  useEffect(() => {
-    if (opportunityData) {
-      fetchOpportunityStages()
-    }
-  }, [opportunityData, fetchOpportunityStages])
 
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
@@ -778,7 +694,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType', 'Deal Type'),
             value: getDealTypeDisplayValue(opportunityData?.dealType),
-            icon: Star
+            icon: StarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
@@ -802,7 +718,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
             value: opportunityData?.ownerEmployee
               ? `${opportunityData.ownerEmployee.firstName} ${opportunityData.ownerEmployee.lastName}`
               : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
-            icon: User
+            icon: UserIcon
           }
         ]
       }
@@ -950,7 +866,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       {
         value: 'overview',
         label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-        icon: <User size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <UserIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <>
             {/* Account Information - 1/4 width */}
@@ -1203,7 +1119,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileText size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <FileTextIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <div className="gba:col-span-12">
             <DocumentSection
@@ -1217,14 +1133,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                 {
                   key: 'delete',
                   label: 'Delete',
-                  icon: <Trash2 size={16} />,
+                  icon: <TrashIcon size={16} />,
                   apiEndpoint: '/investment-relations/deleteInvestmentDocument',
                   confirmMessage: 'Are you sure you want to delete this document? This action cannot be undone.'
                 },
                 {
                   key: 'update',
                   label: 'Update',
-                  icon: <Edit size={16} />,
+                  icon: <PencilSimpleIcon size={16} />,
                   onClick: (documentId: string, document: any, entityId: string) => {
                     // Open the document update popup
                     startProcess({

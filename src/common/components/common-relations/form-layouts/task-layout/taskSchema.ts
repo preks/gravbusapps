@@ -23,7 +23,7 @@ export const taskSchema = z.object({
   // Task catalog references
   taskTypeRef: z.string().nullable().optional(),
   taskPriorityRef: z.string().min(1, 'Priority is required'),
-  taskStatusRef: z.string().min(1, 'Status is required'),
+  taskStatusRef: z.string().nullable().optional(), // Backend computed, not required from user
   taskTemplateId: z.string().nullable().optional(),
 
   // Related entities (IDs only for form)
