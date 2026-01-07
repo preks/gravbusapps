@@ -17,6 +17,7 @@ import {
   List,
   BarChart3,
   Minus,
+  Plus,
   User,
   Calendar,
   Target,
@@ -311,6 +312,211 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                 </div>
               )}
 
+              {/* Reconciliation Warnings - Detect discrepancies between calculated and stored amounts */}
+              {analysis &&
+                currentTrace &&
+                (() => {
+                  const warnings: Array<{
+                    type: 'critical' | 'warning' | 'info'
+                    title: string
+                    description: string
+                    details?: string
+                  }> = []
+
+                  // Get calculated values from trace
+                  const calculatedGrossAllowance = currentTrace.finalAmounts.totalAllowance || 0
+                  const allDeductionSteps = currentTrace.steps.filter(s => s.category === 'DEDUCTION')
+                  const isOvernightAdditionCheck = (step: (typeof allDeductionSteps)[0]) => {
+                    const allowanceType = (step.inputs?.allowanceType as string) || ''
+                    const isOvernight = allowanceType.toLowerCase().includes('overnight')
+                    const amount = (step.outputs?.deductionAmount as number) || 0
+                    return isOvernight && amount > 0
+                  }
+                  const additionsTotal = allDeductionSteps
+                    .filter(d => isOvernightAdditionCheck(d))
+                    .reduce((sum, d) => sum + ((d.outputs?.deductionAmount as number) || 0), 0)
+                  const deductionsTotal = allDeductionSteps
+                    .filter(d => !isOvernightAdditionCheck(d))
+                    .reduce((sum, d) => sum + Math.abs((d.outputs?.deductionAmount as number) || 0), 0)
+                  const calculatedNetAllowance = calculatedGrossAllowance + additionsTotal - deductionsTotal
+
+                  // Get stored values from entity
+                  const storedAllowance = entity?.totalAmountAllowance || 0
+                  const storedTotal = entity?.totalAmount || 0
+
+                  // Check for discrepancy between calculated and stored allowance
+                  const allowanceDiff = Math.abs(calculatedNetAllowance - storedAllowance)
+                  if (allowanceDiff > 0.01 && calculatedGrossAllowance > 0 && storedAllowance > 0) {
+                    warnings.push({
+                      type: 'critical',
+                      title: 'Amount Discrepancy Detected',
+                      description: `Calculated net allowance (${formatCurrency(calculatedNetAllowance)}) differs from stored amount (${formatCurrency(storedAllowance)}) by ${formatCurrency(allowanceDiff)}.`,
+                      details:
+                        'This may indicate that the expense items were calculated using different rates (e.g., rates from a different year) or that the calculation logic has changed since the items were saved.'
+                    })
+                  }
+
+                  // Check for year boundary in trip dates
+                  if (analysis.trips && analysis.trips.length > 0) {
+                    const tripDates = analysis.trips.map(t => new Date(t.tripDateTime))
+                    const years = new Set(tripDates.map(d => d.getFullYear()))
+                    if (years.size > 1) {
+                      const yearsArray = Array.from(years).sort()
+                      warnings.push({
+                        type: 'warning',
+                        title: 'Year Boundary Detected',
+                        description: `This trip spans across multiple years (${yearsArray.join(', ')}). Allowance rates may differ between years.`,
+                        details:
+                          'Rate lookup typically uses the first travel date to determine rates. If rates changed at year boundary, stored expense items may use different rates than expected.'
+                      })
+                    }
+                  }
+
+                  // Check if stored amount matches calculated differently
+                  const calculatedTotal =
+                    calculatedNetAllowance + (entity?.totalAmountExpense || 0) + (entity?.totalAmountMileage || 0)
+                  const totalDiff = Math.abs(calculatedTotal - storedTotal)
+                  if (totalDiff > 0.01 && calculatedTotal > 0 && storedTotal > 0 && allowanceDiff <= 0.01) {
+                    warnings.push({
+                      type: 'info',
+                      title: 'Total Calculation Note',
+                      description: `The sum of calculated components (${formatCurrency(calculatedTotal)}) differs slightly from stored total (${formatCurrency(storedTotal)}).`,
+                      details:
+                        'This may be due to rounding differences or additional adjustments applied after calculation.'
+                    })
+                  }
+
+                  // Get first travel date from trace for rate lookup info
+                  const ruleLookupStep = currentTrace.steps.find(s => s.category === 'RULE_LOOKUP')
+                  const rateLookupDate = ruleLookupStep?.inputs?.allowanceDate as string | undefined
+
+                  if (warnings.length === 0) return null
+
+                  return (
+                    <div className="gba:space-y-3 gba:mb-4">
+                      {warnings.map((warning, idx) => (
+                        <div
+                          key={idx}
+                          className={`gba:rounded-xl gba:border gba:p-4 ${
+                            warning.type === 'critical'
+                              ? 'gba:bg-red-50 gba:border-red-200'
+                              : warning.type === 'warning'
+                                ? 'gba:bg-amber-50 gba:border-amber-200'
+                                : 'gba:bg-blue-50 gba:border-blue-200'
+                          }`}
+                        >
+                          <div className="gba:flex gba:items-start gba:gap-3">
+                            {warning.type === 'critical' ? (
+                              <AlertCircle className="gba:w-5 gba:h-5 gba:text-red-500 gba:flex-shrink-0 gba:mt-0.5" />
+                            ) : warning.type === 'warning' ? (
+                              <AlertTriangle className="gba:w-5 gba:h-5 gba:text-amber-500 gba:flex-shrink-0 gba:mt-0.5" />
+                            ) : (
+                              <AlertCircle className="gba:w-5 gba:h-5 gba:text-blue-500 gba:flex-shrink-0 gba:mt-0.5" />
+                            )}
+                            <div className="gba:flex-1">
+                              <div
+                                className={`gba:font-semibold ${
+                                  warning.type === 'critical'
+                                    ? 'gba:text-red-800'
+                                    : warning.type === 'warning'
+                                      ? 'gba:text-amber-800'
+                                      : 'gba:text-blue-800'
+                                }`}
+                              >
+                                {warning.title}
+                              </div>
+                              <div
+                                className={`gba:text-sm gba:mt-1 ${
+                                  warning.type === 'critical'
+                                    ? 'gba:text-red-700'
+                                    : warning.type === 'warning'
+                                      ? 'gba:text-amber-700'
+                                      : 'gba:text-blue-700'
+                                }`}
+                              >
+                                {warning.description}
+                              </div>
+                              {warning.details && (
+                                <div
+                                  className={`gba:text-xs gba:mt-2 gba:p-2 gba:rounded gba:bg-white/50 ${
+                                    warning.type === 'critical'
+                                      ? 'gba:text-red-600'
+                                      : warning.type === 'warning'
+                                        ? 'gba:text-amber-600'
+                                        : 'gba:text-blue-600'
+                                  }`}
+                                >
+                                  💡 {warning.details}
+                                </div>
+                              )}
+                              {rateLookupDate && warning.type === 'critical' && (
+                                <div className="gba:mt-2 gba:text-xs gba:text-gray-600">
+                                  Rate lookup date used:{' '}
+                                  <span className="gba:font-mono gba:font-medium">{rateLookupDate}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Show comparison table for critical discrepancies */}
+                          {warning.type === 'critical' && (
+                            <div className="gba:mt-3 gba:bg-white gba:rounded-lg gba:border gba:border-red-100 gba:overflow-hidden">
+                              <div className="gba:grid gba:grid-cols-3 gba:text-xs gba:font-medium gba:text-gray-500 gba:bg-gray-50 gba:px-3 gba:py-2 gba:border-b gba:border-red-100">
+                                <div>Component</div>
+                                <div className="gba:text-right">Calculated</div>
+                                <div className="gba:text-right">Stored</div>
+                              </div>
+                              <div className="gba:divide-y gba:divide-red-100">
+                                <div className="gba:grid gba:grid-cols-3 gba:text-sm gba:px-3 gba:py-2">
+                                  <div className="gba:text-gray-700">Gross Allowance</div>
+                                  <div className="gba:text-right gba:font-mono gba:text-emerald-600">
+                                    {formatCurrency(calculatedGrossAllowance)}
+                                  </div>
+                                  <div className="gba:text-right gba:text-gray-400">—</div>
+                                </div>
+                                {deductionsTotal > 0 && (
+                                  <div className="gba:grid gba:grid-cols-3 gba:text-sm gba:px-3 gba:py-2">
+                                    <div className="gba:text-gray-700">Deductions</div>
+                                    <div className="gba:text-right gba:font-mono gba:text-red-500">
+                                      -{formatCurrency(deductionsTotal)}
+                                    </div>
+                                    <div className="gba:text-right gba:text-gray-400">—</div>
+                                  </div>
+                                )}
+                                {additionsTotal > 0 && (
+                                  <div className="gba:grid gba:grid-cols-3 gba:text-sm gba:px-3 gba:py-2">
+                                    <div className="gba:text-gray-700">Overnight Bonus</div>
+                                    <div className="gba:text-right gba:font-mono gba:text-cyan-600">
+                                      +{formatCurrency(additionsTotal)}
+                                    </div>
+                                    <div className="gba:text-right gba:text-gray-400">—</div>
+                                  </div>
+                                )}
+                                <div className="gba:grid gba:grid-cols-3 gba:text-sm gba:px-3 gba:py-2 gba:bg-red-50 gba:font-semibold">
+                                  <div className="gba:text-red-800">Net Allowance</div>
+                                  <div className="gba:text-right gba:font-mono gba:text-emerald-700">
+                                    {formatCurrency(calculatedNetAllowance)}
+                                  </div>
+                                  <div className="gba:text-right gba:font-mono gba:text-red-700">
+                                    {formatCurrency(storedAllowance)}
+                                  </div>
+                                </div>
+                                <div className="gba:grid gba:grid-cols-3 gba:text-sm gba:px-3 gba:py-2 gba:bg-red-100">
+                                  <div className="gba:text-red-900 gba:font-semibold">Difference</div>
+                                  <div className="gba:col-span-2 gba:text-right gba:font-mono gba:font-bold gba:text-red-700">
+                                    {calculatedNetAllowance > storedAllowance ? '+' : ''}
+                                    {formatCurrency(calculatedNetAllowance - storedAllowance)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+
               {/* Analysis Summary */}
               {analysis && (
                 <>
@@ -595,10 +801,31 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
 
                       {/* Formula Summary - Use request totals for accuracy */}
                       {(() => {
-                        // Use entity for accurate totals (already calculated correctly by backend)
+                        // Calculate additions and deductions separately from trace steps
+                        const allDeductionSteps = currentTrace.steps.filter(s => s.category === 'DEDUCTION')
+
+                        // Helper to check if a deduction is actually an addition
+                        const isOvernightAddition = (step: (typeof allDeductionSteps)[0]) => {
+                          const allowanceType = (step.inputs?.allowanceType as string) || ''
+                          const isOvernight = allowanceType.toLowerCase().includes('overnight')
+                          const amount = (step.outputs?.deductionAmount as number) || 0
+                          return isOvernight && amount > 0
+                        }
+
+                        const additionSteps = allDeductionSteps.filter(d => isOvernightAddition(d))
+                        const deductionSteps = allDeductionSteps.filter(d => !isOvernightAddition(d))
+
+                        const additionsTotal = additionSteps.reduce(
+                          (sum, d) => sum + ((d.outputs?.deductionAmount as number) || 0),
+                          0
+                        )
+                        const deductionsTotal = deductionSteps.reduce(
+                          (sum, d) => sum + Math.abs((d.outputs?.deductionAmount as number) || 0),
+                          0
+                        )
+
                         const grossAllowance = currentTrace.finalAmounts.totalAllowance || 0
-                        const deductions = currentTrace.finalAmounts.totalDeductions || 0
-                        const netAllowance = grossAllowance - deductions
+                        const netAllowance = grossAllowance + additionsTotal - deductionsTotal
                         // Real expenses from entity (excludes generated allowances)
                         const realExpenses = entity?.totalAmountExpense || 0
                         const mileage = entity?.totalAmountMileage || currentTrace.finalAmounts.totalMileage || 0
@@ -615,11 +842,20 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                                   <span className="gba:text-gray-400 gba:text-xs">gross allowances</span>
                                 </>
                               )}
-                              {deductions > 0 && (
+                              {additionsTotal > 0 && (
+                                <>
+                                  <span className="gba:text-gray-400">+</span>
+                                  <span className="gba:text-cyan-600 gba:font-semibold">
+                                    {formatCurrency(additionsTotal)}
+                                  </span>
+                                  <span className="gba:text-gray-400 gba:text-xs">overnight bonus</span>
+                                </>
+                              )}
+                              {deductionsTotal > 0 && (
                                 <>
                                   <span className="gba:text-gray-400">−</span>
                                   <span className="gba:text-red-500 gba:font-semibold">
-                                    {formatCurrency(deductions)}
+                                    {formatCurrency(deductionsTotal)}
                                   </span>
                                   <span className="gba:text-gray-400 gba:text-xs">deductions</span>
                                 </>
@@ -647,9 +883,9 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                                 {formatCurrency(totalAmount)}
                               </span>
                             </div>
-                            {netAllowance !== grossAllowance && (
+                            {(additionsTotal > 0 || deductionsTotal > 0) && (
                               <div className="gba:text-center gba:text-xs gba:text-gray-500 gba:mt-2">
-                                Net allowance after deductions:{' '}
+                                Net allowance after adjustments:{' '}
                                 <span className="gba:font-semibold gba:text-emerald-600">
                                   {formatCurrency(netAllowance)}
                                 </span>
@@ -707,11 +943,29 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                           })
 
                           const grossTotal = allowanceCalcs.reduce((sum, item) => sum + (item.calculatedValue || 0), 0)
-                          const deductionsTotal = deductionItems.reduce((sum, item) => {
+
+                          // Helper to check if a deduction is actually an addition (e.g., overnight bonus)
+                          // Overnight deductions have positive percentages and should ADD to the total
+                          const isAddition = (d: (typeof deductionItems)[0]) => {
+                            const allowanceType = (d.inputs?.allowanceType as string) || ''
+                            const isOvernight = allowanceType.toLowerCase().includes('overnight')
+                            const amount = (d.outputs?.deductionAmount as number) || 0
+                            // It's an addition if: it's overnight type AND the amount is positive
+                            return isOvernight && amount > 0
+                          }
+
+                          // Separate additions (overnight bonuses) from actual deductions
+                          const additions = deductionItems.filter(d => isAddition(d))
+                          const actualDeductions = deductionItems.filter(d => !isAddition(d))
+
+                          const additionsTotal = additions.reduce((sum, item) => {
+                            return sum + ((item.outputs?.deductionAmount as number) || 0)
+                          }, 0)
+                          const deductionsTotal = actualDeductions.reduce((sum, item) => {
                             const amt = item.outputs?.deductionAmount || 0
                             return sum + Math.abs(amt as number)
                           }, 0)
-                          const netTotal = grossTotal - deductionsTotal
+                          const netTotal = grossTotal + additionsTotal - deductionsTotal
 
                           return (
                             <div className="gba:bg-emerald-50 gba:rounded-lg gba:border gba:border-emerald-200 gba:p-3 md:gba:col-span-2">
@@ -719,14 +973,19 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                                 <div className="gba:flex gba:items-center gba:gap-2">
                                   <Tag className="gba:w-4 gba:h-4 gba:text-emerald-600" />
                                   <span className="gba:text-sm gba:font-medium gba:text-emerald-800">
-                                    Allowances & Deductions
+                                    Allowances & Adjustments
                                   </span>
                                 </div>
-                                <div className="gba:flex gba:items-center gba:gap-3 gba:text-sm">
+                                <div className="gba:flex gba:items-center gba:gap-3 gba:text-sm gba:flex-wrap gba:justify-end">
                                   <span className="gba:text-emerald-600">Gross: {formatCurrency(grossTotal)}</span>
+                                  {additionsTotal > 0 && (
+                                    <span className="gba:text-blue-500">+ {formatCurrency(additionsTotal)}</span>
+                                  )}
                                   {deductionsTotal > 0 && (
+                                    <span className="gba:text-red-500">- {formatCurrency(deductionsTotal)}</span>
+                                  )}
+                                  {(additionsTotal > 0 || deductionsTotal > 0) && (
                                     <>
-                                      <span className="gba:text-red-500">- {formatCurrency(deductionsTotal)}</span>
                                       <span className="gba:text-gray-400">=</span>
                                       <span className="gba:font-semibold gba:text-emerald-700">
                                         Net: {formatCurrency(netTotal)}
@@ -741,11 +1000,20 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                                     item.inputs?.expenseDate || item.stepName?.replace('Calculate Amount for ', '')
                                   const linkedData = deductionsByAllowanceStepId.get(item.stepId)
                                   const linkedDeductions = linkedData?.deductions || []
-                                  const deductionSum = linkedDeductions.reduce(
+
+                                  // Separate additions from deductions for this allowance
+                                  const linkedAdditions = linkedDeductions.filter(d => isAddition(d))
+                                  const linkedActualDeductions = linkedDeductions.filter(d => !isAddition(d))
+
+                                  const additionSum = linkedAdditions.reduce(
+                                    (sum, d) => sum + ((d.outputs?.deductionAmount as number) || 0),
+                                    0
+                                  )
+                                  const deductionSum = linkedActualDeductions.reduce(
                                     (sum, d) => sum + Math.abs((d.outputs?.deductionAmount as number) || 0),
                                     0
                                   )
-                                  const netAmount = (item.calculatedValue || 0) - deductionSum
+                                  const netAmount = (item.calculatedValue || 0) + additionSum - deductionSum
 
                                   return (
                                     <div
@@ -773,10 +1041,41 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                                         </div>
                                       </div>
 
+                                      {/* Linked additions (overnight bonuses) */}
+                                      {linkedAdditions.length > 0 && (
+                                        <div className="gba:bg-blue-50/50 gba:border-t gba:border-blue-100">
+                                          {linkedAdditions.map(d => {
+                                            const amount = (d.outputs?.deductionAmount as number) || 0
+                                            const type =
+                                              d.inputs?.allowanceType?.replace(/_/g, ' ') ||
+                                              d.stepName?.replace('Deduction: ', '') ||
+                                              'Overnight Bonus'
+                                            return (
+                                              <div
+                                                key={d.stepId}
+                                                className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:text-sm gba:border-b gba:border-blue-100 last:gba:border-b-0"
+                                              >
+                                                <div className="gba:flex gba:items-center gba:gap-2 gba:pl-4">
+                                                  <Plus className="gba:w-3 gba:h-3 gba:text-blue-500" />
+                                                  <span className="gba:text-gray-600 gba:text-xs">{type}</span>
+                                                  <span className="gba:text-gray-400 gba:text-xs">for</span>
+                                                  <span className="gba:text-gray-500 gba:text-xs gba:font-medium gba:bg-gray-100 gba:px-1.5 gba:py-0.5 gba:rounded">
+                                                    {date}
+                                                  </span>
+                                                </div>
+                                                <span className="gba:font-medium gba:text-blue-600 gba:text-xs">
+                                                  +{formatCurrency(amount)}
+                                                </span>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
+
                                       {/* Linked deductions */}
-                                      {linkedDeductions.length > 0 && (
+                                      {linkedActualDeductions.length > 0 && (
                                         <div className="gba:bg-red-50/50 gba:border-t gba:border-red-100">
-                                          {linkedDeductions.map(d => {
+                                          {linkedActualDeductions.map(d => {
                                             const amount = Math.abs((d.outputs?.deductionAmount as number) || 0)
                                             const type =
                                               d.inputs?.allowanceType?.replace(/_/g, ' ') ||
@@ -807,7 +1106,7 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                                   )
                                 })}
 
-                                {/* Orphan deductions (not linked to any allowance by step order) */}
+                                {/* Orphan adjustments (not linked to any allowance by step order) */}
                                 {(() => {
                                   // Find deductions that weren't linked to any allowance
                                   const linkedDeductionIds = new Set<string>()
@@ -815,39 +1114,78 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                                     deductions.forEach(d => linkedDeductionIds.add(d.stepId))
                                   })
 
-                                  const orphanDeductions = deductionItems.filter(d => !linkedDeductionIds.has(d.stepId))
+                                  const orphanItems = deductionItems.filter(d => !linkedDeductionIds.has(d.stepId))
+                                  const orphanAdditions = orphanItems.filter(d => isAddition(d))
+                                  const orphanDeductions = orphanItems.filter(d => !isAddition(d))
 
-                                  if (orphanDeductions.length === 0) return null
+                                  if (orphanItems.length === 0) return null
 
                                   return (
-                                    <div className="gba:bg-white gba:rounded-lg gba:border gba:border-red-200 gba:overflow-hidden gba:mt-2">
-                                      <div className="gba:bg-red-50 gba:px-3 gba:py-2 gba:border-b gba:border-red-100">
-                                        <span className="gba:text-xs gba:font-medium gba:text-red-700">
-                                          Other Deductions (unlinked)
-                                        </span>
-                                      </div>
-                                      {orphanDeductions.map(d => {
-                                        const amount = Math.abs((d.outputs?.deductionAmount as number) || 0)
-                                        const type =
-                                          d.inputs?.allowanceType?.replace(/_/g, ' ') ||
-                                          d.stepName?.replace('Deduction: ', '') ||
-                                          'Deduction'
-                                        return (
-                                          <div
-                                            key={d.stepId}
-                                            className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:text-sm gba:border-b gba:border-red-100 last:gba:border-b-0"
-                                          >
-                                            <div className="gba:flex gba:items-center gba:gap-2">
-                                              <Minus className="gba:w-3 gba:h-3 gba:text-red-400" />
-                                              <span className="gba:text-gray-600 gba:text-xs">{type}</span>
-                                            </div>
-                                            <span className="gba:font-medium gba:text-red-500 gba:text-xs">
-                                              -{formatCurrency(amount)}
+                                    <>
+                                      {/* Orphan additions */}
+                                      {orphanAdditions.length > 0 && (
+                                        <div className="gba:bg-white gba:rounded-lg gba:border gba:border-blue-200 gba:overflow-hidden gba:mt-2">
+                                          <div className="gba:bg-blue-50 gba:px-3 gba:py-2 gba:border-b gba:border-blue-100">
+                                            <span className="gba:text-xs gba:font-medium gba:text-blue-700">
+                                              Other Additions (unlinked)
                                             </span>
                                           </div>
-                                        )
-                                      })}
-                                    </div>
+                                          {orphanAdditions.map(d => {
+                                            const amount = (d.outputs?.deductionAmount as number) || 0
+                                            const type =
+                                              d.inputs?.allowanceType?.replace(/_/g, ' ') ||
+                                              d.stepName?.replace('Deduction: ', '') ||
+                                              'Overnight Bonus'
+                                            return (
+                                              <div
+                                                key={d.stepId}
+                                                className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:text-sm gba:border-b gba:border-blue-100 last:gba:border-b-0"
+                                              >
+                                                <div className="gba:flex gba:items-center gba:gap-2">
+                                                  <Plus className="gba:w-3 gba:h-3 gba:text-blue-500" />
+                                                  <span className="gba:text-gray-600 gba:text-xs">{type}</span>
+                                                </div>
+                                                <span className="gba:font-medium gba:text-blue-600 gba:text-xs">
+                                                  +{formatCurrency(amount)}
+                                                </span>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
+
+                                      {/* Orphan deductions */}
+                                      {orphanDeductions.length > 0 && (
+                                        <div className="gba:bg-white gba:rounded-lg gba:border gba:border-red-200 gba:overflow-hidden gba:mt-2">
+                                          <div className="gba:bg-red-50 gba:px-3 gba:py-2 gba:border-b gba:border-red-100">
+                                            <span className="gba:text-xs gba:font-medium gba:text-red-700">
+                                              Other Deductions (unlinked)
+                                            </span>
+                                          </div>
+                                          {orphanDeductions.map(d => {
+                                            const amount = Math.abs((d.outputs?.deductionAmount as number) || 0)
+                                            const type =
+                                              d.inputs?.allowanceType?.replace(/_/g, ' ') ||
+                                              d.stepName?.replace('Deduction: ', '') ||
+                                              'Deduction'
+                                            return (
+                                              <div
+                                                key={d.stepId}
+                                                className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:text-sm gba:border-b gba:border-red-100 last:gba:border-b-0"
+                                              >
+                                                <div className="gba:flex gba:items-center gba:gap-2">
+                                                  <Minus className="gba:w-3 gba:h-3 gba:text-red-400" />
+                                                  <span className="gba:text-gray-600 gba:text-xs">{type}</span>
+                                                </div>
+                                                <span className="gba:font-medium gba:text-red-500 gba:text-xs">
+                                                  -{formatCurrency(amount)}
+                                                </span>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
+                                    </>
                                   )
                                 })()}
                               </div>
@@ -951,44 +1289,201 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, a
                         })()}
                       </div>
 
+                      {/* Per-Day Reconciliation (when discrepancy detected) */}
+                      {(() => {
+                        // Get breakdown calculations
+                        const breakdownSteps = currentTrace.steps.filter(
+                          s => s.category === 'TRAVEL_BREAKDOWN' && s.stepName?.startsWith('Breakdown #')
+                        )
+
+                        // Get stored expense items (generated allowances)
+                        const storedAllowanceSteps = currentTrace.steps.filter(
+                          s =>
+                            s.category === 'AMOUNT_CALCULATION' &&
+                            s.stepName?.startsWith('Expense:') &&
+                            s.inputs?.expenseClass === 'ExpenseClass:v1:ALLOWANCE'
+                        )
+
+                        // Only show if we have both and there's potential for comparison
+                        if (breakdownSteps.length === 0 || storedAllowanceSteps.length === 0) return null
+
+                        // Check if there's a significant difference
+                        const breakdownTotal = breakdownSteps.reduce((sum, b) => {
+                          const amt = (b.outputs?.amountRegionRule as number) || 0
+                          const pct = (b.outputs?.percentCode as number) || 100
+                          return sum + (amt * pct) / 100
+                        }, 0)
+                        const storedTotal = storedAllowanceSteps.reduce(
+                          (sum, s) => sum + ((s.outputs?.amount as number) || 0),
+                          0
+                        )
+
+                        const diff = Math.abs(breakdownTotal - storedTotal)
+                        if (diff <= 0.01) return null // No significant discrepancy
+
+                        return (
+                          <div className="gba:mt-4 gba:bg-orange-50 gba:rounded-xl gba:border gba:border-orange-200 gba:p-4">
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+                              <AlertTriangle className="gba:w-4 gba:h-4 gba:text-orange-600" />
+                              <span className="gba:text-sm gba:font-semibold gba:text-orange-800">
+                                Calculated vs Stored Comparison
+                              </span>
+                              <span className="gba:text-xs gba:text-orange-600 gba:bg-orange-100 gba:px-2 gba:py-0.5 gba:rounded">
+                                Δ {formatCurrency(diff)}
+                              </span>
+                            </div>
+
+                            <div className="gba:bg-white gba:rounded-lg gba:border gba:border-orange-100 gba:overflow-hidden">
+                              <div className="gba:grid gba:grid-cols-4 gba:text-xs gba:font-medium gba:text-gray-500 gba:bg-gray-50 gba:px-3 gba:py-2 gba:border-b gba:border-orange-100">
+                                <div>Date</div>
+                                <div className="gba:text-right">Calc Rate</div>
+                                <div className="gba:text-right">Stored Amount</div>
+                                <div className="gba:text-right">Diff</div>
+                              </div>
+                              <div className="gba:divide-y gba:divide-orange-100 gba:max-h-[200px] gba:overflow-y-auto">
+                                {breakdownSteps.map((breakdown, idx) => {
+                                  const date = (breakdown.inputs?.expenseDate as string) || `Day ${idx + 1}`
+                                  const calcRate = (breakdown.outputs?.amountRegionRule as number) || 0
+                                  const calcPct = (breakdown.outputs?.percentCode as number) || 100
+                                  const calcAmt = (calcRate * calcPct) / 100
+
+                                  // Try to find matching stored item by index (rough approximation)
+                                  const storedItem = storedAllowanceSteps[idx]
+                                  const storedAmt = storedItem ? (storedItem.outputs?.amount as number) || 0 : null
+
+                                  const itemDiff = storedAmt !== null ? storedAmt - calcAmt : null
+                                  const hasDiff = itemDiff !== null && Math.abs(itemDiff) > 0.01
+
+                                  return (
+                                    <div
+                                      key={breakdown.stepId}
+                                      className={`gba:grid gba:grid-cols-4 gba:text-sm gba:px-3 gba:py-2 ${hasDiff ? 'gba:bg-red-50' : ''}`}
+                                    >
+                                      <div className="gba:text-gray-700 gba:font-medium">{date}</div>
+                                      <div className="gba:text-right gba:font-mono gba:text-emerald-600">
+                                        {formatCurrency(calcAmt)}
+                                      </div>
+                                      <div className="gba:text-right gba:font-mono gba:text-blue-600">
+                                        {storedAmt !== null ? formatCurrency(storedAmt) : '—'}
+                                      </div>
+                                      <div
+                                        className={`gba:text-right gba:font-mono gba:font-medium ${
+                                          hasDiff ? 'gba:text-red-600' : 'gba:text-gray-400'
+                                        }`}
+                                      >
+                                        {itemDiff !== null && hasDiff ? (
+                                          <>
+                                            {itemDiff > 0 ? '+' : ''}
+                                            {formatCurrency(itemDiff)}
+                                          </>
+                                        ) : itemDiff !== null ? (
+                                          '✓'
+                                        ) : (
+                                          '—'
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                              <div className="gba:grid gba:grid-cols-4 gba:text-sm gba:px-3 gba:py-2 gba:bg-orange-100 gba:font-semibold gba:border-t gba:border-orange-200">
+                                <div className="gba:text-orange-900">Totals</div>
+                                <div className="gba:text-right gba:font-mono gba:text-emerald-700">
+                                  {formatCurrency(breakdownTotal)}
+                                </div>
+                                <div className="gba:text-right gba:font-mono gba:text-blue-700">
+                                  {formatCurrency(storedTotal)}
+                                </div>
+                                <div className="gba:text-right gba:font-mono gba:text-red-700">
+                                  {storedTotal - breakdownTotal > 0 ? '+' : ''}
+                                  {formatCurrency(storedTotal - breakdownTotal)}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="gba:text-xs gba:text-orange-700 gba:mt-2">
+                              💡 <strong>Calc Rate</strong> = Rate from fresh calculation using first travel date.
+                              <strong> Stored Amount</strong> = Amount saved in database (may include deductions).
+                            </div>
+                          </div>
+                        )
+                      })()}
+
                       {/* Summary Totals */}
-                      <div className="gba:mt-4 gba:pt-4 gba:border-t gba:border-gray-200">
-                        <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-5 gba:gap-3">
-                          <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-emerald-200 gba:bg-emerald-50">
-                            <div className="gba:text-xs gba:text-gray-500">Gross Allowances</div>
-                            <div className="gba:font-semibold gba:text-emerald-700">
-                              {formatCurrency(currentTrace.finalAmounts.totalAllowance)}
-                            </div>
-                          </div>
-                          <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-red-200 gba:bg-red-50">
-                            <div className="gba:text-xs gba:text-gray-500">Deductions</div>
-                            <div className="gba:font-semibold gba:text-red-600">
-                              -{formatCurrency(currentTrace.finalAmounts.totalDeductions)}
-                            </div>
-                          </div>
-                          <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-emerald-300 gba:bg-emerald-100">
-                            <div className="gba:text-xs gba:text-gray-500">Net Allowances</div>
-                            <div className="gba:font-semibold gba:text-emerald-800">
-                              {formatCurrency(
-                                (currentTrace.finalAmounts.totalAllowance || 0) -
-                                  (currentTrace.finalAmounts.totalDeductions || 0)
+                      {(() => {
+                        // Calculate additions and deductions separately from trace steps
+                        const allDeductionSteps = currentTrace.steps.filter(s => s.category === 'DEDUCTION')
+
+                        // Helper to check if a deduction is actually an addition
+                        const isOvernightAddition = (step: (typeof allDeductionSteps)[0]) => {
+                          const allowanceType = (step.inputs?.allowanceType as string) || ''
+                          const isOvernight = allowanceType.toLowerCase().includes('overnight')
+                          const amount = (step.outputs?.deductionAmount as number) || 0
+                          return isOvernight && amount > 0
+                        }
+
+                        const additions = allDeductionSteps.filter(d => isOvernightAddition(d))
+                        const deductions = allDeductionSteps.filter(d => !isOvernightAddition(d))
+
+                        const additionsTotal = additions.reduce(
+                          (sum, d) => sum + ((d.outputs?.deductionAmount as number) || 0),
+                          0
+                        )
+                        const deductionsTotal = deductions.reduce(
+                          (sum, d) => sum + Math.abs((d.outputs?.deductionAmount as number) || 0),
+                          0
+                        )
+
+                        const grossAllowance = currentTrace.finalAmounts.totalAllowance || 0
+                        const netAllowance = grossAllowance + additionsTotal - deductionsTotal
+
+                        return (
+                          <div className="gba:mt-4 gba:pt-4 gba:border-t gba:border-gray-200">
+                            <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-6 gba:gap-3">
+                              <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-emerald-200 gba:bg-emerald-50">
+                                <div className="gba:text-xs gba:text-gray-500">Gross Allowances</div>
+                                <div className="gba:font-semibold gba:text-emerald-700">
+                                  {formatCurrency(grossAllowance)}
+                                </div>
+                              </div>
+                              {additionsTotal > 0 && (
+                                <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-cyan-200 gba:bg-cyan-50">
+                                  <div className="gba:text-xs gba:text-gray-500">Overnight Bonus</div>
+                                  <div className="gba:font-semibold gba:text-cyan-600">
+                                    +{formatCurrency(additionsTotal)}
+                                  </div>
+                                </div>
                               )}
+                              {deductionsTotal > 0 && (
+                                <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-red-200 gba:bg-red-50">
+                                  <div className="gba:text-xs gba:text-gray-500">Deductions</div>
+                                  <div className="gba:font-semibold gba:text-red-600">
+                                    -{formatCurrency(deductionsTotal)}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-emerald-300 gba:bg-emerald-100">
+                                <div className="gba:text-xs gba:text-gray-500">Net Allowances</div>
+                                <div className="gba:font-semibold gba:text-emerald-800">
+                                  {formatCurrency(netAllowance)}
+                                </div>
+                              </div>
+                              <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-amber-200 gba:bg-amber-50">
+                                <div className="gba:text-xs gba:text-gray-500">Expenses</div>
+                                <div className="gba:font-semibold gba:text-amber-700">
+                                  {formatCurrency(entity?.totalAmountExpense)}
+                                </div>
+                              </div>
+                              <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-blue-300 gba:bg-blue-100">
+                                <div className="gba:text-xs gba:text-gray-500">Total</div>
+                                <div className="gba:font-semibold gba:text-blue-700">
+                                  {formatCurrency(entity?.totalAmount)}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                          <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-amber-200 gba:bg-amber-50">
-                            <div className="gba:text-xs gba:text-gray-500">Expenses</div>
-                            <div className="gba:font-semibold gba:text-amber-700">
-                              {formatCurrency(entity?.totalAmountExpense)}
-                            </div>
-                          </div>
-                          <div className="gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-blue-300 gba:bg-blue-100">
-                            <div className="gba:text-xs gba:text-gray-500">Total</div>
-                            <div className="gba:font-semibold gba:text-blue-700">
-                              {formatCurrency(entity?.totalAmount)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                        )
+                      })()}
                     </div>
                   )}
 

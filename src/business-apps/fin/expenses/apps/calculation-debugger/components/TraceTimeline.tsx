@@ -8,6 +8,7 @@ import {
   Tag,
   Calculator,
   Minus,
+  Plus,
   Car,
   BarChart3,
   CheckSquare,
@@ -373,16 +374,39 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({ steps, onStepClick
                       }
 
                       // For deduction steps, show the deduction amount prominently
+                      // Check if it's an overnight bonus (positive amount that adds to total)
                       if (step.category === 'DEDUCTION' && step.outputs) {
                         const { deductionAmount } = step.outputs as Record<string, any>
+                        const inputs = step.inputs as Record<string, any>
+                        const allowanceType = (inputs?.allowanceType as string) || ''
+                        const isOvernight = allowanceType.toLowerCase().includes('overnight')
+                        const amount = Number(deductionAmount)
+
                         if (deductionAmount !== undefined && deductionAmount !== 0) {
+                          // Overnight with positive amount = bonus/addition
+                          if (isOvernight && amount > 0) {
+                            return (
+                              <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-cyan-50 gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-cyan-200 gba:text-sm">
+                                <Plus className="gba:w-3.5 gba:h-3.5 gba:text-cyan-500" />
+                                <span className="gba:text-cyan-600">Overnight Bonus:</span>
+                                <span className="gba:font-semibold gba:text-cyan-700">
+                                  +
+                                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                    amount
+                                  )}
+                                </span>
+                              </div>
+                            )
+                          }
+                          // Regular deduction (negative)
                           return (
                             <div className="gba:mt-2 gba:inline-flex gba:items-center gba:gap-1.5 gba:bg-red-50 gba:px-2.5 gba:py-1 gba:rounded gba:border gba:border-red-200 gba:text-sm">
+                              <Minus className="gba:w-3.5 gba:h-3.5 gba:text-red-500" />
                               <span className="gba:text-red-500">Deduction:</span>
                               <span className="gba:font-semibold gba:text-red-600">
                                 -
                                 {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
-                                  Math.abs(Number(deductionAmount))
+                                  Math.abs(amount)
                                 )}
                               </span>
                             </div>

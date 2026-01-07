@@ -1,6 +1,16 @@
 import React, { useState, useMemo } from 'react'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Plus } from 'lucide-react'
 import { CalculationStep } from '../hooks/useCalculationTrace'
+
+// Helper to check if a deduction step is actually an addition (e.g., overnight bonus)
+// Overnight deductions have positive percentages and should ADD to the total
+const isOvernightAddition = (step: CalculationStep) => {
+  const allowanceType = (step.inputs?.allowanceType as string) || ''
+  const isOvernight = allowanceType.toLowerCase().includes('overnight')
+  const amount = (step.outputs?.deductionAmount as number) || 0
+  // It's an addition if: it's overnight type AND the amount is positive
+  return isOvernight && amount > 0
+}
 
 interface TraceChartProps {
   steps: CalculationStep[]
@@ -68,10 +78,17 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
           change = step.outputs.result
         }
       } else if (step.category === 'DEDUCTION') {
-        if (step.outputs?.deductionAmount != null) {
-          change = -Math.abs(Number(step.outputs.deductionAmount))
-        } else if (typeof step.calculatedValue === 'number' && !isNaN(step.calculatedValue)) {
-          change = -Math.abs(step.calculatedValue)
+        // Check if this is an overnight addition (positive amount that adds to total)
+        if (isOvernightAddition(step)) {
+          // Overnight bonuses are positive additions
+          change = Number(step.outputs?.deductionAmount || 0)
+        } else {
+          // Regular deductions are subtracted
+          if (step.outputs?.deductionAmount != null) {
+            change = -Math.abs(Number(step.outputs.deductionAmount))
+          } else if (typeof step.calculatedValue === 'number' && !isNaN(step.calculatedValue)) {
+            change = -Math.abs(step.calculatedValue)
+          }
         }
       }
 
@@ -197,10 +214,14 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
           <h3 className="gba:text-sm gba:font-semibold gba:text-gray-700">Expense Calculation Flow</h3>
           <p className="gba:text-xs gba:text-gray-400 gba:mt-0.5">Allowances, deductions, mileage, and expense items</p>
         </div>
-        <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs">
+        <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:flex-wrap">
           <div className="gba:flex gba:items-center gba:gap-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-emerald-500" />
             <span className="gba:text-gray-600">Allowance/Expense</span>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-cyan-500" />
+            <span className="gba:text-gray-600">Overnight Bonus</span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-blue-500" />
@@ -286,6 +307,7 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
         {points.map((point, i) => {
           const isDeduction = point.change < 0
           const isMileage = point.step.category === 'MILEAGE'
+          const isOvernightBonus = point.step.category === 'DEDUCTION' && isOvernightAddition(point.step)
           const isHovered = hoveredPoint?.index === point.index
 
           // Determine point color based on type
@@ -294,6 +316,10 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
           if (isDeduction) {
             pointColorClass = 'gba:fill-red-500'
             textColorClass = 'gba:fill-red-600'
+          } else if (isOvernightBonus) {
+            // Overnight bonuses shown in cyan/teal to differentiate from regular additions
+            pointColorClass = 'gba:fill-cyan-500'
+            textColorClass = 'gba:fill-cyan-600'
           } else if (isMileage) {
             pointColorClass = 'gba:fill-blue-500'
             textColorClass = 'gba:fill-blue-600'
@@ -419,35 +445,50 @@ export const TraceChart: React.FC<TraceChartProps> = ({ steps }) => {
       )}
 
       {/* Summary stats */}
-      <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mt-4 gba:pt-4 gba:border-t gba:border-gray-200">
-        <div className="gba:text-center">
-          <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:text-emerald-600 gba:mb-1">
-            <TrendingUp className="gba:w-4 gba:h-4" />
-            <span className="gba:text-xs gba:font-medium">Total Added</span>
+      {(() => {
+        const totalAdded = points.filter(p => p.change > 0).reduce((sum, p) => sum + p.change, 0)
+        const totalDeducted = Math.abs(points.filter(p => p.change < 0).reduce((sum, p) => sum + p.change, 0))
+        const overnightBonuses = points
+          .filter(p => p.step.category === 'DEDUCTION' && isOvernightAddition(p.step))
+          .reduce((sum, p) => sum + p.change, 0)
+
+        return (
+          <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:mt-4 gba:pt-4 gba:border-t gba:border-gray-200">
+            <div className="gba:text-center">
+              <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:text-emerald-600 gba:mb-1">
+                <TrendingUp className="gba:w-4 gba:h-4" />
+                <span className="gba:text-xs gba:font-medium">Total Added</span>
+              </div>
+              <div className="gba:text-lg gba:font-bold gba:text-emerald-700">{formatCurrency(totalAdded)}</div>
+            </div>
+            {overnightBonuses > 0 && (
+              <div className="gba:text-center">
+                <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:text-cyan-600 gba:mb-1">
+                  <Plus className="gba:w-4 gba:h-4" />
+                  <span className="gba:text-xs gba:font-medium">Overnight Bonus</span>
+                </div>
+                <div className="gba:text-lg gba:font-bold gba:text-cyan-700">{formatCurrency(overnightBonuses)}</div>
+              </div>
+            )}
+            <div className="gba:text-center">
+              <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:text-red-600 gba:mb-1">
+                <TrendingDown className="gba:w-4 gba:h-4" />
+                <span className="gba:text-xs gba:font-medium">Total Deducted</span>
+              </div>
+              <div className="gba:text-lg gba:font-bold gba:text-red-700">{formatCurrency(totalDeducted)}</div>
+            </div>
+            <div className="gba:text-center">
+              <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:text-gray-600 gba:mb-1">
+                <Minus className="gba:w-4 gba:h-4" />
+                <span className="gba:text-xs gba:font-medium">Final Amount</span>
+              </div>
+              <div className="gba:text-lg gba:font-bold gba:text-gray-900">
+                {formatCurrency(points.length > 0 ? points[points.length - 1].amount : 0)}
+              </div>
+            </div>
           </div>
-          <div className="gba:text-lg gba:font-bold gba:text-emerald-700">
-            {formatCurrency(points.filter(p => p.change > 0).reduce((sum, p) => sum + p.change, 0))}
-          </div>
-        </div>
-        <div className="gba:text-center">
-          <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:text-red-600 gba:mb-1">
-            <TrendingDown className="gba:w-4 gba:h-4" />
-            <span className="gba:text-xs gba:font-medium">Total Deducted</span>
-          </div>
-          <div className="gba:text-lg gba:font-bold gba:text-red-700">
-            {formatCurrency(Math.abs(points.filter(p => p.change < 0).reduce((sum, p) => sum + p.change, 0)))}
-          </div>
-        </div>
-        <div className="gba:text-center">
-          <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:text-gray-600 gba:mb-1">
-            <Minus className="gba:w-4 gba:h-4" />
-            <span className="gba:text-xs gba:font-medium">Final Amount</span>
-          </div>
-          <div className="gba:text-lg gba:font-bold gba:text-gray-900">
-            {formatCurrency(points.length > 0 ? points[points.length - 1].amount : 0)}
-          </div>
-        </div>
-      </div>
+        )
+      })()}
     </div>
   )
 }
