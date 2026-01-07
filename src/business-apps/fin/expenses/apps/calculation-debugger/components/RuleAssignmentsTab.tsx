@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
   XCircle,
   RefreshCw,
@@ -282,6 +283,7 @@ export const RuleAssignmentsTab: React.FC<RuleAssignmentsTabProps> = ({ accessTo
   const employeesWithRules = employeeStatuses.filter(s => s.hasRule)
   const employeesWithoutRules = employeeStatuses.filter(s => !s.hasRule && !s.error)
   const employeesWithErrors = employeeStatuses.filter(s => s.error)
+  const employeesWithMissingData = employeeStatuses.filter(s => s.missingData && s.missingData.length > 0)
 
   return (
     <div className="gba:space-y-4">
@@ -602,7 +604,7 @@ export const RuleAssignmentsTab: React.FC<RuleAssignmentsTabProps> = ({ accessTo
           {employeeStatuses.length > 0 && (
             <div className="gba:space-y-4">
               {/* Summary */}
-              <div className="gba:grid gba:grid-cols-3 gba:gap-4">
+              <div className="gba:grid gba:grid-cols-4 gba:gap-4">
                 <div className="gba:bg-emerald-50 gba:rounded-xl gba:p-4 gba:border gba:border-emerald-200">
                   <div className="gba:flex gba:items-center gba:gap-2 gba:text-emerald-700">
                     <CheckCircle className="gba:w-5 gba:h-5" />
@@ -619,6 +621,15 @@ export const RuleAssignmentsTab: React.FC<RuleAssignmentsTabProps> = ({ accessTo
                   </div>
                   <div className="gba:text-2xl gba:font-bold gba:text-red-800 gba:mt-1">
                     {employeesWithoutRules.length}
+                  </div>
+                </div>
+                <div className="gba:bg-orange-50 gba:rounded-xl gba:p-4 gba:border gba:border-orange-200">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-orange-700">
+                    <AlertTriangle className="gba:w-5 gba:h-5" />
+                    <span className="gba:text-sm gba:font-medium">Missing Data</span>
+                  </div>
+                  <div className="gba:text-2xl gba:font-bold gba:text-orange-800 gba:mt-1">
+                    {employeesWithMissingData.length}
                   </div>
                 </div>
                 <div className="gba:bg-amber-50 gba:rounded-xl gba:p-4 gba:border gba:border-amber-200">
@@ -661,29 +672,49 @@ export const RuleAssignmentsTab: React.FC<RuleAssignmentsTabProps> = ({ accessTo
                       const avatarUrl = employee?.pictureThumbnail
                         ? `data:image/png;base64,${employee.pictureThumbnail}`
                         : null
+                      const hasMissingData = status.missingData && status.missingData.length > 0
                       return (
-                        <div
-                          key={status.employeeId}
-                          className="gba:px-4 gba:py-3 gba:flex gba:items-center gba:justify-between"
-                        >
-                          <div className="gba:flex gba:items-center gba:gap-3">
-                            <div className="gba:w-8 gba:h-8 gba:rounded-full gba:overflow-hidden gba:bg-gradient-to-br gba:from-red-400 gba:to-red-600 gba:flex-shrink-0">
-                              {avatarUrl ? (
-                                <img src={avatarUrl} alt="" className="gba:w-full gba:h-full gba:object-cover" />
-                              ) : (
-                                <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-semibold">
-                                  {initials}
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <div className="gba:font-medium gba:text-gray-900">
-                                {employee ? `${employee.firstName} ${employee.lastName}` : status.employeeId}
+                        <div key={status.employeeId} className="gba:px-4 gba:py-3">
+                          <div className="gba:flex gba:items-center gba:justify-between">
+                            <div className="gba:flex gba:items-center gba:gap-3">
+                              <div className="gba:w-8 gba:h-8 gba:rounded-full gba:overflow-hidden gba:bg-gradient-to-br gba:from-red-400 gba:to-red-600 gba:flex-shrink-0">
+                                {avatarUrl ? (
+                                  <img src={avatarUrl} alt="" className="gba:w-full gba:h-full gba:object-cover" />
+                                ) : (
+                                  <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-semibold">
+                                    {initials}
+                                  </div>
+                                )}
                               </div>
-                              <div className="gba:text-xs gba:text-gray-500 gba:font-mono">{status.employeeId}</div>
+                              <div>
+                                <div className="gba:font-medium gba:text-gray-900">
+                                  {employee ? `${employee.firstName} ${employee.lastName}` : status.employeeId}
+                                </div>
+                                <div className="gba:text-xs gba:text-gray-500 gba:font-mono">{status.employeeId}</div>
+                              </div>
                             </div>
+                            <span className="gba:text-sm gba:text-red-600 gba:font-medium">No rule found</span>
                           </div>
-                          <span className="gba:text-sm gba:text-red-600 gba:font-medium">No rule found</span>
+                          {/* Missing Data Warning */}
+                          {hasMissingData && (
+                            <div className="gba:mt-2 gba:ml-11 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded-lg gba:px-3 gba:py-2">
+                              <div className="gba:flex gba:items-start gba:gap-2">
+                                <AlertTriangle className="gba:w-4 gba:h-4 gba:text-amber-600 gba:flex-shrink-0 gba:mt-0.5" />
+                                <div>
+                                  <div className="gba:text-xs gba:font-medium gba:text-amber-800">
+                                    Missing Employee Data
+                                  </div>
+                                  <div className="gba:text-xs gba:text-amber-700 gba:mt-1">
+                                    {status.missingData?.join(', ')}
+                                  </div>
+                                  <div className="gba:text-xs gba:text-amber-600 gba:mt-1">
+                                    Rule assignment may fail due to incomplete employee profile. Please update the
+                                    employee's data in the HR system.
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -747,6 +778,68 @@ export const RuleAssignmentsTab: React.FC<RuleAssignmentsTabProps> = ({ accessTo
                               <div className="gba:text-xs gba:text-gray-400 gba:mt-0.5">Since {sinceDate}</div>
                             )}
                           </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Employees With Errors */}
+              {employeesWithErrors.length > 0 && (
+                <div className="gba:bg-white gba:rounded-xl gba:border gba:border-amber-200 gba:overflow-hidden">
+                  <div className="gba:bg-amber-50 gba:px-4 gba:py-3 gba:border-b gba:border-amber-200 gba:flex gba:items-center gba:gap-2">
+                    <AlertCircle className="gba:w-5 gba:h-5 gba:text-amber-600" />
+                    <span className="gba:font-medium gba:text-amber-800">Errors ({employeesWithErrors.length})</span>
+                  </div>
+                  <div className="gba:divide-y gba:divide-gray-100">
+                    {employeesWithErrors.map(status => {
+                      const employee = selectedEmployees.find(e => e.id === status.employeeId)
+                      const initials = employee
+                        ? `${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`.toUpperCase()
+                        : '?'
+                      const avatarUrl = employee?.pictureThumbnail
+                        ? `data:image/png;base64,${employee.pictureThumbnail}`
+                        : null
+                      const hasMissingData = status.missingData && status.missingData.length > 0
+                      return (
+                        <div key={status.employeeId} className="gba:px-4 gba:py-3">
+                          <div className="gba:flex gba:items-center gba:justify-between">
+                            <div className="gba:flex gba:items-center gba:gap-3">
+                              <div className="gba:w-8 gba:h-8 gba:rounded-full gba:overflow-hidden gba:bg-gradient-to-br gba:from-amber-400 gba:to-amber-600 gba:flex-shrink-0">
+                                {avatarUrl ? (
+                                  <img src={avatarUrl} alt="" className="gba:w-full gba:h-full gba:object-cover" />
+                                ) : (
+                                  <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-semibold">
+                                    {initials}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="gba:font-medium gba:text-gray-900">
+                                  {employee ? `${employee.firstName} ${employee.lastName}` : status.employeeId}
+                                </div>
+                                <div className="gba:text-xs gba:text-gray-500 gba:font-mono">{status.employeeId}</div>
+                              </div>
+                            </div>
+                            <span className="gba:text-sm gba:text-amber-600 gba:font-medium">{status.error}</span>
+                          </div>
+                          {/* Missing Data Warning */}
+                          {hasMissingData && (
+                            <div className="gba:mt-2 gba:ml-11 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded-lg gba:px-3 gba:py-2">
+                              <div className="gba:flex gba:items-start gba:gap-2">
+                                <AlertTriangle className="gba:w-4 gba:h-4 gba:text-amber-600 gba:flex-shrink-0 gba:mt-0.5" />
+                                <div>
+                                  <div className="gba:text-xs gba:font-medium gba:text-amber-800">
+                                    Missing Employee Data
+                                  </div>
+                                  <div className="gba:text-xs gba:text-amber-700 gba:mt-1">
+                                    {status.missingData?.join(', ')}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })}

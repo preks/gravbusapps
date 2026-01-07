@@ -84,6 +84,14 @@ export interface ExpenseRuleWithAssignments {
   assignments: RuleAssignment[]
 }
 
+export interface EmployeeDataStatus {
+  hasPosition: boolean
+  hasCompany: boolean
+  hasOrgUnit: boolean
+  hasSiteLocation: boolean
+  hasWorkingCondition: boolean
+}
+
 export interface EmployeeRuleStatus {
   employeeId: string
   employeeName: string
@@ -95,6 +103,9 @@ export interface EmployeeRuleStatus {
   assignmentActiveFrom?: string
   checkDate: string
   error?: string
+  employeeFound?: boolean
+  employeeDataStatus?: EmployeeDataStatus
+  missingData?: string[]
 }
 
 const EMPLOYEES_BY_CRITERIA_QUERY = `
@@ -294,6 +305,11 @@ export function useRuleAssignments(): UseRuleAssignmentsReturn {
 
         if (response.ok) {
           const data = await response.json()
+          // Extract employee data status from context
+          const employeeFound = data.contextData?.employeeFound
+          const employeeDataStatus = data.contextData?.employeeDataStatus as EmployeeDataStatus | undefined
+          const missingData = data.contextData?.missingData as string[] | undefined
+
           statuses.push({
             employeeId,
             employeeName: employeeId, // Will be resolved by caller if needed
@@ -303,7 +319,10 @@ export function useRuleAssignments(): UseRuleAssignmentsReturn {
             ruleId: data.appliedRule?.ruleId,
             ruleActiveFrom: data.appliedRule?.activeFrom,
             assignmentActiveFrom: data.appliedRule?.assignmentActiveFrom,
-            checkDate: dateStr
+            checkDate: dateStr,
+            employeeFound,
+            employeeDataStatus,
+            missingData
           })
         } else {
           statuses.push({
