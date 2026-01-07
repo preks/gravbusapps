@@ -55,7 +55,7 @@
   "crm/performance/apps/sales-performance": "560d56cb23754479b069a970ee725123",
   "crm/performance/apps/sales-team-performance": "ed2a93c68ad3486487b7da68d9826c53",
   "fin/expenses/apps/backoffice-expenses": "e444bb3e978d877c26b1bc7d31bf8871",
-  "fin/expenses/apps/calculation-debugger": "9cf21b21a9c605ee42ec7b267c204451",
+  "fin/expenses/apps/calculation-debugger": "831cad2fed28be86fb86aa0349d752e8",
   "fin/expenses/apps/expense-calculation-rules": "849a98643602253f1cc7bec2b7839d8c",
   "fin/expenses/apps/expense-plan-record": "45fd136c8fe2e143ddc31c02e36a7c36",
   "fin/expenses/apps/expense-request-record": "6be56b0154eefff1bcbfc29585bb9b6d",
