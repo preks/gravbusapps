@@ -81,22 +81,32 @@ export const UniversalChatWithTaskButton: React.FC<UniversalChatWithTaskButtonPr
       contextMessage = buildManualSummary(requesterName, taskType, taskData)
     }
 
-    // Send CustomEvent to platform to open chat
-    const chatEvent = new CustomEvent('chat:open-with-user', {
-      detail: {
-        userId: requesterId!,
-        userName: requesterName,
-        prefilledMessage: contextMessage,
-        metadata: {
-          source: 'every-box',
-          taskType: taskType.toLowerCase().replace(/\s+/g, '-'),
-          taskId: taskInfo.taskId,
-          aiGenerated: !useFallback
-        }
+    const payload = {
+      userId: requesterId!,
+      userName: requesterName,
+      prefilledMessage: contextMessage,
+      metadata: {
+        source: 'every-box',
+        taskType: taskType.toLowerCase().replace(/\s+/g, '-'),
+        taskId: taskInfo.taskId,
+        aiGenerated: !useFallback
       }
-    })
+    }
 
+    // Dispatch CustomEvent for modern integration
+    const chatEvent = new CustomEvent('chat:open-with-user', {
+      detail: payload
+    })
     window.dispatchEvent(chatEvent)
+
+    // Also dispatch postMessage for backward compatibility
+    window.postMessage(
+      {
+        type: 'OPEN_CHAT_WITH_USER',
+        payload
+      },
+      '*'
+    )
   }
 
   return (
