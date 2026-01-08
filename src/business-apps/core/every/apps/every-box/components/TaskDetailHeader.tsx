@@ -115,13 +115,8 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
       metadata: chatWithRequester.taskContext
     }
 
-    // Dispatch CustomEvent for modern integration
-    const chatEvent = new CustomEvent('chat:open-with-user', {
-      detail: payload
-    })
-    window.dispatchEvent(chatEvent)
-
-    // Also dispatch postMessage for backward compatibility
+    // Dispatch postMessage - the platform (gravity-platform) will handle opening
+    // the sidebar and dispatching the chat:open-with-user event after Chat is mounted
     window.postMessage(
       {
         type: 'OPEN_CHAT_WITH_USER',
@@ -129,11 +124,6 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
       },
       '*'
     )
-
-    console.log('📨 [TaskDetailHeader] Chat with requester initiated:', {
-      userId: chatWithRequester.requesterId,
-      userName: chatWithRequester.requesterName
-    })
   }
 
   // NOTE: We don't use TaskHeaderContext here because this component is bundled separately
@@ -142,11 +132,7 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
   // Auto-fetch employee data if IDs are provided and no manual data exists
   const shouldAutoFetch = showEmployeeInfo && !manualEmployeeData && (employeeId || userId) && accessToken
 
-  const {
-    employeeData: fetchedEmployeeData,
-    isLoading: isFetchingEmployee,
-    error: fetchError
-  } = useEmployeeData({
+  const { employeeData: fetchedEmployeeData, isLoading: isFetchingEmployee } = useEmployeeData({
     employeeId,
     userId,
     accessToken: accessToken || '',
@@ -186,22 +172,6 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
       img.removeEventListener('error', handleError)
     }
   }, [employeeData?.avatarUrl])
-
-  // Debug auto-fetch errors and data
-  React.useEffect(() => {
-    if (fetchError && shouldAutoFetch) {
-      console.warn('[TaskDetailHeader] Failed to auto-fetch employee data:', fetchError)
-    }
-    if (employeeData && shouldAutoFetch) {
-      console.log('[TaskDetailHeader] Auto-fetched employee data:', {
-        displayName: employeeData.displayName,
-        position: employeeData.position,
-        hasPosition: !!employeeData.position,
-        employeeId,
-        userId
-      })
-    }
-  }, [fetchError, shouldAutoFetch, employeeData, employeeId, userId])
 
   const shouldShowEmployee = showEmployeeInfo && (employeeData || isLoadingEmployee || creatorName)
 

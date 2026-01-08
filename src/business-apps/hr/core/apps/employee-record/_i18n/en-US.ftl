@@ -276,3 +276,25 @@ period-daily = Daily
 error-end-date-required = End date is required
 error-end-date-today-or-later = End date must be today or later
 error-end-date-after-start-date = End date must be on or after the benefit start date
+
+# Employee Record - Notifications
+notification-address-updated-success = Address updates are sent for HR approval
+notification-bank-account-updated-success = Bank account updates are sent for HR approval
+notification-personal-data-updated-success = Personal data updates are sent for HR approval
+notification-communication-updated-success = Communication details updates are sent for HR approval
+notification-profile-picture-updated-success = Profile picture updates are sent for HR approval
+notification-relationship-updated-success = Relationship status updates are sent for HR approval
+notification-expense-created-success = Expense created successfully
+notification-sick-leave-reported-success = Sick leave reported successfully
+notification-special-leave-requested-success = Special leave requested successfully
+notification-vacation-requested-success = Vacation requested successfully
+ notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
+ notification-working-hours-updated-success = Working hours updates are sent for HR approval
+
+# HR approval phrasing (profile updates)
+notification-address-updated-success = Address updates sent to be approved by the HR department.
+notification-bank-account-updated-success = Bank account updates sent to be approved by the HR department.
+notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
+notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
+notification-profile-picture-updated-success = Profile picture updates sent to be approved by the HR department.
+notification-relationship-updated-success = Relationship status updates sent to be approved by the HR department.
