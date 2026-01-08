@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { Spinner, RecordLayout, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import {
-  PiChartLine,
+  ChartLine,
   ListChecksIcon,
   CalendarIcon,
   UserIcon,
@@ -203,7 +203,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
         {
           value: 'performance',
           label: getTranslationFromI18nKeyAndLabel('crm.performance.salesPerformance', 'Sales Performance'),
-          icon: <PiChartLine className="gba:mr-2" />,
+          icon: <ChartLine className="gba:mr-2" />,
           contentClassName: wideContentClassName, // FULL WIDTH FOR DASHBOARD
           content: (
             <div ref={tabContentRef} data-testid={`${DATA_TEST_ID_PREFIX}-performance-content`}>

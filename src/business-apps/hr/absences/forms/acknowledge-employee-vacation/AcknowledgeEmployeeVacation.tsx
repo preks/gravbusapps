@@ -4,7 +4,7 @@
  * Based on ApproveEmployeeVacation with adapted UI for acknowledgment (no approve/reject actions)
  */
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Separator, Spinner, Alert, useTranslation, useLocale } from '@newwork/nw-design-system'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -18,6 +18,7 @@ import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import { formatWorkingDaysAndHours } from '@/business-apps/hr/absences/utils/absenceDurationFormatter'
 import { formatDateTime } from '@/common/utils/dateFormatter'
+import { formatDate } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import translations from './_i18n'
 
@@ -66,6 +67,14 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
     substituteEmployeeId: employeeAbsence?.substituteEmployee,
     absenceTypeRef: employeeAbsence?.typeRef
   })
+
+  // Extract requester info for chat (need userId, not employeeId!)
+  // First try explicit fields from taskPayload, then fall back to fetched employee data userId
+  const requesterUserId = (taskPayload as any)?.requester?.id || (taskPayload as any)?.creatorId || employeeData?.userId
+  const requesterName =
+    creatorName ||
+    employeeData?.displayName ||
+    `${employeeData?.firstName || ''} ${employeeData?.lastName || ''}`.trim()
 
   // Determine if this is a business trip (A101)
   const isBusinessTrip = employeeAbsence?.typeRef?.includes('A101')
@@ -136,6 +145,44 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
   // Detect if we're in every-box context (has onClose callback)
   const isEveryBoxContext = !!onClose
 
+  // Prepare chat context (only if task is not completed and we have requester info)
+  const chatWithRequester = useMemo(() => {
+    const shouldShowChat = !isTaskCompleted && requesterUserId && employeeAbsence?.startDate && employeeAbsence?.endDate
+
+    if (!shouldShowChat) {
+      return undefined
+    }
+
+    const startDate =
+      formatDate(employeeAbsence.startDate, 'date.short') || dayjs(employeeAbsence.startDate).format('MMM D')
+    const endDate =
+      formatDate(employeeAbsence.endDate, 'date.short') || dayjs(employeeAbsence.endDate).format('MMM D, YYYY')
+
+    return {
+      requesterId: requesterUserId,
+      requesterName,
+      prefilledMessage: t('chat-prefilled-message', {
+        requesterName: requesterName || t('chat-fallback-name'),
+        startDate,
+        endDate
+      }),
+      taskContext: {
+        taskType: 'vacation-acknowledgment',
+        absenceId: employeeAbsence.id,
+        startDate: employeeAbsence.startDate,
+        endDate: employeeAbsence.endDate
+      }
+    }
+  }, [
+    isTaskCompleted,
+    requesterUserId,
+    requesterName,
+    employeeAbsence?.startDate,
+    employeeAbsence?.endDate,
+    employeeAbsence?.id,
+    t
+  ])
+
   return (
     <TaskFormLayout
       data-testid="acknowledge-employee-vacation"
@@ -156,6 +203,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
           }
           isLoadingEmployee={isLoadingEmployee}
           creatorName={creatorName}
+          chatWithRequester={chatWithRequester}
           onClose={isEveryBoxContext ? handleClose : undefined}
         />
       }
