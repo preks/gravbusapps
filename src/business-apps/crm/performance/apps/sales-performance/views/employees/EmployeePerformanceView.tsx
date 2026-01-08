@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Spinner, RecordLayout, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { PiUser, PiEnvelope, PiPhone, PiDeviceMobile, PiMapPin } from 'react-icons/pi'
+import { UserIcon, EnvelopeIcon, PhoneIcon, DeviceMobileIcon, MapPinIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useEmployeePerformanceData } from '@/business-apps/crm/performance/apps/sales-team-performance/components/sales-member-performance/hooks/useEmployeePerformanceData'
@@ -103,15 +103,15 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
         {/* Country */}
         {headerData.country && (
           <>
-            <ContactInfoItem icon={PiMapPin} label="Country" value={headerData.country} />
+            <ContactInfoItem icon={MapPinIcon} label="Country" value={headerData.country} />
             <HeaderSeparator />
           </>
         )}
 
         {/* Contact Info */}
-        {headerData.email && <ContactInfoItem icon={PiEnvelope} label="Email" value={headerData.email} />}
-        {headerData.phone && <ContactInfoItem icon={PiPhone} label="Phone" value={headerData.phone} />}
-        {headerData.mobile && <ContactInfoItem icon={PiDeviceMobile} label="Mobile" value={headerData.mobile} />}
+        {headerData.email && <ContactInfoItem icon={EnvelopeIcon} label="Email" value={headerData.email} />}
+        {headerData.phone && <ContactInfoItem icon={PhoneIcon} label="Phone" value={headerData.phone} />}
+        {headerData.mobile && <ContactInfoItem icon={DeviceMobileIcon} label="Mobile" value={headerData.mobile} />}
       </div>
     )
   }, [headerData])
@@ -180,7 +180,7 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
       </style>
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={PiUser}
+        headerIcon={UserIcon}
         headerImageSrc={
           headerData?.pictureThumbnail ? `data:image/jpeg;base64,${headerData.pictureThumbnail}` : undefined
         }

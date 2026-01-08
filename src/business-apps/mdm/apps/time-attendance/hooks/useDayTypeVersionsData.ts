@@ -4,6 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DayTypeVersionResponse, TransformedDayTypeVersion } from '../types/day-type-versions'
 import { FieldTypeOption, FieldTypesCatalogResponse } from '../types/day-type-version-details'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { calculateVersionStatus } from '../utils/calculateVersionStatus'
 
 // GraphQL Query for Day Type Versions
 const GET_DAY_TYPE_VERSIONS_QUERY = `
@@ -77,33 +78,6 @@ export const useDayTypeVersionsData = (context: BusinessAppContextProps): UseDay
   const graphqlClient = useGraphQLClient(context.accessToken)
   const activeUserLocale = getCurrentActiveUserLocale()
 
-  // Calculate status based on activeFrom and activeTo dates
-  const calculateStatus = useCallback(
-    (activeFrom: string | null, activeTo: string | null): 'active' | 'expired' | 'inactive' | 'planned' => {
-      // If either date is missing, consider it inactive
-      if (!activeFrom || !activeTo) {
-        return 'inactive'
-      }
-      const currentDate = new Date()
-      const fromDate = new Date(activeFrom)
-      const toDate = new Date(activeTo)
-
-      // If activeFrom is in the future, it's planned
-      if (currentDate < fromDate) {
-        return 'planned'
-      }
-
-      // If current date is within the range, it's active
-      if (currentDate >= fromDate && currentDate <= toDate) {
-        return 'active'
-      }
-
-      // Otherwise, it's expired
-      return 'expired'
-    },
-    []
-  )
-
   // Transform GraphQL data to final format
   const transformDayTypeVersions = useCallback(
     (rawData: DayTypeVersionResponse['DayTypeVersion']): TransformedDayTypeVersion[] => {
@@ -120,7 +94,7 @@ export const useDayTypeVersionsData = (context: BusinessAppContextProps): UseDay
         color: item.color,
         activeFrom: item.activeFrom,
         activeTo: item.activeTo,
-        status: calculateStatus(item.activeFrom, item.activeTo),
+        status: calculateVersionStatus(item.activeFrom, item.activeTo),
         roundingRule: item.roundingRule,
         incrementType: item.incrementType,
         breakType: item.breakType,
@@ -128,7 +102,7 @@ export const useDayTypeVersionsData = (context: BusinessAppContextProps): UseDay
         version: item.version
       }))
     },
-    [calculateStatus]
+    []
   )
 
   // Transform catalog data to field type options

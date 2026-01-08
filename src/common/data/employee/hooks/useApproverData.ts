@@ -44,6 +44,8 @@ export const useApproverData = ({ accessToken, approverId }: UseApproverDataProp
             Employee(where: {id: {_eq: $approverId}}, limit: 1) {
               id
               displayName
+              firstName
+              lastName
             }
           }
         `
@@ -55,7 +57,11 @@ export const useApproverData = ({ accessToken, approverId }: UseApproverDataProp
         })
 
         if (response.Employee && response.Employee.length > 0) {
-          setApproverName(response.Employee[0].displayName || 'Unknown')
+          const employee = response.Employee[0]
+          // Use same pattern as other HR forms: displayName || firstName + lastName || 'Unknown'
+          const name =
+            employee.displayName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown'
+          setApproverName(name)
         } else {
           setApproverName('Unknown')
         }

@@ -12,7 +12,6 @@ import {
   Card,
   CardContent,
   Spinner,
-  Button,
   Sheet,
   SheetContent,
   SheetHeader,
@@ -33,6 +32,7 @@ import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileS
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
+import { TablePagination } from '../../../../../components'
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[]
@@ -252,6 +252,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       }
     },
     [onTableChange]
+  )
+
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      handleEnhancedTableChange(pagination, {}, {})
+    },
+    [handleEnhancedTableChange]
   )
 
   // Memoize pagination configuration
@@ -588,117 +596,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
             </div>
 
             {/* Pagination */}
-            {totalCount > pageSize ? (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-                data-testid="expense-requests-pagination"
-              >
-                <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_list.flows_button.expense_requests',
-                    'Expense Requests'
-                  )}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                    </p>
-                    <select
-                      value={pageSize}
-                      onChange={e =>
-                        handleEnhancedTableChange({ current: 1, pageSize: Number(e.target.value) }, {}, {})
-                      }
-                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                      data-testid="expense-requests-page-size-select"
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                  <div
-                    className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                    data-testid="expense-requests-page-info"
-                  >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                    {Math.ceil(totalCount / pageSize)}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handleEnhancedTableChange({ current: 1, pageSize }, {}, {})}
-                      disabled={currentPage === 1}
-                      data-testid="expense-requests-first-page-button"
-                    >
-                      <span className="gba:sr-only">Go to first page</span>
-                      ⟨⟨
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
-                      disabled={currentPage === 1}
-                      data-testid="expense-requests-previous-page-button"
-                    >
-                      <span className="gba:sr-only">Go to previous page</span>⟨
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid="expense-requests-next-page-button"
-                    >
-                      <span className="gba:sr-only">Go to next page</span>⟩
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() =>
-                        handleEnhancedTableChange({ current: Math.ceil(totalCount / pageSize), pageSize }, {}, {})
-                      }
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid="expense-requests-last-page-button"
-                    >
-                      <span className="gba:sr-only">Go to last page</span>
-                      ⟩⟩
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-                data-testid="expense-requests-pagination-info-single-page"
-              >
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                  </p>
-                  <select
-                    value={pageSize}
-                    onChange={e => handleEnhancedTableChange({ current: 1, pageSize: Number(e.target.value) }, {}, {})}
-                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                    data-testid="expense-requests-page-size-select-single"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-            )}
+            <TablePagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={totalCount}
+              onPageChange={handleTablePaginationChange}
+              entityNamePlural={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_list.flows_button.expense_requests',
+                'Expense Requests'
+              )}
+              dataTestIdPrefix="expense-requests"
+            />
           </CardContent>
         </Card>
       </div>

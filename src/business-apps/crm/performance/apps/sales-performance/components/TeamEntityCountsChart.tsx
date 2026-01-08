@@ -16,8 +16,7 @@ import {
   IconAvatar
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { ChartBarIcon } from '@phosphor-icons/react'
-import { RefreshCwIcon } from 'lucide-react'
+import { ChartBarIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { type TeamComparisonData, type TeamEntityCountsPoint } from '../types'
 
 interface TeamEntityCountsChartProps {
@@ -89,7 +88,7 @@ export const TeamEntityCountsChart: React.FC<TeamEntityCountsChartProps> = ({
           </Alert>
           {onRetry && (
             <Button variant="outline" size="sm" onClick={onRetry}>
-              <RefreshCwIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+              <ArrowClockwiseIcon className="gba:mr-2 gba:h-4 gba:w-4" />
               Retry
             </Button>
           )}

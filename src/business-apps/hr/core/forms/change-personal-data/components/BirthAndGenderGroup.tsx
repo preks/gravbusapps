@@ -82,6 +82,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
                   placeholder={placeholderSelect}
                   className="gba:w-[100%]"
                   locale={getCurrentActiveUserLocale()}
+                  captionLayout="dropdown"
                 />
               </div>
             </FormControl>

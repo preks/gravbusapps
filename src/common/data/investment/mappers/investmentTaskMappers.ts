@@ -68,8 +68,6 @@ export function toInvestmentTask(base: InvestmentTask): InvestmentTask {
     ...base,
     opportunityStageCondition,
     reference: taskReference,
-    // Alias for task columns compatibility (assignedEmployee → assignedTo)
-    assignedTo: base.assignedEmployee,
     creatorEmployee: base.creatorEmployee
-  } as any
+  } as InvestmentTask
 }

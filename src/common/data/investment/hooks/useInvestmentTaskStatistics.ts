@@ -7,27 +7,39 @@ const GET_INVESTMENT_TASK_STATISTICS = `
   query GetInvestmentTaskStatistics($employeeId: uuid) {
     myTotal: InvestmentTaskAggregate(where: {
       isDeleted: {_eq: false},
-      assignedEmployee: {id: {_eq: $employeeId}}
+      taskAssignees: {
+        assignedEmployeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false}
+      }
     }) {
       aggregate { count }
     }
     myInProgress: InvestmentTaskAggregate(where: {
       isDeleted: {_eq: false},
-      assignedEmployee: {id: {_eq: $employeeId}},
+      taskAssignees: {
+        assignedEmployeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false}
+      },
       taskStatus: {code: {_in: ["IN_PROGRESS", "PENDING"]}}
     }) {
       aggregate { count }
     }
     myCompleted: InvestmentTaskAggregate(where: {
       isDeleted: {_eq: false},
-      assignedEmployee: {id: {_eq: $employeeId}},
+      taskAssignees: {
+        assignedEmployeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false}
+      },
       taskStatus: {code: {_eq: "COMPLETED"}}
     }) {
       aggregate { count }
     }
     myOverdue: InvestmentTaskAggregate(where: {
       isDeleted: {_eq: false},
-      assignedEmployee: {id: {_eq: $employeeId}},
+      taskAssignees: {
+        assignedEmployeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false}
+      },
       taskStatus: {code: {_eq: "OVERDUE"}}
     }) {
       aggregate { count }

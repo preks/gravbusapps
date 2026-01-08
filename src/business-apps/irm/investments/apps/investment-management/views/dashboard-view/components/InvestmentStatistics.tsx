@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { DollarOutlined, RiseOutlined, PercentageOutlined, PieChartOutlined } from '@ant-design/icons'
+import { CurrencyDollarIcon, TrendUpIcon, PercentIcon, ChartPieIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentKPIIntegration } from '../hooks/useInvestmentKPIIntegration'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
@@ -60,7 +60,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       key: 'total-investments',
       title: 'Total Investments',
       value: totalInvestments,
-      prefix: <PieChartOutlined />,
+      prefix: <ChartPieIcon />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'All types',
@@ -74,7 +74,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       key: 'total-invested',
       title: 'Total Invested',
       value: formatCurrencyCompact(totalInvested, selectedCurrency, undefined, 1, true),
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon />,
       color: '#52c41a',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -89,7 +89,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       key: 'average-stake',
       title: 'Average Stake Percentage',
       value: formatPercentage(averageStakePercentage),
-      prefix: <PercentageOutlined />,
+      prefix: <PercentIcon />,
       color: '#faad14',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -104,7 +104,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       key: 'total-market-value',
       title: 'Total Market Value',
       value: formatCurrencyCompact(totalMarketValue, selectedCurrency, undefined, 1, true),
-      prefix: <RiseOutlined />,
+      prefix: <TrendUpIcon />,
       color: '#722ed1',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },

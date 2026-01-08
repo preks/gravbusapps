@@ -44,6 +44,7 @@ export interface ContractTypeTable {
   code: string
   value: string
   description: string | undefined
+  probationPeriod?: string // JSON string: {value: number, unit: string}
 }
 
 export interface ContractTypesTabProps extends BusinessAppContextProps {
@@ -119,6 +120,18 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     setIsDrawerVisible(true)
   }
 
+  const formatProbationPeriod = (additionalValue2?: string): string => {
+    if (!additionalValue2) return '-'
+    try {
+      const parsed = JSON.parse(additionalValue2)
+      if (!parsed.value || !parsed.unit) return '-'
+      const unitLabel = parsed.unit === 'day' ? 'Day(s)' : parsed.unit === 'week' ? 'Week(s)' : 'Month(s)'
+      return `${parsed.value} ${unitLabel}`
+    } catch {
+      return '-'
+    }
+  }
+
   const drawerItems = useMemo(() => {
     if (!selectedType) return []
     const items = [
@@ -137,6 +150,10 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           {
             label: 'Description',
             value: selectedType.additionalValue1 ?? '-'
+          },
+          {
+            label: 'Probation Period',
+            value: formatProbationPeriod(selectedType.additionalValue2)
           }
         ],
         verticalTable: true
@@ -217,6 +234,28 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         }
       },
       {
+        accessorKey: 'probationPeriod',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Probation Period
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const probationPeriod = getValue() as string | undefined
+          return (
+            <div className="gba:flex gba:items-center">
+              <span>{formatProbationPeriod(probationPeriod)}</span>
+            </div>
+          )
+        }
+      },
+      {
         id: 'actions',
         header: () => <div className="gba:flex gba:w-[115px]">Actions</div>,
         enableSorting: false,
@@ -246,7 +285,10 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
               refetch={loadContractTypes}
               accessToken={accessToken}
               prefixDataTestId={prefixDataTestId}
-              contractType={row.original}
+              contractType={{
+                ...row.original,
+                probationPeriod: row.original.probationPeriod
+              }}
             />
             <DeleteButton
               onDelete={() => handleDelete(row.original)}
@@ -262,7 +304,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       id: contractType.id,
       code: contractType.code,
       value: contractType.value,
-      description: contractType.additionalValue1
+      description: contractType.additionalValue1,
+      probationPeriod: contractType.additionalValue2
     }))
 
     return (
@@ -338,7 +381,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
             drawerItems={drawerItems}
             extraContent={
               <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-center gba:gap-2">
-                <Icon icon={TagIcon} className="gba:!w-4 gba:!h-4" />
+                <Icon icon={TagIcon} className="gba:w-4! gba:h-4!" />
                 This contract type can be used to classify employees and job positions.
               </div>
             }
@@ -360,7 +403,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
                   id: selectedType.id,
                   code: selectedType.code,
                   value: selectedType.value,
-                  description: selectedType.additionalValue1
+                  description: selectedType.additionalValue1,
+                  probationPeriod: selectedType.additionalValue2
                 }}
                 isDrawerActive={true}
                 key={selectedType.id}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
-import { Users, FileText, User, DollarSign } from 'lucide-react'
+import { FileTextIcon, UserIcon, UsersIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -174,26 +174,26 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
             value:
               getEmailChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
             value:
               getPhoneChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.birthday', 'Birthday'),
             value: contactData?.birthDate
               ? new Date(contactData.birthDate).toLocaleDateString('en-GB')
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
             value: contactData?.language?.value || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
@@ -202,7 +202,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
               (contactData?.ownerEmployee?.firstName && contactData?.ownerEmployee?.lastName
                 ? `${contactData.ownerEmployee.firstName} ${contactData.ownerEmployee.lastName}`.trim()
                 : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned')),
-            icon: User
+            icon: UserIcon
           }
         ]
       }
@@ -299,7 +299,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-          icon: <User className="gba:mr-2" />,
+          icon: <UserIcon className="gba:mr-2" />,
           content: (
             <HomeView
               contactId={contactId}
@@ -322,7 +322,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <DollarSign className="gba:mr-2" />,
+          icon: <CurrencyDollarIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView contactId={contactId} {...props} />
@@ -332,7 +332,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView contactId={contactId} {...props} />
@@ -396,7 +396,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     <div data-testid="customer-contact-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={User}
+        headerIcon={UserIcon}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
         onBack={onBack}
         headerTitle={headerTitle}

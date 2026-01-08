@@ -2,7 +2,7 @@ import React from 'react'
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { Button, Input, Card, Badge, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { PiPlus, PiTrash, PiCheck, PiX } from 'react-icons/pi'
+import { PlusIcon, TrashIcon, CheckIcon, XIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FieldGroup, FieldDefinition } from '../types'
 import { FieldEditorDialog } from './FieldEditorDialog'
@@ -96,7 +96,7 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
                 onClick={() => handleDeleteGroup(index)}
                 data-testid={`${prefixDataTestId}-delete-group-${index}`}
               >
-                <PiTrash />
+                <TrashIcon />
               </Button>
             )}
           </div>
@@ -112,7 +112,7 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
               className="gba:w-36"
             />
             <Button size="icon" onClick={handleAddGroup} data-testid={`${prefixDataTestId}-confirm-group`}>
-              <PiCheck />
+              <CheckIcon />
             </Button>
             <Button
               size="icon"
@@ -120,7 +120,7 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
               onClick={() => setIsAddingGroup(false)}
               data-testid={`${prefixDataTestId}-cancel-group`}
             >
-              <PiX />
+              <XIcon />
             </Button>
           </div>
         ) : (
@@ -130,7 +130,7 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
             onClick={() => setIsAddingGroup(true)}
             data-testid={`${prefixDataTestId}-add-group-button`}
           >
-            <PiPlus /> Add Group
+            <PlusIcon /> Add Group
           </Button>
         )}
       </div>
@@ -142,11 +142,11 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
             <h3 className="gba:text-lg gba:font-semibold gba:m-0">{currentGroup.groupLabel}</h3>
             <div className="gba:flex gba:gap-2">
               <Button onClick={handleAddField} data-testid={`${prefixDataTestId}-add-field-button`}>
-                <PiPlus /> Add Field
+                <PlusIcon /> Add Field
               </Button>
               {!isInherited && (
                 <Button variant="outline" onClick={handleAddNewRow} data-testid={`${prefixDataTestId}-add-row-button`}>
-                  <PiPlus /> New Row
+                  <PlusIcon /> New Row
                 </Button>
               )}
             </div>

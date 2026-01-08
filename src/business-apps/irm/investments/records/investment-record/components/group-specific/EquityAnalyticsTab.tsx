@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import { TrendingUp, Target, Edit } from 'lucide-react'
+import { TrendUpIcon, TargetIcon, PencilIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action'
@@ -101,7 +101,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
             <div className="gba:flex gba:items-center gba:justify-between">
               <div className="gba:flex gba:items-center gba:gap-3">
                 <div className="gba:p-2 gba:rounded-lg gba:bg-primary/10">
-                  <TrendingUp className="gba:h-6 gba:w-6 gba:text-primary" />
+                  <TrendUpIcon className="gba:h-6 gba:w-6 gba:text-primary" />
                 </div>
                 <div>
                   <CardTitle className="gba:text-lg gba:font-semibold">
@@ -116,7 +116,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                 </div>
               </div>
 
-              {/* Edit Planned MOIC Button */}
+              {/* PencilIcon Planned MOIC Button */}
               <AppAction
                 contextsArray={[FlowContextName.investmentKpiForecastUpdate]}
                 externalContextData={{
@@ -129,8 +129,8 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                 data-testid="moic-edit-action"
               >
                 <Button size="sm" variant="default" type="button" data-testid="moic-edit-button">
-                  <Edit size={16} />
-                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.moic.edit', 'Edit Planned')}
+                  <PencilIcon size={16} />
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.moic.edit', 'PencilIcon Planned')}
                 </Button>
               </AppAction>
             </div>
@@ -166,7 +166,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                   {formatMOIC(plannedMOIC)}
                 </div>
                 <div className="gba:text-xs gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.moic.target', 'Target multiplier')}
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.moic.target', 'TargetIcon multiplier')}
                 </div>
               </div>
             </div>
@@ -189,7 +189,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
             <div className="gba:flex gba:items-center gba:justify-between">
               <div className="gba:flex gba:items-center gba:gap-3">
                 <div className="gba:p-2 gba:rounded-lg gba:bg-success/10">
-                  <Target className="gba:h-6 gba:w-6 gba:text-success" />
+                  <TargetIcon className="gba:h-6 gba:w-6 gba:text-success" />
                 </div>
                 <div>
                   <CardTitle className="gba:text-lg gba:font-semibold">
@@ -204,7 +204,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                 </div>
               </div>
 
-              {/* Edit Planned IRR Button */}
+              {/* PencilIcon Planned IRR Button */}
               <AppAction
                 contextsArray={[FlowContextName.investmentKpiForecastUpdate]}
                 externalContextData={{
@@ -217,8 +217,8 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                 data-testid="irr-edit-action"
               >
                 <Button size="sm" variant="default" type="button" data-testid="irr-edit-button">
-                  <Edit size={16} />
-                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.irr.edit', 'Edit Planned')}
+                  <PencilIcon size={16} />
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.irr.edit', 'PencilIcon Planned')}
                 </Button>
               </AppAction>
             </div>
@@ -250,7 +250,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                   {formatIRR(plannedIRR)}
                 </div>
                 <div className="gba:text-xs gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.irr.target', 'Target return rate')}
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.irr.target', 'TargetIcon return rate')}
                 </div>
               </div>
             </div>
@@ -285,9 +285,9 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
       {/* TODO: KPIs at Entry vs Current - Temporarily hidden
           This chart needs to be updated to use real IRR/MOIC data from the database:
           - Current IRR/MOIC should come from investment.irr and investment.moic fields
-          - Target/Planned IRR/MOIC should come from additionalProperties.kpis
+          - TargetIcon/Planned IRR/MOIC should come from additionalProperties.kpis
           - "At Entry" data should come from the oldest investment report
-          - Remove hardcoded values for Net Debt, Net Debt/EBITDA, Target MOIC, and Target IRR
+          - Remove hardcoded values for Net Debt, Net Debt/EBITDA, TargetIcon MOIC, and TargetIcon IRR
           Re-enable by uncommenting the import and the component below
       */}
       {/* <div className="gba:mb-6">

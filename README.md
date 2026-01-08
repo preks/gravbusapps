@@ -36,6 +36,62 @@ npm run dev
 npm run build
 ```
 
+## Cursor AI Rules
+
+This project uses the `@newwork/cursor-rules` package for centralized AI rules and team commands.
+
+### Automatic Sync
+
+Rules are automatically synced from the package on `npm install` via the postinstall script. No manual action required.
+
+### Configuration
+
+Rule configuration is in `cursor-rules.config.cjs`:
+
+- **Preset**: `business-apps`
+- **Modules**: CRM, HR, FIN, MDM, IRM
+- **Tailwind Prefix**: `gba:`
+- **Design System**: `@newwork/nw-design-system`
+
+### Available Commands
+
+```bash
+# Manually sync rules from package
+npm run rules:sync
+
+# Validate rule configuration
+npm run rules:validate
+
+# Show differences between local and package versions
+npm run rules:diff
+```
+
+### Team Commands in Cursor
+
+The following commands are available in Cursor IDE:
+
+- `/pr` - Generate PR description from changes
+- `/ticket` - Create Jira ticket from conversation
+- `/commit` - Generate conventional commit message
+- `/review` - Get code review feedback
+
+### Documentation
+
+- **Migration Guide**: [docs/cursor-rules-migration.md](./docs/cursor-rules-migration.md)
+- **Archive**: [.cursor-archive/README.md](./.cursor-archive/README.md)
+- **Package Documentation**: `node_modules/@newwork/cursor-rules/README.md`
+
+### Generated Files (Gitignored)
+
+The following directories are auto-generated and should NOT be committed:
+
+- `.cursor/rules/base/` - Core rules from package
+- `.cursor/rules/required/` - Required patterns
+- `.cursor/rules/guidance/` - Best practice guidance
+- `.cursor/rules/filters/` - Filter system rules
+- `.cursor/rules/modules/` - Domain-specific rules (CRM, HR, FIN, MDM, IRM)
+- `.cursor/commands/` - Team commands (pr, ticket, commit, review)
+
 ### Publish a Single Screen to Dev
 
 **Usage:**

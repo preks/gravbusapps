@@ -5,7 +5,7 @@ import {
   exposeRequiredDependencies
 } from '@/common/loaders/remote-component-loader/remoteComponentLoader'
 import { Spinner, Alert, AlertDescription, AlertTitle, Button, useTranslation } from '@newwork/nw-design-system'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw, X } from 'lucide-react'
 import translations from '../_i18n'
 
 // CDN base URLs matching gravity-platform
@@ -53,7 +53,9 @@ interface RemoteScreenLoaderProps extends BusinessAppContextProps {
  * 3. Loads the component's JS and CSS files from CDN
  * 4. Handles chunk loading automatically via window.require
  * 5. Renders the loaded component with proper props
+ * 6. Passes onClose prop to all loaded components (forms decide if/how to use it)
  */
+
 export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   componentPath,
   version,
@@ -70,8 +72,50 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   const [loading, setLoading] = useState(false)
   const [component, setComponent] = useState<React.ComponentType<any> | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [hasTaskHeader, setHasTaskHeader] = useState(false)
   const prevVersionRef = useRef<string | undefined>(undefined)
   const prevCacheKeyRef = useRef<string | undefined>(undefined)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  // Detect if loaded component has TaskDetailHeader using MutationObserver
+  useEffect(() => {
+    if (!wrapperRef.current || !component) return
+
+    const checkForHeader = () => {
+      const header = wrapperRef.current?.querySelector('[data-task-detail-header="true"]')
+      const hasHeader = !!header
+      if (hasHeader !== hasTaskHeader) {
+        setHasTaskHeader(hasHeader)
+      }
+    }
+
+    // Check immediately
+    checkForHeader()
+
+    // Check after a short delay (for async rendering)
+    const timeoutId = setTimeout(checkForHeader, 50)
+
+    // Also check after a longer delay as fallback
+    const fallbackTimeoutId = setTimeout(checkForHeader, 200)
+
+    // Watch for changes in DOM (component might load async)
+    const observer = new MutationObserver(() => {
+      checkForHeader()
+    })
+
+    observer.observe(wrapperRef.current, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-task-detail-header']
+    })
+
+    return () => {
+      clearTimeout(timeoutId)
+      clearTimeout(fallbackTimeoutId)
+      observer.disconnect()
+    }
+  }, [component, hasTaskHeader])
 
   // State for component props - allows hot-swapping token on refresh
   const [componentProps, setComponentProps] = useState<RemoteComponentPassedProps>({
@@ -411,7 +455,27 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   const LoadedComponent = component
 
   return (
-    <div className="gba:animate-in gba:fade-in gba:duration-300 gba:pt-0 gba:px-0 gba:pb-0 gba:relative gba:h-full gba:flex gba:flex-col">
+    <div
+      ref={wrapperRef}
+      className="gba-remote-screen-wrapper gba:animate-in gba:fade-in gba:duration-300 gba:pt-0 gba:px-0 gba:pb-0 gba:relative gba:h-full gba:flex gba:flex-col"
+    >
+      {/* 
+        Floating close button - Only shown if loaded component doesn't have TaskDetailHeader
+        Hidden when hasTaskHeader is true (detected via MutationObserver)
+      */}
+      {!hasTaskHeader && component && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={componentProps.onClose}
+          className="gba-floating-close-button gba:absolute gba:top-2 gba:right-2 gba:z-50 gba:rounded-full gba:hover:bg-muted gba:bg-card/80 gba:backdrop-blur-sm gba:shadow-md"
+          data-testid="remote-screen-close-button"
+          title={t('task-dialog-close', { defaultValue: 'Close' })}
+        >
+          <X className="gba:h-5 gba:w-5" />
+        </Button>
+      )}
+
       <LoadedComponent
         accessToken={componentProps.accessToken}
         userInfo={componentProps.userInfo}

@@ -226,10 +226,21 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, [localTasks, localCompletedTasks])
 
   // Handler to select a task and update URL
-  const handleSelectTask = useCallback((task: UnifiedTask | null) => {
-    setSelectedTask(task)
-    updateTaskUrl(task?.id || null)
-  }, [])
+  // Toggle behavior: clicking on already selected task will deselect it
+  const handleSelectTask = useCallback(
+    (task: UnifiedTask | null) => {
+      // If clicking on the currently selected task, deselect it (close detail panel)
+      if (task && selectedTask?.id === task.id) {
+        setSelectedTask(null)
+        updateTaskUrl(null)
+      } else {
+        // Otherwise, select the new task
+        setSelectedTask(task)
+        updateTaskUrl(task?.id || null)
+      }
+    },
+    [selectedTask]
+  )
 
   // Handler to close task detail
   const handleCloseTask = useCallback(() => {
@@ -397,7 +408,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
       const nextIndex = getNextTaskIndex(currentIndex, direction, tasksToNavigate.length - 1)
       const nextTask = tasksToNavigate[nextIndex]
 
-      if (nextTask) {
+      // Don't call handleSelectTask if we're at a boundary and the task hasn't changed
+      // This prevents the toggle logic from deselecting the current task
+      if (nextTask && nextTask.id !== selectedTask.id) {
         handleSelectTask(nextTask)
       }
     }
@@ -499,11 +512,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:gap-3 gba:h-full gba:overflow-hidden" data-testid="inbox-view">
-      {/* Master Panel - Task List */}
+    <div className="gba:flex gba:h-full gba:overflow-hidden" data-testid="inbox-view">
+      {/* Master Panel - Task List (hidden on mobile/tablet when task selected) */}
       <div
-        className={`gba:flex gba:flex-col gba:gap-3 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
-          selectedTask ? 'gba:w-[40%]' : 'gba:w-full'
+        className={`gba:gap-3 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
+          selectedTask
+            ? 'gba:hidden gba:lg:flex gba:lg:flex-col gba:lg:w-[calc(40%-12px)] gba:lg:flex-shrink-0'
+            : 'gba:flex gba:flex-col gba:w-full'
         }`}
       >
         {/* New Tasks Notification Banner */}
@@ -567,8 +582,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
 
         {/* Task Type Filters */}
-        <ScrollArea className="gba:-mx-3">
-          <div className="gba:px-3">
+        <div className="gba:px-3">
+          <ScrollArea className="gba:-mx-3">
             <TabSwitch value={filterType} onValueChange={value => setFilterType(value as TaskFilterType)}>
               <TabSwitchList data-testid="inbox-filter-buttons">
                 <TabSwitchTrigger
@@ -625,9 +640,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 </TabSwitchTrigger>
               </TabSwitchList>
             </TabSwitch>
-          </div>
-          <ScrollBar orientation="horizontal" className="gba:opacity-50" />
-        </ScrollArea>
+            <ScrollBar orientation="horizontal" className="gba:opacity-50" />
+          </ScrollArea>
+        </div>
 
         {/* Error Alert */}
         {currentError && (
@@ -643,7 +658,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             <EmptyState type="inbox" message={getEmptyStateMessage(searchQuery, filterType)} />
           ) : (
             <>
-              <div className="gba:divide-y gba:divide-border/50" data-testid="inbox-task-list">
+              <div data-testid="inbox-task-list">
                 {filteredTasks.map(task => (
                   <TaskCard
                     key={task.id}
@@ -686,12 +701,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
       </div>
 
-      {/* Detail Panel - Task Details */}
+      {/* Detail Panel - Task Details (full-width on mobile/tablet, 60% on desktop ≥1024px) */}
       <div
-        className={`gba:flex-1 gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
+        className={`gba:flex gba:flex-col gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
           selectedTask
-            ? 'gba:translate-x-0 gba:opacity-100 gba:w-[60%]'
-            : 'gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
+            ? 'gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
+            : 'gba:hidden gba:lg:flex gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
         }`}
       >
         {selectedTask && (

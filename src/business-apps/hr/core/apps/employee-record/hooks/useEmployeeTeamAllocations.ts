@@ -51,13 +51,28 @@ interface EmployeeProjectWorkingHoursResponse {
 }
 
 /**
- * Parse duration text like "4h 15m" or "8h" into hours (decimal)
+ * Parse duration text into hours (decimal)
+ * Supports formats:
+ * - "HH:MM" (e.g., "04:30" -> 4.5)
+ * - "Xh Ym" (e.g., "4h 30m" -> 4.5)
+ * - "Xh" (e.g., "8h" -> 8)
  */
 const parseEffectiveTimeToHours = (text?: string): number => {
   if (!text) return 0
+  const trimmed = String(text).trim()
+
+  // Try HH:MM format first
+  if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
+    const [h, m] = trimmed.split(':').map(Number)
+    if (!Number.isNaN(h) && !Number.isNaN(m)) {
+      return h + m / 60
+    }
+  }
+
+  // Fall back to "Xh Ym" format
   let hours = 0
   let minutes = 0
-  const tokens = String(text).trim().split(/\s+/)
+  const tokens = trimmed.split(/\s+/)
   for (const token of tokens) {
     if (/^\d+h$/i.test(token)) {
       hours = Number.parseInt(token.slice(0, -1), 10) || 0
@@ -177,10 +192,6 @@ const GET_EMPLOYEE_PROJECT_WORKING_HOURS = `
   }
 `
 
-/**
- * Hook to fetch employee's team allocations (matrix units)
- * In the future, this will also filter by projectAssignmentId when team-project relationship is implemented
- */
 export interface HistoricalProject {
   projectId: string
   projectName: string
@@ -283,7 +294,14 @@ export const useEmployeeTeamAllocations = ({
    */
   const fetchBookedHours = useCallback(
     async (weekDays: Date[], currentAllocations: TeamAllocation[]) => {
+      // Validate employeeId before making any requests
+      if (!employeeId || employeeId === '') {
+        setError('Employee ID is missing')
+        return
+      }
+
       setIsLoadingWeekData(true)
+      setError(null)
       // Reset old data immediately to prevent flicker with stale data
       setBookedHours({})
       setRecordedHoursByDate({})
@@ -381,7 +399,9 @@ export const useEmployeeTeamAllocations = ({
           setHistoricalProjects([])
         }
       } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load week data'
         console.error('Error fetching booked hours:', err)
+        setError(errorMessage)
         setBookedHours({})
         setHistoricalProjects([])
         setRecordedHoursByDate({})
@@ -393,30 +413,18 @@ export const useEmployeeTeamAllocations = ({
   )
 
   useEffect(() => {
-    if (employeeId && structureId) {
+    if (structureId) {
       fetchTeamAllocations()
     }
   }, [employeeId, structureId, fetchTeamAllocations])
 
   /**
-   * Format hours to text format (e.g., 8.5 -> "8h 30m", 8 -> "8h")
-   */
-  const formatHoursToText = (hours: number): string => {
-    const wholeHours = Math.floor(hours)
-    const minutes = Math.round((hours - wholeHours) * 60)
-    if (minutes === 0) {
-      return `${wholeHours}h`
-    }
-    return `${wholeHours}h ${minutes}m`
-  }
-
-  /**
    * Submit working hours for a week
-   * @param weekBookings - Array of bookings with days containing hours
+   * @param weekBookings - Array of bookings with days containing time strings in HH:MM format
    */
   const submitWorkingHours = useCallback(
     async (
-      weekBookings: Array<{ teamId: string; projectId: string; days: Array<{ date: string; hours: number }> }>
+      weekBookings: Array<{ teamId: string; projectId: string; days: Array<{ date: string; timeString: string }> }>
     ) => {
       setIsSubmitting(true)
       setError(null)
@@ -442,8 +450,8 @@ export const useEmployeeTeamAllocations = ({
 
           for (const day of booking.days) {
             const workingDate = dayjs(day.date).format('YYYY-MM-DD')
-            const actualHours = day.hours
-            const plannedHours = actualHours // For now, use actual hours as planned
+            // Send time directly in HH:MM format
+            const timeValue = day.timeString || '00:00'
 
             promises.push(
               restClient.post(
@@ -453,8 +461,8 @@ export const useEmployeeTeamAllocations = ({
                     employee: employeeId,
                     project: booking.projectId,
                     workingDate,
-                    plannedWorkingHours: formatHoursToText(plannedHours),
-                    actualWorkingHours: formatHoursToText(actualHours)
+                    plannedWorkingHours: timeValue,
+                    actualWorkingHours: timeValue
                   }
                 },
                 { headers }

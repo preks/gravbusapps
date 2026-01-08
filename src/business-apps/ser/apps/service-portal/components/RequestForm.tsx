@@ -49,6 +49,7 @@ import { getCategoryIcon } from '../../../utils/iconMapping'
 import { useRealEmployeeData, getEmployeeOptions } from '../hooks/useRealEmployeeData'
 import { flowbotClient } from '@/common/network/flowbot'
 import { parseMarkdownForReact } from '@/common/utils/markdownUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { DataSourceSelect } from './DataSourceSelect'
 import { DataSourceMultiSelect } from './DataSourceMultiSelect'
 import { MessageRenderer } from '../../../components/MessageRenderer'
@@ -548,7 +549,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
         payload: {
           apiCall: {
             endpoint: 'POST /flowbot/services/quick-tips-for-ticket/',
-            baseUrl: 'https://newwork-dev.newwork.com/flowbot'
+            baseUrl: resolveFlowbotBaseUrl()
           },
           error: errorMessage,
           ticketData
@@ -782,7 +783,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
                               id={field.name}
                               value={formData[field.name] || ''}
                               onChange={value => handleFieldChange(field.name, value)}
-                              dataSource={field.dataSource!}
+                              dataSource={field.dataSource?.type === 'ENTITY' ? field.dataSource : undefined}
                               accessToken={contextProps.accessToken}
                               placeholder={field.placeholder || `Search ${field.label}...`}
                               required={field.required}
@@ -892,7 +893,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
                               id={field.name}
                               value={Array.isArray(formData[field.name]) ? formData[field.name] : []}
                               onChange={values => handleFieldChange(field.name, values)}
-                              dataSource={field.dataSource!}
+                              dataSource={field.dataSource?.type === 'ENTITY' ? field.dataSource : undefined}
                               accessToken={contextProps.accessToken}
                               placeholder={field.placeholder || `Search ${field.label}...`}
                               required={field.required}

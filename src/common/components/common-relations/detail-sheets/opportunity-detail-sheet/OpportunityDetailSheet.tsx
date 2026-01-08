@@ -26,7 +26,6 @@ import {
   CalendarIcon,
   UserIcon,
   ArrowSquareOutIcon,
-  BuildingsIcon,
   CurrencyCircleDollarIcon,
   ChartLineUpIcon,
   ClockCounterClockwiseIcon,
@@ -45,7 +44,6 @@ interface OpportunityDetailSheetProps {
   opportunity: Opportunity | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  buildAccountUrl?: (accountId: string) => string
   buildLeadUrl?: (leadId: string) => string
   buildContactUrl?: (contactId: string) => string
   'data-testid'?: string
@@ -78,7 +76,6 @@ export const OpportunityDetailSheet: React.FC<OpportunityDetailSheetProps> = ({
   opportunity,
   open,
   onOpenChange,
-  buildAccountUrl,
   buildLeadUrl,
   buildContactUrl,
   'data-testid': dataTestId
@@ -97,7 +94,6 @@ export const OpportunityDetailSheet: React.FC<OpportunityDetailSheetProps> = ({
           {opportunity ? (
             <OpportunityDetailContent
               opportunity={opportunity}
-              buildAccountUrl={buildAccountUrl}
               buildLeadUrl={buildLeadUrl}
               buildContactUrl={buildContactUrl}
               data-testid={dataTestId}
@@ -116,7 +112,6 @@ export const OpportunityDetailSheet: React.FC<OpportunityDetailSheetProps> = ({
  */
 interface OpportunityDetailContentProps {
   opportunity: Opportunity
-  buildAccountUrl?: (accountId: string) => string
   buildLeadUrl?: (leadId: string) => string
   buildContactUrl?: (contactId: string) => string
   'data-testid'?: string
@@ -124,7 +119,6 @@ interface OpportunityDetailContentProps {
 
 const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
   opportunity,
-  buildAccountUrl,
   buildLeadUrl,
   buildContactUrl,
   'data-testid': dataTestId
@@ -151,19 +145,6 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
     if (!employeeId) return
     const url = buildPlatformUrl('/platform/employee-record', { employeeId })
     navigateTo(url)
-  }
-
-  const handleAccountClick = () => {
-    if (!opportunity.account?.id) return
-
-    if (buildAccountUrl) {
-      navigateTo(buildAccountUrl(opportunity.account.id))
-    } else {
-      // Default URL based on sourceApp
-      const basePath = opportunity.sourceApp === 'IRM' ? '/platform/irm/account-record' : '/platform/crm/account-record'
-      const url = buildPlatformUrl(basePath, { accountId: opportunity.account.id })
-      navigateTo(url)
-    }
   }
 
   const handleLeadClick = () => {
@@ -287,32 +268,6 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
                 </Tooltip>
               ) : (
                 <span className="gba:text-sm gba:text-muted-foreground gba:px-2 gba:py-1">{t('unassigned')}</span>
-              )}
-            </FieldRow>
-
-            {/* Account */}
-            <FieldRow
-              icon={BuildingsIcon}
-              label={t('account')}
-              testId={`${dataTestId || DATA_TEST_ID_PREFIX}-account-field`}
-            >
-              {opportunity.account ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px] gba:bg-transparent gba:border-none gba:font-inherit gba:text-inherit"
-                      onClick={handleAccountClick}
-                      data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-account-link`}
-                    >
-                      <span className="gba:text-sm gba:font-medium">{opportunity.account.name}</span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('view-account-record')}</TooltipContent>
-                </Tooltip>
-              ) : (
-                <span className="gba:text-sm gba:text-muted-foreground">{t('no-account')}</span>
               )}
             </FieldRow>
 

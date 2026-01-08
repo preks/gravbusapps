@@ -1,5 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
+import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
+import { ThumbsUp, ThumbsDown } from 'lucide-react'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import type {
   OutputItem,
   AnswerOutput,
@@ -22,6 +25,7 @@ import WorkflowDisplay from './entities/WorkflowDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FlowProposalBoundaryProps {
   data: FlowProposalOutput
@@ -135,10 +139,10 @@ class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, Fl
 }
 
 // Premium Loading Display with AI animation
-export const LoadingDisplay: React.FC = () => {
+export const LoadingDisplay: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
   return (
     <div
-      className="gba:flex gba:items-center gba:gap-4 gba:p-6 gba:rounded-2xl gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border gba:border-border"
+      className="gba:flex gba:items-center gba:justify-between gba:gap-4 gba:p-6 gba:rounded-2xl gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border gba:border-border"
       data-testid="loading-display"
     >
       <div className="gba:flex gba:items-center gba:gap-2">
@@ -155,6 +159,25 @@ export const LoadingDisplay: React.FC = () => {
       <span className="gba:text-sm gba:text-muted-foreground gba:font-medium gba:animate-pulse">
         EveryAI is thinking...
       </span>
+      {onCancel && (
+        <button
+          onClick={onCancel}
+          className="gba:flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:bg-destructive/10 hover:gba:bg-destructive/20 gba:transition-colors gba:flex-shrink-0"
+          data-testid="cancel-generation-button"
+          title="Cancel generation"
+          aria-label="Cancel generation"
+        >
+          <svg
+            className="gba:h-4 gba:w-4 gba:text-destructive"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
@@ -237,23 +260,31 @@ const normalizeLinkSpacing = (input: string): string => {
 
 export const TextBlockDisplay: React.FC<{ data: TextBlockData; accessToken: string }> = ({ data, accessToken }) => {
   const content = normalizeLinkSpacing(data.text)
+
+  // NOTE: Copy behaviour for AI answers is now handled once at the AnswerOutput level
+  // (see AnswerOutputRenderer / agent-message-copy-button). We deliberately keep this
+  // component focused on rendering the text only so the UI is consistent: one copy
+  // button per AI message, just like in OpenAI Chat.
+
   return (
-    <div className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground" data-testid="text-block-display">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          ul: ({ ...props }) => <ul className="gba:list-disc gba:ml-6" {...props} />,
-          ol: ({ ...props }) => <ol className="gba:list-decimal gba:ml-6" {...props} />,
-          a: ({ href, children, ...props }) => (
-            <EntityLink href={href} accessToken={accessToken} {...props}>
-              {children}
-            </EntityLink>
-          )
-        }}
-        urlTransform={markdownUrlTransform}
-      >
-        {content}
-      </ReactMarkdown>
+    <div className="gba:relative" data-testid="text-block-display">
+      <div className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            ul: ({ ...props }) => <ul className="gba:list-disc gba:ml-6" {...props} />,
+            ol: ({ ...props }) => <ol className="gba:list-decimal gba:ml-6" {...props} />,
+            a: ({ href, children, ...props }) => (
+              <EntityLink href={href} accessToken={accessToken} {...props}>
+                {children}
+              </EntityLink>
+            )
+          }}
+          urlTransform={markdownUrlTransform}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
     </div>
   )
 }
@@ -823,8 +854,27 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
   }
 }
 
+// Extract text from answer output for copying
+function extractTextFromAnswerOutput(data: AnswerOutput): string {
+  const textParts: string[] = []
+  data.displayData.forEach(item => {
+    if (item.type === 'textBlock' && item.text) {
+      textParts.push(item.text)
+    }
+  })
+  return textParts.join('\n\n')
+}
+
 // Answer Output Renderer
-export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: string }> = ({ data, accessToken }) => {
+export const AnswerOutputRenderer: React.FC<{
+  data: AnswerOutput
+  accessToken: string
+  sessionId?: string
+}> = ({ data, accessToken, sessionId }) => {
+  const [copied, setCopied] = useState(false)
+  const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false)
+
   // Deduplicate reminder entities to prevent double display
   const deduplicatedData = data.displayData.filter((item, idx, arr) => {
     // If this is a reminder entity, check if it's a duplicate
@@ -839,13 +889,164 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
     return true
   })
 
+  const textToCopy = extractTextFromAnswerOutput(data)
+  const hasTextToCopy = textToCopy.trim().length > 0
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!hasTextToCopy) return
+    try {
+      await navigator.clipboard.writeText(textToCopy)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy text:', err)
+    }
+  }
+
   return (
-    <div className="gba:flex gba:flex-col gba:gap-6 gba:w-full" data-testid="answer-output-renderer">
+    <div
+      className="gba:relative gba:group gba:flex gba:flex-col gba:gap-6 gba:w-full"
+      data-testid="answer-output-renderer"
+    >
       {deduplicatedData.map((item, idx) => (
         <div key={idx} className="gba:pt-1">
           {renderDisplayData(item, idx, accessToken)}
         </div>
       ))}
+      <div className="gba:absolute gba:top-full gba:left-0 gba:mt-1 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="gba:h-7 gba:w-7 gba:p-0"
+          onClick={handleCopy}
+          disabled={!hasTextToCopy}
+          data-testid="agent-message-copy-button"
+          aria-label={
+            copied
+              ? getTranslationFromI18nKeyAndLabel('everyAI.message.copy.copied', 'Message copied')
+              : getTranslationFromI18nKeyAndLabel('everyAI.message.copy.label', 'Copy message')
+          }
+        >
+          {copied ? (
+            <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+          ) : (
+            <CopyIcon className="gba:h-4 gba:w-4" />
+          )}
+        </Button>
+
+        {sessionId && (
+          <>
+            {/* Like button: visible unless current feedback is 'dislike' */}
+            {feedback !== 'dislike' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-7 gba:w-7 gba:p-0"
+                disabled={isSendingFeedback}
+                onClick={async e => {
+                  e.stopPropagation()
+                  if (!sessionId) return
+
+                  const isSame = feedback === 'like'
+                  const nextFeedback = isSame ? null : 'like'
+                  setFeedback(nextFeedback)
+
+                  if (!nextFeedback) {
+                    // User cleared feedback – do not send anything to backend
+                    return
+                  }
+
+                  setIsSendingFeedback(true)
+                  try {
+                    const baseUrl = resolveFlowbotBaseUrl()
+                    await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`
+                      },
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        message_id: null,
+                        feedback: 'like',
+                        source: 'every-ai',
+                        assistant: 'Every'
+                      })
+                    })
+                  } catch (error) {
+                    console.error('[EveryAI] Failed to send like feedback:', error)
+                  } finally {
+                    setIsSendingFeedback(false)
+                  }
+                }}
+                data-testid="everyai-feedback-like-button"
+                aria-label="Like this AI response"
+              >
+                <ThumbsUp
+                  className={`gba:h-4 gba:w-4 ${
+                    feedback === 'like' ? 'gba:text-foreground gba:fill-current' : 'gba:text-muted-foreground'
+                  }`}
+                />
+              </Button>
+            )}
+
+            {/* Dislike button: visible unless current feedback is 'like' */}
+            {feedback !== 'like' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-7 gba:w-7 gba:p-0"
+                disabled={isSendingFeedback}
+                onClick={async e => {
+                  e.stopPropagation()
+                  if (!sessionId) return
+
+                  const isSame = feedback === 'dislike'
+                  const nextFeedback = isSame ? null : 'dislike'
+                  setFeedback(nextFeedback)
+
+                  if (!nextFeedback) {
+                    // User cleared feedback – do not send anything to backend
+                    return
+                  }
+
+                  setIsSendingFeedback(true)
+                  try {
+                    const baseUrl = resolveFlowbotBaseUrl()
+                    await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`
+                      },
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        message_id: null,
+                        feedback: 'dislike',
+                        source: 'every-ai',
+                        assistant: 'Every'
+                      })
+                    })
+                  } catch (error) {
+                    console.error('[EveryAI] Failed to send dislike feedback:', error)
+                  } finally {
+                    setIsSendingFeedback(false)
+                  }
+                }}
+                data-testid="everyai-feedback-dislike-button"
+                aria-label="Dislike this AI response"
+              >
+                <ThumbsDown
+                  className={`gba:h-4 gba:w-4 ${
+                    feedback === 'dislike' ? 'gba:text-foreground gba:fill-current' : 'gba:text-muted-foreground'
+                  }`}
+                />
+              </Button>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -857,14 +1058,26 @@ export const OutputItemRenderer: React.FC<{
   sendMessage?: (message: string, files: File[]) => void
   conversation?: ConversationTurn[]
   isVoiceMode?: boolean
-}> = ({ item, accessToken, sendMessage, conversation, isVoiceMode = false }) => {
+  sessionId?: string
+  onCancelGeneration?: () => void
+  isAgentGenerating?: boolean
+}> = ({
+  item,
+  accessToken,
+  sendMessage,
+  conversation,
+  isVoiceMode = false,
+  sessionId,
+  onCancelGeneration,
+  isAgentGenerating
+}) => {
   switch (item.type) {
     case 'answer':
-      return <AnswerOutputRenderer data={item} accessToken={accessToken} />
+      return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
     case 'loading':
-      return <LoadingDisplay />
+      return <LoadingDisplay onCancel={onCancelGeneration} />
     case 'error':
       return <ErrorDisplay text={item.text} />
     case 'flow_proposal':
@@ -884,6 +1097,7 @@ export const OutputItemRenderer: React.FC<{
             accessToken={accessToken}
             conversation={conversation}
             isVoiceMode={isVoiceMode}
+            isAgentGenerating={isAgentGenerating}
           />
         </FlowProposalBoundary>
       )

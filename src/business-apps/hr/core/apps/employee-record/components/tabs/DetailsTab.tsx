@@ -4,7 +4,7 @@ import React from 'react'
 import dayjs from 'dayjs'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
-import { formatPhoneNumber, formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
+import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -197,7 +197,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
       },
       {
         label: 'Phone Number',
-        value: contact?.phoneNumber ? formatPhoneNumber(contact.phoneNumber) : ''
+        value: contact?.phoneNumber ? formatPhoneNumberWithCountryCode(contact.phoneNumber) : ''
       }
     ])
   }
