@@ -18,25 +18,31 @@ import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragment
 
 /**
  * Query for current employee compensation
- * Fetches from EmployeeSalary (latest active salary) and CompensationBand
+ * Fetches from EmployeeSalary (latest active APPROVED salary) and CompensationBand
  *
  * Logic:
- * 1. Fetches all non-deleted salaries for the employee, ordered by activeFrom DESC, then createdAt DESC
- * 2. Client-side filtering selects active salary (activeFrom <= now AND activeTo >= now OR activeTo IS NULL)
- * 3. Falls back to most recent salary if no active salary found
- * 4. Shows "No active salary configured" message if no salaries exist
+ * 1. Filters by requestStatus = "APPROVED_SALARY_ADJUSTMENT" (only approved salaries)
+ * 2. Filters by isDeleted = false (exclude soft-deleted records)
+ * 3. Filters by date: startDate <= today AND (endDate IS NULL OR endDate >= today)
+ * 4. Orders by startDate DESC to get the most recent active salary
+ * 5. Limits to 1 record for efficiency (server-side filtering)
+ * 6. Shows "No active salary configured" message if no approved active salary exists
  */
 export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
-  query GetEmployeeCompensationData($employeeId: uuid!) {
+  query GetEmployeeCompensationData($employeeId: uuid!, $today: date!) {
     # EmployeeSalary - Contains salary data
-    # Note: isDeleted filtering is done client-side to handle all edge cases
-    # Ordering ensures most recent/active salaries are first
+    # Server-side filtering for efficiency: only approved, active salaries
+    # Note: endDate filter uses _not with _lt to include both null values and dates >= today
     AllEmployeeSalaries: EmployeeSalary(
       where: {
         employeeId: {_eq: $employeeId}
         isDeleted: {_eq: false}
+        requestStatus: {_eq: "APPROVED_SALARY_ADJUSTMENT"}
+        startDate: {_lte: $today}
+        _not: {endDate: {_lt: $today}}
       }
-      orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+      orderBy: [{startDate: DESC}, {createdAt: DESC}]
+      limit: 1
     ) {
       id
       employeeId
@@ -54,6 +60,7 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       activeTo
       startDate
       endDate
+      requestStatus
       createdAt
       isDeleted
     }
@@ -162,18 +169,20 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
 
 /**
  * Query for employee compensation history
- * Fetches all historical salary records and bonus records
+ * Fetches all historical APPROVED salary records and bonus records
  */
 export const GET_EMPLOYEE_COMPENSATION_HISTORY = /*sql*/ `
   query GetEmployeeCompensationHistory($employeeId: uuid!) {
     # Historical salary records with salary changes
-    # Ordering: NULLS_LAST ensures null activeFrom goes to end for consistent fallback behavior
+    # Only show approved salaries in history
+    # Ordering: DESC_NULLS_LAST ensures null startDate goes to end for consistent fallback behavior
     AllEmployeeSalaries: EmployeeSalary(
       where: {
         employeeId: {_eq: $employeeId}
         isDeleted: {_eq: false}
+        requestStatus: {_eq: "APPROVED_SALARY_ADJUSTMENT"}
       }
-      orderBy: [{activeFrom: DESC_NULLS_LAST}, {createdAt: DESC}]
+      orderBy: [{startDate: DESC_NULLS_LAST}, {createdAt: DESC}]
     ) {
       id
       employeeId
@@ -191,6 +200,7 @@ export const GET_EMPLOYEE_COMPENSATION_HISTORY = /*sql*/ `
       activeTo
       startDate
       endDate
+      requestStatus
       createdAt
     }
     

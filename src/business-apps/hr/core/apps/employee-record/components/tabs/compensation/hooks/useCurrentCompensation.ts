@@ -20,16 +20,17 @@ import {
  * Hook to fetch and manage current employee compensation data
  *
  * Fetches:
- * - Current salary from EmployeeSalary (active salary, or most recent as fallback)
+ * - Current salary from EmployeeSalary (APPROVED active salary based on startDate/endDate)
  * - Compensation band from CompensationBand via EmployeePosition
  * - Current year bonuses from EmployeeBonus
  * - Active benefits from EmployeeBenefit
  *
- * Salary selection logic:
- * 1. Filters out deleted records (isDeleted = false)
- * 2. Finds active salary where activeFrom <= now AND activeTo >= now (or null)
- * 3. Falls back to most recent salary if no active salary found
- * 4. Returns null if no salaries exist (UI will show "No active salary configured")
+ * Salary selection logic (SERVER-SIDE):
+ * 1. Filters by requestStatus = "APPROVED_SALARY_ADJUSTMENT" (only approved salaries)
+ * 2. Filters out deleted records (isDeleted = false)
+ * 3. Filters by date: startDate <= today AND (endDate IS NULL OR endDate >= today)
+ * 4. Orders by startDate DESC, returns most recent (limit: 1)
+ * 5. Returns null if no approved active salary exists (UI shows "No active salary configured")
  *
  * @param employeeId - The employee ID to fetch data for
  * @param accessToken - Access token for API authentication
@@ -59,9 +60,14 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       setLoading(true)
       setError(null)
 
+      // Get today's date in ISO format (YYYY-MM-DD) for server-side filtering
+      const today = new Date().toISOString().split('T')[0]
+
       // Fetch current compensation data from GraphQL
+      // Server-side filtering ensures we only get APPROVED active salary
       const result = await graphqlClient.request<EmployeeSalaryResponse>(GET_EMPLOYEE_COMPENSATION_DATA, {
-        employeeId
+        employeeId,
+        today
       })
 
       // Validate response
@@ -69,41 +75,16 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
         throw new Error('No data received from server')
       }
 
-      // Get all employee salaries from EmployeeSalary table
+      // Get employee salary from EmployeeSalary table
+      // Query already filtered and limited to 1 record (most recent approved active salary)
       const allEmployeeSalaries: EmployeeSalary[] = result?.AllEmployeeSalaries || []
 
-      // Filter out deleted records client-side
-      const nonDeletedSalaries = allEmployeeSalaries.filter(salary => !salary.isDeleted)
-
-      // Current timestamp for active salary filtering
-      const nowDate = new Date()
-
-      // Find active salary: activeFrom <= now AND activeTo >= now (or null)
-      const activeSalary = nonDeletedSalaries.find(salary => {
-        const activeFrom = salary.activeFrom ? new Date(salary.activeFrom) : null
-        const activeTo = salary.activeTo ? new Date(salary.activeTo) : null
-
-        // Null activeFrom means always valid from beginning
-        // Null activeTo means never expires
-        const isActiveFrom = !activeFrom || activeFrom <= nowDate
-        const isActiveTo = !activeTo || activeTo >= nowDate
-
-        return isActiveFrom && isActiveTo
-      })
-
-      // Sort by activeFrom descending (most recent first), handling null dates
-      // Creating a copy with spread operator before sorting to avoid mutating nonDeletedSalaries
-      const sortedSalaries = [...nonDeletedSalaries].sort((a, b) => {
-        const dateA = a.activeFrom ? new Date(a.activeFrom).getTime() : 0
-        const dateB = b.activeFrom ? new Date(b.activeFrom).getTime() : 0
-        return dateB - dateA
-      })
-
-      // Fallback: Most recent salary (even if expired)
-      const recentSalary = sortedSalaries[0] || null
-
-      // Prefer active salary, fallback to most recent
-      const employeeSalary: EmployeeSalary | null = activeSalary || recentSalary || null
+      // Take the first (and only) result - server already filtered for:
+      // - requestStatus = "APPROVED_SALARY_ADJUSTMENT"
+      // - isDeleted = false
+      // - startDate <= today AND (endDate IS NULL OR endDate >= today)
+      // - Ordered by startDate DESC (most recent first)
+      const employeeSalary: EmployeeSalary | null = allEmployeeSalaries[0] || null
 
       // Extract and transform compensation band
       const employeePosition = result?.EmployeePosition?.[0]
