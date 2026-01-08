@@ -10,7 +10,7 @@ import {
   TabsContent,
   Badge
 } from '@newwork/nw-design-system'
-import { PiUsers } from 'react-icons/pi'
+import { UsersIcon } from '@phosphor-icons/react'
 import { EntitiesOwned, EntityType } from '../../types'
 import { EmployeeAccountsTab } from './EmployeeAccountsTab'
 import { EmployeeContactsTab } from './EmployeeContactsTab'
@@ -121,7 +121,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({ empl
     <Card key={`entities-owned-${employeeId}`} className="gba:w-full" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       <CardHeader>
         <CardTitle data-testid={`${DATA_TEST_ID_PREFIX}-title`} className="gba:flex gba:items-center gba:gap-2">
-          <PiUsers className="gba:text-black" size={20} />
+          <UsersIcon className="gba:text-black" size={20} />
           Entities Owned
         </CardTitle>
       </CardHeader>

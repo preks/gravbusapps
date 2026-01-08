@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   LauncherLayout,
   type LauncherSectionConfig,
-  type NavigationCardData,
+  type NavigationCardInput,
   type KpiData,
   type QuickActionData,
   Spinner,
@@ -19,9 +19,9 @@ import {
   LightningIcon,
   PresentationChartIcon,
   UsersThreeIcon,
-  LightbulbIcon
+  LightbulbIcon,
+  ArrowClockwiseIcon
 } from '@phosphor-icons/react'
-import { RefreshCwIcon } from 'lucide-react'
 
 type CeoHubProps = BusinessAppContextProps
 
@@ -76,14 +76,14 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
         id: 'pipeline-revenue',
         title: 'Pipeline Revenue',
         value: isLoading ? '...' : formatCurrency(stats.pipelineValue),
-        color: 'info'
+        color: 'primary'
       }
     ]
   }, [stats, isLoading, error])
 
   // Generate sections for LauncherLayout
   const sections = useMemo((): LauncherSectionConfig[] => {
-    const cards: NavigationCardData[] = [
+    const cards: NavigationCardInput[] = [
       {
         id: 'sales-activity-360',
         title: 'Sales Activity 360°',
@@ -239,7 +239,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
               {error}
               <div className="gba:mt-4">
                 <Button size="sm" variant="outline" onClick={refetch}>
-                  <RefreshCwIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                  <ArrowClockwiseIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                   Retry
                 </Button>
               </div>
@@ -260,7 +260,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
       quickActions={quickActions}
       quickActionsTitle="Executive Quick Actions"
       quickActionsDescription="Fast access to critical strategic views"
-      variant="premium"
+      variant="default"
       data-testid={DATA_TEST_ID_PREFIX}
     />
   )

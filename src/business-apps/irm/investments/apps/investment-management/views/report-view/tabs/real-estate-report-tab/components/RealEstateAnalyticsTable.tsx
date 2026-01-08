@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, Alert } from '@newwork/nw-design-system'
-import { Building2, RefreshCw } from 'lucide-react'
+import { BuildingsIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { RealEstateReportFilters } from '../types'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
@@ -318,7 +318,7 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
         width: '200px',
         render: (record: any) => (
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--nw-spacing-2)' }}>
-            <Building2
+            <BuildingsIcon
               style={{
                 width: 'var(--nw-spacing-4)',
                 height: 'var(--nw-spacing-4)',
@@ -401,7 +401,7 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
               )}
             </div>
             <Button variant="outline" size="sm" onClick={refetch}>
-              <RefreshCw style={{ height: 'var(--nw-spacing-4)', width: 'var(--nw-spacing-4)' }} />
+              <ArrowsClockwiseIcon style={{ height: 'var(--nw-spacing-4)', width: 'var(--nw-spacing-4)' }} />
             </Button>
           </div>
         </Alert>

@@ -2206,6 +2206,33 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     }
   }
 
+  /**
+   * Get a single template by ID with all resolved data including catalog options
+   */
+  async getTemplateById(templateId: string): Promise<any> {
+    try {
+      const response = await fetch(`${this.flowEngineBaseUrl}/templates/${templateId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      const template = result.template || result.data || result
+
+      return template
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting template by ID:', error)
+      throw new Error(`Failed to get template: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   // =================================================================================
   // MANAGER ANALYTICS METHODS - Custom Flow Engine Analytics API Integration
   // =================================================================================

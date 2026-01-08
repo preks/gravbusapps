@@ -15,7 +15,7 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { PieChart, Pie, Cell } from 'recharts'
-import { Edit } from 'lucide-react'
+import { PencilIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGetInvestmentShareholdersByInvestmentId } from '@/common/data/investment/hooks/useInvestmentShareholders'
@@ -219,7 +219,7 @@ export const ShareholderStructureChart: React.FC<ShareholderStructureChartProps>
               data-testid="shareholder-update-chart-button"
               style={{ gap: 'var(--nw-spacing-xs)' }}
             >
-              <Edit size={16} />
+              <PencilIcon size={16} />
               {getTranslationFromI18nKeyAndLabel('crm.investments.shareholders.updateChart', 'Update Chart')}
             </Button>
           </AppAction>

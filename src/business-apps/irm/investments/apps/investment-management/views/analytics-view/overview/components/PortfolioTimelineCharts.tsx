@@ -15,7 +15,7 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { Bar, ComposedChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
+import { formatCurrencyCompact, extractCurrencyCode, formatAmount } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
@@ -61,7 +61,7 @@ const TimelineTooltip: React.FC<TimelineTooltipProps> = ({ active, payload, labe
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
             <div
               className="gba:w-3 gba:h-3 gba:rounded-full"
-              style={{ backgroundColor: 'var(--color-totalmarketvalue)' }}
+              style={{ backgroundColor: 'var(--color-totalMarketValue)' }}
             />
             <span className="gba:font-medium">Total Market Value:</span>
             <span className="gba:font-semibold">
@@ -122,7 +122,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
   const valueChartConfig = useMemo(
     () => ({
       total: { label: 'Total Invested Amount' },
-      totalmarketvalue: { label: 'Total Market Value' }
+      totalMarketValue: { label: 'Total Market Value' }
     }),
     []
   )
@@ -182,6 +182,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                     yAxisId="left"
                     tick={{ fontSize: 12 }}
                     label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
+                    tickFormatter={value => formatAmount(value, 1)}
                   />
                   <YAxis
                     yAxisId="right"
@@ -194,7 +195,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                         undefined,
                         1,
                         true
-                      ).replaceAll(/[€$£¥]/g, '')
+                      ).replace(/[€$£¥]/g, '')
                     }
                     label={{ value: 'Amount', angle: 90, position: 'insideRight' }}
                   />
@@ -317,7 +318,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                         undefined,
                         1,
                         true
-                      ).replaceAll(/[€$£¥]/g, '')
+                      ).replace(/[€$£¥]/g, '')
                     }
                   />
                   <ChartTooltip content={renderValueTooltip} />
@@ -333,7 +334,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                   <Line
                     type="monotone"
                     dataKey="totalMarketValue"
-                    stroke="var(--color-totalmarketvalue)"
+                    stroke="var(--color-totalMarketValue)"
                     strokeWidth={3}
                     dot={false}
                     activeDot={{ r: 4 }}

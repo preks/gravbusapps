@@ -15,7 +15,7 @@ import {
   Button,
   Spinner
 } from '@newwork/nw-design-system'
-import { TrendingUp, Plus, ExternalLink } from 'lucide-react'
+import { TrendUpIcon, PlusIcon, ArrowSquareOutIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -170,7 +170,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
                 data-testid="equity-round-add-button"
                 style={{ gap: 'var(--nw-spacing-xs)' }}
               >
-                <Plus size={16} />
+                <PlusIcon size={16} />
                 {getTranslationFromI18nKeyAndLabel('investment.rounds.addRound', 'Add Round')}
               </Button>
             </AppAction>
@@ -183,7 +183,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
               data-testid="equity-round-add-button-disabled"
               style={{ gap: 'var(--nw-spacing-xs)' }}
             >
-              <Plus size={16} />
+              <PlusIcon size={16} />
               {getTranslationFromI18nKeyAndLabel('investment.rounds.addRound', 'Add Round')}
             </Button>
           )}
@@ -192,7 +192,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
       <CardContent>
         {investmentRounds.length === 0 ? (
           <div className="gba:text-center gba:py-12" data-testid="investment-rounds-empty-state">
-            <TrendingUp className="gba:h-12 gba:w-12 gba:text-muted-foreground gba:mx-auto gba:mb-2" />
+            <TrendUpIcon className="gba:h-12 gba:w-12 gba:text-muted-foreground gba:mx-auto gba:mb-2" />
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-2">
               {getTranslationFromI18nKeyAndLabel(
                 'investment.rounds.noInvestmentRounds',
@@ -274,7 +274,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
                         >
                           {round.investmentOpportunity?.name ||
                             getTranslationFromI18nKeyAndLabel('investment.rounds.viewOpportunity', 'View Opportunity')}
-                          <ExternalLink className="gba:h-3 gba:w-3" />
+                          <ArrowSquareOutIcon className="gba:h-3 gba:w-3" />
                         </a>
                       ) : (
                         <span className="gba:text-muted-foreground">—</span>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { DollarSign, CheckCircle, Award, Target } from 'lucide-react'
+import { CurrencyDollarIcon, CheckCircleIcon, MedalIcon, TargetIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCompactCurrency } from '@/common/utils/numberFormatter'
@@ -191,7 +191,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       key: 'total-exits',
       title: getTranslationFromI18nKeyAndLabel('total_exits', 'Total Exit'),
       value: metrics.totalExits,
-      prefix: <CheckCircle className="gba:h-5 gba:w-5 gba:text-green-600" />,
+      prefix: <CheckCircleIcon className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('exited_opportunities', 'Exited opportunities'),
@@ -206,7 +206,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       title: getTranslationFromI18nKeyAndLabel('average_exit_amount', 'Average Exit Amount'),
       value: formatCompactCurrency(metrics.averageExitAmount, metrics.currencyCode),
       valueIsString: true,
-      prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
+      prefix: <TargetIcon className="gba:h-5 gba:w-5 gba:text-purple-600" />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('avg_per_exit', 'Avg per exit'),
@@ -221,7 +221,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       title: getTranslationFromI18nKeyAndLabel('total_exit_amount', 'Total Exit Amount'),
       value: formatCompactCurrency(metrics.totalExitAmount, metrics.currencyCode),
       valueIsString: true,
-      prefix: <DollarSign className="gba:h-5 gba:w-5 gba:text-green-600" />,
+      prefix: <CurrencyDollarIcon className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#389e0d',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('total_generated', 'Total generated'),
@@ -235,7 +235,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       key: 'exits-this-year',
       title: getTranslationFromI18nKeyAndLabel('exits_this_year', 'Exits This Year'),
       value: metrics.exitsThisYear,
-      prefix: <Award className="gba:h-5 gba:w-5 gba:text-blue-600" />,
+      prefix: <MedalIcon className="gba:h-5 gba:w-5 gba:text-blue-600" />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('closed_ytd', 'Closed YTD'),

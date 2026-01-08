@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Plus } from 'lucide-react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -300,7 +300,7 @@ const ConfigCampaignLayout = (props: CampaignLayoutProps) => {
               emptyStateBehavior="hide"
             >
               <Button size="sm" variant="default" data-testid="add-campaign-button" type="button">
-                <Plus size={16} />
+                <PlusIcon size={16} />
                 {getTranslationFromI18nKeyAndLabel('crm:campaign.addCampaign', 'Add Campaign')}
               </Button>
             </AppAction>

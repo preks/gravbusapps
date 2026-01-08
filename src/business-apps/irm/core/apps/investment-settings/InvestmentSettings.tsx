@@ -1,6 +1,13 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { PiTrendUp, PiFlowArrow, PiAddressBook, PiListChecks, PiDatabase, PiFileHtml } from 'react-icons/pi'
+import {
+  TrendUpIcon,
+  FlowArrowIcon,
+  AddressBookIcon,
+  ListChecksIcon,
+  DatabaseIcon,
+  FileHtmlIcon
+} from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import LeadDataPage from './pages/lead-data/LeadDataPage'
@@ -85,7 +92,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         'crm.investment_data_description',
         'Configure form fields, record fields, and tile fields for investments'
       ),
-      icon: PiDatabase,
+      icon: DatabaseIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -97,7 +104,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     {
       title: t('crm.templates', 'Templates'),
       description: t('crm.templates_description', 'Manage document and task templates for investments'),
-      icon: PiFileHtml,
+      icon: FileHtmlIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -117,7 +124,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     {
       title: t('crm.opportunity_pipelines', 'Opportunity Pipelines'),
       description: t('crm.opportunity_pipelines_description', 'Manage opportunity pipelines and sales processes'),
-      icon: PiFlowArrow,
+      icon: FlowArrowIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -129,7 +136,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     {
       title: t('crm.lead_data', 'Lead Data'),
       description: t('crm.lead_data_description', 'Manage lead ratings, statuses, and sources'),
-      icon: PiAddressBook,
+      icon: AddressBookIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -149,7 +156,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     {
       title: t('crm.engagement_data', 'Engagement Data'),
       description: t('crm.engagement_description', 'Manage activity types, task types, priorities, and statuses'),
-      icon: PiListChecks,
+      icon: ListChecksIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -249,7 +256,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
   return (
     <SettingsLayout
       headerPhosphorIcon={{
-        icon: PiTrendUp,
+        icon: TrendUpIcon,
         variant: 'premium',
         size: 'lg',
         label: 'Investment Settings'

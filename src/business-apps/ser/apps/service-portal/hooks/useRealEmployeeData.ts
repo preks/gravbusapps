@@ -1,46 +1,46 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 // Real employee data types based on GraphQL schema
 export interface RealEmployeeData {
-  id: string;                    // EmployeePosition.id
-  employeeId: string;           // EmployeePosition.employeeId
-  actualEmployeeId?: string;    // Employee.id - the real Employee table ID that might match requesterId
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  email: string;
-  jobTitle: string;
-  department: string;
-  employmentType: string;
-  contractType: string;
-  profilePicture?: string;
-  startDate?: string;
-  supervisorName?: string;
-  location?: string;
-  companyName?: string;
+  id: string // EmployeePosition.id
+  employeeId: string // EmployeePosition.employeeId
+  actualEmployeeId?: string // Employee.id - the real Employee table ID that might match requesterId
+  firstName: string
+  lastName: string
+  displayName: string
+  email: string
+  jobTitle: string
+  department: string
+  employmentType: string
+  contractType: string
+  profilePicture?: string
+  startDate?: string
+  supervisorName?: string
+  location?: string
+  companyName?: string
 }
 
 export interface RealJobPositionData {
-  id: string;
-  name: string;
-  jobFunction?: string;
-  jobLevel?: string;
-  employmentType?: string;
-  contractType?: string;
-  jobProfile?: string;
-  department?: string;
-  departmentId?: string; // Added for cascading dropdown filtering
-  jobFamilyValue?: string;
+  id: string
+  name: string
+  jobFunction?: string
+  jobLevel?: string
+  employmentType?: string
+  contractType?: string
+  jobProfile?: string
+  department?: string
+  departmentId?: string // Added for cascading dropdown filtering
+  jobFamilyValue?: string
 }
 
 export interface RealOrganizationalUnit {
-  id: string;
-  name: string;
-  description?: string;
-  type?: string;
+  id: string
+  name: string
+  description?: string
+  type?: string
 }
 
 // GraphQL query to fetch employees for service requests
@@ -106,7 +106,7 @@ const GET_EMPLOYEES_FOR_SERVICE_REQUESTS = `
       }
     }
   }
-`;
+`
 
 // GraphQL query to fetch VACANT job positions only (matching HR apps pattern)
 const GET_JOB_POSITIONS = `
@@ -168,7 +168,7 @@ const GET_JOB_POSITIONS = `
       }
     }
   }
-`;
+`
 
 // GraphQL query to fetch organizational units (departments)
 const GET_ORGANIZATIONAL_UNITS = `
@@ -188,163 +188,193 @@ const GET_ORGANIZATIONAL_UNITS = `
       type
     }
   }
-`;
+`
 
 export const useRealEmployeeData = (context: BusinessAppContextProps) => {
-  const [employees, setEmployees] = useState<RealEmployeeData[]>([]);
-  const [jobPositions, setJobPositions] = useState<RealJobPositionData[]>([]);
-  const [departments, setDepartments] = useState<RealOrganizationalUnit[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [employees, setEmployees] = useState<RealEmployeeData[]>([])
+  const [jobPositions, setJobPositions] = useState<RealJobPositionData[]>([])
+  const [departments, setDepartments] = useState<RealOrganizationalUnit[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   // Fetch employees
-  const fetchEmployees = useCallback(async (search: string = '') => {
-    if (!context.accessToken) return;
+  const fetchEmployees = useCallback(
+    async (search: string = '') => {
+      if (!context.accessToken) return
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true)
+      setError(null)
 
-    try {
-      const structureId = getCurrentActiveStructureId();
-      const searchPattern = search ? `%${search}%` : '%';
+      try {
+        const structureId = getCurrentActiveStructureId()
 
-      const result = await graphqlClient.request(GET_EMPLOYEES_FOR_SERVICE_REQUESTS, {
-        structureId,
-        limit: 100,
-        search: searchPattern
-      });
+        // Skip if no valid structureId (e.g., when running in dev mode without platform context)
+        if (!structureId) {
+          setIsLoading(false)
+          return
+        }
 
-      const employeeData: RealEmployeeData[] = result.EmployeePosition
-        .filter((emp: any) => emp.firstName && emp.lastName) // Only employees with valid names
-        .map((emp: any) => {
-          const workingCondition = emp.employee?.workingCondition?.[0];
-          const emailCommunication = emp.employee?.communication?.[0];
-          
-          return {
-            id: emp.id,                    // EmployeePosition.id
-            employeeId: emp.employeeId,    // EmployeePosition.employeeId
-            actualEmployeeId: emp.employee?.id || '', // Employee.id - this is likely what requesterId matches!
-            firstName: emp.firstName.trim(),
-            lastName: emp.lastName.trim(),
-            displayName: emp.employee?.displayName?.trim() || `${emp.firstName.trim()} ${emp.lastName.trim()}`,
-            email: emailCommunication?.value || '',
-            jobTitle: emp.jobPosition?.name || '',
-            department: emp.organizationalUnit?.name || '',
-            employmentType: workingCondition?.employmentType?.value || '',
-            contractType: workingCondition?.contractType?.value || '',
-            profilePicture: emp.employee?.pictureThumbnail,
-            startDate: workingCondition?.hireDate || emp.hireDate,
-            supervisorName: emp.supervisor?.displayName || 
-              (emp.supervisor ? `${emp.supervisor.firstName} ${emp.supervisor.lastName}` : ''),
-            location: emp.siteLocation?.name || '',
-            companyName: emp.company?.name || ''
-          };
-        });
+        const searchPattern = search ? `%${search}%` : '%'
 
-      setEmployees(employeeData);
-    } catch (err) {
-      console.error('Error fetching employees:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch employees');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [context.accessToken, graphqlClient]);
+        const result = await graphqlClient.request(GET_EMPLOYEES_FOR_SERVICE_REQUESTS, {
+          structureId,
+          limit: 100,
+          search: searchPattern
+        })
+
+        const employeeData: RealEmployeeData[] = result.EmployeePosition.filter(
+          (emp: any) => emp.firstName && emp.lastName
+        ) // Only employees with valid names
+          .map((emp: any) => {
+            const workingCondition = emp.employee?.workingCondition?.[0]
+            const emailCommunication = emp.employee?.communication?.[0]
+
+            return {
+              id: emp.id, // EmployeePosition.id
+              employeeId: emp.employeeId, // EmployeePosition.employeeId
+              actualEmployeeId: emp.employee?.id || '', // Employee.id - this is likely what requesterId matches!
+              firstName: emp.firstName.trim(),
+              lastName: emp.lastName.trim(),
+              displayName: emp.employee?.displayName?.trim() || `${emp.firstName.trim()} ${emp.lastName.trim()}`,
+              email: emailCommunication?.value || '',
+              jobTitle: emp.jobPosition?.name || '',
+              department: emp.organizationalUnit?.name || '',
+              employmentType: workingCondition?.employmentType?.value || '',
+              contractType: workingCondition?.contractType?.value || '',
+              profilePicture: emp.employee?.pictureThumbnail,
+              startDate: workingCondition?.hireDate || emp.hireDate,
+              supervisorName:
+                emp.supervisor?.displayName ||
+                (emp.supervisor ? `${emp.supervisor.firstName} ${emp.supervisor.lastName}` : ''),
+              location: emp.siteLocation?.name || '',
+              companyName: emp.company?.name || ''
+            }
+          })
+
+        setEmployees(employeeData)
+      } catch (err) {
+        console.error('Error fetching employees:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch employees')
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [context.accessToken, graphqlClient]
+  )
 
   // Fetch job positions
-  const fetchJobPositions = useCallback(async (search: string = '', departmentId?: string) => {
-    if (!context.accessToken) return;
+  const fetchJobPositions = useCallback(
+    async (search: string = '', departmentId?: string) => {
+      if (!context.accessToken) return
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true)
+      setError(null)
 
-    try {
-      const structureId = getCurrentActiveStructureId();
-      const searchPattern = search ? `%${search}%` : '%';
+      try {
+        const structureId = getCurrentActiveStructureId()
 
-      const result = await graphqlClient.request(GET_JOB_POSITIONS, {
-        structureId,
-        limit: 200,
-        search: searchPattern,
-        vacant: true // Only fetch vacant positions (no employee assigned)
-      });
+        // Skip if no valid structureId (e.g., when running in dev mode without platform context)
+        if (!structureId) {
+          setIsLoading(false)
+          return
+        }
 
-      let jobPositionData: RealJobPositionData[] = result.JobPosition
-        .filter((pos: any) => pos.name && pos.name.trim().length > 0) // Only positions with valid names
-        .map((pos: any) => ({
-          id: pos.id,
-          name: pos.name.trim(),
-          jobFunction: pos.jobFunction?.name || '',
-          jobLevel: pos.jobLevel?.name || '',
-          employmentType: pos.employmentType?.value || '',
-          contractType: pos.contractType?.value || '',
-          // Additional data from the improved query
-          jobProfile: pos.jobProfile?.name || '',
-          department: pos.organizationalUnitEmployees?.[0]?.organizationalUnit?.name || '',
-          departmentId: pos.organizationalUnitEmployees?.[0]?.organizationalUnit?.id || '',
-          jobFamilyValue: pos.jobFunction?.jobFamily?.value || ''
-        }));
+        const searchPattern = search ? `%${search}%` : '%'
 
-      // Filter by department if specified
-      if (departmentId) {
-        jobPositionData = jobPositionData.filter(pos => pos.departmentId === departmentId);
+        const result = await graphqlClient.request(GET_JOB_POSITIONS, {
+          structureId,
+          limit: 200,
+          search: searchPattern,
+          vacant: true // Only fetch vacant positions (no employee assigned)
+        })
+
+        let jobPositionData: RealJobPositionData[] = result.JobPosition.filter(
+          (pos: any) => pos.name && pos.name.trim().length > 0
+        ) // Only positions with valid names
+          .map((pos: any) => ({
+            id: pos.id,
+            name: pos.name.trim(),
+            jobFunction: pos.jobFunction?.name || '',
+            jobLevel: pos.jobLevel?.name || '',
+            employmentType: pos.employmentType?.value || '',
+            contractType: pos.contractType?.value || '',
+            // Additional data from the improved query
+            jobProfile: pos.jobProfile?.name || '',
+            department: pos.organizationalUnitEmployees?.[0]?.organizationalUnit?.name || '',
+            departmentId: pos.organizationalUnitEmployees?.[0]?.organizationalUnit?.id || '',
+            jobFamilyValue: pos.jobFunction?.jobFamily?.value || ''
+          }))
+
+        // Filter by department if specified
+        if (departmentId) {
+          jobPositionData = jobPositionData.filter(pos => pos.departmentId === departmentId)
+        }
+
+        setJobPositions(jobPositionData)
+      } catch (err) {
+        console.error('Error fetching job positions:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch job positions')
+      } finally {
+        setIsLoading(false)
       }
-
-      setJobPositions(jobPositionData);
-    } catch (err) {
-      console.error('Error fetching job positions:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch job positions');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [context.accessToken, graphqlClient]);
+    },
+    [context.accessToken, graphqlClient]
+  )
 
   // Fetch organizational units (departments)
-  const fetchDepartments = useCallback(async (search: string = '') => {
-    if (!context.accessToken) return;
+  const fetchDepartments = useCallback(
+    async (search: string = '') => {
+      if (!context.accessToken) return
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true)
+      setError(null)
 
-    try {
-      const structureId = getCurrentActiveStructureId();
-      const searchPattern = search ? `%${search}%` : '%';
+      try {
+        const structureId = getCurrentActiveStructureId()
 
-      const result = await graphqlClient.request(GET_ORGANIZATIONAL_UNITS, {
-        structureId,
-        limit: 100,
-        search: searchPattern
-      });
+        // Skip if no valid structureId (e.g., when running in dev mode without platform context)
+        if (!structureId) {
+          setIsLoading(false)
+          return
+        }
 
-      const departmentData: RealOrganizationalUnit[] = result.OrganizationalUnit
-        .filter((unit: any) => unit.name && unit.name.trim().length > 0) // Only departments with valid names
-        .map((unit: any) => ({
-          id: unit.id,
-          name: unit.name.trim(),
-          description: '', // Don't show descriptions to keep dropdowns compact
-          type: unit.type || ''
-        }));
+        const searchPattern = search ? `%${search}%` : '%'
 
-      setDepartments(departmentData);
-    } catch (err) {
-      console.error('Error fetching departments:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch departments');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [context.accessToken, graphqlClient]);
+        const result = await graphqlClient.request(GET_ORGANIZATIONAL_UNITS, {
+          structureId,
+          limit: 100,
+          search: searchPattern
+        })
+
+        const departmentData: RealOrganizationalUnit[] = result.OrganizationalUnit.filter(
+          (unit: any) => unit.name && unit.name.trim().length > 0
+        ) // Only departments with valid names
+          .map((unit: any) => ({
+            id: unit.id,
+            name: unit.name.trim(),
+            description: '', // Don't show descriptions to keep dropdowns compact
+            type: unit.type || ''
+          }))
+
+        setDepartments(departmentData)
+      } catch (err) {
+        console.error('Error fetching departments:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch departments')
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [context.accessToken, graphqlClient]
+  )
 
   // Initial data loading
   useEffect(() => {
     if (context.accessToken) {
-      Promise.all([
-        fetchEmployees(),
-        fetchJobPositions(),
-        fetchDepartments()
-      ]);
+      Promise.all([fetchEmployees(), fetchJobPositions(), fetchDepartments()])
     }
-  }, [context.accessToken, fetchEmployees, fetchJobPositions, fetchDepartments]);
+  }, [context.accessToken, fetchEmployees, fetchJobPositions, fetchDepartments])
 
   return {
     employees,
@@ -356,12 +386,12 @@ export const useRealEmployeeData = (context: BusinessAppContextProps) => {
     fetchJobPositions,
     fetchDepartments,
     refetch: (departmentId?: string) => {
-      fetchEmployees();
-      fetchJobPositions('', departmentId);
-      fetchDepartments();
+      fetchEmployees()
+      fetchJobPositions('', departmentId)
+      fetchDepartments()
     }
-  };
-};
+  }
+}
 
 // Helper functions for form integration
 export const getEmployeeOptions = (employees: RealEmployeeData[]) => {
@@ -371,8 +401,8 @@ export const getEmployeeOptions = (employees: RealEmployeeData[]) => {
     jobTitle: emp.jobTitle,
     department: emp.department,
     email: emp.email
-  }));
-};
+  }))
+}
 
 export const getJobPositionOptions = (jobPositions: RealJobPositionData[]) => {
   return jobPositions.map(pos => ({
@@ -381,13 +411,13 @@ export const getJobPositionOptions = (jobPositions: RealJobPositionData[]) => {
     jobFunction: pos.jobFunction,
     jobLevel: pos.jobLevel,
     departmentId: pos.departmentId // Added for cascading dropdown filtering
-  }));
-};
+  }))
+}
 
 export const getDepartmentOptions = (departments: RealOrganizationalUnit[]) => {
   return departments.map(dept => ({
     value: dept.id,
     label: dept.name
     // No description to keep dropdowns compact like other apps
-  }));
-};
+  }))
+}

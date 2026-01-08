@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { TrendingDown, DollarSign, TrendingUp, BarChart3 } from 'lucide-react'
+import { TrendDownIcon, CurrencyDollarIcon, TrendUpIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -166,7 +166,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
           key: 'total-planned-exits',
           title: getTranslationFromI18nKeyAndLabel('total_planned_exits', 'Total Planned Exits'),
           value: metrics.totalCount,
-          prefix: <TrendingDown className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-danger-500)' }} />,
+          prefix: <TrendDownIcon className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-danger-500)' }} />,
           color: 'var(--nw-color-danger-500)', // Red theme for exits
           span: { xs: 24, sm: 12, md: 12, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(
@@ -184,7 +184,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
           title: getTranslationFromI18nKeyAndLabel('total_investment_value', 'Total Investment Value'),
           value: formatCurrencyCompact(metrics.totalInvestmentValue, metrics.currencyCode, undefined, 1, true),
           valueIsString: true,
-          prefix: <TrendingUp className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-primary-500)' }} />,
+          prefix: <TrendUpIcon className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-primary-500)' }} />,
           color: 'var(--nw-color-primary-500)', // Blue theme for investments
           span: { xs: 24, sm: 12, md: 12, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel('total_invested_capital', 'Total invested capital'),
@@ -199,7 +199,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
           title: getTranslationFromI18nKeyAndLabel('total_market_value', 'Total Market Value'),
           value: formatCurrencyCompact(metrics.totalMarketValue, metrics.currencyCode, undefined, 1, true),
           valueIsString: true,
-          prefix: <DollarSign className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-success-500)' }} />,
+          prefix: <CurrencyDollarIcon className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-success-500)' }} />,
           color: 'var(--nw-color-success-500)', // Green theme for money
           span: { xs: 24, sm: 12, md: 12, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel('current_market_value', 'Current market value'),
@@ -215,7 +215,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
           value: metrics.averagePerformance,
           suffix: '%',
           precision: 1,
-          prefix: <BarChart3 className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-secondary-500)' }} />,
+          prefix: <ChartBarIcon className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-secondary-500)' }} />,
           color: 'var(--nw-color-secondary-500)', // Purple theme for performance
           span: { xs: 24, sm: 12, md: 12, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(

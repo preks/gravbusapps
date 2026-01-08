@@ -16,7 +16,7 @@ import {
   SelectContent,
   SelectItem
 } from '@newwork/nw-design-system'
-import { PieChart, TrendingUp, BarChart } from 'lucide-react'
+import { ChartPieIcon, TrendUpIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -161,15 +161,15 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
           <TabsTrigger
             value="distribution"
-            startIcon={<PieChart />}
+            startIcon={<ChartPieIcon />}
             data-testid={`${prefixDataTestId}-distribution-tab`}
           >
             Distribution Analysis
           </TabsTrigger>
-          <TabsTrigger value="timeline" startIcon={<TrendingUp />} data-testid={`${prefixDataTestId}-timeline-tab`}>
+          <TabsTrigger value="timeline" startIcon={<TrendUpIcon />} data-testid={`${prefixDataTestId}-timeline-tab`}>
             Timeline Analysis
           </TabsTrigger>
-          <TabsTrigger value="analytics" startIcon={<BarChart />} data-testid={`${prefixDataTestId}-analytics-tab`}>
+          <TabsTrigger value="analytics" startIcon={<ChartBarIcon />} data-testid={`${prefixDataTestId}-analytics-tab`}>
             Performance Analysis
           </TabsTrigger>
         </TabsList>
