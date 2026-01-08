@@ -39,7 +39,7 @@ export const LocalStorageViewer: React.FC = () => {
         {Object.keys(data).length === 0 ? (
           <div className="gba:text-muted-foreground">Local storage is empty</div>
         ) : (
-          <JsonViewer data={data} defaultExpanded={true} />
+          <JsonViewer data={data} />
         )}
       </CardContent>
     </Card>

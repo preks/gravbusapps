@@ -52,7 +52,7 @@ export const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({ access
             No employee data found. {userId ? 'User ID: ' + userId : 'No user ID available.'}
           </div>
         )}
-        {!loading && !error && employee && <JsonViewer data={employee} defaultExpanded={true} />}
+        {!loading && !error && employee && <JsonViewer data={employee} />}
       </CardContent>
     </Card>
   )

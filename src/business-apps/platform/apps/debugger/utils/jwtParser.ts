@@ -1,5 +1,29 @@
 /**
- * Parse JWT token and extract payload
+ * ⚠️ SECURITY WARNING ⚠️
+ *
+ * These JWT parsing utilities do NOT verify token signatures.
+ * They are ONLY for debugging/display purposes in the Platform Debugger app.
+ *
+ * The access token provided to the debugger has already been verified
+ * by the platform's authentication system (Keycloak/OIDC) before reaching
+ * this application. This parser is used solely to display token contents
+ * for inspection and debugging.
+ *
+ * ⚠️ NEVER use these functions for:
+ * - Authorization decisions
+ * - Access control
+ * - Trusting user identity or roles
+ * - Any security-critical operations
+ *
+ * ✅ Safe to use for:
+ * - Displaying token payload in debugger UI
+ * - Inspecting token contents for debugging
+ * - Showing user roles for informational purposes
+ */
+
+/**
+ * Parse JWT token and extract payload (without signature verification)
+ * @warning This function does NOT verify the token signature. Use only for debugging/display.
  */
 export function parseJWT(token: string): any | null {
   try {
@@ -27,7 +51,8 @@ export function parseJWT(token: string): any | null {
 }
 
 /**
- * Extract user roles/groups from JWT token
+ * Extract user roles/groups from JWT token (without signature verification)
+ * @warning This function does NOT verify the token signature. Use only for debugging/display.
  */
 export function getUserRoles(token: string): string[] {
   const jwt = parseJWT(token)
@@ -44,7 +69,9 @@ export function getUserRoles(token: string): string[] {
 }
 
 /**
- * Check if user has a specific role
+ * Check if user has a specific role (without signature verification)
+ * @warning This function does NOT verify the token signature. Use only for debugging/display.
+ * @deprecated This function should not be used for authorization decisions.
  */
 export function userHasRole(token: string, role: string): boolean {
   const roles = getUserRoles(token)

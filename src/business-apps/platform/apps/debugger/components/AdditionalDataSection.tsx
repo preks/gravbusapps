@@ -43,7 +43,7 @@ export const AdditionalDataSection: React.FC<AdditionalDataSectionProps> = ({ ad
         </div>
       </CardHeader>
       <CardContent>
-        <JsonViewer data={additionalData} defaultExpanded={true} />
+        <JsonViewer data={additionalData} />
       </CardContent>
     </Card>
   )

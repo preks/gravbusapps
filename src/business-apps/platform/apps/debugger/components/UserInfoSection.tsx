@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
 import { CopyIcon } from '@phosphor-icons/react'
 import { JsonViewer } from './JsonViewer'
@@ -10,13 +10,20 @@ interface UserInfoSectionProps {
 export const UserInfoSection: React.FC<UserInfoSectionProps> = ({ userInfo }) => {
   const [copied, setCopied] = useState(false)
 
-  const handleCopy = () => {
-    if (userInfo) {
-      navigator.clipboard.writeText(JSON.stringify(userInfo, null, 2))
+  const handleCopy = useCallback(async () => {
+    if (!userInfo) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(userInfo, null, 2))
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error)
+      // Don't set copied state on failure, so UI doesn't show "Copied!"
     }
-  }
+  }, [userInfo, setCopied])
 
   if (!userInfo) {
     return (
@@ -43,7 +50,7 @@ export const UserInfoSection: React.FC<UserInfoSectionProps> = ({ userInfo }) =>
         </div>
       </CardHeader>
       <CardContent>
-        <JsonViewer data={userInfo} defaultExpanded={true} />
+        <JsonViewer data={userInfo} />
       </CardContent>
     </Card>
   )

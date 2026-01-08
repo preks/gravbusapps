@@ -27,18 +27,14 @@ export const GraphQLQueryExecutor: React.FC<GraphQLQueryExecutorProps> = ({ acce
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">
-          <div>
-            <Label htmlFor="graphqlQuery">Query</Label>
-            <textarea
-              id="graphqlQuery"
-              className="gba:w-full gba:min-h-[200px] gba:p-2 gba:border gba:rounded gba:font-mono gba:text-sm gba:bg-background gba:text-foreground"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Enter your GraphQL query here..."
-              disabled={isExecuting}
-            />
-          </div>
-
+          <textarea
+            id="graphqlQuery"
+            className="gba:w-full gba:min-h-[200px] gba:p-2 gba:border gba:rounded gba:font-mono gba:text-sm gba:bg-background gba:text-foreground"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Enter your GraphQL query here..."
+            disabled={isExecuting}
+          />
           <Button onClick={execute} disabled={isExecuting || !query.trim()}>
             {isExecuting ? (
               <>
@@ -69,7 +65,7 @@ export const GraphQLQueryExecutor: React.FC<GraphQLQueryExecutorProps> = ({ acce
                   {copied ? 'Copied!' : 'Copy'}
                 </Button>
               </div>
-              <JsonViewer data={result} defaultExpanded={true} />
+              <JsonViewer data={result} />
             </div>
           )}
         </div>

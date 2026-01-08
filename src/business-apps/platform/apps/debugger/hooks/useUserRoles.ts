@@ -6,7 +6,12 @@ export const useUserRoles = (accessToken: string) => {
     if (!accessToken) {
       return []
     }
-    return getUserRoles(accessToken)
+    try {
+      return getUserRoles(accessToken)
+    } catch (error) {
+      console.error('Failed to parse user roles from JWT:', error)
+      return []
+    }
   }, [accessToken])
 
   return roles

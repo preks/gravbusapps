@@ -13,8 +13,13 @@ interface JsonViewerProps {
 
 export const JsonViewer: React.FC<JsonViewerProps> = ({ data, title, onCopy }) => {
   const { theme } = useTheme()
-  const jsonString = useMemo(() => JSON.stringify(data, null, 2), [data])
-
+  const jsonString = useMemo(() => {
+    try {
+      return JSON.stringify(data, null, 2)
+    } catch (error) {
+      return `Error: Unable to serialize data to JSON\n${error instanceof Error ? error.message : String(error)}`
+    }
+  }, [data])
   // Determine if dark mode is active
   const isDark = useMemo(() => {
     if (theme === 'dark') return true

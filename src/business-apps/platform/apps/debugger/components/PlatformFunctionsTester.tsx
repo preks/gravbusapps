@@ -25,7 +25,7 @@ export const PlatformFunctionsTester: React.FC = () => {
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">
-          <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-4 gba:gap-2">
+          <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-2">
             <Button variant="outline" size="sm" onClick={testTranslation}>
               Test Translation
             </Button>

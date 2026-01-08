@@ -22,7 +22,7 @@ export const AccessTokenSection: React.FC<AccessTokenSectionProps> = ({ accessTo
           <CardTitle>Access Token</CardTitle>
           <Button variant="ghost" size="sm" onClick={handleCopy}>
             <CopyIcon className="gba:w-4 gba:h-4 gba:mr-1" />
-            {copied ? 'Copied!' : 'Copy'}
+            <span aria-live="polite">{copied ? 'Copied!' : 'Copy'}</span>
           </Button>
         </div>
       </CardHeader>
@@ -31,6 +31,7 @@ export const AccessTokenSection: React.FC<AccessTokenSectionProps> = ({ accessTo
           id="accessToken"
           value={accessToken}
           readOnly
+          aria-label="Access Token"
           className="gba:w-full gba:flex-1 gba:min-h-[200px] gba:p-2 gba:border gba:rounded gba:font-mono gba:text-xs gba:bg-background gba:text-foreground gba:resize-none"
         />
       </CardContent>

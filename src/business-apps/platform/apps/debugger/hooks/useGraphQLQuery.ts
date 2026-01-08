@@ -11,7 +11,7 @@ export const useGraphQLQuery = (accessToken: string) => {
 
   const execute = useCallback(async () => {
     if (!query.trim() || !accessToken) {
-      setError('Query is required')
+      setError(!query.trim() ? 'Query is required' : 'Access token is required')
       return
     }
 
