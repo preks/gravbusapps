@@ -85,7 +85,6 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
 
               if (isPrivateEntity) {
                 hiddenCardCount++
-                console.log(`🔒 [EveryAIMessageRenderer] Hiding ${entityType} card from non-initiator`)
                 return false // Hide this entity card
               }
             }
@@ -144,7 +143,6 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
           uuid: parsed.uuid
         })
 
-        console.log('✅ [EveryAIMessageRenderer] Form submission sent successfully')
         return
       }
     } catch (error) {
