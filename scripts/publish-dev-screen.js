@@ -242,6 +242,11 @@ const argv = yargs(hideBin(process.argv))
     type: 'boolean',
     default: false
   })
+  .option('destination', {
+    alias: 'd',
+    description: 'Custom Azure destination path (overrides default path derived from screen path)',
+    type: 'string'
+  })
   .help().argv
 
 async function main() {
@@ -305,7 +310,10 @@ async function main() {
   const sourceEntryFile = path.join('src', 'business-apps', screenPathArg, 'index.ts')
   const viteEntryKey = screenPathArg
   const buildOutputDir = path.join(projectRootDir, 'dist', screenPathArg)
-  const azureDestinationPath = screenPathArg.replace(/\\/g, '/')
+  // Allow custom destination path override
+  const azureDestinationPath = argv.destination
+    ? argv.destination.replace(/\\/g, '/').replace(/^\//, '') // Remove leading slash if present
+    : screenPathArg.replace(/\\/g, '/')
 
   console.log(`   Source Entry File: ${sourceEntryFile}`)
   console.log(`   Vite Entry Key: ${viteEntryKey}`)

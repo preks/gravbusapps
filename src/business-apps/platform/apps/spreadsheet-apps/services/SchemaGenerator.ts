@@ -62,17 +62,13 @@ export function generateAppSchema(
  * Generate schema for a single sheet
  */
 function generateSheetSchema(analysis: SheetAnalysis, parsedSheet: ParsedSheet): SpreadsheetSheet {
-  const columns = analysis.columns.map((col, index) =>
-    generateColumnSchema(col, index, parsedSheet)
-  )
+  const columns = analysis.columns.map((col, index) => generateColumnSchema(col, index, parsedSheet))
 
   // Determine primary view type based on suggestions
   const primaryViewType = analysis.suggestedViews[0]?.type || 'table'
 
   // Generate views from analysis
-  const views = analysis.suggestedViews.map((suggestion, index) =>
-    generateViewSchema(suggestion, columns, index === 0)
-  )
+  const views = analysis.suggestedViews.map((suggestion, index) => generateViewSchema(suggestion, columns, index === 0))
 
   // Ensure at least a table view exists
   if (!views.some(v => v.type === 'table')) {
@@ -114,11 +110,7 @@ function generateSheetSchema(analysis: SheetAnalysis, parsedSheet: ParsedSheet):
 /**
  * Generate schema for a single column
  */
-function generateColumnSchema(
-  analysis: ColumnAnalysis,
-  index: number,
-  parsedSheet: ParsedSheet
-): SpreadsheetColumn {
+function generateColumnSchema(analysis: ColumnAnalysis, index: number, parsedSheet: ParsedSheet): SpreadsheetColumn {
   const parsedColumn = parsedSheet.columns.find(c => c.name === analysis.name)
 
   // Generate select options if detected
@@ -165,9 +157,7 @@ function generateViewSchema(
     config: {
       ...suggestion.config,
       // Ensure columns reference actual column IDs for table views
-      columns: suggestion.config.type === 'table'
-        ? columns.map(c => c.id)
-        : suggestion.config.columns
+      columns: suggestion.config.type === 'table' ? columns.map(c => c.id) : suggestion.config.columns
     }
   }
 }
@@ -181,13 +171,9 @@ function generateChartConfigs(analysis: SheetAnalysis, columns: SpreadsheetColum
     return undefined
   }
 
-  const numericColumns = columns.filter(c =>
-    ['number', 'currency', 'percentage'].includes(c.type)
-  )
+  const numericColumns = columns.filter(c => ['number', 'currency', 'percentage'].includes(c.type))
 
-  const categoryColumns = columns.filter(c =>
-    ['select', 'text'].includes(c.type)
-  )
+  const categoryColumns = columns.filter(c => ['select', 'text'].includes(c.type))
 
   const charts: ChartConfig[] = []
 
@@ -333,10 +319,7 @@ function calculateColumnWidth(analysis: ColumnAnalysis): number {
     case 'text':
     default:
       // Calculate based on sample value lengths
-      const maxLength = Math.max(
-        analysis.name.length,
-        ...analysis.sampleValues.map(v => String(v || '').length)
-      )
+      const maxLength = Math.max(analysis.name.length, ...analysis.sampleValues.map(v => String(v || '').length))
       return Math.min(Math.max(maxLength * 8, 100), 300)
   }
 }
@@ -345,16 +328,18 @@ function calculateColumnWidth(analysis: ColumnAnalysis): number {
  * Format column name as human-readable label
  */
 function formatColumnLabel(name: string): string {
-  return name
-    // Handle camelCase
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    // Handle snake_case
-    .replace(/_/g, ' ')
-    // Handle kebab-case
-    .replace(/-/g, ' ')
-    // Capitalize first letter of each word
-    .replace(/\b\w/g, c => c.toUpperCase())
-    .trim()
+  return (
+    name
+      // Handle camelCase
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      // Handle snake_case
+      .replace(/_/g, ' ')
+      // Handle kebab-case
+      .replace(/-/g, ' ')
+      // Capitalize first letter of each word
+      .replace(/\b\w/g, c => c.toUpperCase())
+      .trim()
+  )
 }
 
 /**
@@ -398,7 +383,7 @@ function generateColorForOption(option: string): string {
     '#f97316', // orange
     '#ec4899', // pink
     '#84cc16', // lime
-    '#6366f1'  // indigo
+    '#6366f1' // indigo
   ]
 
   // Generate consistent color based on option string

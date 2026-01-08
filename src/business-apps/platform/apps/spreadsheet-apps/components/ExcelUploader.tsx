@@ -7,17 +7,7 @@
 
 import React, { useState, useCallback, useRef } from 'react'
 import { Card, Button, Badge, Spinner, Progress } from '@newwork/nw-design-system'
-import {
-  FileSpreadsheet,
-  Upload,
-  X,
-  Check,
-  Table2,
-  AlertCircle,
-  Sparkles,
-  ArrowRight,
-  FileUp
-} from 'lucide-react'
+import { FileSpreadsheet, Upload, X, Check, Table2, AlertCircle, Sparkles, ArrowRight, FileUp } from 'lucide-react'
 import { useExcelParser } from '../hooks/useExcelParser'
 import type { ParsedExcelFile, ParsedSheet } from '../types'
 
@@ -152,19 +142,13 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
           </div>
 
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
-              Analyzing your spreadsheet...
-            </h3>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {selectedFile?.name}
-            </p>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Analyzing your spreadsheet...</h3>
+            <p className="gba:text-sm gba:text-muted-foreground">{selectedFile?.name}</p>
           </div>
 
           <div className="gba:w-full gba:max-w-xs">
             <Progress value={progress} className="gba:h-2" />
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">
-              {progress}% complete
-            </p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">{progress}% complete</p>
           </div>
         </div>
       </Card>
@@ -183,20 +167,14 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
                 <Check className="gba:w-5 gba:h-5 gba:text-success" />
               </div>
               <div>
-                <h3 className="gba:font-semibold gba:text-foreground">
-                  {parsedFile.fileName}
-                </h3>
+                <h3 className="gba:font-semibold gba:text-foreground">{parsedFile.fileName}</h3>
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  {formatFileSize(parsedFile.fileSize)} • {parsedFile.sheets.length} sheet{parsedFile.sheets.length !== 1 ? 's' : ''}
+                  {formatFileSize(parsedFile.fileSize)} • {parsedFile.sheets.length} sheet
+                  {parsedFile.sheets.length !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClear}
-              data-testid={`${testId}-clear`}
-            >
+            <Button variant="ghost" size="sm" onClick={handleClear} data-testid={`${testId}-clear`}>
               <X className="gba:w-4 gba:h-4" />
             </Button>
           </div>
@@ -206,9 +184,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
         <div className="gba:p-6 gba:space-y-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
             <Table2 className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-            <span className="gba:text-sm gba:font-medium gba:text-foreground">
-              Detected Sheets
-            </span>
+            <span className="gba:text-sm gba:font-medium gba:text-foreground">Detected Sheets</span>
           </div>
 
           <div className="gba:grid gba:gap-3">
@@ -239,12 +215,8 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
             <AlertCircle className="gba:w-8 gba:h-8 gba:text-destructive" />
           </div>
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
-              Failed to parse file
-            </h3>
-            <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">
-              {error}
-            </p>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Failed to parse file</h3>
+            <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">{error}</p>
           </div>
           <Button variant="outline" onClick={handleClear}>
             Try Again
@@ -275,7 +247,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
         onClick={handleClick}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => {
+        onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             handleClick()
           }
@@ -307,8 +279,8 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
               {isDragging ? 'Drop your file here' : 'Upload your Excel file'}
             </h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-sm">
-              Drag and drop your spreadsheet here, or click to browse.
-              We support .xlsx, .xls, and .csv files up to {maxFileSize}MB.
+              Drag and drop your spreadsheet here, or click to browse. We support .xlsx, .xls, and .csv files up to{' '}
+              {maxFileSize}MB.
             </p>
           </div>
 
@@ -320,9 +292,15 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
 
           {/* Supported formats */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:justify-center">
-            <Badge variant="secondary" className="gba:text-xs">.xlsx</Badge>
-            <Badge variant="secondary" className="gba:text-xs">.xls</Badge>
-            <Badge variant="secondary" className="gba:text-xs">.csv</Badge>
+            <Badge variant="secondary" className="gba:text-xs">
+              .xlsx
+            </Badge>
+            <Badge variant="secondary" className="gba:text-xs">
+              .xls
+            </Badge>
+            <Badge variant="secondary" className="gba:text-xs">
+              .csv
+            </Badge>
           </div>
         </div>
       </div>
@@ -334,9 +312,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
             <Sparkles className="gba:w-4 gba:h-4 gba:text-primary" />
           </div>
           <div className="gba:flex-1">
-            <p className="gba:text-sm gba:font-medium gba:text-foreground">
-              AI-Powered Analysis
-            </p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">AI-Powered Analysis</p>
             <p className="gba:text-xs gba:text-muted-foreground">
               We'll automatically detect data types, relationships, and suggest the best app structure
             </p>
@@ -369,7 +345,9 @@ const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) =>
             <Table2 className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
             <span className="gba:font-medium gba:text-foreground">{sheet.name}</span>
           </div>
-          <Badge variant="secondary" className="gba:text-xs">Empty</Badge>
+          <Badge variant="secondary" className="gba:text-xs">
+            Empty
+          </Badge>
         </div>
       </div>
     )
@@ -404,20 +382,12 @@ const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) =>
       {isExpanded && (
         <div className="gba:px-4 gba:pb-4 gba:pt-0">
           <div className="gba:bg-muted/30 gba:rounded-lg gba:p-3">
-            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
-              Columns
-            </p>
+            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Columns</p>
             <div className="gba:flex gba:flex-wrap gba:gap-1">
               {sheet.columns.map((col, idx) => (
-                <Badge
-                  key={idx}
-                  variant="secondary"
-                  className="gba:text-xs gba:font-normal"
-                >
+                <Badge key={idx} variant="secondary" className="gba:text-xs gba:font-normal">
                   {col.name}
-                  {col.hasFormula && (
-                    <span className="gba:ml-1 gba:text-primary">ƒ</span>
-                  )}
+                  {col.hasFormula && <span className="gba:ml-1 gba:text-primary">ƒ</span>}
                 </Badge>
               ))}
             </div>

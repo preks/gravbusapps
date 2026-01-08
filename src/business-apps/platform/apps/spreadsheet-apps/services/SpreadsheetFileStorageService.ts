@@ -112,17 +112,17 @@ export class SpreadsheetFileStorageService {
    */
   private normalizeFilePath(filePath: string): string {
     if (!filePath) return filePath
-    
+
     // If path already starts with /api/v1, return as-is
     if (filePath.startsWith('/api/v1/')) {
       return filePath
     }
-    
+
     // If path starts with /tenant/, add /api/v1 prefix
     if (filePath.startsWith('/tenant/')) {
       return `/api/v1${filePath}`
     }
-    
+
     // Otherwise return as-is
     return filePath
   }
@@ -136,15 +136,15 @@ export class SpreadsheetFileStorageService {
       // The filePath from upload response is like: /api/v1/tenant/downloads/...
       const baseUrl = 'https://newwork-dev.newwork.com/files'
       const url = `${baseUrl}${filePath.startsWith('/') ? filePath : '/' + filePath}`
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Accept': 'application/json'
+          Authorization: `Bearer ${this.accessToken}`,
+          Accept: 'application/json'
         }
       })
-      
+
       if (!response.ok) {
         // 404 is expected when file doesn't exist yet - not an error
         if (response.status === 404) {
@@ -152,7 +152,7 @@ export class SpreadsheetFileStorageService {
         }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
-      
+
       const text = await response.text()
       return JSON.parse(text) as T
     } catch (error) {
@@ -163,7 +163,7 @@ export class SpreadsheetFileStorageService {
 
   /**
    * Get or create the apps index
-   * 
+   *
    * Discovery order:
    * 1. Check localStorage (fast cache for same device)
    * 2. Check backend sync service (cross-device discovery)
@@ -171,25 +171,25 @@ export class SpreadsheetFileStorageService {
    */
   private async getIndex(): Promise<AppsIndex> {
     const localStorageKey = `spreadsheet-apps-index-${this.currentUserId}`
-    
+
     debugLog('=== [TRACE] getIndex() START ===')
     debugLog('[TRACE] Current indexInfo:', this.indexInfo)
     debugLog('[TRACE] localStorage key:', localStorageKey)
-    
+
     // 1. Try localStorage (fast cache)
     const storedInfoStr = localStorage.getItem(localStorageKey)
     debugLog('[TRACE] localStorage value:', storedInfoStr)
-    
+
     if (storedInfoStr) {
       try {
         const storedInfo: StoredIndexInfo = JSON.parse(storedInfoStr)
         debugLog('[TRACE] Parsed storedInfo:', storedInfo)
-        
+
         if (storedInfo.filePath) {
           debugLog('[SpreadsheetStorage] Loading index from localStorage:', storedInfo.filePath)
           const index = await this.readJsonFileByPath<AppsIndex>(storedInfo.filePath)
           debugLog('[TRACE] Index loaded from file:', index ? `${index.apps.length} apps` : 'NULL')
-          
+
           if (index) {
             // Ensure we have fileId
             if (!storedInfo.fileId) {
@@ -218,12 +218,12 @@ export class SpreadsheetFileStorageService {
     try {
       const syncData = await this.syncService.getIndex()
       debugLog('[TRACE] Prompt-manager returned:', syncData)
-      
+
       if (syncData?.indexFilePath) {
         debugLog('[SpreadsheetStorage] Found index via backend sync:', syncData.indexFilePath)
         const index = await this.readJsonFileByPath<AppsIndex>(syncData.indexFilePath)
         debugLog('[TRACE] Index loaded from backend file:', index ? `${index.apps.length} apps` : 'NULL')
-        
+
         if (index) {
           // Extract fileId from filePath (e.g., /api/v1/tenant/downloads/.../abc123.json -> abc123.json)
           const fileId = this.extractFileIdFromPath(syncData.indexFilePath)
@@ -256,7 +256,7 @@ export class SpreadsheetFileStorageService {
   /**
    * Save the apps index
    * Also syncs the index path to backend for cross-device access
-   * 
+   *
    * Uses PUT to update in place when index already exists (same fileId).
    * Uses POST to create new when first time.
    */
@@ -264,7 +264,7 @@ export class SpreadsheetFileStorageService {
     debugLog('=== [TRACE] saveIndex() START ===')
     debugLog('[TRACE] Saving index with', index.apps.length, 'apps')
     debugLog('[TRACE] Current indexInfo:', this.indexInfo)
-    
+
     index.updatedAt = new Date().toISOString()
     const file = this.createJsonFile(index, `${INDEX_FILE_NAME}`)
 
@@ -275,7 +275,7 @@ export class SpreadsheetFileStorageService {
       // Ensure we have a fileId - extract from filePath if missing
       let existingFileId = this.indexInfo?.fileId
       debugLog('[TRACE] existingFileId from indexInfo:', existingFileId)
-      
+
       if (!existingFileId && this.indexInfo?.filePath) {
         existingFileId = this.extractFileIdFromPath(this.indexInfo.filePath)
         debugLog('[TRACE] Extracted existingFileId from filePath:', existingFileId)
@@ -316,14 +316,14 @@ export class SpreadsheetFileStorageService {
 
       this.indexInfo = { fileId, filePath }
       debugLog('[TRACE] Updated this.indexInfo:', this.indexInfo)
-      
+
       // Save to localStorage for this device (fast local cache)
       const localStorageKey = `spreadsheet-apps-index-${this.currentUserId}`
       localStorage.setItem(localStorageKey, JSON.stringify(this.indexInfo))
       debugLog('[TRACE] Saved to localStorage key:', localStorageKey)
-      
+
       debugLog('[SpreadsheetStorage] Index saved:', fileId)
-      
+
       // Sync to backend for cross-device access
       debugLog('[TRACE] Syncing to prompt-manager...')
       try {
@@ -333,7 +333,7 @@ export class SpreadsheetFileStorageService {
         // Don't fail the save if sync fails - localStorage still works
         console.warn('[SpreadsheetStorage] Backend sync failed (non-critical):', syncError)
       }
-      
+
       debugLog('=== [TRACE] saveIndex() END ===')
     } catch (error) {
       console.error('[SpreadsheetStorage] Failed to save index:', error)
@@ -448,7 +448,7 @@ export class SpreadsheetFileStorageService {
 
     // Load full app data from file using the download path
     app = await this.readJsonFileByPath<SpreadsheetApp>(entry.filePath)
-    
+
     if (!app) {
       return null
     }
@@ -514,10 +514,10 @@ export class SpreadsheetFileStorageService {
   private async addToLocalIndex(app: SpreadsheetApp, filePath: string): Promise<void> {
     const index = await this.getIndex()
     const existingIndex = index.apps.findIndex(a => a.id === app.id)
-    
+
     // Extract fileId from filePath
     const fileId = this.extractFileIdFromPath(filePath)
-    
+
     const totalRows = app.sheets.reduce((sum, sheet) => sum + (sheet.data?.length || 0), 0)
     const entry: AppIndexEntry = {
       id: app.id,
@@ -547,12 +547,10 @@ export class SpreadsheetFileStorageService {
   /**
    * Create a new app
    */
-  async createApp(
-    app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>
-  ): Promise<SpreadsheetApp> {
+  async createApp(app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>): Promise<SpreadsheetApp> {
     debugLog('=== [TRACE] createApp() START ===')
     debugLog('[TRACE] Current indexInfo before creating:', this.indexInfo)
-    
+
     const now = new Date().toISOString()
     const newId = generateId('ssa')
 
@@ -580,7 +578,7 @@ export class SpreadsheetFileStorageService {
 
     // Normalize the path to ensure /api/v1 prefix
     const normalizedPath = this.normalizeFilePath(uploadResponse.fileInfo.path)
-    
+
     debugLog('[TRACE] App file uploaded:', {
       fileId: uploadResponse.fileInfo.fileId,
       path: normalizedPath
@@ -614,13 +612,13 @@ export class SpreadsheetFileStorageService {
     debugLog('[TRACE] App created successfully!')
     debugLog('[TRACE] Final indexInfo:', this.indexInfo)
     debugLog('=== [TRACE] createApp() END ===')
-    
+
     return newApp
   }
 
   /**
    * Update an existing app
-   * 
+   *
    * Uses the file service's PUT endpoint to update the file IN PLACE.
    * The fileId and filePath remain the same - no new files created!
    */
@@ -646,7 +644,7 @@ export class SpreadsheetFileStorageService {
 
     const index = await this.getIndex()
     debugLog('[TRACE] Got index with', index.apps.length, 'apps')
-    
+
     const entryIndex = index.apps.findIndex(a => a.id === id)
     debugLog('[TRACE] Found entry at index:', entryIndex)
 
@@ -668,7 +666,7 @@ export class SpreadsheetFileStorageService {
     // Ensure we have a fileId - extract from filePath if missing
     let fileId = entry.fileId
     debugLog('[TRACE] Entry fileId:', fileId)
-    
+
     if (!fileId) {
       fileId = this.extractFileIdFromPath(entry.filePath)
       debugLog('[TRACE] Extracted fileId from path:', fileId)
@@ -698,7 +696,7 @@ export class SpreadsheetFileStorageService {
     // Update the file IN PLACE using PUT (same fileId, same path!)
     const appFile = this.createJsonFile(updatedApp, `${APP_FILE_PREFIX}-${id}.json`)
     debugLog('[TRACE] *** CALLING PUT to update app file ***:', fileId)
-    
+
     await fileClient.updateFile(
       appFile,
       { accessScope: FILE_SCOPE, fileId: fileId },
@@ -782,6 +780,7 @@ export class SpreadsheetFileStorageService {
     const original = await this.getApp(id)
     if (!original) return null
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _, createdAt: __, updatedAt: ___, ...appData } = original
 
     return this.createApp({
@@ -806,6 +805,7 @@ export class SpreadsheetFileStorageService {
   async importApp(jsonData: string): Promise<SpreadsheetApp | null> {
     try {
       const imported = JSON.parse(jsonData) as SpreadsheetApp
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, updatedAt, ...appData } = imported
 
       return this.createApp({
@@ -863,7 +863,7 @@ export class SpreadsheetFileStorageService {
     const success = results.every(r => r === true)
     if (success) {
       debugLog('[SpreadsheetStorage] App shared successfully with', recipientUserIds.length, 'users')
-      
+
       // Update app metadata to track shared users
       const app = await this.getApp(appId)
       if (app) {
@@ -874,7 +874,7 @@ export class SpreadsheetFileStorageService {
           permission,
           sharedAt: now
         }))
-        
+
         // Merge with existing shares (update permission if user already shared)
         const updatedSharedWith = [...existingSharedWith]
         for (const newShare of newShares) {
@@ -885,7 +885,7 @@ export class SpreadsheetFileStorageService {
             updatedSharedWith.push(newShare)
           }
         }
-        
+
         await this.updateApp(appId, { sharedWith: updatedSharedWith })
       }
     } else {
@@ -909,7 +909,7 @@ export class SpreadsheetFileStorageService {
     }>
   > {
     debugLog('[SpreadsheetStorage] Getting shared users for app', appId)
-    
+
     try {
       const app = await this.getApp(appId)
       if (!app || !app.sharedWith || app.sharedWith.length === 0) {
@@ -937,10 +937,10 @@ export class SpreadsheetFileStorageService {
    */
   async revokeAccess(appId: string, recipientUserId: string): Promise<boolean> {
     debugLog('[SpreadsheetStorage] Revoking access to app', appId, 'for user', recipientUserId)
-    
+
     // Revoke via sync service (removes from recipient's sharedApps)
     const syncSuccess = await this.syncService.revokeAppAccess(recipientUserId, appId)
-    
+
     if (syncSuccess) {
       // Also remove from app's sharedWith metadata
       const app = await this.getApp(appId)
@@ -949,7 +949,7 @@ export class SpreadsheetFileStorageService {
         await this.updateApp(appId, { sharedWith: updatedSharedWith })
       }
     }
-    
+
     return syncSuccess
   }
 

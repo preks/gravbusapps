@@ -7,12 +7,7 @@
 
 import { useState, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type {
-  SpreadsheetApp,
-  SpreadsheetSheet,
-  SpreadsheetColumn,
-  ColumnType
-} from '../types'
+import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
 
 export interface UseDataPromotionState {
   isPromoting: boolean
@@ -172,7 +167,7 @@ export function useDataPromotion(accessToken: string): UseDataPromotionResult {
 
           setState(prev => ({
             ...prev,
-            progress: 50 + (app.sheets.indexOf(sheet) + 1) / app.sheets.length * 30
+            progress: 50 + ((app.sheets.indexOf(sheet) + 1) / app.sheets.length) * 30
           }))
         }
 
@@ -242,10 +237,7 @@ export function useDataPromotion(accessToken: string): UseDataPromotionResult {
 /**
  * Generate GraphQL entity schema from app definition
  */
-function generateEntitySchema(
-  app: SpreadsheetApp,
-  entityName: string
-): EntitySchema {
+function generateEntitySchema(app: SpreadsheetApp, entityName: string): EntitySchema {
   const tables = app.sheets.map(sheet => ({
     name: sanitizeEntityName(`${entityName}_${sheet.name}`),
     displayName: sheet.name,
@@ -287,9 +279,10 @@ function generateEntitySchema(
 /**
  * Simulate entity creation (placeholder for real API call)
  */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 async function simulateEntityCreation(
-  schema: EntitySchema,
-  graphqlClient: ReturnType<typeof useGraphQLClient>
+  _schema: EntitySchema,
+  _graphqlClient: ReturnType<typeof useGraphQLClient>
 ): Promise<string> {
   // In a real implementation, this would:
   // 1. Call the backend API to create the entity schema
@@ -302,14 +295,16 @@ async function simulateEntityCreation(
   // Return a mock entity ID
   return `entity_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 /**
  * Migrate sheet data to database
  */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 async function migrateSheetData(
   sheet: SpreadsheetSheet,
-  entityName: string,
-  graphqlClient: ReturnType<typeof useGraphQLClient>
+  _entityName: string,
+  _graphqlClient: ReturnType<typeof useGraphQLClient>
 ): Promise<number> {
   // In a real implementation, this would:
   // 1. Transform data to match entity schema
@@ -322,14 +317,16 @@ async function migrateSheetData(
 
   return sheet.data.length
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 /**
  * Configure GraphQL endpoints for the entity
  */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 async function configureGraphQLEndpoints(
-  entityName: string,
-  sheets: SpreadsheetSheet[],
-  graphqlClient: ReturnType<typeof useGraphQLClient>
+  _entityName: string,
+  _sheets: SpreadsheetSheet[],
+  _graphqlClient: ReturnType<typeof useGraphQLClient>
 ): Promise<void> {
   // In a real implementation, this would:
   // 1. Configure query endpoints
@@ -338,6 +335,7 @@ async function configureGraphQLEndpoints(
 
   await new Promise(resolve => setTimeout(resolve, 500))
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 /**
  * Sanitize entity name for GraphQL
@@ -359,9 +357,7 @@ function sanitizeFieldName(name: string): string {
     .replace(/[^a-zA-Z0-9_\s]/g, '')
     .split(/[\s_]+/)
     .map((word, index) =>
-      index === 0
-        ? word.toLowerCase()
-        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     )
     .join('')
     .replace(/^[0-9]/, '_$&')
@@ -426,12 +422,4 @@ interface RelationshipSchema {
   type: 'one-to-one' | 'one-to-many' | 'many-to-many'
 }
 
-type GraphQLFieldType =
-  | 'String'
-  | 'Int'
-  | 'Float'
-  | 'Boolean'
-  | 'Date'
-  | 'DateTime'
-  | 'ID'
-  | 'JSON'
+type GraphQLFieldType = 'String' | 'Int' | 'Float' | 'Boolean' | 'Date' | 'DateTime' | 'ID' | 'JSON'

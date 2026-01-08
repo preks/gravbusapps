@@ -12,7 +12,13 @@ export { useSpreadsheetAI } from './useSpreadsheetAI'
 export type { UseSpreadsheetAIState, UseSpreadsheetAIResult } from './useSpreadsheetAI'
 
 export { useDataPromotion } from './useDataPromotion'
-export type { UseDataPromotionState, UseDataPromotionResult, PromotionStep, PromotionResult, ValidationResult } from './useDataPromotion'
+export type {
+  UseDataPromotionState,
+  UseDataPromotionResult,
+  PromotionStep,
+  PromotionResult,
+  ValidationResult
+} from './useDataPromotion'
 
 export { useSpreadsheetAppsDatabase } from './useSpreadsheetAppsDatabase'
 export type { UseSpreadsheetAppsDatabaseState, UseSpreadsheetAppsDatabaseResult } from './useSpreadsheetAppsDatabase'

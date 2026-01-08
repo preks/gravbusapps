@@ -12,7 +12,6 @@ import type {
   EntityDataResult,
   EntityDataLoadState,
   EntityFilterGroup,
-  EntityFilterCondition,
   EntitySortConfig,
   AvailableEntity,
   EntityField
@@ -81,12 +80,12 @@ function getApiUrl(): string {
  */
 function substituteVariables(value: unknown, userId?: string): unknown {
   if (typeof value !== 'string') return value
-  
+
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
   const startOfYear = new Date(now.getFullYear(), 0, 1)
-  
+
   const replacements: Record<string, string> = {
     '{{currentUserId}}': userId || '',
     '{{today}}': now.toISOString().split('T')[0],
@@ -95,12 +94,12 @@ function substituteVariables(value: unknown, userId?: string): unknown {
     '{{endOfMonth}}': endOfMonth.toISOString(),
     '{{startOfYear}}': startOfYear.toISOString()
   }
-  
+
   let result = value
   for (const [template, replacement] of Object.entries(replacements)) {
     result = result.replace(template, replacement)
   }
-  
+
   return result
 }
 
@@ -112,38 +111,34 @@ function buildApiFilters(
   userId?: string
 ): Array<{ field: string; operator: string; value: unknown }> {
   const filters: Array<{ field: string; operator: string; value: unknown }> = []
-  
+
   // Process conditions
   for (const condition of group.conditions) {
     if (!condition.isActive) continue
-    
+
     const value = substituteVariables(condition.value, userId)
-    
+
     // Skip empty values (except for isNull/isNotNull)
-    if (
-      value === null || 
-      value === undefined || 
-      value === ''
-    ) {
+    if (value === null || value === undefined || value === '') {
       if (condition.operator !== 'isNull' && condition.operator !== 'isNotNull') {
         continue
       }
     }
-    
+
     filters.push({
       field: condition.field,
       operator: OPERATOR_MAP[condition.operator] || condition.operator,
       value
     })
   }
-  
+
   // Process nested groups (flatten them for now - API may not support complex nesting)
   if (group.groups) {
     for (const nestedGroup of group.groups) {
       filters.push(...buildApiFilters(nestedGroup, userId))
     }
   }
-  
+
   return filters
 }
 
@@ -162,7 +157,7 @@ function buildApiOrderBy(orderBy: EntitySortConfig[]): Array<{ field: string; di
  */
 export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEntityDataSourceResult {
   const { accessToken, userId } = options
-  
+
   // State
   const [state, setState] = useState<EntityDataLoadState>({
     isLoading: false,
@@ -172,36 +167,36 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
   })
   const [availableEntities, setAvailableEntities] = useState<AvailableEntity[]>([])
   const [isLoadingEntities, setIsLoadingEntities] = useState(false)
-  
+
   // Refs for last config (for refresh)
   const lastDataSourceRef = useRef<EntityDataSource | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
-  
+
   /**
    * Fetch available entities from the schema API
    */
   const fetchAvailableEntities = useCallback(async () => {
     if (isLoadingEntities) return
-    
+
     setIsLoadingEntities(true)
-    
+
     try {
       const apiUrl = getApiUrl()
       const response = await fetch(`${apiUrl}/api/entities?includeFields=true`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
         }
       })
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch entities: ${response.status}`)
       }
-      
+
       const data = await response.json()
       const entities = data.entities || data.schemas || {}
-      
+
       // Convert to array format
       const entityList: AvailableEntity[] = Object.entries(entities).map(([type, schema]: [string, any]) => ({
         type,
@@ -223,7 +218,7 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
         })),
         exampleId: schema.exampleId
       }))
-      
+
       setAvailableEntities(entityList)
     } catch (error) {
       console.error('[useEntityDataSource] Failed to fetch entities:', error)
@@ -231,121 +226,125 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
       setIsLoadingEntities(false)
     }
   }, [accessToken, isLoadingEntities])
-  
+
   /**
    * Get fields for a specific entity type
    */
-  const getEntityFields = useCallback((entityType: string): EntityField[] => {
-    const entity = availableEntities.find(e => 
-      e.type.toLowerCase() === entityType.toLowerCase()
-    )
-    return entity?.fields || []
-  }, [availableEntities])
-  
+  const getEntityFields = useCallback(
+    (entityType: string): EntityField[] => {
+      const entity = availableEntities.find(e => e.type.toLowerCase() === entityType.toLowerCase())
+      return entity?.fields || []
+    },
+    [availableEntities]
+  )
+
   /**
    * Load data from an entity data source
    */
-  const loadData = useCallback(async (dataSource: EntityDataSource): Promise<EntityDataResult | null> => {
-    if (!dataSource.enabled) {
-      return null
-    }
-    
-    // Cancel any in-progress request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    abortControllerRef.current = new AbortController()
-    
-    // Store for refresh
-    lastDataSourceRef.current = dataSource
-    
-    setState(prev => ({
-      ...prev,
-      isLoading: true,
-      error: null
-    }))
-    
-    try {
-      const apiUrl = getApiUrl()
-      
-      // Build query parameters
-      const params = new URLSearchParams()
-      
-      // Limit
-      if (dataSource.limit > 0) {
-        params.set('limit', String(dataSource.limit))
-      }
-      
-      // Filters
-      const filters = buildApiFilters(dataSource.filters, userId)
-      if (filters.length > 0) {
-        params.set('filters', JSON.stringify(filters))
-      }
-      
-      // Order by
-      if (dataSource.orderBy.length > 0) {
-        params.set('orderBy', JSON.stringify(buildApiOrderBy(dataSource.orderBy)))
-      }
-      
-      const queryString = params.toString()
-      const url = `${apiUrl}/api/datasource/${dataSource.entityType}${queryString ? `?${queryString}` : ''}`
-      
-      console.log('[useEntityDataSource] Loading data from:', url)
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
-        },
-        signal: abortControllerRef.current.signal
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
-      }
-      
-      const data = await response.json()
-      
-      const result: EntityDataResult = {
-        records: data.entities || [],
-        total: data.meta?.total || data.entities?.length || 0,
-        count: data.entities?.length || 0,
-        hasMore: data.meta?.hasMore || false,
-        entityType: dataSource.entityType,
-        fetchedAt: new Date().toISOString()
-      }
-      
-      setState({
-        isLoading: false,
-        isLoaded: true,
-        data: result,
-        error: null
-      })
-      
-      console.log('[useEntityDataSource] Loaded', result.count, 'records for', dataSource.entityType)
-      
-      return result
-    } catch (error) {
-      // Don't update state if aborted
-      if (error instanceof Error && error.name === 'AbortError') {
+  const loadData = useCallback(
+    async (dataSource: EntityDataSource): Promise<EntityDataResult | null> => {
+      if (!dataSource.enabled) {
         return null
       }
-      
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load data'
-      console.error('[useEntityDataSource] Error:', errorMessage)
-      
+
+      // Cancel any in-progress request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      abortControllerRef.current = new AbortController()
+
+      // Store for refresh
+      lastDataSourceRef.current = dataSource
+
       setState(prev => ({
         ...prev,
-        isLoading: false,
-        error: errorMessage
+        isLoading: true,
+        error: null
       }))
-      
-      return null
-    }
-  }, [accessToken, userId])
-  
+
+      try {
+        const apiUrl = getApiUrl()
+
+        // Build query parameters
+        const params = new URLSearchParams()
+
+        // Limit
+        if (dataSource.limit > 0) {
+          params.set('limit', String(dataSource.limit))
+        }
+
+        // Filters
+        const filters = buildApiFilters(dataSource.filters, userId)
+        if (filters.length > 0) {
+          params.set('filters', JSON.stringify(filters))
+        }
+
+        // Order by
+        if (dataSource.orderBy.length > 0) {
+          params.set('orderBy', JSON.stringify(buildApiOrderBy(dataSource.orderBy)))
+        }
+
+        const queryString = params.toString()
+        const url = `${apiUrl}/api/datasource/${dataSource.entityType}${queryString ? `?${queryString}` : ''}`
+
+        console.log('[useEntityDataSource] Loading data from:', url)
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+          },
+          signal: abortControllerRef.current.signal
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+
+        const result: EntityDataResult = {
+          records: data.entities || [],
+          total: data.meta?.total || data.entities?.length || 0,
+          count: data.entities?.length || 0,
+          hasMore: data.meta?.hasMore || false,
+          entityType: dataSource.entityType,
+          fetchedAt: new Date().toISOString()
+        }
+
+        setState({
+          isLoading: false,
+          isLoaded: true,
+          data: result,
+          error: null
+        })
+
+        console.log('[useEntityDataSource] Loaded', result.count, 'records for', dataSource.entityType)
+
+        return result
+      } catch (error) {
+        // Don't update state if aborted
+        if (error instanceof Error && error.name === 'AbortError') {
+          return null
+        }
+
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load data'
+        console.error('[useEntityDataSource] Error:', errorMessage)
+
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: errorMessage
+        }))
+
+        return null
+      }
+    },
+    [accessToken, userId]
+  )
+
   /**
    * Refresh using last configuration
    */
@@ -354,10 +353,10 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
       console.warn('[useEntityDataSource] No data source to refresh')
       return null
     }
-    
+
     return loadData(lastDataSourceRef.current)
   }, [loadData])
-  
+
   /**
    * Clear loaded data
    */
@@ -365,17 +364,17 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
-    
+
     setState({
       isLoading: false,
       isLoaded: false,
       data: null,
       error: null
     })
-    
+
     lastDataSourceRef.current = null
   }, [])
-  
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -384,7 +383,7 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
       }
     }
   }, [])
-  
+
   return {
     state,
     loadData,
@@ -401,38 +400,35 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
  * Build a GraphQL-style where clause from our filter format
  * This is useful if we need to make direct GraphQL queries
  */
-export function buildGraphQLWhere(
-  group: EntityFilterGroup,
-  userId?: string
-): Record<string, unknown> {
+export function buildGraphQLWhere(group: EntityFilterGroup, userId?: string): Record<string, unknown> {
   const conditions: Record<string, unknown>[] = []
-  
+
   // Process conditions
   for (const condition of group.conditions) {
     if (!condition.isActive) continue
-    
+
     const value = substituteVariables(condition.value, userId)
-    
+
     // Build the condition based on field path
     const parts = condition.field.split('.')
-    let conditionObj: Record<string, unknown> = {}
+    const conditionObj: Record<string, unknown> = {}
     let current = conditionObj
-    
+
     // Navigate nested fields
     for (let i = 0; i < parts.length - 1; i++) {
       current[parts[i]] = {}
       current = current[parts[i]] as Record<string, unknown>
     }
-    
+
     // Set the final operator
     const lastPart = parts[parts.length - 1]
     const operator = `_${condition.operator}`
-    
+
     current[lastPart] = { [operator]: value }
-    
+
     conditions.push(conditionObj)
   }
-  
+
   // Handle nested groups
   if (group.groups) {
     for (const nestedGroup of group.groups) {
@@ -440,16 +436,16 @@ export function buildGraphQLWhere(
       conditions.push(nestedWhere)
     }
   }
-  
+
   // Combine with logic operator
   if (conditions.length === 0) {
     return {}
   }
-  
+
   if (conditions.length === 1) {
     return conditions[0]
   }
-  
+
   const logicKey = group.logic === 'OR' ? '_or' : '_and'
   return { [logicKey]: conditions }
 }

@@ -292,7 +292,7 @@ export interface SpreadsheetSheet {
   data: Record<string, unknown>[]
   chartConfigs?: ChartConfig[]
   settings: SheetSettings
-  /** 
+  /**
    * Optional entity data source configuration.
    * When configured, the sheet loads data from a NEWWORK entity instead of static data.
    */
@@ -482,7 +482,9 @@ export function columnToFormField(column: SpreadsheetColumn, order: number): Dyn
     })),
     validation: column.validation
       ? [
-          ...(column.validation.required ? [{ type: 'required' as const, message: `${column.label} is required` }] : []),
+          ...(column.validation.required
+            ? [{ type: 'required' as const, message: `${column.label} is required` }]
+            : []),
           ...(column.validation.min !== undefined
             ? [{ type: 'min' as const, value: column.validation.min, message: column.validation.message }]
             : []),

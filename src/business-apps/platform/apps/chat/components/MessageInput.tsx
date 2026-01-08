@@ -6,6 +6,7 @@ import { useEntityMentions } from '../hooks/useEntityMentions'
 import { EntityMentionPopover } from './EntityMentionPopover'
 import type { EntityReference, MessageEntityReference } from '../types'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
+import { debugLog } from '../utils/debugLog'
 
 // Persist focus state across unmounts caused by parent re-renders
 let lastHadFocus = false
@@ -497,9 +498,9 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
     // Debug mount/unmount to detect remounts that could wipe state
     useEffect(() => {
-      console.debug('[MessageInput] mount')
+      debugLog('[MessageInput] mount')
       return () => {
-        console.debug('[MessageInput] unmount')
+        debugLog('[MessageInput] unmount')
       }
     }, [])
 

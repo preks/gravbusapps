@@ -12,7 +12,6 @@ import {
   Table2,
   MoreVertical,
   Play,
-  Pencil,
   Trash2,
   Copy,
   Download,
@@ -20,7 +19,8 @@ import {
   Clock,
   Layers,
   Share2,
-  Users
+  Users,
+  Settings
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
 import type { SpreadsheetAppSummary, AppStatus } from '../types'
+import { getIconByName, DEFAULT_APP_ICON } from '../utils/appIcons'
 
 export interface AppPreviewCardProps {
   app: SpreadsheetAppSummary
@@ -46,7 +47,10 @@ export interface AppPreviewCardProps {
 /**
  * Get status badge variant and label
  */
-function getStatusInfo(status: AppStatus): { variant: 'default' | 'secondary' | 'outline' | 'success' | 'destructive' | 'warning' | 'info' | 'offline'; label: string } {
+function getStatusInfo(status: AppStatus): {
+  variant: 'default' | 'secondary' | 'outline' | 'success' | 'destructive' | 'warning' | 'info' | 'offline'
+  label: string
+} {
   switch (status) {
     case 'draft':
       return { variant: 'secondary', label: 'Draft' }
@@ -110,20 +114,19 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
         <div className="gba:flex gba:items-start gba:justify-between gba:mb-4 gba:gap-2">
           <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
             <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:transition-transform gba:group-hover:scale-105 gba:flex-shrink-0">
-              {app.icon ? (
-                <span className="gba:text-2xl">{app.icon}</span>
-              ) : (
-                <FileSpreadsheet className="gba:w-6 gba:h-6 gba:text-primary" />
-              )}
+              {(() => {
+                const IconComponent = app.icon ? getIconByName(app.icon) : null
+                return IconComponent ? (
+                  <IconComponent className="gba:w-6 gba:h-6 gba:text-primary" />
+                ) : (
+                  <DEFAULT_APP_ICON className="gba:w-6 gba:h-6 gba:text-primary" />
+                )
+              })()}
             </div>
             <div className="gba:flex-1 gba:min-w-0">
-              <h3 className="gba:font-semibold gba:text-foreground gba:truncate">
-                {app.name}
-              </h3>
+              <h3 className="gba:font-semibold gba:text-foreground gba:truncate">{app.name}</h3>
               {app.description && (
-                <p className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                  {app.description}
-                </p>
+                <p className="gba:text-sm gba:text-muted-foreground gba:truncate">{app.description}</p>
               )}
             </div>
           </div>
@@ -131,79 +134,96 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
           {/* Dropdown menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:opacity-100 gba:relative gba:z-10 gba:flex-shrink-0"
-              >
+              <Button variant="ghost" size="sm" className="gba:opacity-100 gba:relative gba:z-10 gba:flex-shrink-0">
                 <MoreVertical className="gba:w-4 gba:h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-              <DropdownMenuItem onClick={e => {
-                e.stopPropagation()
-                onOpen(app.id)
-              }}>
+              <DropdownMenuItem
+                onClick={e => {
+                  e.stopPropagation()
+                  onOpen(app.id)
+                }}
+              >
                 <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                 Open
               </DropdownMenuItem>
-              {onShare && (
-                <DropdownMenuItem onClick={e => {
+              <DropdownMenuItem
+                onClick={e => {
                   e.stopPropagation()
-                  onShare(app.id)
-                }}>
+                  onEdit(app.id)
+                }}
+              >
+                <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
+                Settings
+              </DropdownMenuItem>
+              {onShare && (
+                <DropdownMenuItem
+                  onClick={e => {
+                    e.stopPropagation()
+                    onShare(app.id)
+                  }}
+                >
                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
                   Share
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={e => {
-                e.stopPropagation()
-                onDuplicate(app.id)
-              }}>
+              <DropdownMenuItem
+                onClick={e => {
+                  e.stopPropagation()
+                  onDuplicate(app.id)
+                }}
+              >
                 <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
                 Duplicate
               </DropdownMenuItem>
-                {onExport && (
-                  <DropdownMenuItem onClick={e => {
-                    e.stopPropagation()
-                    onExport(app.id)
-                  }}>
-                    <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export
-                  </DropdownMenuItem>
-                )}
-                {onPromote && app.status === 'file_based' && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={e => {
-                      e.stopPropagation()
-                      onPromote(app.id)
-                    }}>
-                      <Database className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Promote to Database
-                    </DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuSeparator />
+              {onExport && (
                 <DropdownMenuItem
-                  className="gba:text-destructive"
                   onClick={e => {
                     e.stopPropagation()
-                    onDelete(app.id)
+                    onExport(app.id)
                   }}
                 >
-                  <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Delete
+                  <Download className="gba:w-4 gba:h-4 gba:mr-2" />
+                  Export
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              )}
+              {onPromote && app.status === 'file_based' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={e => {
+                      e.stopPropagation()
+                      onPromote(app.id)
+                    }}
+                  >
+                    <Database className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Promote to Database
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="gba:text-destructive"
+                onClick={e => {
+                  e.stopPropagation()
+                  onDelete(app.id)
+                }}
+              >
+                <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Stats row */}
         <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:mb-4">
           <div className="gba:flex gba:items-center gba:gap-1">
             <Layers className="gba:w-4 gba:h-4" />
-            <span>{app.sheetCount} sheet{app.sheetCount !== 1 ? 's' : ''}</span>
+            <span>
+              {app.sheetCount} sheet{app.sheetCount !== 1 ? 's' : ''}
+            </span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-1">
             <Table2 className="gba:w-4 gba:h-4" />
@@ -220,9 +240,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
         {/* Bottom row: status and time */}
         <div className="gba:flex gba:items-center gba:justify-between gba:pt-3 gba:border-t gba:border-border">
           <Badge variant={statusInfo.variant}>
-            {app.status === 'promoted' && (
-              <Database className="gba:w-3 gba:h-3 gba:mr-1" />
-            )}
+            {app.status === 'promoted' && <Database className="gba:w-3 gba:h-3 gba:mr-1" />}
             {statusInfo.label}
           </Badge>
           <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
@@ -244,12 +262,10 @@ export const NoAppsState: React.FC<{ onCreateNew: () => void }> = ({ onCreateNew
       <div className="gba:w-20 gba:h-20 gba:rounded-full gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-6">
         <FileSpreadsheet className="gba:w-10 gba:h-10 gba:text-muted-foreground" />
       </div>
-      <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
-        No apps yet
-      </h3>
+      <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">No apps yet</h3>
       <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
-        Upload an Excel file to transform it into a powerful business application.
-        AI will analyze your data and suggest the best app structure.
+        Upload an Excel file to transform it into a powerful business application. AI will analyze your data and suggest
+        the best app structure.
       </p>
       <Button onClick={onCreateNew}>
         <FileSpreadsheet className="gba:w-4 gba:h-4 gba:mr-2" />

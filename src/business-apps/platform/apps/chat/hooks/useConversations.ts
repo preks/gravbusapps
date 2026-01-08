@@ -3,6 +3,7 @@ import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
 import { useEmployeeAvatars } from './useEmployeeAvatars'
+import { debugLog } from '../utils/debugLog'
 
 interface UseConversationsOptions {
   apiClient: ChatApiClient
@@ -216,7 +217,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
   const updateConversationLastMessage = useCallback(
     async (conversationId: string, message: Message) => {
-      console.log(
+      debugLog(
         '[useConversations] Updating last message for conversation:',
         conversationId,
         'Message:',
@@ -277,7 +278,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           return new Date(bTime).getTime() - new Date(aTime).getTime()
         })
 
-        console.log(
+        debugLog(
           '[useConversations] Re-sorted conversations, top 3:',
           sorted.slice(0, 3).map(c => ({ id: c.id, name: c.name || 'Direct' }))
         )
@@ -292,7 +293,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   }, [])
 
   const incrementUnreadCount = useCallback((conversationId: string) => {
-    console.log('[useConversations] Incrementing unread count for conversation:', conversationId)
+    debugLog('[useConversations] Incrementing unread count for conversation:', conversationId)
     setConversations(prev => {
       const convExists = prev.some(c => c.id === conversationId)
 
@@ -304,7 +305,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       return prev.map(conv => {
         if (conv.id === conversationId) {
           const newCount = (conv.unreadCount || 0) + 1
-          console.log('[useConversations] New unread count for', conversationId, ':', newCount)
+          debugLog('[useConversations] New unread count for', conversationId, ':', newCount)
           return { ...conv, unreadCount: newCount }
         }
         return conv

@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { ChatApiClient } from '../services/chatApiClient'
 import type { AvailableExpert } from './useEveryExperts'
+import { debugLog } from '../utils/debugLog'
 
 export interface ActiveExpert {
   expertId: string
@@ -47,7 +48,7 @@ export const useConversationExperts = (
         // Only update state if this conversation is still active
         // This prevents race condition where old API call finishes after new one
         if (!isCurrent) {
-          console.log('[useConversationExperts] Discarding stale experts response')
+          debugLog('[useConversationExperts] Discarding stale experts response')
           return
         }
 

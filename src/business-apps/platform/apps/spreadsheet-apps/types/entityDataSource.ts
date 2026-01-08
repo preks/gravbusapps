@@ -1,6 +1,6 @@
 /**
  * Entity Data Source Types
- * 
+ *
  * Defines types for connecting spreadsheet sheets to NEWWORK system entities.
  * Allows loading real data from entities like Accounts, Leads, Contacts, etc.
  * with configurable filters and field mappings.
@@ -10,17 +10,17 @@
  * Supported filter operators for entity queries
  */
 export type EntityFilterOperator =
-  | 'eq'       // Equal
-  | 'neq'      // Not equal
-  | 'gt'       // Greater than
-  | 'gte'      // Greater than or equal
-  | 'lt'       // Less than
-  | 'lte'      // Less than or equal
-  | 'in'       // In array
-  | 'nin'      // Not in array
-  | 'like'     // Case-sensitive pattern match
-  | 'ilike'    // Case-insensitive pattern match
-  | 'isNull'   // Is null
+  | 'eq' // Equal
+  | 'neq' // Not equal
+  | 'gt' // Greater than
+  | 'gte' // Greater than or equal
+  | 'lt' // Less than
+  | 'lte' // Less than or equal
+  | 'in' // In array
+  | 'nin' // Not in array
+  | 'like' // Case-sensitive pattern match
+  | 'ilike' // Case-insensitive pattern match
+  | 'isNull' // Is null
   | 'isNotNull' // Is not null
   | 'contains' // For JSON fields
 
@@ -59,7 +59,7 @@ export interface EntityFilterGroup {
 /**
  * Sort direction for entity queries
  */
-export type EntitySortDirection = 
+export type EntitySortDirection =
   | 'ASC'
   | 'DESC'
   | 'ASC_NULLS_FIRST'
@@ -96,11 +96,11 @@ export interface EntityFieldMapping {
 /**
  * Refresh mode for entity data
  */
-export type EntityRefreshMode = 
-  | 'manual'      // Only refresh when user clicks refresh
-  | 'onOpen'      // Refresh when sheet is opened
-  | 'periodic'    // Refresh at specified interval
-  | 'realtime'    // Subscribe to changes (if supported)
+export type EntityRefreshMode =
+  | 'manual' // Only refresh when user clicks refresh
+  | 'onOpen' // Refresh when sheet is opened
+  | 'periodic' // Refresh at specified interval
+  | 'realtime' // Subscribe to changes (if supported)
 
 /**
  * Main entity data source configuration for a sheet
@@ -116,31 +116,31 @@ export interface EntityDataSource {
   entityDisplayName: string
   /** Icon for the entity type */
   entityIcon?: string
-  
+
   /** Filter configuration */
   filters: EntityFilterGroup
-  
+
   /** Sort configuration */
   orderBy: EntitySortConfig[]
-  
+
   /** Maximum number of records to load (0 = no limit) */
   limit: number
-  
+
   /** Field mappings from entity to columns */
   fieldMappings: EntityFieldMapping[]
-  
+
   /** Data refresh settings */
   refreshMode: EntityRefreshMode
   /** Refresh interval in seconds (for periodic mode) */
   refreshInterval?: number
-  
+
   /** Last sync timestamp */
   lastSyncAt?: string
   /** Last sync record count */
   lastSyncCount?: number
   /** Last sync error if any */
   lastSyncError?: string
-  
+
   /** Whether to append data or replace */
   syncMode: 'replace' | 'append' | 'merge'
   /** For merge mode: field to use as unique identifier */
@@ -176,7 +176,18 @@ export interface EntityField {
   /** Display name */
   displayName: string
   /** Field type */
-  type: 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'email' | 'url' | 'reference' | 'catalog' | 'array' | 'object'
+  type:
+    | 'string'
+    | 'number'
+    | 'boolean'
+    | 'date'
+    | 'datetime'
+    | 'email'
+    | 'url'
+    | 'reference'
+    | 'catalog'
+    | 'array'
+    | 'object'
   /** Description */
   description?: string
   /** Whether field is required */
@@ -335,9 +346,7 @@ export const DEFAULT_ENTITY_DATA_SOURCE: Omit<EntityDataSource, 'id' | 'entityTy
       }
     ]
   },
-  orderBy: [
-    { field: 'createdAt', direction: 'DESC_NULLS_LAST' }
-  ],
+  orderBy: [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
   limit: 100,
   fieldMappings: [],
   refreshMode: 'onOpen',

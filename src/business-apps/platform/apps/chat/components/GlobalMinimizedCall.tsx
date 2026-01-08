@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Users } from 'lucide-react'
 import { globalCallManager, type GlobalCallState } from '../services/globalCallManager'
 import type { GroupCallParticipant } from '../services/groupWebrtcClient'
+import { debugLog } from '../utils/debugLog'
 
 // Format duration as MM:SS or HH:MM:SS
 const formatDuration = (seconds: number): string => {
@@ -67,7 +68,7 @@ const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
   useEffect(() => {
     if (pipVideoRef.current && firstRemoteStream) {
       pipVideoRef.current.srcObject = firstRemoteStream
-      pipVideoRef.current.play().catch(err => console.debug('PiP video play error:', err))
+      pipVideoRef.current.play().catch(err => debugLog('PiP video play error:', err))
     }
   }, [firstRemoteStream])
 
@@ -79,7 +80,7 @@ const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
         const audio = document.createElement('audio')
         audio.autoplay = true
         audio.srcObject = stream
-        audio.play().catch(err => console.debug('Audio play error:', err))
+        audio.play().catch(err => debugLog('Audio play error:', err))
         pipAudioRefs.current.set(participantId, audio)
       }
     })
@@ -209,7 +210,7 @@ export const GlobalMinimizedCall: React.FC = () => {
   useEffect(() => {
     const handleUpdate = () => {
       const newData = globalCallManager.getCallData()
-      console.debug(
+      debugLog(
         'GlobalMinimizedCall: Received update, status:',
         newData.callState.status,
         'isMinimized:',
@@ -237,7 +238,7 @@ export const GlobalMinimizedCall: React.FC = () => {
       const isMounted = !!chatMinimizedElement
 
       if (isMounted !== isChatMinimizedMounted) {
-        console.debug('GlobalMinimizedCall: Chat minimized view mounted changed:', isMounted)
+        debugLog('GlobalMinimizedCall: Chat minimized view mounted changed:', isMounted)
         setIsChatMinimizedMounted(isMounted)
       }
     }
@@ -266,7 +267,7 @@ export const GlobalMinimizedCall: React.FC = () => {
 
   // Only log when there's an active call to reduce noise
   if (callData.callState.status !== 'idle') {
-    console.debug('GlobalMinimizedCall: shouldRender:', shouldRender, {
+    debugLog('GlobalMinimizedCall: shouldRender:', shouldRender, {
       status: callData.callState.status,
       isMinimized: callData.callState.isMinimized,
       hasWebRTC: !!callData.webrtcClient,
@@ -350,11 +351,11 @@ export const GlobalMinimizedCall: React.FC = () => {
 export function initGlobalMinimizedCallRenderer() {
   // Only initialize once per page load
   if (window.__GLOBAL_CALL_UI_CONTAINER__) {
-    console.debug('GlobalMinimizedCall: Already initialized')
+    debugLog('GlobalMinimizedCall: Already initialized')
     return
   }
 
-  console.debug('GlobalMinimizedCall: Initializing global renderer')
+  debugLog('GlobalMinimizedCall: Initializing global renderer')
 
   // Create container
   const containerId = 'global-minimized-call-container'
@@ -401,7 +402,7 @@ export function initGlobalMinimizedCallRenderer() {
 
       // Only log when shouldShow actually changes (not on every poll)
       if (shouldShow !== lastShouldShow && lastShouldShow !== null) {
-        console.debug('GlobalMinimizedCall updateUI:', {
+        debugLog('GlobalMinimizedCall updateUI:', {
           shouldShow,
           status: callData.callState.status,
           isMinimized: callData.callState.isMinimized,
@@ -414,7 +415,7 @@ export function initGlobalMinimizedCallRenderer() {
       if (!shouldShow) {
         if (container!.innerHTML !== '') {
           container!.innerHTML = ''
-          console.debug('GlobalMinimizedCall: Cleared UI, shouldShow is false')
+          debugLog('GlobalMinimizedCall: Cleared UI, shouldShow is false')
           // Only reset tracking when UI was actually cleared
           resetTracking()
         }
@@ -646,7 +647,7 @@ export function initGlobalMinimizedCallRenderer() {
       })
 
       expandBtn?.addEventListener('click', () => {
-        console.debug('GlobalMinimizedCall: Expand clicked, clearing UI immediately')
+        debugLog('GlobalMinimizedCall: Expand clicked, clearing UI immediately')
 
         // Immediately clear the vanilla DOM UI before navigation
         container!.innerHTML = ''
@@ -686,7 +687,7 @@ export function initGlobalMinimizedCallRenderer() {
     requestAnimationFrame(updateUI)
   }, 500)
 
-  console.debug('GlobalMinimizedCall: Initialized vanilla DOM renderer')
+  debugLog('GlobalMinimizedCall: Initialized vanilla DOM renderer')
 }
 
 export default GlobalMinimizedCall

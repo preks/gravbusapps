@@ -7,17 +7,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { toast } from 'sonner'
-import {
-  Card,
-  Button,
-  Badge,
-  Input,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  Spinner
-} from '@newwork/nw-design-system'
+import { Card, Button, Input, Spinner } from '@newwork/nw-design-system'
 import {
   FileSpreadsheet,
   Plus,
@@ -29,8 +19,6 @@ import {
   SortAsc,
   Upload,
   Database,
-  Clock,
-  Trash2,
   AlertCircle
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -46,7 +34,6 @@ import { ShareAppDialog } from './components/ShareAppDialog'
 
 // Hooks
 import { useSpreadsheetApps } from './hooks/useSpreadsheetApps'
-import { useExcelParser } from './hooks/useExcelParser'
 import { useSpreadsheetAI } from './hooks/useSpreadsheetAI'
 import { useDataPromotion } from './hooks/useDataPromotion'
 
@@ -54,12 +41,7 @@ import { useDataPromotion } from './hooks/useDataPromotion'
 import { generateAppSchema } from './services/SchemaGenerator'
 
 // Types
-import type {
-  ParsedExcelFile,
-  SpreadsheetAnalysis,
-  SpreadsheetApp,
-  SpreadsheetAppSummary
-} from './types'
+import type { ParsedExcelFile, SpreadsheetAnalysis, SpreadsheetApp, SpreadsheetAppSummary } from './types'
 
 export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -119,20 +101,21 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [selectedAppForShare, setSelectedAppForShare] = useState<SpreadsheetAppSummary | null>(null)
-  const [sharedUsers, setSharedUsers] = useState<Array<{
-    userId: string
-    userName: string
-    userEmail: string
-    permission: 'view' | 'edit'
-    sharedAt: string
-  }>>([])
+  const [sharedUsers, setSharedUsers] = useState<
+    Array<{
+      userId: string
+      userName: string
+      userEmail: string
+      permission: 'view' | 'edit'
+      sharedAt: string
+    }>
+  >([])
 
   // Hooks - Using file storage (database-backed) with localStorage fallback
   const {
     apps,
     currentApp,
     isLoading: isLoadingApps,
-    isSaving,
     error: appsError,
     storageMode,
     currentAppPermission,
@@ -149,17 +132,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     refreshApps
   } = useSpreadsheetApps(accessToken, currentUserId)
 
-  const {
-    isAnalyzing,
-    analysis: aiAnalysis,
-    analyzeSpreadsheet,
-    reset: resetAI
-  } = useSpreadsheetAI(accessToken)
+  const { isAnalyzing, analyzeSpreadsheet, reset: resetAI } = useSpreadsheetAI(accessToken)
 
-  const {
-    isPromoting,
-    promoteToDatabase
-  } = useDataPromotion(accessToken)
+  const { promoteToDatabase } = useDataPromotion(accessToken)
 
   // Load app from URL on mount
   useEffect(() => {
@@ -202,11 +177,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     if (!searchQuery.trim()) return apps
 
     const query = searchQuery.toLowerCase()
-    return apps.filter(
-      app =>
-        app.name.toLowerCase().includes(query) ||
-        app.description?.toLowerCase().includes(query)
-    )
+    return apps.filter(app => app.name.toLowerCase().includes(query) || app.description?.toLowerCase().includes(query))
   }, [apps, searchQuery])
 
   /**
@@ -386,11 +357,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       if (!selectedAppForShare) return false
 
       // Get current user display name
-      const currentUserName = userInfo?.employeeDetails?.firstName && userInfo?.employeeDetails?.lastName
-        ? `${userInfo.employeeDetails.firstName} ${userInfo.employeeDetails.lastName}`
-        : userInfo?.givenName && userInfo?.familyName
-        ? `${userInfo.givenName} ${userInfo.familyName}`
-        : userInfo?.nickName || userInfo?.userName || 'Someone'
+      const currentUserName =
+        userInfo?.employeeDetails?.firstName && userInfo?.employeeDetails?.lastName
+          ? `${userInfo.employeeDetails.firstName} ${userInfo.employeeDetails.lastName}`
+          : userInfo?.givenName && userInfo?.familyName
+            ? `${userInfo.givenName} ${userInfo.familyName}`
+            : userInfo?.nickName || userInfo?.userName || 'Someone'
 
       const success = await shareApp(selectedAppForShare.id, userIds, actualPermission, currentUserName)
       if (success) {
@@ -488,23 +460,29 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   if (currentView === 'viewer' && currentApp) {
     // Check if user can edit (owner or edit permission)
     const canEdit = currentAppPermission === 'owner' || currentAppPermission === 'edit'
-    
+
     return (
       <SpreadsheetAppViewer
         app={currentApp}
         onBack={handleBack}
-        onEdit={canEdit ? () => {
-          setCurrentView('editor')
-          updateUrl(currentApp.id, 'editor', currentApp.filePath)
-        } : undefined}
-        onAppUpdate={canEdit ? (updatedApp => updateApp(updatedApp.id, updatedApp)) : undefined}
-        onDataChange={canEdit ? ((sheetId, data) => {
-          // Update sheet data
-          const updatedSheets = currentApp.sheets.map(s =>
-            s.id === sheetId ? { ...s, data } : s
-          )
-          updateApp(currentApp.id, { sheets: updatedSheets })
-        }) : undefined}
+        onEdit={
+          canEdit
+            ? () => {
+                setCurrentView('editor')
+                updateUrl(currentApp.id, 'editor', currentApp.filePath)
+              }
+            : undefined
+        }
+        onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
+        onDataChange={
+          canEdit
+            ? (sheetId, data) => {
+                // Update sheet data
+                const updatedSheets = currentApp.sheets.map(s => (s.id === sheetId ? { ...s, data } : s))
+                updateApp(currentApp.id, { sheets: updatedSheets })
+              }
+            : undefined
+        }
         isEditing={canEdit}
         accessToken={accessToken}
         userId={currentUserId}
@@ -520,7 +498,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       handleBack()
       return null
     }
-    
+
     return (
       <SpreadsheetAppEditor
         app={currentApp}
@@ -544,9 +522,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 <FileSpreadsheet className="gba:w-6 gba:h-6 gba:text-primary-foreground" />
               </div>
               <div>
-                <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">
-                  Spreadsheet Apps
-                </h1>
+                <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">Spreadsheet Apps</h1>
                 <p className="gba:text-sm gba:text-muted-foreground">
                   Transform your Excel files into powerful business applications
                 </p>
@@ -576,9 +552,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         {currentView === 'upload' && (
           <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
             <div className="gba:text-center gba:mb-8">
-              <h2 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
-                Create a New App
-              </h2>
+              <h2 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">Create a New App</h2>
               <p className="gba:text-muted-foreground">
                 Upload your Excel file and let AI transform it into a business app
               </p>
@@ -593,9 +567,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             {isAnalyzing && (
               <Card className="gba:p-8 gba:text-center">
                 <Spinner size="lg" className="gba:mx-auto gba:mb-4" />
-                <h3 className="gba:font-semibold gba:text-foreground gba:mb-2">
-                  AI is analyzing your spreadsheet...
-                </h3>
+                <h3 className="gba:font-semibold gba:text-foreground gba:mb-2">AI is analyzing your spreadsheet...</h3>
                 <p className="gba:text-sm gba:text-muted-foreground">
                   Detecting column types, relationships, and suggesting the best app structure
                 </p>
@@ -715,7 +687,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-8 gba:text-sm gba:text-muted-foreground">
             {/* Storage status indicator */}
             <div className="gba:flex gba:items-center gba:gap-2">
-              <Database className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-success' : 'gba:text-warning'}`} />
+              <Database
+                className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-success' : 'gba:text-warning'}`}
+              />
               <span>{storageMode === 'database' ? 'Stored in database' : 'Stored locally'}</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -755,8 +729,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             userInfo?.employeeDetails?.firstName && userInfo?.employeeDetails?.lastName
               ? `${userInfo.employeeDetails.firstName} ${userInfo.employeeDetails.lastName}`
               : userInfo?.givenName && userInfo?.familyName
-              ? `${userInfo.givenName} ${userInfo.familyName}`
-              : userInfo?.nickName || userInfo?.userName || undefined
+                ? `${userInfo.givenName} ${userInfo.familyName}`
+                : userInfo?.nickName || userInfo?.userName || undefined
           }
           isOwner={selectedAppForShare.isOwner !== false}
           sharedUsers={sharedUsers}

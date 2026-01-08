@@ -1,6 +1,6 @@
 /**
  * Formula Evaluator
- * 
+ *
  * Evaluates Excel-like formulas in spreadsheet cells.
  * Supports basic arithmetic, cell references, and common Excel functions.
  */
@@ -21,18 +21,13 @@ export interface FormulaContext {
  * @param context - Evaluation context with row data and column info
  * @returns Evaluated result
  */
-export function evaluateFormula(
-  formula: string,
-  context: FormulaContext
-): unknown {
+export function evaluateFormula(formula: string, context: FormulaContext): unknown {
   if (!formula || typeof formula !== 'string') {
     return null
   }
 
   // Remove leading = if present
-  const cleanFormula = formula.trim().startsWith('=') 
-    ? formula.trim().slice(1).trim()
-    : formula.trim()
+  const cleanFormula = formula.trim().startsWith('=') ? formula.trim().slice(1).trim() : formula.trim()
 
   if (!cleanFormula) {
     return null
@@ -79,11 +74,7 @@ function evaluateExpression(expr: string, context: FormulaContext): unknown {
 /**
  * Evaluate Excel functions
  */
-function evaluateFunction(
-  name: string,
-  args: string,
-  context: FormulaContext
-): unknown {
+function evaluateFunction(name: string, args: string, context: FormulaContext): unknown {
   switch (name) {
     case 'SUM':
       return sumFunction(args, context)
@@ -213,7 +204,7 @@ function parseFunctionArgs(args: string, context: FormulaContext): unknown[] {
 
   for (const part of parts) {
     const trimmed = part.trim()
-    
+
     // Check for range (e.g., A1:A10)
     const rangeMatch = trimmed.match(/^([A-Z]+[0-9]*|[A-Za-z_][A-Za-z0-9_]*):([A-Z]+[0-9]*|[A-Za-z_][A-Za-z0-9_]*)$/i)
     if (rangeMatch) {
@@ -265,11 +256,7 @@ function splitFunctionArgs(args: string): string[] {
 /**
  * Get values from a range (e.g., A1:A10 or price:quantity)
  */
-function getRangeValues(
-  startRef: string,
-  endRef: string,
-  context: FormulaContext
-): unknown[] {
+function getRangeValues(startRef: string, endRef: string, context: FormulaContext): unknown[] {
   const values: unknown[] = []
 
   // Try Excel-style references first (A1, B2, etc.)
@@ -296,13 +283,11 @@ function getRangeValues(
     }
   } else {
     // Column name range (e.g., price:quantity)
-    const startCol = context.columns.find(c => 
-      c.name.toLowerCase() === startRef.toLowerCase() || 
-      c.id.toLowerCase() === startRef.toLowerCase()
+    const startCol = context.columns.find(
+      c => c.name.toLowerCase() === startRef.toLowerCase() || c.id.toLowerCase() === startRef.toLowerCase()
     )
-    const endCol = context.columns.find(c => 
-      c.name.toLowerCase() === endRef.toLowerCase() || 
-      c.id.toLowerCase() === endRef.toLowerCase()
+    const endCol = context.columns.find(
+      c => c.name.toLowerCase() === endRef.toLowerCase() || c.id.toLowerCase() === endRef.toLowerCase()
     )
 
     if (startCol && endCol) {
@@ -327,10 +312,7 @@ function getRangeValues(
 /**
  * Parse Excel-style cell reference (A1, B2, etc.) or column name
  */
-function parseCellReference(
-  ref: string,
-  context: FormulaContext
-): { colIndex: number; rowIndex: number } | null {
+function parseCellReference(ref: string, context: FormulaContext): { colIndex: number; rowIndex: number } | null {
   // Excel-style reference (A1, B2, etc.)
   const excelMatch = ref.match(/^([A-Z]+)([0-9]+)$/i)
   if (excelMatch) {
@@ -349,8 +331,7 @@ function parseCellReference(
 
   // Column name reference
   const col = context.columns.find(
-    c => c.name.toLowerCase() === ref.toLowerCase() || 
-         c.id.toLowerCase() === ref.toLowerCase()
+    c => c.name.toLowerCase() === ref.toLowerCase() || c.id.toLowerCase() === ref.toLowerCase()
   )
   if (col) {
     const colIndex = context.columns.findIndex(c => c.id === col.id)
@@ -391,21 +372,21 @@ function evaluateArithmetic(expr: string, context: FormulaContext): unknown {
 function tokenizeExpression(expr: string): Array<string | number> {
   const tokens: Array<string | number> = []
   let current = ''
-  
+
   for (let i = 0; i < expr.length; i++) {
     const char = expr[i]
-    
+
     if (char === ' ') {
       continue
     }
-    
+
     if (['+', '-', '*', '/'].includes(char)) {
       // Handle unary minus
       if (char === '-' && (tokens.length === 0 || typeof tokens[tokens.length - 1] === 'string')) {
         current += char
         continue
       }
-      
+
       if (current) {
         const num = parseFloat(current)
         tokens.push(isNaN(num) ? 0 : num)
@@ -416,12 +397,12 @@ function tokenizeExpression(expr: string): Array<string | number> {
       current += char
     }
   }
-  
+
   if (current) {
     const num = parseFloat(current)
     tokens.push(isNaN(num) ? 0 : num)
   }
-  
+
   return tokens
 }
 
@@ -437,12 +418,12 @@ function evaluateTokens(tokens: Array<string | number>): number {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]
     const prev = afterMulDiv[afterMulDiv.length - 1]
-    
+
     if (token === '*' || token === '/') {
       const left = typeof prev === 'number' ? prev : 0
       const right = typeof tokens[i + 1] === 'number' ? tokens[i + 1] : 0
       afterMulDiv.pop()
-      
+
       if (token === '*') {
         afterMulDiv.push(left * right)
       } else {
@@ -453,20 +434,20 @@ function evaluateTokens(tokens: Array<string | number>): number {
       afterMulDiv.push(token)
     }
   }
-  
+
   // Second pass: addition and subtraction
   let result = typeof afterMulDiv[0] === 'number' ? afterMulDiv[0] : 0
   for (let i = 1; i < afterMulDiv.length; i += 2) {
     const op = afterMulDiv[i]
     const right = typeof afterMulDiv[i + 1] === 'number' ? afterMulDiv[i + 1] : 0
-    
+
     if (op === '+') {
       result += right
     } else if (op === '-') {
       result -= right
     }
   }
-  
+
   return result
 }
 
@@ -479,8 +460,7 @@ function replaceCellReferences(expr: string, context: FormulaContext): string {
     const colIndex = columnLetterToIndex(colLetter)
     const rowIndex = parseInt(rowNum, 10) - 1
 
-    if (rowIndex >= 0 && rowIndex < context.allRows.length && 
-        colIndex >= 0 && colIndex < context.columns.length) {
+    if (rowIndex >= 0 && rowIndex < context.allRows.length && colIndex >= 0 && colIndex < context.columns.length) {
       const value = context.allRows[rowIndex][context.columns[colIndex].name]
       return String(value ?? 0)
     }

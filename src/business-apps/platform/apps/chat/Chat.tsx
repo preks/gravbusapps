@@ -25,6 +25,7 @@ import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
+import { debugLog } from './utils/debugLog'
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
@@ -96,7 +97,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
   if (isLocalhost) {
     baseUrl = 'https://newwork-dev.newwork.com'
-    console.log('🔄 [Chat] Local development detected - connecting to DEV environment:', baseUrl)
+    debugLog('🔄 [Chat] Local development detected - connecting to DEV environment:', baseUrl)
   }
 
   // Normalize API and WS endpoints; connect to chat-service namespace with default socket path
@@ -105,14 +106,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   // Override if NEXT_PUBLIC_CHAT_API is pointing to localhost when running locally
   if (isLocalhost && apiUrl.includes('localhost')) {
     apiUrl = `${baseUrl}/chat-service/api/v1`
-    console.log('🔄 [Chat] Overriding localhost CHAT_API to use DEV environment:', apiUrl)
+    debugLog('🔄 [Chat] Overriding localhost CHAT_API to use DEV environment:', apiUrl)
   }
 
   const wsUrl = `${baseUrl}/chat-service` // namespace in URL (matches gateway)
   // Ensure Socket.IO path keeps /chat-service prefix (Kong strip-path=true compatible)
   const wsSocketPath = env('NEXT_PUBLIC_CHAT_WS_PATH') || '/chat-service/socket.io'
 
-  console.log('📍 [Chat] Final connection URLs:', { apiUrl, wsUrl, wsSocketPath })
+  debugLog('📍 [Chat] Final connection URLs:', { apiUrl, wsUrl, wsSocketPath })
 
   const chatClient = useChatClient({
     accessToken,
@@ -173,7 +174,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
   // Log for diagnostics
   useEffect(() => {
-    console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
+    debugLog('[Chat] stableActiveConversation', stableActiveConversation?.id)
   }, [stableActiveConversation?.id])
 
   // Register nudge callback to handle incoming nudges from OTHER users
@@ -183,11 +184,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     registerNudgeCallback(data => {
       // Ignore nudges from yourself (shouldn't happen, but safety check)
       if (data.fromUserId === currentUser.id) {
-        console.log('[Chat] Ignoring nudge from self')
+        debugLog('[Chat] Ignoring nudge from self')
         return
       }
 
-      console.log('[Chat] Nudge received from:', data.fromUserName, 'conversation:', data.conversationId)
+      debugLog('[Chat] Nudge received from:', data.fromUserName, 'conversation:', data.conversationId)
 
       // Play sound
       playNudgeSound()
@@ -284,10 +285,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     apiClient: apiClient || null,
     currentUser: currentUserAsParticipant,
     onCallStarted: (callId, participant) => {
-      console.debug('1:1 Call started:', callId, participant)
+      debugLog('1:1 Call started:', callId, participant)
     },
     onCallEnded: (callId, duration) => {
-      console.debug('1:1 Call ended:', callId, 'Duration:', duration, 'ms')
+      debugLog('1:1 Call ended:', callId, 'Duration:', duration, 'ms')
     }
   })
 
@@ -319,16 +320,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     apiClient: apiClient || null,
     currentUser: currentUserAsParticipant,
     onCallStarted: (roomId, participants) => {
-      console.debug('Group call started:', roomId, participants.length, 'participants')
+      debugLog('Group call started:', roomId, participants.length, 'participants')
     },
     onCallEnded: (roomId, duration) => {
-      console.debug('Group call ended:', roomId, 'Duration:', duration, 'ms')
+      debugLog('Group call ended:', roomId, 'Duration:', duration, 'ms')
     },
     onParticipantJoined: participant => {
-      console.debug('Participant joined group call:', participant.odName)
+      debugLog('Participant joined group call:', participant.odName)
     },
     onParticipantLeft: participantId => {
-      console.debug('Participant left group call:', participantId)
+      debugLog('Participant left group call:', participantId)
     }
   })
 
@@ -444,7 +445,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
     if (shouldJoinExisting) {
       // Join the existing call without ringing everyone
-      console.debug('Joining existing group call in conversation:', activeConversation.id)
+      debugLog('Joining existing group call in conversation:', activeConversation.id)
       joinGroupCall(activeConversation.id, callType)
     } else {
       // Get all participants including current user
@@ -483,7 +484,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       const roomId = activeConversation.id
       const callType = callState.type || 'video'
 
-      console.debug(
+      debugLog(
         'Upgrading 1:1 call to group call with participants:',
         callParticipants.map(p => p.odName)
       )
@@ -633,7 +634,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                     }))
 
                     // Dispatch annotations to document view
-                    console.log('[Chat] Dispatching document annotations:', annotations.length)
+                    debugLog('[Chat] Dispatching document annotations:', annotations.length)
                     globalThis.dispatchEvent(
                       new CustomEvent('document-review-annotations', {
                         detail: {
@@ -647,7 +648,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                 }
               }
             } catch (e) {
-              console.log('[Chat] Could not parse document review annotations:', e)
+              debugLog('[Chat] Could not parse document review annotations:', e)
               // Not an error - expert may not have returned JSON annotations
             }
           }
@@ -1055,7 +1056,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       // Don't create a system message for the sender
       // The receiver will see the nudge message via the callback
       // The sender just gets visual feedback from the cooldown reset
-      console.log('[Chat] Nudge sent successfully')
+      debugLog('[Chat] Nudge sent successfully')
     }
   }, [activeConversation, currentUser, sendNudge, sendMessage])
 

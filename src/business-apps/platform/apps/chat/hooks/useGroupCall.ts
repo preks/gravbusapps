@@ -12,6 +12,7 @@ import { ChatApiClient } from '../services/chatApiClient'
 import { BackgroundProcessor } from '../services/backgroundProcessor'
 import { globalCallManager } from '../services/globalCallManager'
 import type { CallParticipant, CallType } from '../services/webrtcClient'
+import { debugLog } from '../utils/debugLog'
 
 export interface UseGroupCallOptions {
   wsClient: ChatWebSocketClient | null
@@ -230,7 +231,7 @@ export const useGroupCall = ({
           if (now - invite.invitedAt > INVITE_TIMEOUT_MS) {
             updated.delete(id)
             removed = true
-            console.log(`[useGroupCall] ⏰ Pending invite expired for ${invite.odName}`)
+            debugLog(`[useGroupCall] ⏰ Pending invite expired for ${invite.odName}`)
           }
         })
         return removed ? updated : prev
@@ -271,7 +272,7 @@ export const useGroupCall = ({
 
     // If there's an active call in the global manager, restore it
     if (storedData.callState.status !== 'idle' && storedData.webrtcClient) {
-      console.debug('useGroupCall: Restoring call from global manager', storedData.callState)
+      debugLog('useGroupCall: Restoring call from global manager', storedData.callState)
 
       // Restore refs
       webrtcRef.current = storedData.webrtcClient
@@ -304,7 +305,7 @@ export const useGroupCall = ({
         !storedData.callState.isMinimized &&
         callStateRef.current.status === 'idle' // Only if we don't already have a call
       ) {
-        console.debug('useGroupCall: Expand triggered, restoring call')
+        debugLog('useGroupCall: Expand triggered, restoring call')
 
         // Restore refs
         webrtcRef.current = storedData.webrtcClient
@@ -359,13 +360,13 @@ export const useGroupCall = ({
   const fetchIceServers = useCallback(async (): Promise<RTCIceServer[]> => {
     // Only use cache if it has TURN servers
     if (iceServersRef.current && hasTurnServers(iceServersRef.current)) {
-      console.log('[useGroupCall] ✅ Using cached ICE servers with TURN')
+      debugLog('[useGroupCall] ✅ Using cached ICE servers with TURN')
       return iceServersRef.current
     }
 
     // Clear stale cache without TURN
     if (iceServersRef.current) {
-      console.log('[useGroupCall] 🔄 Cached servers have no TURN, refreshing...')
+      debugLog('[useGroupCall] 🔄 Cached servers have no TURN, refreshing...')
       iceServersRef.current = null
     }
 
@@ -373,14 +374,14 @@ export const useGroupCall = ({
 
     if (apiClientRef.current) {
       try {
-        console.log('[useGroupCall] 📡 Fetching ICE servers from backend...')
+        debugLog('[useGroupCall] 📡 Fetching ICE servers from backend...')
         const response = await apiClientRef.current.getIceServers()
         backendServers = response.iceServers.map(server => ({
           urls: server.urls,
           username: server.username,
           credential: server.credential
         }))
-        console.log('[useGroupCall] Backend returned:', backendServers.length, 'servers')
+        debugLog('[useGroupCall] Backend returned:', backendServers.length, 'servers')
       } catch (error) {
         console.error('[useGroupCall] ❌ Failed to fetch ICE servers from backend:', error)
       }
@@ -394,10 +395,10 @@ export const useGroupCall = ({
     // ALWAYS add fallback TURN servers if backend doesn't have any
     let finalServers: RTCIceServer[]
     if (!hasTurnFromBackend) {
-      console.log('[useGroupCall] ⚠️ Backend has NO TURN servers! Adding fallback TURN relay...')
+      debugLog('[useGroupCall] ⚠️ Backend has NO TURN servers! Adding fallback TURN relay...')
       finalServers = [...backendServers, ...FALLBACK_TURN_SERVERS]
     } else {
-      console.log('[useGroupCall] ✅ Backend provided TURN servers')
+      debugLog('[useGroupCall] ✅ Backend provided TURN servers')
       finalServers = backendServers
     }
 
@@ -409,7 +410,7 @@ export const useGroupCall = ({
     )
     const hasTurn = hasTurnServers(finalServers)
 
-    console.log('[useGroupCall] 🌐 Final ICE servers configuration:', {
+    debugLog('[useGroupCall] 🌐 Final ICE servers configuration:', {
       serverCount: finalServers.length,
       hasStun,
       hasTurn,
@@ -446,17 +447,12 @@ export const useGroupCall = ({
     })
 
     webrtc.on('participant-stream', event => {
-      console.debug(
-        'participant-stream event received:',
-        event.participantId,
-        'tracks:',
-        event.stream?.getTracks().length
-      )
+      debugLog('participant-stream event received:', event.participantId, 'tracks:', event.stream?.getTracks().length)
       if (event.participantId && event.stream) {
         setRemoteStreams(prev => {
           const updated = new Map(prev)
           updated.set(event.participantId!, event.stream!)
-          console.debug('Updated remoteStreams, now has', updated.size, 'streams')
+          debugLog('Updated remoteStreams, now has', updated.size, 'streams')
           return updated
         })
       }
@@ -507,7 +503,7 @@ export const useGroupCall = ({
         currentUserRef.current &&
         callStateRef.current.roomId
       ) {
-        console.debug('Sending ICE candidate to:', event.participantId)
+        debugLog('Sending ICE candidate to:', event.participantId)
         wsClientRef.current.sendGroupCallIceCandidate({
           roomId: callStateRef.current.roomId,
           fromParticipantId: currentUserRef.current.id,
@@ -562,7 +558,7 @@ export const useGroupCall = ({
 
         // Send invites to all participants
         const otherParticipants = participants.filter(p => p.id !== currentUserRef.current!.id)
-        console.debug(
+        debugLog(
           'Sending group call invites to',
           otherParticipants.length,
           'participants:',
@@ -603,7 +599,7 @@ export const useGroupCall = ({
             })),
             conversationName
           }
-          console.debug('Invite payload:', invitePayload)
+          debugLog('Invite payload:', invitePayload)
           wsClientRef.current.inviteToGroupCall(invitePayload)
         } else {
           console.warn('No other participants to invite!')
@@ -660,7 +656,7 @@ export const useGroupCall = ({
 
         // Apply saved background preference if enabled (do this after call is fully connected)
         if (savedBackgroundPref && callType === 'video') {
-          console.debug('[useGroupCall] Applying saved background preference')
+          debugLog('[useGroupCall] Applying saved background preference')
           // Use setTimeout to ensure state is settled before applying background
           setTimeout(async () => {
             try {
@@ -780,7 +776,7 @@ export const useGroupCall = ({
 
         // Apply saved background preference if enabled (do this after call is fully connected)
         if (savedBackgroundPref && callType === 'video') {
-          console.debug('[useGroupCall] Applying saved background preference on join')
+          debugLog('[useGroupCall] Applying saved background preference on join')
           setTimeout(async () => {
             try {
               const stream = webrtc.getLocalStream()
@@ -946,7 +942,7 @@ export const useGroupCall = ({
 
         const streamToProcess = originalLocalStreamRef.current || localStream
         if (streamToProcess) {
-          console.debug('Starting background processing')
+          debugLog('Starting background processing')
           const processedStream = await backgroundProcessorRef.current.startProcessing(streamToProcess)
           setLocalStream(processedStream)
 
@@ -994,14 +990,14 @@ export const useGroupCall = ({
   useEffect(() => {
     if (!wsClient) return
 
-    console.debug('Setting up group call WebSocket listeners')
+    debugLog('Setting up group call WebSocket listeners')
 
     // Handle incoming group call invite
     wsClient.onGroupCallInvite(signal => {
-      console.debug('RAW group-call:invite received:', signal)
+      debugLog('RAW group-call:invite received:', signal)
 
       // Always track this as an active call for the conversation
-      console.debug('Tracking active call for room:', signal.roomId, 'from:', signal.from.odName)
+      debugLog('Tracking active call for room:', signal.roomId, 'from:', signal.from.odName)
       setActiveConversationCalls(prev => {
         const updated = new Map(prev)
         updated.set(signal.roomId, {
@@ -1010,29 +1006,29 @@ export const useGroupCall = ({
           participantIds: [signal.from.id],
           startedBy: signal.from.id
         })
-        console.debug('Updated activeConversationCalls, new size:', updated.size)
+        debugLog('Updated activeConversationCalls, new size:', updated.size)
         return updated
       })
 
       // Ignore if already in a call
       if (callStateRef.current.status !== 'idle') {
-        console.debug('Ignoring group call invite - already in call')
+        debugLog('Ignoring group call invite - already in call')
         return
       }
 
       // Ignore if this is our own invite
       if (signal.from.id === currentUserRef.current?.id) {
-        console.debug('Ignoring group call invite - from self')
+        debugLog('Ignoring group call invite - from self')
         return
       }
 
       // Ignore if user is in a call in another tab
       if (currentUserRef.current && isInCallInAnotherTab(currentUserRef.current.id)) {
-        console.debug('Ignoring group call invite - user is in call in another tab')
+        debugLog('Ignoring group call invite - user is in call in another tab')
         return
       }
 
-      console.debug('Processing group call invite from:', signal.from.odName, 'room:', signal.roomId)
+      debugLog('Processing group call invite from:', signal.from.odName, 'room:', signal.roomId)
       setIncomingInvite({
         roomId: signal.roomId,
         callType: signal.callType,
@@ -1068,7 +1064,7 @@ export const useGroupCall = ({
       if (signal.roomId !== callStateRef.current.roomId) return
       if (signal.participant.id === currentUserRef.current.id) return
 
-      console.debug('Participant joined group call:', signal.participant.odName)
+      debugLog('Participant joined group call:', signal.participant.odName)
 
       // Send offer to the new participant
       try {
@@ -1111,7 +1107,7 @@ export const useGroupCall = ({
       if (!webrtcRef.current) return
       if (signal.roomId !== callStateRef.current.roomId) return
 
-      console.debug('Participant left group call:', signal.participantId)
+      debugLog('Participant left group call:', signal.participantId)
       webrtcRef.current.removeParticipant(signal.participantId)
     })
 
@@ -1120,7 +1116,7 @@ export const useGroupCall = ({
       if (!webrtcRef.current || !currentUserRef.current) return
       if (signal.roomId !== callStateRef.current.roomId) return
 
-      console.debug('Received offer from:', signal.fromParticipant.odName)
+      debugLog('Received offer from:', signal.fromParticipant.odName)
 
       try {
         const answer = await webrtcRef.current.handleOffer(
@@ -1145,7 +1141,7 @@ export const useGroupCall = ({
       if (!webrtcRef.current) return
       if (signal.roomId !== callStateRef.current.roomId) return
 
-      console.debug('Received answer from:', signal.fromParticipantId)
+      debugLog('Received answer from:', signal.fromParticipantId)
 
       try {
         await webrtcRef.current.handleAnswer(signal.fromParticipantId, signal.payload)
@@ -1208,7 +1204,7 @@ export const useGroupCall = ({
           const data = JSON.parse(event.newValue)
           // If the active call is for the same user and it's recent, dismiss the incoming invite
           if (data.userId === currentUserRef.current.id && Date.now() - data.timestamp < 5000) {
-            console.debug('User joined call in another tab, dismissing incoming invite')
+            debugLog('User joined call in another tab, dismissing incoming invite')
             setIncomingInvite(null)
           }
         } catch {
@@ -1225,7 +1221,7 @@ export const useGroupCall = ({
   // Clear it when maximized to prevent duplicate UIs
   useEffect(() => {
     if (callState.isMinimized && callState.status !== 'idle' && webrtcRef.current && wsClientRef.current) {
-      console.debug('useGroupCall: Storing call data in global manager')
+      debugLog('useGroupCall: Storing call data in global manager')
       globalCallManager.storeCall({
         webrtcClient: webrtcRef.current,
         wsClient: wsClientRef.current,
@@ -1237,7 +1233,7 @@ export const useGroupCall = ({
       })
     } else if (!callState.isMinimized && callState.status !== 'idle' && globalCallManager.hasActiveCall()) {
       // When maximizing, clear the global manager since React is handling the call now
-      console.debug('useGroupCall: Clearing global manager - call is maximized')
+      debugLog('useGroupCall: Clearing global manager - call is maximized')
       globalCallManager.clearCall()
     }
   }, [callState, localStream, remoteStreams, participants])
@@ -1258,7 +1254,7 @@ export const useGroupCall = ({
     return () => {
       // If call is minimized, store final state and skip cleanup
       if (callStateRef.current.isMinimized && callStateRef.current.status !== 'idle') {
-        console.debug('useGroupCall: Skipping cleanup - call is minimized and will persist')
+        debugLog('useGroupCall: Skipping cleanup - call is minimized and will persist')
 
         // Store final state before unmount
         if (webrtcRef.current && wsClientRef.current) {
@@ -1313,11 +1309,11 @@ export const useGroupCall = ({
       )
 
       if (participantsToInvite.length === 0) {
-        console.debug('No new participants to invite')
+        debugLog('No new participants to invite')
         return
       }
 
-      console.debug(
+      debugLog(
         'Inviting',
         participantsToInvite.length,
         'new participants to call:',
@@ -1377,7 +1373,7 @@ export const useGroupCall = ({
         return
       }
 
-      console.log(`[useGroupCall] 🔄 Attempting to reconnect to ${participant.odName}...`)
+      debugLog(`[useGroupCall] 🔄 Attempting to reconnect to ${participant.odName}...`)
 
       try {
         // Get a new offer with ICE restart from the WebRTC client
@@ -1395,7 +1391,7 @@ export const useGroupCall = ({
           payload: offer
         })
 
-        console.log(`[useGroupCall] ✅ Reconnect offer sent to ${participant.odName}`)
+        debugLog(`[useGroupCall] ✅ Reconnect offer sent to ${participant.odName}`)
       } catch (error) {
         console.error(`[useGroupCall] ❌ Failed to reconnect to ${participantId}:`, error)
       }

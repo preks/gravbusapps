@@ -11,6 +11,7 @@ import {
 import { Phone, PhoneOff, Video, UserIcon } from 'lucide-react'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { debugLog } from '../utils/debugLog'
 
 interface IncomingCallDialogProps {
   callState: CallState
@@ -104,7 +105,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
           if (oscillator) oscillator.stop()
         }, 200)
       } catch (e) {
-        console.debug('Could not play ringtone:', e)
+        debugLog('Could not play ringtone:', e)
       }
     }
 

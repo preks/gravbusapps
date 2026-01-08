@@ -131,31 +131,34 @@ export function useExcelParser(): UseExcelParserResult {
   /**
    * Parse an Excel file from a URL
    */
-  const parseFromUrl = useCallback(async (url: string): Promise<ParsedExcelFile | null> => {
-    setState(prev => ({ ...prev, isLoading: true, error: null, progress: 0 }))
+  const parseFromUrl = useCallback(
+    async (url: string): Promise<ParsedExcelFile | null> => {
+      setState(prev => ({ ...prev, isLoading: true, error: null, progress: 0 }))
 
-    try {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch file: ${response.statusText}`)
+      try {
+        const response = await fetch(url)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file: ${response.statusText}`)
+        }
+
+        const blob = await response.blob()
+        const fileName = url.split('/').pop() || 'spreadsheet.xlsx'
+        const file = new File([blob], fileName, { type: blob.type })
+
+        return parseFile(file)
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch Excel file'
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: errorMessage,
+          progress: 0
+        }))
+        return null
       }
-
-      const blob = await response.blob()
-      const fileName = url.split('/').pop() || 'spreadsheet.xlsx'
-      const file = new File([blob], fileName, { type: blob.type })
-
-      return parseFile(file)
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch Excel file'
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: errorMessage,
-        progress: 0
-      }))
-      return null
-    }
-  }, [parseFile])
+    },
+    [parseFile]
+  )
 
   /**
    * Reset the parser state

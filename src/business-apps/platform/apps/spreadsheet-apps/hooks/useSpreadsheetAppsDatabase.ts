@@ -13,7 +13,7 @@ import {
   type SharePermission
 } from '../services/SpreadsheetAppDatabaseService'
 import { SpreadsheetAppService } from '../services/SpreadsheetAppService'
-import type { SpreadsheetApp, SpreadsheetAppSummary, SpreadsheetSheet, AppStatus } from '../types'
+import type { SpreadsheetApp, SpreadsheetAppSummary, SpreadsheetSheet } from '../types'
 
 export interface UseSpreadsheetAppsDatabaseState {
   apps: SpreadsheetAppSummary[]
@@ -34,13 +34,15 @@ export interface UseSpreadsheetAppsDatabaseResult extends UseSpreadsheetAppsData
   // Sharing operations
   shareApp: (appId: string, userId: string, permission: SharePermission) => Promise<boolean>
   unshareApp: (appId: string, userId: string) => Promise<boolean>
-  getSharedUsers: (appId: string) => Promise<Array<{
-    userId: string
-    userName: string
-    userEmail: string
-    permission: SharePermission
-    sharedAt: string
-  }>>
+  getSharedUsers: (appId: string) => Promise<
+    Array<{
+      userId: string
+      userName: string
+      userEmail: string
+      permission: SharePermission
+      sharedAt: string
+    }>
+  >
   // Local storage sync
   syncFromLocalStorage: () => Promise<number>
 }
@@ -102,7 +104,7 @@ export function useSpreadsheetAppsDatabase(
             isOnline: false,
             error: 'Working offline - data stored locally'
           }))
-        } catch (localError) {
+        } catch {
           setState(prev => ({
             ...prev,
             isLoading: false,
@@ -116,57 +118,58 @@ export function useSpreadsheetAppsDatabase(
   /**
    * Get a single app
    */
-  const getApp = useCallback(async (id: string): Promise<SpreadsheetAppWithSharing | null> => {
-    if (!dbServiceRef.current) return null
+  const getApp = useCallback(
+    async (id: string): Promise<SpreadsheetAppWithSharing | null> => {
+      if (!dbServiceRef.current) return null
 
-    setState(prev => ({ ...prev, isLoading: true, error: null }))
+      setState(prev => ({ ...prev, isLoading: true, error: null }))
 
-    try {
-      const app = await dbServiceRef.current.getApp(id)
-      setState(prev => ({
-        ...prev,
-        currentApp: app,
-        isLoading: false
-      }))
-      return app
-    } catch (error) {
-      // Fallback to localStorage
-      if (localServiceRef.current) {
-        const localApp = await localServiceRef.current.getApp(id)
-        if (localApp) {
-          const appWithSharing: SpreadsheetAppWithSharing = {
-            ...localApp,
-            ownerId: currentUserId,
-            sharedWith: [],
-            isOwner: true,
-            myPermission: 'owner'
+      try {
+        const app = await dbServiceRef.current.getApp(id)
+        setState(prev => ({
+          ...prev,
+          currentApp: app,
+          isLoading: false
+        }))
+        return app
+      } catch {
+        // Fallback to localStorage
+        if (localServiceRef.current) {
+          const localApp = await localServiceRef.current.getApp(id)
+          if (localApp) {
+            const appWithSharing: SpreadsheetAppWithSharing = {
+              ...localApp,
+              ownerId: currentUserId,
+              sharedWith: [],
+              isOwner: true,
+              myPermission: 'owner'
+            }
+            setState(prev => ({
+              ...prev,
+              currentApp: appWithSharing,
+              isLoading: false,
+              isOnline: false
+            }))
+            return appWithSharing
           }
-          setState(prev => ({
-            ...prev,
-            currentApp: appWithSharing,
-            isLoading: false,
-            isOnline: false
-          }))
-          return appWithSharing
         }
-      }
 
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: 'Failed to load app'
-      }))
-      return null
-    }
-  }, [currentUserId])
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: 'Failed to load app'
+        }))
+        return null
+      }
+    },
+    [currentUserId]
+  )
 
   /**
    * Create a new app
    */
   const createApp = useCallback(
-    async (
-      app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>
-    ): Promise<SpreadsheetAppWithSharing | null> => {
+    async (app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>): Promise<SpreadsheetAppWithSharing | null> => {
       if (!dbServiceRef.current) return null
 
       setState(prev => ({ ...prev, isLoading: true, error: null }))
@@ -277,11 +280,7 @@ export function useSpreadsheetAppsDatabase(
    * Update sheet data
    */
   const updateSheetData = useCallback(
-    async (
-      appId: string,
-      sheetId: string,
-      data: Record<string, unknown>[]
-    ): Promise<SpreadsheetSheet | null> => {
+    async (appId: string, sheetId: string, data: Record<string, unknown>[]): Promise<SpreadsheetSheet | null> => {
       if (!dbServiceRef.current) return null
 
       try {
@@ -289,14 +288,10 @@ export function useSpreadsheetAppsDatabase(
 
         if (updatedSheet && state.currentApp) {
           // Update local state
-          const updatedSheets = state.currentApp.sheets.map(s =>
-            s.id === sheetId ? updatedSheet : s
-          )
+          const updatedSheets = state.currentApp.sheets.map(s => (s.id === sheetId ? updatedSheet : s))
           setState(prev => ({
             ...prev,
-            currentApp: prev.currentApp
-              ? { ...prev.currentApp, sheets: updatedSheets }
-              : null
+            currentApp: prev.currentApp ? { ...prev.currentApp, sheets: updatedSheets } : null
           }))
         }
 
@@ -317,116 +312,104 @@ export function useSpreadsheetAppsDatabase(
   /**
    * Delete an app
    */
-  const deleteApp = useCallback(
-    async (id: string): Promise<boolean> => {
-      if (!dbServiceRef.current) return false
+  const deleteApp = useCallback(async (id: string): Promise<boolean> => {
+    if (!dbServiceRef.current) return false
 
-      try {
-        const success = await dbServiceRef.current.deleteApp(id)
+    try {
+      const success = await dbServiceRef.current.deleteApp(id)
 
+      if (success) {
+        setState(prev => ({
+          ...prev,
+          apps: prev.apps.filter(app => app.id !== id),
+          currentApp: prev.currentApp?.id === id ? null : prev.currentApp
+        }))
+      }
+
+      return success
+    } catch (error) {
+      // Fallback to localStorage
+      if (localServiceRef.current) {
+        const success = await localServiceRef.current.deleteApp(id)
         if (success) {
+          const localApps = await localServiceRef.current.getApps()
           setState(prev => ({
             ...prev,
-            apps: prev.apps.filter(app => app.id !== id),
-            currentApp: prev.currentApp?.id === id ? null : prev.currentApp
+            apps: localApps,
+            currentApp: prev.currentApp?.id === id ? null : prev.currentApp,
+            isOnline: false
           }))
         }
-
         return success
-      } catch (error) {
-        // Fallback to localStorage
-        if (localServiceRef.current) {
-          const success = await localServiceRef.current.deleteApp(id)
-          if (success) {
-            const localApps = await localServiceRef.current.getApps()
-            setState(prev => ({
-              ...prev,
-              apps: localApps,
-              currentApp: prev.currentApp?.id === id ? null : prev.currentApp,
-              isOnline: false
-            }))
-          }
-          return success
-        }
-
-        console.error('Failed to delete app:', error)
-        return false
       }
-    },
-    []
-  )
+
+      console.error('Failed to delete app:', error)
+      return false
+    }
+  }, [])
 
   /**
    * Share an app with a user
    */
-  const shareApp = useCallback(
-    async (appId: string, userId: string, permission: SharePermission): Promise<boolean> => {
-      if (!dbServiceRef.current) {
-        console.error('Database service not available')
-        return false
+  const shareApp = useCallback(async (appId: string, userId: string, permission: SharePermission): Promise<boolean> => {
+    if (!dbServiceRef.current) {
+      console.error('Database service not available')
+      return false
+    }
+
+    try {
+      const updatedApp = await dbServiceRef.current.shareApp(appId, userId, permission)
+
+      if (updatedApp) {
+        setState(prev => ({
+          ...prev,
+          currentApp: updatedApp
+        }))
       }
 
-      try {
-        const updatedApp = await dbServiceRef.current.shareApp(appId, userId, permission)
-
-        if (updatedApp) {
-          setState(prev => ({
-            ...prev,
-            currentApp: updatedApp
-          }))
-        }
-
-        return !!updatedApp
-      } catch (error) {
-        console.error('Failed to share app:', error)
-        return false
-      }
-    },
-    []
-  )
+      return !!updatedApp
+    } catch (error) {
+      console.error('Failed to share app:', error)
+      return false
+    }
+  }, [])
 
   /**
    * Remove sharing for a user
    */
-  const unshareApp = useCallback(
-    async (appId: string, userId: string): Promise<boolean> => {
-      if (!dbServiceRef.current) return false
+  const unshareApp = useCallback(async (appId: string, userId: string): Promise<boolean> => {
+    if (!dbServiceRef.current) return false
 
-      try {
-        const updatedApp = await dbServiceRef.current.unshareApp(appId, userId)
+    try {
+      const updatedApp = await dbServiceRef.current.unshareApp(appId, userId)
 
-        if (updatedApp) {
-          setState(prev => ({
-            ...prev,
-            currentApp: updatedApp
-          }))
-        }
-
-        return !!updatedApp
-      } catch (error) {
-        console.error('Failed to unshare app:', error)
-        return false
+      if (updatedApp) {
+        setState(prev => ({
+          ...prev,
+          currentApp: updatedApp
+        }))
       }
-    },
-    []
-  )
+
+      return !!updatedApp
+    } catch (error) {
+      console.error('Failed to unshare app:', error)
+      return false
+    }
+  }, [])
 
   /**
    * Get shared users for an app
    */
-  const getSharedUsers = useCallback(
-    async (appId: string) => {
-      if (!dbServiceRef.current) return []
+  const getSharedUsers = useCallback(async (appId: string) => {
+    if (!dbServiceRef.current) return []
 
-      try {
-        return await dbServiceRef.current.getSharedUsers(appId)
-      } catch (error) {
-        console.error('Failed to get shared users:', error)
-        return []
-      }
-    },
-    []
-  )
+    try {
+      return await dbServiceRef.current.getSharedUsers(appId)
+    } catch (error) {
+      console.error('Failed to get shared users:', error)
+      return []
+    }
+  }, [])
 
   /**
    * Sync apps from localStorage to database

@@ -56,15 +56,9 @@ import {
 } from 'lucide-react'
 import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicFormGenerator'
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
-import type {
-  SpreadsheetApp,
-  SpreadsheetSheet,
-  SpreadsheetColumn,
-  ViewType,
-  SheetView,
-  ColumnType
-} from './types'
+import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn, ViewType, SheetView, ColumnType } from './types'
 import { evaluateFormula, isFormula, type FormulaContext } from './utils/formulaEvaluator'
+import { getIconByName, DEFAULT_APP_ICON } from './utils/appIcons'
 import { useEntityDataSource } from './hooks/useEntityDataSource'
 
 /**
@@ -74,7 +68,7 @@ import { useEntityDataSource } from './hooks/useEntityDataSource'
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   const parts = path.split('.')
   let value: unknown = obj
-  
+
   for (const part of parts) {
     if (value === null || value === undefined) return undefined
     if (typeof value === 'object') {
@@ -83,7 +77,7 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
       return undefined
     }
   }
-  
+
   return value
 }
 
@@ -132,15 +126,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onAppUpdate: _onAppUpdate,
   onBack,
   onEdit,
-  isEditing: _isEditing = false,
   accessToken = '',
   userId,
   'data-testid': testId = 'spreadsheet-app-viewer'
 }) => {
   // State
-  const [activeSheetId, setActiveSheetId] = useState(
-    initialSheetId || app.sheets[0]?.id || ''
-  )
+  const [activeSheetId, setActiveSheetId] = useState(initialSheetId || app.sheets[0]?.id || '')
   const [activeViewId, setActiveViewId] = useState<string | null>(initialViewId || null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAddRowDialogOpen, setIsAddRowDialogOpen] = useState(false)
@@ -149,12 +140,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [newColumnName, setNewColumnName] = useState('')
   const [newColumnType, setNewColumnType] = useState<ColumnType>('text')
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null)
-  
+
+  // Excel-like cell selection state
+  const [selectedCell, setSelectedCell] = useState<{
+    rowId: string
+    colId: string
+    rowIndex: number
+    colIndex: number
+  } | null>(null)
+
   // Entity data loading
   const [entityData, setEntityData] = useState<Record<string, unknown>[]>([])
   const [isEntityDataLoading, setIsEntityDataLoading] = useState(false)
   const [entityDataError, setEntityDataError] = useState<string | null>(null)
-  
+
   // Entity data source hook
   const { loadData: loadEntityData } = useEntityDataSource({
     accessToken,
@@ -163,9 +162,93 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [formulaSelectionMode, setFormulaSelectionMode] = useState<FormulaSelectionMode>(null)
   const formulaSelectionModeRef = React.useRef<FormulaSelectionMode>(null)
 
+  // Track all cells selected during formula mode for highlighting
+  const [formulaSelectedCells, setFormulaSelectedCells] = useState<Array<{ rowIndex: number; colIndex: number }>>([])
+
+  // Store current formula value at viewer level for access when saving
+  const currentFormulaValueRef = React.useRef<string>('')
+
+  // Debounced save for rapid cell edits
+  const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  const isSavingRef = React.useRef(false)
+  const SAVE_DEBOUNCE_MS = 500 // Debounce saves by 500ms
+
+  // Local data state - completely independent from app.sheets during editing
+  const [localSheetData, setLocalSheetData] = useState<Record<string, unknown>[]>(
+    () => app.sheets.find(s => s.id === activeSheetId)?.data || []
+  )
+
+  // Track previous sheet ID to detect actual sheet changes
+  const prevSheetIdRef = React.useRef(activeSheetId)
+
+  // Only sync from app.sheets when the sheet ID actually changes (user switches sheets)
+  useEffect(() => {
+    if (prevSheetIdRef.current !== activeSheetId) {
+      const sheetData = app.sheets.find(s => s.id === activeSheetId)?.data || []
+      setLocalSheetData(sheetData)
+      prevSheetIdRef.current = activeSheetId
+    }
+  }, [activeSheetId, app.sheets])
+  // Also keep a state copy for displaying in the formula bar (refs don't trigger re-renders)
+  // null = not editing, '' = editing with empty value
+  const [currentFormulaDisplay, setCurrentFormulaDisplay] = useState<string | null>(null)
+
   useEffect(() => {
     formulaSelectionModeRef.current = formulaSelectionMode
   }, [formulaSelectionMode])
+
+  // Clear formula selected cells when exiting formula mode
+  useEffect(() => {
+    if (!formulaSelectionMode) {
+      setFormulaSelectedCells([])
+    }
+  }, [formulaSelectionMode])
+
+  // Clear formula display when selected cell changes (unless in formula mode)
+  useEffect(() => {
+    if (!formulaSelectionMode) {
+      currentFormulaValueRef.current = ''
+      setCurrentFormulaDisplay(null) // null = not editing
+    }
+  }, [selectedCell?.rowId, selectedCell?.colId])
+
+  // Debounced save function - batches rapid changes and prevents concurrent saves
+  const debouncedSave = useCallback(
+    (sheetId: string, data: Record<string, unknown>[]) => {
+      // Clear any pending save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+
+      saveTimeoutRef.current = setTimeout(() => {
+        // Don't save if already saving
+        if (isSavingRef.current) {
+          return
+        }
+
+        isSavingRef.current = true
+        saveTimeoutRef.current = null
+
+        // Save the data
+        onDataChange?.(sheetId, data)
+
+        // Reset saving flag after a short delay to allow the save to complete
+        setTimeout(() => {
+          isSavingRef.current = false
+        }, 100)
+      }, SAVE_DEBOUNCE_MS)
+    },
+    [onDataChange]
+  )
+
+  // Cleanup: cancel any pending save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Get active sheet
   const activeSheet = useMemo(
@@ -215,7 +298,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         const cellValue = updatedRow[col.name]
         const formulas = updatedRow._formulas as Record<string, string> | undefined
         const formula = formulas?.[col.name] || cellValue
-        
+
         if (isFormula(formula)) {
           try {
             const result = evaluateFormula(formula as string, context)
@@ -258,7 +341,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       hasDataSource: !!activeSheet?.entityDataSource,
       enabled: activeSheet?.entityDataSource?.enabled
     })
-    
+
     if (!activeSheet?.entityDataSource?.enabled) {
       setEntityData([])
       setEntityDataError(null)
@@ -272,12 +355,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       console.log('[SpreadsheetViewer] Loading entity data...', activeSheet.entityDataSource)
       const result = await loadEntityData(activeSheet.entityDataSource)
       console.log('[SpreadsheetViewer] Entity data result:', result)
-      
+
       if (result && result.records.length > 0) {
         // Get field mappings (or use all fields if none specified)
         const fieldMappings = activeSheet.entityDataSource.fieldMappings || []
         const includedFields = fieldMappings.filter(m => m.include)
-        
+
         // Map entity records to spreadsheet format
         const mappedData = result.records.map((record, index) => {
           const mappedRow: Record<string, unknown> = {
@@ -285,7 +368,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             _entityType: result.entityType,
             _fetchedAt: result.fetchedAt
           }
-          
+
           // If we have field mappings, use them to map entity fields to column names
           // Otherwise, just spread all entity fields
           if (includedFields.length > 0) {
@@ -301,10 +384,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             // No mappings - just spread all record fields
             Object.assign(mappedRow, record)
           }
-          
+
           return mappedRow
         })
-        
+
         console.log('[SpreadsheetViewer] Mapped data:', mappedData.slice(0, 2))
         setEntityData(mappedData)
       } else {
@@ -329,7 +412,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       enabled: activeSheet?.entityDataSource?.enabled,
       refreshMode: activeSheet?.entityDataSource?.refreshMode
     })
-    
+
     if (activeSheet?.entityDataSource?.enabled) {
       // Load based on refresh mode
       const { refreshMode } = activeSheet.entityDataSource
@@ -340,7 +423,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // Clear entity data if data source is disabled
       setEntityData([])
     }
-  }, [activeSheetId, activeSheet?.entityDataSource?.enabled, activeSheet?.entityDataSource?.refreshMode, loadSheetEntityData])
+  }, [
+    activeSheetId,
+    activeSheet?.entityDataSource?.enabled,
+    activeSheet?.entityDataSource?.refreshMode,
+    loadSheetEntityData
+  ])
 
   /**
    * Manual refresh function
@@ -352,22 +440,23 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   /**
    * Determine which data to use - entity data or static sheet data
    * When entity data source is enabled, merge entity data with custom column data from sheet.data
+   * Uses localSheetData for immediate UI updates (pending changes not yet saved)
    */
   const sourceData = useMemo(() => {
     if (activeSheet?.entityDataSource?.enabled && entityData.length > 0) {
-      // Create a map of custom column data from activeSheet.data (keyed by _id)
+      // Create a map of custom column data from localSheetData (keyed by _id)
       const customDataMap = new Map<string, Record<string, unknown>>()
-      activeSheet.data.forEach(row => {
+      localSheetData.forEach(row => {
         if (row._id) {
           customDataMap.set(row._id as string, row)
         }
       })
-      
+
       // Merge entity data with custom column data
       return entityData.map(entityRow => {
         const entityId = (entityRow._id || entityRow.id) as string
         const customData = customDataMap.get(entityId) || {}
-        
+
         // Merge: entity data first, then custom column data (custom overrides entity)
         return {
           ...entityRow,
@@ -376,8 +465,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
       })
     }
-    return activeSheet?.data || []
-  }, [activeSheet?.entityDataSource?.enabled, activeSheet?.data, entityData])
+    return localSheetData
+  }, [activeSheet?.entityDataSource?.enabled, localSheetData, entityData])
 
   // Filter data based on search and evaluate formulas
   const filteredData = useMemo(() => {
@@ -393,9 +482,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
     const query = searchQuery.toLowerCase()
     return dataWithFormulas.filter(row =>
-      Object.values(row).some(
-        value => value && String(value).toLowerCase().includes(query)
-      )
+      Object.values(row).some(value => value && String(value).toLowerCase().includes(query))
     )
   }, [activeSheet, sourceData, searchQuery, recalculateAllFormulas])
 
@@ -428,9 +515,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (!activeSheet || !editingRow) return
 
       const newData = activeSheet.data.map(row =>
-        row._id === editingRow._id
-          ? { ...row, ...values, _updatedAt: new Date().toISOString() }
-          : row
+        row._id === editingRow._id ? { ...row, ...values, _updatedAt: new Date().toISOString() } : row
       )
 
       onDataChange?.(activeSheet.id, newData)
@@ -483,7 +568,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     })
 
     _onAppUpdate?.({ ...app, sheets: updatedSheets })
-    
+
     // Reset dialog
     setNewColumnName('')
     setNewColumnType('text')
@@ -493,41 +578,44 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   /**
    * Handle deleting a column
    */
-  const handleDeleteColumn = useCallback((columnId: string) => {
-    if (!activeSheet) return
+  const handleDeleteColumn = useCallback(
+    (columnId: string) => {
+      if (!activeSheet) return
 
-    // Don't allow deleting the last column
-    if (activeSheet.columns.length <= 1) {
-      return
-    }
-
-    // Remove column from columns array
-    const updatedColumns = activeSheet.columns.filter(col => col.id !== columnId)
-    
-    // Remove column data from all rows
-    const columnToDelete = activeSheet.columns.find(col => col.id === columnId)
-    const updatedData = activeSheet.data.map(row => {
-      const newRow = { ...row }
-      if (columnToDelete) {
-        delete newRow[columnToDelete.name]
+      // Don't allow deleting the last column
+      if (activeSheet.columns.length <= 1) {
+        return
       }
-      return newRow
-    })
 
-    // Update app
-    const updatedSheets = app.sheets.map(sheet => {
-      if (sheet.id === activeSheet.id) {
-        return {
-          ...sheet,
-          columns: updatedColumns,
-          data: updatedData
+      // Remove column from columns array
+      const updatedColumns = activeSheet.columns.filter(col => col.id !== columnId)
+
+      // Remove column data from all rows
+      const columnToDelete = activeSheet.columns.find(col => col.id === columnId)
+      const updatedData = activeSheet.data.map(row => {
+        const newRow = { ...row }
+        if (columnToDelete) {
+          delete newRow[columnToDelete.name]
         }
-      }
-      return sheet
-    })
+        return newRow
+      })
 
-    _onAppUpdate?.({ ...app, sheets: updatedSheets })
-  }, [activeSheet, app, _onAppUpdate])
+      // Update app
+      const updatedSheets = app.sheets.map(sheet => {
+        if (sheet.id === activeSheet.id) {
+          return {
+            ...sheet,
+            columns: updatedColumns,
+            data: updatedData
+          }
+        }
+        return sheet
+      })
+
+      _onAppUpdate?.({ ...app, sheets: updatedSheets })
+    },
+    [activeSheet, app, _onAppUpdate]
+  )
 
   /**
    * Convert column index to Excel column letter (0=A, 1=B, etc.)
@@ -556,14 +644,34 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const rowNum = rowIndex + 1 // Convert to 1-based
       const cellRef = `${colLetter}${rowNum}`
 
-      // Update selection state FIRST (fast highlight on click)
+      // Track selected cells for highlighting
       if (isRangeEnd && mode.startCell) {
+        // For range selection, add all cells in the range
+        const startRow = Math.min(mode.startCell.rowIndex, rowIndex)
+        const endRow = Math.max(mode.startCell.rowIndex, rowIndex)
+        const startCol = Math.min(mode.startCell.colIndex, colIndex)
+        const endCol = Math.max(mode.startCell.colIndex, colIndex)
+
+        const rangeCells: Array<{ rowIndex: number; colIndex: number }> = []
+        for (let r = startRow; r <= endRow; r++) {
+          for (let c = startCol; c <= endCol; c++) {
+            rangeCells.push({ rowIndex: r, colIndex: c })
+          }
+        }
+        setFormulaSelectedCells(prev => [
+          ...prev.filter(c => !(c.rowIndex === mode.startCell!.rowIndex && c.colIndex === mode.startCell!.colIndex)),
+          ...rangeCells
+        ])
+
         setFormulaSelectionMode({
           ...mode,
           endCell: { rowIndex, colIndex },
           isRangeSelection: true
         })
       } else {
+        // Single cell selection - add to the list
+        setFormulaSelectedCells(prev => [...prev, { rowIndex, colIndex }])
+
         setFormulaSelectionMode({
           ...mode,
           startCell: { rowIndex, colIndex },
@@ -572,14 +680,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
       }
 
-      // Update the edit value in the active cell component
+      // Get current formula from ref or input
       const activeCellElement = document.querySelector(
         `[data-cell-rowid="${mode.editingCell.rowId}"][data-cell-colid="${mode.editingCell.colId}"] input`
       ) as HTMLInputElement | null
-      
-      if (!activeCellElement) return
 
-      const currentFormula = activeCellElement.value?.trim() || '='
+      const currentFormula = activeCellElement?.value?.trim() || currentFormulaValueRef.current?.trim() || '='
 
       const appendRef = (formula: string, ref: string) => {
         const trimmed = formula.trim()
@@ -607,13 +713,19 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         newFormula = appendRef(newFormula, cellRef)
       }
 
-      // Apply immediately (no onDataChange here -> much faster)
-      activeCellElement.value = newFormula
-      activeCellElement.dispatchEvent(new Event('input', { bubbles: true }))
-      requestAnimationFrame(() => {
-        activeCellElement.focus()
-        activeCellElement.setSelectionRange(newFormula.length, newFormula.length)
-      })
+      // Always update the ref and state so we can save later and display properly
+      currentFormulaValueRef.current = newFormula
+      setCurrentFormulaDisplay(newFormula)
+
+      // Update input if it exists
+      if (activeCellElement) {
+        activeCellElement.value = newFormula
+        activeCellElement.dispatchEvent(new Event('input', { bubbles: true }))
+        requestAnimationFrame(() => {
+          activeCellElement.focus()
+          activeCellElement.setSelectionRange(newFormula.length, newFormula.length)
+        })
+      }
     },
     [activeSheet, columnIndexToLetter, setFormulaSelectionMode]
   )
@@ -621,6 +733,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   /**
    * Handle inline cell change (Excel-like editing)
    * When entity data source is enabled, save custom column data separately in activeSheet.data
+   * Uses localSheetData to accumulate rapid edits before debounced save
    */
   const handleCellChange = useCallback(
     (rowId: string, columnName: string, value: unknown) => {
@@ -628,26 +741,24 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
       // Check if the value is a formula
       const isFormulaValue = typeof value === 'string' && value.trim().startsWith('=')
-      
+
       // Check if we're using entity data source
       const isEntityDataSource = activeSheet.entityDataSource?.enabled && entityData.length > 0
-      
+
       let newData: Record<string, unknown>[]
-      
+
       if (isEntityDataSource) {
-        // When entity data source is enabled, we save custom column data in activeSheet.data
+        // When entity data source is enabled, we save custom column data in localSheetData
         // keyed by the entity row ID
-        const existingRowIndex = activeSheet.data.findIndex(
-          row => row._id === rowId || row.id === rowId
-        )
-        
+        const existingRowIndex = localSheetData.findIndex(row => row._id === rowId || row.id === rowId)
+
         if (existingRowIndex >= 0) {
           // Update existing row
-          newData = activeSheet.data.map(row => {
+          newData = localSheetData.map(row => {
             if (row._id === rowId || row.id === rowId) {
               const updatedRow: Record<string, unknown> = { ...row, _updatedAt: new Date().toISOString() }
               updatedRow[columnName] = value
-              
+
               // Handle formulas
               if (isFormulaValue) {
                 const formulas = (updatedRow._formulas as Record<string, string>) || {}
@@ -662,7 +773,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                   }
                 }
               }
-              
+
               return updatedRow
             }
             return row
@@ -674,19 +785,19 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             _updatedAt: new Date().toISOString(),
             [columnName]: value
           }
-          
+
           if (isFormulaValue) {
             newRow._formulas = { [columnName]: value as string }
           }
-          
-          newData = [...activeSheet.data, newRow]
+
+          newData = [...localSheetData, newRow]
         }
       } else {
         // Standard behavior when no entity data source
-        newData = activeSheet.data.map(row => {
+        newData = localSheetData.map(row => {
           if (row._id === rowId || row.id === rowId) {
             const updatedRow: Record<string, unknown> = { ...row, _updatedAt: new Date().toISOString() }
-            
+
             // Store formula in _formulas object if it's a formula
             if (isFormulaValue) {
               updatedRow[columnName] = value // Store the formula string
@@ -708,7 +819,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                 }
               }
             }
-            
+
             return updatedRow
           }
           return row
@@ -718,10 +829,192 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // Recalculate all formulas (in case this cell is referenced by others)
       newData = recalculateAllFormulas(newData)
 
-      onDataChange?.(activeSheet.id, newData)
+      // Update local state immediately for responsive UI
+      setLocalSheetData(newData)
+
+      // Trigger debounced save to backend
+      debouncedSave(activeSheet.id, newData)
     },
-    [activeSheet, entityData, onDataChange, recalculateAllFormulas]
+    [activeSheet, entityData, localSheetData, debouncedSave, recalculateAllFormulas]
   )
+
+  // Global keyboard handler for formula mode (Enter/Escape to finish/cancel)
+  useEffect(() => {
+    if (!formulaSelectionMode) return
+
+    const handleFormulaKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        e.stopPropagation()
+
+        // Use the stored formula value from the ref
+        let formulaValue = currentFormulaValueRef.current
+
+        if (formulaValue) {
+          // Auto-close parentheses if needed
+          const openParens = (formulaValue.match(/\(/g) || []).length
+          const closeParens = (formulaValue.match(/\)/g) || []).length
+          if (openParens > closeParens) {
+            formulaValue += ')'.repeat(openParens - closeParens)
+          }
+
+          console.log('[Formula] Saving formula:', formulaValue, 'to cell:', formulaSelectionMode.editingCell)
+
+          const column = activeSheet?.columns.find(c => c.id === formulaSelectionMode.editingCell.colId)
+
+          if (column) {
+            console.log('[Formula] Found column:', column.name)
+            handleCellChange(formulaSelectionMode.editingCell.rowId, column.name, formulaValue)
+          } else {
+            console.warn('[Formula] Column not found for id:', formulaSelectionMode.editingCell.colId)
+          }
+        } else {
+          console.warn('[Formula] No formula value stored')
+        }
+
+        currentFormulaValueRef.current = ''
+        setCurrentFormulaDisplay(null)
+        setFormulaSelectionMode(null)
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        currentFormulaValueRef.current = ''
+        setCurrentFormulaDisplay(null)
+        setFormulaSelectionMode(null)
+      }
+    }
+
+    document.addEventListener('keydown', handleFormulaKeyDown, true)
+    return () => document.removeEventListener('keydown', handleFormulaKeyDown, true)
+  }, [formulaSelectionMode, activeSheet, handleCellChange])
+
+  // Track if any cell is currently editing (to prevent global key handler interference)
+  const isEditingRef = React.useRef(false)
+
+  // Global keyboard handler for selected cell (Excel-like behavior)
+  useEffect(() => {
+    if (!selectedCell) return
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if we're in an input or textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
+      // Don't handle if a cell is currently being edited
+      if (isEditingRef.current) return
+
+      // Don't handle if formula selection mode is active
+      if (formulaSelectionMode) return
+
+      const { rowIndex, colIndex, rowId } = selectedCell
+      const column = activeSheet?.columns[colIndex]
+      const canEdit = activeSheet?.settings.allowEdit && column?.isEditable && column?.type !== 'calculated'
+
+      // Navigation function
+      const navigateTo = (direction: 'up' | 'down' | 'left' | 'right') => {
+        let targetRow = rowIndex
+        let targetCol = colIndex
+
+        switch (direction) {
+          case 'up':
+            targetRow = Math.max(0, rowIndex - 1)
+            break
+          case 'down':
+            targetRow = rowIndex + 1
+            break
+          case 'left':
+            targetCol = Math.max(0, colIndex - 1)
+            break
+          case 'right':
+            targetCol = colIndex + 1
+            break
+        }
+
+        const targetCell = document.querySelector(
+          `[data-cell-row="${targetRow}"][data-cell-col="${targetCol}"]`
+        ) as HTMLElement
+
+        if (targetCell) {
+          const targetRowId = targetCell.dataset.cellRowid
+          const targetColId = targetCell.dataset.cellColid
+          if (targetRowId && targetColId) {
+            setSelectedCell({ rowId: targetRowId, colId: targetColId, rowIndex: targetRow, colIndex: targetCol })
+          }
+        }
+      }
+
+      // Arrow keys - navigate
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        navigateTo('up')
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        navigateTo('down')
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        navigateTo('left')
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        navigateTo('right')
+      } else if (e.key === 'Tab') {
+        e.preventDefault()
+        navigateTo(e.shiftKey ? 'left' : 'right')
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        // Enter navigates down
+        navigateTo('down')
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        setSelectedCell(null)
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        // Copy
+        e.preventDefault()
+        const row = filteredData.find(r => (r._id ?? r.id) === rowId)
+        if (row && column) {
+          const valueToCopy = String(row[column.name] ?? '')
+          navigator.clipboard.writeText(valueToCopy)
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        // Paste
+        e.preventDefault()
+        if (canEdit && column) {
+          navigator.clipboard.readText().then(text => {
+            handleCellChange(rowId, column.name, text)
+          })
+        }
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Clear cell
+        e.preventDefault()
+        if (canEdit && column) {
+          handleCellChange(rowId, column.name, '')
+        }
+      } else if (e.key === 'F2') {
+        // F2 - enter edit mode (click cell to trigger edit)
+        e.preventDefault()
+        const cellElement = document.querySelector(
+          `[data-cell-row="${rowIndex}"][data-cell-col="${colIndex}"]`
+        ) as HTMLElement
+        if (cellElement) {
+          cellElement.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+        }
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && canEdit) {
+        // Printable character - start editing with this character
+        e.preventDefault()
+        // Find the cell and trigger edit mode with the typed character
+        const cellElement = document.querySelector(
+          `[data-cell-row="${rowIndex}"][data-cell-col="${colIndex}"]`
+        ) as HTMLElement
+        if (cellElement) {
+          // Set a data attribute to indicate we want to start with this character
+          cellElement.dataset.startChar = e.key
+          cellElement.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleGlobalKeyDown)
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [selectedCell, activeSheet, filteredData, formulaSelectionMode, handleCellChange])
 
   /**
    * Convert columns to form fields
@@ -744,15 +1037,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })),
         validation: col.validation
           ? [
-              ...(col.validation.required
-                ? [{ type: 'required' as const, message: `${col.label} is required` }]
-                : []),
-              ...(col.validation.min !== undefined
-                ? [{ type: 'min' as const, value: col.validation.min }]
-                : []),
-              ...(col.validation.max !== undefined
-                ? [{ type: 'max' as const, value: col.validation.max }]
-                : [])
+              ...(col.validation.required ? [{ type: 'required' as const, message: `${col.label} is required` }] : []),
+              ...(col.validation.min !== undefined ? [{ type: 'min' as const, value: col.validation.min }] : []),
+              ...(col.validation.max !== undefined ? [{ type: 'max' as const, value: col.validation.max }] : [])
             ]
           : undefined
       }))
@@ -773,10 +1060,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     // If entity data source is enabled, add entity columns first (read-only)
     if (activeSheet.entityDataSource?.enabled && activeSheet.entityDataSource.fieldMappings?.length > 0) {
       const entityFieldMappings = activeSheet.entityDataSource.fieldMappings.filter(m => m.include)
-      
-      console.log('[SpreadsheetViewer] Adding entity columns:', entityFieldMappings.map(m => m.entityFieldLabel))
-      
-      entityFieldMappings.forEach((mapping) => {
+
+      console.log(
+        '[SpreadsheetViewer] Adding entity columns:',
+        entityFieldMappings.map(m => m.entityFieldLabel)
+      )
+
+      entityFieldMappings.forEach(mapping => {
         cols.push({
           id: `entity_${mapping.entityField}`,
           accessorFn: (row: Record<string, unknown>) => {
@@ -798,7 +1088,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                 {value === null || value === undefined ? (
                   <span className="gba:text-muted-foreground">—</span>
                 ) : typeof value === 'boolean' ? (
-                  value ? '✓' : '✗'
+                  value ? (
+                    '✓'
+                  ) : (
+                    '✗'
+                  )
                 ) : typeof value === 'object' ? (
                   <span className="gba:text-muted-foreground gba:text-xs">{JSON.stringify(value)}</span>
                 ) : (
@@ -809,43 +1103,38 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
         })
       })
-      
+
       colIndexOffset = entityFieldMappings.length
     }
 
     // Add custom spreadsheet columns (editable)
     const visibleColumns = activeSheet.columns.filter(col => col.isVisible)
-    
+
     visibleColumns.forEach((col, idx) => {
       const colIndex = colIndexOffset + idx
-      
+
       cols.push({
         id: col.id,
         accessorFn: (row: Record<string, unknown>) => row[col.name],
         header: () => (
           <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:group">
             <div className="gba:flex gba:items-center gba:gap-1">
-              {activeSheet.entityDataSource?.enabled && (
-                <Pencil className="gba:w-3 gba:h-3 gba:text-success" />
-              )}
+              {activeSheet.entityDataSource?.enabled && <Pencil className="gba:w-3 gba:h-3 gba:text-success" />}
               <span>{col.label}</span>
             </div>
             {_onAppUpdate && activeSheet.columns.length > 1 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="gba:h-5 gba:w-5 gba:p-0 gba:opacity-0 group-hover:gba:opacity-100"
                   >
                     <MoreVertical className="gba:w-3 gba:h-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem 
-                    onClick={() => handleDeleteColumn(col.id)}
-                    className="gba:text-destructive"
-                  >
+                  <DropdownMenuItem onClick={() => handleDeleteColumn(col.id)} className="gba:text-destructive">
                     <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                     Delete Column
                   </DropdownMenuItem>
@@ -873,6 +1162,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               onFormulaCellSelect={handleFormulaCellSelect}
               formulaSelectionMode={formulaSelectionMode}
               setFormulaSelectionMode={setFormulaSelectionMode}
+              selectedCell={selectedCell}
+              setSelectedCell={setSelectedCell}
+              onFormulaValueChange={(value: string) => {
+                currentFormulaValueRef.current = value
+                setCurrentFormulaDisplay(value)
+              }}
+              formulaSelectedCells={formulaSelectedCells}
+              onEditingStateChange={editing => {
+                isEditingRef.current = editing
+              }}
             />
           )
         }
@@ -916,7 +1215,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
 
     return cols
-  }, [activeSheet, handleDeleteRow, handleCellChange, filteredData, handleFormulaCellSelect, formulaSelectionMode])
+  }, [
+    activeSheet,
+    handleDeleteRow,
+    handleCellChange,
+    filteredData,
+    handleFormulaCellSelect,
+    formulaSelectionMode,
+    selectedCell,
+    setSelectedCell
+  ])
 
   if (!activeSheet) {
     return (
@@ -941,17 +1249,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               )}
               <div className="gba:flex gba:items-center gba:gap-3">
                 <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                  <span className="gba:text-xl">{app.icon || '📊'}</span>
+                  {(() => {
+                    const IconComponent = app.icon ? getIconByName(app.icon) : null
+                    return IconComponent ? (
+                      <IconComponent className="gba:w-5 gba:h-5 gba:text-primary" />
+                    ) : (
+                      <DEFAULT_APP_ICON className="gba:w-5 gba:h-5 gba:text-primary" />
+                    )
+                  })()}
                 </div>
                 <div>
-                  <h1 className="gba:text-xl gba:font-semibold gba:text-foreground">
-                    {app.name}
-                  </h1>
-                  {app.description && (
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {app.description}
-                    </p>
-                  )}
+                  <h1 className="gba:text-xl gba:font-semibold gba:text-foreground">{app.name}</h1>
+                  {app.description && <p className="gba:text-sm gba:text-muted-foreground">{app.description}</p>}
                 </div>
               </div>
             </div>
@@ -964,12 +1273,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                     <Database className="gba:w-3 gba:h-3" />
                     {activeSheet.entityDataSource.entityDisplayName}
                   </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefreshEntityData}
-                    disabled={isEntityDataLoading}
-                  >
+                  <Button variant="outline" size="sm" onClick={handleRefreshEntityData} disabled={isEntityDataLoading}>
                     {isEntityDataLoading ? (
                       <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
                     ) : (
@@ -984,7 +1288,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               {onEdit && (
                 <Button variant="outline" size="sm" onClick={onEdit}>
                   <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Edit App
+                  Settings
                 </Button>
               )}
             </div>
@@ -999,7 +1303,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                 const isActive = sheet.id === activeSheetId
                 const hasEntitySource = sheet.entityDataSource?.enabled
                 const dataCount = isActive && hasEntitySource ? entityData.length : sheet.data.length
-                
+
                 return (
                   <button
                     key={sheet.id}
@@ -1028,30 +1332,182 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         )}
       </div>
 
-      {/* Toolbar */}
-      <div className="gba:px-6 gba:py-3 gba:border-b gba:bg-muted/30">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          {/* Formula hint */}
-          <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-            <span className="gba:font-mono">fx</span>
-            {formulaSelectionMode ? (() => {
-              const colIndex = activeSheet.columns.findIndex(c => c.id === formulaSelectionMode!.editingCell.colId)
-              const rowIndex = filteredData.findIndex((r: Record<string, unknown>) => 
-                (r._id === formulaSelectionMode!.editingCell.rowId || r.id === formulaSelectionMode!.editingCell.rowId)
-              )
-              const colLetter = columnIndexToLetter(colIndex)
-              const cellRef = `${colLetter}${rowIndex + 1}`
-              
-              return (
-                <span className="gba:text-primary gba:font-medium">
-                  Editing <code className="gba:px-1 gba:py-0.5 gba:bg-primary/20 gba:text-primary gba:rounded gba:font-mono">{cellRef}</code> • Click cells to add references • Shift+Click for range • Press Enter to finish • Esc to cancel
-                </span>
-              )
-            })() : (
-              <span>Type <code className="gba:px-1 gba:py-0.5 gba:bg-muted gba:rounded">=</code> in any cell to start a formula</span>
+      {/* Formula Bar - Excel-like display */}
+      <div className="gba:px-6 gba:py-2 gba:border-b gba:bg-muted/20">
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {/* Cell reference indicator */}
+          {selectedCell && (
+            <div className="gba:min-w-[60px] gba:px-2 gba:py-1 gba:bg-background gba:border gba:rounded gba:text-sm gba:font-mono gba:text-center">
+              {columnIndexToLetter(selectedCell.colIndex)}
+              {selectedCell.rowIndex + 1}
+            </div>
+          )}
+
+          {/* Formula/Value input - editable like Excel */}
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:bg-background gba:border gba:rounded gba:px-3 gba:min-h-[36px]">
+            <span className="gba:font-mono gba:text-sm gba:text-muted-foreground">fx</span>
+            {selectedCell ? (
+              <input
+                type="text"
+                className="gba:flex-1 gba:font-mono gba:text-sm gba:bg-transparent gba:border-none gba:outline-none gba:text-foreground"
+                placeholder="Enter value or formula (start with =)"
+                value={(() => {
+                  // If we're actively editing (not null), show the edit value (even if empty)
+                  if (currentFormulaDisplay !== null) {
+                    return currentFormulaDisplay
+                  }
+                  // Otherwise show the stored formula or value from the cell
+                  const row = filteredData.find(r => (r._id ?? r.id) === selectedCell.rowId)
+                  const column = activeSheet?.columns.find(c => c.id === selectedCell.colId)
+                  if (row && column) {
+                    const formulas = row._formulas as Record<string, string> | undefined
+                    const storedFormula = formulas?.[column.name]
+                    if (storedFormula) return storedFormula
+                    const value = row[column.name]
+                    return value !== null && value !== undefined ? String(value) : ''
+                  }
+                  return ''
+                })()}
+                onChange={e => {
+                  const newValue = e.target.value
+                  // Update formula display
+                  currentFormulaValueRef.current = newValue
+                  setCurrentFormulaDisplay(newValue)
+
+                  // Enter formula mode if starting with =
+                  if (newValue.trim().startsWith('=') && !formulaSelectionMode) {
+                    setFormulaSelectionMode({
+                      editingCell: { rowId: selectedCell.rowId, colId: selectedCell.colId },
+                      startCell: null,
+                      endCell: null,
+                      isRangeSelection: false
+                    })
+                  } else if (!newValue.trim().startsWith('=') && formulaSelectionMode) {
+                    // Exit formula mode if not a formula anymore
+                    setFormulaSelectionMode(null)
+                  }
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const value = e.currentTarget.value
+                    const column = activeSheet?.columns.find(c => c.id === selectedCell.colId)
+                    if (column) {
+                      // Auto-close parentheses for formulas
+                      let finalValue = value
+                      if (value.trim().startsWith('=')) {
+                        const openParens = (value.match(/\(/g) || []).length
+                        const closeParens = (value.match(/\)/g) || []).length
+                        if (openParens > closeParens) {
+                          finalValue = value + ')'.repeat(openParens - closeParens)
+                        }
+                      }
+                      handleCellChange(selectedCell.rowId, column.name, finalValue)
+                    }
+                    currentFormulaValueRef.current = ''
+                    setCurrentFormulaDisplay(null)
+                    setFormulaSelectionMode(null)
+                    // Move to next row
+                    const nextRowIndex = selectedCell.rowIndex + 1
+                    if (nextRowIndex < filteredData.length) {
+                      const nextRow = filteredData[nextRowIndex]
+                      const nextRowId = (nextRow._id ?? nextRow.id) as string
+                      setSelectedCell({
+                        rowId: nextRowId,
+                        colId: selectedCell.colId,
+                        rowIndex: nextRowIndex,
+                        colIndex: selectedCell.colIndex
+                      })
+                    }
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault()
+                    currentFormulaValueRef.current = ''
+                    setCurrentFormulaDisplay(null)
+                    setFormulaSelectionMode(null)
+                  }
+                }}
+                onFocus={() => {
+                  // When focusing the formula bar, load the current cell's formula/value for editing
+                  const row = filteredData.find(r => (r._id ?? r.id) === selectedCell.rowId)
+                  const column = activeSheet?.columns.find(c => c.id === selectedCell.colId)
+                  if (row && column) {
+                    const formulas = row._formulas as Record<string, string> | undefined
+                    const storedFormula = formulas?.[column.name]
+                    if (storedFormula) {
+                      // Cell has a formula - load it and enter formula mode
+                      currentFormulaValueRef.current = storedFormula
+                      setCurrentFormulaDisplay(storedFormula)
+                      setFormulaSelectionMode({
+                        editingCell: { rowId: selectedCell.rowId, colId: selectedCell.colId },
+                        startCell: null,
+                        endCell: null,
+                        isRangeSelection: false
+                      })
+                    } else {
+                      // Cell has regular value - load it for editing (no formula mode)
+                      const value = row[column.name]
+                      const valueStr = value !== null && value !== undefined ? String(value) : ''
+                      currentFormulaValueRef.current = valueStr
+                      setCurrentFormulaDisplay(valueStr)
+                    }
+                  }
+                }}
+                data-testid="formula-bar-input"
+              />
+            ) : (
+              <span className="gba:flex-1 gba:font-mono gba:text-sm gba:text-muted-foreground">Select a cell</span>
             )}
           </div>
-          
+
+          {/* Formula functions - show when cell is selected and not in formula mode */}
+          {selectedCell && !formulaSelectionMode && (
+            <div className="gba:flex gba:items-center gba:gap-1">
+              {[
+                { name: 'SUM', desc: 'Add values', icon: '∑' },
+                { name: 'AVERAGE', desc: 'Average', icon: 'x̄' },
+                { name: 'COUNT', desc: 'Count', icon: '#' },
+                { name: 'MIN', desc: 'Min', icon: '↓' },
+                { name: 'MAX', desc: 'Max', icon: '↑' }
+              ].map(fn => (
+                <Button
+                  key={fn.name}
+                  variant="outline"
+                  size="sm"
+                  className="gba:h-8 gba:px-2 gba:text-xs gba:font-mono"
+                  title={`${fn.name}: ${fn.desc}`}
+                  onClick={() => {
+                    const cellElement = document.querySelector(
+                      `[data-cell-row="${selectedCell.rowIndex}"][data-cell-col="${selectedCell.colIndex}"]`
+                    ) as HTMLElement
+                    if (cellElement) {
+                      const formula = `=${fn.name}(`
+                      cellElement.dataset.startChar = formula
+                      cellElement.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+                    }
+                  }}
+                >
+                  <span className="gba:mr-1">{fn.icon}</span>
+                  {fn.name}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Formula mode hint */}
+        {formulaSelectionMode && (
+          <div className="gba:mt-2 gba:text-xs gba:text-primary gba:flex gba:items-center gba:gap-2">
+            <Badge variant="info" className="gba:text-xs">
+              Formula Mode
+            </Badge>
+            <span>Click cells to add references • Shift+Click for range • Enter to save • Escape to cancel</span>
+          </div>
+        )}
+      </div>
+
+      {/* Toolbar */}
+      <div className="gba:px-6 gba:py-2 gba:border-b gba:bg-muted/30">
+        <div className="gba:flex gba:items-center gba:justify-between">
           {/* View switcher */}
           <div className="gba:flex gba:items-center gba:gap-2">
             {activeSheet.views.map(view => {
@@ -1155,9 +1611,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
                 <Database className="gba:w-4 gba:h-4 gba:text-info" />
                 <span className="gba:text-foreground">
-                  <strong>{entityData.length}</strong> records loaded from <strong>{activeSheet.entityDataSource.entityDisplayName}</strong>
+                  <strong>{entityData.length}</strong> records loaded from{' '}
+                  <strong>{activeSheet.entityDataSource.entityDisplayName}</strong>
                 </span>
-                <Badge variant="info" className="gba:text-xs">Live Data</Badge>
+                <Badge variant="info" className="gba:text-xs">
+                  Live Data
+                </Badge>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Button variant="outline" size="sm" onClick={handleRefreshEntityData}>
@@ -1182,11 +1641,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       {/* Content */}
       <div className="gba:flex-1 gba:overflow-auto gba:p-6">
         {activeView?.type === 'table' && (
-          <TableView
-            data={filteredData}
-            columns={tableColumns}
-            testId={`${testId}-table`}
-          />
+          <TableView data={filteredData} columns={tableColumns} testId={`${testId}-table`} />
         )}
 
         {activeView?.type === 'form' && (
@@ -1200,11 +1655,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         )}
 
         {activeView?.type === 'dashboard' && (
-          <DashboardView
-            sheet={activeSheet}
-            data={filteredData}
-            testId={`${testId}-dashboard`}
-          />
+          <DashboardView sheet={activeSheet} data={filteredData} testId={`${testId}-dashboard`} />
         )}
 
         {activeView?.type === 'kanban' && (
@@ -1319,8 +1770,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               </p>
             ) : (
               activeSheet.columns.map(column => (
-                <div 
-                  key={column.id} 
+                <div
+                  key={column.id}
                   className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg gba:bg-card"
                 >
                   <div className="gba:flex gba:items-center gba:gap-3">
@@ -1371,10 +1822,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             <Button variant="outline" onClick={() => setIsManageColumnsDialogOpen(false)}>
               Close
             </Button>
-            <Button onClick={() => {
-              setIsManageColumnsDialogOpen(false)
-              setIsAddColumnDialogOpen(true)
-            }}>
+            <Button
+              onClick={() => {
+                setIsManageColumnsDialogOpen(false)
+                setIsAddColumnDialogOpen(true)
+              }}
+            >
               <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
               Add Column
             </Button>
@@ -1396,11 +1849,12 @@ type FormulaSelectionMode = {
 // Global state to keep the currently edited cell stable across table re-renders/remounts.
 // IMPORTANT: We intentionally keep this around (do NOT clear when starting edit),
 // so a re-render doesn't make the input lose focus / exit edit mode.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let activeEditCell: ActiveEditCell = null
 
 /**
- * Editable Cell Component - Click to edit like Excel
- * Supports arrow key navigation between cells
+ * Editable Cell Component - Excel-like behavior
+ * Single click = select, Double click = edit, Type when selected = replace
  */
 interface EditableCellProps {
   value: unknown
@@ -1415,6 +1869,11 @@ interface EditableCellProps {
   onFormulaCellSelect?: (rowIndex: number, colIndex: number, isRangeEnd?: boolean) => void
   formulaSelectionMode: FormulaSelectionMode
   setFormulaSelectionMode: (mode: FormulaSelectionMode) => void
+  selectedCell: { rowId: string; colId: string; rowIndex: number; colIndex: number } | null
+  setSelectedCell: (cell: { rowId: string; colId: string; rowIndex: number; colIndex: number } | null) => void
+  onFormulaValueChange?: (value: string) => void
+  formulaSelectedCells: Array<{ rowIndex: number; colIndex: number }>
+  onEditingStateChange?: (isEditing: boolean) => void
 }
 
 const EditableCell: React.FC<EditableCellProps> = ({
@@ -1428,106 +1887,134 @@ const EditableCell: React.FC<EditableCellProps> = ({
   allRows,
   onFormulaCellSelect,
   formulaSelectionMode,
-  setFormulaSelectionMode
+  setFormulaSelectionMode,
+  selectedCell,
+  setSelectedCell,
+  onFormulaValueChange,
+  formulaSelectedCells,
+  onEditingStateChange
 }) => {
   const [isEditing, setIsEditing] = useState(false)
-  const [originalValue, setOriginalValue] = useState<string>('') // Store original value for Escape
-  
+  const [originalValue, setOriginalValue] = useState<string>('')
+  const [editValue, setEditValue] = useState('')
+
+  // Notify parent when editing state changes
+  useEffect(() => {
+    onEditingStateChange?.(isEditing)
+  }, [isEditing, onEditingStateChange])
+
   // Get the row to check for stored formulas
-  const currentRow = allRows.find(r => (r._id === rowId || r.id === rowId))
+  const currentRow = allRows.find(r => r._id === rowId || r.id === rowId)
   const formulas = currentRow?._formulas as Record<string, string> | undefined
   const storedFormula = formulas?.[column.name]
   const hasFormula = Boolean(storedFormula)
-  
-  // Initialize edit value with formula if it exists, otherwise use the displayed value
-  const [editValue, setEditValue] = useState(() => {
-    return storedFormula || String(value ?? '')
-  })
-  
+
   const inputRef = React.useRef<HTMLInputElement>(null)
   const cellRef = React.useRef<HTMLDivElement>(null)
-  const isNavigatingRef = React.useRef(false)
   const isCommittingRef = React.useRef(false)
-  const shouldStartEditingRef = React.useRef(false)
+  // Track if editing started from typing (vs double-click)
+  const startedFromTypingRef = React.useRef(false)
+
+  // Check if this cell is selected (but not editing)
+  const isSelected = selectedCell?.rowId === rowId && selectedCell?.colId === column.id
 
   // Check if we're in formula selection mode (this is the cell being edited)
-  const isInFormulaMode = formulaSelectionMode !== null && 
-    formulaSelectionMode.editingCell.rowId === rowId && 
+  const isInFormulaMode =
+    formulaSelectionMode !== null &&
+    formulaSelectionMode.editingCell.rowId === rowId &&
     formulaSelectionMode.editingCell.colId === column.id
 
-  // Focus input when editing starts and keep it focused in formula mode
+  const canEdit = isEditable && column.isEditable
+
+  // Focus input when editing starts
   React.useLayoutEffect(() => {
-    if (!isEditing || !inputRef.current) return
-    
-    // Always focus when editing, especially in formula mode
-    inputRef.current.focus()
-    
-    if (shouldStartEditingRef.current) {
-      inputRef.current.select()
-      shouldStartEditingRef.current = false
-    }
-    
-    // In formula selection mode, ensure input stays focused
-    if (isInFormulaMode && formulaSelectionMode) {
-      const focusInput = () => {
-        if (inputRef.current && document.activeElement !== inputRef.current) {
-          inputRef.current.focus()
-        }
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      // Only select all if started from double-click, not from typing
+      if (startedFromTypingRef.current) {
+        // Position cursor at end
+        const len = inputRef.current.value.length
+        inputRef.current.setSelectionRange(len, len)
+        startedFromTypingRef.current = false
+      } else {
+        inputRef.current.select()
       }
-      
-      // Focus after a short delay to allow cell clicks to process
-      const timeoutId = setTimeout(focusInput, 50)
-      return () => clearTimeout(timeoutId)
     }
-  }, [isEditing, isInFormulaMode])
+  }, [isEditing])
 
-  // Restore edit mode after table re-renders/remounts (e.g. async save causes new table instance)
-  React.useLayoutEffect(() => {
-    if (!activeEditCell) return
-    if (activeEditCell.rowId !== rowId || activeEditCell.colId !== column.id) return
+  // Handle selection click (single click)
+  const handleSelect = (e: React.MouseEvent) => {
+    e.stopPropagation()
 
-    if (!isEditable || !column.isEditable) {
-      // If the cell is no longer editable, stop tracking it.
-      activeEditCell = null
+    // If in formula selection mode, handle that instead
+    if (formulaSelectionMode && !isInFormulaMode) {
+      if (onFormulaCellSelect) {
+        onFormulaCellSelect(rowIndex, colIndex, e.shiftKey)
+      }
       return
     }
 
-    if (!isEditing) {
-      shouldStartEditingRef.current = true
-      // Use stored formula if available, otherwise use displayed value
-      const currentRow = allRows.find(r => (r._id === rowId || r.id === rowId))
-      const formulas = currentRow?._formulas as Record<string, string> | undefined
-      const storedFormula = formulas?.[column.name]
-      const initialValue = storedFormula || String(value ?? '')
-      setOriginalValue(initialValue) // Store original for Escape
-      setEditValue(initialValue)
-      setIsEditing(true)
-    }
-  })
+    // Select this cell
+    setSelectedCell({ rowId, colId: column.id, rowIndex, colIndex })
 
-  const handleStartEdit = () => {
-    if (!isEditable || !column.isEditable) return
-    activeEditCell = { rowId, colId: column.id }
-    shouldStartEditingRef.current = true
-    // Use stored formula if available, otherwise use displayed value
-    const currentRow = allRows.find(r => (r._id === rowId || r.id === rowId))
-    const formulas = currentRow?._formulas as Record<string, string> | undefined
-    const storedFormula = formulas?.[column.name]
-    const initialValue = storedFormula || String(value ?? '')
-    setOriginalValue(initialValue) // Store original for Escape
-    setEditValue(initialValue)
-    setIsEditing(true)
+    // Focus the cell div so it can receive keyboard events
+    cellRef.current?.focus()
   }
 
+  // Handle double click to enter edit mode
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!canEdit) return
+
+    // Check if there's a startChar from keyboard typing or formula button
+    const startChar = cellRef.current?.dataset.startChar
+    if (startChar) {
+      // Clear the attribute
+      delete cellRef.current.dataset.startChar
+      // Mark that we started from typing (not double-click)
+      startedFromTypingRef.current = true
+      // Start editing with the typed character/formula
+      setOriginalValue(storedFormula || String(value ?? ''))
+      setEditValue(startChar)
+      setIsEditing(true)
+      activeEditCell = { rowId, colId: column.id }
+
+      // If it's a formula, enter formula selection mode and store the value
+      if (startChar.trim().startsWith('=')) {
+        if (onFormulaValueChange) {
+          onFormulaValueChange(startChar)
+        }
+        setFormulaSelectionMode({
+          editingCell: { rowId, colId: column.id },
+          startCell: null,
+          endCell: null,
+          isRangeSelection: false
+        })
+      }
+    } else {
+      startEditing(false) // false = don't clear content
+    }
+  }
+
+  // Start editing - optionally clear content (when typing while selected)
+  const startEditing = (clearContent: boolean = false) => {
+    if (!canEdit) return
+
+    const initialValue = clearContent ? '' : storedFormula || String(value ?? '')
+    setOriginalValue(storedFormula || String(value ?? ''))
+    setEditValue(initialValue)
+    setIsEditing(true)
+    activeEditCell = { rowId, colId: column.id }
+  }
+
+  // Save the cell value
   const handleSave = () => {
     if (isCommittingRef.current) return
     isCommittingRef.current = true
 
-    // Check if it's a formula (starts with =)
     let convertedValue: unknown = editValue
-    
+
     if (isFormula(editValue)) {
-      // Keep formula as-is, it will be evaluated by the parent component
       convertedValue = editValue
     } else if (column.type === 'number' || column.type === 'currency' || column.type === 'percentage') {
       convertedValue = editValue === '' ? null : Number(editValue)
@@ -1537,271 +2024,192 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
     onSave(rowId, column.name, convertedValue)
     setIsEditing(false)
+    activeEditCell = null
 
-    // Allow subsequent commits (blur can fire immediately after unmount)
     setTimeout(() => {
       isCommittingRef.current = false
     }, 0)
   }
 
-  // If the user clicks anywhere else, commit and stop editing this cell.
-  // This avoids the "auto-reopen" loop, while still allowing us to keep editing stable
-  // across table remounts (those don't trigger pointer events).
-  React.useEffect(() => {
-    if (!isEditing) return
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null
-      if (cellRef.current && target && cellRef.current.contains(target)) {
-        return
-      }
-
-      // Don't close if we're in formula selection mode and clicking on another cell
-      if (formulaSelectionMode && formulaSelectionMode.editingCell.rowId === rowId && formulaSelectionMode.editingCell.colId === column.id) {
-        // Check if clicking on a cell (not outside the table)
-        const clickedCell = (event.target as HTMLElement)?.closest('[data-cell-rowid]')
-        if (clickedCell) {
-          // Keep editing mode active, just refocus
-          setTimeout(() => {
-            if (inputRef.current) {
-              inputRef.current.focus()
-            }
-          }, 0)
-          return
-        }
-      }
-
-      activeEditCell = null
-      handleSave()
-    }
-
-    document.addEventListener('pointerdown', onPointerDown, true)
-    return () => document.removeEventListener('pointerdown', onPointerDown, true)
-  }, [isEditing, rowId, column.id, formulaSelectionMode])
-
-  /**
-   * Navigate to adjacent cell using arrow keys
-   */
+  // Navigate to adjacent cell
   const navigateToCell = (direction: 'up' | 'down' | 'left' | 'right') => {
     let targetRow = rowIndex
     let targetCol = colIndex
 
     switch (direction) {
       case 'up':
-        targetRow = rowIndex - 1
+        targetRow = Math.max(0, rowIndex - 1)
         break
       case 'down':
         targetRow = rowIndex + 1
         break
       case 'left':
-        targetCol = colIndex - 1
+        targetCol = Math.max(0, colIndex - 1)
         break
       case 'right':
         targetCol = colIndex + 1
         break
     }
 
-    // Find the target cell by data attribute
     const targetCell = document.querySelector(
       `[data-cell-row="${targetRow}"][data-cell-col="${targetCol}"]`
     ) as HTMLElement
 
     if (targetCell) {
-      // Set flag to prevent blur from saving (we'll save here)
-      isNavigatingRef.current = true
-      isCommittingRef.current = true
-      
-      // Keep next edited cell stable even if table re-renders/remounts
       const targetRowId = targetCell.dataset.cellRowid
       const targetColId = targetCell.dataset.cellColid
       if (targetRowId && targetColId) {
-        activeEditCell = { rowId: targetRowId, colId: targetColId }
+        setSelectedCell({ rowId: targetRowId, colId: targetColId, rowIndex: targetRow, colIndex: targetCol })
+        targetCell.focus()
       }
-      
-      // Save current value
-      let convertedValue: unknown = editValue
-      if (isFormula(editValue)) {
-        convertedValue = editValue
-      } else if (column.type === 'number' || column.type === 'currency' || column.type === 'percentage') {
-        convertedValue = editValue === '' ? null : Number(editValue)
-      } else if (column.type === 'boolean') {
-        convertedValue = editValue.toLowerCase() === 'true' || editValue === '1'
-      }
-      onSave(rowId, column.name, convertedValue)
-      setIsEditing(false)
-      
-      // Reset navigation flag after a delay
-      setTimeout(() => {
-        isNavigatingRef.current = false
-        isCommittingRef.current = false
-      }, 100)
     }
   }
 
-  // Check if this cell is selected in formula mode (for highlighting)
-  const isSelectedInFormula = formulaSelectionMode !== null && 
-    !(formulaSelectionMode.editingCell.rowId === rowId && formulaSelectionMode.editingCell.colId === column.id) &&
-    ((formulaSelectionMode.startCell && 
-      formulaSelectionMode.startCell.rowIndex === rowIndex && 
-      formulaSelectionMode.startCell.colIndex === colIndex) ||
-     (formulaSelectionMode.endCell && 
-      formulaSelectionMode.endCell.rowIndex === rowIndex && 
-      formulaSelectionMode.endCell.colIndex === colIndex) ||
-     (formulaSelectionMode.isRangeSelection && 
-      formulaSelectionMode.startCell && formulaSelectionMode.endCell &&
-      rowIndex >= Math.min(formulaSelectionMode.startCell.rowIndex, formulaSelectionMode.endCell.rowIndex) &&
-      rowIndex <= Math.max(formulaSelectionMode.startCell.rowIndex, formulaSelectionMode.endCell.rowIndex) &&
-      colIndex >= Math.min(formulaSelectionMode.startCell.colIndex, formulaSelectionMode.endCell.colIndex) &&
-      colIndex <= Math.max(formulaSelectionMode.startCell.colIndex, formulaSelectionMode.endCell.colIndex)))
+  // Handle keyboard events when cell is selected (not editing)
+  const handleCellKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isEditing) return
 
-  // Global keyboard handler for formula mode (works even when input loses focus)
-  React.useEffect(() => {
-    if (!isEditing || !isInFormulaMode) return
-
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Only handle if this is the active editing cell
-      if (formulaSelectionMode?.editingCell.rowId !== rowId || 
-          formulaSelectionMode?.editingCell.colId !== column.id) {
-        return
-      }
-
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        e.stopPropagation()
-        setFormulaSelectionMode(null)
-        handleSave()
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        setFormulaSelectionMode(null)
-        // Restore original value (like Excel)
-        setEditValue(originalValue)
-        setIsEditing(false)
-        // Clear the active edit cell
-        if (activeEditCell?.rowId === rowId && activeEditCell?.colId === column.id) {
-          activeEditCell = null
-        }
-      }
-    }
-
-    document.addEventListener('keydown', handleGlobalKeyDown, true)
-    return () => document.removeEventListener('keydown', handleGlobalKeyDown, true)
-  }, [isEditing, isInFormulaMode, rowId, column.id, originalValue, formulaSelectionMode, setFormulaSelectionMode])
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // If in formula mode and typing, don't navigate
-    const isFormulaInput = editValue.trim().startsWith('=')
-    
-    if (e.key === 'Enter') {
-      if (isFormulaInput && formulaSelectionMode) {
-        // Finish formula selection
-        setFormulaSelectionMode(null)
-        e.preventDefault()
-        handleSave()
-        return
-      }
-      e.preventDefault()
-      // Enter moves down (like Excel) - but only if not in formula selection mode
-      if (!isFormulaInput || !formulaSelectionMode) {
-        navigateToCell('down')
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      setFormulaSelectionMode(null)
-      // Restore original value (like Excel)
-      setEditValue(originalValue)
-      setIsEditing(false)
-      // Clear the active edit cell
-      if (activeEditCell?.rowId === rowId && activeEditCell?.colId === column.id) {
-        activeEditCell = null
-      }
-    } else if (e.key === 'Tab') {
-      e.preventDefault()
-      // Tab moves right, Shift+Tab moves left - but only if not in formula selection mode
-      if (!isFormulaInput || !formulaSelectionMode) {
-        navigateToCell(e.shiftKey ? 'left' : 'right')
-      }
-    } else if (e.key === 'ArrowUp') {
-      if (isFormulaInput && formulaSelectionMode) {
-        // In formula mode, arrows can be used for selection
-        e.preventDefault()
-        return
-      }
+    // Arrow keys - navigate
+    if (e.key === 'ArrowUp') {
       e.preventDefault()
       navigateToCell('up')
     } else if (e.key === 'ArrowDown') {
-      if (isFormulaInput && formulaSelectionMode) {
-        e.preventDefault()
-        return
-      }
       e.preventDefault()
       navigateToCell('down')
     } else if (e.key === 'ArrowLeft') {
-      // Only navigate if cursor is at the start of input
-      const input = inputRef.current
-      if (input && input.selectionStart === 0 && input.selectionEnd === 0) {
-        if (isFormulaInput && formulaSelectionMode) {
-          e.preventDefault()
-          return
-        }
-        e.preventDefault()
-        navigateToCell('left')
-      }
+      e.preventDefault()
+      navigateToCell('left')
     } else if (e.key === 'ArrowRight') {
-      // Only navigate if cursor is at the end of input
-      const input = inputRef.current
-      if (input && input.selectionStart === editValue.length && input.selectionEnd === editValue.length) {
-        if (isFormulaInput && formulaSelectionMode) {
-          e.preventDefault()
-          return
-        }
+      e.preventDefault()
+      navigateToCell('right')
+    } else if (e.key === 'Tab') {
+      e.preventDefault()
+      navigateToCell(e.shiftKey ? 'left' : 'right')
+    } else if (e.key === 'Enter') {
+      // Enter - start editing (like F2)
+      e.preventDefault()
+      if (canEdit) startEditing(false)
+    } else if (e.key === 'F2') {
+      // F2 - edit mode
+      e.preventDefault()
+      if (canEdit) startEditing(false)
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      // Delete/Backspace - clear cell
+      e.preventDefault()
+      if (canEdit) {
+        onSave(rowId, column.name, '')
+      }
+    } else if (e.key === 'Escape') {
+      // Escape - deselect
+      e.preventDefault()
+      setSelectedCell(null)
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      // Ctrl+C - copy
+      e.preventDefault()
+      const textToCopy = String(value ?? '')
+      navigator.clipboard.writeText(textToCopy)
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      // Ctrl+V - paste
+      e.preventDefault()
+      if (canEdit) {
+        navigator.clipboard.readText().then(text => {
+          onSave(rowId, column.name, text)
+        })
+      }
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // Any printable character - start editing and replace content
+      if (canEdit) {
         e.preventDefault()
-        navigateToCell('right')
+        setOriginalValue(storedFormula || String(value ?? ''))
+        setEditValue(e.key)
+        setIsEditing(true)
+        activeEditCell = { rowId, colId: column.id }
       }
     }
   }
-  
-  // Handle cell click when in formula selection mode
-  const handleCellClickInFormulaMode = (e: React.PointerEvent | React.MouseEvent) => {
-    if (!formulaSelectionMode || isInFormulaMode) return
-    
-    e.stopPropagation()
-    e.preventDefault()
-    
-    if (onFormulaCellSelect) {
-      const isRangeEnd = e.shiftKey
-      onFormulaCellSelect(rowIndex, colIndex, isRangeEnd)
+
+  // Handle keyboard events when editing
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
+    const isFormulaInput = editValue.trim().startsWith('=')
+
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      e.stopPropagation()
+      if (isFormulaInput && formulaSelectionMode) {
+        setFormulaSelectionMode(null)
+      }
+      handleSave()
+      // Move to next row after save
+      setTimeout(() => navigateToCell('down'), 0)
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      setFormulaSelectionMode(null)
+      setEditValue(originalValue)
+      setIsEditing(false)
+      activeEditCell = null
+      // Keep cell selected
+      cellRef.current?.focus()
+    } else if (e.key === 'Tab') {
+      e.preventDefault()
+      e.stopPropagation()
+      handleSave()
+      setTimeout(() => navigateToCell(e.shiftKey ? 'left' : 'right'), 0)
+    } else if (e.key === 'ArrowUp') {
+      // Arrow up - save and navigate up
+      e.preventDefault()
+      e.stopPropagation()
+      handleSave()
+      setTimeout(() => navigateToCell('up'), 0)
+    } else if (e.key === 'ArrowDown') {
+      // Arrow down - save and navigate down
+      e.preventDefault()
+      e.stopPropagation()
+      handleSave()
+      setTimeout(() => navigateToCell('down'), 0)
+    } else if (e.key === 'ArrowLeft') {
+      // Only navigate if cursor is at the beginning
+      const input = e.target as HTMLInputElement
+      if (input.selectionStart === 0 && input.selectionEnd === 0) {
+        e.preventDefault()
+        e.stopPropagation()
+        handleSave()
+        setTimeout(() => navigateToCell('left'), 0)
+      }
+    } else if (e.key === 'ArrowRight') {
+      // Only navigate if cursor is at the end
+      const input = e.target as HTMLInputElement
+      if (input.selectionStart === input.value.length) {
+        e.preventDefault()
+        e.stopPropagation()
+        handleSave()
+        setTimeout(() => navigateToCell('right'), 0)
+      }
     }
   }
 
   const handleBlur = () => {
-    // Don't save if we're navigating to another cell (it's already saved by navigateToCell)
-    if (isNavigatingRef.current) {
+    if (isCommittingRef.current) return
+
+    // Don't save if in formula mode (clicking other cells)
+    if (formulaSelectionMode && isInFormulaMode) {
+      setTimeout(() => inputRef.current?.focus(), 0)
       return
     }
-    // Don't double-save if we already committed (pointer navigation / immediate unmount blur)
-    if (isCommittingRef.current) {
-      return
-    }
-    // Don't save if we're in formula selection mode (user is clicking cells)
-    if (formulaSelectionMode && formulaSelectionMode.editingCell.rowId === rowId && formulaSelectionMode.editingCell.colId === column.id) {
-      // Refocus the input to keep editing active
-      setTimeout(() => {
-        if (inputRef.current && isEditing) {
-          inputRef.current.focus()
-        }
-      }, 0)
-      return
-    }
+
     handleSave()
   }
-  
-  // Handle input change - detect when user types "=" to enter formula mode
+
+  // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
     setEditValue(newValue)
-    
-    // Enter formula selection mode when user types "="
+
+    // Update the formula value at viewer level for formula mode
+    if (newValue.trim().startsWith('=') && onFormulaValueChange) {
+      onFormulaValueChange(newValue)
+    }
+
     if (newValue.trim().startsWith('=') && !formulaSelectionMode) {
       setFormulaSelectionMode({
         editingCell: { rowId, colId: column.id },
@@ -1809,59 +2217,30 @@ const EditableCell: React.FC<EditableCellProps> = ({
         endCell: null,
         isRangeSelection: false
       })
-    } else if (!newValue.trim().startsWith('=') && formulaSelectionMode) {
-      // Exit formula mode if user removes the "="
-      if (formulaSelectionMode.editingCell.rowId === rowId && 
-          formulaSelectionMode.editingCell.colId === column.id) {
-        setFormulaSelectionMode(null)
-      }
+    } else if (!newValue.trim().startsWith('=') && formulaSelectionMode && isInFormulaMode) {
+      setFormulaSelectionMode(null)
     }
   }
 
-  const canEdit = isEditable && column.isEditable
+  // Check if this cell is selected in formula mode (for highlighting)
+  // Use the formulaSelectedCells array to highlight ALL selected cells
+  const isSelectedInFormula =
+    formulaSelectionMode !== null &&
+    !isInFormulaMode &&
+    formulaSelectedCells.some(cell => cell.rowIndex === rowIndex && cell.colIndex === colIndex)
 
   return (
     <div
       ref={cellRef}
-      onPointerDown={
-        !isEditing && formulaSelectionMode && !isInFormulaMode
-          ? handleCellClickInFormulaMode
-          : undefined
-      }
-      onClick={
-        !isEditing 
-          ? (formulaSelectionMode && !isInFormulaMode)
-            ? undefined
-            : handleStartEdit
-          : undefined
-      }
-      onDoubleClick={!isEditing && !(formulaSelectionMode && !isInFormulaMode) ? handleStartEdit : undefined}
-      className={`gba:py-1 gba:px-1 gba:min-h-[28px] gba:rounded ${
-        canEdit && !isEditing
-          ? 'gba:cursor-text hover:gba:bg-accent/50 gba:transition-colors'
-          : ''
-      } ${
-        isInFormulaMode && isEditing
-          ? 'gba:bg-primary/30 gba:ring-2 gba:ring-primary gba:ring-offset-1'
-          : ''
-      } ${
-        isSelectedInFormula 
-          ? 'gba:bg-info-secondary/30 gba:ring-2 gba:ring-primary/50 gba:ring-offset-1'
-          : ''
-      } ${
-        formulaSelectionMode && !isInFormulaMode && canEdit
-          ? 'gba:cursor-pointer hover:gba:bg-primary/10'
-          : ''
-      }`}
-      title={
-        isInFormulaMode && isEditing
-          ? 'Editing formula - Click cells to add references'
-          : canEdit && !isEditing 
-            ? (formulaSelectionMode && !isInFormulaMode)
-              ? 'Click to add to formula (Shift+Click for range)'
-              : (hasFormula ? 'Formula: Click to edit' : 'Click to edit')
-            : undefined
-      }
+      tabIndex={0}
+      onClick={handleSelect}
+      onDoubleClick={handleDoubleClick}
+      onKeyDown={handleCellKeyDown}
+      className={`gba:py-1 gba:px-1 gba:min-h-[28px] gba:rounded gba:outline-none gba:transition-all ${
+        isSelected && !isEditing ? 'gba:ring-2 gba:ring-primary gba:bg-primary/5' : ''
+      } ${canEdit && !isEditing && !isSelected ? 'gba:cursor-cell hover:gba:bg-accent/30' : ''} ${
+        isInFormulaMode && isEditing ? 'gba:bg-primary/30 gba:ring-2 gba:ring-primary' : ''
+      } ${isSelectedInFormula ? 'gba:bg-info-secondary/30 gba:ring-2 gba:ring-info' : ''}`}
       data-testid={`cell-${rowId}-${column.id}`}
       data-cell-row={rowIndex}
       data-cell-col={colIndex}
@@ -1875,10 +2254,9 @@ const EditableCell: React.FC<EditableCellProps> = ({
             autoFocus
             value={editValue}
             onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
+            onKeyDown={handleInputKeyDown}
             onBlur={handleBlur}
-            className="gba:h-7 gba:py-0 gba:px-1 gba:text-sm gba:min-w-[60px] gba:font-mono"
-            placeholder={hasFormula ? 'Enter formula (e.g., =A1+B1)' : 'Enter value'}
+            className="gba:h-7 gba:py-0 gba:px-1 gba:text-sm gba:min-w-[60px] gba:font-mono gba:border-primary"
             data-testid={`cell-input-${rowId}-${column.id}`}
           />
           {editValue.trim().startsWith('=') && (
@@ -1888,7 +2266,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
           )}
         </div>
       ) : (
-        <div className="gba:flex gba:items-center gba:gap-1">
+        <div className="gba:flex gba:items-center gba:gap-1 gba:select-none">
           {hasFormula && (
             <span className="gba:text-xs gba:text-muted-foreground gba:font-mono" title={storedFormula}>
               =
@@ -1912,13 +2290,7 @@ interface TableViewProps {
   isEditable?: boolean
 }
 
-const TableView: React.FC<TableViewProps> = ({
-  data,
-  columns,
-  testId,
-  onCellChange: _onCellChange,
-  isEditable: _isEditable = true
-}) => {
+const TableView: React.FC<TableViewProps> = ({ data, columns, testId }) => {
   // Ensure all rows have a unique 'id' property for DataTable (not '_id')
   const dataWithIds = useMemo(() => {
     return data.map((row, index) => ({
@@ -1930,10 +2302,7 @@ const TableView: React.FC<TableViewProps> = ({
 
   return (
     <Card className="gba:overflow-hidden" data-testid={testId}>
-      <DataTable
-        columns={columns}
-        data={dataWithIds}
-      />
+      <DataTable columns={columns} data={dataWithIds} />
     </Card>
   )
 }
@@ -1960,9 +2329,7 @@ const FormView: React.FC<FormViewProps> = ({ sheet, data, onEdit, onDelete, test
             {visibleColumns.slice(0, 5).map(col => (
               <div key={col.id}>
                 <p className="gba:text-xs gba:text-muted-foreground">{col.label}</p>
-                <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                  {formatCellValue(row[col.name], col)}
-                </p>
+                <p className="gba:text-sm gba:font-medium gba:text-foreground">{formatCellValue(row[col.name], col)}</p>
               </div>
             ))}
           </div>
@@ -1971,11 +2338,7 @@ const FormView: React.FC<FormViewProps> = ({ sheet, data, onEdit, onDelete, test
               <Pencil className="gba:w-4 gba:h-4 gba:mr-1" />
               Edit
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onDelete(row._id as string)}
-            >
+            <Button variant="outline" size="sm" onClick={() => onDelete(row._id as string)}>
               <Trash2 className="gba:w-4 gba:h-4 gba:mr-1 gba:text-destructive" />
               Delete
             </Button>
@@ -1997,14 +2360,10 @@ interface DashboardViewProps {
 
 const DashboardView: React.FC<DashboardViewProps> = ({ sheet, data, testId }) => {
   // Calculate KPIs
-  const numericColumns = sheet.columns.filter(c =>
-    ['number', 'currency', 'percentage'].includes(c.type)
-  )
+  const numericColumns = sheet.columns.filter(c => ['number', 'currency', 'percentage'].includes(c.type))
 
   const kpis = numericColumns.slice(0, 4).map(col => {
-    const values = data
-      .map(row => Number(row[col.name]))
-      .filter(v => !isNaN(v))
+    const values = data.map(row => Number(row[col.name])).filter(v => !isNaN(v))
 
     const sum = values.reduce((a, b) => a + b, 0)
     const avg = values.length > 0 ? sum / values.length : 0
@@ -2023,15 +2382,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ sheet, data, testId }) =>
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4">
         {kpis.map((kpi, idx) => (
           <Card key={idx} className="gba:p-6">
-            <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-              {kpi.label}
-            </p>
-            <p className="gba:text-2xl gba:font-bold gba:text-foreground">
-              {kpi.value}
-            </p>
-            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-              {kpi.subValue}
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">{kpi.label}</p>
+            <p className="gba:text-2xl gba:font-bold gba:text-foreground">{kpi.value}</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{kpi.subValue}</p>
           </Card>
         ))}
       </div>
@@ -2041,18 +2394,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ sheet, data, testId }) =>
         <div className="gba:flex gba:items-center gba:justify-center gba:h-64 gba:bg-muted/20 gba:rounded-lg">
           <div className="gba:text-center">
             <BarChart3 className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-3" />
-            <p className="gba:text-muted-foreground">
-              Charts visualization coming soon
-            </p>
+            <p className="gba:text-muted-foreground">Charts visualization coming soon</p>
           </div>
         </div>
       </Card>
 
       {/* Data summary */}
       <Card className="gba:p-6">
-        <h3 className="gba:font-semibold gba:text-foreground gba:mb-4">
-          Data Summary
-        </h3>
+        <h3 className="gba:font-semibold gba:text-foreground gba:mb-4">Data Summary</h3>
         <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
           <div>
             <p className="gba:text-sm gba:text-muted-foreground">Total Records</p>
@@ -2090,46 +2439,40 @@ const KanbanView: React.FC<KanbanViewProps> = ({ sheet, data, view, onEdit, test
   if (!statusCol) {
     return (
       <Card className="gba:p-8 gba:text-center">
-        <p className="gba:text-muted-foreground">
-          Status column not found for Kanban view
-        </p>
+        <p className="gba:text-muted-foreground">Status column not found for Kanban view</p>
       </Card>
     )
   }
 
   // Get unique status values
-  const statuses = statusCol.selectOptions?.map(o => o.value) ||
+  const statuses =
+    statusCol.selectOptions?.map(o => o.value) ||
     [...new Set(data.map(row => String(row[statusCol.name] || '')))].filter(Boolean)
 
   // Group data by status
-  const groupedData = statuses.reduce((acc, status) => {
-    acc[status] = data.filter(row => String(row[statusCol.name]) === status)
-    return acc
-  }, {} as Record<string, Record<string, unknown>[]>)
+  const groupedData = statuses.reduce(
+    (acc, status) => {
+      acc[status] = data.filter(row => String(row[statusCol.name]) === status)
+      return acc
+    },
+    {} as Record<string, Record<string, unknown>[]>
+  )
 
   return (
-    <div
-      className="gba:flex gba:gap-4 gba:overflow-x-auto gba:pb-4"
-      data-testid={testId}
-    >
+    <div className="gba:flex gba:gap-4 gba:overflow-x-auto gba:pb-4" data-testid={testId}>
       {statuses.map(status => {
         const statusOption = statusCol.selectOptions?.find(o => o.value === status)
         const items = groupedData[status] || []
 
         return (
-          <div
-            key={status}
-            className="gba:flex-shrink-0 gba:w-80 gba:bg-muted/30 gba:rounded-lg gba:p-4"
-          >
+          <div key={status} className="gba:flex-shrink-0 gba:w-80 gba:bg-muted/30 gba:rounded-lg gba:p-4">
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <div
                   className="gba:w-3 gba:h-3 gba:rounded-full"
                   style={{ backgroundColor: statusOption?.color || '#888' }}
                 />
-                <h3 className="gba:font-medium gba:text-foreground">
-                  {statusOption?.label || status}
-                </h3>
+                <h3 className="gba:font-medium gba:text-foreground">{statusOption?.label || status}</h3>
               </div>
               <Badge variant="secondary">{items.length}</Badge>
             </div>
@@ -2211,10 +2554,7 @@ function formatCellValue(value: unknown, column: SpreadsheetColumn): React.React
       const option = column.selectOptions?.find(o => o.value === String(value))
       if (option) {
         return (
-          <Badge
-            variant="secondary"
-            style={{ backgroundColor: option.color ? `${option.color}20` : undefined }}
-          >
+          <Badge variant="secondary" style={{ backgroundColor: option.color ? `${option.color}20` : undefined }}>
             {option.label}
           </Badge>
         )

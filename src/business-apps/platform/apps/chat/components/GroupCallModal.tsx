@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel
 } from '@newwork/nw-design-system'
+import { debugLog } from '../utils/debugLog'
 import {
   Mic,
   MicOff,
@@ -169,7 +170,7 @@ const VideoTile: React.FC<{
     const videoElement = videoRef.current
     if (!videoElement || !stream || !hasVideo) return
 
-    console.debug(
+    debugLog(
       `VideoTile ${participant.odName}: Setting stream with ${stream.getTracks().length} tracks, isLocal=${isLocal}, hasVideo=${hasVideo}`
     )
 
@@ -180,7 +181,7 @@ const VideoTile: React.FC<{
     const playVideo = async () => {
       try {
         await videoElement.play()
-        console.debug(`VideoTile ${participant.odName}: Video playing successfully`)
+        debugLog(`VideoTile ${participant.odName}: Video playing successfully`)
       } catch (err) {
         console.warn(`VideoTile ${participant.odName}: Autoplay failed, trying muted:`, err)
         // If autoplay fails, try muted first then unmute
@@ -191,7 +192,7 @@ const VideoTile: React.FC<{
           if (!isLocal) {
             videoElement.muted = false
           }
-          console.debug(`VideoTile ${participant.odName}: Video playing after mute workaround`)
+          debugLog(`VideoTile ${participant.odName}: Video playing after mute workaround`)
         } catch (err2) {
           console.error(`VideoTile ${participant.odName}: Failed to play video:`, err2)
         }
@@ -416,7 +417,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   useEffect(() => {
     if (callState.isMinimized && pipVideoRef.current && firstRemoteParticipant?.stream) {
       pipVideoRef.current.srcObject = firstRemoteParticipant.stream
-      pipVideoRef.current.play().catch(err => console.debug('PiP video play error:', err))
+      pipVideoRef.current.play().catch(err => debugLog('PiP video play error:', err))
     }
   }, [callState.isMinimized, firstRemoteParticipant])
 
@@ -424,7 +425,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   useEffect(() => {
     if (expandedStream && expandedVideoRef.current) {
       expandedVideoRef.current.srcObject = expandedStream.stream
-      expandedVideoRef.current.play().catch(err => console.debug('Expanded video play error:', err))
+      expandedVideoRef.current.play().catch(err => debugLog('Expanded video play error:', err))
     }
   }, [expandedStream])
 
@@ -446,7 +447,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
         const audio = document.createElement('audio')
         audio.autoplay = true
         audio.srcObject = stream
-        audio.play().catch(err => console.debug('Audio play error:', err))
+        audio.play().catch(err => debugLog('Audio play error:', err))
         pipAudioRefs.current.set(participantId, audio)
       }
     })

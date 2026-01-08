@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client'
 import type { Message, TypingIndicator, PresenceStatus, ActiveCall } from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
+import { debugLog } from '../utils/debugLog'
 
 // Client version for tracking
 const CLIENT_VERSION = '2'
@@ -39,21 +40,21 @@ export class ChatWebSocketClient {
     // Build transports array based on configuration
     const transports = this.options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
 
-    console.debug('======================================')
-    console.debug('[ChatWebSocketClient] INITIATING CONNECTION')
-    console.debug('======================================')
-    console.debug('Client Version:', CLIENT_VERSION)
-    console.debug('URL:', this.url)
-    console.debug('Path:', this.options.path)
-    console.debug('Transports:', transports)
-    console.debug('Token (first 20 chars):', token ? token.substring(0, 20) + '...' : 'NO TOKEN')
-    console.debug('Full connection URL will be:', `${this.url}${this.options.path}`)
-    console.debug('Options:', {
+    debugLog('======================================')
+    debugLog('[ChatWebSocketClient] INITIATING CONNECTION')
+    debugLog('======================================')
+    debugLog('Client Version:', CLIENT_VERSION)
+    debugLog('URL:', this.url)
+    debugLog('Path:', this.options.path)
+    debugLog('Transports:', transports)
+    debugLog('Token (first 20 chars):', token ? token.substring(0, 20) + '...' : 'NO TOKEN')
+    debugLog('Full connection URL will be:', `${this.url}${this.options.path}`)
+    debugLog('Options:', {
       reconnection: true,
       timeout: this.options.connectionTimeout,
       reconnectionAttempts: this.options.reconnectionAttempts
     })
-    console.debug('======================================')
+    debugLog('======================================')
 
     this.socket = io(this.url, {
       auth: {
@@ -85,11 +86,11 @@ export class ChatWebSocketClient {
 
     // Log transport upgrade attempts
     this.socket.io.engine.on('upgrading', transport => {
-      console.log('[ChatWebSocketClient] Upgrading transport to:', transport.name)
+      debugLog('[ChatWebSocketClient] Upgrading transport to:', transport.name)
     })
 
     this.socket.io.engine.on('upgrade', transport => {
-      console.log('[ChatWebSocketClient] Transport upgraded to:', transport.name)
+      debugLog('[ChatWebSocketClient] Transport upgraded to:', transport.name)
     })
 
     this.socket.io.engine.on('upgradeError', error => {
@@ -98,7 +99,7 @@ export class ChatWebSocketClient {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0 // Reset reconnect counter on successful connection
-      console.log(
+      debugLog(
         `WebSocket CONNECTED SUCCESSFULLY! Socket ID: ${this.socket?.id}, Connected: ${this.socket?.connected}, Transport: ${this.socket?.io?.engine?.transport?.name}, URL: ${this.url}, Timestamp: ${new Date().toISOString()}`
       )
     })
@@ -116,7 +117,7 @@ export class ChatWebSocketClient {
         console.warn('Server disconnected client, attempting manual reconnection...')
         this.socket?.connect()
       } else if (reason === 'io client disconnect') {
-        console.log('Client intentionally disconnected')
+        debugLog('Client intentionally disconnected')
       } else if (reason === 'ping timeout') {
         console.error('Connection lost due to ping timeout')
       } else if (reason === 'transport close') {
@@ -134,7 +135,7 @@ export class ChatWebSocketClient {
 
       // Log additional debugging info on first error
       if (this.reconnectAttempts === 1) {
-        console.debug('📋 Connection Configuration:', {
+        debugLog('📋 Connection Configuration:', {
           url: this.url,
           path: this.options.path,
           transports: this.socket?.io?.opts?.transports,
@@ -217,9 +218,9 @@ export class ChatWebSocketClient {
 
   // Event listeners
   onNewMessage(handler: (message: Message) => void) {
-    console.log('[WebSocket] Registering new_message event listener')
+    debugLog('[WebSocket] Registering new_message event listener')
     this.socket?.on('new_message', (message: Message) => {
-      console.log('[WebSocket] new_message event received:', message.id)
+      debugLog('[WebSocket] new_message event received:', message.id)
       handler(message)
     })
   }
@@ -259,7 +260,7 @@ export class ChatWebSocketClient {
       return
     }
 
-    console.log('[ChatWebSocketClient] Sending nudge:', { conversationId, toUserId })
+    debugLog('[ChatWebSocketClient] Sending nudge:', { conversationId, toUserId })
     this.socket.emit('nudge:send', { conversationId, toUserId })
   }
 
@@ -293,7 +294,7 @@ export class ChatWebSocketClient {
 
   // Emit events
   joinConversation(conversationId: string) {
-    console.log('[WebSocket] Emitting join_conversation:', conversationId)
+    debugLog('[WebSocket] Emitting join_conversation:', conversationId)
     this.socket?.emit('join_conversation', { conversationId })
   }
 
@@ -308,7 +309,7 @@ export class ChatWebSocketClient {
     parentId?: string,
     metadata?: Record<string, any>
   ) {
-    console.log('[ChatWebSocketClient] sendMessage called', {
+    debugLog('[ChatWebSocketClient] sendMessage called', {
       conversationId,
       senderId,
       contentLength: content?.length,
@@ -336,11 +337,11 @@ export class ChatWebSocketClient {
       ...(metadata && { metadata })
     }
 
-    console.log('[ChatWebSocketClient] Emitting send_message event', payload)
+    debugLog('[ChatWebSocketClient] Emitting send_message event', payload)
     this.socket.emit('send_message', payload, (response: any) => {
-      console.log('[ChatWebSocketClient] send_message acknowledgment received', response)
+      debugLog('[ChatWebSocketClient] send_message acknowledgment received', response)
     })
-    console.log('[ChatWebSocketClient] send_message emitted')
+    debugLog('[ChatWebSocketClient] send_message emitted')
   }
 
   sendTypingStart(conversationId: string) {
@@ -352,7 +353,7 @@ export class ChatWebSocketClient {
   }
 
   requestActiveCalls() {
-    console.debug('Requesting active calls')
+    debugLog('Requesting active calls')
     this.socket?.emit('conversation:get-active-calls')
   }
 
@@ -368,7 +369,7 @@ export class ChatWebSocketClient {
     to: CallParticipant
     conversationId?: string
   }) {
-    console.debug('Emitting call:initiate', signal)
+    debugLog('Emitting call:initiate', signal)
     this.socket?.emit('call:initiate', signal)
   }
 
@@ -376,7 +377,7 @@ export class ChatWebSocketClient {
    * Accept an incoming call
    */
   acceptCall(signal: { callId: string; callType: CallType; from: CallParticipant; to: CallParticipant }) {
-    console.debug('Emitting call:accept', signal)
+    debugLog('Emitting call:accept', signal)
     this.socket?.emit('call:accept', signal)
   }
 
@@ -384,7 +385,7 @@ export class ChatWebSocketClient {
    * Reject an incoming call
    */
   rejectCall(signal: { callId: string; from: CallParticipant; to: CallParticipant; reason?: string }) {
-    console.debug('Emitting call:reject', signal)
+    debugLog('Emitting call:reject', signal)
     this.socket?.emit('call:reject', signal)
   }
 
@@ -392,7 +393,7 @@ export class ChatWebSocketClient {
    * End an active call
    */
   endCall(signal: { callId: string; from: CallParticipant; to: CallParticipant }) {
-    console.debug('Emitting call:end', signal)
+    debugLog('Emitting call:end', signal)
     this.socket?.emit('call:end', signal)
   }
 
@@ -406,7 +407,7 @@ export class ChatWebSocketClient {
     to: CallParticipant
     payload: RTCSessionDescriptionInit
   }) {
-    console.debug('Emitting call:offer', signal)
+    debugLog('Emitting call:offer', signal)
     this.socket?.emit('call:offer', signal)
   }
 
@@ -420,7 +421,7 @@ export class ChatWebSocketClient {
     to: CallParticipant
     payload: RTCSessionDescriptionInit
   }) {
-    console.debug('Emitting call:answer', signal)
+    debugLog('Emitting call:answer', signal)
     this.socket?.emit('call:answer', signal)
   }
 
@@ -433,7 +434,7 @@ export class ChatWebSocketClient {
     to: CallParticipant
     payload: RTCIceCandidateInit
   }) {
-    console.debug('Emitting call:ice-candidate')
+    debugLog('Emitting call:ice-candidate')
     this.socket?.emit('call:ice-candidate', signal)
   }
 
@@ -441,7 +442,7 @@ export class ChatWebSocketClient {
    * Signal that user is busy (already in a call)
    */
   sendBusy(signal: { callId: string; from: CallParticipant; to: CallParticipant }) {
-    console.debug('Emitting call:busy', signal)
+    debugLog('Emitting call:busy', signal)
     this.socket?.emit('call:busy', signal)
   }
 
@@ -504,7 +505,7 @@ export class ChatWebSocketClient {
     participants: Array<{ id: string; odId: string; odName: string; avatarUrl?: string }>
     conversationName?: string
   }) {
-    console.debug('Emitting group-call:invite', signal)
+    debugLog('Emitting group-call:invite', signal)
     this.socket?.emit('group-call:invite', signal)
   }
 
@@ -516,7 +517,7 @@ export class ChatWebSocketClient {
     callType: 'audio' | 'video'
     participant: { id: string; odId: string; odName: string; avatarUrl?: string }
   }) {
-    console.debug('Emitting group-call:join', signal)
+    debugLog('Emitting group-call:join', signal)
     this.socket?.emit('group-call:join', signal)
   }
 
@@ -524,7 +525,7 @@ export class ChatWebSocketClient {
    * Leave a group call room
    */
   leaveGroupCall(signal: { roomId: string; participantId: string }) {
-    console.debug('Emitting group-call:leave', signal)
+    debugLog('Emitting group-call:leave', signal)
     this.socket?.emit('group-call:leave', signal)
   }
 
@@ -537,7 +538,7 @@ export class ChatWebSocketClient {
     toParticipantId: string
     payload: RTCSessionDescriptionInit
   }) {
-    console.debug('Emitting group-call:offer')
+    debugLog('Emitting group-call:offer')
     this.socket?.emit('group-call:offer', signal)
   }
 
@@ -550,7 +551,7 @@ export class ChatWebSocketClient {
     toParticipantId: string
     payload: RTCSessionDescriptionInit
   }) {
-    console.debug('Emitting group-call:answer')
+    debugLog('Emitting group-call:answer')
     this.socket?.emit('group-call:answer', signal)
   }
 
@@ -563,7 +564,7 @@ export class ChatWebSocketClient {
     toParticipantId: string
     payload: RTCIceCandidateInit
   }) {
-    console.debug('Emitting group-call:ice-candidate')
+    debugLog('Emitting group-call:ice-candidate')
     this.socket?.emit('group-call:ice-candidate', signal)
   }
 
@@ -620,7 +621,7 @@ export class ChatWebSocketClient {
    * Kick a participant from a group call (host only)
    */
   kickGroupCallParticipant(signal: { roomId: string; hostId: string; participantId: string }) {
-    console.debug('Emitting group-call:kick', signal)
+    debugLog('Emitting group-call:kick', signal)
     this.socket?.emit('group-call:kick', signal)
   }
 
@@ -643,7 +644,7 @@ export class ChatWebSocketClient {
     participantIds: string[]
     startedAt: string
   }) {
-    console.debug('Emitting conversation:call-started', signal)
+    debugLog('Emitting conversation:call-started', signal)
     this.socket?.emit('conversation:call-started', signal)
   }
 
@@ -651,7 +652,7 @@ export class ChatWebSocketClient {
    * Notify all conversation members that a call has ended
    */
   notifyConversationCallEnded(signal: { conversationId: string; roomId: string }) {
-    console.debug('Emitting conversation:call-ended', signal)
+    debugLog('Emitting conversation:call-ended', signal)
     this.socket?.emit('conversation:call-ended', signal)
   }
 

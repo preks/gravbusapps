@@ -9,7 +9,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { SpreadsheetAppService } from '../services/SpreadsheetAppService'
-import { createSpreadsheetFileStorageService, SpreadsheetFileStorageService } from '../services/SpreadsheetFileStorageService'
+import {
+  createSpreadsheetFileStorageService,
+  SpreadsheetFileStorageService
+} from '../services/SpreadsheetFileStorageService'
 import type { SpreadsheetApp, SpreadsheetAppSummary, SpreadsheetSheet, AppStatus } from '../types'
 
 export interface UseSpreadsheetAppsState {
@@ -42,14 +45,21 @@ export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   updateStatus: (appId: string, status: AppStatus) => Promise<SpreadsheetApp | null>
   exportApp: (id: string) => Promise<string | null>
   importApp: (jsonData: string) => Promise<SpreadsheetApp | null>
-  shareApp: (appId: string, recipientUserIds: string[], permission?: 'view' | 'edit', ownerName?: string) => Promise<boolean>
-  getSharedUsers: (appId: string) => Promise<Array<{
-    userId: string
-    userName: string
-    userEmail: string
-    permission: 'view' | 'edit'
-    sharedAt: string
-  }>>
+  shareApp: (
+    appId: string,
+    recipientUserIds: string[],
+    permission?: 'view' | 'edit',
+    ownerName?: string
+  ) => Promise<boolean>
+  getSharedUsers: (appId: string) => Promise<
+    Array<{
+      userId: string
+      userName: string
+      userEmail: string
+      permission: 'view' | 'edit'
+      sharedAt: string
+    }>
+  >
   revokeAccess: (appId: string, recipientUserId: string) => Promise<boolean>
   clearCurrentApp: () => void
 }
@@ -135,7 +145,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           }))
           toast.warning('Using local storage - file service unavailable')
         }
-      } catch (localError) {
+      } catch {
         setState(prev => ({
           ...prev,
           isLoading: false,
@@ -176,17 +186,17 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           }))
           return null
         }
-        
+
         // Get permission info if service supports it
         let userPermission: 'owner' | 'edit' | 'view' | null = null
         if ('getUserPermission' in service && typeof service.getUserPermission === 'function') {
           userPermission = service.getUserPermission(app)
         }
-        
-        setState(prev => ({ 
-          ...prev, 
-          currentApp: app, 
-          isLoading: false, 
+
+        setState(prev => ({
+          ...prev,
+          currentApp: app,
+          isLoading: false,
           storageMode: mode,
           currentAppPermission: userPermission
         }))
@@ -197,7 +207,13 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           const localService = localStorageRef.current
           if (localService) {
             const app = await localService.getApp(id)
-            setState(prev => ({ ...prev, currentApp: app, isLoading: false, storageMode: 'local', currentAppPermission: app?.createdBy === userId ? 'owner' : null }))
+            setState(prev => ({
+              ...prev,
+              currentApp: app,
+              isLoading: false,
+              storageMode: 'local',
+              currentAppPermission: app?.createdBy === userId ? 'owner' : null
+            }))
             return app
           }
         } catch {
@@ -385,7 +401,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
     async (id: string, newName?: string): Promise<SpreadsheetApp | null> => {
       setState(prev => ({ ...prev, isSaving: true, error: null }))
 
-      const { service, mode } = getService()
+      const { service } = getService()
       if (!service) {
         setState(prev => ({ ...prev, isSaving: false, error: 'Storage service not initialized' }))
         return null
@@ -655,7 +671,9 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       try {
         const success = await service.shareApp(appId, recipientUserIds, permission, ownerName)
         if (success) {
-          toast.success(`App shared successfully with ${recipientUserIds.length} ${recipientUserIds.length === 1 ? 'user' : 'users'}`)
+          toast.success(
+            `App shared successfully with ${recipientUserIds.length} ${recipientUserIds.length === 1 ? 'user' : 'users'}`
+          )
         } else {
           toast.error('Failed to share app')
         }
@@ -673,13 +691,17 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    * Get users an app is shared with
    */
   const getSharedUsers = useCallback(
-    async (appId: string): Promise<Array<{
-      userId: string
-      userName: string
-      userEmail: string
-      permission: 'view' | 'edit'
-      sharedAt: string
-    }>> => {
+    async (
+      appId: string
+    ): Promise<
+      Array<{
+        userId: string
+        userName: string
+        userEmail: string
+        permission: 'view' | 'edit'
+        sharedAt: string
+      }>
+    > => {
       const service = fileStorageRef.current
       if (!service) {
         return []
@@ -698,27 +720,24 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
   /**
    * Revoke a user's access to an app
    */
-  const revokeAccess = useCallback(
-    async (appId: string, recipientUserId: string): Promise<boolean> => {
-      const service = fileStorageRef.current
-      if (!service) {
-        toast.error('Requires database storage')
-        return false
-      }
+  const revokeAccess = useCallback(async (appId: string, recipientUserId: string): Promise<boolean> => {
+    const service = fileStorageRef.current
+    if (!service) {
+      toast.error('Requires database storage')
+      return false
+    }
 
-      try {
-        const success = await service.revokeAccess(appId, recipientUserId)
-        if (success) {
-          toast.success('Access revoked')
-        }
-        return success
-      } catch (error) {
-        console.error('Failed to revoke access:', error)
-        return false
+    try {
+      const success = await service.revokeAccess(appId, recipientUserId)
+      if (success) {
+        toast.success('Access revoked')
       }
-    },
-    []
-  )
+      return success
+    } catch (error) {
+      console.error('Failed to revoke access:', error)
+      return false
+    }
+  }, [])
 
   /**
    * Clear current app

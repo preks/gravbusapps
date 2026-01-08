@@ -5,6 +5,7 @@ import { CallControls } from './CallControls'
 import { AddParticipantDropdown } from './AddParticipantDropdown'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { debugLog } from '../utils/debugLog'
 
 interface AvailableParticipant {
   id: string
@@ -169,7 +170,7 @@ export const CallModal: React.FC<CallModalProps> = ({
   useEffect(() => {
     if (expandedStream && expandedVideoRef.current) {
       expandedVideoRef.current.srcObject = expandedStream.stream
-      expandedVideoRef.current.play().catch(err => console.debug('Expanded video play error:', err))
+      expandedVideoRef.current.play().catch(err => debugLog('Expanded video play error:', err))
     }
   }, [expandedStream])
 

@@ -5,6 +5,7 @@ import { FormSubmissionProvider } from '../../every-ai/components/FormSubmission
 import OutputItemRenderer from '../../every-ai/components/OutputRenderers'
 import { MeetingCard } from './MeetingCard'
 import type { ScheduledMeeting } from '../hooks/useEveryAIChat'
+import { debugLog } from '../utils/debugLog'
 
 interface EveryAIMessageRendererProps {
   message: Message
@@ -85,7 +86,7 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
 
               if (isPrivateEntity) {
                 hiddenCardCount++
-                console.log(`🔒 [EveryAIMessageRenderer] Hiding ${entityType} card from non-initiator`)
+                debugLog(`🔒 [EveryAIMessageRenderer] Hiding ${entityType} card from non-initiator`)
                 return false // Hide this entity card
               }
             }
@@ -130,7 +131,7 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
     try {
       const parsed = JSON.parse(text)
       if (parsed.action === 'form_submission') {
-        console.log('📤 [EveryAIMessageRenderer] Form submission detected:', {
+        debugLog('📤 [EveryAIMessageRenderer] Form submission detected:', {
           flow_name: parsed.flow_name,
           module_name: parsed.module_name,
           uuid: parsed.uuid
@@ -144,12 +145,12 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
           uuid: parsed.uuid
         })
 
-        console.log('✅ [EveryAIMessageRenderer] Form submission sent successfully')
+        debugLog('✅ [EveryAIMessageRenderer] Form submission sent successfully')
         return
       }
     } catch (error) {
       // Not a JSON payload, send as regular message
-      console.debug('[EveryAIMessageRenderer] Not a JSON message:', error)
+      debugLog('[EveryAIMessageRenderer] Not a JSON message:', error)
     }
 
     await onSendMessage(text)

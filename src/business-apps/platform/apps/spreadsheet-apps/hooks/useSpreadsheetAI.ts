@@ -5,7 +5,7 @@
  * Detects column types, relationships, and suggests app structure.
  */
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import {
   SPREADSHEET_ANALYZER_SYSTEM_PROMPT,
@@ -73,8 +73,7 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
         setState(prev => ({ ...prev, progress: 20 }))
 
         // Build the user prompt
-        const userPrompt = SPREADSHEET_ANALYZER_USER_PROMPT
-          .replace('{fileName}', parsedFile.fileName)
+        const userPrompt = SPREADSHEET_ANALYZER_USER_PROMPT.replace('{fileName}', parsedFile.fileName)
           .replace('{sheetCount}', String(parsedFile.sheets.length))
           .replace('{sheetData}', sheetData)
 
@@ -98,11 +97,16 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
           throw new Error('No AI models available. Using local analysis.')
         }
 
-        // Prefer GPT-4 if available
-        const preferredModel =
-          modelsResponse.data.find(m => m.name.toLowerCase().includes('gpt-4')) ||
-          modelsResponse.data[0]
-        const modelId = preferredModel._id
+        // Preferred model ID for spreadsheet analysis
+        const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
+
+        // Try to find the preferred model, otherwise fall back to GPT-4 or first available
+        const preferredModel = modelsResponse.data.find(m => m._id === PREFERRED_MODEL_ID)
+        const gpt4Model = modelsResponse.data.find(m => m.name.toLowerCase().includes('gpt-4'))
+        const selectedModel = preferredModel || gpt4Model || modelsResponse.data[0]
+        const modelId = selectedModel._id
+
+        console.log('[SpreadsheetAI] Using model:', selectedModel.name, '(', modelId, ')')
 
         setState(prev => ({ ...prev, progress: 40 }))
 
@@ -124,17 +128,19 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
           // Catch API key errors and other execution errors
           // Check if it's an API key/project access error
           const errorMessage = executeError?.message || String(executeError)
-          const isApiKeyError = 
-            errorMessage.includes('API key') || 
+          const isApiKeyError =
+            errorMessage.includes('API key') ||
             errorMessage.includes('invalid_project') ||
             errorMessage.includes('401') ||
             errorMessage.includes('You do not have access')
-          
+
           if (isApiKeyError) {
             // API key error - this is a backend configuration issue
             // The AI model's API key needs to be configured with correct project access
             console.warn('AI service unavailable: API key configuration issue. Using local analysis as fallback.')
-            console.warn('To enable AI analysis, configure the AI model API key with correct project access in prompt-manager.')
+            console.warn(
+              'To enable AI analysis, configure the AI model API key with correct project access in prompt-manager.'
+            )
           } else {
             console.warn('Failed to execute AI prompt, using local analysis:', executeError)
           }
@@ -150,10 +156,7 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
         // Parse the AI response
         let aiAnalysis: any
         try {
-          aiAnalysis =
-            typeof response.content === 'string'
-              ? JSON.parse(response.content)
-              : response.content
+          aiAnalysis = typeof response.content === 'string' ? JSON.parse(response.content) : response.content
         } catch {
           console.error('Failed to parse AI response:', response.content)
           throw new Error('Failed to parse AI analysis. Using fallback analysis.')
@@ -180,8 +183,8 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
       } catch (error: any) {
         // Check if this is an API key error - if so, log less verbosely
         const errorMessage = error?.message || String(error)
-        const isApiKeyError = 
-          errorMessage.includes('API key') || 
+        const isApiKeyError =
+          errorMessage.includes('API key') ||
           errorMessage.includes('invalid_project') ||
           errorMessage.includes('401') ||
           errorMessage.includes('You do not have access') ||
@@ -299,8 +302,20 @@ function transformAIResponse(aiResponse: any, parsedFile: ParsedExcelFile): Spre
  */
 function validateColumnType(type: string): ColumnType {
   const validTypes: ColumnType[] = [
-    'text', 'number', 'currency', 'percentage', 'date', 'datetime',
-    'email', 'phone', 'url', 'select', 'multiselect', 'boolean', 'calculated', 'reference'
+    'text',
+    'number',
+    'currency',
+    'percentage',
+    'date',
+    'datetime',
+    'email',
+    'phone',
+    'url',
+    'select',
+    'multiselect',
+    'boolean',
+    'calculated',
+    'reference'
   ]
   return validTypes.includes(type as ColumnType) ? (type as ColumnType) : 'text'
 }
@@ -399,18 +414,20 @@ function getDefaultViews(columns: ColumnAnalysis[]): SuggestedView[] {
   }
 
   // Check for status-like columns for Kanban
-  const statusColumn = columns.find(c =>
-    c.detectedType === 'select' &&
-    (c.name.toLowerCase().includes('status') ||
-      c.name.toLowerCase().includes('stage') ||
-      c.name.toLowerCase().includes('state'))
+  const statusColumn = columns.find(
+    c =>
+      c.detectedType === 'select' &&
+      (c.name.toLowerCase().includes('status') ||
+        c.name.toLowerCase().includes('stage') ||
+        c.name.toLowerCase().includes('state'))
   )
 
   if (statusColumn) {
-    const titleColumn = columns.find(c =>
-      c.name.toLowerCase().includes('name') ||
-      c.name.toLowerCase().includes('title') ||
-      c.name.toLowerCase().includes('subject')
+    const titleColumn = columns.find(
+      c =>
+        c.name.toLowerCase().includes('name') ||
+        c.name.toLowerCase().includes('title') ||
+        c.name.toLowerCase().includes('subject')
     )
 
     if (titleColumn) {
@@ -428,10 +445,8 @@ function getDefaultViews(columns: ColumnAnalysis[]): SuggestedView[] {
   }
 
   // Check for numeric columns for Dashboard
-  const numericColumns = columns.filter(c =>
-    c.detectedType === 'number' ||
-    c.detectedType === 'currency' ||
-    c.detectedType === 'percentage'
+  const numericColumns = columns.filter(
+    c => c.detectedType === 'number' || c.detectedType === 'currency' || c.detectedType === 'percentage'
   )
 
   if (numericColumns.length >= 2) {
@@ -461,10 +476,7 @@ function getDefaultViews(columns: ColumnAnalysis[]): SuggestedView[] {
 /**
  * Enhance AI analysis with local inference
  */
-function enhanceWithLocalInference(
-  analysis: SpreadsheetAnalysis,
-  parsedFile: ParsedExcelFile
-): SpreadsheetAnalysis {
+function enhanceWithLocalInference(analysis: SpreadsheetAnalysis, parsedFile: ParsedExcelFile): SpreadsheetAnalysis {
   // Ensure each sheet has sample values from the parsed file
   const enhancedSheets = analysis.sheets.map((sheet, sheetIndex) => {
     const parsedSheet = parsedFile.sheets[sheetIndex]
@@ -476,9 +488,7 @@ function enhanceWithLocalInference(
 
       return {
         ...col,
-        sampleValues: col.sampleValues.length > 0
-          ? col.sampleValues
-          : (parsedColumn?.sampleValues || [])
+        sampleValues: col.sampleValues.length > 0 ? col.sampleValues : parsedColumn?.sampleValues || []
       }
     })
 
@@ -541,10 +551,28 @@ function inferColumnTypeLocally(name: string, sampleValues: unknown[]): ColumnTy
   if (nameLower.includes('email')) return 'email'
   if (nameLower.includes('phone') || nameLower.includes('tel')) return 'phone'
   if (nameLower.includes('url') || nameLower.includes('website') || nameLower.includes('link')) return 'url'
-  if (nameLower.includes('date') || nameLower.includes('time') || nameLower.includes('created') || nameLower.includes('updated')) return 'date'
-  if (nameLower.includes('price') || nameLower.includes('cost') || nameLower.includes('amount') || nameLower.includes('total')) return 'currency'
+  if (
+    nameLower.includes('date') ||
+    nameLower.includes('time') ||
+    nameLower.includes('created') ||
+    nameLower.includes('updated')
+  )
+    return 'date'
+  if (
+    nameLower.includes('price') ||
+    nameLower.includes('cost') ||
+    nameLower.includes('amount') ||
+    nameLower.includes('total')
+  )
+    return 'currency'
   if (nameLower.includes('percent') || nameLower.includes('rate') || nameLower.includes('ratio')) return 'percentage'
-  if (nameLower.includes('status') || nameLower.includes('stage') || nameLower.includes('type') || nameLower.includes('category')) return 'select'
+  if (
+    nameLower.includes('status') ||
+    nameLower.includes('stage') ||
+    nameLower.includes('type') ||
+    nameLower.includes('category')
+  )
+    return 'select'
 
   // Check sample values
   const nonNullValues = sampleValues.filter(v => v !== null && v !== undefined && v !== '')
@@ -631,10 +659,8 @@ function inferSheetPurpose(name: string, columns: ColumnAnalysis[]): string {
  */
 function findPrimaryKey(columns: ColumnAnalysis[]): string | undefined {
   // Look for ID columns
-  const idColumn = columns.find(c =>
-    c.name.toLowerCase() === 'id' ||
-    c.name.toLowerCase().endsWith('_id') ||
-    c.name.toLowerCase().endsWith('id')
+  const idColumn = columns.find(
+    c => c.name.toLowerCase() === 'id' || c.name.toLowerCase().endsWith('_id') || c.name.toLowerCase().endsWith('id')
   )
 
   if (idColumn && idColumn.isUnique) {
@@ -663,14 +689,12 @@ function detectRelationships(sheets: SheetAnalysis[]): SheetRelationship[] {
     for (const col of sheet.columns) {
       // Look for foreign key patterns
       if (col.name.toLowerCase().endsWith('_id') || col.name.toLowerCase().endsWith('id')) {
-        const refTableName = col.name.toLowerCase()
-          .replace(/_?id$/i, '')
-          .replace(/_/g, '')
+        const refTableName = col.name.toLowerCase().replace(/_?id$/i, '').replace(/_/g, '')
 
         // Find matching sheet
-        const refSheet = sheets.find(s =>
-          s.name.toLowerCase().replace(/[_\s]/g, '') === refTableName ||
-          s.name.toLowerCase().includes(refTableName)
+        const refSheet = sheets.find(
+          s =>
+            s.name.toLowerCase().replace(/[_\s]/g, '') === refTableName || s.name.toLowerCase().includes(refTableName)
         )
 
         if (refSheet && refSheet.name !== sheet.name) {
@@ -697,10 +721,6 @@ function determineBestAppType(sheets: SheetAnalysis[]): 'data_grid' | 'form_tabl
 
   const hasNumericColumns = sheets.some(s =>
     s.columns.some(c => ['number', 'currency', 'percentage'].includes(c.detectedType))
-  )
-
-  const hasStatusColumns = sheets.some(s =>
-    s.columns.some(c => c.detectedType === 'select')
   )
 
   if (sheets.length === 1) {

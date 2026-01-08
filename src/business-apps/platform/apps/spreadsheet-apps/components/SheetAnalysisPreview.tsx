@@ -110,24 +110,15 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
               <Sparkles className="gba:w-5 gba:h-5 gba:text-primary" />
             </div>
             <div>
-              <h3 className="gba:font-semibold gba:text-foreground">
-                AI Analysis Complete
-              </h3>
+              <h3 className="gba:font-semibold gba:text-foreground">AI Analysis Complete</h3>
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
                 <span className="gba:text-muted-foreground">Confidence:</span>
-                <span className={confidenceColor}>
-                  {Math.round(analysis.confidence * 100)}%
-                </span>
+                <span className={confidenceColor}>{Math.round(analysis.confidence * 100)}%</span>
               </div>
             </div>
           </div>
           {onReanalyze && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onReanalyze}
-              disabled={isLoading}
-            >
+            <Button variant="outline" size="sm" onClick={onReanalyze} disabled={isLoading}>
               <RefreshCw className={`gba:w-4 gba:h-4 gba:mr-2 ${isLoading ? 'gba:animate-spin' : ''}`} />
               Re-analyze
             </Button>
@@ -140,9 +131,7 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <div>
             <p className="gba:text-sm gba:text-muted-foreground">Suggested App Name</p>
-            <p className="gba:text-lg gba:font-semibold gba:text-foreground">
-              {analysis.suggestedAppName}
-            </p>
+            <p className="gba:text-lg gba:font-semibold gba:text-foreground">{analysis.suggestedAppName}</p>
           </div>
           <Badge variant="outline" className="gba:capitalize">
             {analysis.suggestedAppType.replace('_', ' ')}
@@ -180,16 +169,11 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
           <div className="gba:bg-muted/30 gba:rounded-lg gba:p-4">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
               <Link2 className="gba:w-4 gba:h-4 gba:text-primary" />
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">
-                Detected Relationships
-              </span>
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">Detected Relationships</span>
             </div>
             <div className="gba:space-y-2">
               {analysis.relationships.map((rel, idx) => (
-                <div
-                  key={idx}
-                  className="gba:flex gba:items-center gba:gap-2 gba:text-sm"
-                >
+                <div key={idx} className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
                   <Badge variant="secondary" className="gba:text-xs">
                     {rel.fromSheet}.{rel.fromColumn}
                   </Badge>
@@ -197,9 +181,7 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
                   <Badge variant="secondary" className="gba:text-xs">
                     {rel.toSheet}.{rel.toColumn}
                   </Badge>
-                  <span className="gba:text-xs gba:text-muted-foreground">
-                    ({rel.type})
-                  </span>
+                  <span className="gba:text-xs gba:text-muted-foreground">({rel.type})</span>
                 </div>
               ))}
             </div>
@@ -241,26 +223,17 @@ const SheetAnalysisContent: React.FC<SheetAnalysisContentProps> = ({ sheet, test
 
       {/* Suggested views */}
       <div>
-        <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">
-          Suggested Views
-        </p>
+        <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">Suggested Views</p>
         <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
           {sheet.suggestedViews.map((view, idx) => {
             const ViewIcon = getViewIcon(view.type)
             return (
-              <div
-                key={idx}
-                className="gba:p-4 gba:rounded-lg gba:border gba:border-border gba:bg-card"
-              >
+              <div key={idx} className="gba:p-4 gba:rounded-lg gba:border gba:border-border gba:bg-card">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                   <ViewIcon className="gba:w-4 gba:h-4 gba:text-primary" />
-                  <span className="gba:font-medium gba:text-foreground">
-                    {view.name}
-                  </span>
+                  <span className="gba:font-medium gba:text-foreground">{view.name}</span>
                 </div>
-                <p className="gba:text-xs gba:text-muted-foreground">
-                  {view.description}
-                </p>
+                <p className="gba:text-xs gba:text-muted-foreground">{view.description}</p>
               </div>
             )
           })}
@@ -324,27 +297,27 @@ const ColumnRow: React.FC<ColumnRowProps> = ({ column }) => {
     <tr className="gba:border-t gba:border-border">
       <td className="gba:px-4 gba:py-3">
         <span className="gba:font-medium gba:text-foreground">{column.name}</span>
-        {column.description && (
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-            {column.description}
-          </p>
-        )}
+        {column.description && <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{column.description}</p>}
       </td>
       <td className="gba:px-4 gba:py-3">
-        <Badge className={`gba:text-xs ${getColumnTypeColor(column.detectedType)}`}>
-          {column.detectedType}
-        </Badge>
+        <Badge className={`gba:text-xs ${getColumnTypeColor(column.detectedType)}`}>{column.detectedType}</Badge>
       </td>
       <td className="gba:px-4 gba:py-3 gba:hidden gba:sm:table-cell">
         <div className="gba:flex gba:gap-1 gba:flex-wrap">
           {column.isRequired && (
-            <Badge variant="outline" className="gba:text-xs">Required</Badge>
+            <Badge variant="outline" className="gba:text-xs">
+              Required
+            </Badge>
           )}
           {column.isUnique && (
-            <Badge variant="outline" className="gba:text-xs">Unique</Badge>
+            <Badge variant="outline" className="gba:text-xs">
+              Unique
+            </Badge>
           )}
           {column.formula && (
-            <Badge variant="outline" className="gba:text-xs">Calculated</Badge>
+            <Badge variant="outline" className="gba:text-xs">
+              Calculated
+            </Badge>
           )}
           {column.selectOptions && column.selectOptions.length > 0 && (
             <Badge variant="outline" className="gba:text-xs">

@@ -27,7 +27,7 @@ import {
   SelectValue,
   Checkbox
 } from '@newwork/nw-design-system'
-import { Share2, Users, X, Search, UserPlus, Trash2, Eye, Pencil, Shield, Send, CheckCircle } from 'lucide-react'
+import { Share2, Users, X, Search, Trash2, Eye, Pencil, Shield, Send, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
@@ -215,12 +215,14 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   const [selectedPermission, setSelectedPermission] = useState<SharePermission>('view')
   const [isSharing, setIsSharing] = useState(false)
   const [selectedUsers, setSelectedUsers] = useState<EmployeeLiteOption[]>([])
-  const [resolvedSharedUsers, setResolvedSharedUsers] = useState<Array<{
-    userId: string
-    userName: string
-    userEmail: string
-    permission: SharePermission
-  }>>([])
+  const [resolvedSharedUsers, setResolvedSharedUsers] = useState<
+    Array<{
+      userId: string
+      userName: string
+      userEmail: string
+      permission: SharePermission
+    }>
+  >([])
   const [sentSuccess, setSentSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -250,25 +252,21 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
     if (!searchResults || !Array.isArray(searchResults)) {
       return []
     }
-    
+
     // Ensure resolvedSharedUsers is always defined (from state)
     const currentResolvedSharedUsers = resolvedSharedUsers || []
     const currentSelectedUsers = selectedUsers || []
-    
+
     const safeSelectedUsers = Array.isArray(currentSelectedUsers) ? currentSelectedUsers : []
     const safeResolvedSharedUsers = Array.isArray(currentResolvedSharedUsers) ? currentResolvedSharedUsers : []
-    
+
     const selectedIds = new Set(safeSelectedUsers.map(u => u.userId))
     const sharedIds = new Set(safeResolvedSharedUsers.map(u => u.userId))
-    
+
     return searchResults.filter(
-      emp =>
-        emp.userId !== currentUserId &&
-        !sharedIds.has(emp.userId) &&
-        !selectedIds.has(emp.userId)
+      emp => emp.userId !== currentUserId && !sharedIds.has(emp.userId) && !selectedIds.has(emp.userId)
     )
   }, [searchResults, selectedUsers, resolvedSharedUsers, currentUserId])
-
 
   // Reset form when dialog closes - same pattern as ShareEntityDialog
   useEffect(() => {
@@ -361,7 +359,19 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
     } finally {
       setIsSharing(false)
     }
-  }, [selectedUsers, selectedPermission, onShare, onRefreshShares, accessToken, appName, appId, appFilePath, currentUserId, currentUserName, onOpenChange])
+  }, [
+    selectedUsers,
+    selectedPermission,
+    onShare,
+    onRefreshShares,
+    accessToken,
+    appName,
+    appId,
+    appFilePath,
+    currentUserId,
+    currentUserName,
+    onOpenChange
+  ])
 
   /**
    * Handle removing a share
@@ -429,9 +439,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
               {searchQuery.length >= 2 && (
                 <div className="gba:border gba:rounded-md gba:max-h-48 gba:overflow-y-auto">
                   {isSearching ? (
-                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">
-                      Searching...
-                    </div>
+                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">Searching...</div>
                   ) : filteredResults.length > 0 ? (
                     <div className="gba:divide-y">
                       {filteredResults.map(employee => {
@@ -446,7 +454,10 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                             <Checkbox checked={isSelected} className="gba:pointer-events-none" />
                             <Avatar className="gba:h-8 gba:w-8">
                               {employee.pictureThumbnail ? (
-                                <AvatarImage src={`data:image/jpeg;base64,${employee.pictureThumbnail}`} alt={employee.displayName} />
+                                <AvatarImage
+                                  src={`data:image/jpeg;base64,${employee.pictureThumbnail}`}
+                                  alt={employee.displayName}
+                                />
                               ) : (
                                 <AvatarFallback>{getInitials(employee.displayName)}</AvatarFallback>
                               )}
@@ -462,9 +473,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                       })}
                     </div>
                   ) : (
-                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">
-                      No users found
-                    </div>
+                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">No users found</div>
                   )}
                 </div>
               )}
@@ -472,9 +481,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
               {/* Selected Users & Permission */}
               {selectedUsers.length > 0 && (
                 <div className="gba:space-y-2">
-                  <Label className="gba:text-xs gba:text-muted-foreground">
-                    Selected ({selectedUsers.length})
-                  </Label>
+                  <Label className="gba:text-xs gba:text-muted-foreground">Selected ({selectedUsers.length})</Label>
                   <div className="gba:space-y-2 gba:max-h-32 gba:overflow-y-auto">
                     {selectedUsers.map(user => (
                       <div
@@ -483,7 +490,10 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                       >
                         <Avatar className="gba:h-8 gba:w-8">
                           {user.pictureThumbnail ? (
-                            <AvatarImage src={`data:image/jpeg;base64,${user.pictureThumbnail}`} alt={user.displayName} />
+                            <AvatarImage
+                              src={`data:image/jpeg;base64,${user.pictureThumbnail}`}
+                              alt={user.displayName}
+                            />
                           ) : (
                             <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                           )}
@@ -533,16 +543,12 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
               {sentSuccess && (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-success-secondary/20 gba:rounded-lg gba:text-success-foreground">
                   <CheckCircle className="gba:w-5 gba:h-5" />
-                  <p className="gba:text-sm gba:font-medium">
-                    Shared successfully! Blink notifications sent.
-                  </p>
+                  <p className="gba:text-sm gba:font-medium">Shared successfully! Blink notifications sent.</p>
                 </div>
               )}
 
               {/* Error Message */}
-              {error && (
-                <p className="gba:text-sm gba:text-destructive">{error}</p>
-              )}
+              {error && <p className="gba:text-sm gba:text-destructive">{error}</p>}
 
               {/* Share Button */}
               {selectedUsers.length > 0 && !sentSuccess && (
@@ -578,52 +584,49 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                   <AvatarFallback>{getInitials(isOwner ? currentUserName : 'Owner')}</AvatarFallback>
                 </Avatar>
                 <div className="gba:flex-1">
-                  <p className="gba:text-sm gba:font-medium">
-                    {isOwner ? 'You' : 'Owner'}
-                  </p>
+                  <p className="gba:text-sm gba:font-medium">{isOwner ? 'You' : 'Owner'}</p>
                   <p className="gba:text-xs gba:text-muted-foreground">Owner</p>
                 </div>
                 <Badge variant="outline">Owner</Badge>
               </div>
 
               {/* Shared Users */}
-              {Array.isArray(resolvedSharedUsers) && resolvedSharedUsers.map(user => {
-                const permConfig = PERMISSION_CONFIG[user.permission]
-                const PermIcon = permConfig.icon
+              {Array.isArray(resolvedSharedUsers) &&
+                resolvedSharedUsers.map(user => {
+                  const permConfig = PERMISSION_CONFIG[user.permission]
+                  const PermIcon = permConfig.icon
 
-                return (
-                  <div
-                    key={user.userId}
-                    className="gba:p-3 gba:flex gba:items-center gba:gap-3"
-                    data-testid={`shared-user-${user.userId}`}
-                  >
-                    <Avatar className="gba:h-10 gba:w-10">
-                      <AvatarFallback>{getInitials(user.userName)}</AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex-1 gba:min-w-0">
-                      <p className="gba:text-sm gba:font-medium gba:truncate">{user.userName}</p>
-                      <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                        {user.userEmail}
-                      </p>
+                  return (
+                    <div
+                      key={user.userId}
+                      className="gba:p-3 gba:flex gba:items-center gba:gap-3"
+                      data-testid={`shared-user-${user.userId}`}
+                    >
+                      <Avatar className="gba:h-10 gba:w-10">
+                        <AvatarFallback>{getInitials(user.userName)}</AvatarFallback>
+                      </Avatar>
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <p className="gba:text-sm gba:font-medium gba:truncate">{user.userName}</p>
+                        <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{user.userEmail}</p>
+                      </div>
+                      <Badge variant="outline" className="gba:gap-1">
+                        <PermIcon className="gba:w-3 gba:h-3" />
+                        {permConfig.label}
+                      </Badge>
+                      {isOwner && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUnshare(user.userId)}
+                          className="gba:text-destructive hover:gba:text-destructive"
+                          data-testid={`unshare-button-${user.userId}`}
+                        >
+                          <Trash2 className="gba:w-4 gba:h-4" />
+                        </Button>
+                      )}
                     </div>
-                    <Badge variant="outline" className="gba:gap-1">
-                      <PermIcon className="gba:w-3 gba:h-3" />
-                      {permConfig.label}
-                    </Badge>
-                    {isOwner && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleUnshare(user.userId)}
-                        className="gba:text-destructive hover:gba:text-destructive"
-                        data-testid={`unshare-button-${user.userId}`}
-                      >
-                        <Trash2 className="gba:w-4 gba:h-4" />
-                      </Button>
-                    )}
-                  </div>
-                )
-              })}
+                  )
+                })}
 
               {/* Empty State */}
               {(!resolvedSharedUsers || resolvedSharedUsers.length === 0) && (

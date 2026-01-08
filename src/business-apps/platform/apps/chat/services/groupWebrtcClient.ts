@@ -9,6 +9,7 @@
  */
 
 import type { CallParticipant, CallType } from './webrtcClient'
+import { debugLog } from '../utils/debugLog'
 
 export type VideoQuality = 'high' | 'medium' | 'low'
 
@@ -100,7 +101,7 @@ const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
 
 // Debug logging helper for WebRTC diagnostics
 const logWebRTCDebug = (context: string, data: any) => {
-  console.debug(`[GroupWebRTC:${context}]`, data)
+  debugLog(`[GroupWebRTC:${context}]`, data)
 }
 
 // Log ICE candidate type for debugging
@@ -328,7 +329,7 @@ export class GroupWebRTCClient {
     }
 
     // Always log the transport policy
-    console.log(`[GroupWebRTC] 🔌 Creating peer connection for ${participantId}:`, {
+    debugLog(`[GroupWebRTC] 🔌 Creating peer connection for ${participantId}:`, {
       forceRelay,
       iceTransportPolicy,
       iceServerCount: this.iceServers.length,
@@ -340,7 +341,7 @@ export class GroupWebRTCClient {
     })
 
     if (forceRelay) {
-      console.log(
+      debugLog(
         `[GroupWebRTC] 🔄 FORCING TURN RELAY for ${participantId} - direct P2P DISABLED, only relay candidates allowed`
       )
     }
@@ -482,15 +483,15 @@ export class GroupWebRTCClient {
         diag.lastError = 'Peer connection failed'
         // Track this participant as failed - next reconnect will use TURN relay
         this.failedParticipants.add(participantId)
-        console.log(`[GroupWebRTC] 📝 Added ${participantId} to failed list - will use TURN relay on reconnect`)
+        debugLog(`[GroupWebRTC] 📝 Added ${participantId} to failed list - will use TURN relay on reconnect`)
       } else if (pc.connectionState === 'disconnected') {
         console.warn(`[GroupWebRTC] ⚠️ Connection to ${participantId} disconnected`)
       } else if (pc.connectionState === 'connected') {
-        console.log(`[GroupWebRTC] ✅ Connected to ${participantId}`)
+        debugLog(`[GroupWebRTC] ✅ Connected to ${participantId}`)
         // Remove from failed list if previously failed but now connected
         if (this.failedParticipants.has(participantId)) {
           this.failedParticipants.delete(participantId)
-          console.log(`[GroupWebRTC] ✅ Removed ${participantId} from failed list - connection successful`)
+          debugLog(`[GroupWebRTC] ✅ Removed ${participantId} from failed list - connection successful`)
         }
       }
     }
@@ -541,7 +542,7 @@ export class GroupWebRTCClient {
    * Add a new participant to the call and create offer
    */
   async addParticipant(participant: CallParticipant): Promise<RTCSessionDescriptionInit> {
-    console.debug('Adding participant to group call:', participant.odName)
+    debugLog('Adding participant to group call:', participant.odName)
 
     // Store participant info
     this.participants.set(participant.id, {
@@ -552,7 +553,7 @@ export class GroupWebRTCClient {
     // Check if this participant previously failed - use relay mode if so
     const forceRelay = this.failedParticipants.has(participant.id)
     if (forceRelay) {
-      console.log(`[GroupWebRTC] 🔄 ${participant.odName} previously failed - using TURN relay`)
+      debugLog(`[GroupWebRTC] 🔄 ${participant.odName} previously failed - using TURN relay`)
     }
 
     // Create peer connection (with relay mode if previously failed)
@@ -582,7 +583,7 @@ export class GroupWebRTCClient {
     participant: CallParticipant,
     offer: RTCSessionDescriptionInit
   ): Promise<RTCSessionDescriptionInit> {
-    console.debug('Handling offer from:', participant.odName)
+    debugLog('Handling offer from:', participant.odName)
 
     // Store participant info
     this.participants.set(participantId, {
@@ -593,7 +594,7 @@ export class GroupWebRTCClient {
     // Check if this participant previously failed - use relay mode if so
     const forceRelay = this.failedParticipants.has(participantId)
     if (forceRelay) {
-      console.log(`[GroupWebRTC] 🔄 ${participant.odName} previously failed - using TURN relay`)
+      debugLog(`[GroupWebRTC] 🔄 ${participant.odName} previously failed - using TURN relay`)
     }
 
     // Create peer connection if it doesn't exist (with relay mode if previously failed)
@@ -635,7 +636,7 @@ export class GroupWebRTCClient {
    * Handle incoming answer from a participant
    */
   async handleAnswer(participantId: string, answer: RTCSessionDescriptionInit): Promise<void> {
-    console.debug('Handling answer from participant:', participantId)
+    debugLog('Handling answer from participant:', participantId)
 
     const pc = this.peerConnections.get(participantId)
     if (!pc) {
@@ -714,7 +715,7 @@ export class GroupWebRTCClient {
    * Remove a participant from the call
    */
   removeParticipant(participantId: string): void {
-    console.debug('Removing participant:', participantId)
+    debugLog('Removing participant:', participantId)
 
     // Close peer connection
     const pc = this.peerConnections.get(participantId)
@@ -810,7 +811,7 @@ export class GroupWebRTCClient {
    * Replace the video track in all peer connections (used for background processing)
    */
   replaceVideoTrack(newTrack: MediaStreamTrack): void {
-    console.debug('Replacing video track in all peer connections')
+    debugLog('Replacing video track in all peer connections')
 
     this.peerConnections.forEach(async (pc, participantId) => {
       const senders = pc.getSenders()
@@ -818,7 +819,7 @@ export class GroupWebRTCClient {
         if (sender.track?.kind === 'video') {
           try {
             await sender.replaceTrack(newTrack)
-            console.debug(`Replaced video track for participant ${participantId}`)
+            debugLog(`Replaced video track for participant ${participantId}`)
           } catch (err) {
             console.error(`Failed to replace video track for participant ${participantId}:`, err)
           }
@@ -840,7 +841,7 @@ export class GroupWebRTCClient {
   async setVideoQuality(quality: VideoQuality): Promise<void> {
     this.videoQuality = quality
     const settings = VIDEO_QUALITY_PRESETS[quality]
-    console.debug('Setting video quality to:', quality, settings)
+    debugLog('Setting video quality to:', quality, settings)
 
     // Apply constraints to local stream
     if (this.localStream) {
@@ -943,7 +944,7 @@ export class GroupWebRTCClient {
    * Leave the room and clean up
    */
   leaveRoom(): void {
-    console.debug('Leaving room:', this.roomId)
+    debugLog('Leaving room:', this.roomId)
 
     // Close all peer connections
     this.peerConnections.forEach((pc, participantId) => {
@@ -992,7 +993,7 @@ export class GroupWebRTCClient {
       return null
     }
 
-    console.log(`[GroupWebRTC] 🔄 Attempting to reconnect to ${participant.odName} using TURN RELAY...`)
+    debugLog(`[GroupWebRTC] 🔄 Attempting to reconnect to ${participant.odName} using TURN RELAY...`)
 
     // Close existing peer connection if it exists
     const existingPc = this.peerConnections.get(participantId)
@@ -1021,11 +1022,11 @@ export class GroupWebRTCClient {
     try {
       // Create new peer connection with FORCED RELAY MODE
       // Since the previous connection failed, we force TURN relay to bypass NAT/firewall issues
-      console.log(`[GroupWebRTC] 🔄 RECONNECT: Creating peer connection with forceRelay=TRUE for ${participant.odName}`)
+      debugLog(`[GroupWebRTC] 🔄 RECONNECT: Creating peer connection with forceRelay=TRUE for ${participant.odName}`)
       const pc = this.createPeerConnection(participantId, true) // forceRelay = true
 
       // Create and set local description (offer)
-      console.log(`[GroupWebRTC] 🔄 RECONNECT: Creating offer with ICE restart...`)
+      debugLog(`[GroupWebRTC] 🔄 RECONNECT: Creating offer with ICE restart...`)
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: this.callType === 'video',
@@ -1033,7 +1034,7 @@ export class GroupWebRTCClient {
       })
       await pc.setLocalDescription(offer)
 
-      console.log(
+      debugLog(
         `[GroupWebRTC] ✅ Reconnect offer created for ${participant.odName} (TURN RELAY FORCED - iceTransportPolicy: relay)`
       )
       return offer

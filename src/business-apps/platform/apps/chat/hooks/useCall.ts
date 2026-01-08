@@ -11,6 +11,7 @@ const generateCallId = (): string => {
   return 'call-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 15)
 }
 import { WebRTCClient, CallType, CallParticipant, CallState, CallSignal } from '../services/webrtcClient'
+import { debugLog } from '../utils/debugLog'
 
 const RING_TIMEOUT = 30000 // 30 seconds ring timeout
 
@@ -199,13 +200,13 @@ export const useCall = ({
   const fetchIceServers = useCallback(async (): Promise<RTCIceServer[]> => {
     // Only use cache if it has TURN servers
     if (iceServersRef.current && hasTurnServers(iceServersRef.current)) {
-      console.log('[useCall] ✅ Using cached ICE servers with TURN')
+      debugLog('[useCall] ✅ Using cached ICE servers with TURN')
       return iceServersRef.current
     }
 
     // Clear stale cache without TURN
     if (iceServersRef.current) {
-      console.log('[useCall] 🔄 Cached servers have no TURN, refreshing...')
+      debugLog('[useCall] 🔄 Cached servers have no TURN, refreshing...')
       iceServersRef.current = null
     }
 
@@ -214,14 +215,14 @@ export const useCall = ({
     // Try to fetch from backend
     if (apiClientRef.current) {
       try {
-        console.log('[useCall] 📡 Fetching ICE servers from backend...')
+        debugLog('[useCall] 📡 Fetching ICE servers from backend...')
         const response = await apiClientRef.current.getIceServers()
         backendServers = response.iceServers.map(server => ({
           urls: server.urls,
           username: server.username,
           credential: server.credential
         }))
-        console.log('[useCall] Backend returned:', backendServers.length, 'servers')
+        debugLog('[useCall] Backend returned:', backendServers.length, 'servers')
       } catch (error) {
         console.warn('[useCall] Failed to fetch ICE servers from backend:', error)
       }
@@ -233,15 +234,15 @@ export const useCall = ({
     // ALWAYS add fallback TURN servers if backend doesn't have any
     let finalServers: RTCIceServer[]
     if (!hasTurnFromBackend) {
-      console.log('[useCall] ⚠️ Backend has NO TURN servers! Adding fallback TURN relay...')
+      debugLog('[useCall] ⚠️ Backend has NO TURN servers! Adding fallback TURN relay...')
       finalServers = [...backendServers, ...FALLBACK_TURN_SERVERS]
     } else {
-      console.log('[useCall] ✅ Backend provided TURN servers')
+      debugLog('[useCall] ✅ Backend provided TURN servers')
       finalServers = backendServers
     }
 
     const hasTurn = hasTurnServers(finalServers)
-    console.log('[useCall] 🌐 Final ICE servers configuration:', {
+    debugLog('[useCall] 🌐 Final ICE servers configuration:', {
       serverCount: finalServers.length,
       hasTurn,
       fromBackend: backendServers.length,
@@ -284,7 +285,7 @@ export const useCall = ({
 
     // Handle ICE connection state changes
     webrtc.on('iceConnectionStateChanged', (state: RTCIceConnectionState) => {
-      console.debug('ICE state changed:', state)
+      debugLog('ICE state changed:', state)
       if (state === 'connected' || state === 'completed') {
         updateCallState({ status: 'connected', startTime: Date.now() })
         // Mark active call in localStorage for multi-tab detection
@@ -518,7 +519,7 @@ export const useCall = ({
 
     // Handle incoming call initiation
     const handleCallInitiate = (signal: CallSignal) => {
-      console.debug('Received call:initiate', signal)
+      debugLog('Received call:initiate', signal)
 
       // Ignore if already in a call (use ref to get latest status)
       if (callStateRef.current.status !== 'idle') {
@@ -532,7 +533,7 @@ export const useCall = ({
 
       // Ignore if user is in a call in another tab
       if (currentUserRef.current && isInCallInAnotherTab(currentUserRef.current.id)) {
-        console.debug('Ignoring call - user is in call in another tab')
+        debugLog('Ignoring call - user is in call in another tab')
         wsClientRef.current?.sendBusy({
           callId: signal.callId,
           from: currentUserRef.current!,
@@ -563,7 +564,7 @@ export const useCall = ({
 
     // Handle call accepted
     const handleCallAccept = async (signal: CallSignal) => {
-      console.debug('Received call:accept', signal)
+      debugLog('Received call:accept', signal)
 
       if (callStateRef.current.callId !== signal.callId) return
       clearRingTimeout()
@@ -597,7 +598,7 @@ export const useCall = ({
 
     // Handle call rejected
     const handleCallReject = (signal: CallSignal) => {
-      console.debug('Received call:reject', signal)
+      debugLog('Received call:reject', signal)
 
       if (callStateRef.current.callId !== signal.callId) return
 
@@ -607,7 +608,7 @@ export const useCall = ({
 
     // Handle call ended
     const handleCallEnd = (signal: CallSignal) => {
-      console.debug('Received call:end', signal)
+      debugLog('Received call:end', signal)
 
       if (callStateRef.current.callId !== signal.callId) return
 
@@ -617,7 +618,7 @@ export const useCall = ({
 
     // Handle WebRTC offer
     const handleCallOffer = async (signal: CallSignal) => {
-      console.debug('Received call:offer', signal)
+      debugLog('Received call:offer', signal)
 
       if (callStateRef.current.callId !== signal.callId || !signal.payload) return
 
@@ -645,7 +646,7 @@ export const useCall = ({
 
     // Handle WebRTC answer
     const handleCallAnswer = async (signal: CallSignal) => {
-      console.debug('Received call:answer', signal)
+      debugLog('Received call:answer', signal)
 
       if (callStateRef.current.callId !== signal.callId || !signal.payload) return
 
@@ -682,7 +683,7 @@ export const useCall = ({
 
     // Handle busy signal
     const handleCallBusy = (signal: CallSignal) => {
-      console.debug('Received call:busy', signal)
+      debugLog('Received call:busy', signal)
 
       if (callStateRef.current.callId !== signal.callId) return
 
@@ -721,7 +722,7 @@ export const useCall = ({
           const data = JSON.parse(event.newValue)
           // If the active call is for the same user and it's recent, dismiss the incoming call
           if (data.userId === currentUserRef.current.id && Date.now() - data.timestamp < 5000) {
-            console.debug('User accepted call in another tab, dismissing incoming call')
+            debugLog('User accepted call in another tab, dismissing incoming call')
             cleanupCall(false)
           }
         } catch {

@@ -7,16 +7,10 @@
  */
 
 import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
-import type {
-  SpreadsheetApp,
-  SpreadsheetAppSummary,
-  SpreadsheetSheet,
-  AppStatus
-} from '../types'
+import type { SpreadsheetApp, SpreadsheetAppSummary, SpreadsheetSheet } from '../types'
 
 // Content type identifier for spreadsheet apps
 const SPREADSHEET_APP_TYPE = 'spreadsheet-app'
-const SPREADSHEET_APP_CONTENT_GROUP = 'SpreadsheetApps'
 
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {
@@ -103,7 +97,7 @@ export class SpreadsheetAppDatabaseService {
 
     try {
       debugLog('[SpreadsheetApps] Fetching apps for user:', this.currentUserId)
-      
+
       const result = await this.graphqlClient.request<{
         ContentEntry: Array<{
           id: string
@@ -204,9 +198,7 @@ export class SpreadsheetAppDatabaseService {
   /**
    * Create a new spreadsheet app
    */
-  async createApp(
-    app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>
-  ): Promise<SpreadsheetAppWithSharing> {
+  async createApp(app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>): Promise<SpreadsheetAppWithSharing> {
     const mutation = `
       mutation CreateSpreadsheetApp($input: ContentEntryInsertInput!) {
         insertContentEntryOne(object: $input) {
@@ -263,10 +255,7 @@ export class SpreadsheetAppDatabaseService {
   /**
    * Update an existing app
    */
-  async updateApp(
-    id: string,
-    updates: Partial<SpreadsheetApp>
-  ): Promise<SpreadsheetAppWithSharing | null> {
+  async updateApp(id: string, updates: Partial<SpreadsheetApp>): Promise<SpreadsheetAppWithSharing | null> {
     // First, get the current app to merge updates
     const current = await this.getApp(id)
     if (!current) return null

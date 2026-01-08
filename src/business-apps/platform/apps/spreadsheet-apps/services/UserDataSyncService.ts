@@ -1,9 +1,9 @@
 /**
  * UserDataSyncService
- * 
+ *
  * Syncs user-specific data (like spreadsheet app index) via prompt-manager backend.
  * This enables cross-device access to spreadsheet apps.
- * 
+ *
  * Data structure:
  * - indexFilePath: Path to user's own apps index file
  * - sharedApps: Apps shared with this user by others
@@ -69,16 +69,16 @@ export class UserDataSyncService {
   async getSyncData(): Promise<SpreadsheetSyncData | null> {
     const url = `${PROMPT_MANAGER_ENDPOINT}/${SPREADSHEET_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
     debugLog('[TRACE] UserDataSync GET:', url)
-    
+
     try {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${this.accessToken}`,
           'Content-Type': 'application/json'
         }
       })
-      
+
       debugLog('[TRACE] UserDataSync GET response status:', response.status)
 
       if (response.status === 404 || response.status === 204) {
@@ -94,7 +94,7 @@ export class UserDataSyncService {
 
       const data: UserDataResponse | null = await response.json()
       debugLog('[TRACE] UserDataSync GET data:', data)
-      
+
       if (!data || !data.data) {
         debugLog('[UserDataSync] Response had no data field')
         return null
@@ -132,17 +132,17 @@ export class UserDataSyncService {
     const url = `${PROMPT_MANAGER_ENDPOINT}/${SPREADSHEET_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
     debugLog('[TRACE] UserDataSync PUT:', url)
     debugLog('[TRACE] UserDataSync PUT body:', { data })
-    
+
     try {
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${this.accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ data })
       })
-      
+
       debugLog('[TRACE] UserDataSync PUT response status:', response.status)
 
       if (!response.ok) {
@@ -190,7 +190,7 @@ export class UserDataSyncService {
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            Authorization: `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json'
           }
         }
@@ -238,7 +238,7 @@ export class UserDataSyncService {
         {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            Authorization: `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ data: recipientData })
@@ -263,10 +263,11 @@ export class UserDataSyncService {
    * Note: This is a simplified implementation. In production, you might want to
    * maintain a separate sharing registry or store this in the app's own data.
    */
-  async getSharedUsersForApp(appId: string, ownerUserId: string): Promise<SharedAppEntry[]> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getSharedUsersForApp(appId: string, _ownerUserId: string): Promise<SharedAppEntry[]> {
     // For now, we can't efficiently query all users to find who has this app shared.
     // This would require querying every user's sync data, which is not practical.
-    // 
+    //
     // Options for future enhancement:
     // 1. Store shared users list in the app's own data/metadata
     // 2. Maintain a separate sharing registry
@@ -288,7 +289,7 @@ export class UserDataSyncService {
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            Authorization: `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json'
           }
         }
@@ -313,7 +314,7 @@ export class UserDataSyncService {
         {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            Authorization: `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ data: recipientData })

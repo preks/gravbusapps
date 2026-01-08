@@ -5,8 +5,4 @@
 export { SpreadsheetAppService, createSpreadsheetAppService } from './SpreadsheetAppService'
 export { SpreadsheetFileStorageService } from './SpreadsheetFileStorageService'
 export { UserDataSyncService } from './UserDataSyncService'
-export {
-  generateAppSchema,
-  updateAppWithCustomizations,
-  validateAppSchema
-} from './SchemaGenerator'
+export { generateAppSchema, updateAppWithCustomizations, validateAppSchema } from './SchemaGenerator'

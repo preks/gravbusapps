@@ -321,17 +321,23 @@ if (globalThis.__APP_BUILD_INFO__) {
   if (buildInfo.prUrl) extraLines.push('  PR:          ' + buildInfo.prUrl);
   if (buildInfo.pipelineUrl) extraLines.push('  Pipeline:    ' + buildInfo.pipelineUrl);
   
-  console.log('---------------------------------------');
-  console.log('       Screen Build Information');
-  console.log('---------------------------------------');
-  console.log('  Built by:    ' + buildInfo.gitUser);
-  console.log('  Build time:  ' + formattedBuildTime);
-  if (extraLines.length > 0) {
-    extraLines.forEach(function(line) { console.log(line); });
+  const shouldPrintBuildInfo =
+    typeof globalThis !== 'undefined' &&
+    typeof globalThis.localStorage !== 'undefined' &&
+    (globalThis.localStorage.getItem('debug:build-info') === '1' ||
+      globalThis.localStorage.getItem('debug:spreadsheet-apps') === '1');
+
+  if (shouldPrintBuildInfo) {
+    console.debug('---------------------------------------');
+    console.debug('       Screen Build Information');
+    console.debug('---------------------------------------');
+    console.debug('  Built by:    ' + buildInfo.gitUser);
+    console.debug('  Build time:  ' + formattedBuildTime);
+    if (extraLines.length > 0) {
+      extraLines.forEach(function(line) { console.debug(line); });
+    }
+    console.debug('---------------------------------------');
   }
-  console.log('---------------------------------------');
-} else {
-  console.log('Screen Build Info: Not available');
 }
 /* --- Injected Banner End --- */
 `
@@ -702,6 +708,14 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       ...(shouldHashFilesForDeployment ? [sha256ContentHashPlugin(shouldHashFilesForDeployment)] : []),
       ...extraPlugins
     ].filter(Boolean),
+
+    // Reduce runtime console noise across ALL screens built from this repo.
+    // Keep warnings/errors, but strip chatty console.log/info in production builds.
+    esbuild: isProduction
+      ? {
+          pure: ['console.log', 'console.info']
+        }
+      : undefined,
 
     define: {
       // This replaces process.env.NODE_ENV with the current mode in the build output

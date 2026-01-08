@@ -54,9 +54,7 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
   'data-testid': testId = 'promote-to-database-modal'
 }) => {
   const [step, setStep] = useState<PromotionStep>('confirm')
-  const [entityName, setEntityName] = useState(
-    app.name.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_')
-  )
+  const [entityName, setEntityName] = useState(app.name.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_'))
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
@@ -111,9 +109,7 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
                 </div>
                 <div>
                   <DialogTitle>Promote to Database</DialogTitle>
-                  <DialogDescription>
-                    Convert your file-based app to a real database entity
-                  </DialogDescription>
+                  <DialogDescription>Convert your file-based app to a real database entity</DialogDescription>
                 </div>
               </div>
             </DialogHeader>
@@ -138,9 +134,7 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
 
               {/* Benefits */}
               <div className="gba:bg-muted/30 gba:rounded-lg gba:p-4 gba:space-y-3">
-                <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                  Benefits of promoting:
-                </p>
+                <p className="gba:text-sm gba:font-medium gba:text-foreground">Benefits of promoting:</p>
                 <div className="gba:space-y-2">
                   <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
                     <Server className="gba:w-4 gba:h-4 gba:text-success" />
@@ -165,12 +159,8 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
               <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/20 gba:rounded-lg">
                 <span className="gba:text-sm gba:text-muted-foreground">Data to migrate:</span>
                 <div className="gba:flex gba:gap-2">
-                  <Badge variant="secondary">
-                    {app.sheets.length} sheets
-                  </Badge>
-                  <Badge variant="secondary">
-                    {totalRows.toLocaleString()} rows
-                  </Badge>
+                  <Badge variant="secondary">{app.sheets.length} sheets</Badge>
+                  <Badge variant="secondary">{totalRows.toLocaleString()} rows</Badge>
                 </div>
               </div>
 
@@ -215,15 +205,11 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
                   placeholder="my_entity_name"
                   className="gba:font-mono"
                 />
-                <p className="gba:text-xs gba:text-muted-foreground">
-                  Only letters, numbers, and underscores allowed
-                </p>
+                <p className="gba:text-xs gba:text-muted-foreground">Only letters, numbers, and underscores allowed</p>
               </div>
 
               <div className="gba:bg-muted/30 gba:rounded-lg gba:p-4">
-                <p className="gba:text-sm gba:text-muted-foreground gba:mb-2">
-                  GraphQL endpoint preview:
-                </p>
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-2">GraphQL endpoint preview:</p>
                 <code className="gba:text-sm gba:text-primary gba:font-mono">
                   query {'{'}
                   {entityName}(where: {'{'}...{'}'}) {'{'}
@@ -250,9 +236,7 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
           <>
             <DialogHeader>
               <DialogTitle>Migrating Data</DialogTitle>
-              <DialogDescription>
-                Please wait while we migrate your data to the database...
-              </DialogDescription>
+              <DialogDescription>Please wait while we migrate your data to the database...</DialogDescription>
             </DialogHeader>
 
             <div className="gba:flex gba:flex-col gba:items-center gba:py-8 gba:space-y-6">
@@ -283,9 +267,7 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
                 </div>
                 <div>
                   <DialogTitle>Promotion Complete!</DialogTitle>
-                  <DialogDescription>
-                    Your app is now backed by a real database
-                  </DialogDescription>
+                  <DialogDescription>Your app is now backed by a real database</DialogDescription>
                 </div>
               </div>
             </DialogHeader>
@@ -294,36 +276,28 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
               <div className="gba:bg-success/5 gba:border gba:border-success/20 gba:rounded-lg gba:p-4">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
                   <Database className="gba:w-5 gba:h-5 gba:text-success" />
-                  <span className="gba:font-medium gba:text-foreground">
-                    {entityName}
-                  </span>
+                  <span className="gba:font-medium gba:text-foreground">{entityName}</span>
                 </div>
                 <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:text-sm">
                   <div>
                     <p className="gba:text-muted-foreground">Tables created</p>
-                    <p className="gba:font-medium gba:text-foreground">
-                      {app.sheets.length}
-                    </p>
+                    <p className="gba:font-medium gba:text-foreground">{app.sheets.length}</p>
                   </div>
                   <div>
                     <p className="gba:text-muted-foreground">Rows migrated</p>
-                    <p className="gba:font-medium gba:text-foreground">
-                      {totalRows.toLocaleString()}
-                    </p>
+                    <p className="gba:font-medium gba:text-foreground">{totalRows.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
               <p className="gba:text-sm gba:text-muted-foreground">
-                Your data is now available through the GraphQL API. 
-                You can use it in workflows, integrations, and reports.
+                Your data is now available through the GraphQL API. You can use it in workflows, integrations, and
+                reports.
               </p>
             </div>
 
             <DialogFooter>
-              <Button onClick={handleClose}>
-                Done
-              </Button>
+              <Button onClick={handleClose}>Done</Button>
             </DialogFooter>
           </>
         )}
@@ -338,9 +312,7 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
                 </div>
                 <div>
                   <DialogTitle>Promotion Failed</DialogTitle>
-                  <DialogDescription>
-                    An error occurred during the promotion process
-                  </DialogDescription>
+                  <DialogDescription>An error occurred during the promotion process</DialogDescription>
                 </div>
               </div>
             </DialogHeader>
@@ -355,9 +327,7 @@ export const PromoteToDatabaseModal: React.FC<PromoteToDatabaseModalProps> = ({
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button onClick={() => setStep('naming')}>
-                Try Again
-              </Button>
+              <Button onClick={() => setStep('naming')}>Try Again</Button>
             </DialogFooter>
           </>
         )}

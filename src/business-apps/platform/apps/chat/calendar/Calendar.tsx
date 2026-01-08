@@ -7,6 +7,7 @@ import { useEmployeeAvatars } from '../hooks/useEmployeeAvatars'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
 import { CallModal } from '../components/CallModal'
 import { IncomingCallDialog } from '../components/IncomingCallDialog'
+import { debugLog } from '../utils/debugLog'
 import { GroupCallModal } from '../components/GroupCallModal'
 import { useCall } from '../hooks/useCall'
 import { useGroupCall } from '../hooks/useGroupCall'
@@ -70,10 +71,10 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
     apiClient: apiClient || null,
     currentUser: currentUserAsParticipant,
     onCallStarted: (callId, participant) => {
-      console.debug('Meeting 1:1 call started:', callId, participant)
+      debugLog('Meeting 1:1 call started:', callId, participant)
     },
     onCallEnded: (callId, duration) => {
-      console.debug('Meeting 1:1 call ended:', callId, 'Duration:', duration, 'ms')
+      debugLog('Meeting 1:1 call ended:', callId, 'Duration:', duration, 'ms')
     }
   })
 
@@ -94,10 +95,10 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
     apiClient: apiClient || null,
     currentUser: currentUserAsParticipant,
     onCallStarted: (roomId, participants) => {
-      console.debug('Meeting group call started:', roomId, participants.length, 'participants')
+      debugLog('Meeting group call started:', roomId, participants.length, 'participants')
     },
     onCallEnded: (roomId, duration) => {
-      console.debug('Meeting group call ended:', roomId, 'Duration:', duration, 'ms')
+      debugLog('Meeting group call ended:', roomId, 'Duration:', duration, 'ms')
     }
   })
 

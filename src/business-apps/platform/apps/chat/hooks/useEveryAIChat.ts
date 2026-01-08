@@ -5,6 +5,7 @@ import { getCurrentPageContext } from '../../every-ai/utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { debugLog } from '../utils/debugLog'
 
 const LLM_MODEL = 'gpt-4.1'
 const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
@@ -114,7 +115,7 @@ export interface ScheduledMeeting {
  * Also handles: "A meeting will be scheduled for you and Denis on today's date at 10:00 PM"
  */
 function parseMeetingFromText(text: string, context?: ConversationContext): ScheduledMeeting | undefined {
-  console.log('🔍 [EveryAI] Attempting to parse meeting from text')
+  debugLog('🔍 [EveryAI] Attempting to parse meeting from text')
 
   try {
     // Normalize escaped quotes in the text first
@@ -138,7 +139,7 @@ function parseMeetingFromText(text: string, context?: ConversationContext): Sche
       normalizedText.match(pattern4)
 
     if (!match) {
-      console.log('📝 [EveryAI] No meeting pattern found in text:', normalizedText.substring(0, 200))
+      debugLog('📝 [EveryAI] No meeting pattern found in text:', normalizedText.substring(0, 200))
       return undefined
     }
 
@@ -166,7 +167,7 @@ function parseMeetingFromText(text: string, context?: ConversationContext): Sche
       dateTimeText = match[1] || ''
     }
 
-    console.log('📝 [EveryAI] Parsing meeting from text:', {
+    debugLog('📝 [EveryAI] Parsing meeting from text:', {
       title,
       dateTimeText,
       originalText: text.substring(0, 200),
@@ -178,7 +179,7 @@ function parseMeetingFromText(text: string, context?: ConversationContext): Sche
     const timeMatch = dateTimeText.match(timePattern)
 
     if (!timeMatch) {
-      console.log('⚠️ [EveryAI] Could not extract time from text')
+      debugLog('⚠️ [EveryAI] Could not extract time from text')
       return undefined
     }
 
@@ -548,7 +549,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
 
         if (isLocalhost) {
-          console.log('🤖 [EveryAI] Local development - connecting to DEV FlowBot:', url)
+          debugLog('🤖 [EveryAI] Local development - connecting to DEV FlowBot:', url)
         }
 
         // Use existing session ID from previous AI messages in this conversation
@@ -682,7 +683,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
             // Log all events for debugging
             if (event !== 'message' && data) {
-              console.log(`📨 [EveryAI] SSE Event: ${event}`, data.substring(0, 200))
+              debugLog(`📨 [EveryAI] SSE Event: ${event}`, data.substring(0, 200))
             }
 
             if (event === 'session-id') {
@@ -697,7 +698,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
             } else if (event === 'output-item') {
               try {
                 const output = JSON.parse(data)
-                console.log('📦 [EveryAI] Received output-item:', output.type, output)
+                debugLog('📦 [EveryAI] Received output-item:', output.type, output)
 
                 // Collect the output item for rich rendering (except loading which we handle separately)
                 if (output.type !== 'loading') {
@@ -706,7 +707,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
                 // Check for scheduled meeting output (NEW: proper backend support)
                 if (output.type === 'scheduled_meeting' && output.meeting) {
-                  console.log('📅 [EveryAI] Received scheduled_meeting output:', output.meeting)
+                  debugLog('📅 [EveryAI] Received scheduled_meeting output:', output.meeting)
 
                   try {
                     const meetingData = output.meeting
@@ -719,7 +720,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
                       meetingLink: meetingData.meetingLink,
                       description: meetingData.description
                     }
-                    console.log('✅ [EveryAI] Scheduled meeting from backend:', scheduledMeeting)
+                    debugLog('✅ [EveryAI] Scheduled meeting from backend:', scheduledMeeting)
                   } catch (e) {
                     console.error('❌ [EveryAI] Error parsing scheduled_meeting output:', e)
                     // Don't throw - continue processing
@@ -728,13 +729,13 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
                 // Check for tool calls (meeting scheduling intent)
                 else if (output.type === 'tool') {
-                  console.log('🔧 [EveryAI] Tool call:', output.name, output)
+                  debugLog('🔧 [EveryAI] Tool call:', output.name, output)
 
                   // Check if tool has parameters with meeting details
                   if ((output.name === 'schedule_meeting' || output.name === 'create_meeting') && output.parameters) {
                     try {
                       const params = output.parameters
-                      console.log('📅 [EveryAI] Tool parameters:', params)
+                      debugLog('📅 [EveryAI] Tool parameters:', params)
 
                       // Extract meeting details from tool parameters
                       if (params.title || params.subject) {
@@ -747,7 +748,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
                           meetingLink: params.meeting_link || params.meetingLink || params.link,
                           description: params.description || params.agenda || params.notes
                         }
-                        console.log('✅ [EveryAI] Meeting extracted from tool params:', scheduledMeeting)
+                        debugLog('✅ [EveryAI] Meeting extracted from tool params:', scheduledMeeting)
                       }
                     } catch (e) {
                       console.error('❌ [EveryAI] Error parsing tool parameters:', e)
@@ -789,14 +790,14 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
                 }
                 // Check for tool call results (meeting scheduling)
                 else if (output.type === 'tool-call-result' || output.type === 'tool_result') {
-                  console.log('🔧 [EveryAI] Tool call result:', output)
+                  debugLog('🔧 [EveryAI] Tool call result:', output)
 
                   try {
                     // FlowBot returns meeting data in tool-call-result events
                     const toolName = output.tool || output.tool_name || output.name
                     if ((toolName === 'schedule_meeting' || toolName === 'create_meeting') && output.result) {
                       const resultData = typeof output.result === 'string' ? JSON.parse(output.result) : output.result
-                      console.log('📅 [EveryAI] Raw tool result:', resultData)
+                      debugLog('📅 [EveryAI] Raw tool result:', resultData)
 
                       // FlowBot returns: { success: true, meeting: {...}, message: "..." }
                       // Extract the nested meeting object
@@ -827,7 +828,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
                             meetingData.meeting_link,
                           description: meetingData.description || meetingData.agenda || meetingData.notes
                         }
-                        console.log('✅ [EveryAI] Scheduled meeting extracted from tool result:', scheduledMeeting)
+                        debugLog('✅ [EveryAI] Scheduled meeting extracted from tool result:', scheduledMeeting)
                       }
                     }
                   } catch (e) {
@@ -854,7 +855,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           try {
             scheduledMeeting = parseMeetingFromText(responseText, conversationContext)
             if (scheduledMeeting) {
-              console.log('✅ [EveryAI] Meeting extracted from text response (fallback):', scheduledMeeting)
+              debugLog('✅ [EveryAI] Meeting extracted from text response (fallback):', scheduledMeeting)
             }
           } catch (parseError) {
             console.error('❌ [EveryAI] Text parsing failed, continuing without meeting card:', parseError)

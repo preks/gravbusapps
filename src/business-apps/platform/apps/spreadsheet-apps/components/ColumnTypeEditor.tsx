@@ -32,8 +32,7 @@ import {
   Link2,
   Save,
   X,
-  Plus,
-  Trash2
+  Plus
 } from 'lucide-react'
 import type { SpreadsheetColumn, ColumnType, SelectOption, ColumnValidation } from '../types'
 
@@ -114,20 +113,14 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
   /**
    * Update column property
    */
-  const updateColumn = useCallback(<K extends keyof SpreadsheetColumn>(
-    key: K,
-    value: SpreadsheetColumn[K]
-  ) => {
+  const updateColumn = useCallback(<K extends keyof SpreadsheetColumn>(key: K, value: SpreadsheetColumn[K]) => {
     setColumn(prev => ({ ...prev, [key]: value }))
   }, [])
 
   /**
    * Update validation property
    */
-  const updateValidation = useCallback(<K extends keyof ColumnValidation>(
-    key: K,
-    value: ColumnValidation[K]
-  ) => {
+  const updateValidation = useCallback(<K extends keyof ColumnValidation>(key: K, value: ColumnValidation[K]) => {
     setColumn(prev => ({
       ...prev,
       validation: {
@@ -205,10 +198,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
 
           <div className="gba:space-y-2">
             <Label htmlFor="type">Column Type</Label>
-            <Select
-              value={column.type}
-              onValueChange={(value: ColumnType) => updateColumn('type', value)}
-            >
+            <Select value={column.type} onValueChange={(value: ColumnType) => updateColumn('type', value)}>
               <SelectTrigger id="type">
                 <SelectValue />
               </SelectTrigger>
@@ -232,7 +222,9 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
         {/* Toggle Options */}
         <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
           <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg">
-            <Label htmlFor="visible" className="gba:text-sm">Visible</Label>
+            <Label htmlFor="visible" className="gba:text-sm">
+              Visible
+            </Label>
             <Switch
               id="visible"
               checked={column.isVisible}
@@ -240,7 +232,9 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
             />
           </div>
           <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg">
-            <Label htmlFor="editable" className="gba:text-sm">Editable</Label>
+            <Label htmlFor="editable" className="gba:text-sm">
+              Editable
+            </Label>
             <Switch
               id="editable"
               checked={column.isEditable}
@@ -248,7 +242,9 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
             />
           </div>
           <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg">
-            <Label htmlFor="required" className="gba:text-sm">Required</Label>
+            <Label htmlFor="required" className="gba:text-sm">
+              Required
+            </Label>
             <Switch
               id="required"
               checked={column.isRequired}
@@ -256,7 +252,9 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
             />
           </div>
           <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg">
-            <Label htmlFor="unique" className="gba:text-sm">Unique</Label>
+            <Label htmlFor="unique" className="gba:text-sm">
+              Unique
+            </Label>
             <Switch
               id="unique"
               checked={column.isUnique}
@@ -282,11 +280,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-2">
               {column.selectOptions?.map(option => (
-                <Badge
-                  key={option.value}
-                  variant="secondary"
-                  className="gba:pl-3 gba:pr-1 gba:py-1"
-                >
+                <Badge key={option.value} variant="secondary" className="gba:pl-3 gba:pr-1 gba:py-1">
                   {option.label}
                   <button
                     type="button"
@@ -310,7 +304,9 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
             <Label>Reference Configuration</Label>
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <div className="gba:space-y-2">
-                <Label htmlFor="refSheet" className="gba:text-sm">Reference Sheet</Label>
+                <Label htmlFor="refSheet" className="gba:text-sm">
+                  Reference Sheet
+                </Label>
                 <Select
                   value={column.referenceTo?.sheetId || ''}
                   onValueChange={(value: string) =>
@@ -336,7 +332,9 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
 
               {column.referenceTo?.sheetId && (
                 <div className="gba:space-y-2">
-                  <Label htmlFor="refColumn" className="gba:text-sm">Reference Column</Label>
+                  <Label htmlFor="refColumn" className="gba:text-sm">
+                    Reference Column
+                  </Label>
                   <Select
                     value={column.referenceTo?.columnId || ''}
                     onValueChange={(value: string) =>
@@ -371,26 +369,26 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
             <Label>Validation</Label>
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <div className="gba:space-y-2">
-                <Label htmlFor="min" className="gba:text-sm">Minimum Value</Label>
+                <Label htmlFor="min" className="gba:text-sm">
+                  Minimum Value
+                </Label>
                 <Input
                   id="min"
                   type="number"
                   value={column.validation?.min ?? ''}
-                  onChange={e =>
-                    updateValidation('min', e.target.value ? Number(e.target.value) : undefined)
-                  }
+                  onChange={e => updateValidation('min', e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="No minimum"
                 />
               </div>
               <div className="gba:space-y-2">
-                <Label htmlFor="max" className="gba:text-sm">Maximum Value</Label>
+                <Label htmlFor="max" className="gba:text-sm">
+                  Maximum Value
+                </Label>
                 <Input
                   id="max"
                   type="number"
                   value={column.validation?.max ?? ''}
-                  onChange={e =>
-                    updateValidation('max', e.target.value ? Number(e.target.value) : undefined)
-                  }
+                  onChange={e => updateValidation('max', e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="No maximum"
                 />
               </div>

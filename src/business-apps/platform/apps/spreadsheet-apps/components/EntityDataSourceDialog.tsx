@@ -28,11 +28,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-  ScrollArea,
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent
+  ScrollArea
 } from '@newwork/nw-design-system'
 import {
   Database,
@@ -40,7 +36,6 @@ import {
   Trash2,
   RefreshCw,
   Filter,
-  SortAsc,
   Columns,
   Settings,
   Search,
@@ -50,25 +45,17 @@ import {
   Briefcase,
   FileText,
   DollarSign,
-  Calendar,
   Check,
-  X,
-  ChevronRight,
   Loader2,
   AlertCircle
 } from 'lucide-react'
 import { useEntityDataSource } from '../hooks/useEntityDataSource'
 import type {
   EntityDataSource,
-  EntityFilterCondition,
   EntityFilterGroup,
   EntitySortConfig,
   EntityFieldMapping,
-  EntityFilterOperator,
-  AvailableEntity,
-  EntityField,
-  createEntityDataSource,
-  createFilterCondition
+  EntityFilterOperator
 } from '../types/entityDataSource'
 
 /**
@@ -176,9 +163,8 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
   const filteredFields = useMemo(() => {
     if (!searchQuery.trim()) return selectedEntityFields
     const query = searchQuery.toLowerCase()
-    return selectedEntityFields.filter(f =>
-      f.name.toLowerCase().includes(query) ||
-      f.displayName.toLowerCase().includes(query)
+    return selectedEntityFields.filter(
+      f => f.name.toLowerCase().includes(query) || f.displayName.toLowerCase().includes(query)
     )
   }, [selectedEntityFields, searchQuery])
 
@@ -270,9 +256,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
   const updateFilterCondition = useCallback((conditionId: string, updates: Partial<EntityFilterCondition>) => {
     setFilters(prev => ({
       ...prev,
-      conditions: prev.conditions.map(c =>
-        c.id === conditionId ? { ...c, ...updates } : c
-      )
+      conditions: prev.conditions.map(c => (c.id === conditionId ? { ...c, ...updates } : c))
     }))
   }, [])
 
@@ -290,11 +274,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
    * Toggle field inclusion
    */
   const toggleFieldInclusion = useCallback((fieldName: string) => {
-    setFieldMappings(prev =>
-      prev.map(m =>
-        m.entityField === fieldName ? { ...m, include: !m.include } : m
-      )
-    )
+    setFieldMappings(prev => prev.map(m => (m.entityField === fieldName ? { ...m, include: !m.include } : m)))
   }, [])
 
   /**
@@ -304,10 +284,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
     if (selectedEntityFields.length === 0) return
 
     const firstField = selectedEntityFields[0]
-    setOrderBy(prev => [
-      ...prev,
-      { field: firstField.name, direction: 'ASC_NULLS_LAST' }
-    ])
+    setOrderBy(prev => [...prev, { field: firstField.name, direction: 'ASC_NULLS_LAST' }])
   }, [selectedEntityFields])
 
   /**
@@ -385,7 +362,10 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="gba:max-w-4xl gba:max-h-[85vh] gba:overflow-hidden gba:flex gba:flex-col" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-4xl gba:max-h-[85vh] gba:overflow-hidden gba:flex gba:flex-col"
+        data-testid={testId}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Database className="gba:h-5 gba:w-5" />
@@ -396,7 +376,11 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:flex-1 gba:overflow-hidden gba:flex gba:flex-col">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="gba:flex-1 gba:overflow-hidden gba:flex gba:flex-col"
+        >
           <TabsList className="gba:w-full gba:justify-start">
             <TabsTrigger value="entity" className="gba:gap-2">
               <Database className="gba:h-4 gba:w-4" />
@@ -416,447 +400,425 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
             </TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="gba:flex-1 gba:mt-4">
-            {/* Entity Selection Tab */}
-            <TabsContent value="entity" className="gba:m-0 gba:h-full">
-              <div className="gba:space-y-4">
-                <div>
-                  <Label className="gba:text-sm gba:font-medium">Select Entity Type</Label>
-                  <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
-                    Choose which type of data to load into this sheet.
-                  </p>
-                </div>
-
-                {isLoadingEntities ? (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-                    <Loader2 className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
-                    <span className="gba:ml-2 gba:text-muted-foreground">Loading entities...</span>
+          <div className="gba:flex-1 gba:overflow-hidden gba:mt-4">
+            <ScrollArea className="gba:h-[50vh]">
+              {/* Entity Selection Tab */}
+              <TabsContent value="entity" className="gba:m-0 gba:pr-4">
+                <div className="gba:space-y-4">
+                  <div>
+                    <Label className="gba:text-sm gba:font-medium">Select Entity Type</Label>
+                    <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
+                      Choose which type of data to load into this sheet.
+                    </p>
                   </div>
-                ) : (
-                  <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-                    {availableEntities.map(entity => {
-                      const Icon = getEntityIcon(entity.type)
-                      const isSelected = selectedEntityType === entity.type
 
-                      return (
-                        <button
-                          key={entity.type}
-                          type="button"
-                          onClick={() => {
-                            setSelectedEntityType(entity.type)
-                            setFieldMappings([]) // Reset to regenerate
-                          }}
-                          className={`gba:flex gba:items-start gba:gap-3 gba:p-4 gba:rounded-lg gba:border gba:text-left gba:transition-colors ${
-                            isSelected
-                              ? 'gba:border-primary gba:bg-primary/5'
-                              : 'gba:border-border gba:hover:border-primary/50 gba:hover:bg-accent/50'
-                          }`}
-                          data-testid={`${testId}-entity-${entity.type}`}
-                        >
-                          <div className={`gba:p-2 gba:rounded-lg ${isSelected ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted'}`}>
-                            <Icon className="gba:h-5 gba:w-5" />
-                          </div>
-                          <div className="gba:flex-1 gba:min-w-0">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <span className="gba:font-medium">{entity.displayName}</span>
-                              {isSelected && (
-                                <Check className="gba:h-4 gba:w-4 gba:text-primary" />
+                  {isLoadingEntities ? (
+                    <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+                      <Loader2 className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
+                      <span className="gba:ml-2 gba:text-muted-foreground">Loading entities...</span>
+                    </div>
+                  ) : (
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                      {availableEntities.map(entity => {
+                        const Icon = getEntityIcon(entity.type)
+                        const isSelected = selectedEntityType === entity.type
+
+                        return (
+                          <button
+                            key={entity.type}
+                            type="button"
+                            onClick={() => {
+                              setSelectedEntityType(entity.type)
+                              setFieldMappings([]) // Reset to regenerate
+                            }}
+                            className={`gba:flex gba:items-start gba:gap-3 gba:p-4 gba:rounded-lg gba:border gba:text-left gba:transition-colors ${
+                              isSelected
+                                ? 'gba:border-primary gba:bg-primary/5'
+                                : 'gba:border-border gba:hover:border-primary/50 gba:hover:bg-accent/50'
+                            }`}
+                            data-testid={`${testId}-entity-${entity.type}`}
+                          >
+                            <div
+                              className={`gba:p-2 gba:rounded-lg ${isSelected ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted'}`}
+                            >
+                              <Icon className="gba:h-5 gba:w-5" />
+                            </div>
+                            <div className="gba:flex-1 gba:min-w-0">
+                              <div className="gba:flex gba:items-center gba:gap-2">
+                                <span className="gba:font-medium">{entity.displayName}</span>
+                                {isSelected && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
+                              </div>
+                              <p className="gba:text-sm gba:text-muted-foreground gba:truncate">
+                                {entity.description || `${entity.fields.length} fields available`}
+                              </p>
+                              {entity.category && (
+                                <Badge variant="secondary" className="gba:mt-1">
+                                  {entity.category}
+                                </Badge>
                               )}
                             </div>
-                            <p className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                              {entity.description || `${entity.fields.length} fields available`}
-                            </p>
-                            {entity.category && (
-                              <Badge variant="secondary" className="gba:mt-1">
-                                {entity.category}
-                              </Badge>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
 
-                {availableEntities.length === 0 && !isLoadingEntities && (
-                  <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-                    <AlertCircle className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2" />
-                    <p>No entities available</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={fetchAvailableEntities}
-                      className="gba:mt-2"
-                    >
-                      <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
-                      Retry
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* Filters Tab */}
-            <TabsContent value="filters" className="gba:m-0 gba:h-full">
-              <div className="gba:space-y-4">
-                <div className="gba:flex gba:items-center gba:justify-between">
-                  <div>
-                    <Label className="gba:text-sm gba:font-medium">Filter Conditions</Label>
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      Define criteria to filter which records are loaded.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addFilterCondition}
-                    data-testid={`${testId}-add-filter`}
-                  >
-                    <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
-                    Add Filter
-                  </Button>
-                </div>
-
-                {/* Logic toggle */}
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:text-sm gba:text-muted-foreground">Match</span>
-                  <Button
-                    variant={filters.logic === 'AND' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilters(prev => ({ ...prev, logic: 'AND' }))}
-                  >
-                    All
-                  </Button>
-                  <Button
-                    variant={filters.logic === 'OR' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilters(prev => ({ ...prev, logic: 'OR' }))}
-                  >
-                    Any
-                  </Button>
-                  <span className="gba:text-sm gba:text-muted-foreground">conditions</span>
-                </div>
-
-                <Separator />
-
-                {/* Filter conditions list */}
-                <div className="gba:space-y-3">
-                  {filters.conditions.map((condition, index) => (
-                    <div
-                      key={condition.id}
-                      className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:border gba:rounded-lg gba:bg-card"
-                    >
-                      {/* Field selector */}
-                      <Select
-                        value={condition.field}
-                        onValueChange={value => {
-                          const field = selectedEntityFields.find(f => f.name === value)
-                          updateFilterCondition(condition.id, {
-                            field: value,
-                            fieldLabel: field?.displayName || value
-                          })
-                        }}
-                      >
-                        <SelectTrigger className="gba:w-[180px]">
-                          <SelectValue placeholder="Select field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {selectedEntityFields.map(field => (
-                            <SelectItem key={field.name} value={field.name}>
-                              {field.displayName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      {/* Operator selector */}
-                      <Select
-                        value={condition.operator}
-                        onValueChange={value =>
-                          updateFilterCondition(condition.id, {
-                            operator: value as EntityFilterOperator
-                          })
-                        }
-                      >
-                        <SelectTrigger className="gba:w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {FILTER_OPERATORS.map(op => (
-                            <SelectItem key={op.value} value={op.value}>
-                              {op.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      {/* Value input (hidden for isNull/isNotNull) */}
-                      {!['isNull', 'isNotNull'].includes(condition.operator) && (
-                        <Input
-                          value={String(condition.value || '')}
-                          onChange={e =>
-                            updateFilterCondition(condition.id, {
-                              value: e.target.value
-                            })
-                          }
-                          placeholder="Value..."
-                          className="gba:flex-1"
-                        />
-                      )}
-
-                      {/* Active toggle */}
-                      <Checkbox
-                        checked={condition.isActive}
-                        onCheckedChange={checked =>
-                          updateFilterCondition(condition.id, {
-                            isActive: checked === true
-                          })
-                        }
-                      />
-
-                      {/* Remove button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeFilterCondition(condition.id)}
-                        className="gba:text-destructive gba:hover:text-destructive"
-                      >
-                        <Trash2 className="gba:h-4 gba:w-4" />
+                  {availableEntities.length === 0 && !isLoadingEntities && (
+                    <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
+                      <AlertCircle className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2" />
+                      <p>No entities available</p>
+                      <Button variant="outline" size="sm" onClick={fetchAvailableEntities} className="gba:mt-2">
+                        <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
+                        Retry
                       </Button>
                     </div>
-                  ))}
-
-                  {filters.conditions.length === 0 && (
-                    <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:border gba:border-dashed gba:rounded-lg">
-                      <Filter className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                      <p>No filters configured</p>
-                      <p className="gba:text-sm">All records will be loaded</p>
-                    </div>
                   )}
                 </div>
+              </TabsContent>
 
-                {/* Preview button */}
-                <div className="gba:flex gba:items-center gba:gap-4 gba:pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={handlePreview}
-                    disabled={loadState.isLoading}
-                  >
-                    {loadState.isLoading ? (
-                      <Loader2 className="gba:h-4 gba:w-4 gba:mr-2 gba:animate-spin" />
-                    ) : (
-                      <Search className="gba:h-4 gba:w-4 gba:mr-2" />
-                    )}
-                    Preview Results
-                  </Button>
-                  {previewCount !== null && (
-                    <span className="gba:text-sm gba:text-muted-foreground">
-                      {previewCount.toLocaleString()} records match these filters
-                    </span>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Fields Tab */}
-            <TabsContent value="fields" className="gba:m-0 gba:h-full">
-              <div className="gba:space-y-4">
-                <div className="gba:flex gba:items-center gba:justify-between">
-                  <div>
-                    <Label className="gba:text-sm gba:font-medium">Field Selection</Label>
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      Choose which fields to include in the spreadsheet.
-                    </p>
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFieldMappings(prev => prev.map(m => ({ ...m, include: true })))}
-                    >
-                      Select All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFieldMappings(prev => prev.map(m => ({ ...m, include: false })))}
-                    >
-                      Deselect All
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Search */}
-                <div className="gba:relative">
-                  <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                  <Input
-                    placeholder="Search fields..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="gba:pl-9"
-                  />
-                </div>
-
-                <Separator />
-
-                {/* Fields list */}
-                <div className="gba:space-y-2">
-                  {fieldMappings.map(mapping => {
-                    const isFiltered = searchQuery && !filteredFields.some(f => f.name === mapping.entityField)
-                    if (isFiltered) return null
-
-                    return (
-                      <div
-                        key={mapping.entityField}
-                        className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg gba:bg-card"
-                      >
-                        <Checkbox
-                          checked={mapping.include}
-                          onCheckedChange={() => toggleFieldInclusion(mapping.entityField)}
-                        />
-                        <div className="gba:flex-1">
-                          <div className="gba:font-medium">{mapping.entityFieldLabel}</div>
-                          <div className="gba:text-sm gba:text-muted-foreground">{mapping.entityField}</div>
-                        </div>
-                        <Badge variant="secondary">{mapping.entityFieldType}</Badge>
-                      </div>
-                    )
-                  })}
-
-                  {fieldMappings.length === 0 && (
-                    <div className="gba:text-center gba:py-6 gba:text-muted-foreground">
-                      <Columns className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                      <p>No fields available</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Settings Tab */}
-            <TabsContent value="settings" className="gba:m-0 gba:h-full">
-              <div className="gba:space-y-6">
-                {/* Limit */}
-                <div className="gba:space-y-2">
-                  <Label>Maximum Records</Label>
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    Limit the number of records loaded. Set to 0 for no limit.
-                  </p>
-                  <Input
-                    type="number"
-                    value={limit}
-                    onChange={e => setLimit(Number(e.target.value) || 0)}
-                    min={0}
-                    max={10000}
-                    className="gba:w-32"
-                  />
-                </div>
-
-                <Separator />
-
-                {/* Sort configuration */}
-                <div className="gba:space-y-3">
+              {/* Filters Tab */}
+              <TabsContent value="filters" className="gba:m-0 gba:pr-4">
+                <div className="gba:space-y-4">
                   <div className="gba:flex gba:items-center gba:justify-between">
                     <div>
-                      <Label>Sort Order</Label>
+                      <Label className="gba:text-sm gba:font-medium">Filter Conditions</Label>
                       <p className="gba:text-sm gba:text-muted-foreground">
-                        Define how records should be sorted.
+                        Define criteria to filter which records are loaded.
                       </p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={addSortConfig}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addFilterCondition}
+                      data-testid={`${testId}-add-filter`}
+                    >
                       <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
-                      Add Sort
+                      Add Filter
                     </Button>
                   </div>
 
-                  {orderBy.map((sort, index) => (
-                    <div key={index} className="gba:flex gba:items-center gba:gap-2">
-                      <Select
-                        value={sort.field}
-                        onValueChange={value =>
-                          setOrderBy(prev =>
-                            prev.map((s, i) =>
-                              i === index ? { ...s, field: value } : s
-                            )
-                          )
-                        }
+                  {/* Logic toggle */}
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <span className="gba:text-sm gba:text-muted-foreground">Match</span>
+                    <Button
+                      variant={filters.logic === 'AND' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilters(prev => ({ ...prev, logic: 'AND' }))}
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={filters.logic === 'OR' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilters(prev => ({ ...prev, logic: 'OR' }))}
+                    >
+                      Any
+                    </Button>
+                    <span className="gba:text-sm gba:text-muted-foreground">conditions</span>
+                  </div>
+
+                  <Separator />
+
+                  {/* Filter conditions list */}
+                  <div className="gba:space-y-3">
+                    {filters.conditions.map(condition => (
+                      <div
+                        key={condition.id}
+                        className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:border gba:rounded-lg gba:bg-card"
                       >
-                        <SelectTrigger className="gba:flex-1">
-                          <SelectValue placeholder="Select field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {selectedEntityFields.map(field => (
-                            <SelectItem key={field.name} value={field.name}>
-                              {field.displayName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={sort.direction}
-                        onValueChange={value =>
-                          setOrderBy(prev =>
-                            prev.map((s, i) =>
-                              i === index ? { ...s, direction: value as EntitySortConfig['direction'] } : s
-                            )
-                          )
-                        }
-                      >
-                        <SelectTrigger className="gba:w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ASC_NULLS_LAST">Ascending</SelectItem>
-                          <SelectItem value="DESC_NULLS_LAST">Descending</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        {/* Field selector */}
+                        <Select
+                          value={condition.field}
+                          onValueChange={value => {
+                            const field = selectedEntityFields.find(f => f.name === value)
+                            updateFilterCondition(condition.id, {
+                              field: value,
+                              fieldLabel: field?.displayName || value
+                            })
+                          }}
+                        >
+                          <SelectTrigger className="gba:w-[180px]">
+                            <SelectValue placeholder="Select field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {selectedEntityFields.map(field => (
+                              <SelectItem key={field.name} value={field.name}>
+                                {field.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Operator selector */}
+                        <Select
+                          value={condition.operator}
+                          onValueChange={value =>
+                            updateFilterCondition(condition.id, {
+                              operator: value as EntityFilterOperator
+                            })
+                          }
+                        >
+                          <SelectTrigger className="gba:w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FILTER_OPERATORS.map(op => (
+                              <SelectItem key={op.value} value={op.value}>
+                                {op.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Value input (hidden for isNull/isNotNull) */}
+                        {!['isNull', 'isNotNull'].includes(condition.operator) && (
+                          <Input
+                            value={String(condition.value || '')}
+                            onChange={e =>
+                              updateFilterCondition(condition.id, {
+                                value: e.target.value
+                              })
+                            }
+                            placeholder="Value..."
+                            className="gba:flex-1"
+                          />
+                        )}
+
+                        {/* Active toggle */}
+                        <Checkbox
+                          checked={condition.isActive}
+                          onCheckedChange={checked =>
+                            updateFilterCondition(condition.id, {
+                              isActive: checked === true
+                            })
+                          }
+                        />
+
+                        {/* Remove button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeFilterCondition(condition.id)}
+                          className="gba:text-destructive gba:hover:text-destructive"
+                        >
+                          <Trash2 className="gba:h-4 gba:w-4" />
+                        </Button>
+                      </div>
+                    ))}
+
+                    {filters.conditions.length === 0 && (
+                      <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:border gba:border-dashed gba:rounded-lg">
+                        <Filter className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
+                        <p>No filters configured</p>
+                        <p className="gba:text-sm">All records will be loaded</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Preview button */}
+                  <div className="gba:flex gba:items-center gba:gap-4 gba:pt-2">
+                    <Button variant="outline" onClick={handlePreview} disabled={loadState.isLoading}>
+                      {loadState.isLoading ? (
+                        <Loader2 className="gba:h-4 gba:w-4 gba:mr-2 gba:animate-spin" />
+                      ) : (
+                        <Search className="gba:h-4 gba:w-4 gba:mr-2" />
+                      )}
+                      Preview Results
+                    </Button>
+                    {previewCount !== null && (
+                      <span className="gba:text-sm gba:text-muted-foreground">
+                        {previewCount.toLocaleString()} records match these filters
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Fields Tab */}
+              <TabsContent value="fields" className="gba:m-0 gba:pr-4">
+                <div className="gba:space-y-4">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <div>
+                      <Label className="gba:text-sm gba:font-medium">Field Selection</Label>
+                      <p className="gba:text-sm gba:text-muted-foreground">
+                        Choose which fields to include in the spreadsheet.
+                      </p>
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeSortConfig(index)}
-                        className="gba:text-destructive"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFieldMappings(prev => prev.map(m => ({ ...m, include: true })))}
                       >
-                        <Trash2 className="gba:h-4 gba:w-4" />
+                        Select All
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFieldMappings(prev => prev.map(m => ({ ...m, include: false })))}
+                      >
+                        Deselect All
                       </Button>
                     </div>
-                  ))}
-                </div>
+                  </div>
 
-                <Separator />
+                  {/* Search */}
+                  <div className="gba:relative">
+                    <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                    <Input
+                      placeholder="Search fields..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="gba:pl-9"
+                    />
+                  </div>
 
-                {/* Refresh mode */}
-                <div className="gba:space-y-2">
-                  <Label>Data Refresh</Label>
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    When should the data be refreshed?
-                  </p>
-                  <Select
-                    value={refreshMode}
-                    onValueChange={value => setRefreshMode(value as 'manual' | 'onOpen')}
-                  >
-                    <SelectTrigger className="gba:w-64">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="onOpen">When sheet is opened</SelectItem>
-                      <SelectItem value="manual">Manual refresh only</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Separator />
+
+                  {/* Fields list */}
+                  <div className="gba:space-y-2">
+                    {fieldMappings.map(mapping => {
+                      const isFiltered = searchQuery && !filteredFields.some(f => f.name === mapping.entityField)
+                      if (isFiltered) return null
+
+                      return (
+                        <div
+                          key={mapping.entityField}
+                          className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg gba:bg-card"
+                        >
+                          <Checkbox
+                            checked={mapping.include}
+                            onCheckedChange={() => toggleFieldInclusion(mapping.entityField)}
+                          />
+                          <div className="gba:flex-1">
+                            <div className="gba:font-medium">{mapping.entityFieldLabel}</div>
+                            <div className="gba:text-sm gba:text-muted-foreground">{mapping.entityField}</div>
+                          </div>
+                          <Badge variant="secondary">{mapping.entityFieldType}</Badge>
+                        </div>
+                      )
+                    })}
+
+                    {fieldMappings.length === 0 && (
+                      <div className="gba:text-center gba:py-6 gba:text-muted-foreground">
+                        <Columns className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
+                        <p>No fields available</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </TabsContent>
-          </ScrollArea>
+              </TabsContent>
+
+              {/* Settings Tab */}
+              <TabsContent value="settings" className="gba:m-0 gba:pr-4">
+                <div className="gba:space-y-6">
+                  {/* Limit */}
+                  <div className="gba:space-y-2">
+                    <Label>Maximum Records</Label>
+                    <p className="gba:text-sm gba:text-muted-foreground">
+                      Limit the number of records loaded. Set to 0 for no limit.
+                    </p>
+                    <Input
+                      type="number"
+                      value={limit}
+                      onChange={e => setLimit(Number(e.target.value) || 0)}
+                      min={0}
+                      max={10000}
+                      className="gba:w-32"
+                    />
+                  </div>
+
+                  <Separator />
+
+                  {/* Sort configuration */}
+                  <div className="gba:space-y-3">
+                    <div className="gba:flex gba:items-center gba:justify-between">
+                      <div>
+                        <Label>Sort Order</Label>
+                        <p className="gba:text-sm gba:text-muted-foreground">Define how records should be sorted.</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={addSortConfig}>
+                        <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+                        Add Sort
+                      </Button>
+                    </div>
+
+                    {orderBy.map((sort, index) => (
+                      <div key={index} className="gba:flex gba:items-center gba:gap-2">
+                        <Select
+                          value={sort.field}
+                          onValueChange={value =>
+                            setOrderBy(prev => prev.map((s, i) => (i === index ? { ...s, field: value } : s)))
+                          }
+                        >
+                          <SelectTrigger className="gba:flex-1">
+                            <SelectValue placeholder="Select field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {selectedEntityFields.map(field => (
+                              <SelectItem key={field.name} value={field.name}>
+                                {field.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={sort.direction}
+                          onValueChange={value =>
+                            setOrderBy(prev =>
+                              prev.map((s, i) =>
+                                i === index ? { ...s, direction: value as EntitySortConfig['direction'] } : s
+                              )
+                            )
+                          }
+                        >
+                          <SelectTrigger className="gba:w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ASC_NULLS_LAST">Ascending</SelectItem>
+                            <SelectItem value="DESC_NULLS_LAST">Descending</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeSortConfig(index)}
+                          className="gba:text-destructive"
+                        >
+                          <Trash2 className="gba:h-4 gba:w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Separator />
+
+                  {/* Refresh mode */}
+                  <div className="gba:space-y-2">
+                    <Label>Data Refresh</Label>
+                    <p className="gba:text-sm gba:text-muted-foreground">When should the data be refreshed?</p>
+                    <Select value={refreshMode} onValueChange={value => setRefreshMode(value as 'manual' | 'onOpen')}>
+                      <SelectTrigger className="gba:w-64">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="onOpen">When sheet is opened</SelectItem>
+                        <SelectItem value="manual">Manual refresh only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </TabsContent>
+            </ScrollArea>
+          </div>
         </Tabs>
 
         <DialogFooter className="gba:mt-4">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!selectedEntityType}
-            data-testid={`${testId}-save`}
-          >
+          <Button onClick={handleSave} disabled={!selectedEntityType} data-testid={`${testId}-save`}>
             <Database className="gba:h-4 gba:w-4 gba:mr-2" />
             {initialDataSource ? 'Update Connection' : 'Connect Entity'}
           </Button>

@@ -11,6 +11,7 @@ import {
 import { Phone, PhoneOff, Video, Users } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { GroupCallInvite } from '../hooks/useGroupCall'
+import { debugLog } from '../utils/debugLog'
 
 interface IncomingGroupCallDialogProps {
   invite: GroupCallInvite
@@ -89,7 +90,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = (
           if (oscillator) oscillator.stop()
         }, 200)
       } catch (e) {
-        console.debug('Could not play ringtone:', e)
+        debugLog('Could not play ringtone:', e)
       }
     }
 
