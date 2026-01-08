@@ -2,31 +2,25 @@ import type { EmployeeSalaryRecord } from '../types'
 
 /**
  * Find active salary from a list of employee salaries
- * Logic: activeFrom <= now AND (activeTo >= now OR activeTo IS NULL)
- * Falls back to most recent salary if no active salary found
  *
- * Note: Uses Date object comparison for consistency with useCurrentCompensation.ts
+ * NOTE: As of the latest update, the GraphQL query (EMPLOYEE_COMPENSATION_QUERY) now performs
+ * server-side filtering and returns at most 1 approved active salary (limit: 1).
+ *
+ * Server-side filters applied:
+ * - requestStatus = "APPROVED_SALARY_ADJUSTMENT" (only approved salaries)
+ * - startDate <= today AND (endDate IS NULL OR endDate >= today)
+ * - isDeleted = false
+ * - Ordered by startDate DESC (most recent first)
+ *
+ * This function now simply returns the first element (which is already the active salary)
+ * or null if no salary exists.
  */
 export const findActiveSalary = (salaries: EmployeeSalaryRecord[]): EmployeeSalaryRecord | null => {
   if (!salaries || salaries.length === 0) {
     return null
   }
 
-  const nowDate = new Date()
-
-  // Find active salary based on date range
-  const activeSalary = salaries.find(salary => {
-    const activeFrom = salary.activeFrom ? new Date(salary.activeFrom) : null
-    const activeTo = salary.activeTo ? new Date(salary.activeTo) : null
-
-    // Null activeFrom means always valid from beginning
-    // Null activeTo means never expires
-    const isActiveFrom = !activeFrom || activeFrom <= nowDate
-    const isActiveTo = !activeTo || activeTo >= nowDate
-
-    return isActiveFrom && isActiveTo
-  })
-
-  // Fallback to most recent salary (first in array since ordered by activeFrom DESC, createdAt DESC)
-  return activeSalary || salaries[0] || null
+  // Server already filtered and limited to 1 approved active salary
+  // Just return the first (and only) element
+  return salaries[0] || null
 }
