@@ -20,7 +20,7 @@ import { sanitizeInvestment } from './utils/sanitizeInvestment'
 import { buildInvestmentPayload } from '@/common/data/investment/types/investmentTypes.new'
 import GroupSelectSegment from './segments/InvestmentGroupSegment'
 import { Badge } from '@newwork/nw-design-system'
-import { PiSwap } from 'react-icons/pi'
+import { SwapIcon } from '@phosphor-icons/react'
 
 type InvestmentFormProps = BusinessAppContextProps
 
@@ -389,7 +389,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
               data-testid={formatDataTestId(prefixDataTestId, 'back-badge')}
             >
               Back
-              <PiSwap className="gba:w-3.5 gba:h-3.5 gba:opacity-70" />
+              <SwapIcon className="gba:w-3.5 gba:h-3.5 gba:opacity-70" />
             </Badge>
           </div>
         )}

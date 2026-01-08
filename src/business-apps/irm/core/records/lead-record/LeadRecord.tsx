@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
   TooltipContent
 } from '@newwork/nw-design-system'
-import { UsersIcon, FileTextIcon, AddressBookIcon } from '@phosphor-icons/react'
+import { UsersIcon, FileTextIcon, AddressBookIcon, RobotIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -41,7 +41,6 @@ import SectionWrapper from '@/common/components/common-relations/record-sections
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AppAction } from '@/components/app-action'
-import { Bot, Flag } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
 import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
@@ -328,7 +327,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                 variant="warning"
                 className="gba:rounded-full gba:p-1 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center"
               >
-                <Flag className="gba:h-3 gba:w-3" data-testid="lead-sensitive-badge-icon" />
+                <FlagIcon className="gba:h-3 gba:w-3" data-testid="lead-sensitive-badge-icon" />
               </Badge>
             </TooltipTrigger>
             <TooltipContent data-testid="lead-sensitive-tooltip">
@@ -375,7 +374,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       {
         key: 'ai-summary',
         label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <Bot size={16} />,
+        icon: <RobotIcon size={16} />,
         hook: aiSummary,
         config: {
           entityType: 'lead',

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon, LightbulbIcon } from '@phosphor-icons/react'
-import { Bot } from 'lucide-react'
+import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon, LightbulbIcon, RobotIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -74,7 +73,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
   // Use shared hook for fetching pipeline stages and catalog conditions
   const { opportunityStages, catalogStageConditions, loadingStages, stagesError } = useOpportunityPipelineStages({
-    opportunityData,
+    opportunityData: opportunityData ?? undefined,
     stageConditionCatalog: 'SalesPipelineStageCondition',
     accessToken: props.accessToken,
     contextLabel: 'customer'
@@ -428,7 +427,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       {
         key: 'ai-summary',
         label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <Bot size={16} />,
+        icon: <RobotIcon size={16} />,
         hook: aiSummaryHook,
         config: {
           entityType: 'opportunity',

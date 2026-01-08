@@ -21,8 +21,7 @@ import {
   IconAvatar
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { ChartLineIcon, CalendarIcon } from '@phosphor-icons/react'
-import { RefreshCwIcon } from 'lucide-react'
+import { ChartLineIcon, CalendarIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { type TeamComparisonData, type TeamRevenueTrendPoint, type TimeFilter } from '../types'
 import { type Pipeline } from '../hooks'
 
@@ -145,7 +144,7 @@ export const TeamComparisonChart: React.FC<TeamComparisonChartProps> = ({
           </Alert>
           {onRetry && (
             <Button variant="outline" size="sm" onClick={onRetry}>
-              <RefreshCwIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+              <ArrowClockwiseIcon className="gba:mr-2 gba:h-4 gba:w-4" />
               Retry
             </Button>
           )}

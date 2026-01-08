@@ -2,14 +2,14 @@ import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { Spinner, RecordLayout, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import {
   PiChartLine,
-  PiListChecks,
-  PiCalendar,
-  PiUser,
-  PiEnvelope,
-  PiPhone,
-  PiDeviceMobile,
-  PiMapPin
-} from 'react-icons/pi'
+  ListChecksIcon,
+  CalendarIcon,
+  UserIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  DeviceMobileIcon,
+  MapPinIcon
+} from '@phosphor-icons/react'
 import { SalesPerformanceTab, SalesActivitiesTab } from './components/tabs'
 import { ActivitiesCalendar } from './components/activities/ActivitiesCalendar'
 import { useEmployeePerformanceData } from './hooks/useEmployeePerformanceData'
@@ -177,15 +177,15 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
         {/* Country - SECOND */}
         {headerData.country && (
           <>
-            <ContactInfoItem icon={PiMapPin} label="Country" value={headerData.country} />
+            <ContactInfoItem icon={MapPinIcon} label="Country" value={headerData.country} />
             <HeaderSeparator />
           </>
         )}
 
         {/* Contact Info - AFTER */}
-        {headerData.email && <ContactInfoItem icon={PiEnvelope} label="Email" value={headerData.email} />}
-        {headerData.phone && <ContactInfoItem icon={PiPhone} label="Phone" value={headerData.phone} />}
-        {headerData.mobile && <ContactInfoItem icon={PiDeviceMobile} label="Mobile" value={headerData.mobile} />}
+        {headerData.email && <ContactInfoItem icon={EnvelopeIcon} label="Email" value={headerData.email} />}
+        {headerData.phone && <ContactInfoItem icon={PhoneIcon} label="Phone" value={headerData.phone} />}
+        {headerData.mobile && <ContactInfoItem icon={DeviceMobileIcon} label="Mobile" value={headerData.mobile} />}
       </div>
     )
   }, [headerData])
@@ -223,7 +223,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
         {
           value: 'activities',
           label: getTranslationFromI18nKeyAndLabel('crm.performance.salesActivities', 'Sales Activities'),
-          icon: <PiListChecks className="gba:mr-2" />,
+          icon: <ListChecksIcon className="gba:mr-2" />,
           contentClassName: wideContentClassName, // FULL WIDTH FOR TABLES
           content: (
             <div data-testid={`${DATA_TEST_ID_PREFIX}-activities-content`}>
@@ -239,7 +239,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
         {
           value: 'calendar',
           label: getTranslationFromI18nKeyAndLabel('crm.performance.activityCalendar', 'Activity Calendar'),
-          icon: <PiCalendar className="gba:mr-2" />,
+          icon: <CalendarIcon className="gba:mr-2" />,
           contentClassName: wideContentClassName, // FULL WIDTH FOR CALENDAR
           content: (
             <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`}>
@@ -285,7 +285,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
       </style>
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={PiUser}
+        headerIcon={UserIcon}
         headerImageSrc={
           headerData?.pictureThumbnail ? `data:image/jpeg;base64,${headerData.pictureThumbnail}` : undefined
         }
