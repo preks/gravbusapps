@@ -1,7 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
-import { TrendingUp } from 'lucide-react'
-import { PencilIcon } from '@phosphor-icons/react'
+import { TrendUpIcon, PencilIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
@@ -108,7 +107,7 @@ const RealEstateLiquidityForecast: React.FC<RealEstateLiquidityForecastProps> = 
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
-              <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />
+              <TrendUpIcon className="gba:h-5 gba:w-5 gba:text-blue-600" />
               Liquidity Forecast
             </CardTitle>
             {realEstateData?.investment?.id && (
@@ -149,7 +148,7 @@ const RealEstateLiquidityForecast: React.FC<RealEstateLiquidityForecastProps> = 
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
-            <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />
+            <TrendUpIcon className="gba:h-5 gba:w-5 gba:text-blue-600" />
             Liquidity Forecast
           </CardTitle>
           {realEstateData?.investment?.id && (

@@ -49,6 +49,7 @@ import { getCategoryIcon } from '../../../utils/iconMapping'
 import { useRealEmployeeData, getEmployeeOptions } from '../hooks/useRealEmployeeData'
 import { flowbotClient } from '@/common/network/flowbot'
 import { parseMarkdownForReact } from '@/common/utils/markdownUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { DataSourceSelect } from './DataSourceSelect'
 import { DataSourceMultiSelect } from './DataSourceMultiSelect'
 import { MessageRenderer } from '../../../components/MessageRenderer'
@@ -231,30 +232,66 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         setIsUploadingFiles(true)
         setUploadProgress('Preparing file uploads...')
 
-        for (const { fieldName, files } of filesToUpload) {
-          setUploadProgress(`Uploading files for ${fieldName}...`)
+        // Calculate total file size for validation
+        const totalFileSize = filesToUpload.reduce((total, { files }) => {
+          return total + files.reduce((sum, file) => sum + file.size, 0)
+        }, 0)
 
-          try {
-            // Generate a temporary request ID for file organization
-            const tempRequestId = `temp/${Date.now()}`
-
-            // Upload files for this field
-            const uploadResults = await uploadFiles(files, tempRequestId)
-
-            // Serialize and store upload results
-            const serializedResults = serializeUploadResults(uploadResults)
-            finalFormData[`${fieldName}_uploadResults`] = serializedResults
-
-            console.log(`🔍 [RequestForm] Uploaded files for ${fieldName}:`, serializedResults)
-          } catch (uploadErr) {
-            throw new Error(
-              `Failed to upload files for ${fieldName}: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`
-            )
-          }
+        // Validate total file size (e.g., 100MB limit for all files combined)
+        const MAX_TOTAL_SIZE = 100 * 1024 * 1024 // 100MB
+        if (totalFileSize > MAX_TOTAL_SIZE) {
+          throw new Error(
+            `Total file size (${(totalFileSize / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed (${MAX_TOTAL_SIZE / 1024 / 1024}MB)`
+          )
         }
 
-        setUploadProgress('Files uploaded successfully!')
-        setIsUploadingFiles(false)
+        try {
+          for (const { fieldName, files } of filesToUpload) {
+            setUploadProgress(
+              `Uploading files for ${fieldName}... (${files.length} file${files.length > 1 ? 's' : ''})`
+            )
+
+            try {
+              // Generate a temporary request ID for file organization
+              // Note: Files will be in temp folder until workflow moves them to permanent location
+              const tempRequestId = `temp/${Date.now()}`
+
+              // Upload files for this field
+              const uploadResults = await uploadFiles(files, tempRequestId)
+
+              // Validate upload results
+              if (!uploadResults || uploadResults.length === 0) {
+                throw new Error('File upload completed but no results were returned')
+              }
+
+              if (uploadResults.length !== files.length) {
+                console.warn(
+                  `⚠️ [RequestForm] Upload count mismatch for ${fieldName}: expected ${files.length}, got ${uploadResults.length}`
+                )
+              }
+
+              // Serialize and store upload results directly in the original field
+              const serializedResults = serializeUploadResults(uploadResults)
+              finalFormData[fieldName] = serializedResults
+
+              console.log(
+                `✅ [RequestForm] Uploaded ${uploadResults.length} file(s) for ${fieldName}:`,
+                serializedResults
+              )
+            } catch (uploadErr) {
+              // Provide detailed error information for debugging
+              const errorDetails = uploadErr instanceof Error ? uploadErr.message : 'Unknown error'
+              console.error(`❌ [RequestForm] Upload failed for ${fieldName}:`, uploadErr)
+
+              throw new Error(`Failed to upload files for field "${fieldName}": ${errorDetails}`)
+            }
+          }
+
+          setUploadProgress('Files uploaded successfully!')
+          console.log('✅ [RequestForm] All files uploaded successfully')
+        } finally {
+          setIsUploadingFiles(false)
+        }
       }
 
       // Step 3: Submit the form with upload results
@@ -267,12 +304,12 @@ export const RequestForm: React.FC<RequestFormProps> = ({
           console.log('🔍 [RequestForm] Complete form data before submission:', finalFormData)
 
           // Debug: Log file upload results specifically
-          Object.keys(finalFormData).forEach(key => {
-            if (key.endsWith('_uploadResults')) {
-              console.log(`🔍 [RequestForm] File upload results for ${key}:`, finalFormData[key])
+          fileFields.forEach(field => {
+            if (finalFormData[field.name] && Array.isArray(finalFormData[field.name])) {
+              console.log(`🔍 [RequestForm] File upload results for ${field.name}:`, finalFormData[field.name])
               console.log(
                 `🔍 [RequestForm] File upload results stringified:`,
-                JSON.stringify(finalFormData[key], null, 2)
+                JSON.stringify(finalFormData[field.name], null, 2)
               )
             }
           })
@@ -327,6 +364,13 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         message: errorMessage,
         payload: actualPayload || completePayload // Use actual payload if available, fallback to mock
       })
+
+      // Note: If files were uploaded but form submission failed, files remain in temp folder
+      // Backend should have a cleanup job to remove temp files older than X hours/days
+      // Or workflow engine should move temp files to permanent location on successful workflow start
+      if (isUploadingFiles || uploadProgress) {
+        console.warn('⚠️ [RequestForm] Form submission failed after file upload. Files may remain in temp folder.')
+      }
     } finally {
       setIsLoading(false)
       setIsUploadingFiles(false)
@@ -548,7 +592,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
         payload: {
           apiCall: {
             endpoint: 'POST /flowbot/services/quick-tips-for-ticket/',
-            baseUrl: 'https://newwork-dev.newwork.com/flowbot'
+            baseUrl: resolveFlowbotBaseUrl()
           },
           error: errorMessage,
           ticketData
@@ -782,7 +826,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
                               id={field.name}
                               value={formData[field.name] || ''}
                               onChange={value => handleFieldChange(field.name, value)}
-                              dataSource={field.dataSource!}
+                              dataSource={field.dataSource?.type === 'ENTITY' ? field.dataSource : undefined}
                               accessToken={contextProps.accessToken}
                               placeholder={field.placeholder || `Search ${field.label}...`}
                               required={field.required}
@@ -892,7 +936,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
                               id={field.name}
                               value={Array.isArray(formData[field.name]) ? formData[field.name] : []}
                               onChange={values => handleFieldChange(field.name, values)}
-                              dataSource={field.dataSource!}
+                              dataSource={field.dataSource?.type === 'ENTITY' ? field.dataSource : undefined}
                               accessToken={contextProps.accessToken}
                               placeholder={field.placeholder || `Search ${field.label}...`}
                               required={field.required}

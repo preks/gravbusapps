@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { PiUsers, PiBuilding, PiUser, PiChartLine } from 'react-icons/pi'
+import { UsersIcon, BuildingIcon, UserIcon, ChartLineIcon } from '@phosphor-icons/react'
 
 interface SimpleBypassProps {
   onSelectView: (view: 'company' | 'team' | 'individual') => void
@@ -19,13 +19,13 @@ export const SimpleBypass: React.FC<SimpleBypassProps> = ({ onSelectView }) => {
             <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-6 gba:mt-8">
               <Card className="gba:border gba:hover:shadow-md gba:transition-shadow">
                 <CardContent className="gba:p-6 gba:text-center">
-                  <PiBuilding className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-blue-600" />
+                  <BuildingIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-blue-600" />
                   <h3 className="gba:text-lg gba:font-semibold gba:mb-2">CEO Dashboard</h3>
                   <p className="gba:text-gray-600 gba:mb-4 gba:text-sm">
                     Cross-team comparison with charts and rankings
                   </p>
                   <Button onClick={() => onSelectView('company')} className="gba:w-full">
-                    <PiChartLine className="gba:w-4 gba:h-4 gba:mr-2" />
+                    <ChartLineIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                     View Company Dashboard
                   </Button>
                 </CardContent>
@@ -33,11 +33,11 @@ export const SimpleBypass: React.FC<SimpleBypassProps> = ({ onSelectView }) => {
 
               <Card className="gba:border gba:hover:shadow-md gba:transition-shadow">
                 <CardContent className="gba:p-6 gba:text-center">
-                  <PiUsers className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-green-600" />
+                  <UsersIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-green-600" />
                   <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Team Manager</h3>
                   <p className="gba:text-gray-600 gba:mb-4 gba:text-sm">Team performance with member management</p>
                   <Button onClick={() => onSelectView('team')} variant="secondary" className="gba:w-full">
-                    <PiUsers className="gba:w-4 gba:h-4 gba:mr-2" />
+                    <UsersIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                     View Team Dashboard
                   </Button>
                 </CardContent>
@@ -45,11 +45,11 @@ export const SimpleBypass: React.FC<SimpleBypassProps> = ({ onSelectView }) => {
 
               <Card className="gba:border gba:hover:shadow-md gba:transition-shadow">
                 <CardContent className="gba:p-6 gba:text-center">
-                  <PiUser className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-purple-600" />
+                  <UserIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-purple-600" />
                   <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Individual Rep</h3>
                   <p className="gba:text-gray-600 gba:mb-4 gba:text-sm">Personal performance with benchmarks</p>
                   <Button onClick={() => onSelectView('individual')} variant="outline" className="gba:w-full">
-                    <PiUser className="gba:w-4 gba:h-4 gba:mr-2" />
+                    <UserIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                     View Personal Dashboard
                   </Button>
                 </CardContent>

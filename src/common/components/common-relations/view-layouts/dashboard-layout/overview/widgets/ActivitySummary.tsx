@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, EmptyState } from '@newwork/nw-design-system'
 import { Calendar } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -128,14 +128,12 @@ export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activities, so
             ))}
           </div>
         ) : (
-          <div className="gba:h-64 gba:flex gba:items-center gba:justify-center">
-            <div className="gba:text-center">
-              <div className="gba:w-16 gba:h-16 gba:mx-auto gba:bg-orange-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mb-4">
-                <Calendar className="gba:h-8 gba:w-8 gba:text-orange-500" />
-              </div>
-              <div className="gba:text-gray-600 gba:text-lg">No activities scheduled for today.</div>
-            </div>
-          </div>
+          <EmptyState
+            type="no-data"
+            title="No Activities"
+            description="No activities scheduled for today."
+            data-testid="activity-summary-empty-state"
+          />
         )}
       </CardContent>
     </Card>

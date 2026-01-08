@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { BarChartOutlined, PlayCircleOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { ChartBarIcon, PlayIcon, CheckCircleIcon, ClockIcon } from '@phosphor-icons/react'
 import { SalesCampaignStatistics } from './types/SalesCampaignTypes'
 
 interface CampaignStatisticsProps {
@@ -47,7 +47,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       key: 'total-campaigns',
       title: 'Total Campaigns',
       value: statistics.totalCampaigns,
-      prefix: <BarChartOutlined />,
+      prefix: <ChartBarIcon />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'All campaigns in the system',
@@ -59,7 +59,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       key: 'active-campaigns',
       title: 'Active Campaigns',
       value: statistics.activeCampaigns,
-      prefix: <PlayCircleOutlined />,
+      prefix: <PlayIcon />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Currently running campaigns',
@@ -71,7 +71,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       key: 'completed-campaigns',
       title: 'Completed Campaigns',
       value: statistics.completedCampaigns,
-      prefix: <CheckCircleOutlined />,
+      prefix: <CheckCircleIcon />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Successfully finished campaigns',
@@ -84,7 +84,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       title: 'Average Duration',
       value: formatDuration(statistics.averageDuration),
       valueIsString: true,
-      prefix: <ClockCircleOutlined />,
+      prefix: <ClockIcon />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Average campaign duration in days',

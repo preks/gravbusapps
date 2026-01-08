@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
-import type { ConversationTurn, UserTurn, AgentTurn } from '../types/models'
+import type { ConversationTurn, UserTurn, AgentTurn, AnswerOutput } from '../types/models'
 import { OutputItemRenderer } from './OutputRenderers'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { CheckCircleIcon, CopyIcon, SparkleIcon } from '@phosphor-icons/react'
+import { CheckCircleIcon, CopyIcon, PencilSimple, SparkleIcon } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -20,6 +20,7 @@ interface ConversationRendererProps {
     isSearching?: boolean,
     mentions?: any
   ) => Promise<void>
+  editMessage?: (turnIndex: number, newText: string) => Promise<void>
   userInfo?: UserInfoProps
   pictureThumbnail: string | null
   isVoiceMode?: boolean
@@ -33,6 +34,14 @@ interface UserMessageProps {
   accessToken: string
   userInfo?: UserInfoProps
   pictureThumbnail: string | null
+  isEditing: boolean
+  editText: string
+  onEditStart: (text: string) => void
+  onEditCancel: () => void
+  onEditSave: (newText: string) => void
+  onEditTextChange: (text: string) => void
+  turns: ConversationTurn[]
+  turnIndex: number
 }
 
 // Build text with mentions
@@ -57,9 +66,52 @@ function buildTextWithMentions(text: string, mentions?: UserTurn['mentions']): s
   return result
 }
 
-// User Message with Copy functionality
-const UserMessage: React.FC<UserMessageProps> = ({ turn, accessToken, userInfo, pictureThumbnail }) => {
+function hasEntityCardsAfterTurn(turns: ConversationTurn[], turnIndex: number): boolean {
+  // Check all turns after the current user turn
+  for (let i = turnIndex + 1; i < turns.length; i++) {
+    const turn = turns[i]
+
+    // Only check agent turns
+    if (turn.side === 'agent') {
+      const agentTurn = turn as AgentTurn
+
+      // Check if any output contains entity cards
+      const hasEntityCards = agentTurn.outputs?.some(output => {
+        if (output.type === 'answer') {
+          const answerOutput = output as AnswerOutput
+          return answerOutput.displayData?.some(data => data.type === 'entity')
+        }
+        return false
+      })
+
+      if (hasEntityCards) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+// User Message with Copy and Edit functionality
+const UserMessage: React.FC<UserMessageProps> = ({
+  turn,
+  accessToken,
+  userInfo,
+  pictureThumbnail,
+  isEditing,
+  editText,
+  onEditStart,
+  onEditCancel,
+  onEditSave,
+  onEditTextChange,
+  turns,
+  turnIndex
+}) => {
   const [copied, setCopied] = useState(false)
+
+  // Check if editing is allowed (disabled if entity cards exist in history after this turn)
+  const canEdit = !hasEntityCardsAfterTurn(turns, turnIndex)
 
   // Parse JSON messages to show user-friendly text
   let displayText = turn.text || ''
@@ -84,6 +136,19 @@ const UserMessage: React.FC<UserMessageProps> = ({ turn, accessToken, userInfo, 
     } catch (err) {
       console.error('Failed to copy text:', err)
     }
+  }
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onEditStart(displayText)
+  }
+
+  const handleSaveEdit = () => {
+    onEditSave(editText)
+  }
+
+  const handleCancelEdit = () => {
+    onEditCancel()
   }
 
   return (
@@ -118,68 +183,120 @@ const UserMessage: React.FC<UserMessageProps> = ({ turn, accessToken, userInfo, 
       {turn.text && (
         <div className="gba:flex gba:items-end gba:gap-3 gba:justify-end">
           <div className="gba:relative gba:group">
-            <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:rounded-[20px] gba:blur-md gba:opacity-0 gba:group-hover:opacity-30 gba:transition-opacity" />
-            <div className="gba:max-w-md gba:rounded-[20px] gba:px-5 gba:py-3 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:text-foreground gba:shadow-lg gba:relative">
-              <div className="gba:prose gba:max-w-none gba:text-sm">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: ({ href, children, ...props }) => {
-                      if (href && href.startsWith('employee://')) {
-                        return (
-                          <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted-foreground/20 gba:text-muted-foreground gba:font-medium">
-                            @{children}
-                          </span>
-                        )
+            {isEditing ? (
+              <div className="gba:max-w-md gba:rounded-[20px] gba:px-5 gba:py-3 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:shadow-lg">
+                <textarea
+                  className="gba:w-full gba:min-h-[80px] gba:bg-background gba:text-foreground gba:text-sm gba:border gba:border-border gba:rounded-lg gba:p-2 gba:resize-none focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary"
+                  value={editText}
+                  onChange={e => onEditTextChange(e.target.value)}
+                  autoFocus
+                  data-testid="user-message-edit-textarea"
+                />
+                <div className="gba:flex gba:gap-2 gba:mt-2 gba:justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    data-testid="user-message-edit-cancel-button"
+                  >
+                    {getTranslationFromI18nKeyAndLabel('everyAI.message.edit.cancel', 'Cancel')}
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleSaveEdit}
+                    disabled={!editText.trim()}
+                    data-testid="user-message-edit-save-button"
+                  >
+                    {getTranslationFromI18nKeyAndLabel('everyAI.message.edit.save', 'Save')}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:rounded-[20px] gba:blur-md gba:opacity-0 gba:group-hover:opacity-30 gba:transition-opacity" />
+                <div className="gba:max-w-md gba:rounded-[20px] gba:px-5 gba:py-3 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:text-foreground gba:shadow-lg gba:relative">
+                  <div className="gba:prose gba:max-w-none gba:text-sm">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ href, children, ...props }) => {
+                          if (href && href.startsWith('employee://')) {
+                            return (
+                              <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted-foreground/20 gba:text-muted-foreground gba:font-medium">
+                                @{children}
+                              </span>
+                            )
+                          }
+                          return (
+                            <EntityLink href={href} accessToken={accessToken} {...props}>
+                              {children}
+                            </EntityLink>
+                          )
+                        }
+                      }}
+                      urlTransform={markdownUrlTransform}
+                    >
+                      {textWithMentions}
+                    </ReactMarkdown>
+                  </div>
+                  <div
+                    className="
+                      gba:absolute
+                      gba:top-full
+                      gba:right-2
+                      gba:mt-1
+                      gba:flex
+                      gba:items-center
+                      gba:gap-1
+                      gba:opacity-0
+                      gba:group-hover:opacity-100
+                      gba:transition-opacity
+                      gba:z-10
+                    "
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:h-7 gba:w-7 gba:p-0"
+                      onClick={handleCopy}
+                      data-testid="user-message-copy-button"
+                      disabled={!hasTextToCopy}
+                      aria-label={
+                        copied
+                          ? getTranslationFromI18nKeyAndLabel('everyAI.message.copy.copied', 'Message copied')
+                          : getTranslationFromI18nKeyAndLabel('everyAI.message.copy.label', 'Copy message')
                       }
-                      return (
-                        <EntityLink href={href} accessToken={accessToken} {...props}>
-                          {children}
-                        </EntityLink>
-                      )
-                    }
-                  }}
-                  urlTransform={markdownUrlTransform}
-                >
-                  {textWithMentions}
-                </ReactMarkdown>
-              </div>
-              <div
-                className="
-                  gba:absolute
-                  gba:top-full
-                  gba:right-2
-                  gba:mt-1
-                  gba:flex
-                  gba:items-center
-                  gba:gap-1
-                  gba:opacity-0
-                  gba:group-hover:opacity-100
-                  gba:transition-opacity
-                  gba:z-10
-                "
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gba:h-7 gba:w-7 gba:p-0"
-                  onClick={handleCopy}
-                  data-testid="user-message-copy-button"
-                  disabled={!hasTextToCopy}
-                  aria-label={
-                    copied
-                      ? getTranslationFromI18nKeyAndLabel('everyAI.message.copy.copied', 'Message copied')
-                      : getTranslationFromI18nKeyAndLabel('everyAI.message.copy.label', 'Copy message')
-                  }
-                >
-                  {copied ? (
-                    <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
-                  ) : (
-                    <CopyIcon className="gba:h-4 gba:w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
+                    >
+                      {copied ? (
+                        <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+                      ) : (
+                        <CopyIcon className="gba:h-4 gba:w-4" />
+                      )}
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:h-7 gba:w-7 gba:p-0"
+                      onClick={handleEdit}
+                      data-testid="user-message-edit-button"
+                      disabled={!canEdit}
+                      aria-label={
+                        canEdit
+                          ? getTranslationFromI18nKeyAndLabel('everyAI.message.edit.label', 'Edit message')
+                          : getTranslationFromI18nKeyAndLabel(
+                              'everyAI.message.edit.disabled',
+                              'Cannot edit - entity cards in history'
+                            )
+                      }
+                    >
+                      <PencilSimple className="gba:h-4 gba:w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           {userInfo?.employeeDetails && (
             <div className="gba:flex-shrink-0">
@@ -201,6 +318,7 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
   turns,
   accessToken,
   sendMessage,
+  editMessage,
   userInfo,
   pictureThumbnail,
   isVoiceMode = false,
@@ -208,6 +326,39 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
   onCancelGeneration,
   isAgentGenerating = false
 }) => {
+  const [editingTurnIndex, setEditingTurnIndex] = useState<number | null>(null)
+  const [editText, setEditText] = useState('')
+
+  const handleEditStart = (index: number, text: string) => {
+    setEditingTurnIndex(index)
+    setEditText(text)
+  }
+
+  const handleEditCancel = () => {
+    setEditingTurnIndex(null)
+    setEditText('')
+  }
+
+  const handleEditSave = async (newText: string) => {
+    if (editingTurnIndex === null || !newText.trim()) return
+
+    // Close edit mode immediately before async operation
+    const savedIndex = editingTurnIndex
+    setEditingTurnIndex(null)
+    setEditText('')
+
+    try {
+      if (editMessage) {
+        await editMessage(savedIndex, newText)
+      } else if (sendMessage) {
+        // Fallback to sending new message if editMessage is not available
+        await sendMessage(newText, [], false, false, undefined)
+      }
+    } catch (error) {
+      console.error('Failed to save edit:', error)
+    }
+  }
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-6">
       {turns.map((turn, idx) => {
@@ -221,6 +372,14 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
               pictureThumbnail={pictureThumbnail}
+              isEditing={editingTurnIndex === idx}
+              editText={editText}
+              onEditStart={text => handleEditStart(idx, text)}
+              onEditCancel={handleEditCancel}
+              onEditSave={newText => handleEditSave(newText)}
+              onEditTextChange={setEditText}
+              turns={turns}
+              turnIndex={idx}
             />
           )
         }

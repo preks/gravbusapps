@@ -1,20 +1,20 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { RecordLayout, Avatar, AvatarImage, AvatarFallback, Spinner } from '@newwork/nw-design-system'
 import {
-  PiListBullets,
-  PiCalendar,
-  PiUser,
-  PiBuilding,
-  PiTarget,
-  PiHandshake,
-  PiUserCircle,
-  PiChartLineUp,
-  PiEnvelope,
-  PiPhone,
-  PiDeviceMobile,
-  PiMapPin,
-  PiUsersThree
-} from 'react-icons/pi'
+  ListBulletsIcon,
+  CalendarIcon,
+  UserIcon,
+  BuildingIcon,
+  TargetIcon,
+  HandshakeIcon,
+  UserCircleIcon,
+  ChartLineUpIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  DeviceMobileIcon,
+  MapPinIcon,
+  UsersThreeIcon
+} from '@phosphor-icons/react'
 import { ActivityViewProps, ActivityViewFilter, ActivityTabType } from '../../types'
 import { Activity360ListTab } from '../tabs/Activity360ListTab'
 import { Activity360CalendarTab } from '../tabs/Activity360CalendarTab'
@@ -68,43 +68,43 @@ const getViewConfig = (filter: ActivityViewFilter) => {
     case 'all':
       return {
         category: 'ALL ACTIVITIES',
-        icon: PiListBullets,
+        icon: ListBulletsIcon,
         subtitle: 'Complete view of all activities across the organization'
       }
     case 'by-employee':
       return {
         category: 'EMPLOYEE ACTIVITIES',
-        icon: PiUser,
+        icon: UserIcon,
         subtitle: 'Individual employee performance and activities'
       }
     case 'by-account':
       return {
         category: 'ACCOUNT ACTIVITIES',
-        icon: PiBuilding,
+        icon: BuildingIcon,
         subtitle: 'Activities related to this account'
       }
     case 'by-contact':
       return {
         category: 'CONTACT ACTIVITIES',
-        icon: PiUserCircle,
+        icon: UserCircleIcon,
         subtitle: 'Touchpoints with this contact'
       }
     case 'by-lead':
       return {
         category: 'LEAD ACTIVITIES',
-        icon: PiTarget,
+        icon: TargetIcon,
         subtitle: 'Engagement activities for this lead'
       }
     case 'by-opportunity':
       return {
         category: 'OPPORTUNITY ACTIVITIES',
-        icon: PiHandshake,
+        icon: HandshakeIcon,
         subtitle: 'Deal-related activities'
       }
     default:
       return {
         category: 'ACTIVITIES',
-        icon: PiChartLineUp,
+        icon: ChartLineUpIcon,
         subtitle: 'Sales activities'
       }
   }
@@ -320,15 +320,15 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
         {/* Country - SECOND */}
         {employeeData.country && (
           <>
-            <ContactInfoItem icon={PiMapPin} label="Country" value={employeeData.country} />
+            <ContactInfoItem icon={MapPinIcon} label="Country" value={employeeData.country} />
             <HeaderSeparator />
           </>
         )}
 
         {/* Contact Info - AFTER */}
-        {employeeData.email && <ContactInfoItem icon={PiEnvelope} label="Email" value={employeeData.email} />}
-        {employeeData.phone && <ContactInfoItem icon={PiPhone} label="Phone" value={employeeData.phone} />}
-        {employeeData.mobile && <ContactInfoItem icon={PiDeviceMobile} label="Mobile" value={employeeData.mobile} />}
+        {employeeData.email && <ContactInfoItem icon={EnvelopeIcon} label="Email" value={employeeData.email} />}
+        {employeeData.phone && <ContactInfoItem icon={PhoneIcon} label="Phone" value={employeeData.phone} />}
+        {employeeData.mobile && <ContactInfoItem icon={DeviceMobileIcon} label="Mobile" value={employeeData.mobile} />}
       </div>
     )
   }, [filter, employeeData])
@@ -342,7 +342,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
       {
         value: 'list',
         label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityList', 'Activity List'),
-        icon: <PiListBullets className="gba:mr-2" />,
+        icon: <ListBulletsIcon className="gba:mr-2" />,
         contentClassName: wideContentClassName,
         content: (
           <div data-testid={`${DATA_TEST_ID_PREFIX}-list-content`}>
@@ -353,7 +353,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
       {
         value: 'calendar',
         label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityCalendar', 'Activity Calendar'),
-        icon: <PiCalendar className="gba:mr-2" />,
+        icon: <CalendarIcon className="gba:mr-2" />,
         contentClassName: wideContentClassName,
         content: (
           <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`}>
@@ -374,7 +374,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
       items.push({
         value: 'comparison',
         label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.employeeComparison', 'Employee Comparison'),
-        icon: <PiUsersThree className="gba:mr-2" />,
+        icon: <UsersThreeIcon className="gba:mr-2" />,
         contentClassName: wideContentClassName,
         content: (
           <div data-testid={`${DATA_TEST_ID_PREFIX}-comparison-content`}>

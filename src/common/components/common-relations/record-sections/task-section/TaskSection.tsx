@@ -6,7 +6,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  EmptyState
 } from '@newwork/nw-design-system'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
@@ -29,7 +30,6 @@ import {
   CalendarCheck
 } from '@phosphor-icons/react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import EmptyState from '@/components/empty-state/EmptyState'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
@@ -656,8 +656,10 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           </TooltipProvider>
         ) : (
           <EmptyState
+            type="no-data"
             title="No Tasks"
             description={getTranslationFromI18nKeyAndLabel('tasks.emptyState', 'No tasks yet. Create your first task.')}
+            data-testid="task-section-empty-state"
           />
         )}
       </div>

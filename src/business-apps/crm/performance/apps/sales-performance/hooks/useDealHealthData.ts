@@ -124,7 +124,11 @@ export const useDealHealthData = (accessToken: string): UseDealHealthDataResult 
             winningChance
             createdAt
             updatedAt
-            account { name }
+            opportunityAccounts(where: { isDeleted: { _eq: false } }, limit: 1) {
+              account {
+                name
+              }
+            }
             ownerEmployee { displayName }
           }
         }

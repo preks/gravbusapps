@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, Button } from '@newwork/nw-design-system'
-import { Edit } from 'lucide-react'
+import { PencilIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action'
@@ -52,7 +52,7 @@ export const CombinedPpmChartsContainer: React.FC<CombinedPpmChartsContainerProp
             data-testid="combined-update-forecasts-action"
           >
             <Button size="sm" variant="default" type="button" data-testid="combined-update-forecasts-button">
-              <Edit size={16} />
+              <PencilIcon size={16} />
               {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.ppm.updateForecasts', 'Update Forecasts')}
             </Button>
           </AppAction>

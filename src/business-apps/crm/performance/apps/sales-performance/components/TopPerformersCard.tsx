@@ -13,7 +13,7 @@ import {
   AvatarImage,
   Badge
 } from '@newwork/nw-design-system'
-import { TrophyOutlined } from '@ant-design/icons'
+import { TrophyIcon } from '@phosphor-icons/react'
 import { type TopPerformer } from '../types'
 
 interface TopPerformersCardProps {
@@ -81,7 +81,7 @@ export const TopPerformersCard: React.FC<TopPerformersCardProps> = ({
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-loading`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <TrophyOutlined className="gba:text-warning" />
+            <TrophyIcon className="gba:text-warning" />
             Top Individual Performers
           </CardTitle>
         </CardHeader>
@@ -97,7 +97,7 @@ export const TopPerformersCard: React.FC<TopPerformersCardProps> = ({
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <TrophyOutlined className="gba:text-warning" />
+            <TrophyIcon className="gba:text-warning" />
             Top Individual Performers
           </CardTitle>
         </CardHeader>
@@ -120,7 +120,7 @@ export const TopPerformersCard: React.FC<TopPerformersCardProps> = ({
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-empty`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <TrophyOutlined className="gba:text-warning" />
+            <TrophyIcon className="gba:text-warning" />
             Top Individual Performers
           </CardTitle>
         </CardHeader>
@@ -135,7 +135,7 @@ export const TopPerformersCard: React.FC<TopPerformersCardProps> = ({
     <Card data-testid={DATA_TEST_ID_PREFIX} className="gba:h-full">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <TrophyOutlined className="gba:text-warning" />
+          <TrophyIcon className="gba:text-warning" />
           Top Individual Performers
         </CardTitle>
       </CardHeader>

@@ -11,16 +11,16 @@ import {
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import {
-  PiUser,
-  PiPhone,
-  PiEnvelope,
-  PiUsers,
-  PiListChecks,
-  PiTarget,
-  PiHandshake,
-  PiBuilding,
-  PiCalendarBlank as PiCalendar
-} from 'react-icons/pi'
+  UserIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon,
+  TargetIcon,
+  HandshakeIcon,
+  BuildingIcon,
+  CalendarBlankIcon as CalendarIcon
+} from '@phosphor-icons/react'
 import type { TeamSalesActivity } from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useTeamActivitiesData'
 import {
   getEntityName,
@@ -110,7 +110,7 @@ const DateCell: React.FC<{ occurredAt?: string; createdAt?: string }> = ({ occur
             onTouchStart={() => setShowTooltip(true)}
             onTouchEnd={() => setTimeout(() => setShowTooltip(false), 3000)}
           >
-            <PiCalendar className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:mt-0.5 gba:flex-shrink-0" />
+            <CalendarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:mt-0.5 gba:flex-shrink-0" />
             <div className="gba:flex gba:flex-col">
               <div className="gba:flex gba:items-center gba:gap-1.5">
                 <span className="gba:text-sm gba:font-medium">{occurred.date}</span>
@@ -134,15 +134,15 @@ const DateCell: React.FC<{ occurredAt?: string; createdAt?: string }> = ({ occur
 const getActivityTypeIcon = (type: string) => {
   switch (type) {
     case 'Call':
-      return <PiPhone className="gba:h-4 gba:w-4 gba:text-success" />
+      return <PhoneIcon className="gba:h-4 gba:w-4 gba:text-success" />
     case 'Email':
-      return <PiEnvelope className="gba:h-4 gba:w-4 gba:text-primary" />
+      return <EnvelopeIcon className="gba:h-4 gba:w-4 gba:text-primary" />
     case 'Meeting':
-      return <PiUsers className="gba:h-4 gba:w-4 gba:text-warning" />
+      return <UsersIcon className="gba:h-4 gba:w-4 gba:text-warning" />
     case 'Task':
-      return <PiListChecks className="gba:h-4 gba:w-4 gba:text-accent" />
+      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-accent" />
     default:
-      return <PiListChecks className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
   }
 }
 
@@ -150,15 +150,15 @@ const getActivityTypeIcon = (type: string) => {
 const getEntityTypeIcon = (entityType: string) => {
   switch (entityType) {
     case 'Contact':
-      return <PiUser className="gba:h-4 gba:w-4" />
+      return <UserIcon className="gba:h-4 gba:w-4" />
     case 'Lead':
-      return <PiTarget className="gba:h-4 gba:w-4" />
+      return <TargetIcon className="gba:h-4 gba:w-4" />
     case 'Opportunity':
-      return <PiHandshake className="gba:h-4 gba:w-4" />
+      return <HandshakeIcon className="gba:h-4 gba:w-4" />
     case 'Account':
-      return <PiBuilding className="gba:h-4 gba:w-4" />
+      return <BuildingIcon className="gba:h-4 gba:w-4" />
     default:
-      return <PiUser className="gba:h-4 gba:w-4" />
+      return <UserIcon className="gba:h-4 gba:w-4" />
   }
 }
 
@@ -242,7 +242,7 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
             >
               {avatar && <AvatarImage src={`data:image/jpeg;base64,${avatar}`} alt={fullName} />}
               <AvatarFallback>
-                <PiUser className="gba:h-4 gba:w-4" />
+                <UserIcon className="gba:h-4 gba:w-4" />
               </AvatarFallback>
             </Avatar>
             <span className="gba:text-[color:var(--nw-color-text-primary)] group-hover:gba:text-[color:var(--nw-color-primary-500)]">
@@ -257,7 +257,7 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
           <Avatar size="sm" className="gba:opacity-50">
             {avatar && <AvatarImage src={`data:image/jpeg;base64,${avatar}`} alt={fullName} />}
             <AvatarFallback>
-              <PiUser className="gba:h-4 gba:w-4" />
+              <UserIcon className="gba:h-4 gba:w-4" />
             </AvatarFallback>
           </Avatar>
           <span className="gba:text-[color:var(--nw-color-text-disabled)]">{fullName}</span>

@@ -92,3 +92,7 @@ team-absences-link-description = Accesați informații complete despre absențel
 team-absences-link-button = Deschide centrul de absențe echipă
 team-absences-need-details = Aveți nevoie de mai multe detalii despre absențele echipei?
 team-absences-full-dashboard = Panou complet
+
+# Chat Integration
+chat-prefilled-message = Bună { $requesterName }, Am o întrebare despre cererea ta de concediu din { $startDate } până în { $endDate }.
+chat-fallback-name = acolo

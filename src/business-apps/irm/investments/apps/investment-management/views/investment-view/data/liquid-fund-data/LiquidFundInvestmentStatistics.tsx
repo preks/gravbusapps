@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { DollarCircleOutlined, RiseOutlined, TeamOutlined, BankOutlined } from '@ant-design/icons'
+import { CurrencyCircleDollarIcon, TrendUpIcon, UsersThreeIcon, BankIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentStatisticsSection } from '@/common/data/investment/hooks/useInvestmentStatistics'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
@@ -40,7 +40,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       key: 'total-investments',
       title: 'Total Investments',
       value: kpis.totalInvestments,
-      prefix: <TeamOutlined />,
+      prefix: <UsersThreeIcon />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Liquid fund count',
@@ -54,7 +54,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       key: 'total-amount-invested',
       title: 'Total Amount Invested',
       value: formatCurrencyCompact(kpis.totalInvested, currencyCode || 'EUR', undefined, 1, true),
-      prefix: <DollarCircleOutlined />,
+      prefix: <CurrencyCircleDollarIcon />,
       color: '#52c41a',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -69,7 +69,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       key: 'average-stake',
       title: 'Average Stake Percentage',
       value: `${kpis.averageStakePercentage.toFixed(1)}%`,
-      prefix: <RiseOutlined />,
+      prefix: <TrendUpIcon />,
       color: '#faad14',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -84,7 +84,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       key: 'total-market-value',
       title: 'Total Market Value',
       value: formatCurrencyCompact(kpis.totalMarketValue, currencyCode || 'EUR', undefined, 1, true),
-      prefix: <BankOutlined />,
+      prefix: <BankIcon />,
       color: '#722ed1',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
