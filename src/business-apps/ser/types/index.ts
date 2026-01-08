@@ -254,6 +254,24 @@ export interface WorkflowEngine {
       visibility?: string
     }>
   }>
+
+  // ✅ NEW: Get templates from custom-flow-engine (list)
+  getTemplates?(options?: {
+    limit?: number
+    offset?: number
+    onlyLatest?: boolean
+    includeDrafts?: boolean
+    search?: string
+  }): Promise<{
+    status: string
+    count: number
+    totalCount: number
+    hasMore: boolean
+    data: any[]
+  }>
+
+  // ✅ NEW: Get a single template by ID with all resolved data including catalog options
+  getTemplateById?(templateId: string): Promise<any>
 }
 
 // Analytics event types
