@@ -52,8 +52,6 @@ import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusig
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
 import { computeTaskStatus, formatTaskProgress, getTaskStatusLabel } from '../../utils/taskStatusUtils'
-import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface TaskDetailSheetProps {
   task: Task | null
@@ -161,20 +159,9 @@ interface TaskInstanceCardProps {
   index: number
   currentUserId?: string
   dataTestId?: string
-  accessToken?: string
-  taskId: string
-  entityType: 'investment' | 'customer'
 }
 
-const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
-  taskAssignee,
-  index,
-  currentUserId,
-  dataTestId,
-  accessToken,
-  taskId,
-  entityType
-}) => {
+const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({ taskAssignee, index, currentUserId, dataTestId }) => {
   const employee = taskAssignee.assignedEmployee
   const isCurrentUser = currentUserId && taskAssignee.assignedUserId === currentUserId
   const statusLabel = getTaskStatusLabel(taskAssignee.taskStatus) || 'No Status'
@@ -187,7 +174,7 @@ const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
       }`}
       data-testid={`${dataTestId}-instance-${index}`}
     >
-      <div className={`gba:flex gba:items-center gba:gap-3 ${isCurrentUser && accessToken ? 'gba:mb-3' : ''}`}>
+      <div className="gba:flex gba:items-center gba:gap-3">
         <Avatar
           size="default"
           className="gba:cursor-pointer"
@@ -235,30 +222,6 @@ const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
           )}
         </div>
       </div>
-
-      {isCurrentUser && accessToken && (
-        <div className="gba:pt-3 gba:border-t">
-          <AppAction
-            mode="action-button"
-            size="sm"
-            variant="outline"
-            contexts={[
-              {
-                context:
-                  entityType === 'investment'
-                    ? FlowContextName.investmentTaskEntity
-                    : FlowContextName.customerTaskEntity,
-                contextData: { taskId }
-              }
-            ]}
-            accessToken={accessToken}
-            emptyState="enable"
-            data-testid={`${dataTestId}-update-button-${index}`}
-          >
-            Update My Status
-          </AppAction>
-        </div>
-      )}
     </div>
   )
 }
@@ -710,9 +673,6 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                       index={index}
                       currentUserId={currentUserId}
                       dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
-                      accessToken={accessToken}
-                      taskId={task.id}
-                      entityType={task.investmentId ? 'investment' : 'customer'}
                     />
                   ))
                 ) : (
