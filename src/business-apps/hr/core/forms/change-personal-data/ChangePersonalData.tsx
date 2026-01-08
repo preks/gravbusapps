@@ -6,7 +6,7 @@ import {
   getCurrentActiveUserLocale
 } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { FileUpload, FormField, FormItem, LocalizationProvider } from '@newwork/nw-design-system'
+import { FileUpload, FormField, FormItem, LocalizationProvider, useTranslation } from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext'
 import { useForm } from 'react-hook-form'
@@ -18,7 +18,6 @@ import QualificationFields from './components/QualificationFields'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { env } from '@/common/env/EnvUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../apps/employee-record/_i18n'
 
 // form values type moved to types.ts

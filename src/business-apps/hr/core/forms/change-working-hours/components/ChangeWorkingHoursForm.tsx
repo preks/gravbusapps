@@ -22,10 +22,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import WorkingHoursSummary from './WorkingHoursSummary'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../../apps/employee-record/_i18n'
 
 export const ChangeWorkingHoursForm: React.FC = () => {
