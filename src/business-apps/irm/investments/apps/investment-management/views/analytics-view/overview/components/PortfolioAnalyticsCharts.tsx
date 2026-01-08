@@ -14,7 +14,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, BarChart, XAxis, YAxis } from 'recharts'
-import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
+import { formatCurrencyCompact, extractCurrencyCode, formatAmount } from '@/common/utils/numberFormatter'
 import { ChartBarIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
@@ -165,7 +165,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                           undefined,
                           1,
                           true
-                        ).replaceAll(/[€$£¥]/g, '')
+                        ).replace(/[€$£¥]/g, '')
                       }
                     />
                     <ChartTooltip
@@ -271,8 +271,21 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                     interval={0}
                     tick={{ fontSize: 12 }}
                   />
-                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} tickFormatter={value => formatAmount(value, 1)} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(concentrationCurrency),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
+                    }
+                  />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
                       if (active && payload?.length) {

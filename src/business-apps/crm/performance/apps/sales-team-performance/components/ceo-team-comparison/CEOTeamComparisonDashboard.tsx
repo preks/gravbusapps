@@ -12,7 +12,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  CheckIconbox,
+  Checkbox,
   Table,
   TableHeader,
   TableBody,
@@ -413,10 +413,10 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
               {availableTeams.length > 0 ? (
                 availableTeams.map(team => (
                   <div key={team.id} className="gba:flex gba:items-center gba:space-x-2">
-                    <CheckIconbox
+                    <Checkbox
                       id={`team-${team.id}`}
                       checked={selectedTeams.includes(team.id)}
-                      onCheckIconedChange={checked => handleTeamSelection(team.id, checked as boolean)}
+                      onCheckedChange={checked => handleTeamSelection(team.id, checked as boolean)}
                     />
                     <label
                       htmlFor={`team-${team.id}`}
