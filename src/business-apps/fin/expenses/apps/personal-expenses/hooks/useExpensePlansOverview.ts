@@ -363,17 +363,6 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
               if (currentRequestRef.current === requestId && statsData) {
                 setData(prevData => {
                   if (!prevData) return null
-                  // Check if statistics actually changed to avoid unnecessary re-renders
-                  // Compare key values (topDestination might be object, so compare by reference or value)
-                  const prevTopDest =
-                    typeof prevData.statistics?.topDestination === 'object'
-                      ? JSON.stringify(prevData.statistics.topDestination)
-                      : prevData.statistics?.topDestination
-                  const newTopDest =
-                    typeof statsData.topDestination === 'object'
-                      ? JSON.stringify(statsData.topDestination)
-                      : statsData.topDestination
-
                   // If we don't have previous statistics, always update
                   if (!prevData.statistics) {
                     const updatedData = {
@@ -385,14 +374,11 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
                     return updatedData
                   }
 
-                  const statsChanged =
-                    prevData.statistics.currentMonthTotal !== statsData.currentMonthTotal ||
-                    prevData.statistics.previousMonthTotal !== statsData.previousMonthTotal ||
-                    prevData.statistics.totalEstimated !== statsData.totalEstimated ||
-                    prevData.statistics.pendingApproval !== statsData.pendingApproval ||
-                    prevTopDest !== newTopDest ||
-                    prevData.statistics.currentMonthClosedPlans !== statsData.currentMonthClosedPlans ||
-                    prevData.statistics.previousMonthClosedPlans !== statsData.previousMonthClosedPlans
+                  // Use JSON.stringify for cleaner statistics change detection
+                  // This handles nested objects (like topDestination) and all fields uniformly
+                  const prevStatsString = JSON.stringify(prevData.statistics)
+                  const newStatsString = JSON.stringify(statsData)
+                  const statsChanged = prevStatsString !== newStatsString
 
                   if (!statsChanged) return prevData
 
