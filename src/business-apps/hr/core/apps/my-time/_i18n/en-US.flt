@@ -12,3 +12,4 @@ overtime = Overtime
 incomplete = Incomplete
 complete = Complete
 generate_report = Generate Report
+report_title = Time History Report
