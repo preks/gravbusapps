@@ -152,8 +152,14 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
           { limit: 100, offset: 0, returnTotalRecords: true }
         )
         if (groupResponse?.data) {
+          // Filter out Mileage and Allowance/Allowances
+          const filteredGroups = groupResponse.data.filter((entry: any) => {
+            const value = (entry.value || entry.code || '').toLowerCase()
+            return !value.includes('mileage') && !value.includes('allowance')
+          })
+
           setExpenseGroups(
-            groupResponse.data.map((entry: any) => ({
+            filteredGroups.map((entry: any) => ({
               value: entry.id,
               label: entry.value || entry.code
             }))

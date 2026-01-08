@@ -12,6 +12,7 @@ export interface AllowanceCodeFormValues {
   secondAllowanceRegionRuleId?: string
   secondAllowanceRegionRulePercent?: number
   firstWageCode?: string
+  travelLocation?: string
   validFrom: string
   validTo?: string
 }
@@ -69,7 +70,7 @@ export const transformAllowanceCodeForUnrestrictedUpdate = (
     businessKey: editingItem.businessKey,
     additionalProperties: editingItem.additionalProperties || {},
     codeOrder: editingItem.codeOrder,
-    travelLocation: editingItem.travelLocation,
+    travelLocation: formValues.travelLocation || editingItem.travelLocation,
     secondWageCode: editingItem.secondWageCode || null,
     code: formValues.code,
     name: formValues.name,
@@ -102,7 +103,7 @@ export const transformAllowanceCodeForRestrictedUpdate = (
     businessKey: editingItem.businessKey,
     additionalProperties: editingItem.additionalProperties || {},
     codeOrder: editingItem.codeOrder,
-    travelLocation: editingItem.travelLocation,
+    travelLocation: formValues.travelLocation || editingItem.travelLocation,
     secondWageCode: editingItem.secondWageCode || null,
     code: editingItem.code,
     name: editingItem.name,
@@ -141,6 +142,7 @@ export const transformAllowanceCodeForCreate = (
     secondAllowanceRegionRulePercent: formValues.secondAllowanceRegionRulePercent ?? 0,
     firstWageCode: formValues.firstWageCode || null,
     secondWageCode: null,
+    travelLocation: formValues.travelLocation || null,
     activeFrom: formatActiveFrom(formValues.validFrom),
     activeTo: formatActiveTo(formValues.validTo)
   }

@@ -38,7 +38,9 @@ import {
   PiDotsThreeVertical,
   PiPencil,
   PiTrash,
-  PiInfo
+  PiInfo,
+  PiArrowUp,
+  PiArrowDown
 } from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -86,6 +88,10 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   // Pre-loaded usage status for all expenses (expense id -> isUsed)
   const [expenseUsageMap, setExpenseUsageMap] = useState<Record<string, boolean>>({})
 
+  // Sorting state - default to alphabetical by name
+  const [sortField, setSortField] = useState<string>('name')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC')
+
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
 
@@ -94,13 +100,23 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     setError(null)
 
     try {
+      // Build orderBy clause based on sortField and sortOrder
+      // Handle nested fields like expenseGroup
+      let orderByClause: string
+      if (sortField === 'expenseGroup') {
+        // Sort by expenseGroup code first, then alphabetically by name within each group
+        orderByClause = `[{ expenseGroup: { code: ${sortOrder} } }, { name: ASC }]`
+      } else {
+        orderByClause = `{ ${sortField}: ${sortOrder} }`
+      }
+
       const query = `
         query GetExpenseRuleGeneralExpenses($ruleId: uuid!) {
           ExpenseRule(where: { id: { _eq: $ruleId } }) {
             id
             code
             name
-            expenseRuleGeneralExpense(where: { isDeleted: { _eq: false } }, orderBy: { expenseOrder: ASC }) {
+            expenseRuleGeneralExpense(where: { isDeleted: { _eq: false } }, orderBy: ${orderByClause}) {
               id
               code
               name
@@ -144,7 +160,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     } finally {
       setIsLoading(false)
     }
-  }, [graphqlClient, ruleId])
+  }, [graphqlClient, ruleId, sortField, sortOrder])
 
   // Load usage status for all expenses in a single batched query
   const loadExpenseUsageStatus = useCallback(
@@ -397,6 +413,30 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     return expenseGroup.value || 'Not set'
   }
 
+  // Handle header click for sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle sort order if clicking the same field
+      setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC')
+    } else {
+      // Set new field and default to ASC
+      setSortField(field)
+      setSortOrder('ASC')
+    }
+  }
+
+  // Render sort icon
+  const renderSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return <span className="gba:ml-1 gba:inline-block gba:w-[12px] gba:h-[12px]" />
+    }
+    return sortOrder === 'ASC' ? (
+      <PiArrowUp className="gba:ml-1 gba:h-3 gba:w-3" />
+    ) : (
+      <PiArrowDown className="gba:ml-1 gba:h-3 gba:w-3" />
+    )
+  }
+
   const formatTaxCode = (taxCodeRef?: string): string => {
     if (!taxCodeRef) return 'Not set'
 
@@ -492,23 +532,55 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                 <TableHead className="gba:w-[60px]" data-testid="general-expenses-table-header-actions">
                   ACTIONS
                 </TableHead>
-                <TableHead className="gba:w-[180px]" data-testid="general-expenses-table-header-expense">
-                  EXPENSE
+                <TableHead
+                  className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => handleSort('name')}
+                  data-testid="general-expenses-table-header-expense"
+                >
+                  <div className="gba:flex gba:items-center">
+                    EXPENSE
+                    {renderSortIcon('name')}
+                  </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[100px] gba:text-center"
+                  className="gba:w-[100px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => handleSort('reimbursable')}
                   data-testid="general-expenses-table-header-reimbursable"
                 >
-                  REIMBURSABLE
+                  <div className="gba:flex gba:items-center gba:justify-center">
+                    REIMBURSABLE
+                    {renderSortIcon('reimbursable')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[120px]" data-testid="general-expenses-table-header-tax">
-                  TAX
+                <TableHead
+                  className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => handleSort('taxCodeRef')}
+                  data-testid="general-expenses-table-header-tax"
+                >
+                  <div className="gba:flex gba:items-center">
+                    TAX
+                    {renderSortIcon('taxCodeRef')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[160px]" data-testid="general-expenses-table-header-validity">
-                  VALIDITY
+                <TableHead
+                  className="gba:w-[160px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => handleSort('activeFrom')}
+                  data-testid="general-expenses-table-header-validity"
+                >
+                  <div className="gba:flex gba:items-center">
+                    VALIDITY
+                    {renderSortIcon('activeFrom')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[120px]" data-testid="general-expenses-table-header-group">
-                  EXPENSE GROUP
+                <TableHead
+                  className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => handleSort('expenseGroup')}
+                  data-testid="general-expenses-table-header-group"
+                >
+                  <div className="gba:flex gba:items-center">
+                    EXPENSE GROUP
+                    {renderSortIcon('expenseGroup')}
+                  </div>
                 </TableHead>
                 <TableHead className="gba:w-[250px]" data-testid="general-expenses-table-header-additional">
                   ADDITIONAL INFO
