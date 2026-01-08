@@ -1,21 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import {
-  Button,
-  Badge,
-  Card,
-  Input,
-  Label,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@newwork/nw-design-system'
+import { Button, Badge, Card, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Bell, Plus, X } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
 
 dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
 
 interface Reminder {
   workflowId: string
@@ -30,22 +21,110 @@ interface Reminder {
 interface RemindersPanelProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   onClose?: () => void
   onReminderDue?: () => void // Callback when a reminder becomes due
+  onOverdueCountChange?: (count: number) => void // Callback with count of overdue reminders
 }
 
-export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, userInfo, onClose, onReminderDue }) => {
+export const RemindersPanel: React.FC<RemindersPanelProps> = ({
+  accessToken,
+  userInfo,
+  onClose,
+  onReminderDue,
+  onOverdueCountChange
+}) => {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
-  const [reminderTitle, setReminderTitle] = useState('')
-  const [reminderMessage, setReminderMessage] = useState('')
-  const [reminderDate, setReminderDate] = useState('')
-  const [reminderTime, setReminderTime] = useState('')
   const notifiedReminders = useRef<Set<string>>(new Set())
+  const reminderTimers = useRef<Map<string, NodeJS.Timeout>>(new Map())
 
   // Use Keycloak ID (userInfo.id) to match reminder creation in FlowBot
   const userId = useMemo(() => userInfo?.id || '', [userInfo?.id])
+
+  const notifyReminder = useCallback(
+    (reminder: Reminder) => {
+      // Skip if already notified
+      if (notifiedReminders.current.has(reminder.workflowId)) return
+
+      notifiedReminders.current.add(reminder.workflowId)
+
+      // Open the reminders panel to show the due reminder
+      if (onReminderDue) {
+        onReminderDue()
+      }
+
+      // Calculate and update overdue count
+      setReminders(currentReminders => {
+        const overdueCount = currentReminders.filter(r => dayjs(r.reminderDateTime).isBefore(dayjs())).length
+        if (onOverdueCountChange) {
+          onOverdueCountChange(overdueCount)
+        }
+        return currentReminders
+      })
+
+      // Send browser notification
+      if (typeof Notification !== 'undefined') {
+        try {
+          if (Notification.permission === 'granted') {
+            new Notification(`Reminder: ${reminder.title}`, {
+              body: reminder.message || `Time to: ${reminder.title}`,
+              tag: reminder.workflowId
+            })
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                new Notification(`Reminder: ${reminder.title}`, {
+                  body: reminder.message || `Time to: ${reminder.title}`,
+                  tag: reminder.workflowId
+                })
+              }
+            })
+          }
+        } catch (err) {
+          console.error(`Failed to notify for reminder ${reminder.workflowId}:`, err)
+        }
+      }
+    },
+    [onReminderDue, onOverdueCountChange]
+  )
+
+  const setupReminderTimers = useCallback(
+    (reminderList: Reminder[]) => {
+      // Clear existing timers
+      reminderTimers.current.forEach(timer => clearTimeout(timer))
+      reminderTimers.current.clear()
+
+      const now = dayjs()
+
+      reminderList.forEach(reminder => {
+        if (!reminder.reminderDateTime) return
+
+        const reminderTime = dayjs(reminder.reminderDateTime)
+        const isDue = reminderTime.isBefore(now)
+
+        if (isDue) {
+          // Already overdue - notify immediately if not already notified
+          if (!notifiedReminders.current.has(reminder.workflowId)) {
+            notifyReminder(reminder)
+          }
+        } else {
+          // Schedule notification for future
+          const msUntilDue = reminderTime.diff(now)
+
+          // Only set timer if it's within a reasonable timeframe (e.g., 24 hours)
+          // For reminders further out, they'll be picked up on next load
+          const MAX_TIMER_MS = 24 * 60 * 60 * 1000 // 24 hours
+          if (msUntilDue <= MAX_TIMER_MS) {
+            const timer = setTimeout(() => {
+              notifyReminder(reminder)
+            }, msUntilDue)
+
+            reminderTimers.current.set(reminder.workflowId, timer)
+          }
+        }
+      })
+    },
+    [notifyReminder]
+  )
 
   const loadReminders = useCallback(async () => {
     if (!accessToken) return
@@ -137,64 +216,24 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
 
       setReminders(reminderList)
 
-      // Check for due reminders and send browser notifications (wrapped in try-catch)
-      try {
-        checkAndNotifyReminders(reminderList)
-      } catch (notifyErr) {
-        console.error('Failed to check/notify reminders:', notifyErr)
+      // Calculate overdue count and notify parent
+      const overdueCount = reminderList.filter(r => dayjs(r.reminderDateTime).isBefore(dayjs())).length
+      if (onOverdueCountChange) {
+        onOverdueCountChange(overdueCount)
       }
+
+      // Set up event-based timers for each reminder
+      setupReminderTimers(reminderList)
     } catch (err) {
       console.error('Failed to load reminders:', err)
       setError(err instanceof Error ? err.message : 'Failed to load reminders')
+      if (onOverdueCountChange) {
+        onOverdueCountChange(0)
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, userId])
-
-  const checkAndNotifyReminders = useCallback((reminderList: Reminder[]) => {
-    // Check if Notification API is available
-    if (typeof Notification === 'undefined') {
-      return
-    }
-
-    reminderList.forEach(reminder => {
-      try {
-        // Skip if no valid reminder time
-        if (!reminder.reminderDateTime) return
-
-        const isDue = dayjs(reminder.reminderDateTime).isBefore(dayjs())
-
-        // If reminder is due and we haven't notified yet
-        if (isDue && !notifiedReminders.current.has(reminder.workflowId)) {
-          notifiedReminders.current.add(reminder.workflowId)
-
-          // Open the reminders panel to show the due reminder
-          if (onReminderDue) {
-            onReminderDue()
-          }
-
-          // Request notification permission if needed
-          if (Notification.permission === 'granted') {
-            new Notification(`Reminder: ${reminder.title}`, {
-              body: reminder.message || `Time to: ${reminder.title}`,
-              tag: reminder.workflowId // Prevents duplicate notifications
-            })
-          } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(permission => {
-              if (permission === 'granted') {
-                new Notification(`Reminder: ${reminder.title}`, {
-                  body: reminder.message || `Time to: ${reminder.title}`,
-                  tag: reminder.workflowId
-                })
-              }
-            })
-          }
-        }
-      } catch (err) {
-        console.error(`Failed to notify for reminder ${reminder.workflowId}:`, err)
-      }
-    })
-  }, [])
+  }, [accessToken, userId, onOverdueCountChange, setupReminderTimers])
 
   useEffect(() => {
     // Only load if we have accessToken and userId
@@ -202,13 +241,20 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
 
     loadReminders()
 
-    // Poll every 60 seconds for updates
-    const interval = setInterval(() => {
-      loadReminders()
-    }, 60000)
+    // Poll every 5 minutes to catch new reminders created elsewhere
+    // This is much less frequent since we use timers for due notifications
+    const interval = setInterval(
+      () => {
+        loadReminders()
+      },
+      5 * 60 * 1000
+    ) // 5 minutes
 
     return () => {
       clearInterval(interval)
+      // Clean up all reminder timers on unmount
+      reminderTimers.current.forEach(timer => clearTimeout(timer))
+      reminderTimers.current.clear()
     }
   }, [accessToken, loadReminders])
 
@@ -265,8 +311,22 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
         throw new Error(`Failed to complete reminder task: ${errorText}`)
       }
 
-      // Remove from list
-      setReminders(prev => prev.filter(r => r.workflowId !== workflowId))
+      // Clear timer for this reminder if it exists
+      const timer = reminderTimers.current.get(workflowId)
+      if (timer) {
+        clearTimeout(timer)
+        reminderTimers.current.delete(workflowId)
+      }
+
+      // Remove from list and update overdue count
+      setReminders(prev => {
+        const updated = prev.filter(r => r.workflowId !== workflowId)
+        const overdueCount = updated.filter(r => dayjs(r.reminderDateTime).isBefore(dayjs())).length
+        if (onOverdueCountChange) {
+          onOverdueCountChange(overdueCount)
+        }
+        return updated
+      })
       notifiedReminders.current.delete(workflowId)
 
       console.log(`[RemindersPanel] Successfully completed reminder ${workflowId}`)
@@ -274,80 +334,6 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
       console.error('Failed to mark reminder as done:', err)
       alert(`Failed to mark reminder as done: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
-  }
-
-  const handleCreateReminder = async () => {
-    if (!reminderTitle.trim() || !reminderDate || !reminderTime || !accessToken) return
-
-    setIsCreating(true)
-    setError(null)
-
-    try {
-      let baseUrl = window.location.origin
-
-      // If platform is running on localhost, connect to DEV environment
-      const isLocalPlatform = baseUrl.includes('localhost')
-      if (isLocalPlatform) {
-        baseUrl = 'https://newwork-dev.newwork.com'
-      }
-
-      // Format the datetime for the message
-      const reminderDateTime = dayjs(`${reminderDate} ${reminderTime}`)
-      const formattedDateTime = reminderDateTime.format('MMMM D, YYYY [at] h:mm A')
-
-      // Create a clear reminder message for FlowBot to process
-      let message = `Set a reminder for ${formattedDateTime} to ${reminderTitle}`
-      if (reminderMessage) {
-        message += `. Note: ${reminderMessage}`
-      }
-
-      // Call FlowBot (EveryAI) to process the reminder request
-      const form = new FormData()
-      form.append('session_id', '') // New session for each reminder
-      form.append('user_input_text', message)
-      form.append('llm_model', 'gpt-4.1')
-      form.append('use_web_search_tool', 'false')
-      form.append('current_page_context', JSON.stringify({}))
-
-      const response = await fetch(`${baseUrl}/flowbot/api/agent/v2/chat`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: 'text/event-stream'
-        },
-        body: form
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create reminder')
-      }
-
-      // Clear form and close modal
-      setReminderTitle('')
-      setReminderMessage('')
-      setReminderDate('')
-      setReminderTime('')
-      setShowCreateModal(false)
-
-      // Wait for the workflow to be created, then reload
-      setTimeout(() => {
-        loadReminders()
-      }, 2000)
-    } catch (err) {
-      console.error('Failed to create reminder:', err)
-      setError('Failed to create reminder. Please try again.')
-    } finally {
-      setIsCreating(false)
-    }
-  }
-
-  const handleModalClose = () => {
-    setShowCreateModal(false)
-    setReminderTitle('')
-    setReminderMessage('')
-    setReminderDate('')
-    setReminderTime('')
-    setError(null)
   }
 
   const isDue = (reminderTime: string) => {
@@ -358,12 +344,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
     <div className="gba:h-full gba:w-full gba:flex gba:flex-col gba:p-6" data-testid="reminders-panel">
       {/* Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:pb-4 gba:border-b gba:border-border gba:mb-4">
-        <h2 className="gba:text-2xl gba:font-bold gba:flex gba:items-center gba:gap-3 gba:pl-2">
-          <Bell
-            className="gba:h-6 gba:w-6 gba:text-primary gba:flex-shrink-0"
-            weight="regular"
-            aria-label="bell icon"
-          />
+        <h2 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-3 gba:pl-2">
           My Reminders
           {reminders.length > 0 && (
             <Badge variant="default" className="gba:ml-2">
@@ -379,135 +360,6 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
           </Button>
         )}
       </div>
-
-      {/* Create Reminder Button */}
-      <div className="gba:mb-4 gba:px-2">
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          className="gba:w-full gba:flex gba:items-center gba:justify-center gba:gap-2"
-          data-testid="open-create-reminder-button"
-        >
-          <Plus className="gba:h-4 gba:w-4" weight="bold" />
-          Create New Reminder
-        </Button>
-        {error && (
-          <div className="gba:text-xs gba:text-destructive gba:mt-2 gba:px-2 gba:flex gba:items-center gba:gap-1">
-            <svg className="gba:h-3 gba:w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            {error}
-          </div>
-        )}
-      </div>
-
-      {/* Create Reminder Modal */}
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="gba:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="gba:flex gba:items-center gba:justify-between">
-              <span>Create New Reminder</span>
-              <Button variant="ghost" size="icon" onClick={handleModalClose} className="gba:h-6 gba:w-6">
-                <X className="gba:h-4 gba:w-4" />
-              </Button>
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="gba:space-y-4 gba:pt-4">
-            {/* Title Field */}
-            <div className="gba:space-y-2">
-              <Label htmlFor="reminder-title" className="gba:text-sm gba:font-medium">
-                What do you want to be reminded about? *
-              </Label>
-              <Input
-                id="reminder-title"
-                value={reminderTitle}
-                onChange={e => setReminderTitle(e.target.value)}
-                placeholder="e.g., Call John, Submit report, Team meeting"
-                data-testid="reminder-title-input"
-                className="gba:w-full"
-              />
-            </div>
-
-            {/* Message Field (Optional) */}
-            <div className="gba:space-y-2">
-              <Label htmlFor="reminder-message" className="gba:text-sm gba:font-medium">
-                Additional notes (optional)
-              </Label>
-              <Input
-                id="reminder-message"
-                value={reminderMessage}
-                onChange={e => setReminderMessage(e.target.value)}
-                placeholder="e.g., Discuss project updates"
-                data-testid="reminder-message-input"
-                className="gba:w-full"
-              />
-            </div>
-
-            {/* Date and Time Fields */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div className="gba:space-y-2">
-                <Label htmlFor="reminder-date" className="gba:text-sm gba:font-medium">
-                  Date *
-                </Label>
-                <Input
-                  id="reminder-date"
-                  type="date"
-                  value={reminderDate}
-                  onChange={e => setReminderDate(e.target.value)}
-                  min={dayjs().format('YYYY-MM-DD')}
-                  data-testid="reminder-date-input"
-                  className="gba:w-full"
-                />
-              </div>
-
-              <div className="gba:space-y-2">
-                <Label htmlFor="reminder-time" className="gba:text-sm gba:font-medium">
-                  Time *
-                </Label>
-                <Input
-                  id="reminder-time"
-                  type="time"
-                  value={reminderTime}
-                  onChange={e => setReminderTime(e.target.value)}
-                  data-testid="reminder-time-input"
-                  className="gba:w-full"
-                />
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
-              <Button
-                variant="outline"
-                onClick={handleModalClose}
-                disabled={isCreating}
-                data-testid="cancel-reminder-button"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateReminder}
-                disabled={!reminderTitle.trim() || !reminderDate || !reminderTime || isCreating}
-                data-testid="submit-reminder-button"
-              >
-                {isCreating ? (
-                  <>
-                    <div className="gba:animate-spin gba:h-4 gba:w-4 gba:border-2 gba:border-primary-foreground gba:border-t-transparent gba:rounded-full gba:mr-2" />
-                    Creating...
-                  </>
-                ) : (
-                  'Create Reminder'
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Content Area - Scrollable grid of reminders */}
       <div className="gba:flex-1 gba:overflow-y-auto">
@@ -553,64 +405,71 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
               />
             </svg>
             <div className="gba:text-muted-foreground gba:font-medium gba:mb-1">No upcoming reminders</div>
-            <div className="gba:text-xs gba:text-muted-foreground">Ask EveryAI to set a reminder for you!</div>
+            <div className="gba:text-xs gba:text-muted-foreground">Go to the EveryAI tab and ask to set a reminder</div>
           </div>
         ) : (
-          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4 gba:auto-rows-min">
+          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-5 gba:gap-3 gba:auto-rows-min">
             {reminders.map(reminder => {
               const due = isDue(reminder.reminderDateTime)
               const timeDisplay = dayjs(reminder.reminderDateTime).fromNow()
+              const exactLocalTime = dayjs(reminder.reminderDateTime).format('LLLL') // e.g., "Monday, January 8, 2026 9:19 PM"
 
               return (
                 <Card
                   key={reminder.workflowId}
-                  className={`gba:border gba:p-3 gba:transition-all hover:gba:shadow-lg gba:h-full gba:flex gba:flex-col ${
+                  className={`gba:border gba:p-3 gba:transition-all hover:gba:shadow-md gba:h-full gba:flex gba:flex-col gba:gap-2 ${
                     due ? 'gba:border-destructive gba:bg-destructive/5' : 'gba:border-border'
                   }`}
                   data-testid={`reminder-item-${reminder.workflowId}`}
                 >
-                  <div className="gba:flex gba:flex-col gba:h-full">
-                    {/* Title & Badge */}
-                    <div className="gba:font-semibold gba:text-base gba:flex gba:items-center gba:justify-between gba:gap-2 gba:mb-2">
-                      <span className="gba:flex-1">{reminder.title}</span>
-                      {due && (
-                        <Badge variant="destructive" className="gba:text-xs gba:px-1.5 gba:py-0.5">
-                          DUE
-                        </Badge>
-                      )}
+                  {/* Title and Done button */}
+                  <div className="gba:flex gba:items-start gba:gap-2 gba:justify-between">
+                    <div className="gba:font-medium gba:text-sm gba:leading-tight gba:line-clamp-2 gba:flex-1">
+                      {reminder.title}
                     </div>
-
-                    {/* Time */}
-                    <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
-                      {reminder.reminderDateTimeFormatted}
-                    </div>
-                    <div
-                      className={`gba:text-xs gba:font-medium gba:mb-3 ${due ? 'gba:text-destructive' : 'gba:text-primary'}`}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleMarkAsDone(reminder.workflowId)}
+                      className="gba:h-6 gba:w-6 gba:flex-shrink-0 gba:rounded-full hover:gba:bg-primary/10"
+                      data-testid={`mark-done-reminder-${reminder.workflowId}`}
+                      title="Mark as done"
                     >
-                      {timeDisplay}
-                    </div>
-
-                    {/* Message */}
-                    {reminder.message && (
-                      <div className="gba:text-sm gba:text-muted-foreground gba:bg-muted/30 gba:p-2 gba:rounded gba:mb-3 gba:flex-1">
-                        {reminder.message}
-                      </div>
-                    )}
-
-                    {/* Action button - at the bottom */}
-                    <div className="gba:flex gba:mt-auto">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleMarkAsDone(reminder.workflowId)}
-                        className="gba:w-full"
-                        data-testid={`mark-done-reminder-${reminder.workflowId}`}
-                        title="Mark as done"
+                      <svg
+                        className="gba:h-4 gba:w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2.5}
                       >
-                        ✓ Done
-                      </Button>
-                    </div>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </Button>
                   </div>
+
+                  {/* Due time */}
+                  <div className="gba:flex gba:items-center gba:gap-1.5">
+                    <span className="gba:text-xs gba:text-muted-foreground">Due:</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className={`gba:text-xs gba:font-medium ${due ? 'gba:text-destructive' : 'gba:text-foreground'}`}
+                        >
+                          {timeDisplay}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{exactLocalTime}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {/* Optional message */}
+                  {reminder.message && (
+                    <div className="gba:text-xs gba:text-muted-foreground gba:leading-snug gba:line-clamp-3">
+                      {reminder.message}
+                    </div>
+                  )}
                 </Card>
               )
             })}

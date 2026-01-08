@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Tabs, TabsContent, Button } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, Button, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, Calendar as CalendarIcon, Sparkles } from 'lucide-react'
 import { ArrowsOut, Bell } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -31,6 +31,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
   ...props
 }) => {
   const [activeTab, setActiveTab] = useState<TabValue>(defaultTab)
+  const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
 
   // Detect if we're in sidepanel mode (not the fullscreen view)
   const isInSidepanel = useMemo(() => {
@@ -182,6 +183,14 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
             >
               <Bell className="gba:h-3.5 gba:w-3.5" weight="regular" />
               <span>Reminders</span>
+              {overdueRemindersCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="gba:ml-1 gba:h-4 gba:min-w-4 gba:px-1 gba:text-[10px] gba:leading-none gba:flex gba:items-center gba:justify-center"
+                >
+                  {overdueRemindersCount}
+                </Badge>
+              )}
               {activeTab === 'reminders' && (
                 <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
               )}
@@ -230,7 +239,11 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
           forceMount
           className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'reminders' ? 'gba:hidden' : ''}`}
         >
-          <RemindersPanel accessToken={accessToken} userInfo={userInfo} />
+          <RemindersPanel
+            accessToken={accessToken}
+            userInfo={userInfo}
+            onOverdueCountChange={setOverdueRemindersCount}
+          />
         </TabsContent>
       </Tabs>
     </div>
