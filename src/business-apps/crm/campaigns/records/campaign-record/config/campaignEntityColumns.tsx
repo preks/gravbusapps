@@ -2,7 +2,6 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
 import { Calendar, User, Building, Users as UsersIcon, Target } from 'lucide-react'
 import type { CampaignEntity } from '../types/CampaignRecordTypes'
-import { formatDate } from '@/common/utils/windowUtils'
 
 // Helper to safely convert values to strings
 // Returns empty string for objects to avoid '[object Object]' stringification
@@ -102,12 +101,24 @@ export const createCampaignEntityColumns = (): ColumnDef<CampaignEntity>[] => [
     minSize: 120,
     maxSize: 180,
     enableResizing: false,
-    cell: ({ row }) => (
-      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`entity-created-date-cell-${row.original.id}`}>
-        <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
-        <span className="gba:text-sm">{formatDate(row.original.creationDate)}</span>
-      </div>
-    )
+    cell: ({ row }) => {
+      const formattedDate = row.original.creationDate
+        ? new Date(row.original.creationDate).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+        : '-'
+      return (
+        <div
+          className="gba:flex gba:items-center gba:gap-2"
+          data-testid={`entity-created-date-cell-${row.original.id}`}
+        >
+          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <span className="gba:text-sm">{formattedDate}</span>
+        </div>
+      )
+    }
   },
   {
     id: 'owner',

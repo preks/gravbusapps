@@ -14,7 +14,13 @@ import {
 } from '@newwork/nw-design-system'
 import { useCeoHubStats } from './hooks/useCeoHubStats'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ChartLineUp, Lightning, PresentationChart, UsersThree, Lightbulb } from '@phosphor-icons/react'
+import {
+  ChartLineUpIcon,
+  LightningIcon,
+  PresentationChartIcon,
+  UsersThreeIcon,
+  LightbulbIcon
+} from '@phosphor-icons/react'
 import { RefreshCwIcon } from 'lucide-react'
 
 type CeoHubProps = BusinessAppContextProps
@@ -83,7 +89,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
         title: 'Sales Activity 360°',
         description:
           'Complete visibility into all sales activities, customer interactions, and team engagement metrics across the entire organization.',
-        icon: PresentationChart,
+        icon: PresentationChartIcon,
         stats: {
           value: formatNumber(stats.totalActivities),
           label: 'Total Activities'
@@ -125,7 +131,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
         title: 'Sales Performance',
         description:
           'Strategic performance insights with revenue analytics, team rankings, pipeline forecasts, and goal tracking for executive decision-making.',
-        icon: ChartLineUp,
+        icon: ChartLineUpIcon,
         stats: {
           value: formatCurrency(stats.totalRevenue),
           label: 'Revenue Generated'
@@ -180,7 +186,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
       {
         id: 'team-performance',
         label: 'Team Performance',
-        icon: UsersThree,
+        icon: UsersThreeIcon,
         onClick: () => {
           const url = buildPlatformUrl('/platform/crm/sale-performance', { view: 'teams' })
           navigateTo(url)
@@ -190,7 +196,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
       {
         id: 'activity-overview',
         label: 'Activity Overview',
-        icon: Lightning,
+        icon: LightningIcon,
         onClick: () => {
           const url = buildPlatformUrl('/platform/crm/sales-activity-360')
           navigateTo(url)
@@ -208,7 +214,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
         data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
       >
         <div className="gba:max-w-md gba:mx-auto gba:p-6 gba:text-center">
-          <Lightbulb
+          <LightbulbIcon
             className="gba:h-16 gba:w-16 gba:text-primary gba:mx-auto gba:mb-4 gba:animate-pulse"
             weight="duotone"
           />
@@ -248,7 +254,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
     <LauncherLayout
       title="Executive Hub"
       description="Executive-level insights and strategic sales intelligence for data-driven decision making"
-      icon={Lightbulb}
+      icon={LightbulbIcon}
       headerKpis={headerKpis}
       sections={sections}
       quickActions={quickActions}
