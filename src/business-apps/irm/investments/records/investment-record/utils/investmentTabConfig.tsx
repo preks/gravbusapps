@@ -1,5 +1,13 @@
 // Investment Tab Configuration Utilities
-import { Home, BarChart3, Folder, FileText, TrendingUp, LayoutGrid, TrendingDown } from 'lucide-react'
+import {
+  HouseIcon,
+  ChartBarIcon,
+  FolderIcon,
+  FileTextIcon,
+  TrendUpIcon,
+  GridFourIcon,
+  TrendDownIcon
+} from '@phosphor-icons/react'
 import { InvestmentDocuments } from '../components/InvestmentDocuments'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -103,11 +111,11 @@ export const createInvestmentTabsConfig = (
 ) => {
   // Create base tabs array
   const tabs = [
-    // Home Tab
+    // HouseIcon Tab
     {
       value: 'home',
-      label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'Home'),
-      icon: <Home className="gba:h-4 gba:w-4 gba:mr-2" />,
+      label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'HouseIcon'),
+      icon: <HouseIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: <InvestmentHomeTab investmentId={investmentId} investment={investment} {...props} />
     }
   ]
@@ -124,7 +132,7 @@ export const createInvestmentTabsConfig = (
     tabs.push({
       value: 'analytics',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.analytics', 'Analytics'),
-      icon: <TrendingUp className="gba:h-4 gba:w-4 gba:mr-2" />,
+      icon: <TrendUpIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
         <div className="gba:col-span-12">
           <EquityAnalyticsTab
@@ -142,7 +150,7 @@ export const createInvestmentTabsConfig = (
   tabs.push({
     value: 'tiles',
     label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.tiles', 'Tiles'),
-    icon: <LayoutGrid className="gba:h-4 gba:w-4 gba:mr-2" />,
+    icon: <GridFourIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
     content: (
       <div className="gba:col-span-12">
         <InvestmentTilesTab investmentId={investmentId} investment={investment} onRefresh={loadData} {...props} />
@@ -154,7 +162,7 @@ export const createInvestmentTabsConfig = (
   tabs.push({
     value: 'divestments',
     label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.divestments', 'Divestments'),
-    icon: <TrendingDown className="gba:h-4 gba:w-4 gba:mr-2" />,
+    icon: <TrendDownIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
     content: (
       <div className="gba:col-span-12">
         <DivestmentsTab investmentId={investmentId} {...props} />
@@ -176,7 +184,7 @@ export const createInvestmentTabsConfig = (
     tabs.push({
       value: 'overview',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.overview', 'Overview'),
-      icon: <BarChart3 className="gba:h-4 gba:w-4 gba:mr-2" />,
+      icon: <ChartBarIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Generate One-Pager Action */}
@@ -208,7 +216,7 @@ export const createInvestmentTabsConfig = (
           {/* Type-specific content */}
           {getTypeSpecificOverviewContent(investmentType, typeSpecificData, props, loadData)}
 
-          {/* Note: Account and Contact sections removed - now available in Home tab */}
+          {/* Note: Account and Contact sections removed - now available in HouseIcon tab */}
         </div>
       )
     })
@@ -220,7 +228,7 @@ export const createInvestmentTabsConfig = (
     {
       value: 'documents',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.documents', 'Documents'),
-      icon: <Folder className="gba:h-4 gba:w-4 gba:mr-2" />,
+      icon: <FolderIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
         <div className="gba:col-span-12">
           {investmentId ? (
@@ -243,7 +251,7 @@ export const createInvestmentTabsConfig = (
     {
       value: 'reports',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.reports', 'Reports'),
-      icon: <FileText className="gba:h-4 gba:w-4 gba:mr-2" />,
+      icon: <FileTextIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
         <div className="gba:col-span-12">
           {/* Investment Reports Tab */}

@@ -1,17 +1,47 @@
 import { useCallback, useRef, useState, useMemo } from 'react'
-import { env } from '@/common/env/EnvUtils'
 import type { MessageEntityReference } from '../types'
 import type { OutputItem } from '../../every-ai/types/models'
 import { getCurrentPageContext } from '../../every-ai/utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
-const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
 const LLM_MODEL = 'gpt-4.1'
 const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
 
-function resolveFlowbotBaseUrl(): string {
-  return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
+/**
+ * Upload files to FlowBot using the async /add_files endpoint.
+ * Returns the (possibly new) sessionId that should be used for subsequent chat calls.
+ * This is shared between EveryAI app and employee chat to enable "upload now, ask later" behaviour.
+ */
+async function uploadFilesToFlowbotSession(
+  files: File[] | undefined,
+  sessionId: string | undefined,
+  accessToken: string
+): Promise<string> {
+  if (!files || files.length === 0) return sessionId ?? ''
+
+  const baseUrl = resolveFlowbotBaseUrl()
+  const url = `${baseUrl}/flowbot/api/agent/add_files`
+
+  const form = new FormData()
+  files.forEach(file => form.append('files', file))
+  form.append('session_id', sessionId ?? '')
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: form
+  })
+
+  if (!res.ok) {
+    throw new Error(`add_files failed: ${res.status} ${res.statusText}`)
+  }
+
+  const data = await res.json()
+  return (data?.sessionId as string | undefined) ?? sessionId ?? ''
 }
 
 // Type for analytics entity
@@ -525,8 +555,21 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         // This allows all users to share the same AI context
         const sharedSessionId = conversationContext?.existingSessionId ?? ''
 
+        // Try to pre-upload files via /add_files for this session.
+        // This enables async parsing so the first answer can be faster.
+        let effectiveSessionId = sharedSessionId
+        let usedAddFiles = false
+        if (files && files.length > 0) {
+          try {
+            effectiveSessionId = await uploadFilesToFlowbotSession(files, sharedSessionId || undefined, accessToken)
+            usedAddFiles = true
+          } catch (error) {
+            console.error('⚠️ [EveryAI] add_files failed, falling back to direct file upload:', error)
+          }
+        }
+
         const form = new FormData()
-        form.append('session_id', sharedSessionId)
+        form.append('session_id', effectiveSessionId)
         form.append('llm_model', LLM_MODEL)
         form.append('use_web_search_tool', 'false')
 
@@ -588,8 +631,10 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         }
 
         // FIX 3: Send file attachments to FlowBot (like standalone EveryAI does)
-        // This allows the AI to read and analyze uploaded documents/files
-        if (files && files.length > 0) {
+        // This allows the AI to read and analyze uploaded documents/files.
+        // If /add_files succeeded we don't need to send files again; if it failed we fall back
+        // to inline file upload with the chat request.
+        if (files && files.length > 0 && !usedAddFiles) {
           files.forEach(file => form.append('files', file))
         }
 
@@ -613,7 +658,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         // Parse SSE response to extract the answer and meeting data
         const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
         let responseText = ''
-        let responseSessionId = sharedSessionId // Start with existing, will be updated if new one received
+        let responseSessionId = effectiveSessionId // Start with current, will be updated if new one received
         let scheduledMeeting: ScheduledMeeting | undefined
         const collectedOutputs: OutputItem[] = [] // Collect all output items for rich rendering
         let buf = ''

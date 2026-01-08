@@ -6,8 +6,9 @@ import { useGenericAccountsOverTime } from '@/common/components/common-relations
 
 const CRM_ACCOUNTS_CONFIG = {
   accountEntity: 'Account',
-  opportunityRelation: 'opportunity'
-  // isOpportunityRelationList defaults to false for CRM (singular relationship)
+  opportunityRelation: 'opportunityAccounts',
+  isOpportunityRelationList: false, // CRM uses singular relationship pattern
+  isJunctionTable: true
 }
 
 export const useAccountsOverTime = (

@@ -68,11 +68,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              account: opportunityData?.account, // ✅ Vollständiges CustomerAccount-Objekt
-              accountId: opportunityData?.account?.id,
-              recordUrl: opportunityData?.account?.id
+              // Transform junction table to include account type
+              accounts:
+                opportunityData?.opportunityAccounts
+                  ?.map(junction => ({
+                    ...junction.account,
+                    accountType: junction.accountType // Add catalog entry from junction table
+                  }))
+                  .filter(Boolean) || [],
+              account: opportunityData?.opportunityAccounts?.[0]
+                ? {
+                    ...opportunityData.opportunityAccounts[0].account,
+                    accountType: opportunityData.opportunityAccounts[0].accountType
+                  }
+                : undefined,
+              accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
+              recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId
                 ? buildPlatformUrl('/platform/crm/account-record', {
-                    accountId: opportunityData.account.id,
+                    accountId: opportunityData.opportunityAccounts[0].accountId,
                     source: 'opportunity-relations',
                     fromEntity: 'opportunities'
                   })
@@ -80,7 +93,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
                 externalContextData: {
-                  accountId: opportunityData?.account?.id
+                  accountId: opportunityData?.opportunityAccounts?.[0]?.accountId
                 },
                 prefixDataTestId: 'customer-opportunity-account-action'
               }

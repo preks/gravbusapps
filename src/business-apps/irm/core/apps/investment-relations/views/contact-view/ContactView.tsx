@@ -1,10 +1,6 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  ContactLayout,
-  type ContactViewConfig,
-  type ContactStatisticsData
-} from '@/common/components/common-relations/view-layouts/contact-layout'
+import { ContactLayout, type ContactViewConfig } from '@/common/components/common-relations/view-layouts/contact-layout'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
 import { INVESTMENT_CONTACT_DESCRIPTORS } from '@/common/data/investment/types/investmentContactTypes'
 import {
@@ -27,19 +23,8 @@ export const ContactView: React.FC<ContactViewProps> = context => {
   const { fetchInvestmentContacts } = useInvestmentContacts(context)
   const contactStatistics = useInvestmentContactStatistics(context)
 
-  // Statistics - Transform hook data to ContactStatisticsData format
-  const contactStatisticsData: ContactStatisticsData | undefined = useMemo(() => {
-    if (!contactStatistics.trendData) return undefined
-    return {
-      recentContacts: contactStatistics.trendData.recentContacts,
-      activeContacts: contactStatistics.trendData.activeContacts,
-      emailEngagements: contactStatistics.trendData.emailEngagements,
-      contactsThisYear: contactStatistics.trendData.contactsThisYear,
-      isLoading: contactStatistics.isLoading,
-      error: contactStatistics.error,
-      refetch: contactStatistics.refetch
-    }
-  }, [contactStatistics])
+  // Statistics - Hook already returns the correct format
+  const contactStatisticsData = contactStatistics
 
   // Config
   const config: ContactViewConfig<Contact, InvestmentContactQueryVariables> = useMemo(

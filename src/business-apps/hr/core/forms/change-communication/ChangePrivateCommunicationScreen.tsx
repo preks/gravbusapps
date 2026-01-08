@@ -102,6 +102,7 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       context.userInfo?.employeeDetails?.employeeId
 
     return {
+      event: 'pse_submit',
       employeeCommunication: {
         channelRef: formState.channelType,
         typeRef: formState.valueType,
@@ -122,11 +123,12 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={!validation.isValid || !hasChanges}
+      submitEventType="pse_submit"
+      cancelEventType="pse_abort"
       submitButtonTestId="flw_changeRelationship_btnSubmit"
       cancelButtonTestId="flw_changeRelationship_btnCancel"
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
-      cancelEventType="pse_abort"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
       <div className="gba:bg-white gba:max-w-xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">

@@ -5,8 +5,8 @@ import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { Company } from '@/common/data/orgchart/types/companyTypes'
 
 export interface Opportunity extends BaseEntity {
-  account?: any // IRM | CRM
-  accountId?: string // IRM | CRM
+  account?: any // DEPRECATED - Use opportunityAccounts junction table instead
+  accountId?: string // DEPRECATED - Use opportunityAccounts junction table instead
   activities?: any[] // IRM | CRM
   addresses?: any[] // IRM | CRM
   closeDate?: string // IRM | CRM
@@ -42,10 +42,13 @@ export interface Opportunity extends BaseEntity {
 
 /**
  * Opportunity Query Field Mapping
+ *
+ * NOTE: account and accountId are DEPRECATED
+ * Both IRM and CRM should override these to undefined and use opportunityAccounts instead
  */
 export const OpportunityFields = {
-  account: 'account',
-  accountId: 'accountId',
+  account: 'account', // DEPRECATED - override to undefined in module-specific fields
+  accountId: 'accountId', // DEPRECATED - override to undefined in module-specific fields
   activities: 'activities',
   addresses: 'addresses',
   closeDate: 'closeDate',
@@ -63,6 +66,7 @@ export const OpportunityFields = {
   notes: 'notes',
   notesSummary: 'notesSummary',
   opportunityContacts: 'opportunityContacts',
+  opportunityAccounts: 'opportunityAccounts', // Use this for account associations (many-to-many junction table)
   opportunityPipeline: 'opportunityPipeline',
   opportunityPipelineRef: 'opportunityPipelineRef',
   opportunityPipelineStage: 'opportunityPipelineStage',
@@ -406,7 +410,7 @@ export const createOpportunityStageConditionDescriptors = (
  * - Primitives → string or undefined
  */
 export const opportunityFormFields = {
-  accountId: 'account',
+  accountId: 'account', // DEPRECATED - legacy field, use opportunityAccounts instead
   businessKey: 'businessKey',
   closeDate: 'closeDate',
   code: 'code',
@@ -418,7 +422,7 @@ export const opportunityFormFields = {
   name: 'name',
   notesSummary: 'notesSummary',
   opportunityContacts: 'opportunityContacts',
-  opportunityAccounts: 'opportunityAccounts',
+  opportunityAccounts: 'opportunityAccounts', // Use this for account associations (many-to-many)
   opportunityPipelineRef: 'opportunityPipelineRef',
   opportunityPipelineStageRef: 'opportunityPipelineStageRef',
   opportunityStatusRef: 'opportunityStatusRef',

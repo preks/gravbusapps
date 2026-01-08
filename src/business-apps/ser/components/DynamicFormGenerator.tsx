@@ -405,7 +405,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
                 id={field.name}
                 value={value || ''}
                 onChange={newValue => handleFieldChange(field.name, newValue)}
-                dataSource={field.dataSource}
+                dataSource={field.dataSource?.type === 'ENTITY' ? field.dataSource : undefined}
                 accessToken={accessToken || ''}
                 placeholder={field.placeholder || `Select ${field.label}`}
                 required={field.required}
@@ -574,7 +574,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
                 id={field.name}
                 value={Array.isArray(value) ? value : []}
                 onChange={newValues => handleFieldChange(field.name, newValues)}
-                dataSource={field.dataSource}
+                dataSource={field.dataSource?.type === 'ENTITY' ? field.dataSource : undefined}
                 accessToken={accessToken || ''}
                 placeholder={field.placeholder || `Select ${field.label}`}
                 required={field.required}

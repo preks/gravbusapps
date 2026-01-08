@@ -10,6 +10,7 @@ import {
   toast
 } from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form'
+import type { ZodType } from 'zod'
 import { cn } from '@/common/utils/cn'
 
 export interface FormMessage {
@@ -38,6 +39,7 @@ interface FormWrapperModalProps {
   // Form handling
   form?: UseFormReturn<FieldValues>
   resolver?: Resolver<FieldValues>
+  schema?: ZodType<any>
   validateForm?: (_formData: FieldValues) => string[] | null
   isSubmitDisabled?: boolean
   preventDuplicateSubmission?: boolean
@@ -88,6 +90,7 @@ const FormWrapperModal = ({
   // Form handling
   form: externalForm,
   resolver,
+  schema,
   validateForm,
   isSubmitDisabled = false,
   preventDuplicateSubmission = true,
@@ -261,7 +264,7 @@ const FormWrapperModal = ({
             </Alert>
           )}
 
-          <Form {...(form as UseFormReturn<FieldValues>)}>
+          <Form {...(form as UseFormReturn<FieldValues>)} schema={schema}>
             <form
               onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
               className={cn('gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full', formClassName)}

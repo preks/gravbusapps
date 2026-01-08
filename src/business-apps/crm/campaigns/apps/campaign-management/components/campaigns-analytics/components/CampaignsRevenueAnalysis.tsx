@@ -17,13 +17,7 @@ import {
   Radar,
   Legend
 } from 'recharts'
-import {
-  DollarOutlined,
-  BarChartOutlined,
-  PieChartOutlined,
-  LineChartOutlined,
-  RadarChartOutlined
-} from '@ant-design/icons'
+import { CurrencyDollarIcon, ChartBarIcon, ChartPieIcon, ChartLineIcon, ChartPolarIcon } from '@phosphor-icons/react'
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
@@ -273,17 +267,17 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
   }
 
   const chartTypeOptions = [
-    { value: 'revenue-bar' as const, label: 'Bar', icon: <BarChartOutlined /> },
-    { value: 'revenue-pie' as const, label: 'Pie', icon: <PieChartOutlined /> },
-    { value: 'revenue-area' as const, label: 'Area', icon: <LineChartOutlined /> },
-    { value: 'revenue-radar' as const, label: 'Radar', icon: <RadarChartOutlined /> }
+    { value: 'revenue-bar' as const, label: 'Bar', icon: <ChartBarIcon /> },
+    { value: 'revenue-pie' as const, label: 'Pie', icon: <ChartPieIcon /> },
+    { value: 'revenue-area' as const, label: 'Area', icon: <ChartLineIcon /> },
+    { value: 'revenue-radar' as const, label: 'Radar', icon: <ChartPolarIcon /> }
   ]
 
   return (
     <ChartCard
       title={
         <>
-          <DollarOutlined style={{ color: CHART_COLORS.success }} />
+          <CurrencyDollarIcon style={{ color: CHART_COLORS.success }} />
           {getTranslationFromI18nKeyAndLabel('campaigns.analytics.revenueAnalysis.title', 'Won Revenue Analysis')}
         </>
       }

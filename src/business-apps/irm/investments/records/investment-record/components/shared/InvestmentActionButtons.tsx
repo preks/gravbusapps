@@ -1,6 +1,6 @@
 import React from 'react'
 import { AiButton } from '@newwork/nw-design-system'
-import { Upload } from 'lucide-react'
+import { UploadIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { BaseInvestment } from '../../hooks/useInvestmentReportData'
@@ -148,17 +148,16 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
 
   return (
     <AppAction
-      contextsArray={[FlowContextName.investmentReportUpload]}
-      externalContextData={{ investmentId }}
+      contexts={[{ context: FlowContextName.investmentReportUploadIcon, contextData: { investmentId } }]}
       accessToken={accessToken}
-      emptyStateBehavior="enable"
+      emptyState="enable"
       prefixDataTestId="investment-record-upload-report"
     >
       <AiButton
         variant={variant}
         size={size}
         showIcon={true}
-        icon={<Upload style={{ height: '1rem', width: '1rem' }} />}
+        icon={<UploadIcon style={{ height: '1rem', width: '1rem' }} />}
         iconPosition="before"
         data-testid="upload-investment-report-button"
       >

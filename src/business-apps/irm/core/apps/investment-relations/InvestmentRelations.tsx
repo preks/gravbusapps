@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
-import { DollarSign, Users, Building2, Contact as ContactIcon, BarChart3 } from 'lucide-react'
-import { TrendUpIcon } from '@phosphor-icons/react'
+import {
+  TrendUpIcon,
+  HouseIcon,
+  ListIcon,
+  UsersThreeIcon,
+  BuildingsIcon,
+  UsersIcon,
+  CurrencyDollarIcon,
+  ChartBarIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { LeadView } from './views/lead-view'
@@ -54,37 +62,37 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
     () => [
       {
         key: 'dashboard',
-        icon: <BarChart3 />,
+        icon: <HouseIcon />,
         label: 'Dashboard'
       },
       {
         key: 'tasks',
-        icon: <BarChart3 />,
+        icon: <ListIcon />,
         label: 'Tasks'
       },
       {
         key: 'leads',
-        icon: <Users />,
+        icon: <UsersThreeIcon />,
         label: 'Leads'
       },
       {
         key: 'accounts',
-        icon: <Building2 />,
+        icon: <BuildingsIcon />,
         label: 'Accounts'
       },
       {
         key: 'contacts',
-        icon: <ContactIcon />,
+        icon: <UsersIcon />,
         label: 'Contacts'
       },
       {
         key: 'opportunities',
-        icon: <DollarSign />,
+        icon: <CurrencyDollarIcon />,
         label: 'Opportunities'
       },
       {
         key: 'analytics',
-        icon: <BarChart3 />,
+        icon: <ChartBarIcon />,
         label: 'Analytics'
       }
     ],

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { useFlowBot } from './hooks/useFlowBot'
 import { useVoiceInput } from './hooks/useVoiceInput'
 import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
@@ -47,8 +48,19 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
 
-  const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading } =
-    useFlowBot(accessToken)
+  const {
+    conversation,
+    isLoading,
+    sendMessage,
+    clearConversation,
+    nextStepProposals,
+    isPrechatLoading,
+    sessionId,
+    attachFiles,
+    cancelGeneration,
+    cancelledMessageText,
+    clearCancelledMessage
+  } = useFlowBot(accessToken)
 
   // Fetch current user's picture
   const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)
@@ -437,6 +449,8 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     isSearching: boolean,
     mentions?: Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
   ) => {
+    // Keep passing files for backwards compatibility.
+    // useFlowBot.sendMessage will decide whether to use /add_files or direct upload.
     sendMessage(text, files, isThinking, isSearching, mentions)
   }
 
@@ -656,6 +670,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               userInfo={userInfo}
               pictureThumbnail={pictureThumbnail}
               isVoiceMode={isSpeechMode}
+              sessionId={sessionId ?? undefined}
+              onCancelGeneration={cancelGeneration}
+              isAgentGenerating={isLoading}
             />
           )}
         </div>
@@ -677,6 +694,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             voiceVolume={voiceInput.volume}
             onToggleVoiceMode={toggleSpeechMode}
             onStopSpeaking={voiceSynthesis.stop}
+            // Pre-upload files as soon as they are attached for faster first answers.
+            onFilesAttached={files => attachFiles(files)}
+            // Cancel restoration props
+            cancelledMessageText={cancelledMessageText}
+            onClearCancelledMessage={clearCancelledMessage}
           />
         </div>
       </FormSubmissionProvider>

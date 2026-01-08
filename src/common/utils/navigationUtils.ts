@@ -58,6 +58,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   '/platform/employee-record': 'hr/core/apps/employee-record',
+  '/platform/hr/absences/manager-absences': 'hr/absences/apps/manager-absences',
 
   /// Recruiting: Apps
   '/platform/hr/recruiting/recruitment-manager': 'hr/recruiting/apps/recruitment-manager',

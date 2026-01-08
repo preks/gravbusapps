@@ -5,6 +5,7 @@ import { useDashboardQueries } from '../queries/DashboardQueries'
 import { formatCurrency, extractCurrencyCode } from '../utils/dashboardUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
+import { getTaskAssigneeDisplay } from '@/common/components/common-relations/utils/taskStatusUtils'
 
 export interface OverviewData {
   aggregatedFunnel: Array<{
@@ -442,14 +443,7 @@ export const useOverviewData = (
           dueDate: task.dueDate,
           status: task.taskStatus?.value || task.taskStatusRef?.split(':').pop() || 'Active',
           priority: task.taskPriority?.value || task.taskPriorityRef?.split(':').pop() || 'Normal',
-          assignedTo:
-            task.assignedEmployee?.fullName ||
-            task.assignedEmployee?.displayName ||
-            `${task.assignedEmployee?.firstName || ''} ${task.assignedEmployee?.lastName || ''}`.trim() ||
-            task.creatorEmployee?.fullName ||
-            task.creatorEmployee?.displayName ||
-            `${task.creatorEmployee?.firstName || ''} ${task.creatorEmployee?.lastName || ''}`.trim() ||
-            'Unassigned',
+          assignedTo: getTaskAssigneeDisplay(task, { multipleText: 'Multiple' }),
           relatedTo: relatedEntity?.name || getTranslationFromI18nKeyAndLabel('overview.noRelation', 'No relation'),
           relatedEntity: relatedEntity, // Add the full entity info
           isOverdue

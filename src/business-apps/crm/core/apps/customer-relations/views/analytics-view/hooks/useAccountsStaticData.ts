@@ -9,8 +9,9 @@ const CRM_ACCOUNTS_CONFIG = {
   opportunityEntity: 'Opportunity',
   industryField: 'industry',
   sizeField: 'numberOfEmployees',
-  opportunityRelation: 'opportunity'
-  // isOpportunityRelationList defaults to false for CRM (singular relationship)
+  opportunityRelation: 'opportunityAccounts',
+  isOpportunityRelationList: false, // CRM uses singular relationship pattern
+  isJunctionTable: true
 }
 
 export const useAccountsStaticData = (accessToken: string) => {

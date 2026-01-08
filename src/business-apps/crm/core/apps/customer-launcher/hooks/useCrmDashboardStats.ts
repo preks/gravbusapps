@@ -4,7 +4,6 @@ import { useGetCrmDashboardStats } from '../queries/CrmDashboardQueries'
 
 export interface CrmDashboardStats {
   // CRM Stats (filtered by sourceApp and excluding deleted records)
-  totalCustomers: number
   activeOpportunities: number
   pipelineValue: number
   totalLeads: number
@@ -16,7 +15,6 @@ export interface CrmDashboardStats {
 export const useCrmDashboardStats = (context: BusinessAppContextProps) => {
   const { fetchCrmDashboardStats } = useGetCrmDashboardStats(context)
   const [stats, setStats] = useState<CrmDashboardStats>({
-    totalCustomers: 0,
     activeOpportunities: 0,
     pipelineValue: 0,
     totalLeads: 0,
@@ -42,7 +40,6 @@ export const useCrmDashboardStats = (context: BusinessAppContextProps) => {
 
       // Extract CRM data (filtered by sourceApp and excluding deleted records)
       const dashboardStats: CrmDashboardStats = {
-        totalCustomers: result.totalCustomers?.aggregate?.count || 0,
         activeOpportunities: result.activeOpportunities?.aggregate?.count || 0,
         pipelineValue: result.pipelineValue?.aggregate?.sum?.estimatedAmount || 0,
         totalLeads: result.totalLeads?.aggregate?.count || 0,

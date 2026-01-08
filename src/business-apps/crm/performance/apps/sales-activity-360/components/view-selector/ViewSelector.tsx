@@ -1,5 +1,12 @@
 import React, { useMemo, useCallback, useState } from 'react'
-import { PiListBullets, PiUser, PiBuilding, PiUserCircle, PiTarget, PiHandshake } from 'react-icons/pi'
+import {
+  ListBulletsIcon,
+  UserIcon,
+  BuildingIcon,
+  TargetIcon,
+  HandshakeIcon,
+  UserCircleIcon
+} from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { ViewSelectorProps, ActivityViewFilter } from '../../types'
 import { ViewOption, EmployeePerformance } from './types/ViewSelectorTypes'
@@ -122,7 +129,7 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
         id: 'all',
         title: 'All Activities',
         subtitle: 'Complete overview',
-        icon: <PiListBullets className="gba:w-5 gba:h-5" />,
+        icon: <ListBulletsIcon className="gba:w-5 gba:h-5" />,
         iconBg: 'gba:bg-primary',
         iconColor: 'gba:text-primary-foreground',
         count: stats?.total
@@ -131,7 +138,7 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
         id: 'by-employee',
         title: 'By Employee',
         subtitle: `${stats?.activeEmployees || 0} active`,
-        icon: <PiUser className="gba:w-5 gba:h-5" />,
+        icon: <UserIcon className="gba:w-5 gba:h-5" />,
         iconBg: 'gba:bg-secondary',
         iconColor: 'gba:text-secondary-foreground',
         count: stats?.activeEmployees
@@ -140,7 +147,7 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
         id: 'by-account',
         title: 'By Account',
         subtitle: 'Account activities',
-        icon: <PiBuilding className="gba:w-5 gba:h-5" />,
+        icon: <BuildingIcon className="gba:w-5 gba:h-5" />,
         iconBg: 'gba:bg-accent',
         iconColor: 'gba:text-accent-foreground',
         count: stats?.byAccount
@@ -149,7 +156,7 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
         id: 'by-lead',
         title: 'By Lead',
         subtitle: 'Lead engagement',
-        icon: <PiTarget className="gba:w-5 gba:h-5" />,
+        icon: <TargetIcon className="gba:w-5 gba:h-5" />,
         iconBg: 'gba:bg-secondary',
         iconColor: 'gba:text-secondary-foreground',
         count: stats?.byLead
@@ -158,7 +165,7 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
         id: 'by-opportunity',
         title: 'By Opportunity',
         subtitle: 'Deal activities',
-        icon: <PiHandshake className="gba:w-5 gba:h-5" />,
+        icon: <HandshakeIcon className="gba:w-5 gba:h-5" />,
         iconBg: 'gba:bg-accent',
         iconColor: 'gba:text-accent-foreground',
         count: stats?.byOpportunity
@@ -167,7 +174,7 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
         id: 'by-contact',
         title: 'By Contact',
         subtitle: 'Contact touchpoints',
-        icon: <PiUserCircle className="gba:w-5 gba:h-5" />,
+        icon: <UserCircleIcon className="gba:w-5 gba:h-5" />,
         iconBg: 'gba:bg-muted',
         iconColor: 'gba:text-muted-foreground',
         count: stats?.byContact

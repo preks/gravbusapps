@@ -23,7 +23,6 @@ interface ChangeBankAccountContextData {
 
 interface ChangeBankAccountContextValue {
   data: ChangeBankAccountContextData | null
-  isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
 }
@@ -42,7 +41,6 @@ export const ChangeBankAccountProvider: React.FC<ProviderProps> = ({
 }) => {
   const graphqlClient = useGraphQLClient(accessToken)
   const [data, setData] = useState<ChangeBankAccountContextData | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
   const employeeId: string | undefined = useMemo(() => {
@@ -56,17 +54,14 @@ export const ChangeBankAccountProvider: React.FC<ProviderProps> = ({
 
   const fetchData = useCallback(async () => {
     if (!accessToken || !employeeId) {
-      setIsLoading(false)
       setError(!employeeId ? 'Missing employeeId' : 'Missing accessToken')
       return
     }
-    setIsLoading(true)
     setError(null)
     try {
       const empVariables = { idEmployee: employeeId } as any
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
       setData({ employee: employeeData, catalogs: null })
-      setIsLoading(false)
 
       // Fetch catalogs in background and merge
       try {
@@ -78,7 +73,6 @@ export const ChangeBankAccountProvider: React.FC<ProviderProps> = ({
       }
     } catch (e: any) {
       setError(e?.message || 'Unknown error')
-      setIsLoading(false)
     }
   }, [accessToken, employeeId, activeUserLocale, graphqlClient])
 
@@ -88,7 +82,6 @@ export const ChangeBankAccountProvider: React.FC<ProviderProps> = ({
 
   const value: ChangeBankAccountContextValue = {
     data,
-    isLoading,
     error,
     refetch: fetchData
   }

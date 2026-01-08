@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, EmptyState } from '@newwork/nw-design-system'
 import { CheckSquare } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -161,14 +161,12 @@ export const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks, source = 'inves
             ))}
           </div>
         ) : (
-          <div className="gba:h-64 gba:flex gba:items-center gba:justify-center">
-            <div className="gba:text-center">
-              <div className="gba:w-16 gba:h-16 gba:mx-auto gba:bg-green-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mb-4">
-                <CheckSquare className="gba:h-8 gba:w-8 gba:text-green-500" />
-              </div>
-              <div className="gba:text-gray-600 gba:text-lg">No active tasks. All caught up!</div>
-            </div>
-          </div>
+          <EmptyState
+            type="no-data"
+            title="No Tasks"
+            description="No active tasks. All caught up!"
+            data-testid="task-summary-empty-state"
+          />
         )}
       </CardContent>
     </Card>

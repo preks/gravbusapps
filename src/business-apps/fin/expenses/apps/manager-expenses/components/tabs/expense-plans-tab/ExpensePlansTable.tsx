@@ -46,6 +46,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { useExpensePlanFileService } from '../../../../personal-expenses/utils/expensePlanFileService'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { ensureShortDateFormat } from '../../../utils/dateUtils'
+import { TablePagination } from '../../../../../components'
 
 interface ExpensePlansTableProps extends BusinessAppContextProps {
   search?: string
@@ -200,14 +201,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
     [printExpensePlan, isMounted]
   )
 
-  // Pagination handlers - used directly in the component
-  const handlePageChange = useCallback(
-    (page: number) => {
-      setCurrentPage(page)
-    },
-    [setCurrentPage]
-  )
-
   // Sorting handler
   const handleSort = useCallback(
     (field: SortField) => {
@@ -231,14 +224,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
     [sorting]
   )
 
-  // Handle page size changes in the pagination controls
-  const handlePageSizeChange = useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
-      const size = parseInt(event.target.value, 10)
-      setPageSize(size)
-      setCurrentPage(1) // Reset to first page when changing page size
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      setCurrentPage(pagination.current)
+      setPageSize(pagination.pageSize)
     },
-    [setPageSize, setCurrentPage]
+    [setCurrentPage, setPageSize]
   )
 
   // Show error state
@@ -531,117 +523,18 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         </div>
 
         {/* Pagination */}
-        {totalCount > pageSize ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-            data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
-          >
-            <div
-              className="gba:text-sm gba:text-muted-foreground"
-              data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-                'Expense Plans'
-              )}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                </p>
-                <select
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  value={pageSize}
-                  onChange={handlePageSizeChange}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div
-                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                {Math.ceil(totalCount / pageSize)}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                >
-                  <span className="gba:sr-only">Go to first page</span>⟪
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                >
-                  <span className="gba:sr-only">Go to previous page</span>⟨
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                >
-                  <span className="gba:sr-only">Go to next page</span>⟩
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(Math.ceil(totalCount / pageSize))}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                >
-                  <span className="gba:sr-only">Go to last page</span>⟫
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : totalCount > 0 ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-            data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
-          >
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {`${totalCount} ${getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-                'Expense Plans'
-              )}`}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-              </p>
-              <select
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                value={pageSize}
-                onChange={handlePageSizeChange}
-                data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-        ) : null}
+        <TablePagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={totalCount}
+          onPageChange={handleTablePaginationChange}
+          entityNamePlural={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+            'Expense Plans'
+          )}
+          dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+          showBorder={false}
+        />
       </div>
 
       {/* Print Dialog using design system */}

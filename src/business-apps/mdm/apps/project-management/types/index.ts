@@ -24,6 +24,7 @@ export enum ProjectStatusUI {
 
 // Project data types
 export interface ProjectManager {
+  id: string
   displayName?: string
   firstName?: string
   lastName?: string
@@ -62,6 +63,8 @@ export interface Project {
   projectType: string
   customerId?: string
   projectManagerId?: string
+  managerPicture?: string
+  projectManagerName?: string
   hoursBudget?: number | null
   manager?: ProjectManager
   matrixTeam?: MatrixTeam
