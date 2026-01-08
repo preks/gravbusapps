@@ -129,11 +129,6 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
       },
       '*'
     )
-
-    console.log('📨 [TaskDetailHeader] Chat with requester initiated:', {
-      userId: chatWithRequester.requesterId,
-      userName: chatWithRequester.requesterName
-    })
   }
 
   // NOTE: We don't use TaskHeaderContext here because this component is bundled separately
@@ -142,11 +137,7 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
   // Auto-fetch employee data if IDs are provided and no manual data exists
   const shouldAutoFetch = showEmployeeInfo && !manualEmployeeData && (employeeId || userId) && accessToken
 
-  const {
-    employeeData: fetchedEmployeeData,
-    isLoading: isFetchingEmployee,
-    error: fetchError
-  } = useEmployeeData({
+  const { employeeData: fetchedEmployeeData, isLoading: isFetchingEmployee } = useEmployeeData({
     employeeId,
     userId,
     accessToken: accessToken || '',
@@ -186,22 +177,6 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
       img.removeEventListener('error', handleError)
     }
   }, [employeeData?.avatarUrl])
-
-  // Debug auto-fetch errors and data
-  React.useEffect(() => {
-    if (fetchError && shouldAutoFetch) {
-      console.warn('[TaskDetailHeader] Failed to auto-fetch employee data:', fetchError)
-    }
-    if (employeeData && shouldAutoFetch) {
-      console.log('[TaskDetailHeader] Auto-fetched employee data:', {
-        displayName: employeeData.displayName,
-        position: employeeData.position,
-        hasPosition: !!employeeData.position,
-        employeeId,
-        userId
-      })
-    }
-  }, [fetchError, shouldAutoFetch, employeeData, employeeId, userId])
 
   const shouldShowEmployee = showEmployeeInfo && (employeeData || isLoadingEmployee || creatorName)
 
