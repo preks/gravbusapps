@@ -138,8 +138,8 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
   // Memoize additionalData to prevent unnecessary re-renders of RemoteScreenLoader
   // This prevents infinite GraphQL query loops in child components
-  const nativeScreenAdditionalData = React.useMemo(
-    () => ({
+  const nativeScreenAdditionalData = React.useMemo(() => {
+    const data = {
       // Task-level data for forms like ScheduledTaskResult
       message: task?.message,
       title: task?.title || task?.name,
@@ -154,23 +154,24 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
       psi_flowStepData: currentStepData,
       psi_flowOverview: flowOverview,
       psi_currentStep: currentStep
-    }),
-    [
-      task?.message,
-      task?.title,
-      task?.name,
-      task?.tags,
-      task?.scheduledAt,
-      task?.dueDate,
-      taskInputs,
-      task?.sourceMetadata,
-      task?.status,
-      task?.availableActions,
-      currentStepData,
-      flowOverview,
-      currentStep
-    ]
-  )
+    }
+
+    return data
+  }, [
+    task?.message,
+    task?.title,
+    task?.name,
+    task?.tags,
+    task?.scheduledAt,
+    task?.dueDate,
+    taskInputs,
+    task?.sourceMetadata,
+    task?.status,
+    task?.availableActions,
+    currentStepData,
+    flowOverview,
+    currentStep
+  ])
 
   const lowcoderScreenAdditionalData = React.useMemo(
     () => ({

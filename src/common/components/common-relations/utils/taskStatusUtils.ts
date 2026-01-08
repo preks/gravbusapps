@@ -41,9 +41,12 @@ export function computeTaskStatus(taskAssignees: TaskAssignee[] | undefined | nu
   }
 
   const total = taskAssignees.length
-  const completed = taskAssignees.filter(ta => ta.taskStatus === 'COMPLETED_TASK_STATUS').length
-  const inProgress = taskAssignees.filter(ta => ta.taskStatus === 'IN_PROGRESS_TASK_STATUS').length
-  const pending = taskAssignees.filter(ta => !ta.taskStatus || ta.taskStatus === 'SCHEDULED_TASK_STATUS').length
+  // Count assignees with completedAt as completed (covers COMPLETED, REJECTED, APPROVED)
+  const completed = taskAssignees.filter(ta => !!ta.completedAt).length
+  const inProgress = taskAssignees.filter(ta => !ta.completedAt && ta.taskStatus === 'IN_PROGRESS_TASK_STATUS').length
+  const pending = taskAssignees.filter(
+    ta => !ta.completedAt && (!ta.taskStatus || ta.taskStatus === 'SCHEDULED_TASK_STATUS')
+  ).length
 
   let overallStatus = 'SCHEDULED'
   let statusColor = 'info'
@@ -92,9 +95,12 @@ export function getTaskStatusBadgeVariant(status: string): 'default' | 'success'
     case 'COMPLETED_TASK_STATUS':
     case 'COMPLETED':
       return 'success'
+    case 'APPROVED_TASK_STATUS':
+    case 'APPROVED':
+      return 'success'
     case 'IN_PROGRESS_TASK_STATUS':
     case 'IN_PROGRESS':
-      return 'warning'
+      return 'info'
     case 'SCHEDULED_TASK_STATUS':
     case 'SCHEDULED':
       return 'info'
