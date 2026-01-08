@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { Card, CardContent, Button } from '@newwork/nw-design-system'
-import { LayoutGrid, FileText, TrendingUp, Table, PieChart } from 'lucide-react'
+import { GridFourIcon, FileTextIcon, TrendUpIcon, TableIcon, ChartPieIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
@@ -12,7 +12,7 @@ import {
   TileData,
   TextTileCard,
   KpiTileCard,
-  TableTileCard,
+  TableIconTileCard,
   ChartTileCard
 } from '@/common/components/investment/tiles'
 
@@ -57,7 +57,7 @@ export const InvestmentPortalTiles: React.FC<InvestmentPortalTilesProps> = ({
       case TILE_TYPES.KPI:
         return <KpiTileCard key={tile.id} {...tileProps} />
       case TILE_TYPES.TABLE:
-        return <TableTileCard key={tile.id} {...tileProps} />
+        return <TableIconTileCard key={tile.id} {...tileProps} />
       case TILE_TYPES.CHART:
         return <ChartTileCard key={tile.id} {...tileProps} />
       default:
@@ -87,7 +87,7 @@ export const InvestmentPortalTiles: React.FC<InvestmentPortalTilesProps> = ({
         data-testid="add-text-tile-action"
       >
         <Button variant="default" size="sm" data-testid="add-text-tile-button">
-          <FileText className="gba:mr-2 gba:h-4 gba:w-4" />
+          <FileTextIcon className="gba:mr-2 gba:h-4 gba:w-4" />
           {getTranslationFromI18nKeyAndLabel('investment.tiles.addText', 'Add Text Tile')}
         </Button>
       </AppAction>
@@ -108,12 +108,12 @@ export const InvestmentPortalTiles: React.FC<InvestmentPortalTilesProps> = ({
         data-testid="add-kpi-tile-action"
       >
         <Button variant="default" size="sm" data-testid="add-kpi-tile-button">
-          <TrendingUp className="gba:mr-2 gba:h-4 gba:w-4" />
+          <TrendUpIcon className="gba:mr-2 gba:h-4 gba:w-4" />
           {getTranslationFromI18nKeyAndLabel('investment.tiles.addKpi', 'Add KPI Tile')}
         </Button>
       </AppAction>
 
-      {/* Add Table Tile */}
+      {/* Add TableIcon Tile */}
       <AppAction
         contexts={[
           {
@@ -129,8 +129,8 @@ export const InvestmentPortalTiles: React.FC<InvestmentPortalTilesProps> = ({
         data-testid="add-table-tile-action"
       >
         <Button variant="default" size="sm" data-testid="add-table-tile-button">
-          <Table className="gba:mr-2 gba:h-4 gba:w-4" />
-          {getTranslationFromI18nKeyAndLabel('investment.tiles.addTable', 'Add Table Tile')}
+          <TableIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+          {getTranslationFromI18nKeyAndLabel('investment.tiles.addTableIcon', 'Add TableIcon Tile')}
         </Button>
       </AppAction>
 
@@ -150,7 +150,7 @@ export const InvestmentPortalTiles: React.FC<InvestmentPortalTilesProps> = ({
         data-testid="add-chart-tile-action"
       >
         <Button variant="default" size="sm" data-testid="add-chart-tile-button">
-          <PieChart className="gba:mr-2 gba:h-4 gba:w-4" />
+          <ChartPieIcon className="gba:mr-2 gba:h-4 gba:w-4" />
           {getTranslationFromI18nKeyAndLabel('investment.tiles.addChart', 'Add Chart Tile')}
         </Button>
       </AppAction>
@@ -164,7 +164,7 @@ export const InvestmentPortalTiles: React.FC<InvestmentPortalTilesProps> = ({
         {renderAddTileButtons()}
         <Card className="gba:border-dashed" data-testid="investment-portal-tiles-empty">
           <CardContent className="gba:py-12 gba:text-center">
-            <LayoutGrid className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-muted-foreground" />
+            <GridFourIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-muted-foreground" />
             <p className="gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'investment.portal.tiles.empty',

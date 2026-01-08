@@ -46,9 +46,9 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = context => {
 
     return [
       {
-        id: 'total-customers',
-        title: 'Total Customers',
-        value: isLoading ? '...' : formatNumber(stats.totalCustomers),
+        id: 'total-accounts',
+        title: 'Total Accounts',
+        value: isLoading ? '...' : formatNumber(stats.totalAccounts),
         color: 'default'
       },
       {

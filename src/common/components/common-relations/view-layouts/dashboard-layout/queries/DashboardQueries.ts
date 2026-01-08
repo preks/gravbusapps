@@ -326,7 +326,10 @@ export const createDashboardQueries = (config: DashboardEntityConfig) => {
         where: {
           isDeleted: {_eq: false}
           endDate: {_isNull: true}
+          taskAssignees: {
           assignedEmployeeId: {_eq: $employeeId}
+            isDeleted: {_eq: false}
+          }
         }
         limit: 10
         orderBy: {createdAt: DESC}
@@ -356,12 +359,16 @@ export const createDashboardQueries = (config: DashboardEntityConfig) => {
           value
           code
         }
+        taskAssignees(where: { isDeleted: { _eq: false } }) {
         assignedEmployee {
           id
           firstName
           lastName
           fullName
           displayName
+          }
+          assignedEmployeeId
+          assignedUserId
         }
         creatorEmployee {
           id

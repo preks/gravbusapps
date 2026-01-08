@@ -8,7 +8,7 @@ import {
   TabSwitchTrigger,
   TabSwitchContent
 } from '@newwork/nw-design-system'
-import { PiDatabase, PiTrendUp } from 'react-icons/pi'
+import { DatabaseIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { CatalogEntryWithConfig } from '../types'
 import { InvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
@@ -50,7 +50,7 @@ export const GroupTypeSelector: React.FC<GroupTypeSelectorProps> = ({
           <TabSwitchTrigger
             key={group.id}
             value={group.id}
-            startIcon={<PiDatabase className="gba:w-4 gba:h-4" />}
+            startIcon={<DatabaseIcon className="gba:w-4 gba:h-4" />}
             data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-group-${group.code}`}
           >
             {group.value}
@@ -76,7 +76,7 @@ export const GroupTypeSelector: React.FC<GroupTypeSelectorProps> = ({
                 <TabsList className="gba:w-full gba:justify-start gba:flex-wrap">
                   <TabsTrigger
                     value="general"
-                    startIcon={<PiDatabase className="gba:w-4 gba:h-4" />}
+                    startIcon={<DatabaseIcon className="gba:w-4 gba:h-4" />}
                     data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-group-general`}
                   >
                     General Group Settings
@@ -86,7 +86,7 @@ export const GroupTypeSelector: React.FC<GroupTypeSelectorProps> = ({
                     <TabsTrigger
                       key={type.id}
                       value={type.id}
-                      startIcon={<PiTrendUp className="gba:w-4 gba:h-4" />}
+                      startIcon={<TrendUpIcon className="gba:w-4 gba:h-4" />}
                       data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-type-${type.code}`}
                     >
                       {type.value}

@@ -11,7 +11,7 @@ import {
   Button,
   Badge
 } from '@newwork/nw-design-system'
-import { RefreshCwIcon, UsersIcon } from 'lucide-react'
+import { ArrowClockwiseIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   TeamSelectionCard,
@@ -98,7 +98,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
       <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap gba:flex gba:items-center gba:gap-2">
-        <UsersIcon className="gba:h-4 gba:w-4" />
+        <UsersThreeIcon className="gba:h-4 gba:w-4" />
         Select Team:
       </Label>
       <Select
@@ -297,7 +297,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
           description={error}
           action={
             <Button variant="outline" size="sm" onClick={refetch}>
-              <RefreshCwIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+              <ArrowClockwiseIcon className="gba:mr-2 gba:h-4 gba:w-4" />
               Retry
             </Button>
           }

@@ -3,30 +3,26 @@ import type { PendingProcessCheckConfig } from './usePendingProcessCheck.types'
 /**
  * Predefined process configurations for common employee self-service processes
  * These are convenience constants - consumers can create their own configs
+ *
+ * NEW BACKEND: No need for entityField - backend now has status field!
  */
 export const EMPLOYEE_PROCESS_CONFIGS = {
   CHANGE_BANK_ACCOUNT: {
-    processPath: 'changeBankAccount',
-    entityField: 'bankAccount'
-  } satisfies Pick<PendingProcessCheckConfig<'bankAccount'>, 'processPath' | 'entityField'>,
+    processPath: 'changeBankAccount'
+  } satisfies Pick<PendingProcessCheckConfig, 'processPath'>,
   CHANGE_ADDRESS: {
-    processPath: 'changeAddress',
-    entityField: 'address'
-  } satisfies Pick<PendingProcessCheckConfig<'address'>, 'processPath' | 'entityField'>,
+    processPath: 'changeAddress'
+  } satisfies Pick<PendingProcessCheckConfig, 'processPath'>,
   CHANGE_PERSONAL_DATA: {
-    processPath: 'changePersonalData',
-    entityField: 'personalData'
-  } satisfies Pick<PendingProcessCheckConfig<'personalData'>, 'processPath' | 'entityField'>,
+    processPath: 'changePersonalData'
+  } satisfies Pick<PendingProcessCheckConfig, 'processPath'>,
   CHANGE_COMMUNICATION: {
-    processPath: 'changeCommunication',
-    entityField: 'communication'
-  } satisfies Pick<PendingProcessCheckConfig<'communication'>, 'processPath' | 'entityField'>,
+    processPath: 'changeCommunication'
+  } satisfies Pick<PendingProcessCheckConfig, 'processPath'>,
   GRANT_BONUS: {
-    processPath: 'grantBonus',
-    entityField: 'bonus'
-  } satisfies Pick<PendingProcessCheckConfig<'bonus'>, 'processPath' | 'entityField'>,
+    processPath: 'grantBonus'
+  } satisfies Pick<PendingProcessCheckConfig, 'processPath'>,
   ADJUST_SALARY: {
-    processPath: 'adjustSalary',
-    entityField: 'salary'
-  } satisfies Pick<PendingProcessCheckConfig<'salary'>, 'processPath' | 'entityField'>
+    processPath: 'adjustSalary'
+  } satisfies Pick<PendingProcessCheckConfig, 'processPath'>
 } as const

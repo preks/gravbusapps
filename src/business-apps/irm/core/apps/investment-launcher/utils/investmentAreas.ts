@@ -1,5 +1,13 @@
 import { InvestmentArea, InvestmentQuickAction } from '../types'
-import { UserPlus, Target, Building, AddressBook, FileText, ChartBar, Wallet } from '@phosphor-icons/react'
+import {
+  UserPlusIcon,
+  TargetIcon,
+  BuildingIcon,
+  AddressBookIcon,
+  FileTextIcon,
+  ChartBarIcon,
+  WalletIcon
+} from '@phosphor-icons/react'
 
 export const investmentAreas: InvestmentArea[] = [
   // CRM Areas (identical to CRM functionality)
@@ -7,7 +15,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'leads',
     title: 'Leads',
     description: 'Manage prospects and potential customers in your sales pipeline',
-    icon: UserPlus,
+    icon: UserPlusIcon,
     category: 'crm',
     path: '/crm/leads'
   },
@@ -15,7 +23,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'opportunities',
     title: 'Opportunities',
     description: 'Track and manage sales opportunities through your pipeline',
-    icon: Target,
+    icon: TargetIcon,
     category: 'crm',
     path: '/crm/opportunities'
   },
@@ -23,7 +31,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'accounts',
     title: 'Accounts',
     description: 'Manage company and organization records and relationships',
-    icon: Building,
+    icon: BuildingIcon,
     category: 'crm',
     path: '/crm/accounts'
   },
@@ -31,7 +39,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'contacts',
     title: 'Contacts',
     description: 'Maintain individual person records and contact information',
-    icon: AddressBook,
+    icon: AddressBookIcon,
     category: 'crm',
     path: '/crm/contacts'
   },
@@ -41,7 +49,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'investments',
     title: 'Investments',
     description: 'Comprehensive investment portfolio management and tracking',
-    icon: Wallet,
+    icon: WalletIcon,
     category: 'portfolio',
     path: '/investments'
   },
@@ -51,7 +59,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'analytics-reporting',
     title: 'Analytics and Reporting',
     description: 'Advanced analytics, performance metrics, and comprehensive reporting',
-    icon: ChartBar,
+    icon: ChartBarIcon,
     category: 'analytics',
     path: '/investments/analytics'
   }
@@ -61,37 +69,37 @@ export const investmentQuickActions: InvestmentQuickAction[] = [
   {
     id: 'add-lead',
     label: 'Add New Lead',
-    icon: UserPlus,
+    icon: UserPlusIcon,
     action: 'create-lead'
   },
   {
     id: 'create-opportunity',
     label: 'Create Opportunity',
-    icon: Target,
+    icon: TargetIcon,
     action: 'create-opportunity'
   },
   {
     id: 'add-contact',
     label: 'Add Contact',
-    icon: AddressBook,
+    icon: AddressBookIcon,
     action: 'create-contact'
   },
   {
     id: 'add-account',
     label: 'Add Account',
-    icon: Building,
+    icon: BuildingIcon,
     action: 'create-account'
   },
   {
     id: 'add-investment',
     label: 'Add Investment',
-    icon: Wallet,
+    icon: WalletIcon,
     action: 'create-investment'
   },
   {
     id: 'generate-report',
     label: 'Generate Report',
-    icon: FileText,
+    icon: FileTextIcon,
     action: 'generate-report'
   }
 ]

@@ -12,7 +12,7 @@ import {
   Avatar,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { TeamOutlined } from '@ant-design/icons'
+import { UsersThreeIcon } from '@phosphor-icons/react'
 import { type TopTeam } from '../types'
 
 interface TopTeamsCardProps {
@@ -61,7 +61,7 @@ export const TopTeamsCard: React.FC<TopTeamsCardProps> = ({ topTeams, isLoading 
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-loading`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <TeamOutlined className="gba:text-info" />
+            <UsersThreeIcon className="gba:text-info" />
             Top Teams by Revenue
           </CardTitle>
         </CardHeader>
@@ -77,7 +77,7 @@ export const TopTeamsCard: React.FC<TopTeamsCardProps> = ({ topTeams, isLoading 
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <TeamOutlined className="gba:text-info" />
+            <UsersThreeIcon className="gba:text-info" />
             Top Teams by Revenue
           </CardTitle>
         </CardHeader>
@@ -100,7 +100,7 @@ export const TopTeamsCard: React.FC<TopTeamsCardProps> = ({ topTeams, isLoading 
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-empty`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <TeamOutlined className="gba:text-info" />
+            <UsersThreeIcon className="gba:text-info" />
             Top Teams by Revenue
           </CardTitle>
         </CardHeader>
@@ -115,7 +115,7 @@ export const TopTeamsCard: React.FC<TopTeamsCardProps> = ({ topTeams, isLoading 
     <Card data-testid={DATA_TEST_ID_PREFIX} className="gba:h-full">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <TeamOutlined className="gba:text-info" />
+          <UsersThreeIcon className="gba:text-info" />
           Top Teams by Revenue
         </CardTitle>
       </CardHeader>

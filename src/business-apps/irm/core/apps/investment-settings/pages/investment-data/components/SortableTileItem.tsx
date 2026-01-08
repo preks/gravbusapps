@@ -2,7 +2,7 @@ import React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Button, Input, Label } from '@newwork/nw-design-system'
-import { PiDotsSixVertical, PiX } from 'react-icons/pi'
+import { DotsSixVerticalIcon, XIcon } from '@phosphor-icons/react'
 import { TileField } from '../types'
 import { IconSelect } from '@/components/icon-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -48,7 +48,7 @@ export const SortableTileItem: React.FC<SortableTileItemProps> = ({
           className="gba:cursor-grab gba:flex gba:items-center gba:text-muted-foreground gba:mt-8"
           data-testid={`${prefixDataTestId}-drag-handle`}
         >
-          <PiDotsSixVertical size={20} />
+          <DotsSixVerticalIcon size={20} />
         </div>
       )}
 
@@ -98,7 +98,7 @@ export const SortableTileItem: React.FC<SortableTileItemProps> = ({
           className="gba:mt-8"
           data-testid={`${prefixDataTestId}-delete`}
         >
-          <PiX />
+          <XIcon />
         </Button>
       )}
     </div>

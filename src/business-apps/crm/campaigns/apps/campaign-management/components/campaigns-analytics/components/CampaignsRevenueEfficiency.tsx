@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ComposedChart, Bar, Line, Legend, Cell, Treemap } from 'recharts'
-import { DotChartOutlined, BarChartOutlined, AppstoreOutlined } from '@ant-design/icons'
+import { ChartScatterIcon, ChartBarIcon, GridFourIcon } from '@phosphor-icons/react'
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
@@ -302,9 +302,9 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
       headerActions={
         <ChartTypeSwitcher
           options={[
-            { value: 'scatter' as const, label: 'Scatter', icon: <DotChartOutlined /> },
-            { value: 'composed' as const, label: 'Composed', icon: <BarChartOutlined /> },
-            { value: 'treemap' as const, label: 'Treemap', icon: <AppstoreOutlined /> }
+            { value: 'scatter' as const, label: 'Scatter', icon: <ChartScatterIcon /> },
+            { value: 'composed' as const, label: 'Composed', icon: <ChartBarIcon /> },
+            { value: 'treemap' as const, label: 'Treemap', icon: <GridFourIcon /> }
           ]}
           activeType={chartType}
           onChange={setChartType}

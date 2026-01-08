@@ -1,7 +1,15 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Progress, Badge, Avatar } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Progress,
+  Badge,
+  Avatar,
+  EmptyState
+} from '@newwork/nw-design-system'
 import { Trophy, Crown, Star, User } from 'lucide-react'
-import EmptyState from '@/components/empty-state/EmptyState'
 
 export interface SalesRepPerformance {
   employeeId: string
@@ -86,7 +94,12 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
           </div>
         </CardHeader>
         <CardContent>
-          <EmptyState title="No Sales Data" description="No sales performance data available" />
+          <EmptyState
+            type="no-data"
+            title="No Sales Data"
+            description="No sales performance data available"
+            data-testid="performance-leaderboard-empty-state"
+          />
         </CardContent>
       </Card>
     )

@@ -18,7 +18,6 @@ export interface QuickAction {
 
 export interface CrmDashboardStats {
   // CRM Stats (filtered by sourceApp and excluding deleted records)
-  totalCustomers: number
   activeOpportunities: number
   pipelineValue: number
   totalLeads: number

@@ -14,6 +14,7 @@ interface DynamicFormDisplayProps {
   conversation?: ConversationTurn[]
   accessToken: string
   isVoiceMode?: boolean
+  isAgentGenerating?: boolean
 }
 
 // SchemaField, SearchableUuidField, and SecondaryCollapsible have been moved to ./forms/
@@ -26,7 +27,8 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   sendMessage,
   conversation = [],
   accessToken,
-  isVoiceMode = false
+  isVoiceMode = false,
+  isAgentGenerating = false
 }) => {
   const { getFormState, setFormState, clearFormState } = useFormSubmission()
   const voiceFormContext = useVoiceFormContext()
@@ -739,14 +741,19 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
 
   useEffect(() => {
     submitHandlerRef.current = () => {
-      if (!currentFormState.isSubmitted && !currentFormState.isLoading && !submissionTriggeredRef.current) {
+      if (
+        !currentFormState.isSubmitted &&
+        !currentFormState.isLoading &&
+        !isAgentGenerating &&
+        !submissionTriggeredRef.current
+      ) {
         console.log('[Voice] Submit handler triggered')
         submissionTriggeredRef.current = true // Prevent re-registration
         const fakeEvent = { preventDefault: () => {} } as React.FormEvent
         handleSubmit(fakeEvent)
       }
     }
-  }, [currentFormState.isSubmitted, currentFormState.isLoading, handleSubmit])
+  }, [currentFormState.isSubmitted, currentFormState.isLoading, handleSubmit, isAgentGenerating])
 
   useEffect(() => {
     cancelHandlerRef.current = () => {
@@ -982,6 +989,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
             <FormActions
               isDeleteOperation={isDeleteOperation}
               isLoading={isLoading}
+              isAgentGenerating={isAgentGenerating}
               onCancel={onCancel ? handleCancel : undefined}
             />
           )}

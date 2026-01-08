@@ -12,7 +12,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Checkbox,
+  CheckIconbox,
   Table,
   TableHeader,
   TableBody,
@@ -32,8 +32,16 @@ import {
   ChartLegend,
   ChartLegendContent
 } from '@newwork/nw-design-system'
-import { Check, ChevronsUpDown } from 'lucide-react'
-import { PiTarget, PiCurrencyDollar, PiChartLine, PiRanking, PiArrowRight, PiListChecks } from 'react-icons/pi'
+import {
+  CheckIcon,
+  CaretUpDownIcon,
+  TargetIcon,
+  CurrencyDollarIcon,
+  ChartLineIcon,
+  RankingIcon,
+  ArrowRightIcon,
+  ListChecksIcon
+} from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatCurrency } from '@/common/utils/numberFormatter'
@@ -213,7 +221,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         key: 'company-revenue',
         title: `Total Revenue (${selectedCurrency})`,
         value: formatCurrency(totalRevenue, selectedCurrency),
-        prefix: <PiCurrencyDollar />,
+        prefix: <CurrencyDollarIcon />,
         color: '#1890ff',
         description: `Avg per team: ${formatCurrency(avgRevenuePerTeam, selectedCurrency)}`,
         valueIsString: true,
@@ -227,7 +235,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         key: 'company-pipeline',
         title: `Pipeline Value (${selectedCurrency})`,
         value: formatCurrency(totalPipeline, selectedCurrency),
-        prefix: <PiChartLine />,
+        prefix: <ChartLineIcon />,
         color: '#52c41a',
         description: `Avg per team: ${formatCurrency(avgPipelinePerTeam, selectedCurrency)}`,
         valueIsString: true,
@@ -241,7 +249,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         key: 'company-win-rate',
         title: 'Average Win Rate',
         value: Math.round(avgWinRate * 10) / 10,
-        prefix: <PiTarget />,
+        prefix: <TargetIcon />,
         color: '#722ed1',
         description: `Across ${teamsData.length} team${teamsData.length === 1 ? '' : 's'}`,
         precision: 1,
@@ -256,7 +264,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         key: 'company-activities',
         title: 'Total Activities',
         value: totalActivities,
-        prefix: <PiListChecks />,
+        prefix: <ListChecksIcon />,
         color: '#fa8c16',
         description: `Avg per team: ${Math.round(avgActivitiesPerTeam)}`,
         trend: {
@@ -347,7 +355,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                 data-testid={`${DATA_TEST_ID_PREFIX}-currency-filter`}
               >
                 {selectedCurrency}
-                <ChevronsUpDown className="gba:ml-2 gba:h-4 gba:w-4 gba:shrink-0 gba:opacity-50" />
+                <CaretUpDownIcon className="gba:ml-2 gba:h-4 gba:w-4 gba:shrink-0 gba:opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="gba:w-[280px] gba:p-0">
@@ -363,7 +371,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                         setSelectedCurrency(currency.code)
                       }}
                     >
-                      <Check
+                      <CheckIcon
                         className={`gba:mr-2 gba:h-4 gba:w-4 gba:shrink-0 ${
                           selectedCurrency === currency.code ? 'gba:opacity-100' : 'gba:opacity-0'
                         }`}
@@ -405,10 +413,10 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
               {availableTeams.length > 0 ? (
                 availableTeams.map(team => (
                   <div key={team.id} className="gba:flex gba:items-center gba:space-x-2">
-                    <Checkbox
+                    <CheckIconbox
                       id={`team-${team.id}`}
                       checked={selectedTeams.includes(team.id)}
-                      onCheckedChange={checked => handleTeamSelection(team.id, checked as boolean)}
+                      onCheckIconedChange={checked => handleTeamSelection(team.id, checked as boolean)}
                     />
                     <label
                       htmlFor={`team-${team.id}`}
@@ -438,7 +446,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
           <CardHeader>
             <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
               <CardTitle className="gba:flex gba:items-center gba:gap-2">
-                <PiChartLine className="gba:w-5 gba:h-5 gba:text-blue-600" />
+                <ChartLineIcon className="gba:w-5 gba:h-5 gba:text-blue-600" />
                 Team Performance Comparison - {getMetricLabel(comparisonMetric)}
               </CardTitle>
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -477,7 +485,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                     className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-12 gba:text-center"
                     style={{ height: 400 }}
                   >
-                    <PiChartLine className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4" />
+                    <ChartLineIcon className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4" />
                     <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">No Teams Selected</h3>
                     <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">
                       Select one or more teams from the selector above to view team performance comparison.
@@ -526,14 +534,14 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
       <Card className="gba:mt-6" data-testid={`${DATA_TEST_ID_PREFIX}-performance-table`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <PiRanking className="gba:w-5 gba:h-5 gba:text-blue-600" />
+            <RankingIcon className="gba:w-5 gba:h-5 gba:text-blue-600" />
             Team Performance Rankings
           </CardTitle>
         </CardHeader>
         <CardContent className="gba:p-0">
           {filteredTeamsData.length === 0 ? (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-12 gba:text-center">
-              <PiRanking className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4" />
+              <RankingIcon className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4" />
               <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">No Teams Selected</h3>
               <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">
                 Select one or more teams from the selector above to view team performance rankings.
@@ -647,7 +655,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                           data-testid={`${DATA_TEST_ID_PREFIX}-drill-down-${team.teamId}`}
                         >
                           View Details
-                          <PiArrowRight className="gba:w-4 gba:h-4 gba:ml-1" />
+                          <ArrowRightIcon className="gba:w-4 gba:h-4 gba:ml-1" />
                         </Button>
                       </TableCell>
                     </TableRow>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Spinner } from '@newwork/nw-design-system'
-import { PiArrowLeft, PiFloppyDisk } from 'react-icons/pi'
+import { ArrowLeftIcon, FloppyDiskIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CatalogEntryWithConfig } from '../types'
 
@@ -31,7 +31,7 @@ export const InvestmentDataHeader: React.FC<InvestmentDataHeaderProps> = ({
             onClick={onBack}
             data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-back-button`}
           >
-            <PiArrowLeft size={20} />
+            <ArrowLeftIcon size={20} />
           </Button>
         )}
         <div>
@@ -47,7 +47,7 @@ export const InvestmentDataHeader: React.FC<InvestmentDataHeaderProps> = ({
         disabled={!selectedEntry || isSaving}
         data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-save-button`}
       >
-        {isSaving ? <Spinner size="sm" /> : <PiFloppyDisk />}
+        {isSaving ? <Spinner size="sm" /> : <FloppyDiskIcon />}
         {isSaving ? 'Saving...' : 'Save Configuration'}
       </Button>
     </div>
