@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Button, Badge, Card } from '@newwork/nw-design-system'
+import {
+  Button,
+  Badge,
+  Card,
+  Input,
+  Label,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Bell } from '@phosphor-icons/react'
+import { Bell, Plus, X } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -26,6 +36,12 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [reminderTitle, setReminderTitle] = useState('')
+  const [reminderMessage, setReminderMessage] = useState('')
+  const [reminderDate, setReminderDate] = useState('')
+  const [reminderTime, setReminderTime] = useState('')
   const notifiedReminders = useRef<Set<string>>(new Set())
 
   // Use Keycloak ID (userInfo.id) to match reminder creation in FlowBot
@@ -38,7 +54,15 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
     setError(null)
 
     try {
-      const baseUrl = window.location.origin
+      let baseUrl = window.location.origin
+
+      // If platform is running on localhost, connect to DEV environment
+      // This handles the case where Reminders is loaded from CDN but platform is running locally
+      const isLocalPlatform = baseUrl.includes('localhost')
+      if (isLocalPlatform) {
+        baseUrl = 'https://newwork-dev.newwork.com'
+        console.log('🔄 [RemindersPanel] Local platform detected - connecting to DEV environment:', baseUrl)
+      }
 
       // Skip if no user ID
       if (!userId) {
@@ -190,7 +214,13 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
 
   const handleMarkAsDone = async (workflowId: string) => {
     try {
-      const baseUrl = window.location.origin
+      let baseUrl = window.location.origin
+
+      // If platform is running on localhost, connect to DEV environment
+      const isLocalPlatform = baseUrl.includes('localhost')
+      if (isLocalPlatform) {
+        baseUrl = 'https://newwork-dev.newwork.com'
+      }
 
       // Step 1: Get the task ID from workflow's step_0
       const stepDataResponse = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}/steps/step_0/data?limit=1`, {
@@ -246,6 +276,80 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
     }
   }
 
+  const handleCreateReminder = async () => {
+    if (!reminderTitle.trim() || !reminderDate || !reminderTime || !accessToken) return
+
+    setIsCreating(true)
+    setError(null)
+
+    try {
+      let baseUrl = window.location.origin
+
+      // If platform is running on localhost, connect to DEV environment
+      const isLocalPlatform = baseUrl.includes('localhost')
+      if (isLocalPlatform) {
+        baseUrl = 'https://newwork-dev.newwork.com'
+      }
+
+      // Format the datetime for the message
+      const reminderDateTime = dayjs(`${reminderDate} ${reminderTime}`)
+      const formattedDateTime = reminderDateTime.format('MMMM D, YYYY [at] h:mm A')
+
+      // Create a clear reminder message for FlowBot to process
+      let message = `Set a reminder for ${formattedDateTime} to ${reminderTitle}`
+      if (reminderMessage) {
+        message += `. Note: ${reminderMessage}`
+      }
+
+      // Call FlowBot (EveryAI) to process the reminder request
+      const form = new FormData()
+      form.append('session_id', '') // New session for each reminder
+      form.append('user_input_text', message)
+      form.append('llm_model', 'gpt-4.1')
+      form.append('use_web_search_tool', 'false')
+      form.append('current_page_context', JSON.stringify({}))
+
+      const response = await fetch(`${baseUrl}/flowbot/api/agent/v2/chat`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'text/event-stream'
+        },
+        body: form
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create reminder')
+      }
+
+      // Clear form and close modal
+      setReminderTitle('')
+      setReminderMessage('')
+      setReminderDate('')
+      setReminderTime('')
+      setShowCreateModal(false)
+
+      // Wait for the workflow to be created, then reload
+      setTimeout(() => {
+        loadReminders()
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to create reminder:', err)
+      setError('Failed to create reminder. Please try again.')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleModalClose = () => {
+    setShowCreateModal(false)
+    setReminderTitle('')
+    setReminderMessage('')
+    setReminderDate('')
+    setReminderTime('')
+    setError(null)
+  }
+
   const isDue = (reminderTime: string) => {
     return dayjs(reminderTime).isBefore(dayjs())
   }
@@ -275,6 +379,135 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
           </Button>
         )}
       </div>
+
+      {/* Create Reminder Button */}
+      <div className="gba:mb-4 gba:px-2">
+        <Button
+          onClick={() => setShowCreateModal(true)}
+          className="gba:w-full gba:flex gba:items-center gba:justify-center gba:gap-2"
+          data-testid="open-create-reminder-button"
+        >
+          <Plus className="gba:h-4 gba:w-4" weight="bold" />
+          Create New Reminder
+        </Button>
+        {error && (
+          <div className="gba:text-xs gba:text-destructive gba:mt-2 gba:px-2 gba:flex gba:items-center gba:gap-1">
+            <svg className="gba:h-3 gba:w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            {error}
+          </div>
+        )}
+      </div>
+
+      {/* Create Reminder Modal */}
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent className="gba:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="gba:flex gba:items-center gba:justify-between">
+              <span>Create New Reminder</span>
+              <Button variant="ghost" size="icon" onClick={handleModalClose} className="gba:h-6 gba:w-6">
+                <X className="gba:h-4 gba:w-4" />
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="gba:space-y-4 gba:pt-4">
+            {/* Title Field */}
+            <div className="gba:space-y-2">
+              <Label htmlFor="reminder-title" className="gba:text-sm gba:font-medium">
+                What do you want to be reminded about? *
+              </Label>
+              <Input
+                id="reminder-title"
+                value={reminderTitle}
+                onChange={e => setReminderTitle(e.target.value)}
+                placeholder="e.g., Call John, Submit report, Team meeting"
+                data-testid="reminder-title-input"
+                className="gba:w-full"
+              />
+            </div>
+
+            {/* Message Field (Optional) */}
+            <div className="gba:space-y-2">
+              <Label htmlFor="reminder-message" className="gba:text-sm gba:font-medium">
+                Additional notes (optional)
+              </Label>
+              <Input
+                id="reminder-message"
+                value={reminderMessage}
+                onChange={e => setReminderMessage(e.target.value)}
+                placeholder="e.g., Discuss project updates"
+                data-testid="reminder-message-input"
+                className="gba:w-full"
+              />
+            </div>
+
+            {/* Date and Time Fields */}
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <div className="gba:space-y-2">
+                <Label htmlFor="reminder-date" className="gba:text-sm gba:font-medium">
+                  Date *
+                </Label>
+                <Input
+                  id="reminder-date"
+                  type="date"
+                  value={reminderDate}
+                  onChange={e => setReminderDate(e.target.value)}
+                  min={dayjs().format('YYYY-MM-DD')}
+                  data-testid="reminder-date-input"
+                  className="gba:w-full"
+                />
+              </div>
+
+              <div className="gba:space-y-2">
+                <Label htmlFor="reminder-time" className="gba:text-sm gba:font-medium">
+                  Time *
+                </Label>
+                <Input
+                  id="reminder-time"
+                  type="time"
+                  value={reminderTime}
+                  onChange={e => setReminderTime(e.target.value)}
+                  data-testid="reminder-time-input"
+                  className="gba:w-full"
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
+              <Button
+                variant="outline"
+                onClick={handleModalClose}
+                disabled={isCreating}
+                data-testid="cancel-reminder-button"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateReminder}
+                disabled={!reminderTitle.trim() || !reminderDate || !reminderTime || isCreating}
+                data-testid="submit-reminder-button"
+              >
+                {isCreating ? (
+                  <>
+                    <div className="gba:animate-spin gba:h-4 gba:w-4 gba:border-2 gba:border-primary-foreground gba:border-t-transparent gba:rounded-full gba:mr-2" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Reminder'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Content Area - Scrollable grid of reminders */}
       <div className="gba:flex-1 gba:overflow-y-auto">
