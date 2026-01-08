@@ -68,6 +68,19 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
     }
   }, [])
 
+  // Listen for custom event to switch to chat (e.g., from platform chat opener)
+  useEffect(() => {
+    const handleSwitchToChat = () => {
+      setActiveTab('chat')
+    }
+
+    window.addEventListener('switchToChat', handleSwitchToChat as EventListener)
+
+    return () => {
+      window.removeEventListener('switchToChat', handleSwitchToChat as EventListener)
+    }
+  }, [activeTab])
+
   // Listen for custom event to switch to calendar (e.g., from MeetingCard click)
   useEffect(() => {
     const handleSwitchToCalendar = () => {
