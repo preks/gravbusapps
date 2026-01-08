@@ -23,6 +23,7 @@ import { usePendingProcessCheck, EMPLOYEE_PROCESS_CONFIGS } from '@/common/hooks
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { PendingSubmissionMessage } from '@/components/pending-submission-message'
 import translations from '../_i18n'
+import appTranslations from '../../apps/employee-record/_i18n'
 
 interface BankAccountFormValues {
   countryId?: string | null
@@ -42,6 +43,7 @@ interface BankAccountFormValues {
 const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo, additionalData, accessToken }) => {
   const { data } = useChangeBankAccount()
   const { t } = useTranslation(translations)
+  const { t: tApp } = useTranslation(appTranslations)
 
   const employee = useMemo(() => (data?.employee as any)?.Employee?.[0], [data])
   const employeePosition = useMemo(() => (data?.employee as any)?.EmployeePosition?.[0], [data])
@@ -293,7 +295,13 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
               ''
             const existing = (data?.employee?.EmployeeBankAccount || [])?.[0] || null
             const payload = buildBankAccountPayload({ values, existingAccount: existing, employeeId })
-            return payload as any
+            return {
+              ...(payload as any),
+              completeNotification: {
+                type: 'success',
+                message: tApp('notification-bank-account-updated-success')
+              }
+            }
           }}
           data-testid="change-bank-account"
         >
