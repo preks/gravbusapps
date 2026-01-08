@@ -9,7 +9,8 @@ import {
   SelectContent,
   SelectItem,
   DateInput,
-  FileUpload
+  FileUpload,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
@@ -19,6 +20,7 @@ import FormHeader from '../components/FormHeader'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import dayjs from 'dayjs'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import translations from '../../apps/employee-record/_i18n'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
 import { env } from '@/common/env/EnvUtils'
@@ -41,6 +43,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const [lastNameTouched, setLastNameTouched] = useState(false)
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [relationshipTypeTouched, setRelationshipTypeTouched] = useState(false)
+  const { t } = useTranslation(translations)
 
   const {
     options: relationshipTypeOptions,
@@ -315,6 +318,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     } as any
 
     const relationshipChange = {
+      event: 'pse_submit',
       employeeRelationship,
       oldEmployeeRelationship: selectedExisting
         ? {
@@ -331,7 +335,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
             emergencyContact: Boolean(selectedExisting.isEmergencyContact),
             relationshipDocument: selectedExisting.relationshipDocumentId || ''
           }
-        : {}
+        : {},
+      completeNotification: {
+        type: 'success',
+        message: t('notification-relationship-updated-success')
+      }
     }
 
     // Only show modal for specific relationship types (Child or Marriage)
@@ -357,14 +365,12 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       processType={initialPayload?.relationship?.id ? 'update' : 'create'}
       formData={{}}
       onSubmit={data => data}
-      // Prevent platform hooks here; let outer flow listen to pse events
-      submitEventType={undefined as any}
+      submitEventType="pse_submit"
       cancelEventType="pse_abort"
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={isSubmitDisabled}
-      // Pre-submit modal controls the flow; no need for post success modal
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}

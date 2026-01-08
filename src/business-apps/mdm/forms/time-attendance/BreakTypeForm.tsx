@@ -113,6 +113,7 @@ const BreakTypeForm: React.FC<BreakTypeFormProps> = ({
       dataTestId={dataTestId}
       resolver={resolver}
       loading={loading}
+      schema={breakTypeSchema}
     >
       <FormField
         name="code"
@@ -127,7 +128,7 @@ const BreakTypeForm: React.FC<BreakTypeFormProps> = ({
               <Input
                 {...field}
                 placeholder={t('forms.breakType.fields.code.placeholder', {
-                  defaultValue: 'Enter code (e.g., BR001)'
+                  defaultValue: 'Enter code (e.g., BT001)'
                 })}
                 data-testid={`${dataTestId}-code-input`}
               />

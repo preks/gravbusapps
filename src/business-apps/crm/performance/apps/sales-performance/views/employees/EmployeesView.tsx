@@ -14,7 +14,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import type { FilterConfiguration, ColumnConfig, SortableColumn } from '@newwork/nw-design-system'
-import { User } from 'lucide-react'
+import { UserIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import { OwnerDisplay } from '@/business-apps/irm/core/apps/investment-relations/views/task-view/components/OwnerDisplay'
@@ -81,7 +81,7 @@ const EmployeeNameCell: React.FC<{ employee: EmployeeListItem }> = ({ employee }
     >
       {employee.avatar && <AvatarImage src={`data:image/jpeg;base64,${employee.avatar}`} alt={employee.name} />}
       <AvatarFallback>
-        <User className="gba:h-4 gba:w-4" />
+        <UserIcon className="gba:h-4 gba:w-4" />
       </AvatarFallback>
     </Avatar>
     <span className="gba:text-[color:var(--nw-color-text-primary)] group-hover:gba:text-[color:var(--nw-color-primary-500)]">

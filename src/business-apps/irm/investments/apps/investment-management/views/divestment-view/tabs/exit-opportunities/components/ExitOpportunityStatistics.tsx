@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { TrendingUp, Target, CheckCircle } from 'lucide-react'
+import { TrendUpIcon, TargetIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCompactCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
@@ -49,7 +49,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       key: 'total-opportunities',
       title: getTranslationFromI18nKeyAndLabel('total_opportunities', 'Total Opportunities'),
       value: metrics.totalCount,
-      prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />,
+      prefix: <TrendUpIcon className="gba:h-5 gba:w-5 gba:text-blue-600" />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('active_opportunities', 'Active opportunities'),
@@ -64,7 +64,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       title: getTranslationFromI18nKeyAndLabel('total_value', 'Total Value'),
       value: formatCompactCurrency(metrics.totalValue, finalCurrencyCode),
       valueIsString: true,
-      prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-green-600" />,
+      prefix: <TrendUpIcon className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('estimated_value', 'Estimated value'),
@@ -79,7 +79,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       title: getTranslationFromI18nKeyAndLabel('average_value', 'Average Value'),
       value: formatCompactCurrency(metrics.averageValue, finalCurrencyCode),
       valueIsString: true,
-      prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
+      prefix: <TargetIcon className="gba:h-5 gba:w-5 gba:text-purple-600" />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('avg_size', 'Avg size'),
@@ -94,7 +94,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       title: getTranslationFromI18nKeyAndLabel('average_win_rate', 'Average Win Rate'),
       value: `${metrics.averageWinRate.toFixed(1)}%`,
       valueIsString: true,
-      prefix: <CheckCircle className="gba:h-5 gba:w-5 gba:text-orange-600" />,
+      prefix: <CheckCircleIcon className="gba:h-5 gba:w-5 gba:text-orange-600" />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('win_probability', 'Win probability'),

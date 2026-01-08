@@ -6,7 +6,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  EmptyState
 } from '@newwork/nw-design-system'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
@@ -15,7 +16,8 @@ import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   TaskDetailSheet,
   Task,
-  TaskReference
+  TaskReference,
+  TaskEmployee
 } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import dayjs from 'dayjs'
 import {
@@ -28,17 +30,22 @@ import {
   CalendarCheck
 } from '@phosphor-icons/react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import EmptyState from '@/components/empty-state/EmptyState'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { Task as BaseTask } from '@/common/data/relations/types/taskTypes'
+import type { Task as BaseTask, TaskAssignee } from '@/common/data/relations/types/taskTypes'
 import { transformTaskOrApproval } from './utils/taskMappers'
 import { DocuSignSignatureModal } from '@/common/components/docusign/DocuSignSignatureModal'
-import { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads'
+import { type InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
+import {
+  computeTaskStatus,
+  formatTaskProgress,
+  getTaskAssigneeDisplayName,
+  getEmployeeDisplayName
+} from '../../utils/taskStatusUtils'
 
 export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
 export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
@@ -69,14 +76,24 @@ export type TaskItem = {
   taskStatus?: CatalogEntry
   taskPriority?: CatalogEntry
   taskType?: CatalogEntry
-  assigneeEmployee?: {
-    id: string
-    displayName?: string
-    firstName?: string
-    lastName?: string
-    pictureThumbnail?: string
-    userId?: string
-  }
+  assigneeEmployee?:
+    | {
+        id: string
+        displayName?: string
+        firstName?: string
+        lastName?: string
+        pictureThumbnail?: string
+        userId?: string
+      }
+    | Array<{
+        id: string
+        displayName?: string
+        firstName?: string
+        lastName?: string
+        pictureThumbnail?: string
+        userId?: string
+      }> // Support both single (CRM) and multiple (IRM) assignees
+  taskAssignees?: TaskAssignee[] // Full junction table data with individual statuses
   creatorEmployee?: {
     id: string
     displayName?: string
@@ -89,6 +106,21 @@ export type TaskItem = {
   startDate?: string
   documents?: TaskDocument[]
   rawTask?: BaseTask
+}
+
+// Helper functions to reduce cognitive complexity
+const formatTaskDate = (dateString: string | undefined): string => {
+  if (!dateString) return ''
+  const date = dayjs(dateString)
+  return date.isValid() ? date.format('MMM D, YYYY [at] h:mm A') : dateString
+}
+
+const buildTaskDescription = (dueDate: string): string[] => {
+  const descParts: string[] = []
+  if (dueDate) {
+    descParts.push(`Due ${dueDate}`)
+  }
+  return descParts
 }
 
 export interface TaskSectionProps extends BusinessAppContextProps {
@@ -146,7 +178,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           description: task.description,
           createdAt: task.createdAt,
           dueDate: task.dueDate,
-          assignedEmployee: task.assignedEmployee,
+          taskAssignees: task.taskAssignees,
           taskStatus: task.taskStatus,
           taskPriority: task.taskPriority,
           taskType: task.taskType,
@@ -190,7 +222,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   const [docuSignDocs, setDocuSignDocs] = useState<TaskDocument[]>([])
   const [docuSignAssignedUserId, setDocuSignAssignedUserId] = useState<string | undefined>(undefined)
   const [docuSignTask, setDocuSignTask] = useState<Task | null>(null)
-  const [docuSignTaskFormData, setDocuSignTaskFormData] = useState<InvestmentTaskFormData | null>(null)
+  const [docuSignTaskFormData, setDocuSignTaskFormData] = useState<Partial<InvestmentTask> | null>(null)
   const businessAppContext = useMemo(
     () => ({
       accessToken,
@@ -291,8 +323,25 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   const convertToCommonTask = (taskItem: TaskItem): Task => {
     const rawTask = taskItem.rawTask as BaseTask | undefined
 
-    const assignedEmployee = taskItem.assigneeEmployee || rawTask?.assignedEmployee
+    // assigneeEmployee is already an array (or undefined) from transformTaskOrApproval
+    const assigneeEmployee = taskItem.assigneeEmployee
     const creatorEmployee = taskItem.creatorEmployee || rawTask?.creatorEmployee
+
+    // Convert assignee array to Task format (can be single or array)
+    let assignedTo: TaskEmployee | TaskEmployee[] | undefined
+    if (assigneeEmployee && Array.isArray(assigneeEmployee)) {
+      assignedTo = assigneeEmployee.map(emp => ({
+        id: emp.id,
+        firstName: emp.firstName || '',
+        lastName: emp.lastName || '',
+        displayName: getEmployeeDisplayName(emp),
+        pictureThumbnail: emp.pictureThumbnail
+      }))
+      // If single assignee, unwrap from array for cleaner detail sheet display
+      if (assignedTo.length === 1) {
+        assignedTo = assignedTo[0]
+      }
+    }
 
     const documentsSource =
       (taskItem.documents as TaskDocument[] | undefined)?.map(doc => ({
@@ -304,15 +353,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       name: taskItem.title,
       code: rawTask?.code,
       description: taskItem.description || rawTask?.description || '',
-      assignedTo: assignedEmployee
-        ? {
-            id: assignedEmployee.id,
-            firstName: assignedEmployee.firstName || '',
-            lastName: assignedEmployee.lastName || '',
-            displayName: getEmployeeDisplayName(assignedEmployee),
-            pictureThumbnail: assignedEmployee.pictureThumbnail
-          }
-        : undefined,
+      assignedTo,
       creatorEmployee: creatorEmployee
         ? {
             id: creatorEmployee.id,
@@ -344,8 +385,6 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       version: rawTask?.version,
       creatorEmployeeId: rawTask?.creatorEmployeeId,
       creatorUserId: rawTask?.creatorUserId,
-      assignedEmployeeId: rawTask?.assignedEmployeeId,
-      assignedUserId: rawTask?.assignedUserId,
       investmentId: (rawTask as any)?.investmentId || (rawTask as any)?.investment?.id,
       accountId: rawTask?.accountId,
       contactId: rawTask?.contactId,
@@ -361,15 +400,21 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     setSelectedTask(Task)
   }
 
-  const getEmployeeDisplayName = (emp: any) => {
-    if (!emp) return 'Unknown User'
+  // Helper: Get first assignee from single or array
+  const getFirstAssignee = (assigneeEmployee: any) => {
+    if (!assigneeEmployee) return undefined
+    return Array.isArray(assigneeEmployee) ? assigneeEmployee[0] : assigneeEmployee
+  }
 
-    // Use firstName + lastName first
-    const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim()
-    if (fullName) return fullName
+  // Helper: Check if user is assignee (handles both single and array)
+  const isUserAssignee = (assigneeEmployee: any, userId?: string) => {
+    if (!assigneeEmployee || !userId) return false
 
-    // Fallback to displayName
-    return emp.displayName || 'Unknown User'
+    if (Array.isArray(assigneeEmployee)) {
+      return assigneeEmployee.some(emp => emp?.userId === userId)
+    }
+
+    return assigneeEmployee?.userId === userId
   }
 
   // Map task priority type to badge variant
@@ -418,24 +463,18 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           <TooltipProvider>
             <TimelineLayout
               items={tasks.map((t, idx) => {
-                const createdDate = t.createdAt
-                  ? dayjs(t.createdAt).isValid()
-                    ? dayjs(t.createdAt).format('MMM D, YYYY [at] h:mm A')
-                    : t.createdAt
-                  : ''
-                const due = t.due
-                  ? dayjs(t.due).isValid()
-                    ? dayjs(t.due).format('MMM D, YYYY [at] h:mm A')
-                    : t.due
-                  : ''
-                const descParts: string[] = []
-                if (due) descParts.push(`Due ${due}`)
+                const createdDate = formatTaskDate(t.createdAt)
+                const due = formatTaskDate(t.due)
+                const descParts = buildTaskDescription(due)
                 const code = t.statusCode
 
                 const { color, icon } = getStatusColorAndIcon(code, t.due)
 
-                const assigneeName = t.assigneeEmployee ? getEmployeeDisplayName(t.assigneeEmployee) : t.assignee
-                const assigneeId = t.assigneeEmployee?.id
+                const assigneeName = getTaskAssigneeDisplayName(t.assigneeEmployee, {
+                  fallback: t.assignee,
+                  showCount: true
+                })
+                const assigneeId = getFirstAssignee(t.assigneeEmployee)?.id
 
                 // Get timing type icon and tooltip once to avoid duplicate function calls
                 const timingTypeData = t.taskTiming ? getTimingTypeIcon(t.taskTiming) : null
@@ -461,15 +500,39 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                   </AppActionMenu>
                 ) : null
                 const documentsForTask = (t.documents as TaskDocument[]) || []
-                const isAssigneeItem = Boolean(
-                  (t as any).assigneeEmployee?.userId &&
-                    userInfo?.id &&
-                    (t as any).assigneeEmployee?.userId === userInfo?.id
-                )
+                const isAssigneeItem = isUserAssignee(t.assigneeEmployee, userInfo?.id)
                 const { hasSignableDocs: hasSignableDocs, label: docuSignButtonLabel } = getDocuSignButtonState(
                   documentsForTask,
                   isAssigneeItem
                 )
+
+                // Compute task status for multi-assignee tasks
+                const taskStatusInfo =
+                  t.taskAssignees && t.taskAssignees.length > 1
+                    ? (() => {
+                        const { overallStatus, progress } = computeTaskStatus(t.taskAssignees as any)
+
+                        let statusLabel: string
+                        if (overallStatus === 'COMPLETED') {
+                          statusLabel = 'Completed'
+                        } else if (overallStatus === 'IN_PROGRESS') {
+                          statusLabel = 'In Progress'
+                        } else {
+                          statusLabel = 'Pending'
+                        }
+
+                        let variant: 'success' | 'info' | 'warning'
+                        if (overallStatus === 'COMPLETED') {
+                          variant = 'success'
+                        } else if (overallStatus === 'IN_PROGRESS') {
+                          variant = 'info'
+                        } else {
+                          variant = 'warning'
+                        }
+
+                        return { statusLabel, variant, progress }
+                      })()
+                    : null
 
                 return {
                   id: t.id || `task-${idx}`,
@@ -482,10 +545,26 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                         data-testid={`task-item-${t.id}`}
                       >
                         <span className="gba:truncate">{t.title}</span>
-                        {t.taskStatus && (
-                          <Badge variant={getStatusBadgeVariant(t.taskStatus, t.due, t.statusCode)} size="sm">
-                            {isTaskOverdue(t.due, t.statusCode) ? 'Overdue' : t.taskStatus.value || t.taskStatus.code}
-                          </Badge>
+                        {/* Show computed status for multi-assignee tasks */}
+                        {taskStatusInfo ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant={taskStatusInfo.variant} size="sm">
+                                {taskStatusInfo.statusLabel} ({taskStatusInfo.progress.completed}/
+                                {taskStatusInfo.progress.total})
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{formatTaskProgress(taskStatusInfo.progress)}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          /* Show regular status for single or no assignee tasks */
+                          t.taskStatus && (
+                            <Badge variant={getStatusBadgeVariant(t.taskStatus, t.due, t.statusCode)} size="sm">
+                              {isTaskOverdue(t.due, t.statusCode) ? 'Overdue' : t.taskStatus.value || t.taskStatus.code}
+                            </Badge>
+                          )
                         )}
                         {t.taskPriority && (
                           <Badge variant={getPriorityBadgeVariant(t.taskPriority)} size="sm">
@@ -505,7 +584,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                               const formData = buildInvestmentTaskFormDataFromTask(commonTask)
                               setDocuSignTaskFormData(formData)
                               setDocuSignDocs(documentsForTask)
-                              setDocuSignAssignedUserId((t as any).assigneeEmployee?.userId)
+                              setDocuSignAssignedUserId(getFirstAssignee(t.assigneeEmployee)?.userId)
                               setIsDocuSignOpen(true)
                             }}
                           >
@@ -577,8 +656,10 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           </TooltipProvider>
         ) : (
           <EmptyState
+            type="no-data"
             title="No Tasks"
             description={getTranslationFromI18nKeyAndLabel('tasks.emptyState', 'No tasks yet. Create your first task.')}
+            data-testid="task-section-empty-state"
           />
         )}
       </div>
@@ -593,8 +674,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         buildReferenceUrl={buildReferenceUrl}
         data-testid="task-section-detail-sheet"
         accessToken={accessToken}
-        assignedUserId={(tasks || []).find(x => x.id === selectedTask?.id)?.assigneeEmployee?.userId as any}
-        currentUserId={userInfo?.id as any}
+        assignedUserId={getFirstAssignee((tasks || []).find(x => x.id === selectedTask?.id)?.assigneeEmployee)?.userId}
+        currentUserId={userInfo?.id}
         businessAppContext={businessAppContext}
       />
 

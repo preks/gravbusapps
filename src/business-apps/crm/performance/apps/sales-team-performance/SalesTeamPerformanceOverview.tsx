@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Alert, Button, PageLayout, Spinner } from '@newwork/nw-design-system'
-import { PiChartLine } from 'react-icons/pi'
+import { ChartLineIcon } from '@phosphor-icons/react'
 import { SalesMemberPerformance } from './components/sales-member-performance'
 import { TeamPerformanceView } from './components/team-performance-view/TeamPerformanceView'
 import { CEOTeamComparisonDashboard } from './components/ceo-team-comparison/CEOTeamComparisonDashboard'
@@ -316,7 +316,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   if (roleLoading) {
     return (
       <PageLayout
-        headerIcon={PiChartLine}
+        headerIcon={ChartLineIcon}
         headerTitle="Sales Performance"
         headerDescription="Loading user permissions..."
         variant={MODULE_COLORS.CRM}
@@ -343,7 +343,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   if (roleError) {
     return (
       <PageLayout
-        headerIcon={PiChartLine}
+        headerIcon={ChartLineIcon}
         headerTitle="Sales Performance"
         headerDescription="Error loading permissions"
         variant={MODULE_COLORS.CRM}
@@ -365,7 +365,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   if (teamsLoading) {
     return (
       <PageLayout
-        headerIcon={PiChartLine}
+        headerIcon={ChartLineIcon}
         headerTitle="Sales Performance"
         headerDescription="Loading teams data..."
         variant={MODULE_COLORS.CRM}
@@ -385,7 +385,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   if (teamsError) {
     return (
       <PageLayout
-        headerIcon={PiChartLine}
+        headerIcon={ChartLineIcon}
         headerTitle="Sales Performance"
         headerDescription="Error loading data"
         variant={MODULE_COLORS.CRM}
@@ -495,7 +495,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   return (
     <div data-testid={DATA_TEST_ID_PREFIX}>
       <PageLayout
-        headerIcon={PiChartLine}
+        headerIcon={ChartLineIcon}
         headerTitle={headerInfo.title}
         headerDescription={headerInfo.description}
         variant={MODULE_COLORS.CRM}

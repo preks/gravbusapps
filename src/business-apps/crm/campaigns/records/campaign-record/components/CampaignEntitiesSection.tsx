@@ -3,6 +3,7 @@ import { DataDisplay, DataTable } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCampaignEntities } from '../hooks/useCampaignEntities'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { createCampaignEntityColumns, createCampaignEntitySortableColumns } from '../config/campaignEntityColumns'
 import { campaignEntityFilterConfig } from '../config/campaignEntityFilters'
 import { CampaignEntity } from '../types/CampaignRecordTypes'
@@ -315,6 +316,32 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = p
   // Columns
   const columns = useMemo(() => createCampaignEntityColumns(), [])
 
+  // Handle row click to navigate to entity record
+  const handleRowClick = useCallback((entity: CampaignEntity) => {
+    let url = ''
+
+    switch (entity.type) {
+      case 'lead':
+        url = buildPlatformUrl('/platform/crm/lead-record', { leadId: entity.id })
+        break
+      case 'account':
+        url = buildPlatformUrl('/platform/crm/account-record', { accountId: entity.id })
+        break
+      case 'contact':
+        url = buildPlatformUrl('/platform/crm/contact-record', { contactId: entity.id })
+        break
+      case 'opportunity':
+        url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: entity.id })
+        break
+      default:
+        return
+    }
+
+    if (url) {
+      navigateTo(url)
+    }
+  }, [])
+
   // Render actions for each entity row
   const renderEntityActions = useCallback(
     (row: { original: CampaignEntity }) => <EntityRowActions entity={row.original} accessToken={props.accessToken} />,
@@ -385,6 +412,7 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = p
           maxVisiblePages={7}
           emptyMessage={getTranslationFromI18nKeyAndLabel('campaign.entities.empty', 'No entities found')}
           actions={renderEntityActions}
+          onRowClick={handleRowClick}
           data-testid="campaign-entities-list"
         />
       </DataDisplay>

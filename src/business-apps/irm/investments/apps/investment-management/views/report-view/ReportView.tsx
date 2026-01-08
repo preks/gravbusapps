@@ -13,8 +13,7 @@ import {
   Combobox,
   Button
 } from '@newwork/nw-design-system'
-import { TrendingUp, Building2, PieChart, Funnel, X } from 'lucide-react'
-import { VectorTwoIcon } from '@phosphor-icons/react'
+import { TrendUpIcon, BuildingsIcon, ChartPieIcon, FunnelIcon, XIcon, VectorTwoIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { LiquidFundReport } from './tabs/liquid-fund-report-tab/LiquidFundReport'
@@ -214,7 +213,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
       <Card className="gba:mb-6" data-testid="report-filters-card">
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <Funnel className="gba:w-5 gba:h-5" />
+            <FunnelIcon className="gba:w-5 gba:h-5" />
             Filters
           </CardTitle>
         </CardHeader>
@@ -272,7 +271,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
             {/* Clear Filters Button */}
             <Button onClick={handleClearFilters} variant="outline" size="sm" data-testid="report-clear-filters">
-              <X className="gba:w-4 gba:h-4 gba:mr-2" />
+              <XIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               Clear Filters
             </Button>
           </div>
@@ -281,13 +280,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
       <Tabs value={activeSubTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-4">
-          <TabsTrigger value="liquid-fund" startIcon={<TrendingUp />} data-testid="liquid-fund-analytics-tab">
+          <TabsTrigger value="liquid-fund" startIcon={<TrendUpIcon />} data-testid="liquid-fund-analytics-tab">
             Liquid Fund
           </TabsTrigger>
-          <TabsTrigger value="real-estate" startIcon={<Building2 />} data-testid="real-estate-analytics-tab">
+          <TabsTrigger value="real-estate" startIcon={<BuildingsIcon />} data-testid="real-estate-analytics-tab">
             Real Estate
           </TabsTrigger>
-          <TabsTrigger value="equity" startIcon={<PieChart />} data-testid="equity-analytics-tab">
+          <TabsTrigger value="equity" startIcon={<ChartPieIcon />} data-testid="equity-analytics-tab">
             Equity
           </TabsTrigger>
         </TabsList>

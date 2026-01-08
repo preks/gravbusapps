@@ -1,6 +1,6 @@
 import React from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@newwork/nw-design-system'
-import { PiTrendDown } from 'react-icons/pi'
+import { TrendDownIcon } from '@phosphor-icons/react'
 import { EmployeePerformance } from '../types/ViewSelectorTypes'
 import { EmployeeCard } from './EmployeeCard'
 
@@ -26,7 +26,7 @@ export const NeedsAttentionDrawer: React.FC<NeedsAttentionDrawerProps> = ({
         <SheetHeader>
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-warning/10">
-              <PiTrendDown className="gba:w-5 gba:h-5 gba:text-warning" />
+              <TrendDownIcon className="gba:w-5 gba:h-5 gba:text-warning" />
             </div>
             <div>
               <SheetTitle>Needs Attention</SheetTitle>

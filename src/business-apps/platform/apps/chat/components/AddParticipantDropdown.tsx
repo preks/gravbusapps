@@ -107,7 +107,7 @@ export const AddParticipantDropdown: React.FC<AddParticipantDropdownProps> = ({
     async (search: string): Promise<AvailableParticipant[]> => {
       const structureId = getCurrentActiveStructureId()
       if (!structureId) {
-        console.warn('No active structure ID for employee search')
+        console.error('[AddParticipantDropdown] No active structure ID available from platform context')
         return []
       }
 

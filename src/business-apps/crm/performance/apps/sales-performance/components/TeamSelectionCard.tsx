@@ -1,6 +1,14 @@
 import React from 'react'
 import { Card, Button, cn } from '@newwork/nw-design-system'
-import { UsersIcon, TargetIcon, TrophyIcon, DollarSignIcon, XIcon, EyeIcon, EyeOffIcon } from 'lucide-react'
+import {
+  UsersThreeIcon,
+  TargetIcon,
+  TrophyIcon,
+  CurrencyDollarIcon,
+  XIcon,
+  EyeIcon,
+  EyeSlashIcon
+} from '@phosphor-icons/react'
 import { type TeamComparisonData } from '../types'
 
 interface TeamSelectionCardProps {
@@ -81,7 +89,7 @@ export const TeamSelectionCard: React.FC<TeamSelectionCardProps> = ({ team, isAc
         {isActive ? (
           <EyeIcon className="gba:h-3.5 gba:w-3.5 gba:text-success" />
         ) : (
-          <EyeOffIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+          <EyeSlashIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
         )}
         <span className={isActive ? 'gba:text-success' : 'gba:text-muted-foreground'}>
           {isActive ? 'Visible in chart' : 'Hidden from chart'}
@@ -93,7 +101,7 @@ export const TeamSelectionCard: React.FC<TeamSelectionCardProps> = ({ team, isAc
         {/* Revenue */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-            <DollarSignIcon className="gba:h-3.5 gba:w-3.5" />
+            <CurrencyDollarIcon className="gba:h-3.5 gba:w-3.5" />
             <span>Revenue</span>
           </div>
           <span className="gba:font-semibold gba:text-foreground">
@@ -104,7 +112,7 @@ export const TeamSelectionCard: React.FC<TeamSelectionCardProps> = ({ team, isAc
         {/* Members */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-            <UsersIcon className="gba:h-3.5 gba:w-3.5" />
+            <UsersThreeIcon className="gba:h-3.5 gba:w-3.5" />
             <span>Members</span>
           </div>
           <span className="gba:font-semibold gba:text-foreground">{team.memberCount}</span>

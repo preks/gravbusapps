@@ -34,7 +34,7 @@ import {
   TextAlignLeftIcon,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
-import { Task, TaskReference, TaskDocument, TaskEmployee } from './types'
+import { Task, TaskReference, TaskDocument } from './types'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   getTaskStatusBadgeVariant,
@@ -51,6 +51,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
+import { computeTaskStatus, formatTaskProgress, getTaskStatusLabel } from '../../utils/taskStatusUtils'
 
 interface TaskDetailSheetProps {
   task: Task | null
@@ -139,46 +140,89 @@ interface TaskDetailContentProps {
   businessAppContext?: BusinessAppContextProps
 }
 
-// Helper component: Assignee Field
-interface AssigneeFieldProps {
-  assignedTo?: TaskEmployee
+// Helper component: Task Instance Card
+interface TaskInstanceCardProps {
+  taskAssignee: {
+    id?: string
+    version?: number
+    assignedEmployee?: {
+      id: string
+      displayName?: string
+      firstName?: string
+      lastName?: string
+      pictureThumbnail?: string
+    }
+    assignedUserId?: string
+    taskStatus?: string
+    completedAt?: string | null
+  }
+  index: number
+  currentUserId?: string
   dataTestId?: string
-  onEmployeeClick: () => void
-  getInitials: (firstName: string, lastName: string) => string
 }
 
-const AssigneeField: React.FC<AssigneeFieldProps> = ({ assignedTo, dataTestId, onEmployeeClick, getInitials }) => {
-  if (!assignedTo) {
-    return <span className="gba:text-sm gba:text-muted-foreground gba:px-2 gba:py-1">Unassigned</span>
-  }
+const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({ taskAssignee, index, currentUserId, dataTestId }) => {
+  const employee = taskAssignee.assignedEmployee
+  const isCurrentUser = currentUserId && taskAssignee.assignedUserId === currentUserId
+  const statusLabel = getTaskStatusLabel(taskAssignee.taskStatus) || 'No Status'
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div
-          className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
-          onClick={onEmployeeClick}
-          data-testid={`${dataTestId}-assignee-link`}
+    <div
+      key={taskAssignee.id || index}
+      className={`gba:py-4 gba:px-4 gba:rounded-lg gba:border ${
+        isCurrentUser ? 'gba:border-primary gba:bg-accent/5' : 'gba:bg-muted/30'
+      }`}
+      data-testid={`${dataTestId}-instance-${index}`}
+    >
+      <div className="gba:flex gba:items-center gba:gap-3">
+        <Avatar
+          size="default"
+          className="gba:cursor-pointer"
+          onClick={() => {
+            if (employee?.id) {
+              const url = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id })
+              navigateTo(url)
+            }
+          }}
         >
-          <Avatar size="sm" className="gba:size-6">
-            {assignedTo.pictureThumbnail && (
-              <AvatarImage
-                src={`data:image/gif;base64,${assignedTo.pictureThumbnail}`}
-                alt={assignedTo.displayName || 'Employee'}
-              />
+          {employee?.pictureThumbnail && (
+            <AvatarImage
+              src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+              alt={employee?.displayName || 'Unknown'}
+            />
+          )}
+          <AvatarFallback>
+            {employee?.firstName?.charAt(0) || '?'}
+            {employee?.lastName?.charAt(0) || '?'}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="gba:flex-1 gba:min-w-0">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+            <span className="gba:text-sm gba:font-medium">{employee?.displayName || 'Unknown Assignee'}</span>
+            {isCurrentUser && (
+              <Badge variant="outline" size="sm">
+                You
+              </Badge>
             )}
-            <AvatarFallback className="gba:text-xs">
-              {assignedTo.firstName && assignedTo.lastName
-                ? getInitials(assignedTo.firstName, assignedTo.lastName)
-                : 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <span className="gba:text-sm gba:font-medium">{assignedTo.displayName || 'Unknown'}</span>
-          <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+          </div>
         </div>
-      </TooltipTrigger>
-      <TooltipContent>View employee profile</TooltipContent>
-    </Tooltip>
+
+        <div className="gba:text-right">
+          <Badge
+            variant={taskAssignee.taskStatus ? getTaskStatusBadgeVariant(taskAssignee.taskStatus) : 'secondary'}
+            size="sm"
+          >
+            {statusLabel}
+          </Badge>
+          {taskAssignee.completedAt && (
+            <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+              {dayjs(taskAssignee.completedAt).format('MMM D, YYYY')}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -345,12 +389,6 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
   const isOverdue = !!taskDate && dayjs().isAfter(dayjs(taskDate)) && taskStatus?.type !== 'COMPLETED'
 
-  const handleEmployeeClick = () => {
-    if (!task.assignedTo?.id) return
-    const url = buildPlatformUrl('/platform/employee-record', { employeeId: task.assignedTo.id })
-    navigateTo(url)
-  }
-
   const handleReferenceClick = () => {
     if (!task.reference || !buildReferenceUrl) return
 
@@ -406,15 +444,6 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               ) : (
                 <span className="gba:text-sm gba:text-muted-foreground">-</span>
               )}
-            </FieldRow>
-
-            <FieldRow icon={UserIcon} label="Assignee" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-assignee-field`}>
-              <AssigneeField
-                assignedTo={task.assignedTo}
-                dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
-                onEmployeeClick={handleEmployeeClick}
-                getInitials={getInitials}
-              />
             </FieldRow>
 
             <FieldRow icon={FlagIcon} label="Priority" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-priority-field`}>
@@ -608,6 +637,80 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             </CardContent>
           </Card>
         )}
+
+        {/* Task Instances Section */}
+        {((task.taskAssignees && task.taskAssignees.length > 0) ||
+          (task.assignedTo && (Array.isArray(task.assignedTo) ? task.assignedTo.length > 0 : true))) && (
+          <Card data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-instances-card`}>
+            <CardHeader className="gba:pb-3">
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+                  <UserIcon size={18} />
+                  Task Instances
+                </CardTitle>
+                {task.taskAssignees && task.taskAssignees.length > 0 && (
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <span className="gba:text-xs gba:text-muted-foreground">
+                      {formatTaskProgress(computeTaskStatus(task.taskAssignees as any).progress)}
+                    </span>
+                    <Badge
+                      variant={getTaskStatusBadgeVariant(computeTaskStatus(task.taskAssignees as any).overallStatus)}
+                    >
+                      {getTaskStatusLabel(computeTaskStatus(task.taskAssignees as any).overallStatus)}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="gba:space-y-2">
+                {task.taskAssignees && task.taskAssignees.length > 0 ? (
+                  // Show full task assignee instances with status
+                  task.taskAssignees.map((taskAssignee, index) => (
+                    <TaskInstanceCard
+                      key={taskAssignee.id || index}
+                      taskAssignee={taskAssignee}
+                      index={index}
+                      currentUserId={currentUserId}
+                      dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
+                    />
+                  ))
+                ) : (
+                  // Fallback: Show basic assignee info without status
+                  <>
+                    {(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo])
+                      .filter(Boolean)
+                      .map((employee, index) => (
+                        <div key={employee?.id || index} className="gba:p-3 gba:rounded-lg gba:bg-muted">
+                          <div className="gba:flex gba:items-center gba:gap-3">
+                            <Avatar size="default">
+                              {employee?.pictureThumbnail && (
+                                <AvatarImage
+                                  src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+                                  alt={employee?.displayName}
+                                />
+                              )}
+                              <AvatarFallback>
+                                {employee?.firstName?.charAt(0)}
+                                {employee?.lastName?.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="gba:flex-1">
+                              <span className="gba:text-sm gba:font-medium">{employee?.displayName || 'Unknown'}</span>
+                            </div>
+                            <Badge variant="secondary" size="sm">
+                              Status Unavailable
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="gba:h-4" />
       </div>
       {/* DocuSign Modal */}

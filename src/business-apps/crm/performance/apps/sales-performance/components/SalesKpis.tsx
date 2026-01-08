@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { DollarOutlined, TrophyOutlined, FireOutlined, RiseOutlined } from '@ant-design/icons'
+import { CurrencyDollarIcon, TrophyIcon, FireIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
 import { type SalesPerformanceKpis, type KpiTrendData } from '../types'
 
@@ -78,7 +78,7 @@ export const SalesKpis: React.FC<SalesKpisProps> = ({ kpis, isLoading = false, e
         key: 'total-revenue',
         title: 'Total Revenue',
         value: formatCurrency(kpis.totalRevenue, kpis.currencyCode),
-        prefix: <DollarOutlined />,
+        prefix: <CurrencyDollarIcon />,
         valueIsString: true,
         description: 'Sum of all won opportunities',
         trend: calculateTrend(kpis.trends.totalRevenue, currencyFormatter)
@@ -87,7 +87,7 @@ export const SalesKpis: React.FC<SalesKpisProps> = ({ kpis, isLoading = false, e
         key: 'opportunities-won',
         title: 'Opportunities Won',
         value: kpis.opportunitiesWon,
-        prefix: <TrophyOutlined />,
+        prefix: <TrophyIcon />,
         description: 'Total number of closed-won deals',
         trend: calculateTrend(kpis.trends.opportunitiesWon, formatNumber)
       },
@@ -95,7 +95,7 @@ export const SalesKpis: React.FC<SalesKpisProps> = ({ kpis, isLoading = false, e
         key: 'average-deal-size',
         title: 'Average Deal Size',
         value: formatCurrency(kpis.averageDealSize, kpis.currencyCode),
-        prefix: <FireOutlined />,
+        prefix: <FireIcon />,
         valueIsString: true,
         description: 'Average opportunity value',
         trend: calculateTrend(kpis.trends.averageDealSize, currencyFormatter)
@@ -105,7 +105,7 @@ export const SalesKpis: React.FC<SalesKpisProps> = ({ kpis, isLoading = false, e
         title: 'Win Rate',
         value: kpis.winRate.toFixed(1),
         suffix: '%',
-        prefix: <RiseOutlined />,
+        prefix: <TrendUpIcon />,
         description: 'Won vs total closed opportunities',
         trend: calculateTrend(kpis.trends.winRate, percentFormatter)
       }

@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, ContactsOutlined, DollarOutlined, TeamOutlined } from '@ant-design/icons'
+import { UserIcon, AddressBookIcon, CurrencyDollarIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePerformanceStatisticsData } from '../../hooks/usePerformanceStatisticsData'
 import { EmployeeTrendData } from '../../hooks/useEmployeePerformanceData'
@@ -59,7 +59,7 @@ export const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
       key: 'leads-worked',
       title: 'Leads Conversion Rate',
       value: statistics.leadsWorked.conversionRate,
-      prefix: <UserOutlined />,
+      prefix: <UserIcon />,
       color: '#1677ff',
       description: `${statistics.leadsWorked.converted} of ${statistics.leadsWorked.total} leads converted`,
       suffix: '%',
@@ -76,7 +76,7 @@ export const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
       key: 'contacts-engagement',
       title: 'Contact Engagement Rate',
       value: statistics.contactsWorked.percentage,
-      prefix: <ContactsOutlined />,
+      prefix: <AddressBookIcon />,
       color: '#52c41a',
       description: `${statistics.contactsWorked.salesRelated} of ${statistics.contactsWorked.total} contacts engaged`,
       suffix: '%',
@@ -93,7 +93,7 @@ export const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
       key: 'opportunities-win-rate',
       title: 'Opportunity Win Rate',
       value: statistics.opportunitiesManaged.winRate,
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon />,
       color: '#ff4d4f',
       description: `${statistics.opportunitiesManaged.won} of ${statistics.opportunitiesManaged.total} opportunities won`,
       suffix: '%',
@@ -112,7 +112,7 @@ export const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
             key: 'activities-completed',
             title: 'Monthly Activities',
             value: trends.activitiesCompleted.currentValue,
-            prefix: <TeamOutlined />,
+            prefix: <UsersThreeIcon />,
             color: '#722ed1',
             description: 'Monthly activity execution rate',
             precision: 0,

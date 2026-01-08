@@ -123,7 +123,7 @@ export const shouldSkipField = (fieldName: string, schema: any, isSearchableUuid
   return (
     skipFields.includes(fieldName) ||
     (schema.format === 'uuid' && !isSearchableUuid) ||
-    schema.type === 'array' ||
+    // Don't skip array fields - they should be rendered
     (fieldName.toLowerCase().includes('id') && !isSearchableUuid) ||
     fieldName.toLowerCase().includes('absencetype')
   )
@@ -137,6 +137,9 @@ export const extractFieldType = (schema: any): string | undefined => {
   if (Array.isArray(rawFieldType)) {
     return rawFieldType.find(type => typeof type === 'string' && type !== 'null') ?? rawFieldType[0]
   }
+  if (rawFieldType === 'array') {
+    return 'array'
+  }
   if (rawFieldType) {
     return rawFieldType
   }
@@ -145,6 +148,9 @@ export const extractFieldType = (schema: any): string | undefined => {
   }
   if (schema?.properties) {
     return 'object'
+  }
+  if (schema?.items) {
+    return 'array'
   }
   return undefined
 }

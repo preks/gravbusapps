@@ -54,7 +54,8 @@ import {
   OPPORTUNITY_PIPELINE,
   OPPORTUNITY_PIPELINE_STAGE,
   OPPORTUNITY_STATUS,
-  OPPORTUNITY_FORECAST
+  OPPORTUNITY_FORECAST,
+  INVESTMENT_ACCOUNT_TYPE
 } from '@/common/data/investment/constants/investmentCatalogs'
 
 const prefixDataTestId = 'InvestmentOpportunityForm'
@@ -625,6 +626,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
           opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
           opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
+          accountTypeCatalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
           opportunityInformationCustomFields={
             <>
               {dealTypeField}

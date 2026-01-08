@@ -56,7 +56,7 @@ const calculateHealthScore = (opportunity: any): { score: number; riskFactors: s
     score += 5
   }
 
-  if (!opportunity.account) {
+  if (!opportunity.opportunityAccounts?.length) {
     score -= 15
     riskFactors.push('No associated account')
   }
@@ -124,7 +124,11 @@ export const useDealHealthData = (accessToken: string): UseDealHealthDataResult 
             winningChance
             createdAt
             updatedAt
-            account { name }
+            opportunityAccounts(where: { isDeleted: { _eq: false } }, limit: 1) {
+              account {
+                name
+              }
+            }
             ownerEmployee { displayName }
           }
         }
@@ -154,7 +158,7 @@ export const useDealHealthData = (accessToken: string): UseDealHealthDataResult 
           healthScore: score,
           healthCategory,
           riskFactors,
-          account: opp.account?.name,
+          account: opp.opportunityAccounts?.[0]?.account?.name,
           owner: opp.ownerEmployee?.displayName
         } as DealHealthItem
       })

@@ -6,13 +6,12 @@ import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useI
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Bot } from 'lucide-react'
+import { RobotIcon, TrendUpIcon, HouseIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInvestmentTileFields } from './hooks/useInvestmentTileFields'
 import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary'
-import { TrendingUp, Home, BarChart3 } from 'lucide-react'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
 
@@ -80,12 +79,12 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
 
   // Get icon based on investment group (hardcoded for now)
   const getInvestmentIcon = useCallback((investmentData: any) => {
-    if (!investmentData) return BarChart3
+    if (!investmentData) return ChartBarIcon
 
     const group = investmentData.investmentGroup?.code || ''
-    if (group.includes('EQUITY')) return TrendingUp
-    if (group.includes('REAL_ESTATE')) return Home
-    return BarChart3
+    if (group.includes('EQUITY')) return TrendUpIcon
+    if (group.includes('REAL_ESTATE')) return HouseIcon
+    return ChartBarIcon
   }, [])
 
   // Get display category based on investment group
@@ -332,7 +331,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     {
       key: 'ai-summary',
       label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-      icon: <Bot size={16} />,
+      icon: <RobotIcon size={16} />,
       hook: aiSummaryHook,
       config: {
         entityType: 'investment',

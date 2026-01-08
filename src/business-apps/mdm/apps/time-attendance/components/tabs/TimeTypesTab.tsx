@@ -10,7 +10,14 @@ import {
   AlertTitle,
   AlertDescription,
   DataTable,
-  CardDescription
+  CardDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+  DialogFooter
 } from '@newwork/nw-design-system'
 import {
   MagnifyingGlassIcon,
@@ -18,19 +25,20 @@ import {
   EyeSlashIcon,
   TrashIcon,
   EyeIcon,
-  PencilSimpleLineIcon
+  PencilSimpleLineIcon,
+  WarningIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
-import TimeTypeForm from '../../../../forms/time-attendance/TimeTypeForm'
 import { useTimeTypesData } from '../../hooks/useTimeTypesData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { TransformedTimeType } from '../../types/time-types'
 import { DeleteDialog } from '../DeleteDialog'
+import { TransformedTimeType, TimeTypeEnum } from '../../types/time-types'
+import TimeTypeForm from '@/business-apps/mdm/forms/time-attendance/TimeTypeForm'
 
 export interface TimeTypesProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -43,7 +51,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   // Use real data from GraphQL (already transformed in hook)
-  const { systemTimeTypes, timeTypes, loading, error, refetch } = useTimeTypesData({ accessToken })
+  const { timeTypes, systemTimeTypes, loading, error, refetch } = useTimeTypesData({ accessToken })
 
   // State management
   const [searchTerm, setSearchTerm] = useState('')
@@ -51,6 +59,10 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
   const [selectedTimeType, setSelectedTimeType] = useState<TransformedTimeType | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isCreateSystemTypesDialogOpen, setIsCreateSystemTypesDialogOpen] = useState(false)
+  const [isCreatingSystemTypes, setIsCreatingSystemTypes] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Filter time types based on search term
   const filteredTimeTypes = useMemo(() => {
@@ -68,7 +80,24 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
     return timeTypes.map(timeType => timeType.code)
   }, [timeTypes])
 
-  const dataTable = useMemo(() => filteredTimeTypes.map(project => project), [filteredTimeTypes])
+  // Check if we should show the create system types button
+  // systemTimeTypes from hook already contains only missing system types (filtered)
+  const shouldShowCreateSystemTypesButton = useMemo(() => {
+    return systemTimeTypes.length > 0
+  }, [systemTimeTypes])
+
+  // Paginated data
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    return filteredTimeTypes.slice(startIndex, endIndex)
+  }, [filteredTimeTypes, currentPage, pageSize])
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredTimeTypes.length / pageSize)
+  }, [filteredTimeTypes.length, pageSize])
+
+  const dataTable = useMemo(() => paginatedData.map(project => project), [paginatedData])
 
   // Helper function to create sortable header
   const createSortableHeader = useCallback((label: string) => {
@@ -143,87 +172,242 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
           const targetTimeType = timeTypes.find(timeType => timeType.id === row.original.id)
 
           return (
-            <div className="gba:flex gba:items-center gba:justify-center">
+            <>
               {targetTimeType?.type !== 'System' && (
-                <TimeTypeForm
-                  systemTimeTypes={systemTimeTypes}
-                  childAddButton={
-                    <Button variant="ghost" onClick={event => event.stopPropagation()}>
-                      <PencilSimpleLineIcon />
-                    </Button>
-                  }
-                  refetch={refetch}
-                  accessToken={accessToken}
-                  prefixDataTestId={prefixDataTestId}
-                  timeType={targetTimeType as TransformedTimeType & { description: string }}
-                  usedCodes={usedCodes}
-                  key={targetTimeType?.id}
-                />
+                <div className="gba:flex gba:items-center gba:justify-center">
+                  <TimeTypeForm
+                    childAddButton={
+                      <Button variant="ghost" onClick={event => event.stopPropagation()}>
+                        <PencilSimpleLineIcon />
+                      </Button>
+                    }
+                    refetch={refetch}
+                    accessToken={accessToken}
+                    prefixDataTestId={prefixDataTestId}
+                    timeType={targetTimeType as TransformedTimeType & { description: string }}
+                    usedCodes={usedCodes}
+                    key={targetTimeType?.id}
+                  />
+
+                  <Button
+                    variant="ghost"
+                    onClick={event => {
+                      event.stopPropagation()
+                      setSelectedTimeType(targetTimeType ?? null)
+                      setIsDeleteDialogOpen(true)
+                    }}
+                  >
+                    <TrashIcon />
+                  </Button>
+                </div>
               )}
-              <Button
-                variant="ghost"
-                onClick={event => {
-                  event.stopPropagation()
-                  setSelectedTimeType(targetTimeType ?? null)
-                  setIsDeleteDialogOpen(true)
-                }}
-              >
-                <TrashIcon />
-              </Button>
-            </div>
+            </>
           )
         }
       }
     ]
 
     return (
-      <DataTable
-        data={dataTable}
-        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
-        enableSorting
-        enablePagination
-        sorting={sorting}
-        onSortingChange={setSorting}
-      />
+      <>
+        <DataTable
+          data={dataTable}
+          columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+          enableSorting
+          enablePagination={false}
+          sorting={sorting}
+          onSortingChange={setSorting}
+        />
+        {/* Custom pagination with translations */}
+        {filteredTimeTypes.length > 0 && (
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
+            data-testid={formatDataTestId(dataTestId, 'pagination')}
+          >
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {totalPages > 1
+                ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, filteredTimeTypes.length)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.time_types.title',
+                    'Time Types'
+                  )}`
+                : `${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.time_types.title',
+                    'Time Types'
+                  )}`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <p className="gba:text-sm gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}
+                </p>
+                <select
+                  value={pageSize}
+                  onChange={e => {
+                    const newPageSize = Number(e.target.value)
+                    setPageSize(newPageSize)
+                    setCurrentPage(1)
+                  }}
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  data-testid={formatDataTestId(dataTestId, 'page-size-select')}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              {totalPages > 1 && (
+                <>
+                  <div
+                    className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                    data-testid={formatDataTestId(dataTestId, 'page-info')}
+                  >
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalPages}
+                  </div>
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      data-testid={formatDataTestId(dataTestId, 'first-page-button')}
+                    >
+                      <span className="gba:sr-only">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:human_resources_page.pagination.first_page_sr',
+                          'Go to first page'
+                        )}
+                      </span>
+                      ⟨⟨
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      data-testid={formatDataTestId(dataTestId, 'previous-page-button')}
+                    >
+                      <span className="gba:sr-only">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:human_resources_page.pagination.prev_page_sr',
+                          'Go to previous page'
+                        )}
+                      </span>
+                      ⟨
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      data-testid={formatDataTestId(dataTestId, 'next-page-button')}
+                    >
+                      <span className="gba:sr-only">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:human_resources_page.pagination.next_page_sr',
+                          'Go to next page'
+                        )}
+                      </span>
+                      ⟩
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage >= totalPages}
+                      data-testid={formatDataTestId(dataTestId, 'last-page-button')}
+                    >
+                      <span className="gba:sr-only">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:human_resources_page.pagination.last_page_sr',
+                          'Go to last page'
+                        )}
+                      </span>
+                      ⟩⟩
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </>
     )
   }
 
   // Handle search
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
+    setCurrentPage(1) // Reset to first page when searching
   }, [])
 
   // Handle delete time type
-  const handleDeleteTimeType = useCallback(async (timeType?: TransformedTimeType | null) => {
-    if (!timeType) return
-    setIsDeleting(true)
+  const handleDeleteTimeType = useCallback(
+    async (timeType?: TransformedTimeType | null) => {
+      if (!timeType) return
+      setIsDeleting(true)
+
+      try {
+        await restClient.post(
+          '/employee-time/deleteTimeType',
+          {
+            changeMode: 'DELETE',
+            timeType: {
+              id: timeType.id,
+              version: timeType.version
+            }
+          },
+          {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          }
+        )
+
+        await refetch()
+      } catch (error) {
+        console.error('Error deleting time type:', error)
+      } finally {
+        setIsDeleting(false)
+        setIsDeleteDialogOpen(false)
+        setSelectedTimeType(null)
+      }
+    },
+    [restClient, accessToken, refetch]
+  )
+
+  // Handle create system time types
+  const handleCreateSystemTimeTypes = useCallback(async () => {
+    if (systemTimeTypes.length === 0) return
+
+    setIsCreatingSystemTypes(true)
 
     try {
-      await restClient.post(
-        '/employee-time/deleteTimeType',
-        {
-          changeMode: 'DELETE',
-          timeType: {
-            id: timeType.id,
-            version: timeType.version
+      // Create each system time type individually
+      for (const systemType of systemTimeTypes) {
+        await restClient.post(
+          '/employee-time/createTimeType',
+          {
+            changeMode: 'INSERT',
+            timeType: {
+              code: systemType.code,
+              name: systemType.label,
+              type: TimeTypeEnum.TIME_TYPE_SYSTEM,
+              visible: systemType.visible
+            }
+          },
+          {
+            headers: { Authorization: `Bearer ${accessToken}` }
           }
-        },
-        {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        }
-      )
+        )
+      }
 
       await refetch()
-      setIsDeleteDialogOpen(false)
-      setSelectedTimeType(null)
+      setIsCreateSystemTypesDialogOpen(false)
     } catch (error) {
-      console.error('Error deleting time type:', error)
+      console.error('Error creating system time types:', error)
     } finally {
-      setIsDeleting(false)
-      setIsDeleteDialogOpen(false)
-      setSelectedTimeType(null)
+      setIsCreatingSystemTypes(false)
     }
-  }, [])
+  }, [systemTimeTypes, restClient, accessToken, refetch])
 
   // Get badge variant for type
   const getTypeBadgeVariant = useCallback((type: 'System' | 'Custom' | 'Unknown') => {
@@ -266,28 +450,46 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
                 )}
               </CardDescription>
             </div>
-            <TimeTypeForm
-              systemTimeTypes={systemTimeTypes}
-              childAddButton={
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {shouldShowCreateSystemTypesButton && (
                 <Button
                   onClick={e => {
                     e.stopPropagation()
+                    setIsCreateSystemTypesDialogOpen(true)
                   }}
-                  data-testid={formatDataTestId(dataTestId, 'add-button')}
+                  data-testid={formatDataTestId(dataTestId, 'create-system-types-button')}
                   className="gba:flex gba:items-center gba:gap-2"
+                  variant="outline"
                 >
                   <PlusIcon size={16} />
                   {getTranslationFromI18nKeyAndLabel(
-                    'master-data:hr.time_attendance.time_types.actions.add',
-                    'Add Time Type'
+                    'master-data:hr.time_attendance.time_types.actions.create_system_time_types',
+                    'Create System Time Types'
                   )}
                 </Button>
-              }
-              refetch={refetch}
-              accessToken={accessToken}
-              prefixDataTestId={prefixDataTestId}
-              usedCodes={usedCodes}
-            />
+              )}
+              <TimeTypeForm
+                childAddButton={
+                  <Button
+                    onClick={e => {
+                      e.stopPropagation()
+                    }}
+                    data-testid={formatDataTestId(dataTestId, 'add-button')}
+                    className="gba:flex gba:items-center gba:gap-2"
+                  >
+                    <PlusIcon size={16} />
+                    {getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.actions.add',
+                      'Add Time Type'
+                    )}
+                  </Button>
+                }
+                refetch={refetch}
+                accessToken={accessToken}
+                prefixDataTestId={prefixDataTestId}
+                usedCodes={usedCodes}
+              />
+            </div>
           </div>
         </CardHeader>
       )}
@@ -311,8 +513,8 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
             <div className="gba:text-sm gba:text-gray-600">
               {`${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${timeTypes.length} ${getTranslationFromI18nKeyAndLabel(
                 'master-data:hr.time_attendance.time_types.title',
-                'time types'
-              ).toLowerCase()}`}
+                'Time Types'
+              )}`}
             </div>
           </div>
           {renderTimeTypesTable()}
@@ -332,6 +534,47 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
             'Are you sure you want to delete this time type?'
           )}
         />
+
+        <Dialog open={isCreateSystemTypesDialogOpen} onOpenChange={setIsCreateSystemTypesDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="gba:flex gba:items-center gba:gap-2">
+                <WarningIcon className="gba:text-warning" />
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.time_types.actions.create_system_time_types',
+                  'Create System Time Types'
+                )}
+              </DialogTitle>
+              <DialogDescription>
+                {systemTimeTypes.length < 1
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.create_system_time_types_confirmation_one',
+                      `Are you sure you want to create the missing system time type?`
+                    )
+                  : getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.create_system_time_types_confirmation',
+                      `Are you sure you want to create all ${systemTimeTypes.length} missing system time types?`,
+                      { systemTimeTypesCount: systemTimeTypes.length }
+                    )}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline" disabled={isCreatingSystemTypes}>
+                  {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
+                </Button>
+              </DialogClose>
+              <Button variant="default" onClick={handleCreateSystemTimeTypes} disabled={isCreatingSystemTypes}>
+                {isCreatingSystemTypes
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.actions.creating_system_types',
+                      'Creating...'
+                    )
+                  : getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.create', 'Create')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   )

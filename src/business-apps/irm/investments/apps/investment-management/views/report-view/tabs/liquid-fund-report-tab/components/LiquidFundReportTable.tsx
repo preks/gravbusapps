@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, Alert } from '@newwork/nw-design-system'
-import { RefreshCw } from 'lucide-react'
+import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -469,7 +469,7 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
               )}
             </div>
             <Button variant="outline" size="sm" onClick={refetch}>
-              <RefreshCw style={{ height: 'var(--nw-spacing-4)', width: 'var(--nw-spacing-4)' }} />
+              <ArrowsClockwiseIcon style={{ height: 'var(--nw-spacing-4)', width: 'var(--nw-spacing-4)' }} />
             </Button>
           </div>
         </Alert>

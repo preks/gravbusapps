@@ -21,7 +21,6 @@ import {
   DropdownMenuItem,
   toast
 } from '@newwork/nw-design-system'
-import { Gear } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { DataContainer } from '@/components/layout/dataContainer'
@@ -45,25 +44,26 @@ import { useGetInvestmentDocumentsByOpportunityId } from '@/common/data/investme
 import { useSearchInvestmentDocuments } from '@/common/data/investment/hooks/useSearchInvestmentDocuments'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import {
-  AppstoreOutlined,
-  BarsOutlined,
-  CalendarOutlined,
-  CaretRightOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
-  FileExcelOutlined,
-  FileImageOutlined,
-  FileOutlined,
-  FilePdfOutlined,
-  FileTextOutlined,
-  FileWordOutlined,
-  FolderAddOutlined,
-  FolderOpenOutlined,
-  MoreOutlined,
-  UserOutlined
-} from '@ant-design/icons'
+  GridFourIcon,
+  ListIcon,
+  CalendarBlankIcon,
+  CaretRightIcon,
+  TrashIcon,
+  DownloadIcon,
+  PencilIcon,
+  EyeIcon,
+  FileXlsIcon,
+  FileImageIcon,
+  FileIcon,
+  FilePdfIcon,
+  FileTextIcon,
+  FileDocIcon,
+  FolderPlusIcon,
+  FolderOpenIcon,
+  DotsThreeIcon,
+  UserIcon,
+  GearIcon
+} from '@phosphor-icons/react'
 
 interface Document {
   id: string
@@ -457,7 +457,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
           className="gba:flex gba:items-center gba:gap-2"
           data-testid="column-visibility-dropdown"
         >
-          <Icon icon={Gear} size="sm" decorative />
+          <Icon icon={GearIcon} size="sm" decorative />
           <span className="gba:text-sm">Columns</span>
         </Button>
         {isOpen && (
@@ -487,13 +487,13 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
   }
 
   const getFileIcon = (mimeType?: string | null) => {
-    if (!mimeType) return <FileOutlined />
+    if (!mimeType) return <FileIcon />
 
-    if (mimeType.includes('pdf')) return <FilePdfOutlined />
-    if (mimeType.includes('word') || mimeType.includes('document')) return <FileWordOutlined />
-    if (mimeType.includes('excel') || mimeType.includes('sheet')) return <FileExcelOutlined />
-    if (mimeType.includes('image')) return <FileImageOutlined />
-    return <FileTextOutlined />
+    if (mimeType.includes('pdf')) return <FilePdfIcon />
+    if (mimeType.includes('word') || mimeType.includes('document')) return <FileDocIcon />
+    if (mimeType.includes('excel') || mimeType.includes('sheet')) return <FileXlsIcon />
+    if (mimeType.includes('image')) return <FileImageIcon />
+    return <FileTextIcon />
   }
 
   const formatFileSize = (bytes?: number) => {
@@ -910,7 +910,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
             data-testid={`${testIdPrefix}-actions-${document.id}`}
             onClick={e => e.stopPropagation()}
           >
-            <MoreOutlined style={{ fontSize: '10px' }} />
+            <DotsThreeIcon style={{ fontSize: '10px' }} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="gba:w-32">
@@ -921,7 +921,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
             }}
             data-testid={`${testIdPrefix}-edit-${document.id}`}
           >
-            <EditOutlined className="gba:mr-2 gba:h-4 gba:w-4" />
+            <PencilIcon className="gba:mr-2 gba:h-4 gba:w-4" />
             Edit
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -931,7 +931,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
             }}
             data-testid={`${testIdPrefix}-view-${document.id}`}
           >
-            <EyeOutlined className="gba:mr-2 gba:h-4 gba:w-4" />
+            <EyeIcon className="gba:mr-2 gba:h-4 gba:w-4" />
             View
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -941,7 +941,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
             }}
             data-testid={`${testIdPrefix}-download-${document.id}`}
           >
-            <DownloadOutlined className="gba:mr-2 gba:h-4 gba:w-4" />
+            <DownloadIcon className="gba:mr-2 gba:h-4 gba:w-4" />
             Download
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -952,12 +952,50 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
             data-testid={`${testIdPrefix}-delete-${document.id}`}
             style={{ color: 'var(--nw-destructive)' }}
           >
-            <DeleteOutlined className="gba:mr-2 gba:h-4 gba:w-4" />
+            <TrashIcon className="gba:mr-2 gba:h-4 gba:w-4" />
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     )
+  }
+
+  // Helper function to render document content based on current state
+  const renderDocumentContent = () => {
+    // Loading state
+    if (loading || (viewMode === 'list' && searchIsLoading)) {
+      return (
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+          <Spinner size="lg" />
+        </div>
+      )
+    }
+
+    // Error state
+    if (error || (viewMode === 'list' && searchError)) {
+      return (
+        <Alert variant="destructive" className="gba:mb-4">
+          <div>
+            <h4 className="gba:font-medium">Error loading documents</h4>
+            <p className="gba:text-sm">{viewMode === 'list' && searchError ? searchError : error}</p>
+          </div>
+        </Alert>
+      )
+    }
+
+    // Empty state
+    if (documentFolders.length === 0) {
+      return (
+        <div className="gba:text-center gba:py-10">
+          <FolderOpenIcon className="gba:text-6xl gba:text-gray-300 gba:mb-4" />
+          <p className="gba:text-gray-500 gba:text-lg">No documents found</p>
+          <p className="gba:text-gray-400 gba:text-sm">Documents will appear here once uploaded</p>
+        </div>
+      )
+    }
+
+    // Return null as placeholder - actual content will be rendered inline
+    return null
   }
 
   return (
@@ -978,7 +1016,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
               }
               className="gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:border-blue-600 gba:text-blue-600 gba:hover:bg-blue-50 gba:hover:border-blue-700 gba:transition-colors"
             >
-              <FileOutlined className="gba:mr-2" />
+              <FileIcon className="gba:mr-2" />
               Upload Document
             </Button>
             <Button
@@ -994,7 +1032,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
               className="gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:border-gray-600 gba:text-gray-700 gba:hover:bg-gray-50 gba:hover:border-gray-700 gba:transition-colors"
               data-testid="create-folder-button"
             >
-              <FolderAddOutlined className="gba:mr-2" />
+              <FolderPlusIcon className="gba:mr-2" />
               Create Folder
             </Button>
           </div>
@@ -1031,7 +1069,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
                   className="gba:px-3 gba:py-1.5"
                   data-testid="tree-view-toggle"
                 >
-                  <AppstoreOutlined className="gba:mr-1.5" />
+                  <GridFourIcon className="gba:mr-1.5" />
                   Tree
                 </Button>
                 <Button
@@ -1043,7 +1081,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
                   className="gba:px-3 gba:py-1.5"
                   data-testid="list-view-toggle"
                 >
-                  <BarsOutlined className="gba:mr-1.5" />
+                  <ListIcon className="gba:mr-1.5" />
                   List
                 </Button>
               </div>
@@ -1059,466 +1097,463 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
           </div>
         </div>
 
-        {loading || (viewMode === 'list' && searchIsLoading) ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-            <Spinner size="lg" />
-          </div>
-        ) : error || (viewMode === 'list' && searchError) ? (
-          <Alert variant="destructive" className="gba:mb-4">
-            <div>
-              <h4 className="gba:font-medium">Error loading documents</h4>
-              <p className="gba:text-sm">{viewMode === 'list' && searchError ? searchError : error}</p>
-            </div>
-          </Alert>
-        ) : documentFolders.length === 0 ? (
-          <div className="gba:text-center gba:py-10">
-            <FolderOpenOutlined className="gba:text-6xl gba:text-gray-300 gba:mb-4" />
-            <p className="gba:text-gray-500 gba:text-lg">No documents found</p>
-            <p className="gba:text-gray-400 gba:text-sm">Documents will appear here once uploaded</p>
-          </div>
-        ) : viewMode === 'icon' ? (
-          // TREE VIEW with DnD and folder/file actions
-          <div className="gba:w-full">
-            <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
-              <div className="gba:flex gba:items-center gba:py-3 gba:px-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
-                <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
-                  <div className="gba:w-6"></div>
-                  <div className="gba:flex-1 gba:min-w-0">Name</div>
-                </div>
-                <div className="gba:w-44 gba:text-right gba:mr-4">Modified</div>
-                <div className="gba:w-20 gba:text-right gba:mr-4">Size</div>
-                <div className="gba:w-16 gba:text-right gba:mr-4">Type</div>
-                <div className="gba:w-16"></div>
-              </div>
+        {(() => {
+          const helperContent = renderDocumentContent()
+          if (helperContent) return helperContent
 
-              <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <div>
-                  <Droppable id={`drop-root`} data={{ targetFolderId: '' }} className="gba:w-full">
-                    <div className="gba:h-4 gba:bg-transparent" />
-                  </Droppable>
-
-                  {/* Root-level files */}
-                  {rootLevelFiles.map(document => (
-                    <Droppable key={`drop-doc-root-${document.id}`} id={`drop-doc-root-${document.id}`} data={{}}>
-                      <Draggable
-                        id={`drag-doc-${document.id}`}
-                        data={{ itemType: 'document', id: document.id, version: document.version }}
-                      >
-                        <div
-                          key={document.id}
-                          className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-blue-50 gba:cursor-pointer gba:border-b gba:border-gray-50 gba:group"
-                          style={{ paddingLeft: '32px' }}
-                          data-testid={`document-tree-root-${document.id}`}
-                          onClick={() => handleViewDocument(document)}
-                        >
-                          <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
-                            <div className="gba:w-6"></div>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-                              <div className="gba:text-blue-600 gba:text-sm">{getFileIcon(document.mimeType)}</div>
-                              <span
-                                className="gba:text-sm gba:text-gray-900 gba:truncate"
-                                title={document.name || 'Unnamed Document'}
-                              >
-                                {document.name || 'Unnamed Document'}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
-                            {formatDate(document.createdAt)}
-                          </div>
-                          <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
-                            {formatFileSize(document.fileSize || 0)}
-                          </div>
-                          <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
-                            {document.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}
-                          </div>
-                          <div className="gba:w-8 gba:flex gba:items-center gba:justify-end">
-                            <DocumentActionsDropdown document={document} testIdPrefix="tree-document" />
-                          </div>
-                        </div>
-                      </Draggable>
-                    </Droppable>
-                  ))}
-
-                  {documentFolders.map(folder => {
-                    const renderFolder = (node: DocumentFolder, depth: number) => {
-                      const isExpanded = node.folderId ? expandedFolders.has(node.folderId) : false
-                      const indentPx = 16 * depth
-                      return (
-                        <React.Fragment key={node.folderId || node.name}>
-                          <Droppable
-                            id={`drop-folder-${node.folderId || node.name}`}
-                            data={{ targetFolderId: node.folderId }}
-                            className="gba:w-full"
-                            disabled={!node.folderId}
-                          >
-                            <Draggable
-                              id={`drag-folder-${node.folderId || node.name}`}
-                              data={{ itemType: 'folder', id: node.folderId, version: node.folderVersion }}
-                            >
-                              <div
-                                className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-gray-50 gba:cursor-pointer gba:border-b gba:border-gray-100"
-                                onClick={() => node.folderId && toggleFolder(node.folderId)}
-                                data-testid={`folder-tree-${node.folderId || node.name}`}
-                                style={{ paddingLeft: `${indentPx}px` }}
-                              >
-                                <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
-                                  <div className="gba:w-6 gba:flex gba:items-center gba:justify-center">
-                                    <CaretRightOutlined
-                                      className={`gba:text-xs gba:text-gray-400 gba:transition-transform ${isExpanded ? 'gba:rotate-90' : ''}`}
-                                    />
-                                  </div>
-                                  <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-                                    <FolderOpenOutlined className="gba:text-blue-600 gba:text-sm" />
-                                    <span className="gba:text-sm gba:text-gray-900 gba:truncate">{node.name}</span>
-                                  </div>
-                                </div>
-                                <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
-                                  {node.documents && node.documents.length > 0
-                                    ? formatDate(
-                                        new Date(
-                                          Math.max(...node.documents.map(doc => new Date(doc.createdAt).getTime()))
-                                        ).toISOString()
-                                      )
-                                    : '-'}
-                                </div>
-                                <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">-</div>
-                                <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
-                                  Folder
-                                </div>
-                                <div className="gba:w-28 gba:flex gba:items-center gba:justify-end gba:gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      startProcess({
-                                        domain: 'investment-relations',
-                                        processName: 'createInvestmentDocument',
-                                        payload: {
-                                          opportunityId,
-                                          ...(node.folderId ? { parentDocument: node.folderId } : {})
-                                        },
-                                        builderType: 'NATIVE_SCREEN'
-                                      })
-                                    }}
-                                    className="gba:p-1 gba:h-6 gba:w-6"
-                                    data-testid={`new-document-icon-${node.folderId || node.name}`}
-                                    title="New Document"
-                                  >
-                                    <FileOutlined className="gba:text-xs" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      startProcess({
-                                        domain: 'investment-relations',
-                                        processName: 'createInvestmentDocument',
-                                        payload: {
-                                          opportunityId,
-                                          createFolder: true,
-                                          ...(node.folderId ? { parentDocument: node.folderId } : {})
-                                        },
-                                        builderType: 'NATIVE_SCREEN'
-                                      })
-                                    }}
-                                    className="gba:p-1 gba:h-6 gba:w-6"
-                                    data-testid={`new-subfolder-icon-${node.folderId || node.name}`}
-                                    title="New Subfolder"
-                                  >
-                                    <FolderAddOutlined className="gba:text-xs" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      openRenameFolder(node)
-                                    }}
-                                    className="gba:p-1 gba:h-6 gba:w-6"
-                                    data-testid={`rename-folder-icon-${node.folderId || node.name}`}
-                                    title="Rename Folder"
-                                    disabled={!node.folderId}
-                                  >
-                                    <EditOutlined className="gba:text-xs" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      handleDeleteFolder(node)
-                                    }}
-                                    className="gba:p-1 gba:h-6 gba:w-6"
-                                    data-testid={`delete-folder-icon-${node.folderId || node.name}`}
-                                    title="Delete Folder"
-                                    disabled={!node.folderId}
-                                  >
-                                    <DeleteOutlined className="gba:text-xs" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </Draggable>
-                          </Droppable>
-
-                          {isExpanded && (
-                            <>
-                              <Droppable
-                                id={`drop-root-inline-${node.folderId}`}
-                                data={{ targetFolderId: null }}
-                                className="gba:w-full"
-                              >
-                                <div className="gba:h-0.5" />
-                              </Droppable>
-                              {Array.isArray(node.children) &&
-                                node.children.map(child => renderFolder(child, depth + 1))}
-                              {Array.isArray(node.documents) &&
-                                node.documents.map(document => (
-                                  <Droppable
-                                    key={`drop-doc-row-${document.id}`}
-                                    id={`drop-doc-row-${document.id}`}
-                                    data={{}}
-                                  >
-                                    <Draggable
-                                      id={`drag-doc-${document.id}`}
-                                      data={{ itemType: 'document', id: document.id, version: document.version }}
-                                    >
-                                      <div
-                                        key={document.id}
-                                        className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-blue-50 gba:cursor-pointer gba:border-b gba:border-gray-50 gba:group"
-                                        style={{ paddingLeft: `${16 * (depth + 1) + 16}px` }}
-                                        data-testid={`document-tree-${document.id}`}
-                                        onClick={() => handleViewDocument(document)}
-                                      >
-                                        <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
-                                          <div className="gba:w-6"></div>
-                                          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-                                            <div className="gba:text-blue-600 gba:text-sm">
-                                              {getFileIcon(document.mimeType)}
-                                            </div>
-                                            <span
-                                              className="gba:text-sm gba:text-gray-900 gba:truncate"
-                                              title={document.name || 'Unnamed Document'}
-                                            >
-                                              {document.name || 'Unnamed Document'}
-                                            </span>
-                                          </div>
-                                        </div>
-                                        <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
-                                          {formatDate(document.createdAt)}
-                                        </div>
-                                        <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
-                                          {formatFileSize(document.fileSize || 0)}
-                                        </div>
-                                        <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
-                                          {document.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}
-                                        </div>
-                                        <div className="gba:w-8 gba:flex gba:items-center gba:justify-end">
-                                          <DocumentActionsDropdown document={document} testIdPrefix="tree-document" />
-                                        </div>
-                                      </div>
-                                    </Draggable>
-                                  </Droppable>
-                                ))}
-                            </>
-                          )}
-                        </React.Fragment>
-                      )
-                    }
-                    return renderFolder(folder, 0)
-                  })}
-
-                  <Droppable id={`drop-root-bottom`} data={{ targetFolderId: '' }} className="gba:w-full">
-                    <div className="gba:h-6 gba:bg-transparent" />
-                  </Droppable>
-                </div>
-                <DragOverlay>
-                  {activeDragItem ? (
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-white gba:border gba:rounded gba:shadow-md">
-                      <div className="gba:text-blue-600">
-                        {activeDragItem.itemType === 'document' ? (
-                          getFileIcon(activeDragItem.mimeType)
-                        ) : (
-                          <FolderOpenOutlined />
-                        )}
-                      </div>
-                      <div
-                        className="gba:text-sm gba:text-gray-800 gba:max-w-[240px] gba:truncate"
-                        title={activeDragItem.name}
-                      >
-                        {activeDragItem.name}
-                      </div>
-                    </div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
-            </div>
-          </div>
-        ) : (
-          // LIST VIEW - Enhanced flat list with filters and column management
-          <DataContainer
-            dataControllerProps={{
-              search: searchQuery,
-              setSearch: setSearchQuery,
-              debounceDelay: 500,
-              filter: selectedFilters,
-              setFilter: setSelectedFilters,
-              filterLabelMap: {},
-              listTitle: (
-                <div className="gba:flex gba:items-center gba:gap-4">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <span>Documents</span>
-                    <span className="gba:text-gray-500">
-                      ({viewMode === 'list' && hasSearchTerm ? searchTotalCount : documentsWithFilters.length})
-                    </span>
-                  </div>
-                </div>
-              ),
-              addButton: {
-                onClick: () =>
-                  startProcess({
-                    domain: 'investment-relations',
-                    processName: 'createInvestmentDocument',
-                    payload: {
-                      opportunityId
-                    },
-                    builderType: 'NATIVE_SCREEN'
-                  }),
-                label: 'Add Document',
-                'data-testid': 'add-document-button'
-              },
-              actions: [<ColumnVisibilityDropdown key="column-visibility" />]
-            }}
-            dataFilterProps={{
-              filterGroups,
-              onFilterChange: handleFilterChange
-            }}
-            dataBody={
+          if (viewMode === 'icon') {
+            return (
+              // TREE VIEW with DnD and folder/file actions
               <div className="gba:w-full">
                 <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
-                  {/* Enhanced Table Header */}
-                  <div className="gba:flex gba:items-center gba:p-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
-                      <div className="gba:w-8 gba:flex-shrink-0"></div>
-                      {isColumnVisible('name') && <div className="gba:flex-1 gba:min-w-0">Name</div>}
-                      {isColumnVisible('group') && (
-                        <div className="gba:w-32 gba:flex-shrink-0">
-                          <div className="gba:flex gba:items-center gba:gap-1">
-                            <FolderOpenOutlined />
-                            <span>Group</span>
-                          </div>
-                        </div>
-                      )}
-                      {isColumnVisible('type') && <div className="gba:w-32 gba:flex-shrink-0">Type</div>}
-                      {isColumnVisible('size') && <div className="gba:w-24 gba:flex-shrink-0">Size</div>}
-                      {isColumnVisible('uploadDate') && (
-                        <div className="gba:w-44 gba:flex-shrink-0">
-                          <div className="gba:flex gba:items-center gba:gap-1">
-                            <CalendarOutlined />
-                            <span>Upload Date</span>
-                          </div>
-                        </div>
-                      )}
-                      {isColumnVisible('expirationDate') && (
-                        <div className="gba:w-44 gba:flex-shrink-0">
-                          <div className="gba:flex gba:items-center gba:gap-1">
-                            <CalendarOutlined />
-                            <span>Expiration Date</span>
-                          </div>
-                        </div>
-                      )}
-                      {isColumnVisible('uploadedBy') && (
-                        <div className="gba:w-32 gba:flex-shrink-0">
-                          <div className="gba:flex gba:items-center gba:gap-1">
-                            <UserOutlined />
-                            <span>Uploaded By</span>
-                          </div>
-                        </div>
-                      )}
-                      {isColumnVisible('actions') && (
-                        <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">Actions</div>
-                      )}
+                  <div className="gba:flex gba:items-center gba:py-3 gba:px-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
+                    <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
+                      <div className="gba:w-6"></div>
+                      <div className="gba:flex-1 gba:min-w-0">Name</div>
                     </div>
+                    <div className="gba:w-44 gba:text-right gba:mr-4">Modified</div>
+                    <div className="gba:w-20 gba:text-right gba:mr-4">Size</div>
+                    <div className="gba:w-16 gba:text-right gba:mr-4">Type</div>
+                    <div className="gba:w-16"></div>
                   </div>
 
-                  {/* Enhanced Table Body */}
-                  <div className="gba:divide-y gba:divide-gray-200">
-                    {documentsWithFilters.map(document => (
-                      <div
-                        key={document.id}
-                        className="gba:flex gba:items-center gba:p-4 gba:bg-white gba:border-b gba:border-gray-200 gba:hover:bg-gray-50 gba:transition-colors"
-                        data-testid={`document-list-${document.id}`}
-                      >
-                        <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
-                          <div className="gba:text-lg gba:flex-shrink-0">{getFileIcon(document.mimeType)}</div>
-                          {isColumnVisible('name') && (
-                            <div className="gba:flex-1 gba:min-w-0">
-                              <div
-                                className="gba:font-medium gba:text-gray-900 gba:text-sm gba:truncate"
-                                title={document.name || 'Unnamed Document'}
-                              >
-                                {document.name || 'Unnamed Document'}
+                  <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                    <div>
+                      <Droppable id={`drop-root`} data={{ targetFolderId: '' }} className="gba:w-full">
+                        <div className="gba:h-4 gba:bg-transparent" />
+                      </Droppable>
+
+                      {/* Root-level files */}
+                      {rootLevelFiles.map(document => (
+                        <Droppable key={`drop-doc-root-${document.id}`} id={`drop-doc-root-${document.id}`} data={{}}>
+                          <Draggable
+                            id={`drag-doc-${document.id}`}
+                            data={{ itemType: 'document', id: document.id, version: document.version }}
+                          >
+                            <div
+                              key={document.id}
+                              className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-blue-50 gba:cursor-pointer gba:border-b gba:border-gray-50 gba:group"
+                              style={{ paddingLeft: '32px' }}
+                              data-testid={`document-tree-root-${document.id}`}
+                              onClick={() => handleViewDocument(document)}
+                            >
+                              <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
+                                <div className="gba:w-6"></div>
+                                <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+                                  <div className="gba:text-blue-600 gba:text-sm">{getFileIcon(document.mimeType)}</div>
+                                  <span
+                                    className="gba:text-sm gba:text-gray-900 gba:truncate"
+                                    title={document.name || 'Unnamed Document'}
+                                  >
+                                    {document.name || 'Unnamed Document'}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          {isColumnVisible('group') && (
-                            <div className="gba:w-32 gba:flex-shrink-0">
-                              <span className="gba:text-sm gba:text-gray-600">
-                                {document.documentGroup?.value || '-'}
-                              </span>
-                            </div>
-                          )}
-                          {isColumnVisible('type') && (
-                            <div className="gba:w-32 gba:flex-shrink-0">
-                              <span className="gba:text-sm gba:text-gray-600">
-                                {document.documentType?.value || '-'}
-                              </span>
-                            </div>
-                          )}
-                          {isColumnVisible('size') && (
-                            <div className="gba:w-24 gba:flex-shrink-0">
-                              <span className="gba:text-sm gba:text-gray-600">
+                              <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                                {formatDate(document.createdAt)}
+                              </div>
+                              <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
                                 {formatFileSize(document.fileSize || 0)}
-                              </span>
-                            </div>
-                          )}
-                          {isColumnVisible('uploadDate') && (
-                            <div className="gba:w-44 gba:flex-shrink-0">
-                              <span className="gba:text-sm gba:text-gray-600">{formatDate(document.createdAt)}</span>
-                            </div>
-                          )}
-                          {isColumnVisible('expirationDate') && (
-                            <div className="gba:w-44 gba:flex-shrink-0">
-                              <span className="gba:text-sm gba:text-gray-600">
-                                {document.expirationDate ? formatDate(document.expirationDate) : '-'}
-                              </span>
-                            </div>
-                          )}
-                          {isColumnVisible('uploadedBy') && (
-                            <div className="gba:w-32 gba:flex-shrink-0">
-                              <span className="gba:text-sm gba:text-gray-600">
-                                {getEmployeeDisplayName(document.createdBy || '') || 'Unknown'}
-                              </span>
-                            </div>
-                          )}
-                          {isColumnVisible('actions') && (
-                            <div className="gba:w-8 gba:flex-shrink-0 gba:text-right">
-                              <div className="gba:flex gba:items-center gba:justify-end">
-                                <DocumentActionsDropdown document={document} testIdPrefix="list-document" size="md" />
+                              </div>
+                              <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                                {document.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}
+                              </div>
+                              <div className="gba:w-8 gba:flex gba:items-center gba:justify-end">
+                                <DocumentActionsDropdown document={document} testIdPrefix="tree-document" />
                               </div>
                             </div>
-                          )}
+                          </Draggable>
+                        </Droppable>
+                      ))}
+
+                      {documentFolders.map(folder => {
+                        const renderFolder = (node: DocumentFolder, depth: number) => {
+                          const isExpanded = node.folderId ? expandedFolders.has(node.folderId) : false
+                          const indentPx = 16 * depth
+                          return (
+                            <React.Fragment key={node.folderId || node.name}>
+                              <Droppable
+                                id={`drop-folder-${node.folderId || node.name}`}
+                                data={{ targetFolderId: node.folderId }}
+                                className="gba:w-full"
+                                disabled={!node.folderId}
+                              >
+                                <Draggable
+                                  id={`drag-folder-${node.folderId || node.name}`}
+                                  data={{ itemType: 'folder', id: node.folderId, version: node.folderVersion }}
+                                >
+                                  <div
+                                    className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-gray-50 gba:cursor-pointer gba:border-b gba:border-gray-100"
+                                    onClick={() => node.folderId && toggleFolder(node.folderId)}
+                                    data-testid={`folder-tree-${node.folderId || node.name}`}
+                                    style={{ paddingLeft: `${indentPx}px` }}
+                                  >
+                                    <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
+                                      <div className="gba:w-6 gba:flex gba:items-center gba:justify-center">
+                                        <CaretRightIcon
+                                          className={`gba:text-xs gba:text-gray-400 gba:transition-transform ${isExpanded ? 'gba:rotate-90' : ''}`}
+                                        />
+                                      </div>
+                                      <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+                                        <FolderOpenIcon className="gba:text-blue-600 gba:text-sm" />
+                                        <span className="gba:text-sm gba:text-gray-900 gba:truncate">{node.name}</span>
+                                      </div>
+                                    </div>
+                                    <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                                      {node.documents && node.documents.length > 0
+                                        ? formatDate(
+                                            new Date(
+                                              Math.max(...node.documents.map(doc => new Date(doc.createdAt).getTime()))
+                                            ).toISOString()
+                                          )
+                                        : '-'}
+                                    </div>
+                                    <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                                      -
+                                    </div>
+                                    <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                                      Folder
+                                    </div>
+                                    <div className="gba:w-28 gba:flex gba:items-center gba:justify-end gba:gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          startProcess({
+                                            domain: 'investment-relations',
+                                            processName: 'createInvestmentDocument',
+                                            payload: {
+                                              opportunityId,
+                                              ...(node.folderId ? { parentDocument: node.folderId } : {})
+                                            },
+                                            builderType: 'NATIVE_SCREEN'
+                                          })
+                                        }}
+                                        className="gba:p-1 gba:h-6 gba:w-6"
+                                        data-testid={`new-document-icon-${node.folderId || node.name}`}
+                                        title="New Document"
+                                      >
+                                        <FileIcon className="gba:text-xs" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          startProcess({
+                                            domain: 'investment-relations',
+                                            processName: 'createInvestmentDocument',
+                                            payload: {
+                                              opportunityId,
+                                              createFolder: true,
+                                              ...(node.folderId ? { parentDocument: node.folderId } : {})
+                                            },
+                                            builderType: 'NATIVE_SCREEN'
+                                          })
+                                        }}
+                                        className="gba:p-1 gba:h-6 gba:w-6"
+                                        data-testid={`new-subfolder-icon-${node.folderId || node.name}`}
+                                        title="New Subfolder"
+                                      >
+                                        <FolderPlusIcon className="gba:text-xs" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          openRenameFolder(node)
+                                        }}
+                                        className="gba:p-1 gba:h-6 gba:w-6"
+                                        data-testid={`rename-folder-icon-${node.folderId || node.name}`}
+                                        title="Rename Folder"
+                                        disabled={!node.folderId}
+                                      >
+                                        <PencilIcon className="gba:text-xs" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          handleDeleteFolder(node)
+                                        }}
+                                        className="gba:p-1 gba:h-6 gba:w-6"
+                                        data-testid={`delete-folder-icon-${node.folderId || node.name}`}
+                                        title="Delete Folder"
+                                        disabled={!node.folderId}
+                                      >
+                                        <TrashIcon className="gba:text-xs" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </Draggable>
+                              </Droppable>
+
+                              {isExpanded && (
+                                <>
+                                  <Droppable
+                                    id={`drop-root-inline-${node.folderId}`}
+                                    data={{ targetFolderId: null }}
+                                    className="gba:w-full"
+                                  >
+                                    <div className="gba:h-0.5" />
+                                  </Droppable>
+                                  {Array.isArray(node.children) &&
+                                    node.children.map(child => renderFolder(child, depth + 1))}
+                                  {Array.isArray(node.documents) &&
+                                    node.documents.map(document => (
+                                      <Droppable
+                                        key={`drop-doc-row-${document.id}`}
+                                        id={`drop-doc-row-${document.id}`}
+                                        data={{}}
+                                      >
+                                        <Draggable
+                                          id={`drag-doc-${document.id}`}
+                                          data={{ itemType: 'document', id: document.id, version: document.version }}
+                                        >
+                                          <div
+                                            key={document.id}
+                                            className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-blue-50 gba:cursor-pointer gba:border-b gba:border-gray-50 gba:group"
+                                            style={{ paddingLeft: `${16 * (depth + 1) + 16}px` }}
+                                            data-testid={`document-tree-${document.id}`}
+                                            onClick={() => handleViewDocument(document)}
+                                          >
+                                            <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
+                                              <div className="gba:w-6"></div>
+                                              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+                                                <div className="gba:text-blue-600 gba:text-sm">
+                                                  {getFileIcon(document.mimeType)}
+                                                </div>
+                                                <span
+                                                  className="gba:text-sm gba:text-gray-900 gba:truncate"
+                                                  title={document.name || 'Unnamed Document'}
+                                                >
+                                                  {document.name || 'Unnamed Document'}
+                                                </span>
+                                              </div>
+                                            </div>
+                                            <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                                              {formatDate(document.createdAt)}
+                                            </div>
+                                            <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                                              {formatFileSize(document.fileSize || 0)}
+                                            </div>
+                                            <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                                              {document.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}
+                                            </div>
+                                            <div className="gba:w-8 gba:flex gba:items-center gba:justify-end">
+                                              <DocumentActionsDropdown
+                                                document={document}
+                                                testIdPrefix="tree-document"
+                                              />
+                                            </div>
+                                          </div>
+                                        </Draggable>
+                                      </Droppable>
+                                    ))}
+                                </>
+                              )}
+                            </React.Fragment>
+                          )
+                        }
+                        return renderFolder(folder, 0)
+                      })}
+
+                      <Droppable id={`drop-root-bottom`} data={{ targetFolderId: '' }} className="gba:w-full">
+                        <div className="gba:h-6 gba:bg-transparent" />
+                      </Droppable>
+                    </div>
+                    <DragOverlay>
+                      {activeDragItem ? (
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-white gba:border gba:rounded gba:shadow-md">
+                          <div className="gba:text-blue-600">
+                            {activeDragItem.itemType === 'document' ? (
+                              getFileIcon(activeDragItem.mimeType)
+                            ) : (
+                              <FolderOpenIcon />
+                            )}
+                          </div>
+                          <div
+                            className="gba:text-sm gba:text-gray-800 gba:max-w-[240px] gba:truncate"
+                            title={activeDragItem.name}
+                          >
+                            {activeDragItem.name}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
                 </div>
               </div>
-            }
-          />
-        )}
+            )
+          }
+
+          // LIST VIEW - Enhanced flat list with filters and column management
+          return (
+            <DataContainer
+              dataControllerProps={{
+                search: searchQuery,
+                setSearch: setSearchQuery,
+                debounceDelay: 500,
+                filter: selectedFilters,
+                setFilter: setSelectedFilters,
+                filterLabelMap: {},
+                listTitle: (
+                  <div className="gba:flex gba:items-center gba:gap-4">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <span>Documents</span>
+                      <span className="gba:text-gray-500">
+                        ({viewMode === 'list' && hasSearchTerm ? searchTotalCount : documentsWithFilters.length})
+                      </span>
+                    </div>
+                  </div>
+                ),
+                addButton: {
+                  onClick: () =>
+                    startProcess({
+                      domain: 'investment-relations',
+                      processName: 'createInvestmentDocument',
+                      payload: {
+                        opportunityId
+                      },
+                      builderType: 'NATIVE_SCREEN'
+                    }),
+                  label: 'Add Document',
+                  'data-testid': 'add-document-button'
+                },
+                actions: [<ColumnVisibilityDropdown key="column-visibility" />]
+              }}
+              dataFilterProps={{
+                filterGroups,
+                onFilterChange: handleFilterChange
+              }}
+              dataBody={
+                <div className="gba:w-full">
+                  <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
+                    {/* Enhanced Table Header */}
+                    <div className="gba:flex gba:items-center gba:p-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
+                      <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
+                        <div className="gba:w-8 gba:flex-shrink-0"></div>
+                        {isColumnVisible('name') && <div className="gba:flex-1 gba:min-w-0">Name</div>}
+                        {isColumnVisible('group') && (
+                          <div className="gba:w-32 gba:flex-shrink-0">
+                            <div className="gba:flex gba:items-center gba:gap-1">
+                              <FolderOpenIcon />
+                              <span>Group</span>
+                            </div>
+                          </div>
+                        )}
+                        {isColumnVisible('type') && <div className="gba:w-32 gba:flex-shrink-0">Type</div>}
+                        {isColumnVisible('size') && <div className="gba:w-24 gba:flex-shrink-0">Size</div>}
+                        {isColumnVisible('uploadDate') && (
+                          <div className="gba:w-44 gba:flex-shrink-0">
+                            <div className="gba:flex gba:items-center gba:gap-1">
+                              <CalendarBlankIcon />
+                              <span>Upload Date</span>
+                            </div>
+                          </div>
+                        )}
+                        {isColumnVisible('expirationDate') && (
+                          <div className="gba:w-44 gba:flex-shrink-0">
+                            <div className="gba:flex gba:items-center gba:gap-1">
+                              <CalendarBlankIcon />
+                              <span>Expiration Date</span>
+                            </div>
+                          </div>
+                        )}
+                        {isColumnVisible('uploadedBy') && (
+                          <div className="gba:w-32 gba:flex-shrink-0">
+                            <div className="gba:flex gba:items-center gba:gap-1">
+                              <UserIcon />
+                              <span>Uploaded By</span>
+                            </div>
+                          </div>
+                        )}
+                        {isColumnVisible('actions') && (
+                          <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">Actions</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Enhanced Table Body */}
+                    <div className="gba:divide-y gba:divide-gray-200">
+                      {documentsWithFilters.map(document => (
+                        <div
+                          key={document.id}
+                          className="gba:flex gba:items-center gba:p-4 gba:bg-white gba:border-b gba:border-gray-200 gba:hover:bg-gray-50 gba:transition-colors"
+                          data-testid={`document-list-${document.id}`}
+                        >
+                          <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
+                            <div className="gba:text-lg gba:flex-shrink-0">{getFileIcon(document.mimeType)}</div>
+                            {isColumnVisible('name') && (
+                              <div className="gba:flex-1 gba:min-w-0">
+                                <div
+                                  className="gba:font-medium gba:text-gray-900 gba:text-sm gba:truncate"
+                                  title={document.name || 'Unnamed Document'}
+                                >
+                                  {document.name || 'Unnamed Document'}
+                                </div>
+                              </div>
+                            )}
+                            {isColumnVisible('group') && (
+                              <div className="gba:w-32 gba:flex-shrink-0">
+                                <span className="gba:text-sm gba:text-gray-600">
+                                  {document.documentGroup?.value || '-'}
+                                </span>
+                              </div>
+                            )}
+                            {isColumnVisible('type') && (
+                              <div className="gba:w-32 gba:flex-shrink-0">
+                                <span className="gba:text-sm gba:text-gray-600">
+                                  {document.documentType?.value || '-'}
+                                </span>
+                              </div>
+                            )}
+                            {isColumnVisible('size') && (
+                              <div className="gba:w-24 gba:flex-shrink-0">
+                                <span className="gba:text-sm gba:text-gray-600">
+                                  {formatFileSize(document.fileSize || 0)}
+                                </span>
+                              </div>
+                            )}
+                            {isColumnVisible('uploadDate') && (
+                              <div className="gba:w-44 gba:flex-shrink-0">
+                                <span className="gba:text-sm gba:text-gray-600">{formatDate(document.createdAt)}</span>
+                              </div>
+                            )}
+                            {isColumnVisible('expirationDate') && (
+                              <div className="gba:w-44 gba:flex-shrink-0">
+                                <span className="gba:text-sm gba:text-gray-600">
+                                  {document.expirationDate ? formatDate(document.expirationDate) : '-'}
+                                </span>
+                              </div>
+                            )}
+                            {isColumnVisible('uploadedBy') && (
+                              <div className="gba:w-32 gba:flex-shrink-0">
+                                <span className="gba:text-sm gba:text-gray-600">
+                                  {getEmployeeDisplayName(document.createdBy || '') || 'Unknown'}
+                                </span>
+                              </div>
+                            )}
+                            {isColumnVisible('actions') && (
+                              <div className="gba:w-8 gba:flex-shrink-0 gba:text-right">
+                                <div className="gba:flex gba:items-center gba:justify-end">
+                                  <DocumentActionsDropdown document={document} testIdPrefix="list-document" size="md" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              }
+            />
+          )
+        })()}
       </CardContent>
       {/* Rename Folder Modal */}
       <Dialog
