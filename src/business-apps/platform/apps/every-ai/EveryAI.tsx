@@ -52,6 +52,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     conversation,
     isLoading,
     sendMessage,
+    editMessage,
     clearConversation,
     nextStepProposals,
     isPrechatLoading,
@@ -667,6 +668,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               turns={extendedConversation}
               accessToken={accessToken}
               sendMessage={sendMessage}
+              editMessage={editMessage}
               userInfo={userInfo}
               pictureThumbnail={pictureThumbnail}
               isVoiceMode={isSpeechMode}
