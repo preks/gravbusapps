@@ -47,7 +47,6 @@ import {
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { getCategoryIcon } from '../../../utils/iconMapping'
 import { useRealEmployeeData, getEmployeeOptions } from '../hooks/useRealEmployeeData'
-import { flowbotClient } from '@/common/network/flowbot'
 import { parseMarkdownForReact } from '@/common/utils/markdownUtils'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { DataSourceSelect } from './DataSourceSelect'
@@ -472,13 +471,24 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     console.log('🤖 [Ask AI] Prepared payload for AI service:', ticketData)
 
     try {
-      // Set access token for the API call
-      if (contextProps.accessToken) {
-        flowbotClient.setAccessToken(contextProps.accessToken)
+      // Call the real AI API using direct fetch (like EveryAI)
+      const baseUrl = resolveFlowbotBaseUrl()
+      const url = `${baseUrl}/flowbot/services/quick-tips-for-ticket/`
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${contextProps.accessToken}`
+        },
+        body: JSON.stringify({ ticket_data: ticketData })
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
       }
 
-      // Call the real AI API
-      const response = await flowbotClient.getQuickTipsForTicket(ticketData)
+      const response = await res.json()
 
       console.log('🤖 [Ask AI] API Response:', response)
 
