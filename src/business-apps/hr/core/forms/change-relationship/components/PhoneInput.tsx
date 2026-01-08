@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useState, useRef } from 'react'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import {
-  parseNumber,
+  parsePhoneNumberFromString,
   getCountryCallingCode,
   getCountries,
   type CountryCode,
@@ -24,10 +24,6 @@ interface PhoneInputProps {
   'data-testid'?: string
 }
 
-/**
- * Phone input component with country code selector.
- * Parses the full phone number and displays it as country selector + local number.
- */
 export const PhoneInput: React.FC<PhoneInputProps> = ({
   value,
   onChange,
@@ -40,8 +36,8 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   const [localNumber, setLocalNumber] = useState<string>('')
   const previousCountryRef = useRef<CountryCode | ''>('')
   const isManualCountryChangeRef = useRef<boolean>(false)
+  const skipNextParseRef = useRef<boolean>(false)
 
-  // Build countries list
   const countries = useMemo(() => {
     const countryList = getCountries()
     const locale = getCurrentActiveUserLocale() || 'en'
@@ -66,9 +62,12 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     return mapped.sort((a, b) => a.name.localeCompare(b.name, locale))
   }, [])
 
-  // Parse the incoming value into country code and local number
   useEffect(() => {
-    // Clear internal state when value is empty
+    if (skipNextParseRef.current) {
+      skipNextParseRef.current = false
+      return
+    }
+
     if (!value) {
       setSelectedCountryCode('')
       setLocalNumber('')
@@ -79,29 +78,16 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
       return
     }
 
-    // Try to parse with libphonenumber-js first
-    try {
-      const parsed = parseNumber(value)
-      if (parsed && 'country' in parsed && parsed.country) {
-        setSelectedCountryCode(parsed.country)
-        if ('nationalNumber' in parsed && typeof parsed.nationalNumber === 'string') {
-          setLocalNumber(parsed.nationalNumber)
-        } else {
-          const callingCode = getCountryCallingCode(parsed.country)
-          const numberWithoutCode = value.replace(`+${callingCode}`, '').trim()
-          setLocalNumber(numberWithoutCode)
-        }
-        return
-      }
-    } catch {
-      // Continue with manual parsing
+    const parsed = parsePhoneNumberFromString(value)
+    if (parsed && parsed.country) {
+      setSelectedCountryCode(parsed.country)
+      setLocalNumber(parsed.nationalNumber)
+      return
     }
 
-    // Manual parsing for values starting with +
     if (value.startsWith('+')) {
       const valueWithoutPlus = value.substring(1).trim()
 
-      // Sort countries by calling code length (longest first) to match most specific code
       const sortedCountries = [...countries].sort((a, b) => {
         const codeA = String(a.callingCode).length
         const codeB = String(b.callingCode).length
@@ -119,11 +105,9 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
       }
     }
 
-    // Fallback: just set the value as local number
     setLocalNumber(value)
   }, [value, countries])
 
-  // Clear local number when country changes manually (not from parsing value)
   useEffect(() => {
     if (
       selectedCountryCode &&
@@ -132,22 +116,22 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
       isManualCountryChangeRef.current
     ) {
       setLocalNumber('')
-      onChange('')
+      skipNextParseRef.current = true
     }
     previousCountryRef.current = selectedCountryCode
     isManualCountryChangeRef.current = false
-  }, [selectedCountryCode, onChange])
+  }, [selectedCountryCode])
 
-  // Combine country code and local number into full number
   const handleCountryChange = (countryCode: CountryCode) => {
     isManualCountryChangeRef.current = true
     setSelectedCountryCode(countryCode)
   }
 
   const handleLocalNumberChange = (number: string) => {
-    // Remove any non-digit characters except for the initial +
     const cleanNumber = number.replace(/[^\d]/g, '')
     setLocalNumber(cleanNumber)
+
+    skipNextParseRef.current = true
 
     if (selectedCountryCode && cleanNumber) {
       const callingCode = getCountryCallingCode(selectedCountryCode)
