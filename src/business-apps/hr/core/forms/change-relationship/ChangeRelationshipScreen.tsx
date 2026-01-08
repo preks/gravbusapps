@@ -19,6 +19,8 @@ import FormHeader from '../components/FormHeader'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import dayjs from 'dayjs'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../apps/employee-record/_i18n'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
 import { env } from '@/common/env/EnvUtils'
@@ -41,6 +43,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const [lastNameTouched, setLastNameTouched] = useState(false)
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [relationshipTypeTouched, setRelationshipTypeTouched] = useState(false)
+  const { t } = useTranslation(translations)
 
   const {
     options: relationshipTypeOptions,
@@ -332,7 +335,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
             emergencyContact: Boolean(selectedExisting.isEmergencyContact),
             relationshipDocument: selectedExisting.relationshipDocumentId || ''
           }
-        : {}
+        : {},
+      completeNotification: {
+        type: 'success',
+        message: t('notification-relationship-updated-success')
+      }
     }
 
     // Only show modal for specific relationship types (Child or Marriage)

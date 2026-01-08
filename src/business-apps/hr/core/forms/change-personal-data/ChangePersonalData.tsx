@@ -18,11 +18,14 @@ import QualificationFields from './components/QualificationFields'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { env } from '@/common/env/EnvUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../apps/employee-record/_i18n'
 
 // form values type moved to types.ts
 
 const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([])
+  const { t } = useTranslation(translations)
   const { data } = useChangePersonalData()
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
@@ -341,7 +344,13 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 title: employee?.title || ''
               }
             }
-            return payload
+            return {
+              ...payload,
+              completeNotification: {
+                type: 'success',
+                message: t('notification-personal-data-updated-success')
+              }
+            }
           }}
           data-testid="change-personal-data"
         >
