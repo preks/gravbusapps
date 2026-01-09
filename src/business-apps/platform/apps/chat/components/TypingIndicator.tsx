@@ -1,6 +1,7 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { TypingIndicator } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface TypingIndicatorProps {
   typingUsers: TypingIndicator[]
@@ -8,25 +9,22 @@ interface TypingIndicatorProps {
 }
 
 export const TypingIndicatorComponent: React.FC<TypingIndicatorProps> = ({ typingUsers }) => {
+  const { t } = useTranslation(translations)
+
   if (typingUsers.length === 0) {
     return null
   }
 
   const getTypingText = () => {
     if (typingUsers.length === 1) {
-      const username = typingUsers[0].username || getTranslationFromI18nKeyAndLabel('chat.someone', 'Someone')
-      return getTranslationFromI18nKeyAndLabel('chat.isTyping', '{user} is typing').replace('{user}', username)
+      const username = typingUsers[0].username || t('chat-someone')
+      return t('chat-isTyping', { user: username })
     } else if (typingUsers.length === 2) {
-      const username1 = typingUsers[0].username || getTranslationFromI18nKeyAndLabel('chat.someone', 'Someone')
-      const username2 = typingUsers[1].username || getTranslationFromI18nKeyAndLabel('chat.someone', 'someone')
-      return getTranslationFromI18nKeyAndLabel('chat.twoAreTyping', '{user1} and {user2} are typing')
-        .replace('{user1}', username1)
-        .replace('{user2}', username2)
+      const username1 = typingUsers[0].username || t('chat-someone')
+      const username2 = typingUsers[1].username || t('chat-someone')
+      return t('chat-twoAreTyping', { user1: username1, user2: username2 })
     } else {
-      return getTranslationFromI18nKeyAndLabel('chat.multipleAreTyping', '{count} people are typing').replace(
-        '{count}',
-        typingUsers.length.toString()
-      )
+      return t('chat-multipleAreTyping', { count: typingUsers.length.toString() })
     }
   }
 

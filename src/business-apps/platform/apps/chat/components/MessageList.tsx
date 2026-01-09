@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { MessageItem } from './MessageItem'
 import { TypingIndicatorComponent } from './TypingIndicator'
 import type { Message, TypingIndicator, ConversationParticipant } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface MessageListProps {
   messages: Message[]
@@ -34,6 +34,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onReplyToAI,
   onSendMessage
 }) => {
+  const { t } = useTranslation(translations)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const prevMessagesLengthRef = useRef<number>(0)
@@ -215,9 +216,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                 />
               </svg>
             </div>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('chat.noMessages', 'No messages yet. Start the conversation!')}
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('chat-noMessages')}</p>
           </div>
         ) : filteredMessages.length > 0 ? (
           <div className="gba:mt-auto gba:space-y-0.5">
@@ -229,9 +228,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                   className="gba:text-xs gba:text-primary gba:hover:text-primary/80 gba:font-medium gba:transition-colors"
                   data-testid="load-more-messages"
                 >
-                  {isLoading
-                    ? getTranslationFromI18nKeyAndLabel('common.loading', 'Loading...')
-                    : getTranslationFromI18nKeyAndLabel('chat.loadOlderMessages', 'Load older messages')}
+                  {isLoading ? t('common-loading') : t('chat-loadOlderMessages')}
                 </button>
               </div>
             )}
