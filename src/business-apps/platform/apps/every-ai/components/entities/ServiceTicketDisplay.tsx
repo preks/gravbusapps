@@ -197,12 +197,14 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
   )
 
   const handleTitleClick = () => {
+    // Force reload to ensure updated service ticket content is shown
     navigateTo(
       buildPlatformUrl('/platform/sales-demo/service-launcher', {
         view: 'myRequests',
         requestId: serviceTicketId,
         source: 'every-ai'
-      })
+      }),
+      { forceReload: true }
     )
   }
 

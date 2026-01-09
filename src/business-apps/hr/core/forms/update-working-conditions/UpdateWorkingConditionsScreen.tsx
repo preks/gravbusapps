@@ -220,6 +220,10 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
           (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
           context.userInfo?.employeeDetails?.employeeId,
         contractStatus: 'ACTIVE'
+      },
+      completeNotification: {
+        type: 'success',
+        message: t('notification-working-conditions-updated-success')
       }
     }
   }

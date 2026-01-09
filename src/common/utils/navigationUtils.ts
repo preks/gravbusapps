@@ -78,6 +78,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // Platform
   '/platform/every-ai': 'platform/apps/every-ai',
+  '/platform/debugger': 'platform/apps/debugger',
 
   // Obsolete
   // TODO: Clean Up
@@ -111,17 +112,69 @@ const convertToDevQueryParams = (url: string): string => {
 }
 
 /**
+ * Navigation options
+ */
+export interface NavigateOptions {
+  /**
+   * Force a full page reload even if the URL is the same
+   * Useful when content has changed and needs to be refreshed
+   */
+  forceReload?: boolean
+}
+
+/**
  * Handles navigation based on the environment
  * In production: uses the original URL
  * In development: converts platform URLs to app query parameters, keeps others unchanged
  */
-export const navigateTo = (url: string): void => {
+export const navigateTo = (url: string, options?: NavigateOptions): void => {
   if (typeof window === 'undefined') {
     console.warn('Navigation called in non-browser environment')
     return
   }
 
+  const { forceReload = false } = options || {}
   const isProduction = process.env.NODE_ENV === 'production'
+
+  // Helper to get the target URL (converted in dev mode if needed)
+  const getTargetUrl = (): string => {
+    if (isProduction) {
+      return url
+    }
+    // Development: convert platform URLs to query parameters
+    if (isPlatformUrl(url)) {
+      const queryParams = convertToDevQueryParams(url)
+      return `${window.location.origin}${queryParams}`
+    }
+    return url
+  }
+
+  // If force reload is requested, check if we're already on the same URL
+  if (forceReload) {
+    const targetUrl = getTargetUrl()
+    const currentUrl = window.location.href
+
+    // Normalize URLs for comparison (ignore hash)
+    const normalizeForComparison = (urlToNormalize: string): string => {
+      try {
+        const urlObj = new URL(urlToNormalize)
+        return `${urlObj.pathname}${urlObj.search}`
+      } catch {
+        return urlToNormalize.split('#')[0]
+      }
+    }
+
+    const currentNormalized = normalizeForComparison(currentUrl)
+    const targetNormalized = normalizeForComparison(targetUrl)
+
+    // If already on the same URL, force reload; otherwise navigate
+    if (currentNormalized === targetNormalized) {
+      window.location.reload()
+    } else {
+      window.location.href = targetUrl
+    }
+    return
+  }
 
   if (isProduction) {
     // Production: use host-provided SPA navigation if available, otherwise fallback
@@ -129,7 +182,14 @@ export const navigateTo = (url: string): void => {
       | undefined
       | ((path: string, options?: { replace?: boolean; scroll?: boolean }) => void)
     if (typeof nwNavigate === 'function') {
-      nwNavigate(url)
+      // Check if we're already on the same URL - if so, force reload
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      if (currentUrl === url) {
+        // Same URL - force reload to refresh content
+        window.location.reload()
+      } else {
+        nwNavigate(url)
+      }
     } else {
       window.location.href = url
     }
@@ -139,10 +199,23 @@ export const navigateTo = (url: string): void => {
       // Convert to app query parameter and stay on localhost:3000
       const queryParams = convertToDevQueryParams(url)
       const currentOrigin = window.location.origin
-      window.location.href = `${currentOrigin}${queryParams}`
+      const targetUrl = `${currentOrigin}${queryParams}`
+
+      // Check if we're already on the same URL - if so, force reload
+      const currentUrl = window.location.href
+      if (currentUrl === targetUrl) {
+        window.location.reload()
+      } else {
+        window.location.href = targetUrl
+      }
     } else {
       // Non-platform URLs (like orgchart) use original behavior
-      window.location.href = url
+      const currentUrl = window.location.href
+      if (currentUrl === url) {
+        window.location.reload()
+      } else {
+        window.location.href = url
+      }
     }
   }
 }

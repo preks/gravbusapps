@@ -93,13 +93,8 @@ export const UniversalChatWithTaskButton: React.FC<UniversalChatWithTaskButtonPr
       }
     }
 
-    // Dispatch CustomEvent for modern integration
-    const chatEvent = new CustomEvent('chat:open-with-user', {
-      detail: payload
-    })
-    window.dispatchEvent(chatEvent)
-
-    // Also dispatch postMessage for backward compatibility
+    // Dispatch postMessage - the platform (gravity-platform) will handle opening
+    // the sidebar and dispatching the chat:open-with-user event after Chat is mounted
     window.postMessage(
       {
         type: 'OPEN_CHAT_WITH_USER',

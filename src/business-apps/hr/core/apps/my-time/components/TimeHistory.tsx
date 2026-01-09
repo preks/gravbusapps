@@ -15,6 +15,7 @@ interface TimeHistoryProps {
   employeeId: string
   accessToken: string
   userId?: string
+  employeeCode?: string
   employeeFirstName?: string
   employeeLastName?: string
 }
@@ -23,6 +24,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   employeeId,
   accessToken,
   userId,
+  employeeCode,
   employeeFirstName,
   employeeLastName
 }) => {
@@ -37,10 +39,13 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   const handleGenerateReport = async () => {
     try {
       await exportTimeHistoryPdf({
+        reportTitle: t('report_title'),
+        generatedLabel: t('generated'),
         entries,
         monthDate: currentMonth,
         locale,
         employeeId,
+        employeeCode,
         employeeFirstName,
         employeeLastName
       })
