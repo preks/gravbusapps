@@ -318,7 +318,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       // Always set statistics loading on initial fetch or when statistics don't exist
       // This ensures loading skeleton shows instead of 0 values
       // On initial load (data is null) or when statistics are missing, show loading skeleton
-      if (!data || !data.statistics || options?.force) {
+      if (!data?.statistics || options?.force) {
         setIsStatisticsLoading(true)
       }
       setError(null)

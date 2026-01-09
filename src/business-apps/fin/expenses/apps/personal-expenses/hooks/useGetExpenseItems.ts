@@ -154,7 +154,7 @@ export const useGetExpenseItems = (
       }
 
       // Add expenseClass filter to server-side query if provided
-      if (filter?.expenseClass && filter.expenseClass.value) {
+      if (filter?.expenseClass?.value) {
         where.expenseClass = {
           _and: [{ value: { _eq: filter.expenseClass.value } }, { _not: { code: { _eq: 'ALLOWANCE' } } }]
         }

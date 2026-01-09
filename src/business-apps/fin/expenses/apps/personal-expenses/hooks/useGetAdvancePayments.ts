@@ -204,28 +204,28 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   }, [])
 
   const generateCacheKey = useCallback(
-    (
-      searchTerm: string,
-      page: number,
-      pageSize: number,
-      statusFilter: string[],
-      amountRange: { min?: number; max?: number } | null,
-      advanceRange: { min?: number; max?: number } | null,
-      sortField: string | null,
-      sortOrder: 'ascend' | 'descend' | null,
+    (params: {
+      searchTerm: string
+      page: number
+      pageSize: number
+      statusFilter: string[]
+      amountRange: { min?: number; max?: number } | null
+      advanceRange: { min?: number; max?: number } | null
+      sortField: string | null
+      sortOrder: 'ascend' | 'descend' | null
       currencyRef: string | null
-    ) => {
+    }) => {
       return `cache:${JSON.stringify(
         normalize({
-          searchTerm,
-          page,
-          pageSize,
-          statusFilter,
-          amountRange,
-          advanceRange,
-          sortField,
-          sortOrder,
-          currencyRef
+          searchTerm: params.searchTerm,
+          page: params.page,
+          pageSize: params.pageSize,
+          statusFilter: params.statusFilter,
+          amountRange: params.amountRange,
+          advanceRange: params.advanceRange,
+          sortField: params.sortField,
+          sortOrder: params.sortOrder,
+          currencyRef: params.currencyRef
         })
       )}`
     },
@@ -253,17 +253,17 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         return
       }
 
-      const cacheKey = generateCacheKey(
+      const cacheKey = generateCacheKey({
         searchTerm,
         page,
         pageSize,
         statusFilter,
         amountRange,
         advanceRange,
-        sortField || null,
-        sortOrder || null,
-        currencyRef || null
-      )
+        sortField: sortField || null,
+        sortOrder: sortOrder || null,
+        currencyRef: currencyRef || null
+      })
 
       const cachedData = pageCacheRef.current.get(cacheKey)
       if (cachedData && !options?.force) {

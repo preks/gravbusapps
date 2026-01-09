@@ -188,5 +188,9 @@ export const useGetExpenseDashboard = (
     filters?.period
   ])
 
-  return { stats, isLoading, error: error?.message ?? null, refetch: fetchStats, invalidateCache: invalidateAllCache }
+  const refetch = (options?: { force?: boolean }) => {
+    void fetchStats(options)
+  }
+
+  return { stats, isLoading, error: error?.message ?? null, refetch, invalidateCache: invalidateAllCache }
 }
