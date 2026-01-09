@@ -560,16 +560,9 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
         const overlappingCalcs = findOverlappingPeriods({ activeFrom, activeTo }, matchingByRelatedId)
 
         if (overlappingCalcs.length > 0) {
-          console.log('[OtherCalculationTab] DUPLICATE FOUND:', {
-            source,
-            relatedId,
-            overlappingEntries: overlappingCalcs,
-            isDuplicate: true
-          })
           return true
         }
 
-        console.log('[OtherCalculationTab] No overlapping duplicates found - calculation is unique')
         return false
       } catch (error) {
         console.error('[OtherCalculationTab] Error checking calculation uniqueness:', {
@@ -597,15 +590,6 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       const formValues = form.getValues()
 
       // Check calculation uniqueness (source + relatedId combination)
-      console.log('[OtherCalculationTab] handleSave - Starting uniqueness check:', {
-        source: formValues.source,
-        relatedId: formValues.relatedId,
-        validFrom: formValues.validFrom,
-        validTo: formValues.validTo,
-        editingItemId: editingItem?.id,
-        isEdit: !!editingItem
-      })
-
       const calcExists = await checkOtherCalcUniqueness(
         formValues.source,
         formValues.relatedId,
@@ -614,10 +598,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
         editingItem?.id
       )
 
-      console.log('[OtherCalculationTab] handleSave - Uniqueness check result:', { calcExists })
-
       if (calcExists) {
-        console.log('[OtherCalculationTab] handleSave - BLOCKING SAVE: Duplicate calculation detected')
         form.setError('source', {
           type: 'manual',
           message:
@@ -626,8 +607,6 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
         setIsSaving(false)
         return
       }
-
-      console.log('[OtherCalculationTab] handleSave - Calculation is unique, proceeding with save')
 
       // Date validation
       const ruleFrom = dayjs(activeFrom)

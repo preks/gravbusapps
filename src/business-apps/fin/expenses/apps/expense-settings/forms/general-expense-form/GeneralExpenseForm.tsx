@@ -226,20 +226,9 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
     // Check for code uniqueness in the validity period
     setIsSaving(true)
     try {
-      console.log('[GeneralExpenseForm] handleSave - Starting uniqueness check:', {
-        code: data.code,
-        activeFrom: data.activeFrom,
-        activeTo: data.activeTo,
-        editingItemId: editingItem?.id,
-        isEdit: !!editingItem
-      })
-
       const codeExists = await checkCodeUniqueness(data.code, data.activeFrom, data.activeTo, editingItem?.id)
 
-      console.log('[GeneralExpenseForm] handleSave - Uniqueness check result:', { codeExists })
-
       if (codeExists) {
-        console.log('[GeneralExpenseForm] handleSave - BLOCKING SAVE: Duplicate code detected')
         form.setError('code', {
           type: 'manual',
           message:
@@ -249,7 +238,6 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
         return
       }
 
-      console.log('[GeneralExpenseForm] handleSave - Code is unique, proceeding with save')
       await onSave({ ...data, additionalProperties })
     } catch (error) {
       console.error('[GeneralExpenseForm] handleSave - Save error:', {

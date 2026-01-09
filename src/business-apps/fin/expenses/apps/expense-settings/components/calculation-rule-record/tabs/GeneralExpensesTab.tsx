@@ -167,21 +167,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   )
 
   const fetchGeneralExpenses = useCallback(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'GeneralExpensesTab.tsx:158',
-        message: 'fetchGeneralExpenses called',
-        data: { timestamp: Date.now(), sortField: sorting.sortField, sortOrder: sorting.sortOrder },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'pre-fix',
-        hypothesisId: 'A'
-      })
-    }).catch(() => {})
-    // #endregion
     setIsLoading(true)
     setError(null)
 
@@ -239,25 +224,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   }, [ruleId, graphqlClient, loadExpenseUsageStatus])
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'GeneralExpensesTab.tsx:218',
-        message: 'useEffect triggered',
-        data: {
-          ruleId: !!ruleId,
-          accessToken: !!accessToken,
-          fetchGeneralExpensesRef: fetchGeneralExpenses.toString().substring(0, 50)
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'pre-fix',
-        hypothesisId: 'B'
-      })
-    }).catch(() => {})
-    // #endregion
     if (ruleId && accessToken) {
       fetchGeneralExpenses()
     }

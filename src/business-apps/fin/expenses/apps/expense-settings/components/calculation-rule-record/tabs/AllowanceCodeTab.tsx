@@ -652,17 +652,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
       const formValues = form.getValues()
 
-      console.log('[AllowanceCodeTab] handleSave - Starting save process:', {
-        formValues,
-        editingItem,
-        existingAllowanceCodes: allowanceCodes.map(c => ({
-          id: c.id,
-          code: c.code,
-          validFrom: c.validFrom,
-          validTo: c.validTo
-        }))
-      })
-
       // Validate mutual exclusivity: Amount and Percentage
       const amountPercentageError = validateAmountAndPercentage(
         formValues.amount,
@@ -688,14 +677,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       }
 
       // Check code uniqueness within overlapping validity periods
-      console.log('[AllowanceCodeTab] handleSave - Starting uniqueness check:', {
-        code: formValues.code,
-        validFrom: formValues.validFrom,
-        validTo: formValues.validTo,
-        editingItemId: editingItem?.id,
-        isEdit: !!editingItem
-      })
-
       const uniquenessCheck = await checkCodeUniqueness(
         formValues.code,
         formValues.validFrom,
@@ -703,10 +684,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         editingItem?.id
       )
 
-      console.log('[AllowanceCodeTab] handleSave - Uniqueness check result:', uniquenessCheck)
-
       if (uniquenessCheck.isDuplicate) {
-        console.log('[AllowanceCodeTab] handleSave - BLOCKING SAVE: Duplicate code detected or validation error')
         // Pre-fill the name with the existing name if available
         if (uniquenessCheck.existingName) {
           form.setValue('name', uniquenessCheck.existingName)
@@ -727,8 +705,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         return
       }
 
-      console.log('[AllowanceCodeTab] handleSave - Code is unique, proceeding with save')
-
       // Build saveData based on edit mode
       const isUpdate = !!editingItem
       let saveData: AllowanceCodeSaveData
@@ -741,15 +717,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         saveData = transformAllowanceCodeForCreate(formValues, ruleId)
       }
 
-      console.log('[AllowanceCodeTab] handleSave - Proceeding to save:', {
-        saveData,
-        isUpdate: !!editingItem,
-        isRestrictedEdit
-      })
-
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
-
-      console.log('[AllowanceCodeTab] handleSave - Save successful')
       toast.success(`Allowance code ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
       setIsRestrictedEdit(false)
@@ -1210,16 +1178,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                             const validFrom = form.getValues('validFrom')
                             const validTo = form.getValues('validTo')
 
-                            console.log('[AllowanceCodeTab] Code input onBlur:', {
-                              codeValue,
-                              validFrom,
-                              validTo,
-                              editingItemId: editingItem?.id
-                            })
-
                             // Only validate if code is not empty
                             if (codeValue && codeValue.trim()) {
-                              console.log('[AllowanceCodeTab] onBlur - Validating code uniqueness')
                               const uniquenessCheck = await checkCodeUniqueness(
                                 codeValue,
                                 validFrom,
@@ -1227,10 +1187,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                                 editingItem?.id
                               )
 
-                              console.log('[AllowanceCodeTab] onBlur - Uniqueness check result:', uniquenessCheck)
-
                               if (uniquenessCheck.isDuplicate) {
-                                console.log('[AllowanceCodeTab] onBlur - Setting error: duplicate code')
                                 // Pre-fill the name with the existing name if available
                                 if (uniquenessCheck.existingName) {
                                   form.setValue('name', uniquenessCheck.existingName)
@@ -1241,12 +1198,9 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                                     'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
                                 })
                               } else {
-                                console.log('[AllowanceCodeTab] onBlur - Code is unique, clearing errors')
                                 // Clear error if code is now unique
                                 form.clearErrors('code')
                               }
-                            } else {
-                              console.log('[AllowanceCodeTab] onBlur - Code is empty, skipping validation')
                             }
                           }}
                         />

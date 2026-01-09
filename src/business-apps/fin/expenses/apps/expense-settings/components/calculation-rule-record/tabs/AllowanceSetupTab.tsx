@@ -542,16 +542,9 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         const overlappingSetups = findOverlappingPeriods({ activeFrom, activeTo }, result.ExpenseRuleAllowanceSetup)
 
         if (overlappingSetups.length > 0) {
-          console.log('[AllowanceSetupTab] DUPLICATE FOUND:', {
-            allowanceCodeId,
-            allowancePeriodId,
-            overlappingEntries: overlappingSetups,
-            isDuplicate: true
-          })
           return true
         }
 
-        console.log('[AllowanceSetupTab] No overlapping duplicates found - setup is unique')
         return false
       } catch (error) {
         console.error('[AllowanceSetupTab] Error checking setup uniqueness:', {
@@ -580,15 +573,6 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       const formValues = form.getValues()
 
       // Check setup uniqueness (allowanceCodeId + allowancePeriodId combination)
-      console.log('[AllowanceSetupTab] handleSave - Starting uniqueness check:', {
-        allowanceCodeId: formValues.allowanceCodeId,
-        allowancePeriodId: formValues.allowancePeriodId,
-        validFrom: formValues.validFrom,
-        validTo: formValues.validTo,
-        editingItemId: editingItem?.id,
-        isEdit: !!editingItem
-      })
-
       const setupExists = await checkSetupUniqueness(
         formValues.allowanceCodeId,
         formValues.allowancePeriodId,
@@ -597,18 +581,13 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         editingItem?.id
       )
 
-      console.log('[AllowanceSetupTab] handleSave - Uniqueness check result:', { setupExists })
-
       if (setupExists) {
-        console.log('[AllowanceSetupTab] handleSave - BLOCKING SAVE: Duplicate setup detected')
         setValidityError(
           'This allowance code and period combination already exists with an overlapping validity period. Please use a different combination or adjust the validity dates.'
         )
         setIsSaving(false)
         return
       }
-
-      console.log('[AllowanceSetupTab] handleSave - Setup is unique, proceeding with save')
 
       // Validate validity period
       const validationError = validateAllowanceSetupDates(

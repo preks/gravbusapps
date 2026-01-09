@@ -494,16 +494,9 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         const overlappingFields = findOverlappingPeriods({ activeFrom, activeTo }, matchingByRelatedId)
 
         if (overlappingFields.length > 0) {
-          console.log('[CustomFieldsTab] DUPLICATE FOUND:', {
-            source,
-            relatedId,
-            overlappingEntries: overlappingFields,
-            isDuplicate: true
-          })
           return true
         }
 
-        console.log('[CustomFieldsTab] No overlapping duplicates found - custom field is unique')
         return false
       } catch (error) {
         console.error('[CustomFieldsTab] Error checking custom field uniqueness:', {
@@ -531,15 +524,6 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       const formValues = form.getValues()
 
       // Check custom field uniqueness (source + relatedId combination)
-      console.log('[CustomFieldsTab] handleSave - Starting uniqueness check:', {
-        source: formValues.source,
-        relatedId: formValues.relatedId,
-        validFrom: formValues.validFrom,
-        validTo: formValues.validTo,
-        editingItemId: editingItem?.id,
-        isEdit: !!editingItem
-      })
-
       const fieldExists = await checkCustomFieldUniqueness(
         formValues.source,
         formValues.relatedId,
@@ -548,10 +532,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         editingItem?.id
       )
 
-      console.log('[CustomFieldsTab] handleSave - Uniqueness check result:', { fieldExists })
-
       if (fieldExists) {
-        console.log('[CustomFieldsTab] handleSave - BLOCKING SAVE: Duplicate custom field detected')
         form.setError('source', {
           type: 'manual',
           message:
@@ -560,8 +541,6 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         setIsSaving(false)
         return
       }
-
-      console.log('[CustomFieldsTab] handleSave - Custom field is unique, proceeding with save')
 
       // Date validation
       const ruleFrom = dayjs(activeFrom)

@@ -519,20 +519,9 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       setIsSaving(true)
 
       // Check code uniqueness within overlapping validity periods
-      console.log('[AllowancePeriodTab] handleSave - Starting uniqueness check:', {
-        code: formData.code,
-        validFrom: formData.validFrom,
-        validTo: formData.validTo,
-        editingItemId: editingItem?.id,
-        isEdit: !!editingItem
-      })
-
       const codeExists = await checkCodeUniqueness(formData.code, formData.validFrom, formData.validTo, editingItem?.id)
 
-      console.log('[AllowancePeriodTab] handleSave - Uniqueness check result:', { codeExists })
-
       if (codeExists) {
-        console.log('[AllowancePeriodTab] handleSave - BLOCKING SAVE: Duplicate code detected')
         form.setError('code', {
           type: 'manual',
           message:
@@ -541,8 +530,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
         setIsSaving(false)
         return
       }
-
-      console.log('[AllowancePeriodTab] handleSave - Code is unique, proceeding with save')
 
       // Date validation
       const ruleFrom = dayjs(activeFrom)

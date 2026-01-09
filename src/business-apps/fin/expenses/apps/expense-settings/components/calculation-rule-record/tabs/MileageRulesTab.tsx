@@ -566,14 +566,6 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
       const formValues = form.getValues()
 
       // Check code uniqueness within overlapping validity periods
-      console.log('[MileageRulesTab] handleSave - Starting uniqueness check:', {
-        code: formValues.code,
-        activeFrom: formValues.activeFrom,
-        activeTo: formValues.activeTo,
-        editingItemId: editingItem?.id,
-        isEdit: !!editingItem
-      })
-
       const codeExists = await checkCodeUniqueness(
         formValues.code,
         formValues.activeFrom,
@@ -581,10 +573,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         editingItem?.id
       )
 
-      console.log('[MileageRulesTab] handleSave - Uniqueness check result:', { codeExists })
-
       if (codeExists) {
-        console.log('[MileageRulesTab] handleSave - BLOCKING SAVE: Duplicate code detected')
         form.setError('code', {
           type: 'manual',
           message:
@@ -593,8 +582,6 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         setIsSaving(false)
         return
       }
-
-      console.log('[MileageRulesTab] handleSave - Code is unique, proceeding with save')
 
       // Date validation
       const ruleFrom = dayjs(activeFrom)
