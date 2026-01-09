@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   FormField,
@@ -9,7 +9,8 @@ import {
   DateInput,
   Textarea,
   Combobox,
-  FileUpload
+  FileUpload,
+  Button
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -21,6 +22,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useUploadDocumentLookups } from './queries/UploadDocumentQueries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { env } from '@/common/env/EnvUtils'
+import { useDocumentClassification } from '@/common/hooks/useDocumentClassification'
 
 // Extracted submit logic for re-use and testing
 export async function submitUploadDocument(
@@ -111,6 +113,8 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
 
   const [, setFileList] = useState<UploadFile[]>([])
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [aiApplied, setAiApplied] = useState(false)
+  const [pendingTypeValue, setPendingTypeValue] = useState<string | null>(null)
   const initialDefaultsRef = useRef(form.getValues())
 
   const title = useMemo(
@@ -137,6 +141,146 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
   const fileClient = useFileClient({ accessToken: context.accessToken } as any)
   const flowEmployeeId = (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
   const employeeId = flowEmployeeId || context.userInfo?.employeeDetails?.employeeId
+
+  const {
+    suggestion: aiSuggestion,
+    loading: aiLoading,
+    error: aiError
+  } = useDocumentClassification({
+    accessToken: context.accessToken,
+    entity: 'hr',
+    file: selectedFile || undefined,
+    endpoint: '/flowbot/document-autoclassify/classify',
+    enabled: Boolean(selectedFile)
+  })
+
+  // Reset AI application flags when file changes
+  useEffect(() => {
+    setAiApplied(false)
+    setPendingTypeValue(null)
+  }, [selectedFile])
+
+  // Auto-apply AI suggestion for group/type when possible
+  useEffect(() => {
+    if (!aiSuggestion || aiApplied) return
+
+    const currentGroupId = form.getValues('documentGroupId')
+    const currentTypeId = form.getValues('documentTypeId')
+
+    // Auto-apply group if not selected yet
+    if (!currentGroupId && aiSuggestion.group && groups && groups.length > 0) {
+      const normalizedGroup = aiSuggestion.group.toString().trim().toLowerCase()
+      const matchGroup = groups.find(g => {
+        const byLabel = (g.label || '').toString().trim().toLowerCase() === normalizedGroup
+        const byValue = (g.value || '').toString().trim().toLowerCase() === normalizedGroup
+        return byLabel || byValue
+      })
+
+      if (matchGroup?.id) {
+        form.setValue('documentGroupId', matchGroup.id, {
+          shouldDirty: true,
+          shouldValidate: true,
+          shouldTouch: true
+        })
+      }
+    }
+
+    // Auto-apply type if not selected yet
+    if (!currentTypeId && aiSuggestion.type) {
+      const normalizedType = aiSuggestion.type.toString().trim().toLowerCase()
+      const availableTypes = filteredTypes && filteredTypes.length > 0 ? filteredTypes : types || []
+
+      const matchType = availableTypes.find(t => {
+        const byLabel = (t.label || '').toString().trim().toLowerCase() === normalizedType
+        const byValue = (t.value || '').toString().trim().toLowerCase() === normalizedType
+        return byLabel || byValue
+      })
+
+      if (matchType?.id) {
+        form.setValue('documentTypeId', matchType.id, {
+          shouldDirty: true,
+          shouldValidate: true,
+          shouldTouch: true
+        })
+        setAiApplied(true)
+      } else {
+        // Remember requested type so we can try again after group change
+        setPendingTypeValue(aiSuggestion.type)
+      }
+    }
+  }, [aiSuggestion, aiApplied, groups, types, filteredTypes, form])
+
+  // Apply pending type suggestion after group change (when types become filtered)
+  useEffect(() => {
+    if (!pendingTypeValue || !selectedGroupId || !types || types.length === 0) return
+
+    const normalizedType = pendingTypeValue.toString().trim().toLowerCase()
+    const eligibleTypes = types.filter(t => t.parentEntryId === selectedGroupId)
+
+    const match = eligibleTypes.find(t => {
+      const byLabel = (t.label || '').toString().trim().toLowerCase() === normalizedType
+      const byValue = (t.value || '').toString().trim().toLowerCase() === normalizedType
+      return byLabel || byValue
+    })
+
+    if (match?.id) {
+      form.setValue('documentTypeId', match.id, {
+        shouldDirty: true,
+        shouldValidate: true,
+        shouldTouch: true
+      })
+      setAiApplied(true)
+      setPendingTypeValue(null)
+    }
+  }, [pendingTypeValue, selectedGroupId, types, form])
+
+  const handleApplyAiSuggestion = useCallback(() => {
+    if (!aiSuggestion) return
+
+    const currentGroupId = form.getValues('documentGroupId')
+
+    // Apply group suggestion explicitly
+    if (aiSuggestion.group && groups && groups.length > 0) {
+      const normalizedGroup = aiSuggestion.group.toString().trim().toLowerCase()
+      const matchGroup = groups.find(g => {
+        const byLabel = (g.label || '').toString().trim().toLowerCase() === normalizedGroup
+        const byValue = (g.value || '').toString().trim().toLowerCase() === normalizedGroup
+        return byLabel || byValue
+      })
+
+      if (matchGroup?.id && matchGroup.id !== currentGroupId) {
+        form.setValue('documentGroupId', matchGroup.id, {
+          shouldDirty: true,
+          shouldValidate: true,
+          shouldTouch: true
+        })
+      }
+    }
+
+    // Apply type suggestion explicitly
+    if (aiSuggestion.type) {
+      const normalizedType = aiSuggestion.type.toString().trim().toLowerCase()
+      const availableTypes = filteredTypes && filteredTypes.length > 0 ? filteredTypes : types || []
+
+      const matchType = availableTypes.find(t => {
+        const byLabel = (t.label || '').toString().trim().toLowerCase() === normalizedType
+        const byValue = (t.value || '').toString().trim().toLowerCase() === normalizedType
+        return byLabel || byValue
+      })
+
+      if (matchType?.id) {
+        form.setValue('documentTypeId', matchType.id, {
+          shouldDirty: true,
+          shouldValidate: true,
+          shouldTouch: true
+        })
+        setAiApplied(true)
+        setPendingTypeValue(null)
+      } else {
+        setPendingTypeValue(aiSuggestion.type)
+      }
+    }
+  }, [aiSuggestion, groups, types, filteredTypes, form])
 
   return (
     <div
@@ -227,6 +371,35 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
                 }}
               />
             </div>
+            {/* AI classification status */}
+            {selectedFile && (
+              <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground" data-testid="upload-document-ai-status">
+                {aiLoading && (
+                  <span data-testid="upload-document-ai-status-loading">
+                    {getTranslationFromI18nKeyAndLabel('document.ai.detecting', 'Detecting document group and type…')}
+                  </span>
+                )}
+                {!aiLoading && aiError && <span data-testid="upload-document-ai-status-error">{aiError}</span>}
+                {!aiLoading && !aiError && aiSuggestion && (
+                  <div className="gba:flex gba:flex-col gba:gap-1" data-testid="upload-document-ai-status-suggestion">
+                    <span>
+                      {`AI suggestion: Group = ${aiSuggestion.group || '—'}, Type = ${aiSuggestion.type || '—'}`}
+                    </span>
+                    <div className="gba:flex gba:gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleApplyAiSuggestion}
+                        data-testid="upload-document-ai-apply-button"
+                      >
+                        {getTranslationFromI18nKeyAndLabel('document.ai.apply', 'Apply suggestion')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Document Group */}
