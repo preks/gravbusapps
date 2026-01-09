@@ -78,6 +78,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // Platform
   '/platform/every-ai': 'platform/apps/every-ai',
+  '/platform/debugger': 'platform/apps/debugger',
 
   // Obsolete
   // TODO: Clean Up
