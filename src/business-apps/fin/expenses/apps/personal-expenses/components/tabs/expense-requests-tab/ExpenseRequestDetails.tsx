@@ -9,6 +9,8 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { generateExpenseRequestActions } from '../../../utils/expenseRequestActions'
+import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService'
+import TravelOrderAttachmentPreview from '../../common/TravelOrderAttachmentPreview'
 
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   selectedItem: any
@@ -23,6 +25,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   ...contextProps
 }) => {
   if (!selectedItem) return null
+
+  const { printExpenseRequest } = useExpenseRequestFileService(contextProps)
 
   const formatTypeLabel = (value?: string) => {
     if (value === null || value === undefined) return 'N/A'
@@ -279,6 +283,12 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      <TravelOrderAttachmentPreview
+        record={selectedItem}
+        fetchPdf={printExpenseRequest as any}
+        dataTestIdPrefix="expense-request-details"
+      />
 
       <Separator />
 

@@ -8,6 +8,8 @@ import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/wi
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { generateExpensePlanActions } from '../../../utils/expensePlanActions'
+import { useExpensePlanFileService } from '../../../utils/expensePlanFileService'
+import TravelOrderAttachmentPreview from '../../common/TravelOrderAttachmentPreview'
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   selectedItem: any
@@ -22,6 +24,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
   ...contextProps
 }) => {
   if (!selectedItem) return null
+
+  const { printExpensePlan } = useExpensePlanFileService(contextProps)
 
   const formatTypeLabel = (value?: string) => {
     if (!value) return 'N/A'
@@ -255,6 +259,12 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      <TravelOrderAttachmentPreview
+        record={selectedItem}
+        fetchPdf={printExpensePlan as any}
+        dataTestIdPrefix="expense-plan-details"
+      />
 
       <Separator />
 

@@ -424,6 +424,7 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
       employeeDocument {
         id
         file
+        name
         employee { id }
       }
       employee { id }
