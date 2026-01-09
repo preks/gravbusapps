@@ -152,18 +152,25 @@ export const useGetExpenseDashboard = (
       }
 
       const p = graphqlClient
-        .request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables, { signal: controller.signal })
+        .request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables)
         .then(res => res)
         .finally(() => {
           inflightRef.current.delete(key)
         })
       inflightRef.current.set(key, p)
       const data = await p
+
+      // If a newer request started, ignore this response.
+      if (abortControllerRef.current !== controller) {
+        return
+      }
+
       const expenseDashboard = transformDashboardResponse(data, selectedPeriod)
       pageCacheRef.current.set(cacheKey, expenseDashboard as ExpenseDashboard)
       setStats(expenseDashboard as ExpenseDashboard)
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
+      // We can't abort the underlying fetch without client support; ignore stale results instead.
+      if (abortControllerRef.current !== controller || controller.signal.aborted) {
         return
       }
       setError(err instanceof Error ? err : new Error(String(err)))

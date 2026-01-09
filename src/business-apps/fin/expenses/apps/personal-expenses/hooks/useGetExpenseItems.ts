@@ -344,13 +344,18 @@ export const useGetExpenseItems = (
         const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter, sortField, sortOrder)
 
         const requestPromise = graphqlClient
-          .request<any>(GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, variables, { signal: controller.signal })
+          .request<any>(GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, variables)
           .finally(() => {
             inflightRef.current.delete(requestKey)
           })
 
         inflightRef.current.set(requestKey, requestPromise)
         const result = await requestPromise
+
+        // If a newer request started, ignore this response.
+        if (abortControllerRef.current !== controller) {
+          return
+        }
 
         const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
         const mappedItems = mapResponseToItems(result)
@@ -364,8 +369,8 @@ export const useGetExpenseItems = (
         setItems(mappedItems)
         setTotalCount(finalCount)
       } catch (err) {
-        // Ignore AbortError - it means the request was cancelled intentionally
-        if (err instanceof Error && err.name === 'AbortError') {
+        // We can't abort the underlying fetch without client support; ignore stale results instead.
+        if (abortControllerRef.current !== controller || controller.signal.aborted) {
           return
         }
         setError(err instanceof Error ? err : new Error(String(err)))

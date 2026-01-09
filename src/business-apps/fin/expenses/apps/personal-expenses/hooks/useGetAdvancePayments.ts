@@ -386,14 +386,17 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           variables.currencyRef = filters.currencyRef
         }
 
-        const requestPromise = graphqlClient
-          .request<any>(query, variables, { signal: controller.signal })
-          .finally(() => {
-            inflightRef.current.delete(requestKey)
-          })
+        const requestPromise = graphqlClient.request<any>(query, variables).finally(() => {
+          inflightRef.current.delete(requestKey)
+        })
 
         inflightRef.current.set(requestKey, requestPromise)
         const result = await requestPromise
+
+        // If a newer request started, ignore this response.
+        if (abortControllerRef.current !== controller) {
+          return
+        }
 
         const fetchedItems = result?.AdvancePayment ?? []
         const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
@@ -403,7 +406,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         setTotalCount(count)
         setItems(fetchedItems)
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
+        // We can't abort the underlying fetch without client support; ignore stale results instead.
+        if (abortControllerRef.current !== controller || controller.signal.aborted) {
           return
         }
         console.error('Error fetching advance payments:', err)

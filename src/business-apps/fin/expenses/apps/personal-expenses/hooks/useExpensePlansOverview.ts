@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCatalogValue } from '@/common/utils/windowUtils'
@@ -30,6 +30,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
   const [isStatisticsLoading, setIsStatisticsLoading] = useState(true)
   const [isDestinationLoading, setIsDestinationLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const dataRef = useRef<PlansOverviewResult | null>(null)
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
   const lastListKeyRef = useRef<string>()
   const lastStatsKeyRef = useRef<string>()
@@ -58,6 +59,11 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
     }
     return val
   }, [])
+
+  // Keep a ref in sync so fetchOverview doesn't need to depend on `data`
+  useEffect(() => {
+    dataRef.current = data
+  }, [data])
 
   // Memoize normalize for request ID generation
   const generateRequestId = useCallback(
@@ -148,21 +154,24 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       lastListKeyRef.current = key
 
       try {
-        const p = graphqlClient
-          .request<any>(GET_EXPENSE_PLANS_LIST, variables, { signal: controller.signal })
-          .finally(() => {
-            inflightRef.current.delete(key)
-          })
+        const p = graphqlClient.request<any>(GET_EXPENSE_PLANS_LIST, variables).finally(() => {
+          inflightRef.current.delete(key)
+        })
         inflightRef.current.set(key, p)
         const result = await p
+
+        // If a newer request started, ignore this response.
+        if (abortControllerRef.current !== controller) {
+          return { items: [], totalCount: 0 }
+        }
 
         return {
           items: result?.plans ?? [],
           totalCount: result?.plansAggregate?.aggregate?.count ?? 0
         }
       } catch (err) {
-        // Ignore AbortError - it means the request was cancelled intentionally
-        if (err instanceof Error && err.name === 'AbortError') {
+        // We can't abort the underlying fetch without client support; ignore stale results instead.
+        if (abortControllerRef.current !== controller || controller.signal.aborted) {
           return { items: [], totalCount: 0 }
         }
         console.error('Error fetching expense plans list:', err)
@@ -265,17 +274,21 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       lastStatsKeyRef.current = key
 
       try {
-        const p = graphqlClient
-          .request<any>(GET_EXPENSE_PLANS_STATISTICS, variables, { signal: controller.signal })
-          .finally(() => {
-            inflightRef.current.delete(key)
-          })
+        const p = graphqlClient.request<any>(GET_EXPENSE_PLANS_STATISTICS, variables).finally(() => {
+          inflightRef.current.delete(key)
+        })
         inflightRef.current.set(key, p)
         const result = await p
+
+        // If a newer request started, ignore this response.
+        if (statsAbortControllerRef.current !== controller) {
+          return null
+        }
+
         return processStatisticsData(result)
       } catch (err) {
-        // Ignore AbortError - it means the request was cancelled intentionally
-        if (err instanceof Error && err.name === 'AbortError') {
+        // We can't abort the underlying fetch without client support; ignore stale results instead.
+        if (statsAbortControllerRef.current !== controller || controller.signal.aborted) {
           return null
         }
         console.error('Error fetching expense plans statistics:', err)
@@ -323,17 +336,21 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       destinationsAbortControllerRef.current = controller
 
       try {
-        const p = graphqlClient
-          .request<any>(GET_EXPENSE_PLANS_DESTINATIONS, variables, { signal: controller.signal })
-          .finally(() => {
-            inflightRef.current.delete(key)
-          })
+        const p = graphqlClient.request<any>(GET_EXPENSE_PLANS_DESTINATIONS, variables).finally(() => {
+          inflightRef.current.delete(key)
+        })
         inflightRef.current.set(key, p)
         const result = await p
+
+        // If a newer request started, ignore this response.
+        if (destinationsAbortControllerRef.current !== controller) {
+          return null
+        }
+
         return processDestinationData(result)
       } catch (err) {
-        // Ignore AbortError - it means the request was cancelled intentionally
-        if (err instanceof Error && err.name === 'AbortError') {
+        // We can't abort the underlying fetch without client support; ignore stale results instead.
+        if (destinationsAbortControllerRef.current !== controller || controller.signal.aborted) {
           return null
         }
         console.error('Error fetching expense plans destinations:', err)
@@ -373,7 +390,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       if (cachedData && !options?.force) {
         // Preserve destination from previous data if cached data doesn't have it
         // Destination is independent of filters, so we should preserve it across cache hits
-        const preservedDestination = data?.topDestination || cachedData.topDestination
+        const preservedDestination = dataRef.current?.topDestination || cachedData.topDestination
         const cachedDataWithDestination = {
           ...cachedData,
           topDestination: preservedDestination
@@ -395,11 +412,11 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       // Always set statistics loading on initial fetch or when statistics don't exist
       // This ensures loading skeleton shows instead of 0 values
       // On initial load (data is null) or when statistics are missing, show loading skeleton
-      if (!data?.statistics || options?.force) {
+      if (!dataRef.current?.statistics || options?.force) {
         setIsStatisticsLoading(true)
       }
       // Always set destination loading on initial fetch or when destination doesn't exist
-      if (!data?.topDestination || options?.force) {
+      if (!dataRef.current?.topDestination || options?.force) {
         setIsDestinationLoading(true)
       }
       setError(null)
@@ -436,7 +453,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
 
           setIsLoading(false) // Stop loading once list is ready
 
-          if (currencyChanged || !data?.statistics) {
+          if (currencyChanged || !dataRef.current?.statistics) {
             setIsStatisticsLoading(true)
           }
 
@@ -485,7 +502,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
           // Fetch destinations separately - completely independent, don't block anything
           // Only fetch on initial load (when we don't have destination data) or if forcing refresh
           // Destination is independent of filters, so we only need to fetch it once
-          const shouldFetchDestinations = !data?.topDestination || options?.force
+          const shouldFetchDestinations = !dataRef.current?.topDestination || options?.force
           if (shouldFetchDestinations) {
             setIsDestinationLoading(true)
             fetchDestinations(options)
@@ -537,7 +554,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
         setIsLoading(false)
       }
     },
-    [fetchList, fetchStatistics, fetchDestinations, generateRequestId, generateCacheKey, data]
+    [fetchList, fetchStatistics, fetchDestinations, generateRequestId, generateCacheKey]
   )
 
   // Manual cache invalidation (for manual refresh or mutations)
