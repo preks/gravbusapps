@@ -5,7 +5,7 @@
  * Integrates with the dynamic template execution API for approval processes.
  */
 
-import { env } from '@/common/utils/env'
+import { env } from '@/common/env/EnvUtils'
 import type { ApprovalWorkflowConfig, DocumentApprovalRequest } from '../types'
 
 /**
