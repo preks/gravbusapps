@@ -145,29 +145,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Track content changes
-  const handleContentChange = useCallback(
-    (value: string) => {
-      setContent(value)
-      setHasUnsavedChanges(true)
-
-      // Auto-save after 2 seconds of inactivity
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
-      }
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        handleSave(true)
-      }, 2000)
-    },
-    [title]
-  )
-
-  // Track title changes
-  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setTitle(e.target.value)
-    setHasUnsavedChanges(true)
-  }, [])
-
   /**
    * Save document
    */
@@ -191,6 +168,29 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     },
     [title, content, onSave, isReadOnly, isSaving]
   )
+
+  // Track content changes
+  const handleContentChange = useCallback(
+    (value: string) => {
+      setContent(value)
+      setHasUnsavedChanges(true)
+
+      // Auto-save after 2 seconds of inactivity
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        handleSave(true)
+      }, 2000)
+    },
+    [handleSave]
+  )
+
+  // Track title changes
+  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setTitle(e.target.value)
+    setHasUnsavedChanges(true)
+  }, [])
 
   /**
    * Handle keyboard shortcuts
@@ -434,8 +434,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       </div>
 
       {/* Editor */}
-      <div className="gba:flex-1 gba:overflow-hidden gba:flex gba:justify-center gba:bg-muted/30">
-        <div className="gba:w-full gba:max-w-[850px] gba:h-full gba:bg-white gba:shadow-sm gba:my-4 gba:mx-4 gba:rounded-lg gba:overflow-hidden gba:flex gba:flex-col">
+      <div className="gba:flex-1 gba:overflow-auto gba:flex gba:justify-center gba:bg-muted/30">
+        <div className="gba:w-full gba:max-w-[850px] gba:min-h-full gba:bg-white gba:shadow-sm gba:my-4 gba:mx-4 gba:rounded-lg gba:flex gba:flex-col">
           <style>{`
             .document-editor .ql-toolbar {
               border: none !important;
@@ -454,12 +454,13 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               font-family: 'Georgia', 'Times New Roman', serif;
               font-size: 14px;
               flex: 1;
-              overflow-y: auto;
+              overflow: visible;
             }
             .document-editor .ql-editor {
               padding: 48px 64px;
-              min-height: 100%;
+              min-height: 500px;
               line-height: 1.75;
+              overflow: visible;
             }
             .document-editor .ql-editor h1 {
               font-size: 28px;
@@ -565,7 +566,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             }
           `}</style>
 
-          <div className="gba:h-full gba:flex gba:flex-col document-editor">
+          <div className="gba:flex gba:flex-col gba:flex-1 document-editor">
             <ReactQuill
               ref={editorRef}
               theme="snow"

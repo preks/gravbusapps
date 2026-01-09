@@ -29,7 +29,7 @@ import { WordUploader } from './components/WordUploader'
 import { DocumentPreviewCard, NoDocumentsState } from './components/DocumentPreviewCard'
 import { TemplateGallery } from './components/TemplateGallery'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
-import { DocumentEditor } from './DocumentEditor'
+import { PagedDocumentEditor } from './components/PagedDocumentEditor'
 
 // Hooks
 import { useDocumentApps } from './hooks/useDocumentApps'
@@ -104,7 +104,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     updateDocument,
     deleteDocument,
     duplicateDocument,
-    sendForApproval,
+    shareDocument,
     clearCurrentDocument
   } = useDocumentApps(accessToken, currentUserId)
 
@@ -251,31 +251,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   }, [])
 
   /**
-   * Handle approval submission
-   */
-  const handleApprovalSubmit = useCallback(
-    async (approvers: string[], message: string, dueDate?: string) => {
-      if (!documentForApproval) return
-
-      const doc = documents.find(d => d.id === documentForApproval)
-      if (!doc) return
-
-      await sendForApproval({
-        documentId: documentForApproval,
-        documentTitle: doc.title,
-        documentUrl: `${window.location.origin}${window.location.pathname}?docId=${documentForApproval}&view=editor`,
-        approvers,
-        message,
-        dueDate
-      })
-
-      setApprovalDialogOpen(false)
-      setDocumentForApproval(null)
-    },
-    [documentForApproval, documents, sendForApproval]
-  )
-
-  /**
    * Go back to list
    */
   const handleBack = useCallback(() => {
@@ -301,7 +276,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     // If we have a parsed Word document (from upload), create a new document with that content
     if (parsedWordDocument && !currentDocument) {
       return (
-        <DocumentEditor
+        <PagedDocumentEditor
           initialContent={parsedWordDocument.html}
           initialTitle={parsedWordDocument.fileName.replace(/\.(docx?|doc)$/i, '')}
           onSave={async (title, content) => {
@@ -335,7 +310,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     // If we have a current document loaded
     if (currentDocument) {
       return (
-        <DocumentEditor
+        <PagedDocumentEditor
+          key={currentDocument.id}
           document={currentDocument}
           onSave={async (title, content) => {
             await updateDocument(currentDocument.id, { title, content })
@@ -351,7 +327,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
     // Fallback - new document
     return (
-      <DocumentEditor
+      <PagedDocumentEditor
         onSave={async (title, content) => {
           const newDoc = await createDocument({
             title,
@@ -452,12 +428,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             <Tabs value={activeTab} onValueChange={v => setActiveTab(v as 'documents' | 'templates')}>
               <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
                 <TabsList>
-                  <TabsTrigger value="documents" className="gba:gap-2">
-                    <FolderOpen className="gba:w-4 gba:h-4" />
+                  <TabsTrigger value="documents" startIcon={<FolderOpen className="gba:w-4 gba:h-4" />}>
                     My Documents
                   </TabsTrigger>
-                  <TabsTrigger value="templates" className="gba:gap-2">
-                    <LayoutTemplate className="gba:w-4 gba:h-4" />
+                  <TabsTrigger value="templates" startIcon={<LayoutTemplate className="gba:w-4 gba:h-4" />}>
                     Templates
                   </TabsTrigger>
                 </TabsList>
@@ -537,6 +511,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                       <DocumentPreviewCard
                         key={doc.id}
                         document={doc}
+                        approvalRequest={doc.approvalRequest}
                         onOpen={handleOpenDocument}
                         onEdit={handleOpenDocument}
                         onDelete={handleDeleteDocument}
@@ -584,13 +559,49 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       )}
 
       {/* Send for Approval Dialog */}
-      <SendForApprovalDialog
-        open={approvalDialogOpen}
-        onOpenChange={setApprovalDialogOpen}
-        onSubmit={handleApprovalSubmit}
-        accessToken={accessToken}
-        data-testid={`${testId}-approval-dialog`}
-      />
+      {documentForApproval && (
+        <SendForApprovalDialog
+          open={approvalDialogOpen}
+          onOpenChange={open => {
+            setApprovalDialogOpen(open)
+            if (!open) setDocumentForApproval(null)
+          }}
+          documentId={documentForApproval}
+          documentTitle={documents.find(d => d.id === documentForApproval)?.title || 'Untitled Document'}
+          currentUserId={currentUserId}
+          currentUserName={userInfo?.displayName || userInfo?.employeeDetails?.displayName}
+          accessToken={accessToken}
+          shareDocument={shareDocument}
+          onApprovalSent={async (approverIds, approverWorkflows) => {
+            // Update document with pending approval status including workflow IDs and user info
+            if (documentForApproval) {
+              const workflowIds = approverWorkflows?.map(aw => aw.workflowId) || []
+              await updateDocument(documentForApproval, {
+                status: 'pending_approval',
+                approvalRequest: {
+                  id: `approval_${Date.now()}`,
+                  documentId: documentForApproval,
+                  status: 'pending',
+                  requestedBy: currentUserId,
+                  requestedAt: new Date().toISOString(),
+                  approvers: approverIds.map(id => {
+                    const workflow = approverWorkflows?.find(aw => aw.userId === id)
+                    return {
+                      userId: id,
+                      userName: workflow?.userName,
+                      status: 'pending' as const,
+                      workflowId: workflow?.workflowId
+                    }
+                  }),
+                  workflowIds
+                }
+              })
+            }
+            setDocumentForApproval(null)
+          }}
+          data-testid={`${testId}-approval-dialog`}
+        />
+      )}
     </div>
   )
 }

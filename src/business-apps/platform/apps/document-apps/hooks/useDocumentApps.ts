@@ -66,7 +66,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
   }, [accessToken, userId])
 
   /**
-   * Load all documents
+   * Load all documents and sync pending approval statuses
    */
   const refreshDocuments = useCallback(async () => {
     if (!storageService) {
@@ -76,7 +76,67 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
 
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
-      const documents = await storageService.listDocuments()
+      let documents = await storageService.listDocuments()
+
+      // Sync approval statuses for documents with pending approvals
+      if (approvalService) {
+        const pendingDocs = documents.filter(
+          doc =>
+            doc.approvalRequest?.status === 'pending' &&
+            (doc.approvalRequest?.workflowIds?.length || doc.approvalRequest?.workflowId)
+        )
+
+        // Process pending approvals in parallel (limit to 5 concurrent to avoid overload)
+        const BATCH_SIZE = 5
+        for (let i = 0; i < pendingDocs.length; i += BATCH_SIZE) {
+          const batch = pendingDocs.slice(i, i + BATCH_SIZE)
+          const results = await Promise.all(
+            batch.map(async doc => {
+              if (!doc.approvalRequest) return null
+              try {
+                const updatedApproval = await approvalService.syncApprovalStatus(doc.approvalRequest)
+                if (updatedApproval && updatedApproval.status !== 'pending') {
+                  // Update the document in storage
+                  const newStatus =
+                    updatedApproval.status === 'approved'
+                      ? 'approved'
+                      : updatedApproval.status === 'rejected'
+                        ? 'rejected'
+                        : doc.status
+
+                  await storageService.updateDocument(doc.id, {
+                    status: newStatus,
+                    approvalRequest: updatedApproval
+                  })
+
+                  return { docId: doc.id, updatedApproval, newStatus }
+                }
+              } catch (err) {
+                console.warn('[useDocumentApps] Failed to sync approval for doc:', doc.id, err)
+              }
+              return null
+            })
+          )
+
+          // Update local documents array with any changes
+          const changes = results.filter(Boolean)
+          if (changes.length > 0) {
+            documents = documents.map(doc => {
+              const change = changes.find(c => c?.docId === doc.id)
+              if (change) {
+                return {
+                  ...doc,
+                  status: change.newStatus,
+                  approvalStatus: change.updatedApproval.status,
+                  approvalRequest: change.updatedApproval
+                }
+              }
+              return doc
+            })
+          }
+        }
+      }
+
       setState(prev => ({
         ...prev,
         documents,
@@ -91,7 +151,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         error: 'Failed to load documents'
       }))
     }
-  }, [storageService])
+  }, [storageService, approvalService])
 
   // Load documents on mount
   useEffect(() => {
@@ -106,8 +166,33 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!storageService) return null
 
       try {
-        const document = await storageService.getDocument(id, filePath)
+        let document = await storageService.getDocument(id, filePath)
         if (document) {
+          // Sync approval status if document has a pending approval request
+          if (document.approvalRequest && document.approvalRequest.status === 'pending' && approvalService) {
+            const updatedApproval = await approvalService.syncApprovalStatus(document.approvalRequest)
+            if (updatedApproval) {
+              // Update the document with synced approval status
+              const newStatus =
+                updatedApproval.status === 'approved'
+                  ? 'approved'
+                  : updatedApproval.status === 'rejected'
+                    ? 'rejected'
+                    : document.status
+
+              const updatedDoc = await storageService.updateDocument(id, {
+                status: newStatus,
+                approvalRequest: updatedApproval
+              })
+
+              if (updatedDoc) {
+                document = updatedDoc
+                // Also refresh the documents list to update the card
+                await refreshDocuments()
+              }
+            }
+          }
+
           // Determine permission
           const isOwner = document.createdBy === userId
           const share = document.sharedWith?.find(s => s.userId === userId)
@@ -126,7 +211,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [storageService, userId]
+    [storageService, userId, approvalService, refreshDocuments]
   )
 
   /**

@@ -230,6 +230,7 @@ export class DocumentApprovalService {
 
   /**
    * Cancel an approval request
+   * Uses /api/flows/{flowId}/cancel endpoint
    */
   async cancelApproval(approvalRequestId: string, workflowId?: string): Promise<boolean> {
     if (!workflowId) {
@@ -238,7 +239,8 @@ export class DocumentApprovalService {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/workflows/${workflowId}/cancel`, {
+      // Use /api/flows endpoint (not /api/workflows)
+      const response = await fetch(`${this.baseUrl}/api/flows/${workflowId}/cancel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -264,35 +266,171 @@ export class DocumentApprovalService {
 
   /**
    * Check approval status (queries workflow status)
+   * Uses /api/flows/{flowId} endpoint
    */
   async getApprovalStatus(workflowId: string): Promise<'pending' | 'approved' | 'rejected' | 'cancelled' | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/workflows/${workflowId}`, {
+      // Use /api/flows endpoint (not /api/workflows)
+      const response = await fetch(`${this.baseUrl}/api/flows/${workflowId}`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${this.accessToken}`
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
         }
       })
 
       if (!response.ok) {
+        console.warn('[DocumentApproval] Failed to get flow status:', response.status)
         return null
       }
 
-      const result = await response.json()
-      const status = result.data?.status?.toLowerCase()
+      const flowData = await response.json()
+      // Flow data is returned directly (not under .data)
+      const status = flowData?.status?.toLowerCase()
 
-      if (status === 'completed') {
-        // Check the approval decision from workflow output
-        const decision = result.data?.output?.approval_decision
-        if (decision === 'approved') return 'approved'
+      console.log('[DocumentApproval] Flow status:', { workflowId, status, flowData })
+
+      if (status === 'completed' || status === 'done') {
+        // Check the steps for approval decision
+        const steps = flowData?.steps || []
+        const lastStep = steps[steps.length - 1]
+        const formData = lastStep?.formData || {}
+        const decision = formData?.approval_decision || formData?.decision
+
         if (decision === 'rejected') return 'rejected'
-        return 'approved' // Default to approved if completed without explicit rejection
+        return 'approved' // Default to approved if completed
       }
 
-      if (status === 'cancelled') return 'cancelled'
+      if (status === 'cancelled' || status === 'terminated') return 'cancelled'
       return 'pending'
     } catch (error) {
       console.error('[DocumentApproval] Error getting approval status:', error)
+      return null
+    }
+  }
+
+  /**
+   * Get detailed workflow status including completion info
+   * Uses /api/flows/{flowId} endpoint
+   */
+  async getWorkflowDetails(workflowId: string): Promise<{
+    status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+    completedAt?: string
+    completedBy?: string
+    comments?: string
+  } | null> {
+    try {
+      // Use /api/flows endpoint (not /api/workflows)
+      const response = await fetch(`${this.baseUrl}/api/flows/${workflowId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        console.warn('[DocumentApproval] Failed to get flow details:', response.status)
+        return null
+      }
+
+      const flowData = await response.json()
+      // Flow data is returned directly (not under .data)
+      const flowStatus = flowData?.status?.toLowerCase()
+
+      console.log('[DocumentApproval] Flow details:', { workflowId, flowStatus, flowData })
+
+      if (flowStatus === 'completed' || flowStatus === 'done') {
+        // Get step data for form values and completion info
+        const steps = flowData?.steps || []
+        const lastStep = steps[steps.length - 1]
+        const formData = lastStep?.formData || {}
+
+        const decision = formData?.approval_decision || formData?.decision
+        const comments = formData?.approval_comments || formData?.comments || formData?.reason
+
+        return {
+          status: decision === 'rejected' ? 'rejected' : 'approved',
+          completedAt: flowData?.endTime || flowData?.updatedAt || new Date().toISOString(),
+          completedBy: lastStep?.completedBy || lastStep?.assignee,
+          comments
+        }
+      }
+
+      if (flowStatus === 'cancelled' || flowStatus === 'terminated') {
+        return {
+          status: 'cancelled',
+          completedAt: flowData?.endTime || flowData?.updatedAt
+        }
+      }
+
+      return { status: 'pending' }
+    } catch (error) {
+      console.error('[DocumentApproval] Error getting workflow details:', error)
+      return null
+    }
+  }
+
+  /**
+   * Sync approval status for a document
+   * Checks all workflow statuses and updates the approval request accordingly
+   */
+  async syncApprovalStatus(approvalRequest: DocumentApprovalRequest): Promise<DocumentApprovalRequest | null> {
+    if (!approvalRequest || !approvalRequest.approvers?.length) {
+      return null
+    }
+
+    try {
+      const updatedApprovers = [...approvalRequest.approvers]
+      let hasChanges = false
+
+      // Check each approver's workflow status
+      for (let i = 0; i < updatedApprovers.length; i++) {
+        const approver = updatedApprovers[i]
+
+        // Skip if already has a final status
+        if (approver.status !== 'pending') {
+          continue
+        }
+
+        const workflowId = approver.workflowId || approvalRequest.workflowIds?.[i] || approvalRequest.workflowId
+        if (!workflowId) continue
+
+        const details = await this.getWorkflowDetails(workflowId)
+        if (details && details.status !== 'pending') {
+          updatedApprovers[i] = {
+            ...approver,
+            status: details.status === 'cancelled' ? 'rejected' : details.status,
+            respondedAt: details.completedAt,
+            comments: details.comments
+          }
+          hasChanges = true
+        }
+      }
+
+      if (!hasChanges) {
+        return null // No changes needed
+      }
+
+      // Calculate overall status
+      const allApproved = updatedApprovers.every(a => a.status === 'approved')
+      const anyRejected = updatedApprovers.some(a => a.status === 'rejected')
+      const allResponded = updatedApprovers.every(a => a.status !== 'pending')
+
+      let overallStatus: 'pending' | 'approved' | 'rejected' | 'cancelled' = 'pending'
+      if (anyRejected) {
+        overallStatus = 'rejected'
+      } else if (allApproved && allResponded) {
+        overallStatus = 'approved'
+      }
+
+      return {
+        ...approvalRequest,
+        approvers: updatedApprovers,
+        status: overallStatus
+      }
+    } catch (error) {
+      console.error('[DocumentApproval] Error syncing approval status:', error)
       return null
     }
   }

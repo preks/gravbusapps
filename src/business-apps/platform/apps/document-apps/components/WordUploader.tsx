@@ -283,7 +283,7 @@ export const WordUploader: React.FC<WordUploaderProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+          accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={handleInputChange}
           className="gba:hidden"
           data-testid={`${testId}-input`}
@@ -306,7 +306,7 @@ export const WordUploader: React.FC<WordUploaderProps> = ({
               {isDragging ? 'Drop your file here' : 'Upload your Word document'}
             </h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-sm">
-              Drag and drop your Word document here, or click to browse. We support .docx and .doc files up to{' '}
+              Drag and drop your Word document here, or click to browse. We support .docx files (Word 2007+) up to{' '}
               {maxFileSize}MB.
             </p>
           </div>
@@ -320,10 +320,7 @@ export const WordUploader: React.FC<WordUploaderProps> = ({
           {/* Supported formats */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:justify-center">
             <Badge variant="secondary" className="gba:text-xs">
-              .docx
-            </Badge>
-            <Badge variant="secondary" className="gba:text-xs">
-              .doc
+              .docx (Word 2007+)
             </Badge>
           </div>
         </div>

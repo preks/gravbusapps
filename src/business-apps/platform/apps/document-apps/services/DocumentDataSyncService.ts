@@ -68,7 +68,7 @@ export class DocumentDataSyncService {
    */
   async getSyncData(): Promise<DocumentSyncData | null> {
     const url = `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
-    debugLog('GET:', url)
+    console.log('[DocumentSync] GET:', url)
 
     try {
       const response = await fetch(url, {
@@ -79,10 +79,10 @@ export class DocumentDataSyncService {
         }
       })
 
-      debugLog('GET response status:', response.status)
+      console.log('[DocumentSync] GET response status:', response.status)
 
       if (response.status === 404 || response.status === 204) {
-        debugLog('No sync data found in backend (404/204)')
+        console.log('[DocumentSync] No sync data found in backend (404/204)')
         return null
       }
 
@@ -93,14 +93,19 @@ export class DocumentDataSyncService {
       }
 
       const data: UserDataResponse | null = await response.json()
-      debugLog('GET data:', data)
+      console.log('[DocumentSync] GET data:', data)
 
       if (!data || !data.data) {
-        debugLog('Response had no data field')
+        console.log('[DocumentSync] Response had no data field')
         return null
       }
 
-      debugLog('Sync data loaded from backend:', data.updated_at)
+      console.log(
+        '[DocumentSync] Sync data loaded from backend:',
+        data.updated_at,
+        'indexFilePath:',
+        data.data.indexFilePath
+      )
       return data.data
     } catch (error) {
       console.warn('[DocumentSync] Error getting sync data:', error)
@@ -130,8 +135,8 @@ export class DocumentDataSyncService {
    */
   async saveSyncData(data: DocumentSyncData): Promise<boolean> {
     const url = `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
-    debugLog('PUT:', url)
-    debugLog('PUT body:', { data })
+    console.log('[DocumentSync] PUT:', url)
+    console.log('[DocumentSync] PUT body:', { data })
 
     try {
       const response = await fetch(url, {
@@ -143,7 +148,7 @@ export class DocumentDataSyncService {
         body: JSON.stringify({ data })
       })
 
-      debugLog('PUT response status:', response.status)
+      console.log('[DocumentSync] PUT response status:', response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -151,7 +156,7 @@ export class DocumentDataSyncService {
         return false
       }
 
-      debugLog('Sync data saved to backend successfully')
+      console.log('[DocumentSync] Sync data saved to backend successfully')
       return true
     } catch (error) {
       console.warn('[DocumentSync] Error saving sync data:', error)

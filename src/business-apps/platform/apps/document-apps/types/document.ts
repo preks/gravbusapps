@@ -58,14 +58,17 @@ export interface DocumentApprovalRequest {
   approvers: Array<{
     userId: string
     userName?: string
+    userPicture?: string // Base64 avatar thumbnail
     status: 'pending' | 'approved' | 'rejected'
     respondedAt?: string
     comments?: string
+    workflowId?: string // Individual workflow ID for this approver
   }>
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   dueDate?: string
   message?: string
-  workflowId?: string
+  workflowId?: string // Legacy: first workflow ID
+  workflowIds?: string[] // All workflow IDs (one per approver)
 }
 
 /**
@@ -125,6 +128,7 @@ export interface DocumentSummary {
   sharedWithCount?: number
   wordCount?: number
   approvalStatus?: 'pending' | 'approved' | 'rejected'
+  approvalRequest?: DocumentApprovalRequest // Full approval details
   isShared?: boolean // Whether this doc was shared with current user
   sharedByName?: string // Name of person who shared (if shared)
 }

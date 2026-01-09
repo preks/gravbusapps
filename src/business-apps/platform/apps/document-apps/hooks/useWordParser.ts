@@ -73,20 +73,34 @@ export function useWordParser(): UseWordParserResult {
 
   /**
    * Parse a Word document file
+   * Note: Only .docx files are supported (Office Open XML format)
+   * The older .doc format (binary) is not supported by mammoth.js
    */
   const parseFile = useCallback(
     async (file: File): Promise<ParsedWordDocument | null> => {
-      // Validate file type
-      const validTypes = [
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/msword'
-      ]
-      const isValidType = validTypes.includes(file.type) || file.name.endsWith('.docx') || file.name.endsWith('.doc')
+      // Check if it's an old .doc file (not supported)
+      const isOldDocFormat =
+        file.type === 'application/msword' ||
+        (file.name.toLowerCase().endsWith('.doc') && !file.name.toLowerCase().endsWith('.docx'))
+
+      if (isOldDocFormat) {
+        setState(prev => ({
+          ...prev,
+          error:
+            'The older .doc format is not supported. Please save your document as .docx (Word 2007 or later) and try again.'
+        }))
+        return null
+      }
+
+      // Validate file type - only .docx is supported
+      const isValidType =
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        file.name.toLowerCase().endsWith('.docx')
 
       if (!isValidType) {
         setState(prev => ({
           ...prev,
-          error: 'Invalid file type. Please upload a .docx or .doc file.'
+          error: 'Invalid file type. Please upload a .docx file (Word 2007 or later).'
         }))
         return null
       }
