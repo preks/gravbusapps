@@ -662,6 +662,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     nextMonth,
     clockIn,
     clockOut,
-    updateLocationSelection
+    updateLocationSelection,
+    // expose refresh for external triggers (e.g., after AppAction completes)
+    refresh: loadFromGraphql
   }
 }

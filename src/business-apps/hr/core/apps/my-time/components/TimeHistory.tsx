@@ -10,6 +10,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PencilIcon } from '@phosphor-icons/react'
 import { exportTimeHistoryPdf } from '../utils/exportTimeHistoryPdf'
 import timeTrackingTranslations from '../_i18n'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface TimeHistoryProps {
   employeeId: string
@@ -29,7 +30,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   employeeLastName
 }) => {
   const locale = getCurrentActiveUserLocale()
-  const { currentMonth, prevMonth, nextMonth, entries, pageSize, setPageSize, error } = useTimeTrackingData({
+  const { currentMonth, prevMonth, nextMonth, entries, pageSize, setPageSize, error, refresh } = useTimeTrackingData({
     employeeId,
     accessToken
   })
@@ -55,6 +56,15 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
       console.error('[TimeHistory] PDF export failed', e)
     }
   }
+
+  // Refresh entries when a process triggered by AppAction completes successfully
+  useProcessCompletion({
+    onSuccess: () => {
+      refresh().catch(() => {
+        // ignore refresh errors; UI has alert for general errors
+      })
+    }
+  })
 
   return (
     <div data-testid="time-tracking-history-container">
