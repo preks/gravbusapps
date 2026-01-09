@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Tabs, TabsContent, Button } from '@newwork/nw-design-system'
-import { MessageSquare, Calendar as CalendarIcon, Sparkles } from 'lucide-react'
+import { Tabs, TabsContent, Button, Badge } from '@newwork/nw-design-system'
+import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell } from 'lucide-react'
 import { ArrowsOut } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Chat } from './Chat'
 import { Calendar } from './calendar/Calendar'
 import { EveryAI } from '../every-ai/EveryAI'
+import { RemindersPanel } from '../every-ai/components/RemindersPanel'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
-type TabValue = 'everyai' | 'chat' | 'calendar'
+type TabValue = 'everyai' | 'chat' | 'calendar' | 'reminders'
 
 interface ChatWithCalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -16,11 +17,11 @@ interface ChatWithCalendarProps extends BusinessAppContextProps {
 }
 
 /**
- * ChatWithCalendar - Combined EveryAI, Chat and Calendar view
+ * ChatWithCalendar - Combined EveryAI, Chat, Calendar, and Reminders view
  *
- * This component provides a unified interface for AI assistance, messaging and scheduling,
- * allowing users to seamlessly switch between EveryAI conversations, chat conversations
- * and their meeting calendar.
+ * This component provides a unified interface for AI assistance, messaging, scheduling, and reminders,
+ * allowing users to seamlessly switch between EveryAI conversations, chat conversations,
+ * their meeting calendar, and personal reminders.
  */
 export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
   accessToken,
@@ -30,6 +31,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
   ...props
 }) => {
   const [activeTab, setActiveTab] = useState<TabValue>(defaultTab)
+  const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
 
   // Detect if we're in sidepanel mode (not the fullscreen view)
   const isInSidepanel = useMemo(() => {
@@ -65,6 +67,8 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
       setActiveTab('calendar')
     } else if (viewParam === 'chat') {
       setActiveTab('chat')
+    } else if (viewParam === 'reminders') {
+      setActiveTab('reminders')
     }
   }, [])
 
@@ -168,6 +172,29 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
                 <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
               )}
             </button>
+            <button
+              onClick={() => handleTabChange('reminders')}
+              className={`gba:relative gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:transition-colors ${
+                activeTab === 'reminders'
+                  ? 'gba:text-foreground'
+                  : 'gba:text-muted-foreground gba:hover:text-foreground'
+              }`}
+              data-testid={`${prefixDataTestId}-reminders-tab`}
+            >
+              <Bell className="gba:h-3.5 gba:w-3.5" />
+              <span>Reminders</span>
+              {overdueRemindersCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="gba:ml-1 gba:h-4 gba:min-w-4 gba:px-1 gba:text-[10px] gba:leading-none gba:flex gba:items-center gba:justify-center"
+                >
+                  {overdueRemindersCount}
+                </Badge>
+              )}
+              {activeTab === 'reminders' && (
+                <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
+              )}
+            </button>
           </div>
         </div>
 
@@ -204,6 +231,18 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
             userInfo={userInfo}
             prefixDataTestId={`${prefixDataTestId}-calendar`}
             {...props}
+          />
+        </TabsContent>
+
+        <TabsContent
+          value="reminders"
+          forceMount
+          className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'reminders' ? 'gba:hidden' : ''}`}
+        >
+          <RemindersPanel
+            accessToken={accessToken}
+            userInfo={userInfo}
+            onOverdueCountChange={setOverdueRemindersCount}
           />
         </TabsContent>
       </Tabs>
