@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Tabs, TabsContent, Button, Badge } from '@newwork/nw-design-system'
-import { MessageSquare, Calendar as CalendarIcon, Sparkles } from 'lucide-react'
-import { ArrowsOut, Bell } from '@phosphor-icons/react'
+import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell } from 'lucide-react'
+import { ArrowsOut } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Chat } from './Chat'
 import { Calendar } from './calendar/Calendar'
@@ -181,7 +181,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
               }`}
               data-testid={`${prefixDataTestId}-reminders-tab`}
             >
-              <Bell className="gba:h-3.5 gba:w-3.5" weight="regular" />
+              <Bell className="gba:h-3.5 gba:w-3.5" />
               <span>Reminders</span>
               {overdueRemindersCount > 0 && (
                 <Badge
