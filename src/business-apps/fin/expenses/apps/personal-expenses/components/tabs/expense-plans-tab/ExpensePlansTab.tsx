@@ -11,10 +11,13 @@ import { getPlanCardStrategies, preserveCurrencyAndResetPlans } from './cardStra
 import { useExpensePlanCurrencies } from '../../../hooks/useExpensePlanCurrencies'
 import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
 import { useDebounce } from '@/common/hooks/useDebounce'
+import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
 }
+
+const TOP_DESTINATION_FILTER_TOKEN_PREFIX = 'topDestination:'
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const [currentPage, setCurrentPage] = useState(1)
@@ -52,6 +55,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     data: overview,
     isLoading: overviewLoading,
     isStatisticsLoading,
+    isDestinationLoading,
     error: overviewError,
     fetchOverview
   } = useExpensePlansOverview(props)
@@ -74,6 +78,29 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     return token ? token.substring('currency:'.length) : undefined
   }, [selectedFilters])
   const { currencyStats, initialized: currencyInit } = useExpensePlanCurrencies(props, selectedFilters, setFilters)
+
+  // Add a filter "pill" for the Top Destination widget so users can see/remove it.
+  const topDestinationPill = useMemo(() => {
+    if (!destinationFilter || destinationFilter === 'N/A') return null
+    const labelValue =
+      overview?.topDestination && overview.topDestination !== 'N/A'
+        ? getCatalogValue(overview.topDestination)
+        : destinationFilter
+    const token = `${TOP_DESTINATION_FILTER_TOKEN_PREFIX}${destinationFilter}`
+    const label = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination')}: ${labelValue}`
+    return { token, label }
+  }, [destinationFilter, overview?.topDestination])
+
+  const uiSelectedFilters = useMemo(() => {
+    if (!topDestinationPill) return selectedFilters
+    if (selectedFilters.includes(topDestinationPill.token)) return selectedFilters
+    return [...selectedFilters, topDestinationPill.token]
+  }, [selectedFilters, topDestinationPill])
+
+  const uiFilterLabelMap = useMemo(() => {
+    if (!topDestinationPill) return filterLabelMap
+    return { ...filterLabelMap, [topDestinationPill.token]: topDestinationPill.label }
+  }, [filterLabelMap, topDestinationPill])
 
   // Track previous selectedFilters to reset pagination when filters change.
   const prevSelectedFiltersRef = useRef<string | null>(null)
@@ -134,7 +161,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         setEffectiveDateRange,
         handleFilterChange,
         setDestinationFilter,
-        topDestination: statistics?.topDestination || 'N/A'
+        topDestination: overview?.topDestination || 'N/A'
       })
 
       if (isDeactivating) {
@@ -156,7 +183,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       setEndDateRange,
       handleFilterChange,
       setDestinationFilter,
-      statistics?.topDestination,
+      overview?.topDestination,
       selectedFilters,
       clearFilters,
       setFilters
@@ -212,16 +239,32 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
       // Add top-destinations widget filters
       if (activeWidget === 'top-destinations' && destinationFilter && destinationFilter !== 'N/A') {
+        // Build the travelRegion matching conditions - try id, value, code, and translations
+        const travelRegionConditions: any[] = [
+          { value: { _eq: destinationFilter } },
+          { code: { _eq: destinationFilter } }
+        ]
+
+        // Try to match by id if destinationFilter looks like a UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        if (uuidRegex.test(destinationFilter)) {
+          travelRegionConditions.push({ id: { _eq: destinationFilter } })
+        }
+
+        // Also match by translations value
+        travelRegionConditions.push({ translations: { value: { _eq: destinationFilter } } })
+
         const destinationCondition = {
           expenseRequestTrip: {
-            pointType: { _eq: 'DESTINATION_POINT' },
-            travelRegion: {
-              _or: [
-                { value: { _eq: destinationFilter } },
-                { translations: { value: { _eq: destinationFilter } } },
-                { code: { _eq: destinationFilter } }
-              ]
-            }
+            _and: [
+              { pointType: { _eq: 'DESTINATION_POINT' } },
+              { isDeleted: { _eq: false } },
+              {
+                travelRegion: {
+                  _or: travelRegionConditions
+                }
+              }
+            ]
           }
         }
 
@@ -276,10 +319,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       }
     }
 
-    const hasCurrency = explicitSelectedCurrencyRef || persistedCurrency
-    const shouldWaitForCurrency = !hasCurrency && !suppressCurrencyAutoSelect && !currencyInit
-
-    const canFetch = props.accessToken && props.userInfo?.employeeDetails?.employeeId && !shouldWaitForCurrency // Wait if we need currencyInit to determine the correct currency
+    // Avoid an initial fetch that will immediately be invalidated by currency auto-selection.
+    // We only fetch once currency is explicitly present in filters (unless user suppressed auto-select).
+    const hasExplicitCurrency = !!explicitSelectedCurrencyRef
+    const canFetch =
+      !!props.accessToken &&
+      !!props.userInfo?.employeeDetails?.employeeId &&
+      (suppressCurrencyAutoSelect || hasExplicitCurrency)
 
     if (canFetch) {
       const statsCurrency = explicitSelectedCurrencyRef || persistedCurrency || 'Currency:v1:EUR'
@@ -295,8 +341,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     props.accessToken,
     props.userInfo?.employeeDetails?.employeeId,
     explicitSelectedCurrencyRef,
-    suppressCurrencyAutoSelect,
-    currencyInit
+    suppressCurrencyAutoSelect
   ])
 
   // Reset pagination when filters change (e.g., applying a status filter while on a later page).
@@ -392,8 +437,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         previousMonthTotal={hasStatistics ? statistics.previousMonthTotal : 0}
         totalEstimated={hasStatistics ? statistics.totalEstimated : 0}
         pendingApproval={hasStatistics ? statistics.pendingApproval : 0}
-        topDestination={hasStatistics ? statistics.topDestination : 'N/A'}
+        topDestination={overview?.topDestination ?? 'N/A'}
         statsLoading={statisticsShouldShowLoading}
+        destinationLoading={isDestinationLoading}
         statsError={overviewError ? new Error(overviewError) : null}
         onWidgetClick={handleWidgetClick}
         activeWidgetKey={activeWidget ?? undefined}
@@ -462,17 +508,27 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       onTableChange={handleTableChange}
       search={search}
       onSearchChange={setSearch}
-      selectedFilters={selectedFilters}
+      selectedFilters={uiSelectedFilters}
       setFilters={(filters: string[]) => {
+        const hasTopDestination = filters.some(f => f.startsWith(TOP_DESTINATION_FILTER_TOKEN_PREFIX))
+        if (!hasTopDestination) {
+          // If user removed the destination pill (or cleared all), also clear destination filtering + widget highlight.
+          if (destinationFilter) setDestinationFilter(null)
+          if (activeWidget === 'top-destinations') setActiveWidget(null)
+        }
+
+        // Strip synthetic token before storing in the real filters state.
+        const strippedFilters = filters.filter(f => !f.startsWith(TOP_DESTINATION_FILTER_TOKEN_PREFIX))
+
         // keep currency filter persisted
-        persistCurrencySelection(props.userInfo?.employeeDetails?.employeeId, filters)
+        persistCurrencySelection(props.userInfo?.employeeDetails?.employeeId, strippedFilters)
         // manage auto-select suppression
-        if (filters.length === 0) {
+        if (strippedFilters.length === 0) {
           setSuppressCurrencyAutoSelect(true)
-        } else if (filters.some(f => f.startsWith('currency:'))) {
+        } else if (strippedFilters.some(f => f.startsWith('currency:'))) {
           setSuppressCurrencyAutoSelect(false)
         }
-        setFilters(filters)
+        setFilters(strippedFilters)
       }}
       filterGroups={filterGroups}
       handleFilterChange={(filterId: string, selected: boolean) => {
@@ -489,7 +545,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         }
       }}
       clearFilters={handleClearAllFiltersNoParams}
-      filterLabelMap={filterLabelMap}
+      filterLabelMap={uiFilterLabelMap}
       addFilter={addFilter}
       removeFilter={removeFilter}
       tableRefreshTrigger={tableRefreshTrigger}

@@ -13,6 +13,7 @@ interface ExpensePlanStatisticsProps {
   pendingApproval: number
   topDestination: string | any // Can be string or catalog entry object
   statsLoading?: boolean
+  destinationLoading?: boolean
   statsError?: Error | null
   fetchPlanStatistics?: () => void
   onWidgetClick?: (widgetKey: string) => void
@@ -30,6 +31,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   pendingApproval,
   topDestination,
   statsLoading = false,
+  destinationLoading = false,
   statsError = null,
   fetchPlanStatistics = () => {},
   onWidgetClick,
@@ -38,7 +40,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   previousMonthClosedPlans = 0,
   currencyCode = 'EUR'
 }) => {
-  // If loading, show loading skeleton immediately - don't create widgets with 0 values
+  // If main stats are loading, show loading skeleton for all cards
   // This prevents the "0-then-data" flicker
   if (statsLoading) {
     return (
@@ -121,12 +123,17 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
         return
       }
 
+      // Prevent clicking destination widget when it's loading
+      if (widgetKey === 'top-destinations' && destinationLoading) {
+        return
+      }
+
       // Provide immediate visual feedback - let parent component handle all filtering
       if (onWidgetClick) {
         onWidgetClick(widgetKey)
       }
     },
-    [onWidgetClick, statsLoading]
+    [onWidgetClick, statsLoading, destinationLoading]
   )
 
   // Transform the stats data into widgets format
@@ -186,16 +193,26 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'top-destinations',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination'),
-        value: topDestination && topDestination !== 'N/A' ? getCatalogValue(topDestination) : topDestination,
+        value: destinationLoading
+          ? getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')
+          : topDestination && topDestination !== 'N/A'
+            ? getCatalogValue(topDestination)
+            : topDestination,
         prefix: <CompassOutlined />,
         color: '#722ed1',
         span: { xs: 24, sm: 12, md: 6 },
-        description:
-          topDestination && topDestination !== 'N/A'
+        valueIsString: true,
+        description: destinationLoading
+          ? ''
+          : topDestination && topDestination !== 'N/A'
             ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.most_frequent', 'Most frequent')
             : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_data_available', 'No data available'),
         active: activeWidgetKey === 'top-destinations',
         onClick: () => {
+          // Prevent clicking when loading or when there's no valid destination data
+          if (destinationLoading || !topDestination || topDestination === 'N/A') {
+            return
+          }
           handleWidgetClick('top-destinations')
         }
       }
@@ -210,7 +227,8 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       estimatedAmountTrend,
       activeWidgetKey,
       handleWidgetClick,
-      statsLoading
+      destinationLoading,
+      topDestination
     ]
   )
 

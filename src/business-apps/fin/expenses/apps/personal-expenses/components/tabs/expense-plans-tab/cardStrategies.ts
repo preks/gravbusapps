@@ -116,29 +116,49 @@ export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, Card
   },
   'top-destinations': {
     apply: () => {
+      // Clear date ranges but keep status filters - destination filter should work with all statuses
       ctx.setStartDateRange(null)
       ctx.setEndDateRange(null)
-      const statuses = [
-        ExpenseStatus.PREPARED,
-        ExpenseStatus.ASSIGNED,
-        ExpenseStatus.PENDING,
-        ExpenseStatus.APPROVED,
-        ExpenseStatus.REJECTED,
-        ExpenseStatus.VERIFIED,
-        ExpenseStatus.BOOKED,
-        ExpenseStatus.CLOSED,
-        ExpenseStatus.TRANSFERRED
-      ]
-      statuses.forEach(s => ctx.handleFilterChange(s, false))
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(null)
+      }
+      ctx.setPlanDateRange(null)
+
+      // Don't clear status filters - let destination filter work with existing status filters
+      // This allows users to see plans with the destination regardless of status
+
       if (ctx.topDestination && ctx.topDestination !== 'N/A') {
-        // Extract value if it's a catalog entry object (for translation), otherwise use string directly
-        const destinationValue =
-          typeof ctx.topDestination === 'object' && ctx.topDestination !== null && 'value' in ctx.topDestination
-            ? ((ctx.topDestination as { value?: string })?.value ?? null)
-            : typeof ctx.topDestination === 'string'
-              ? ctx.topDestination
-              : null
-        ctx.setDestinationFilter(destinationValue || null)
+        // Extract identifier from catalog entry object - prefer id, then value, then code
+        let destinationValue: string | null = null
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+        if (typeof ctx.topDestination === 'object' && ctx.topDestination !== null) {
+          // Catalog object
+          // Only prefer `id` when it's a UUID. Some catalog sources expose an `id` that is NOT
+          // the database UUID (e.g. a catalog ref), which won't match `travelRegion.value`.
+          if ('id' in ctx.topDestination) {
+            const maybeId = (ctx.topDestination as { id?: string })?.id ?? null
+            if (maybeId && uuidRegex.test(maybeId)) {
+              destinationValue = maybeId
+            }
+          }
+          if (!destinationValue && 'value' in ctx.topDestination) {
+            destinationValue = (ctx.topDestination as { value?: string })?.value ?? null
+          }
+          if (!destinationValue && 'code' in ctx.topDestination) {
+            destinationValue = (ctx.topDestination as { code?: string })?.code ?? null
+          }
+        } else if (typeof ctx.topDestination === 'string') {
+          // String value - use directly
+          destinationValue = ctx.topDestination
+        }
+
+        // Only set filter if we have a valid destination value
+        if (destinationValue && destinationValue !== 'N/A') {
+          ctx.setDestinationFilter(destinationValue)
+        } else {
+          ctx.setDestinationFilter(null)
+        }
       } else {
         ctx.setDestinationFilter(null)
       }
@@ -146,6 +166,10 @@ export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, Card
     remove: () => {
       ctx.setStartDateRange(null)
       ctx.setEndDateRange(null)
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(null)
+      }
+      ctx.setPlanDateRange(null)
       ctx.setDestinationFilter(null)
     }
   }

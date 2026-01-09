@@ -508,6 +508,25 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
   }
 `
 
+// Separate query for fetching only destination statistics (independent loading)
+export const GET_EXPENSE_PLANS_DESTINATIONS = `
+  query GetExpensePlansDestinations($employeeId: uuid!) {
+    destinations: ExpensePlan(
+      where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false }, expenseRequestTrip: { pointType: { _eq: "DESTINATION_POINT" } } }
+    ) {
+      expenseRequestTrip(orderBy: { tripDateTime: ASC }, where: { isDeleted: { _eq: false }, pointType: { _eq: "DESTINATION_POINT" } }) {
+        travelRegion { 
+          value 
+          translations { 
+            localeCode 
+            value 
+          } 
+        }
+      }
+    }
+  }
+`
+
 // Separate list query - faster, no statistics
 export const GET_EXPENSE_PLANS_LIST = `
   query GetExpensePlansList(
@@ -588,20 +607,6 @@ export const GET_EXPENSE_PLANS_STATISTICS = `
     pendingApproval: ExpensePlanAggregate(
       where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false }, status: { _eq: "PENDING" } }
     ) { aggregate { count } }
-
-    destinations: ExpensePlan(
-      where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false }, expenseRequestTrip: { pointType: { _eq: "DESTINATION_POINT" } } }
-    ) {
-      expenseRequestTrip(orderBy: { tripDateTime: ASC }, where: { isDeleted: { _eq: false }, pointType: { _eq: "DESTINATION_POINT" } }) {
-        travelRegion { 
-          value 
-          translations { 
-            localeCode 
-            value 
-          } 
-        }
-      }
-    }
 
     currentMonthClosedPlans: ExpensePlanAggregate(
       where: {
