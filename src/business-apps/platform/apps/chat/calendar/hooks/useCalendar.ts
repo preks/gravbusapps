@@ -99,11 +99,24 @@ export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCal
     const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
 
     switch (view) {
-      case 'day':
-        return dayjs(currentDate).locale(baseLocale).format('dddd, MMMM D, YYYY')
+      case 'day': {
+        // German and Romanian use day before month with leading zero (e.g., "Freitag, 09. Januar 2026")
+        const dayFormat = baseLocale === 'de' || baseLocale === 'ro' ? 'dddd, DD. MMMM YYYY' : 'dddd, MMMM D, YYYY'
+        return dayjs(currentDate).locale(baseLocale).format(dayFormat)
+      }
       case 'week': {
         const weekStart = dayjs(dateRange.start).locale(baseLocale)
         const weekEnd = dayjs(dateRange.end).locale(baseLocale)
+
+        // German and Romanian use day before month with leading zero
+        if (baseLocale === 'de' || baseLocale === 'ro') {
+          if (weekStart.month() === weekEnd.month()) {
+            return `${weekStart.format('DD.')} - ${weekEnd.format('DD. MMMM YYYY')}`
+          }
+          return `${weekStart.format('DD. MMM')} - ${weekEnd.format('DD. MMM YYYY')}`
+        }
+
+        // English format
         if (weekStart.month() === weekEnd.month()) {
           return `${weekStart.format('MMMM D')} - ${weekEnd.format('D, YYYY')}`
         }

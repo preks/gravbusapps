@@ -26,7 +26,11 @@ export const formatTime = (date: Date | string, t?: (key: string, params?: any) 
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffHours < 24) return `${diffHours}h ago`
     if (diffDays < 7) return `${diffDays}d ago`
-    return d.toLocaleDateString()
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
   }
 
   if (diffMins < 1) return t('chat-time-justNow')
@@ -34,7 +38,11 @@ export const formatTime = (date: Date | string, t?: (key: string, params?: any) 
   if (diffHours < 24) return t('chat-time-hoursAgo', { hours: diffHours })
   if (diffDays < 7) return t('chat-time-daysAgo', { days: diffDays })
 
-  return d.toLocaleDateString()
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
 }
 
 /**
@@ -44,8 +52,8 @@ export const formatFullTimestamp = (date: Date | string): string => {
   const d = parseDate(date)
   return d.toLocaleString(undefined, {
     year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'

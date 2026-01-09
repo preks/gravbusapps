@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
-import { cn } from '@newwork/nw-design-system'
+import { cn, useLocale } from '@newwork/nw-design-system'
+import dayjs from 'dayjs'
 import type { CalendarEvent, DateRange } from '../types'
 
 interface MonthViewProps {
@@ -10,8 +11,6 @@ interface MonthViewProps {
   onDayClick: (date: Date) => void
 }
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const WEEKDAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const MAX_EVENTS_VISIBLE = 2 // Reduced for better mobile fit
 
 interface CalendarDay {
@@ -30,7 +29,11 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
   )
 }
 
-const getCalendarDays = (currentDate: Date, events: CalendarEvent[]): CalendarDay[] => {
+const getCalendarDays = (
+  currentDate: Date,
+  events: CalendarEvent[],
+  weekStartsOnMonday: boolean = false
+): CalendarDay[] => {
   const days: CalendarDay[] = []
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -40,13 +43,29 @@ const getCalendarDays = (currentDate: Date, events: CalendarEvent[]): CalendarDa
   // Last day of the month
   const lastDay = new Date(year, month + 1, 0)
 
-  // Start from the Sunday of the week containing the first day
+  // Start from the first day of the week containing the first day
   const startDate = new Date(firstDay)
-  startDate.setDate(startDate.getDate() - startDate.getDay())
+  if (weekStartsOnMonday) {
+    // Monday = 1, Sunday = 0; adjust to start on Monday
+    const day = startDate.getDay()
+    const diff = day === 0 ? -6 : 1 - day // If Sunday, go back 6 days; else go to Monday
+    startDate.setDate(startDate.getDate() + diff)
+  } else {
+    // Start from Sunday
+    startDate.setDate(startDate.getDate() - startDate.getDay())
+  }
 
-  // End on the Saturday of the week containing the last day
+  // End on the last day of the week containing the last day
   const endDate = new Date(lastDay)
-  endDate.setDate(endDate.getDate() + (6 - endDate.getDay()))
+  if (weekStartsOnMonday) {
+    // End on Sunday
+    const day = endDate.getDay()
+    const diff = day === 0 ? 0 : 7 - day
+    endDate.setDate(endDate.getDate() + diff)
+  } else {
+    // End on Saturday
+    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()))
+  }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -77,17 +96,26 @@ const getCalendarDays = (currentDate: Date, events: CalendarEvent[]): CalendarDa
   return days
 }
 
-const formatEventTime = (date: Date | string): string => {
+const formatEventTime = (date: Date | string, locale?: string): string => {
   const d = date instanceof Date ? date : new Date(date)
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  const use24Hour = baseLocale === 'de' || baseLocale === 'ro'
+
   return d.toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true
+    hour12: !use24Hour
   })
 }
 
 export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEventClick, onDayClick }) => {
-  const calendarDays = useMemo(() => getCalendarDays(currentDate, events), [currentDate, events])
+  const { locale } = useLocale()
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+
+  const calendarDays = useMemo(
+    () => getCalendarDays(currentDate, events, weekStartsOnMonday),
+    [currentDate, events, weekStartsOnMonday]
+  )
 
   // Group days into weeks
   const weeks = useMemo(() => {
@@ -98,17 +126,35 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
     return result
   }, [calendarDays])
 
+  // Determine if week should start on Monday (Europe) or Sunday (US)
+  const weekStartsOnMonday = baseLocale === 'de' || baseLocale === 'ro'
+
+  // Generate localized weekday names
+  // For Europe: Monday = 0, Tuesday = 1, ..., Sunday = 6
+  // For US: Sunday = 0, Monday = 1, ..., Saturday = 6
+  const weekdays = useMemo(() => {
+    const startDay = weekStartsOnMonday ? 1 : 0
+    return Array.from({ length: 7 }, (_, i) => {
+      const dayIndex = (startDay + i) % 7
+      const date = dayjs().day(dayIndex).locale(baseLocale)
+      return {
+        full: date.format('ddd'), // Short name (e.g., "Mon", "Die", "Lun")
+        short: date.format('dd') // Very short (e.g., "M", "D", "L")
+      }
+    })
+  }, [baseLocale, weekStartsOnMonday])
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden" data-testid="calendar-month-view">
       {/* Weekday headers */}
       <div className="gba:grid gba:grid-cols-7 gba:border-b gba:border-border/50 gba:bg-muted/30">
-        {WEEKDAYS.map((day, index) => (
+        {weekdays.map((day, index) => (
           <div
-            key={day}
+            key={index}
             className="gba:py-1 gba:sm:py-2 gba:text-center gba:text-[10px] gba:sm:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase"
           >
-            <span className="gba:hidden gba:sm:inline">{day}</span>
-            <span className="gba:sm:hidden">{WEEKDAYS_SHORT[index]}</span>
+            <span className="gba:hidden gba:sm:inline">{day.full}</span>
+            <span className="gba:sm:hidden">{day.short}</span>
           </div>
         ))}
       </div>
@@ -166,7 +212,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
                     >
                       <span className="gba:hidden gba:sm:inline">
                         {!event.allDay && (
-                          <span className="gba:opacity-75 gba:mr-1">{formatEventTime(event.start)}</span>
+                          <span className="gba:opacity-75 gba:mr-1">{formatEventTime(event.start, locale)}</span>
                         )}
                         {event.title}
                       </span>

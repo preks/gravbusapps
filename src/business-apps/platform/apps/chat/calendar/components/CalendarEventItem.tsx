@@ -1,7 +1,16 @@
 import React from 'react'
-import { Badge, Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@newwork/nw-design-system'
+import {
+  Badge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+  useLocale,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { Video, MapPin, Users, Clock, Check, X, HelpCircle } from 'lucide-react'
 import type { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
+import translations from '../../_i18n'
 
 interface CalendarEventItemProps {
   event: CalendarEvent
@@ -10,15 +19,23 @@ interface CalendarEventItemProps {
   onClick?: () => void
 }
 
-const formatTime = (date: Date): string => {
-  // Use getHours()/getMinutes() to ensure consistency with position calculations
-  // This avoids potential timezone issues with toLocaleTimeString()
+const formatTime = (date: Date, locale?: string): string => {
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  const use24Hour = baseLocale === 'de' || baseLocale === 'ro'
+
   const hours = date.getHours()
   const minutes = date.getMinutes()
-  const period = hours >= 12 ? 'PM' : 'AM'
-  const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
   const minuteStr = minutes.toString().padStart(2, '0')
-  return `${hour12}:${minuteStr} ${period}`
+
+  if (use24Hour) {
+    // 24-hour format for German/Romanian (e.g., "17:00")
+    return `${hours.toString().padStart(2, '0')}:${minuteStr}`
+  } else {
+    // 12-hour format with AM/PM for English
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
+    return `${hour12}:${minuteStr} ${period}`
+  }
 }
 
 const getStatusColor = (status: MeetingStatus): string => {
@@ -50,6 +67,8 @@ const getInvitationStatusIcon = (status?: InvitationStatus) => {
 }
 
 export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, compact = false, height, onClick }) => {
+  const { locale } = useLocale()
+  const { t } = useTranslation(translations)
   const statusClass = getStatusColor(event.status)
   const organizerName =
     event.organizer.displayName ||
@@ -114,7 +133,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, com
             <div className="gba:space-y-1">
               <p className="gba:font-semibold">{event.title}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
-                {formatTime(event.start)} - {formatTime(event.end)}
+                {formatTime(event.start, locale)} - {formatTime(event.end, locale)}
               </p>
               {event.location && (
                 <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
@@ -149,7 +168,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, com
               </div>
               {showTime && (
                 <div className="gba:text-white/80 gba:text-[9px] gba:truncate gba:leading-tight">
-                  {formatTime(event.start)}
+                  {formatTime(event.start, locale)}
                 </div>
               )}
             </button>
@@ -158,7 +177,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, com
             <div className="gba:space-y-1">
               <p className="gba:font-semibold">{event.title}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
-                {formatTime(event.start)} - {formatTime(event.end)}
+                {formatTime(event.start, locale)} - {formatTime(event.end, locale)}
               </p>
               {event.location && (
                 <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
@@ -168,7 +187,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, com
               )}
               <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
                 <Users className="gba:h-3 gba:w-3" />
-                {event.acceptedCount}/{event.participantCount} attending
+                {t('calendar-participantsAttending', { accepted: event.acceptedCount, total: event.participantCount })}
               </p>
             </div>
           </TooltipContent>
@@ -212,7 +231,9 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, com
         {showTime && (
           <p className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate">
             <Clock className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
-            {event.allDay ? 'All day' : `${formatTime(event.start)} - ${formatTime(event.end)}`}
+            {event.allDay
+              ? t('calendar-allDay')
+              : `${formatTime(event.start, locale)} - ${formatTime(event.end, locale)}`}
           </p>
         )}
 

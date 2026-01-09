@@ -304,6 +304,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                   expertColor={message.metadata?.expertColor}
                   citations={message.metadata?.citations}
                   confidence={message.metadata?.confidence}
+                  accessToken={accessToken}
                 />
               ) : isAIResponse ? (
                 // Show full AI response with forms only to the person who initiated it
