@@ -292,3 +292,6 @@ working-conditions-unit-year = { $count ->
     [one] Jahr
    *[other] Jahre
 }
+
+# Create Request Correction Form
+complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet

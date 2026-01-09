@@ -1,5 +1,5 @@
 import React from 'react'
-import { TrophyOutlined, UserOutlined, DollarOutlined, ContactsOutlined, BankOutlined } from '@ant-design/icons'
+import { TrophyIcon, UserIcon, CurrencyDollarIcon, AddressBookIcon, BankIcon } from '@phosphor-icons/react'
 import { Alert, AlertDescription, Button } from '@newwork/nw-design-system'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
@@ -66,7 +66,7 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
         </div>
 
         <div className="gba:p-8 gba:text-center gba:rounded-lg gba:bg-muted">
-          <UserOutlined className="gba:text-3xl gba:mb-4 gba:text-muted-foreground" />
+          <UserIcon className="gba:text-3xl gba:mb-4 gba:text-muted-foreground" />
           <p className="gba:text-muted-foreground">No performance data available yet.</p>
         </div>
       </div>
@@ -93,7 +93,7 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
               {/* Left Side - Employee Info */}
               <div className="gba:flex gba:items-center gba:gap-3">
                 {index === 0 && (
-                  <TrophyOutlined className="gba:text-lg gba:text-warning" data-testid="first-place-trophy" />
+                  <TrophyIcon className="gba:text-lg gba:text-warning" data-testid="first-place-trophy" />
                 )}
                 <div>
                   <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">{performer.employeeName}</h4>
@@ -108,7 +108,7 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
                 {/* Leads */}
                 <div className="gba:text-center">
                   <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1">
-                    <UserOutlined className="gba:text-xs gba:text-primary" />
+                    <UserIcon className="gba:text-xs gba:text-primary" />
                     <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Leads</span>
                   </div>
                   <div className="gba:text-sm gba:font-bold gba:text-foreground">{performer.leads.total}</div>
@@ -124,7 +124,7 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
                 {/* Opportunities */}
                 <div className="gba:text-center">
                   <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1">
-                    <DollarOutlined className="gba:text-xs gba:text-success" />
+                    <CurrencyDollarIcon className="gba:text-xs gba:text-success" />
                     <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Opps</span>
                   </div>
                   <div className="gba:text-sm gba:font-bold gba:text-foreground">{performer.opportunities.total}</div>
@@ -140,7 +140,7 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
                 {/* Contacts */}
                 <div className="gba:text-center">
                   <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1">
-                    <ContactsOutlined className="gba:text-xs gba:text-warning" />
+                    <AddressBookIcon className="gba:text-xs gba:text-warning" />
                     <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Contacts</span>
                   </div>
                   <div className="gba:text-sm gba:font-bold gba:text-foreground">{performer.contacts.total}</div>
@@ -149,7 +149,7 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
                 {/* Accounts */}
                 <div className="gba:text-center">
                   <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1">
-                    <BankOutlined className="gba:text-xs gba:text-info" />
+                    <BankIcon className="gba:text-xs gba:text-info" />
                     <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Accounts</span>
                   </div>
                   <div className="gba:text-sm gba:font-bold gba:text-foreground">{performer.accounts.total}</div>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Alert, AlertTitle, AlertDescription, Spinner } from '@newwork/nw-design-system'
-import { BarChart3, Home, Banknote } from 'lucide-react'
+import { ChartBarIcon, HouseIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentStatistics } from './components/InvestmentStatistics'
@@ -32,13 +32,13 @@ const getIconComponent = (groupName: string) => {
   const groupLower = groupName.toLowerCase()
 
   if (groupLower.includes('equity') && !groupLower.includes('private')) {
-    return BarChart3
+    return ChartBarIcon
   } else if (groupLower.includes('real') || groupLower.includes('estate')) {
-    return Home
+    return HouseIcon
   } else if (groupLower.includes('liquid') || groupLower.includes('fund')) {
-    return Banknote
+    return CurrencyDollarIcon
   } else {
-    return BarChart3
+    return ChartBarIcon
   }
 }
 

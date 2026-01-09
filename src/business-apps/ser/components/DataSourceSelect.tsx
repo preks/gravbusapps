@@ -47,7 +47,8 @@ export const DataSourceSelect: React.FC<DataSourceSelectProps> = ({
   initialOptions
 }) => {
   // Ensure initialOptions is always an array (handles explicit undefined)
-  const safeInitialOptions = initialOptions ?? []
+  // Memoize to stabilize reference and prevent unnecessary re-renders
+  const safeInitialOptions = React.useMemo(() => initialOptions ?? [], [initialOptions])
 
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')

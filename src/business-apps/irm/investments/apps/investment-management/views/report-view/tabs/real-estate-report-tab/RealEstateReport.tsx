@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { DataDisplay, Spinner, AiButton } from '@newwork/nw-design-system'
-import { Upload } from 'lucide-react'
+import { UploadIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { RealEstateAnalyticsTable } from './components/RealEstateAnalyticsTable'
 import { useRealEstateInvestmentTypes } from './hooks/useRealEstateInvestmentTypes'
@@ -281,11 +281,11 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     )
   }, [accessToken])
 
-  // Secondary action for "Upload Report" - using AiButton like in record
+  // Secondary action for "UploadIcon Report" - using AiButton like in record
   const secondaryActions = useMemo(() => {
     return (
       <AppAction
-        contexts={[{ context: FlowContextName.investmentReportUpload, contextData: {} }]}
+        contexts={[{ context: FlowContextName.investmentReportUploadIcon, contextData: {} }]}
         accessToken={accessToken || ''}
         emptyState="hide"
         prefixDataTestId="report-view-upload-report"
@@ -294,11 +294,11 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
           variant="default"
           size="default"
           showIcon={true}
-          icon={<Upload style={{ height: '1rem', width: '1rem' }} />}
+          icon={<UploadIcon style={{ height: '1rem', width: '1rem' }} />}
           iconPosition="before"
           data-testid="report-view-upload-report-button"
         >
-          {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'Upload Report')}
+          {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'UploadIcon Report')}
         </AiButton>
       </AppAction>
     )

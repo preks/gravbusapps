@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button, Spinner, RecordLayout, Badge } from '@newwork/nw-design-system'
-import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/react'
+import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon, RobotIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -11,7 +11,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAccountAiSummary } from './hooks/useAccountAiSummary'
 import { useGenerateAIBooklet } from './hooks/useGenerateAIBooklet'
-import { Bot } from 'lucide-react'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
@@ -150,7 +149,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
           {
             key: 'ai-summary',
             label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-            icon: <Bot size={16} />,
+            icon: <RobotIcon size={16} />,
             hook: aiSummaryHook,
             config: {
               entityType: 'account',
@@ -168,7 +167,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
           {
             key: 'ai-booklet',
             label: getTranslationFromI18nKeyAndLabel('crm.ai.booklet', 'AI Booklet'),
-            icon: <Bot size={16} />,
+            icon: <RobotIcon size={16} />,
             hook: aiBookletHook,
             config: {
               entityType: 'account',

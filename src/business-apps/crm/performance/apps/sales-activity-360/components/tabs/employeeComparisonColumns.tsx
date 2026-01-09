@@ -1,7 +1,7 @@
 import React from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import { PiTrendUp, PiTrendDown, PiMinus } from 'react-icons/pi'
+import { TrendUpIcon, TrendDownIcon, MinusIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { EmployeeComparison } from './hooks/useEmployeeComparisonData'
@@ -29,19 +29,19 @@ const formatTrend = (trend: number): string => {
 const getTrendDisplay = (trend: number) => {
   if (trend > 0) {
     return {
-      icon: <PiTrendUp className="gba:w-4 gba:h-4" />,
+      icon: <TrendUpIcon className="gba:w-4 gba:h-4" />,
       variant: 'success' as const,
       color: 'gba:text-success'
     }
   } else if (trend < 0) {
     return {
-      icon: <PiTrendDown className="gba:w-4 gba:h-4" />,
+      icon: <TrendDownIcon className="gba:w-4 gba:h-4" />,
       variant: 'destructive' as const,
       color: 'gba:text-destructive'
     }
   }
   return {
-    icon: <PiMinus className="gba:w-4 gba:h-4" />,
+    icon: <MinusIcon className="gba:w-4 gba:h-4" />,
     variant: 'secondary' as const,
     color: 'gba:text-muted-foreground'
   }

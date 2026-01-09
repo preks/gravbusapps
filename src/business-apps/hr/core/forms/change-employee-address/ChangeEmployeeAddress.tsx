@@ -5,7 +5,7 @@ import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangeEmployeeAddressProvider, useChangeEmployeeAddress } from './ChangeEmployeeAddressContext'
 import { useForm } from 'react-hook-form'
-import { Button, FormField } from '@newwork/nw-design-system'
+import { Button, FormField, useTranslation } from '@newwork/nw-design-system'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -20,6 +20,7 @@ import {
 } from './utils'
 import { populateFormFromRecord, buildDeletePayloadFromRecord, restoreSelectionFromId } from './helpers'
 import { uploadEmployeeDocumentIfAny } from './uploadHelpers'
+import translations from '../../apps/employee-record/_i18n'
 
 interface AddressFormValues {
   selectedAddressId?: string | null // null means Add Address
@@ -35,6 +36,7 @@ interface AddressFormValues {
 
 const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([])
+  const { t } = useTranslation(translations)
   const [addressLineCount, setAddressLineCount] = useState<number>(1)
   const [addressLinesError, setAddressLinesError] = useState<string | null>(null)
   const { data, refetchAddresses } = useChangeEmployeeAddress()
@@ -290,7 +292,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
             }
 
             if (addingNew) {
-              return buildInsertPayload({
+              const payload = buildInsertPayload({
                 employeeId,
                 employeeDocumentId: values.employeeDocumentId || null,
                 lines,
@@ -301,8 +303,15 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                 comment: values.comment,
                 addresses
               })
+              return {
+                ...payload,
+                completeNotification: {
+                  type: 'success',
+                  message: t('notification-address-updated-success')
+                }
+              } as any
             }
-            return buildUpdatePayload({
+            const updatePayload = buildUpdatePayload({
               employeeId,
               employeeDocumentId: values.employeeDocumentId || null,
               lines,
@@ -313,6 +322,13 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               comment: values.comment,
               selected
             })
+            return {
+              ...updatePayload,
+              completeNotification: {
+                type: 'success',
+                message: t('notification-address-updated-success')
+              }
+            } as any
           }}
           data-testid="change-employee-address"
         >

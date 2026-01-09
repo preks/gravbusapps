@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, Alert } from '@newwork/nw-design-system'
-import { PieChart, RefreshCw } from 'lucide-react'
+import { ChartPieIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EquityAnalyticsFilters } from '../types'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
@@ -333,7 +333,7 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
               gap: 'var(--nw-spacing-2)'
             }}
           >
-            <PieChart className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-color-text-secondary)' }} />
+            <ChartPieIcon className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-color-text-secondary)' }} />
             <span className="gba:font-medium">{record.investment?.name || 'N/A'}</span>
           </div>
         )
@@ -412,7 +412,7 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
               )}
             </div>
             <Button variant="outline" size="sm" onClick={refetch}>
-              <RefreshCw style={{ height: 'var(--nw-spacing-4)', width: 'var(--nw-spacing-4)' }} />
+              <ArrowsClockwiseIcon style={{ height: 'var(--nw-spacing-4)', width: 'var(--nw-spacing-4)' }} />
             </Button>
           </div>
         </Alert>

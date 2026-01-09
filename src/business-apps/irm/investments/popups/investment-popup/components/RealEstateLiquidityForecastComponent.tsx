@@ -13,7 +13,7 @@ import {
   Button,
   Alert
 } from '@newwork/nw-design-system'
-import { Plus, X } from 'lucide-react'
+import { PlusIcon, XIcon } from '@phosphor-icons/react'
 import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
 import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentLiquidityForecastComponentProps, LiquidityForecastFormData, LiquidityForecastData } from '../types'
@@ -268,7 +268,7 @@ export const RealEstateLiquidityForecastComponent: React.FC<InvestmentLiquidityF
                     data-testid={formatDataTestId(prefixDataTestId, `remove-button-${index}`)}
                     className="gba:absolute gba:top-2 gba:right-2 gba:text-destructive gba:hover:text-destructive gba:h-8 gba:w-8"
                   >
-                    <X className="gba:h-4 gba:w-4" />
+                    <XIcon className="gba:h-4 gba:w-4" />
                   </Button>
                 )}
 
@@ -329,7 +329,7 @@ export const RealEstateLiquidityForecastComponent: React.FC<InvestmentLiquidityF
               data-testid={formatDataTestId(prefixDataTestId, 'add-year-amount-button')}
               className="gba:w-full"
             >
-              <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+              <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
               {getTranslationFromI18nKeyAndLabel('investment.liquidityForecast.addYearAmount', 'Add Year/Amount')}
             </Button>
           </div>

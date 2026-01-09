@@ -125,8 +125,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         ...(existing?.version !== undefined && { version: existing.version }),
         assignedEmployeeId: employeeId,
         assignedUserId: employee?.userId || null,
-        taskStatus: existing?.taskStatus || 'SCHEDULED_TASK_STATUS', // Set default to SCHEDULED for new instances
-        completedAt: existing?.completedAt || null
+        ...(existing?.taskStatus && { taskStatus: existing.taskStatus }), // Preserve existing status (backend sets default)
+        ...(existing?.completedAt && { completedAt: existing.completedAt })
       }
     })
 
@@ -252,6 +252,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       form.setValue('taskTypeRef', typeRef)
     }
   }, [typeRef, task, form])
+
+  // Set default task status to IN_PROGRESS for new tasks
+  useEffect(() => {
+    if (!task && !form.getValues('taskStatusRef')) {
+      // Only set for new tasks, not when editing existing ones
+      form.setValue('taskStatusRef', 'SalesTaskStatus:v1:IN_PROGRESS')
+    }
+  }, [task, form])
 
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
