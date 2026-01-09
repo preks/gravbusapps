@@ -101,6 +101,15 @@ export interface EmployeeSalaryRecord {
   activeTo: string | null
   startDate: string | null
   endDate: string | null
+  requestStatus: string | null
+  requestDate: string | null
+  decisionDate: string | null
+  requestedPercent: number | null
+  requestedAmount: number | null
+  stockOptions: boolean | null
+  notes: string | null
+  salaryAdjustReasonRef: string | null
+  decisionEmployeeId: string | null
   createdAt: string
   isDeleted: boolean
   /** Expanded CatalogEntry - use for display (code, value, translations) */
