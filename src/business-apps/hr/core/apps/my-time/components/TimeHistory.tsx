@@ -40,6 +40,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
     try {
       await exportTimeHistoryPdf({
         reportTitle: t('report_title'),
+        generatedLabel: t('generated'),
         entries,
         monthDate: currentMonth,
         locale,
