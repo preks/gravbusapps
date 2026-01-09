@@ -27,7 +27,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { fileClient } from '@/common/network/files/FileClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 export interface DocumentPopupProps extends BusinessAppContextProps {
   isOpen?: boolean
@@ -188,7 +188,7 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
   const [initialDataLoaded, setInitialDataLoaded] = useState(false)
 
   const graphqlClient = useGraphQLClient(accessToken || '')
-  const flowbotBaseUrl = env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL')
+  const flowbotBaseUrl = resolveFlowbotBaseUrl()
   const restClient = useRestClient(flowbotBaseUrl)
 
   const form = useForm<FormValues>({
@@ -423,7 +423,16 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
       try {
         const fd = new FormData()
         fd.append('file', firstFile as unknown as Blob)
-        fd.append('llm_model', 'gpt-4.1')
+
+        // Tell backend which domain/entity this document belongs to so it can choose
+        // the correct catalogs (CRM vs IRM vs HR, etc.). We deliberately avoid
+        // hardcoding FlowBot logic in the popup; instead we derive a simple
+        // string from the existing appName prop.
+        const entity = appName === 'crm' ? 'crm' : appName === 'irm' ? 'irm' : appName === 'hr' ? 'hr' : ''
+
+        if (entity) {
+          fd.append('entity', entity)
+        }
 
         const endpoint = aiClassificationEndpoint || '/flowbot/document-autoclassify/classify'
         const resp = await restClient.post(endpoint, fd, {
