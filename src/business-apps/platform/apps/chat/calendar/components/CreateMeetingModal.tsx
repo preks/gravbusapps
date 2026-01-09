@@ -16,12 +16,14 @@ import {
   Switch,
   Badge,
   Spinner,
-  IconAvatar
+  IconAvatar,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Calendar, Clock, MapPin, Video, Users, X, Repeat, Bell, Palette, User } from 'lucide-react'
 import type { CreateMeetingData, MeetingRecurrence } from '../types'
 import { MEETING_COLORS, REMINDER_OPTIONS, getDefaultCalendarColor } from '../types'
 import { createEmployeeSearchService, CalendarEmployee } from '../services/employeeSearchService'
+import translations from '../../_i18n'
 
 interface CreateMeetingModalProps {
   isOpen: boolean
@@ -71,7 +73,28 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   initialHour,
   editMeeting
 }) => {
+  const { t } = useTranslation(translations)
   const isEditMode = !!editMeeting
+
+  // Helper to get translated reminder label
+  const getReminderLabel = (minutes: number): string => {
+    switch (minutes) {
+      case 0:
+        return t('calendar-reminderAtTime')
+      case 5:
+        return t('calendar-reminder5Min')
+      case 15:
+        return t('calendar-reminder15Min')
+      case 30:
+        return t('calendar-reminder30Min')
+      case 60:
+        return t('calendar-reminder1Hour')
+      case 1440:
+        return t('calendar-reminder1Day')
+      default:
+        return `${minutes} minutes`
+    }
+  }
 
   // Form state - initialize from editMeeting if available
   const [title, setTitle] = useState('')
@@ -309,19 +332,19 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:h-5 gba:w-5 gba:text-primary" />
-            {isEditMode ? 'Edit Meeting' : 'Schedule Meeting'}
+            {isEditMode ? t('calendar-editMeeting') : t('calendar-scheduleMeeting')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="gba:space-y-4 gba:py-4">
           {/* Title */}
           <div className="gba:space-y-2">
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title">{t('calendar-meetingTitleRequired')}</Label>
             <Input
               id="title"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="Meeting title"
+              placeholder={t('calendar-meetingTitlePlaceholder')}
               data-testid="meeting-title-input"
             />
           </div>
@@ -329,7 +352,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           {/* Date and Time */}
           <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:gap-3 gba:sm:gap-4">
             <div className="gba:space-y-2">
-              <Label htmlFor="date">Date *</Label>
+              <Label htmlFor="date">{t('calendar-dateRequired')}</Label>
               <Input
                 id="date"
                 type="date"
@@ -341,7 +364,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:sm:pt-6">
               <Switch checked={isAllDay} onCheckedChange={setIsAllDay} id="allDay" />
               <Label htmlFor="allDay" className="gba:text-sm">
-                All day
+                {t('calendar-allDay')}
               </Label>
             </div>
           </div>
@@ -351,7 +374,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               <div className="gba:space-y-2">
                 <Label htmlFor="startTime" className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:sm:text-sm">
                   <Clock className="gba:h-3 gba:w-3" />
-                  Start
+                  {t('calendar-start')}
                 </Label>
                 <Input
                   id="startTime"
@@ -364,7 +387,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               <div className="gba:space-y-2">
                 <Label htmlFor="endTime" className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:sm:text-sm">
                   <Clock className="gba:h-3 gba:w-3" />
-                  End
+                  {t('calendar-end')}
                 </Label>
                 <Input
                   id="endTime"
@@ -381,13 +404,13 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           <div className="gba:space-y-2">
             <Label className="gba:flex gba:items-center gba:gap-1">
               {isVideoCall ? <Video className="gba:h-3 gba:w-3" /> : <MapPin className="gba:h-3 gba:w-3" />}
-              {isVideoCall ? 'Video Call' : 'Location'}
+              {isVideoCall ? t('calendar-videoCall') : t('calendar-location')}
             </Label>
             <div className="gba:flex gba:gap-2">
               <Input
                 value={location}
                 onChange={e => setLocation(e.target.value)}
-                placeholder={isVideoCall ? 'Video call link will be generated' : 'Enter location'}
+                placeholder={isVideoCall ? t('calendar-videoCallPlaceholder') : t('calendar-enterLocation')}
                 disabled={isVideoCall}
                 className="gba:flex-1"
               />
@@ -396,7 +419,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                 variant={isVideoCall ? 'default' : 'outline'}
                 size="icon"
                 onClick={() => setIsVideoCall(!isVideoCall)}
-                title={isVideoCall ? 'Remove video call' : 'Add video call'}
+                title={isVideoCall ? t('calendar-removeVideoCall') : t('calendar-addVideoCall')}
               >
                 <Video className="gba:h-4 gba:w-4" />
               </Button>
@@ -405,12 +428,12 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
 
           {/* Description */}
           <div className="gba:space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{t('calendar-description')}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="Add meeting description or agenda..."
+              placeholder={t('calendar-descriptionPlaceholder')}
               rows={3}
             />
           </div>
@@ -419,7 +442,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           <div className="gba:space-y-2">
             <Label className="gba:flex gba:items-center gba:gap-1">
               <Users className="gba:h-3 gba:w-3" />
-              Invite Participants
+              {t('calendar-inviteParticipants')}
             </Label>
 
             {/* Selected participants */}
@@ -430,7 +453,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                     <span>
                       {employee.displayName ||
                         `${employee.firstName || ''} ${employee.lastName || ''}`.trim() ||
-                        'Unknown'}
+                        t('calendar-unknown')}
                     </span>
                     <button
                       type="button"
@@ -449,7 +472,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               <Input
                 value={searchQuery}
                 onChange={e => handleSearch(e.target.value)}
-                placeholder="Search by name..."
+                placeholder={t('calendar-searchByName')}
                 data-testid="meeting-participant-search"
               />
 
@@ -480,7 +503,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                           <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
                             {employee.jobPositionName || employee.organizationalUnitName
                               ? `${employee.jobPositionName || ''}${employee.jobPositionName && employee.organizationalUnitName ? ' • ' : ''}${employee.organizationalUnitName || ''}`
-                              : 'Employee'}
+                              : t('calendar-employee')}
                           </div>
                         </div>
                       </button>
@@ -495,7 +518,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           <div className="gba:space-y-2">
             <Label className="gba:flex gba:items-center gba:gap-1">
               <Repeat className="gba:h-3 gba:w-3" />
-              Repeat
+              {t('calendar-repeat')}
             </Label>
             <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:gap-3 gba:sm:gap-4">
               <Select value={recurrence} onValueChange={v => setRecurrence(v as MeetingRecurrence)}>
@@ -503,11 +526,11 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Does not repeat</SelectItem>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="biweekly">Every 2 weeks</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="none">{t('calendar-doesNotRepeat')}</SelectItem>
+                  <SelectItem value="daily">{t('calendar-daily')}</SelectItem>
+                  <SelectItem value="weekly">{t('calendar-weekly')}</SelectItem>
+                  <SelectItem value="biweekly">{t('calendar-every2Weeks')}</SelectItem>
+                  <SelectItem value="monthly">{t('calendar-monthly')}</SelectItem>
                 </SelectContent>
               </Select>
               {recurrence !== 'none' && (
@@ -516,7 +539,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                   value={recurrenceEndDate}
                   onChange={e => setRecurrenceEndDate(e.target.value)}
                   min={date}
-                  placeholder="End date"
+                  placeholder={t('calendar-endDate')}
                 />
               )}
             </div>
@@ -526,7 +549,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           <div className="gba:space-y-2">
             <Label className="gba:flex gba:items-center gba:gap-1">
               <Bell className="gba:h-3 gba:w-3" />
-              Reminders
+              {t('calendar-reminders')}
             </Label>
             <div className="gba:flex gba:flex-wrap gba:gap-2">
               {REMINDER_OPTIONS.map(option => (
@@ -536,7 +559,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                   className="gba:cursor-pointer gba:transition-colors"
                   onClick={() => toggleReminder(option.value)}
                 >
-                  {option.label}
+                  {getReminderLabel(option.value)}
                 </Badge>
               ))}
             </div>
@@ -546,7 +569,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           <div className="gba:space-y-2">
             <Label className="gba:flex gba:items-center gba:gap-1">
               <Palette className="gba:h-3 gba:w-3" />
-              Color
+              {t('calendar-color')}
             </Label>
             <div className="gba:flex gba:gap-2">
               {MEETING_COLORS.map(color => (
@@ -568,18 +591,18 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
         {/* Actions */}
         <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4 gba:border-t gba:border-border">
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancel
+            {t('calendar-cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!isValid || isSubmitting}>
             {isSubmitting ? (
               <>
                 <Spinner className="gba:h-4 gba:w-4 gba:mr-2" />
-                {isEditMode ? 'Saving...' : 'Creating...'}
+                {isEditMode ? t('calendar-saving') : t('calendar-creating')}
               </>
             ) : isEditMode ? (
-              'Save Changes'
+              t('calendar-saveChanges')
             ) : (
-              'Create Meeting'
+              t('calendar-createMeeting')
             )}
           </Button>
         </div>

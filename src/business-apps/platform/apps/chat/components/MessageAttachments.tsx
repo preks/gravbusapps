@@ -1,8 +1,9 @@
 import React from 'react'
 import { FileText, Download } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import { formatFileSize } from './utils/messageUtils'
 import { isPreviewable } from './utils/attachmentUtils'
+import translations from '../_i18n'
 
 export interface MessageAttachment {
   id: string
@@ -24,6 +25,7 @@ interface MessageAttachmentsProps {
  * Renders a list of message attachments with preview/download functionality
  */
 export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({ attachments, isOwnMessage, onPreview }) => {
+  const { t } = useTranslation(translations)
   if (attachments.length === 0) return null
 
   return (
@@ -43,7 +45,7 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({ attachme
               }}
               className="gba:block gba:rounded-lg gba:overflow-hidden gba:max-w-[200px]"
               data-testid={`attachment-thumb-${att.id}`}
-              title={getTranslationFromI18nKeyAndLabel('chat.preview.open', 'Open preview')}
+              title={t('chat-preview-open')}
             >
               <img
                 src={att.thumbnailUrl || att.url}
@@ -70,7 +72,7 @@ export const MessageAttachments: React.FC<MessageAttachmentsProps> = ({ attachme
                   : 'gba:bg-muted/50 gba:hover:bg-muted'
               }`}
               data-testid={`attachment-pdf-${att.id}`}
-              title={getTranslationFromI18nKeyAndLabel('chat.preview.open', 'Open preview')}
+              title={t('chat-preview-open')}
             >
               <FileText className="gba:w-5 gba:h-5 gba:flex-shrink-0" />
               <div className="gba:flex-1 gba:min-w-0">

@@ -15,6 +15,7 @@ import {
 import { ChartBarIcon, LightbulbIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { Bot } from 'lucide-react'
 import { AiActionsProps, AiAction } from './AiActionsTypes'
+import { openEveryAI } from '@/common/utils/openEveryAI'
 
 /**
  * Centralized AI Actions component that provides consistent AI functionality
@@ -36,6 +37,15 @@ export const AiActions: React.FC<AiActionsProps> = ({
   const [isProgrammaticallyOpening, setIsProgrammaticallyOpening] = useState(false)
 
   const handleActionClick = (action: AiAction) => {
+    // For ai-summary actions, open Every AI sidebar instead of popover
+    if (action.key === 'ai-summary') {
+      const entityTypeCapitalized = action.config.entityType.charAt(0).toUpperCase() + action.config.entityType.slice(1)
+      const prompt = `Summarize this ${entityTypeCapitalized}`
+      openEveryAI({ prompt })
+      return
+    }
+
+    // For other actions, use the popover behavior
     setActiveAction(action.key)
     setIsProgrammaticallyOpening(true)
     setIsPopoverOpen(true)

@@ -439,6 +439,69 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [extendedConversation.length])
 
+  // Track if we've already processed a prompt from sessionStorage to avoid duplicates
+  const promptProcessedRef = useRef<string | null>(null)
+  const lastCheckTimeRef = useRef<number>(0)
+
+  // Check for initial prompt when Every AI component is ready
+  // This handles: component mount, conversation becomes empty, or sidebar opens
+  const checkAndSendInitialPrompt = useCallback(() => {
+    // Throttle checks to avoid excessive sessionStorage reads
+    const now = Date.now()
+    if (now - lastCheckTimeRef.current < 200) {
+      return
+    }
+    lastCheckTimeRef.current = now
+
+    if (isLoading) {
+      return // Don't check while loading
+    }
+
+    try {
+      const initialPrompt = sessionStorage.getItem('everyAIInitialPrompt')
+      if (initialPrompt && initialPrompt !== promptProcessedRef.current) {
+        console.log('[EveryAI] Found initial prompt in sessionStorage:', initialPrompt)
+        // Mark this prompt as processed
+        promptProcessedRef.current = initialPrompt
+        // Clear the prompt from storage immediately to prevent duplicate sends
+        sessionStorage.removeItem('everyAIInitialPrompt')
+        // Send the prompt after a short delay to ensure component is fully ready
+        setTimeout(() => {
+          console.log('[EveryAI] Sending initial prompt:', initialPrompt)
+          sendMessage(initialPrompt, [], false, false, undefined)
+        }, 300)
+      }
+    } catch (error) {
+      console.warn('Failed to read Every AI initial prompt:', error)
+    }
+  }, [isLoading, sendMessage])
+
+  // Check for prompt when component is ready and conversation is empty
+  useEffect(() => {
+    if (!isLoading && conversation.length === 0) {
+      checkAndSendInitialPrompt()
+    }
+  }, [isLoading, conversation.length, checkAndSendInitialPrompt])
+
+  // Listen for custom event when sidebar opens (handles case when component is already mounted)
+  useEffect(() => {
+    const handleSidebarOpen = () => {
+      console.log('[EveryAI] Sidebar opened event received')
+      // Reset processed prompt when sidebar opens fresh
+      promptProcessedRef.current = null
+      // Check for prompt after a short delay to ensure component is ready
+      setTimeout(() => {
+        checkAndSendInitialPrompt()
+      }, 500)
+    }
+
+    // Listen for when Every AI sidebar becomes active
+    window.addEventListener('everyAISidebarOpened', handleSidebarOpen)
+    return () => {
+      window.removeEventListener('everyAISidebarOpened', handleSidebarOpen)
+    }
+  }, [checkAndSendInitialPrompt])
+
   const handleSend = (
     text: string,
     files: File[],

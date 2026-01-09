@@ -22,6 +22,7 @@ interface RemindersPanelProps extends Pick<BusinessAppContextProps, 'accessToken
   onClose?: () => void
   onReminderDue?: () => void // Callback when a reminder becomes due
   onOverdueCountChange?: (count: number) => void // Callback with count of overdue reminders
+  t?: (key: string) => string // Translation function
 }
 
 export const RemindersPanel: React.FC<RemindersPanelProps> = ({
@@ -29,7 +30,8 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
   userInfo,
   onClose,
   onReminderDue,
-  onOverdueCountChange
+  onOverdueCountChange,
+  t
 }) => {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -329,7 +331,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
       {/* Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:pb-4 gba:border-b gba:border-border gba:mb-4">
         <h2 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-3 gba:pl-2">
-          My Reminders
+          {t ? t('reminders-myReminders') : 'My Reminders'}
           {reminders.length > 0 && (
             <Badge variant="default" className="gba:ml-2">
               {reminders.length}
@@ -350,7 +352,9 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
         {isLoading ? (
           <div className="gba:text-center gba:py-8">
             <div className="gba:animate-spin gba:h-8 gba:w-8 gba:border-2 gba:border-primary gba:border-t-transparent gba:rounded-full gba:mx-auto gba:mb-3" />
-            <div className="gba:text-muted-foreground gba:text-sm">Loading reminders...</div>
+            <div className="gba:text-muted-foreground gba:text-sm">
+              {t ? t('reminders-loadingReminders') : 'Loading reminders...'}
+            </div>
           </div>
         ) : error ? (
           <div className="gba:text-center gba:py-8">
@@ -367,10 +371,12 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
-            <div className="gba:text-destructive gba:font-semibold gba:mb-2">Failed to load reminders</div>
+            <div className="gba:text-destructive gba:font-semibold gba:mb-2">
+              {t ? t('reminders-failedToLoad') : 'Failed to load reminders'}
+            </div>
             <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">{error}</div>
             <Button size="sm" onClick={loadReminders} data-testid="reminders-retry">
-              Try Again
+              {t ? t('reminders-tryAgain') : 'Try Again'}
             </Button>
           </div>
         ) : reminders.length === 0 ? (
@@ -388,8 +394,12 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
               />
             </svg>
-            <div className="gba:text-muted-foreground gba:font-medium gba:mb-1">No upcoming reminders</div>
-            <div className="gba:text-xs gba:text-muted-foreground">Go to the EveryAI tab and ask to set a reminder</div>
+            <div className="gba:text-muted-foreground gba:font-medium gba:mb-1">
+              {t ? t('reminders-noUpcoming') : 'No upcoming reminders'}
+            </div>
+            <div className="gba:text-xs gba:text-muted-foreground">
+              {t ? t('reminders-goToEveryAI') : 'Go to the EveryAI tab and ask to set a reminder'}
+            </div>
           </div>
         ) : (
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-5 gba:gap-3 gba:auto-rows-min">
