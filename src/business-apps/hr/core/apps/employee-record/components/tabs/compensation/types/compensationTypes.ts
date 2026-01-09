@@ -56,9 +56,16 @@ export interface EmployeeSalary {
   activeTo: string | null
   startDate: string | null
   endDate: string | null
+  requestStatus: string | null
+  requestDate: string | null
+  decisionDate: string | null
+  requestedPercent: number | null
+  requestedAmount: number | null
+  notes: string | null
+  salaryAdjustReasonRef: string | null
+  decisionEmployeeId: string | null
   createdAt: string
   isDeleted: boolean
-  requestStatus?: string
 }
 
 /**
