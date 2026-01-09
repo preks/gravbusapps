@@ -230,6 +230,91 @@ reminders-tryAgain = Încearcă din nou
 
 # Calendar
 calendar-title = Calendar
+calendar-today = Astăzi
+calendar-viewDay = Zi
+calendar-viewWeek = Săptămână
+calendar-viewMonth = Lună
+
+# Calendar - CreateMeetingModal
+calendar-scheduleMeeting = Programează Întâlnire
+calendar-editMeeting = Editează Întâlnirea
+calendar-meetingTitle = Titlu
+calendar-meetingTitleRequired = Titlu *
+calendar-meetingTitlePlaceholder = Titlul întâlnirii
+calendar-date = Dată
+calendar-dateRequired = Dată *
+calendar-allDay = Toată ziua
+calendar-start = Început
+calendar-end = Sfârșit
+calendar-location = Locație
+calendar-videoCall = Apel Video
+calendar-videoCallPlaceholder = Link-ul video va fi generat
+calendar-enterLocation = Introduceți locația
+calendar-removeVideoCall = Șterge apelul video
+calendar-addVideoCall = Adaugă apel video
+calendar-description = Descriere
+calendar-descriptionPlaceholder = Adăugați descriere sau agendă...
+calendar-inviteParticipants = Invită Participanți
+calendar-searchByName = Caută după nume...
+calendar-unknown = Necunoscut
+calendar-employee = Angajat
+calendar-repeat = Repetă
+calendar-doesNotRepeat = Nu se repetă
+calendar-daily = Zilnic
+calendar-weekly = Săptămânal
+calendar-every2Weeks = La fiecare 2 săptămâni
+calendar-monthly = Lunar
+calendar-endDate = Data sfârșit
+calendar-reminders = Memento-uri
+calendar-color = Culoare
+calendar-cancel = Anulează
+calendar-createMeeting = Creează Întâlnire
+calendar-saveChanges = Salvează Modificările
+calendar-creating = Se creează...
+calendar-saving = Se salvează...
+
+# Calendar - Reminder Options
+calendar-reminderAtTime = La momentul evenimentului
+calendar-reminder5Min = Cu 5 minute înainte
+calendar-reminder15Min = Cu 15 minute înainte
+calendar-reminder30Min = Cu 30 de minute înainte
+calendar-reminder1Hour = Cu 1 oră înainte
+calendar-reminder1Day = Cu 1 zi înainte
+
+# Calendar - MeetingDetailModal
+calendar-allDayEvent = Toată ziua
+calendar-videoCallAvailable = Apel Video
+calendar-joinLinkAvailable = Link de participare disponibil
+calendar-viewProfile = Vezi profilul
+calendar-youOrganizer = Tu (Organizator)
+calendar-organizer = Organizator
+calendar-participants = Participanți
+calendar-participantsAttending = Participanți ({$accepted} din {$total} participă)
+calendar-host = Gazdă
+calendar-noParticipantDetails = Nu există detalii despre participanți
+calendar-yourResponse = Răspunsul tău:
+calendar-declineMeeting = Refuză întâlnirea
+calendar-markTentative = Marchează ca tentat  iv
+calendar-addComment = Adaugă un comentariu (opțional)...
+calendar-confirm = Confirmă
+calendar-accept = Accept
+calendar-maybe = Poate
+calendar-decline = Refuză
+calendar-joinCall = Intră în Apel
+calendar-chat = Chat
+calendar-edit = Editează
+
+# Date Formatters
+formatter-today = Astăzi
+formatter-tomorrow = Mâine
+formatter-yesterday = Ieri
+
+# Calendar - DayView
+calendar-eventsScheduled = {$count ->
+  [one] {$count} eveniment programat
+  *[other] {$count} evenimente programate
+}
+calendar-noEventsScheduled = 0 evenimente programate
 calendar-view-day = Zi
 calendar-view-week = Săptămână
 calendar-view-month = Lună

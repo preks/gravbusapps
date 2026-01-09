@@ -1,4 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useLocale } from '@newwork/nw-design-system'
+import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
 import { CalendarApiClient, createCalendarApiClient } from '../calendarApiClient'
 import type {
   CalendarView,
@@ -11,6 +17,8 @@ import type {
   InvitationStatus
 } from '../types'
 import { getWeekRange, getMonthRange, getDayRange } from '../types'
+
+dayjs.extend(localizedFormat)
 
 interface UseCalendarOptions {
   accessToken: string
@@ -57,6 +65,7 @@ interface UseCalendarReturn {
 }
 
 export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCalendarReturn => {
+  const { locale } = useLocale()
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
   const [view, setView] = useState<CalendarView>('day')
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -87,30 +96,25 @@ export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCal
 
   // Generate view title
   const viewTitle = useMemo((): string => {
-    const options: Intl.DateTimeFormatOptions = { month: 'long', year: 'numeric' }
+    const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
 
     switch (view) {
       case 'day':
-        return currentDate.toLocaleDateString(undefined, {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric'
-        })
+        return dayjs(currentDate).locale(baseLocale).format('dddd, MMMM D, YYYY')
       case 'week': {
-        const weekStart = dateRange.start
-        const weekEnd = dateRange.end
-        if (weekStart.getMonth() === weekEnd.getMonth()) {
-          return `${weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} - ${weekEnd.getDate()}, ${weekEnd.getFullYear()}`
+        const weekStart = dayjs(dateRange.start).locale(baseLocale)
+        const weekEnd = dayjs(dateRange.end).locale(baseLocale)
+        if (weekStart.month() === weekEnd.month()) {
+          return `${weekStart.format('MMMM D')} - ${weekEnd.format('D, YYYY')}`
         }
-        return `${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+        return `${weekStart.format('MMM D')} - ${weekEnd.format('MMM D, YYYY')}`
       }
       case 'month':
-        return currentDate.toLocaleDateString(undefined, options)
+        return dayjs(currentDate).locale(baseLocale).format('MMMM YYYY')
       default:
-        return currentDate.toLocaleDateString(undefined, options)
+        return dayjs(currentDate).locale(baseLocale).format('MMMM YYYY')
     }
-  }, [currentDate, view, dateRange])
+  }, [currentDate, view, dateRange, locale])
 
   // Load events for current date range
   const loadEvents = useCallback(async () => {

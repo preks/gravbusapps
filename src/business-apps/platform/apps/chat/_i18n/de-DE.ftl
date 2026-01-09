@@ -230,6 +230,91 @@ reminders-tryAgain = Erneut versuchen
 
 # Calendar
 calendar-title = Kalender
+calendar-today = Heute
+calendar-viewDay = Tag
+calendar-viewWeek = Woche
+calendar-viewMonth = Monat
+
+# Calendar - CreateMeetingModal
+calendar-scheduleMeeting = Termin planen
+calendar-editMeeting = Termin bearbeiten
+calendar-meetingTitle = Titel
+calendar-meetingTitleRequired = Titel *
+calendar-meetingTitlePlaceholder = Besprechungstitel
+calendar-date = Datum
+calendar-dateRequired = Datum *
+calendar-allDay = Ganztägig
+calendar-start = Beginn
+calendar-end = Ende
+calendar-location = Ort
+calendar-videoCall = Videoanruf
+calendar-videoCallPlaceholder = Videolink wird erstellt
+calendar-enterLocation = Ort eingeben
+calendar-removeVideoCall = Videoanruf entfernen
+calendar-addVideoCall = Videoanruf hinzufügen
+calendar-description = Beschreibung
+calendar-descriptionPlaceholder = Beschreibung oder Agenda hinzufügen...
+calendar-inviteParticipants = Teilnehmer einladen
+calendar-searchByName = Nach Namen suchen...
+calendar-unknown = Unbekannt
+calendar-employee = Mitarbeiter
+calendar-repeat = Wiederholen
+calendar-doesNotRepeat = Nicht wiederholen
+calendar-daily = Täglich
+calendar-weekly = Wöchentlich
+calendar-every2Weeks = Alle 2 Wochen
+calendar-monthly = Monatlich
+calendar-endDate = Enddatum
+calendar-reminders = Erinnerungen
+calendar-color = Farbe
+calendar-cancel = Abbrechen
+calendar-createMeeting = Termin erstellen
+calendar-saveChanges = Änderungen speichern
+calendar-creating = Wird erstellt...
+calendar-saving = Wird gespeichert...
+
+# Calendar - Reminder Options
+calendar-reminderAtTime = Zum Zeitpunkt des Termins
+calendar-reminder5Min = 5 Minuten vorher
+calendar-reminder15Min = 15 Minuten vorher
+calendar-reminder30Min = 30 Minuten vorher
+calendar-reminder1Hour = 1 Stunde vorher
+calendar-reminder1Day = 1 Tag vorher
+
+# Calendar - MeetingDetailModal
+calendar-allDayEvent = Ganztägig
+calendar-videoCallAvailable = Videoanruf
+calendar-joinLinkAvailable = Beitrittslink verfügbar
+calendar-viewProfile = Profil anzeigen
+calendar-youOrganizer = Sie (Organisator)
+calendar-organizer = Organisator
+calendar-participants = Teilnehmer
+calendar-participantsAttending = Teilnehmer ({$accepted} von {$total} nehmen teil)
+calendar-host = Gastgeber
+calendar-noParticipantDetails = Keine Teilnehmerdetails verfügbar
+calendar-yourResponse = Ihre Antwort:
+calendar-declineMeeting = Termin ablehnen
+calendar-markTentative = Als vorläufig markieren
+calendar-addComment = Kommentar hinzufügen (optional)...
+calendar-confirm = Bestätigen
+calendar-accept = Zusagen
+calendar-maybe = Vielleicht
+calendar-decline = Absagen
+calendar-joinCall = Anruf beitreten
+calendar-chat = Chat
+calendar-edit = Bearbeiten
+
+# Date Formatters
+formatter-today = Heute
+formatter-tomorrow = Morgen
+formatter-yesterday = Gestern
+
+# Calendar - DayView
+calendar-eventsScheduled = {$count ->
+  [one] {$count} Termin geplant
+  *[other] {$count} Termine geplant
+}
+calendar-noEventsScheduled = 0 Termine geplant
 calendar-view-day = Tag
 calendar-view-week = Woche
 calendar-view-month = Monat

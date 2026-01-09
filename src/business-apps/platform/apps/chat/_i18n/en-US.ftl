@@ -230,17 +230,88 @@ reminders-tryAgain = Try Again
 
 # Calendar
 calendar-title = Calendar
-calendar-view-day = Day
-calendar-view-week = Week
-calendar-view-month = Month
 calendar-today = Today
-calendar-create-meeting = Create Meeting
-calendar-no-events = No events scheduled
-calendar-all-day = All day
-calendar-loading = Loading calendar...
-calendar-error = Failed to load calendar
-calendar-event-details = Event Details
-calendar-pending-invitations = Pending Invitations
+calendar-viewDay = Day
+calendar-viewWeek = Week
+calendar-viewMonth = Month
+
+# Calendar - CreateMeetingModal
+calendar-scheduleMeeting = Schedule Meeting
+calendar-editMeeting = Edit Meeting
+calendar-meetingTitle = Title
+calendar-meetingTitleRequired = Title *
+calendar-meetingTitlePlaceholder = Meeting title
+calendar-date = Date
+calendar-dateRequired = Date *
+calendar-allDay = All day
+calendar-start = Start
+calendar-end = End
+calendar-location = Location
+calendar-videoCall = Video Call
+calendar-videoCallPlaceholder = Video call link will be generated
+calendar-enterLocation = Enter location
+calendar-removeVideoCall = Remove video call
+calendar-addVideoCall = Add video call
+calendar-description = Description
+calendar-descriptionPlaceholder = Add meeting description or agenda...
+calendar-inviteParticipants = Invite Participants
+calendar-searchByName = Search by name...
+calendar-unknown = Unknown
+calendar-employee = Employee
+calendar-repeat = Repeat
+calendar-doesNotRepeat = Does not repeat
+calendar-daily = Daily
+calendar-weekly = Weekly
+calendar-every2Weeks = Every 2 weeks
+calendar-monthly = Monthly
+calendar-endDate = End date
+calendar-reminders = Reminders
+calendar-color = Color
+calendar-cancel = Cancel
+calendar-createMeeting = Create Meeting
+calendar-saveChanges = Save Changes
+calendar-creating = Creating...
+calendar-saving = Saving...
+
+# Calendar - Reminder Options
+calendar-reminderAtTime = At time of event
+calendar-reminder5Min = 5 minutes before
+calendar-reminder15Min = 15 minutes before
+calendar-reminder30Min = 30 minutes before
+calendar-reminder1Hour = 1 hour before
+calendar-reminder1Day = 1 day before
+
+# Calendar - MeetingDetailModal
+calendar-allDayEvent = All day
+calendar-videoCallAvailable = Video Call
+calendar-joinLinkAvailable = Join link available
+calendar-viewProfile = View profile
+calendar-youOrganizer = You (Organizer)
+calendar-organizer = Organizer
+calendar-participants = Participants
+calendar-participantsAttending = Participants ({$accepted} of {$total} attending)
+calendar-host = Host
+calendar-noParticipantDetails = No participant details available
+calendar-yourResponse = Your response:
+calendar-declineMeeting = Decline meeting
+calendar-markTentative = Mark as tentative
+calendar-addComment = Add a comment (optional)...
+calendar-confirm = Confirm
 calendar-accept = Accept
+calendar-maybe = Maybe
 calendar-decline = Decline
-calendar-tentative = Tentative
+calendar-joinCall = Join Call
+calendar-chat = Chat
+calendar-edit = Edit
+
+# Date Formatters
+formatter-today = Today
+formatter-tomorrow = Tomorrow
+formatter-yesterday = Yesterday
+
+# Calendar - DayView
+calendar-eventsScheduled = {$count ->
+  [one] {$count} event scheduled
+  *[other] {$count} events scheduled
+}
+calendar-noEventsScheduled = 0 events scheduled
