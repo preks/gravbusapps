@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Button, Badge, Card } from '@newwork/nw-design-system'
+import { Button, Badge, Card, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Bell } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
 
 dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
 
 interface Reminder {
   workflowId: string
@@ -20,16 +21,71 @@ interface Reminder {
 interface RemindersPanelProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   onClose?: () => void
   onReminderDue?: () => void // Callback when a reminder becomes due
+  onOverdueCountChange?: (count: number) => void // Callback with count of overdue reminders
+  t?: (key: string) => string // Translation function
 }
 
-export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, userInfo, onClose, onReminderDue }) => {
+export const RemindersPanel: React.FC<RemindersPanelProps> = ({
+  accessToken,
+  userInfo,
+  onClose,
+  onReminderDue,
+  onOverdueCountChange,
+  t
+}) => {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const notifiedReminders = useRef<Set<string>>(new Set())
+  const reminderTimers = useRef<Map<string, NodeJS.Timeout>>(new Map())
 
   // Use Keycloak ID (userInfo.id) to match reminder creation in FlowBot
   const userId = useMemo(() => userInfo?.id || '', [userInfo?.id])
+
+  // Use refs for callbacks to avoid re-creating dependent functions
+  const onReminderDueRef = useRef(onReminderDue)
+  const onOverdueCountChangeRef = useRef(onOverdueCountChange)
+
+  // Keep refs up to date
+  useEffect(() => {
+    onReminderDueRef.current = onReminderDue
+    onOverdueCountChangeRef.current = onOverdueCountChange
+  }, [onReminderDue, onOverdueCountChange])
+
+  const notifyReminder = useCallback((reminder: Reminder) => {
+    // Skip if already notified
+    if (notifiedReminders.current.has(reminder.workflowId)) return
+
+    notifiedReminders.current.add(reminder.workflowId)
+
+    // Open the reminders panel to show the due reminder
+    if (onReminderDueRef.current) {
+      onReminderDueRef.current()
+    }
+
+    // Send browser notification
+    if (typeof Notification !== 'undefined') {
+      try {
+        if (Notification.permission === 'granted') {
+          new Notification(`Reminder: ${reminder.title}`, {
+            body: reminder.message || `Time to: ${reminder.title}`,
+            tag: reminder.workflowId
+          })
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              new Notification(`Reminder: ${reminder.title}`, {
+                body: reminder.message || `Time to: ${reminder.title}`,
+                tag: reminder.workflowId
+              })
+            }
+          })
+        }
+      } catch (err) {
+        console.error(`Failed to notify for reminder ${reminder.workflowId}:`, err)
+      }
+    }
+  }, [])
 
   const loadReminders = useCallback(async () => {
     if (!accessToken) return
@@ -38,7 +94,15 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
     setError(null)
 
     try {
-      const baseUrl = window.location.origin
+      let baseUrl = window.location.origin
+
+      // If platform is running on localhost, connect to DEV environment
+      // This handles the case where Reminders is loaded from CDN but platform is running locally
+      const isLocalPlatform = baseUrl.includes('localhost')
+      if (isLocalPlatform) {
+        baseUrl = 'https://newwork-dev.newwork.com'
+        console.log('🔄 [RemindersPanel] Local platform detected - connecting to DEV environment:', baseUrl)
+      }
 
       // Skip if no user ID
       if (!userId) {
@@ -113,64 +177,47 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
 
       setReminders(reminderList)
 
-      // Check for due reminders and send browser notifications (wrapped in try-catch)
-      try {
-        checkAndNotifyReminders(reminderList)
-      } catch (notifyErr) {
-        console.error('Failed to check/notify reminders:', notifyErr)
-      }
+      // Set up event-based timers for each reminder
+      // Clear existing timers
+      reminderTimers.current.forEach(timer => clearTimeout(timer))
+      reminderTimers.current.clear()
+
+      const now = dayjs()
+
+      reminderList.forEach(reminder => {
+        if (!reminder.reminderDateTime) return
+
+        const reminderTime = dayjs(reminder.reminderDateTime)
+        const isDue = reminderTime.isBefore(now)
+
+        if (isDue) {
+          // Already overdue - notify immediately if not already notified
+          if (!notifiedReminders.current.has(reminder.workflowId)) {
+            notifyReminder(reminder)
+          }
+        } else {
+          // Schedule notification for future
+          const msUntilDue = reminderTime.diff(now)
+
+          // Only set timer if it's within a reasonable timeframe (e.g., 24 hours)
+          // For reminders further out, they'll be picked up on next load
+          const MAX_TIMER_MS = 24 * 60 * 60 * 1000 // 24 hours
+          if (msUntilDue <= MAX_TIMER_MS) {
+            const timer = setTimeout(() => {
+              notifyReminder(reminder)
+            }, msUntilDue)
+
+            reminderTimers.current.set(reminder.workflowId, timer)
+          }
+        }
+      })
     } catch (err) {
       console.error('Failed to load reminders:', err)
       setError(err instanceof Error ? err.message : 'Failed to load reminders')
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, userId])
-
-  const checkAndNotifyReminders = useCallback((reminderList: Reminder[]) => {
-    // Check if Notification API is available
-    if (typeof Notification === 'undefined') {
-      return
-    }
-
-    reminderList.forEach(reminder => {
-      try {
-        // Skip if no valid reminder time
-        if (!reminder.reminderDateTime) return
-
-        const isDue = dayjs(reminder.reminderDateTime).isBefore(dayjs())
-
-        // If reminder is due and we haven't notified yet
-        if (isDue && !notifiedReminders.current.has(reminder.workflowId)) {
-          notifiedReminders.current.add(reminder.workflowId)
-
-          // Open the reminders panel to show the due reminder
-          if (onReminderDue) {
-            onReminderDue()
-          }
-
-          // Request notification permission if needed
-          if (Notification.permission === 'granted') {
-            new Notification(`Reminder: ${reminder.title}`, {
-              body: reminder.message || `Time to: ${reminder.title}`,
-              tag: reminder.workflowId // Prevents duplicate notifications
-            })
-          } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(permission => {
-              if (permission === 'granted') {
-                new Notification(`Reminder: ${reminder.title}`, {
-                  body: reminder.message || `Time to: ${reminder.title}`,
-                  tag: reminder.workflowId
-                })
-              }
-            })
-          }
-        }
-      } catch (err) {
-        console.error(`Failed to notify for reminder ${reminder.workflowId}:`, err)
-      }
-    })
-  }, [])
+  }, [accessToken, userId, notifyReminder])
 
   useEffect(() => {
     // Only load if we have accessToken and userId
@@ -178,19 +225,41 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
 
     loadReminders()
 
-    // Poll every 60 seconds for updates
-    const interval = setInterval(() => {
-      loadReminders()
-    }, 60000)
+    // Poll every 5 minutes to catch new reminders created elsewhere
+    // This is much less frequent since we use timers for due notifications
+    const interval = setInterval(
+      () => {
+        loadReminders()
+      },
+      5 * 60 * 1000
+    ) // 5 minutes
 
     return () => {
       clearInterval(interval)
+      // Clean up all reminder timers on unmount
+      reminderTimers.current.forEach(timer => clearTimeout(timer))
+      reminderTimers.current.clear()
     }
   }, [accessToken, loadReminders])
 
+  // Calculate and update overdue count whenever reminders change
+  // This ensures the count is always accurate and includes newly due reminders
+  useEffect(() => {
+    if (!onOverdueCountChangeRef.current) return
+
+    const overdueCount = reminders.filter(r => dayjs(r.reminderDateTime).isBefore(dayjs())).length
+    onOverdueCountChangeRef.current(overdueCount)
+  }, [reminders])
+
   const handleMarkAsDone = async (workflowId: string) => {
     try {
-      const baseUrl = window.location.origin
+      let baseUrl = window.location.origin
+
+      // If platform is running on localhost, connect to DEV environment
+      const isLocalPlatform = baseUrl.includes('localhost')
+      if (isLocalPlatform) {
+        baseUrl = 'https://newwork-dev.newwork.com'
+      }
 
       // Step 1: Get the task ID from workflow's step_0
       const stepDataResponse = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}/steps/step_0/data?limit=1`, {
@@ -235,7 +304,14 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
         throw new Error(`Failed to complete reminder task: ${errorText}`)
       }
 
-      // Remove from list
+      // Clear timer for this reminder if it exists
+      const timer = reminderTimers.current.get(workflowId)
+      if (timer) {
+        clearTimeout(timer)
+        reminderTimers.current.delete(workflowId)
+      }
+
+      // Remove from list (overdue count will be recalculated automatically by useEffect)
       setReminders(prev => prev.filter(r => r.workflowId !== workflowId))
       notifiedReminders.current.delete(workflowId)
 
@@ -254,13 +330,8 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
     <div className="gba:h-full gba:w-full gba:flex gba:flex-col gba:p-6" data-testid="reminders-panel">
       {/* Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:pb-4 gba:border-b gba:border-border gba:mb-4">
-        <h2 className="gba:text-2xl gba:font-bold gba:flex gba:items-center gba:gap-3 gba:pl-2">
-          <Bell
-            className="gba:h-6 gba:w-6 gba:text-primary gba:flex-shrink-0"
-            weight="regular"
-            aria-label="bell icon"
-          />
-          My Reminders
+        <h2 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-3 gba:pl-2">
+          {t ? t('reminders-myReminders') : 'My Reminders'}
           {reminders.length > 0 && (
             <Badge variant="default" className="gba:ml-2">
               {reminders.length}
@@ -281,7 +352,9 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
         {isLoading ? (
           <div className="gba:text-center gba:py-8">
             <div className="gba:animate-spin gba:h-8 gba:w-8 gba:border-2 gba:border-primary gba:border-t-transparent gba:rounded-full gba:mx-auto gba:mb-3" />
-            <div className="gba:text-muted-foreground gba:text-sm">Loading reminders...</div>
+            <div className="gba:text-muted-foreground gba:text-sm">
+              {t ? t('reminders-loadingReminders') : 'Loading reminders...'}
+            </div>
           </div>
         ) : error ? (
           <div className="gba:text-center gba:py-8">
@@ -298,10 +371,12 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
-            <div className="gba:text-destructive gba:font-semibold gba:mb-2">Failed to load reminders</div>
+            <div className="gba:text-destructive gba:font-semibold gba:mb-2">
+              {t ? t('reminders-failedToLoad') : 'Failed to load reminders'}
+            </div>
             <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">{error}</div>
             <Button size="sm" onClick={loadReminders} data-testid="reminders-retry">
-              Try Again
+              {t ? t('reminders-tryAgain') : 'Try Again'}
             </Button>
           </div>
         ) : reminders.length === 0 ? (
@@ -319,65 +394,76 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
               />
             </svg>
-            <div className="gba:text-muted-foreground gba:font-medium gba:mb-1">No upcoming reminders</div>
-            <div className="gba:text-xs gba:text-muted-foreground">Ask EveryAI to set a reminder for you!</div>
+            <div className="gba:text-muted-foreground gba:font-medium gba:mb-1">
+              {t ? t('reminders-noUpcoming') : 'No upcoming reminders'}
+            </div>
+            <div className="gba:text-xs gba:text-muted-foreground">
+              {t ? t('reminders-goToEveryAI') : 'Go to the EveryAI tab and ask to set a reminder'}
+            </div>
           </div>
         ) : (
-          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4 gba:auto-rows-min">
+          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-5 gba:gap-3 gba:auto-rows-min">
             {reminders.map(reminder => {
               const due = isDue(reminder.reminderDateTime)
               const timeDisplay = dayjs(reminder.reminderDateTime).fromNow()
+              const exactLocalTime = dayjs(reminder.reminderDateTime).format('LLLL') // e.g., "Monday, January 8, 2026 9:19 PM"
 
               return (
                 <Card
                   key={reminder.workflowId}
-                  className={`gba:border gba:p-3 gba:transition-all hover:gba:shadow-lg gba:h-full gba:flex gba:flex-col ${
+                  className={`gba:border gba:p-3 gba:transition-all hover:gba:shadow-md gba:h-full gba:flex gba:flex-col gba:gap-2 ${
                     due ? 'gba:border-destructive gba:bg-destructive/5' : 'gba:border-border'
                   }`}
                   data-testid={`reminder-item-${reminder.workflowId}`}
                 >
-                  <div className="gba:flex gba:flex-col gba:h-full">
-                    {/* Title & Badge */}
-                    <div className="gba:font-semibold gba:text-base gba:flex gba:items-center gba:justify-between gba:gap-2 gba:mb-2">
-                      <span className="gba:flex-1">{reminder.title}</span>
-                      {due && (
-                        <Badge variant="destructive" className="gba:text-xs gba:px-1.5 gba:py-0.5">
-                          DUE
-                        </Badge>
-                      )}
+                  {/* Title and Done button */}
+                  <div className="gba:flex gba:items-start gba:gap-2 gba:justify-between">
+                    <div className="gba:font-medium gba:text-sm gba:leading-tight gba:line-clamp-2 gba:flex-1">
+                      {reminder.title}
                     </div>
-
-                    {/* Time */}
-                    <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
-                      {reminder.reminderDateTimeFormatted}
-                    </div>
-                    <div
-                      className={`gba:text-xs gba:font-medium gba:mb-3 ${due ? 'gba:text-destructive' : 'gba:text-primary'}`}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleMarkAsDone(reminder.workflowId)}
+                      className="gba:h-6 gba:w-6 gba:flex-shrink-0 gba:rounded-full hover:gba:bg-primary/10"
+                      data-testid={`mark-done-reminder-${reminder.workflowId}`}
+                      title="Mark as done"
                     >
-                      {timeDisplay}
-                    </div>
-
-                    {/* Message */}
-                    {reminder.message && (
-                      <div className="gba:text-sm gba:text-muted-foreground gba:bg-muted/30 gba:p-2 gba:rounded gba:mb-3 gba:flex-1">
-                        {reminder.message}
-                      </div>
-                    )}
-
-                    {/* Action button - at the bottom */}
-                    <div className="gba:flex gba:mt-auto">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleMarkAsDone(reminder.workflowId)}
-                        className="gba:w-full"
-                        data-testid={`mark-done-reminder-${reminder.workflowId}`}
-                        title="Mark as done"
+                      <svg
+                        className="gba:h-4 gba:w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2.5}
                       >
-                        ✓ Done
-                      </Button>
-                    </div>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </Button>
                   </div>
+
+                  {/* Due time */}
+                  <div className="gba:flex gba:items-center gba:gap-1.5">
+                    <span className="gba:text-xs gba:text-muted-foreground">Due:</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className={`gba:text-xs gba:font-medium ${due ? 'gba:text-destructive' : 'gba:text-foreground'}`}
+                        >
+                          {timeDisplay}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{exactLocalTime}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {/* Optional message */}
+                  {reminder.message && (
+                    <div className="gba:text-xs gba:text-muted-foreground gba:leading-snug gba:line-clamp-3">
+                      {reminder.message}
+                    </div>
+                  )}
                 </Card>
               )
             })}

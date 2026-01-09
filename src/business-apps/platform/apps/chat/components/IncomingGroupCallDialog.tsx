@@ -6,11 +6,12 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  IconAvatar
+  IconAvatar,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Phone, PhoneOff, Video, Users } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { GroupCallInvite } from '../hooks/useGroupCall'
+import translations from '../_i18n'
 
 interface IncomingGroupCallDialogProps {
   invite: GroupCallInvite
@@ -48,6 +49,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = (
   onDecline,
   prefixDataTestId = 'incoming-group-call-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [ringCount, setRingCount] = useState(0)
 
   const callerName = invite.from.odName || 'Unknown'
@@ -123,11 +125,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = (
           {/* Call Type Indicator */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-gray-400 gba:text-sm gba:mb-6">
             <Users className="gba:w-4 gba:h-4" />
-            <span>
-              {isVideoCall
-                ? getTranslationFromI18nKeyAndLabel('call.incomingGroupVideoCall', 'Group video call')
-                : getTranslationFromI18nKeyAndLabel('call.incomingGroupAudioCall', 'Group audio call')}
-            </span>
+            <span>{isVideoCall ? t('call-incomingGroupVideoCall') : t('call-incomingGroupAudioCall')}</span>
           </div>
 
           {/* Caller Avatar with Pulsing Ring */}
@@ -154,12 +152,12 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = (
 
           {/* Caller Name */}
           <p className="gba:text-gray-400 gba:text-sm gba:mb-2">
-            {getTranslationFromI18nKeyAndLabel('call.startedBy', 'Started by')} {callerName}
+            {t('call-startedBy')} {callerName}
           </p>
 
           {/* Ringing indicator */}
           <p className="gba:text-gray-400 gba:text-sm gba:mb-8">
-            {getTranslationFromI18nKeyAndLabel('call.ringing', 'Ringing')}
+            {t('call-ringing')}
             <span className="gba:inline-block gba:w-8">{'.'.repeat((ringCount % 3) + 1)}</span>
           </p>
 
@@ -176,9 +174,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = (
               >
                 <PhoneOff className="gba:w-7 gba:h-7" />
               </Button>
-              <span className="gba:text-xs gba:text-gray-400">
-                {getTranslationFromI18nKeyAndLabel('call.decline', 'Decline')}
-              </span>
+              <span className="gba:text-xs gba:text-gray-400">{t('call-decline')}</span>
             </div>
 
             {/* Accept Button */}
@@ -195,9 +191,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = (
                   <Phone className="gba:w-7 gba:h-7 gba:text-white" />
                 )}
               </Button>
-              <span className="gba:text-xs gba:text-gray-400">
-                {getTranslationFromI18nKeyAndLabel('call.join', 'Join')}
-              </span>
+              <span className="gba:text-xs gba:text-gray-400">{t('call-join')}</span>
             </div>
           </div>
         </div>

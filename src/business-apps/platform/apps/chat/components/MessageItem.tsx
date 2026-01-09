@@ -7,11 +7,11 @@ import {
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-  Button
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { ArrowBendUpLeft } from '@phosphor-icons/react'
 import type { Message, ConversationParticipant } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatTime, formatFullTimestamp, getStatusIcon } from './utils/messageUtils'
 import { isPreviewable } from './utils/attachmentUtils'
@@ -21,6 +21,7 @@ import { ExpertResponseRenderer } from './ExpertResponseRenderer'
 import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
+import translations from '../_i18n'
 
 const getInitials = (name: string): string => {
   if (!name) return '?'
@@ -50,6 +51,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   onReplyToAI,
   onSendMessage
 }) => {
+  const { t } = useTranslation(translations)
   const isAIResponse = message.metadata?.isAIResponse === true
   const isExpertResponse = message.metadata?.isEveryExpertResponse === true
   // AI/Expert responses should never be styled as "own message" even if sent by current user
@@ -149,7 +151,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
     return (
       <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-${message.id}`}>
         <span className="gba:text-xs gba:text-muted-foreground gba:italic gba:bg-muted/50 gba:px-3 gba:py-1 gba:rounded-full">
-          {getTranslationFromI18nKeyAndLabel('chat.message.deleted', 'Message deleted')}
+          {t('chat-message-deleted')}
         </span>
       </div>
     )
@@ -201,7 +203,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                   `${sender?.firstName || participantData?.firstName || ''} ${sender?.lastName || participantData?.lastName || ''}`.trim() ||
                   sender?.username ||
                   participantData?.username ||
-                  getTranslationFromI18nKeyAndLabel('chat.user', 'User')
+                  t('chat-user')
               )}
             </AvatarFallback>
           </Avatar>
@@ -247,7 +249,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
             <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:text-primary gba:flex gba:items-center gba:justify-between">
               <div className="gba:flex gba:items-center gba:gap-1">
                 <span className="gba:text-xs">✨</span>
-                {getTranslationFromI18nKeyAndLabel('chat.everyAI', 'Every AI')}
+                {t('chat-everyAI')}
               </div>
               {onReplyToAI && (
                 <TooltipProvider>
@@ -268,9 +270,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="gba:text-xs">
-                        {getTranslationFromI18nKeyAndLabel('chat.replyToEvery', 'Reply to Every')}
-                      </p>
+                      <p className="gba:text-xs">{t('chat-replyToEvery')}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -358,7 +358,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="gba:text-[10px]">{formatTime(message.createdAt)}</span>
+                  <span className="gba:text-[10px]">{formatTime(message.createdAt, t)}</span>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="gba:text-xs">{formatFullTimestamp(message.createdAt)}</p>
