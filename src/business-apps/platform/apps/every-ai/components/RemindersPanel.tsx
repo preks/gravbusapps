@@ -40,91 +40,50 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
   // Use Keycloak ID (userInfo.id) to match reminder creation in FlowBot
   const userId = useMemo(() => userInfo?.id || '', [userInfo?.id])
 
-  const notifyReminder = useCallback(
-    (reminder: Reminder) => {
-      // Skip if already notified
-      if (notifiedReminders.current.has(reminder.workflowId)) return
+  // Use refs for callbacks to avoid re-creating dependent functions
+  const onReminderDueRef = useRef(onReminderDue)
+  const onOverdueCountChangeRef = useRef(onOverdueCountChange)
 
-      notifiedReminders.current.add(reminder.workflowId)
+  // Keep refs up to date
+  useEffect(() => {
+    onReminderDueRef.current = onReminderDue
+    onOverdueCountChangeRef.current = onOverdueCountChange
+  }, [onReminderDue, onOverdueCountChange])
 
-      // Open the reminders panel to show the due reminder
-      if (onReminderDue) {
-        onReminderDue()
+  const notifyReminder = useCallback((reminder: Reminder) => {
+    // Skip if already notified
+    if (notifiedReminders.current.has(reminder.workflowId)) return
+
+    notifiedReminders.current.add(reminder.workflowId)
+
+    // Open the reminders panel to show the due reminder
+    if (onReminderDueRef.current) {
+      onReminderDueRef.current()
+    }
+
+    // Send browser notification
+    if (typeof Notification !== 'undefined') {
+      try {
+        if (Notification.permission === 'granted') {
+          new Notification(`Reminder: ${reminder.title}`, {
+            body: reminder.message || `Time to: ${reminder.title}`,
+            tag: reminder.workflowId
+          })
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              new Notification(`Reminder: ${reminder.title}`, {
+                body: reminder.message || `Time to: ${reminder.title}`,
+                tag: reminder.workflowId
+              })
+            }
+          })
+        }
+      } catch (err) {
+        console.error(`Failed to notify for reminder ${reminder.workflowId}:`, err)
       }
-
-      // Calculate and update overdue count
-      setReminders(currentReminders => {
-        const overdueCount = currentReminders.filter(r => dayjs(r.reminderDateTime).isBefore(dayjs())).length
-        if (onOverdueCountChange) {
-          onOverdueCountChange(overdueCount)
-        }
-        return currentReminders
-      })
-
-      // Send browser notification
-      if (typeof Notification !== 'undefined') {
-        try {
-          if (Notification.permission === 'granted') {
-            new Notification(`Reminder: ${reminder.title}`, {
-              body: reminder.message || `Time to: ${reminder.title}`,
-              tag: reminder.workflowId
-            })
-          } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(permission => {
-              if (permission === 'granted') {
-                new Notification(`Reminder: ${reminder.title}`, {
-                  body: reminder.message || `Time to: ${reminder.title}`,
-                  tag: reminder.workflowId
-                })
-              }
-            })
-          }
-        } catch (err) {
-          console.error(`Failed to notify for reminder ${reminder.workflowId}:`, err)
-        }
-      }
-    },
-    [onReminderDue, onOverdueCountChange]
-  )
-
-  const setupReminderTimers = useCallback(
-    (reminderList: Reminder[]) => {
-      // Clear existing timers
-      reminderTimers.current.forEach(timer => clearTimeout(timer))
-      reminderTimers.current.clear()
-
-      const now = dayjs()
-
-      reminderList.forEach(reminder => {
-        if (!reminder.reminderDateTime) return
-
-        const reminderTime = dayjs(reminder.reminderDateTime)
-        const isDue = reminderTime.isBefore(now)
-
-        if (isDue) {
-          // Already overdue - notify immediately if not already notified
-          if (!notifiedReminders.current.has(reminder.workflowId)) {
-            notifyReminder(reminder)
-          }
-        } else {
-          // Schedule notification for future
-          const msUntilDue = reminderTime.diff(now)
-
-          // Only set timer if it's within a reasonable timeframe (e.g., 24 hours)
-          // For reminders further out, they'll be picked up on next load
-          const MAX_TIMER_MS = 24 * 60 * 60 * 1000 // 24 hours
-          if (msUntilDue <= MAX_TIMER_MS) {
-            const timer = setTimeout(() => {
-              notifyReminder(reminder)
-            }, msUntilDue)
-
-            reminderTimers.current.set(reminder.workflowId, timer)
-          }
-        }
-      })
-    },
-    [notifyReminder]
-  )
+    }
+  }, [])
 
   const loadReminders = useCallback(async () => {
     if (!accessToken) return
@@ -216,24 +175,47 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
 
       setReminders(reminderList)
 
-      // Calculate overdue count and notify parent
-      const overdueCount = reminderList.filter(r => dayjs(r.reminderDateTime).isBefore(dayjs())).length
-      if (onOverdueCountChange) {
-        onOverdueCountChange(overdueCount)
-      }
-
       // Set up event-based timers for each reminder
-      setupReminderTimers(reminderList)
+      // Clear existing timers
+      reminderTimers.current.forEach(timer => clearTimeout(timer))
+      reminderTimers.current.clear()
+
+      const now = dayjs()
+
+      reminderList.forEach(reminder => {
+        if (!reminder.reminderDateTime) return
+
+        const reminderTime = dayjs(reminder.reminderDateTime)
+        const isDue = reminderTime.isBefore(now)
+
+        if (isDue) {
+          // Already overdue - notify immediately if not already notified
+          if (!notifiedReminders.current.has(reminder.workflowId)) {
+            notifyReminder(reminder)
+          }
+        } else {
+          // Schedule notification for future
+          const msUntilDue = reminderTime.diff(now)
+
+          // Only set timer if it's within a reasonable timeframe (e.g., 24 hours)
+          // For reminders further out, they'll be picked up on next load
+          const MAX_TIMER_MS = 24 * 60 * 60 * 1000 // 24 hours
+          if (msUntilDue <= MAX_TIMER_MS) {
+            const timer = setTimeout(() => {
+              notifyReminder(reminder)
+            }, msUntilDue)
+
+            reminderTimers.current.set(reminder.workflowId, timer)
+          }
+        }
+      })
     } catch (err) {
       console.error('Failed to load reminders:', err)
       setError(err instanceof Error ? err.message : 'Failed to load reminders')
-      if (onOverdueCountChange) {
-        onOverdueCountChange(0)
-      }
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, userId, onOverdueCountChange, setupReminderTimers])
+  }, [accessToken, userId, notifyReminder])
 
   useEffect(() => {
     // Only load if we have accessToken and userId
@@ -257,6 +239,15 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
       reminderTimers.current.clear()
     }
   }, [accessToken, loadReminders])
+
+  // Calculate and update overdue count whenever reminders change
+  // This ensures the count is always accurate and includes newly due reminders
+  useEffect(() => {
+    if (!onOverdueCountChangeRef.current) return
+
+    const overdueCount = reminders.filter(r => dayjs(r.reminderDateTime).isBefore(dayjs())).length
+    onOverdueCountChangeRef.current(overdueCount)
+  }, [reminders])
 
   const handleMarkAsDone = async (workflowId: string) => {
     try {
@@ -318,15 +309,8 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
         reminderTimers.current.delete(workflowId)
       }
 
-      // Remove from list and update overdue count
-      setReminders(prev => {
-        const updated = prev.filter(r => r.workflowId !== workflowId)
-        const overdueCount = updated.filter(r => dayjs(r.reminderDateTime).isBefore(dayjs())).length
-        if (onOverdueCountChange) {
-          onOverdueCountChange(overdueCount)
-        }
-        return updated
-      })
+      // Remove from list (overdue count will be recalculated automatically by useEffect)
+      setReminders(prev => prev.filter(r => r.workflowId !== workflowId))
       notifiedReminders.current.delete(workflowId)
 
       console.log(`[RemindersPanel] Successfully completed reminder ${workflowId}`)
