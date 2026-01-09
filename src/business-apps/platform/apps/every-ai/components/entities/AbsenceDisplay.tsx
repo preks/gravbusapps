@@ -100,7 +100,7 @@ export const AbsenceDisplay: React.FC<AbsenceDisplayProps> = ({
       absenceId,
       source: 'every-ai'
     })
-    // Force reload to ensure updated absence content is shown
+    // Force window refresh to ensure updated absence content is shown (SPA navigation, not full page reload)
     navigateTo(url, { forceReload: true })
   }
 
