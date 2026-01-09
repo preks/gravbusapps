@@ -15,6 +15,7 @@ import {
   transformBonus,
   transformBenefit
 } from '../utils/compensationTransformers'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * Hook to fetch and manage current employee compensation data
@@ -72,7 +73,7 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       setError(null)
 
       // Get today's date in ISO format (YYYY-MM-DD) for server-side filtering
-      const today = new Date().toISOString().split('T')[0]
+      const today = formatDate(new Date(), 'date.ISO') || new Date().toISOString().split('T')[0]
 
       // Fetch current compensation data from GraphQL
       // Server-side filtering: APPROVED + started salaries (up to 5 records)

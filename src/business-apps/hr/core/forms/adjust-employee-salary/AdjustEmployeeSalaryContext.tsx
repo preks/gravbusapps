@@ -21,6 +21,7 @@ import type {
   FormMode,
   CurrencyOption
 } from './types'
+import { formatDate } from '@/common/utils/windowUtils'
 
 interface CurrencyCatalogResponse {
   CatalogEntry: Array<{
@@ -83,7 +84,7 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
     setError(null)
     try {
       const empVariables = { idEmployee: employeeId }
-      const today = new Date().toISOString().split('T')[0]
+      const today = formatDate(new Date(), 'date.ISO') || new Date().toISOString().split('T')[0]
       const empVariablesWithDate = { idEmployee: employeeId, today }
 
       // Fetch all queries in parallel to prevent UI twitch
