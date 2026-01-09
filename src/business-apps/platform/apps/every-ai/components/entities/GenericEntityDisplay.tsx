@@ -37,7 +37,8 @@ const GenericEntityDisplay: React.FC<GenericEntityDisplayProps> = ({
 
   const handleTitleClick = () => {
     if (!url) return
-    navigateTo(url)
+    // Force reload to ensure updated entity content is shown
+    navigateTo(url, { forceReload: true })
   }
 
   const content = textHuman || ''

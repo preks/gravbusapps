@@ -100,7 +100,8 @@ export const AbsenceDisplay: React.FC<AbsenceDisplayProps> = ({
       absenceId,
       source: 'every-ai'
     })
-    navigateTo(url)
+    // Force reload to ensure updated absence content is shown
+    navigateTo(url, { forceReload: true })
   }
 
   const content = textHuman || ''

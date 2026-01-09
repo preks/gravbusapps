@@ -8,6 +8,7 @@ import PDFKitModule from 'pdfkit/js/pdfkit.standalone.js'
  */
 export const exportTimeHistoryPdf = async (params: {
   reportTitle?: string
+  generatedLabel?: string
   entries: TimeEntry[]
   monthDate: Date
   locale: string
@@ -178,7 +179,7 @@ export const exportTimeHistoryPdf = async (params: {
     .fillColor('#595959')
     .fontSize(9)
     .text(
-      `${getTranslationFromI18nKeyAndLabel('lowcoder:common.generated', 'Generated')}: ${createdAt}`,
+      `${params.generatedLabel || getTranslationFromI18nKeyAndLabel('lowcoder:common.generated', 'Generated')}: ${createdAt}`,
       margin,
       cursorY
     )

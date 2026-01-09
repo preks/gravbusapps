@@ -37,7 +37,8 @@ export const ContentEntryDisplay: React.FC<ContentEntryDisplayProps> = ({ conten
       source: 'every-ai'
     })
 
-    navigateTo(url)
+    // Force reload to ensure updated content is shown
+    navigateTo(url, { forceReload: true })
   }
 
   const icon = (
