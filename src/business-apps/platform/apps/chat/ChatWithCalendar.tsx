@@ -72,6 +72,22 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
     }
   }, [])
 
+  // Listen for custom event to open sidebar with specific tab (e.g., from AI Summary button)
+  useEffect(() => {
+    const handleChatSidebarOpened = (event: CustomEvent<{ defaultTab?: TabValue }>) => {
+      const tab = event.detail?.defaultTab
+      if (tab && (tab === 'everyai' || tab === 'chat' || tab === 'calendar')) {
+        console.log('[ChatWithCalendar] Setting active tab from sidebar event:', tab)
+        setActiveTab(tab)
+      }
+    }
+
+    window.addEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
+    return () => {
+      window.removeEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
+    }
+  }, [])
+
   // Listen for custom event to switch to chat (e.g., from platform chat opener)
   useEffect(() => {
     const handleSwitchToChat = () => {
