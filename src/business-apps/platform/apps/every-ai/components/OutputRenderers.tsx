@@ -863,13 +863,11 @@ export const AnswerOutputRenderer: React.FC<{
 
   return (
     <div
-      className="gba:relative gba:group gba:flex gba:flex-col gba:gap-6 gba:w-full"
+      className="gba:relative gba:group gba:flex gba:flex-col gba:gap-3 gba:w-full"
       data-testid="answer-output-renderer"
     >
       {deduplicatedData.map((item, idx) => (
-        <div key={idx} className="gba:pt-1">
-          {renderDisplayData(item, idx, accessToken)}
-        </div>
+        <div key={idx}>{renderDisplayData(item, idx, accessToken)}</div>
       ))}
       <div className="gba:absolute gba:top-full gba:left-0 gba:mt-1 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
         <Button
