@@ -298,42 +298,45 @@ export const useMatrixCellEditing = ({
         setEditingCellId(null)
         setEditingCellUsageInfo(null)
 
-        // Reload data to ensure UI shows the latest state from server
-        // This fixes the issue where saved data wasn't visible until editing again
+        // Immediately update the cell from response for instant UI feedback
+        // This ensures the saved data is visible right away
+        setEditableCells(prev =>
+          prev.map(c => {
+            const isMatchingCell = latestCell.id
+              ? c.id === latestCell.id && c.validityPeriodId === latestCell.validityPeriodId
+              : c.validityPeriodId === latestCell.validityPeriodId
+
+            if (isMatchingCell) {
+              // Use the data from the response for immediate update
+              const updatedCell = {
+                ...c,
+                id: c.id || response.allowanceRegionRuleDetail?.id,
+                amount: response.allowanceRegionRuleDetail?.amount ?? c.amount,
+                activeFrom: response.allowanceRegionRuleDetail?.activeFrom ?? c.activeFrom,
+                activeTo: response.allowanceRegionRuleDetail?.activeTo ?? c.activeTo,
+                currencyCode: response.allowanceRegionRuleDetail?.currencyRef?.split(':').pop() ?? c.currencyCode,
+                isNew: false,
+                isModified: false,
+                // Backend returns OLD version in response, so we increment it
+                // This is a known backend quirk - it increments in DB but returns old version
+                version: response.allowanceRegionRuleDetail?.version
+                  ? response.allowanceRegionRuleDetail.version + 1
+                  : (c.version || 0) + 1
+              }
+
+              return updatedCell
+            }
+            return c
+          })
+        )
+
+        // Then reload data to ensure UI shows the latest state from server
+        // This ensures we have the most up-to-date data including any server-side changes
         try {
           await loadData()
         } catch (reloadErr) {
           console.error('Error reloading data after save:', reloadErr)
-          // Fallback: Update the cell with the data from response if reload fails
-          setEditableCells(prev =>
-            prev.map(c => {
-              const isMatchingCell = latestCell.id
-                ? c.id === latestCell.id && c.validityPeriodId === latestCell.validityPeriodId
-                : c.validityPeriodId === latestCell.validityPeriodId
-
-              if (isMatchingCell) {
-                // Use the data from the response
-                const updatedCell = {
-                  ...c,
-                  id: c.id || response.allowanceRegionRuleDetail?.id,
-                  amount: response.allowanceRegionRuleDetail?.amount ?? c.amount,
-                  activeFrom: response.allowanceRegionRuleDetail?.activeFrom ?? c.activeFrom,
-                  activeTo: response.allowanceRegionRuleDetail?.activeTo ?? c.activeTo,
-                  currencyCode: response.allowanceRegionRuleDetail?.currencyRef?.split(':').pop() ?? c.currencyCode,
-                  isNew: false,
-                  isModified: false,
-                  // Backend returns OLD version in response, so we increment it
-                  // This is a known backend quirk - it increments in DB but returns old version
-                  version: response.allowanceRegionRuleDetail?.version
-                    ? response.allowanceRegionRuleDetail.version + 1
-                    : (c.version || 0) + 1
-                }
-
-                return updatedCell
-              }
-              return c
-            })
-          )
+          // The immediate update above already shows the saved data, so this is just a fallback
         }
       } catch (error) {
         console.error('Error saving cell:', error)
