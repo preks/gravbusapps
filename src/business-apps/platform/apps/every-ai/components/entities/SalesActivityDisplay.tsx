@@ -123,30 +123,31 @@ export const SalesActivityDisplay: React.FC<SalesActivityDisplayProps> = ({ acti
     if (!activity) return
 
     // Navigate to the associated entity (prioritize: account > opportunity > lead > contact)
+    // Force reload to ensure updated activity content is shown
     if (activity.account?.id) {
       const url = buildPlatformUrl('/platform/crm/account-record', {
         accountId: activity.account.id,
         source: 'every-ai'
       })
-      navigateTo(url)
+      navigateTo(url, { forceReload: true })
     } else if (activity.opportunity?.id) {
       const url = buildPlatformUrl('/platform/crm/opportunity-record', {
         opportunityId: activity.opportunity.id,
         source: 'every-ai'
       })
-      navigateTo(url)
+      navigateTo(url, { forceReload: true })
     } else if (activity.lead?.id) {
       const url = buildPlatformUrl('/platform/crm/lead-record', {
         leadId: activity.lead.id,
         source: 'every-ai'
       })
-      navigateTo(url)
+      navigateTo(url, { forceReload: true })
     } else if (activity.contact?.id) {
       const url = buildPlatformUrl('/platform/crm/contact-record', {
         contactId: activity.contact.id,
         source: 'every-ai'
       })
-      navigateTo(url)
+      navigateTo(url, { forceReload: true })
     }
   }
 

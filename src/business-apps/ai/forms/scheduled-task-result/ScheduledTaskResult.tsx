@@ -258,7 +258,7 @@ const ScheduledTaskResultContent: React.FC<ScheduledTaskResultProps> = ({
     setIsCompleting(true)
     try {
       // Dispatch process continue event to mark the task as complete
-      dispatchProcessContinueEvent(new CustomEvent('process-continue'), {
+      dispatchProcessContinueEvent('process-continue', {
         acknowledged: true,
         completedAt: new Date().toISOString()
       })
@@ -270,21 +270,36 @@ const ScheduledTaskResultContent: React.FC<ScheduledTaskResultProps> = ({
   }
 
   return (
-    <TaskFormLayout>
-      {/* Header */}
-      <TaskDetailHeader
-        title={title}
-        subtitle={
-          <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
-            <Bot className="gba:h-4 gba:w-4" />
-            <span>Automated report from EveryAI</span>
-          </div>
-        }
-        badge={<Badge variant={isTaskCompleted ? 'success' : 'info'}>{isTaskCompleted ? 'Completed' : 'New'}</Badge>}
-      />
+    <TaskFormLayout
+      header={<TaskDetailHeader title={title} />}
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter>
+            <Button variant="default" onClick={handleComplete} disabled={isCompleting} className="gba:gap-2">
+              {isCompleting ? <Spinner className="gba:h-4 gba:w-4" /> : <CheckCircle className="gba:h-4 gba:w-4" />}
+              {isCompleting ? 'Acknowledging...' : 'Acknowledge'}
+            </Button>
+          </TaskDetailFooter>
+        ) : undefined
+      }
+    >
+      {/* Status Badge */}
+      {isTaskCompleted && (
+        <div className="gba:mb-4">
+          <Badge variant="default" className="gba:bg-success gba:text-success-foreground">
+            Completed
+          </Badge>
+        </div>
+      )}
+
+      {/* Automated Report Info */}
+      <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-6 gba:pb-4 gba:border-b">
+        <Bot className="gba:h-4 gba:w-4" />
+        <span>Automated report from EveryAI</span>
+      </div>
 
       {/* Main Content */}
-      <div className="gba:flex-1 gba:overflow-auto gba:p-6 gba:space-y-6">
+      <div className="gba:space-y-6">
         {/* Task Metadata Card */}
         <Card>
           <CardHeader className="gba:pb-3">
@@ -356,16 +371,6 @@ const ScheduledTaskResultContent: React.FC<ScheduledTaskResultProps> = ({
           </CardContent>
         </Card>
       </div>
-
-      {/* Footer with actions */}
-      {!isTaskCompleted && (
-        <TaskDetailFooter>
-          <Button variant="default" onClick={handleComplete} disabled={isCompleting} className="gba:gap-2">
-            {isCompleting ? <Spinner className="gba:h-4 gba:w-4" /> : <CheckCircle className="gba:h-4 gba:w-4" />}
-            {isCompleting ? 'Acknowledging...' : 'Acknowledge'}
-          </Button>
-        </TaskDetailFooter>
-      )}
     </TaskFormLayout>
   )
 }

@@ -46,7 +46,8 @@ export const EmployeeDisplay: React.FC<EmployeeDisplayProps> = ({ employeeId, ac
       const url = buildPlatformUrl('/platform/employee-record', {
         employeeId: employeeId
       })
-      navigateTo(url)
+      // Force reload to ensure updated employee content is shown
+      navigateTo(url, { forceReload: true })
     }
   }
 
