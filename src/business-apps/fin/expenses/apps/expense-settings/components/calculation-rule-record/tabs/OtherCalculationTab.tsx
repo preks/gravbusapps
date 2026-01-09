@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Button,
@@ -41,6 +41,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import {
   PiPlus,
   PiCalendar,
@@ -61,6 +62,16 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import {
+  formatDateForInput,
+  findOverlappingPeriods,
+  logGraphQLQuery,
+  logGraphQLResponse,
+  logUniquenessCheckStart,
+  formatDate
+} from '../../../utils'
+import { useTableSorting, createFieldMappings } from '../hooks'
+import { UsageInfo } from '../../../types'
 
 interface OtherCalculationTabProps {
   ruleId: string
@@ -120,15 +131,6 @@ interface CostCenterOption {
   name: string
 }
 
-// Usage check result
-interface UsageInfo {
-  isUsed: boolean
-  usedIn: {
-    positions?: number
-  }
-  message: string
-}
-
 const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const [otherCalculations, setOtherCalculations] = useState<OtherCalculation[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -143,14 +145,27 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
   const [availableAllowanceCodes, setAvailableAllowanceCodes] = useState<RelatedOption[]>([])
   const [availableCostCenters, setAvailableCostCenters] = useState<CostCenterOption[]>([])
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      source: createFieldMappings.string((a: OtherCalculation) => a.source),
+      linkedItem: createFieldMappings.string((a: OtherCalculation) => a.relatedCode || a.relatedName),
+      costCenter: createFieldMappings.nested((a: OtherCalculation) => a.costCenter),
+      reimbursablePercent: createFieldMappings.number((a: OtherCalculation) => a.reimbursablePercent),
+      activeFrom: createFieldMappings.date((a: OtherCalculation) => a.validFrom)
+    }),
+    []
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<OtherCalculation>({
+    defaultSortField: 'source',
+    defaultSortOrder: 'ASC',
+    data: otherCalculations,
+    fieldMappings
+  })
+
+  // formatDateForInput is imported from shared utils
 
   const form = useForm<OtherCalculationFormData>({
     defaultValues: {
@@ -198,6 +213,20 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       console.error('Failed to load cost centers:', error)
     }
   }, [graphqlClient])
+
+  // Load usage status for all calculations
+  // Note: OtherCalc doesn't have direct references in ExpensePosition,
+  // so we can't track usage. All calculations are treated as not in use.
+  const loadCalcUsageStatus = useCallback(async (calcIds: string[]) => {
+    if (calcIds.length === 0) return
+
+    // Since there's no direct link to track usage, allow all operations
+    const usageMap: Record<string, boolean> = {}
+    calcIds.forEach(id => {
+      usageMap[id] = false
+    })
+    setCalcUsageMap(usageMap)
+  }, [])
 
   // REAL GraphQL data from ExpenseRuleOtherCalc
   const fetchOtherCalculations = useCallback(async () => {
@@ -340,21 +369,10 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     } finally {
       setIsLoading(false)
     }
-  }, [ruleId, graphqlClient])
+  }, [ruleId, graphqlClient, loadCalcUsageStatus])
 
-  // Load usage status for all calculations
-  // Note: OtherCalc doesn't have direct references in ExpensePosition,
-  // so we can't track usage. All calculations are treated as not in use.
-  const loadCalcUsageStatus = useCallback(async (calcIds: string[]) => {
-    if (calcIds.length === 0) return
-
-    // Since there's no direct link to track usage, allow all operations
-    const usageMap: Record<string, boolean> = {}
-    calcIds.forEach(id => {
-      usageMap[id] = false
-    })
-    setCalcUsageMap(usageMap)
-  }, [])
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  const sortedOtherCalculations = sorting.sortedData || otherCalculations
 
   // Check if a calculation is used
   // Note: OtherCalc doesn't have direct references in ExpensePosition
@@ -370,10 +388,6 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       loadCostCenters()
     }
   }, [ruleId, accessToken, fetchOtherCalculations, loadCostCenters])
-
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
 
   const sourceOptions = [
     { value: '', label: 'Not linked' },
@@ -473,7 +487,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       activeTo: string | undefined,
       excludeId?: string
     ): Promise<boolean> => {
-      console.log('[OtherCalculationTab] checkOtherCalcUniqueness called:', {
+      logUniquenessCheckStart('OtherCalculationTab', 'checkOtherCalcUniqueness', {
         source,
         relatedId,
         activeFrom,
@@ -515,7 +529,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
           excludeId: excludeId || null
         }
 
-        console.log('[OtherCalculationTab] GraphQL query variables:', variables)
+        logGraphQLQuery('OtherCalculationTab', variables)
 
         const result = await graphqlClient.request<{
           ExpenseRuleOtherCalc: {
@@ -528,11 +542,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
           }[]
         }>(query, variables)
 
-        console.log('[OtherCalculationTab] GraphQL response:', {
-          result,
-          foundCount: result.ExpenseRuleOtherCalc?.length || 0,
-          allMatchingCalcs: result.ExpenseRuleOtherCalc
-        })
+        logGraphQLResponse('OtherCalculationTab', 'ExpenseRuleOtherCalc', result)
 
         // Filter by relatedId based on source type
         const matchingByRelatedId = result.ExpenseRuleOtherCalc.filter(existing => {
@@ -546,33 +556,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
           return false
         })
 
-        // Check for overlapping periods in JavaScript
-        const newPeriodFrom = dayjs(activeFrom).startOf('day')
-        const newPeriodTo = activeTo ? dayjs(activeTo).endOf('day') : null
-
-        const overlappingCalcs = matchingByRelatedId.filter(existing => {
-          const existingFrom = dayjs(existing.activeFrom)
-          const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
-
-          // Two periods overlap if they don't have a gap between them
-          const periodsDontOverlap =
-            (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
-            (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
-
-          return !periodsDontOverlap
-        })
-
-        console.log('[OtherCalculationTab] Overlap check:', {
-          newPeriod: {
-            from: newPeriodFrom.format('YYYY-MM-DD'),
-            to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
-          },
-          overlappingCalcs: overlappingCalcs.map(c => ({
-            id: c.id,
-            from: dayjs(c.activeFrom).format('YYYY-MM-DD'),
-            to: c.activeTo ? dayjs(c.activeTo).format('YYYY-MM-DD') : 'infinite'
-          }))
-        })
+        // Check for overlapping periods using shared utility
+        const overlappingCalcs = findOverlappingPeriods({ activeFrom, activeTo }, matchingByRelatedId)
 
         if (overlappingCalcs.length > 0) {
           console.log('[OtherCalculationTab] DUPLICATE FOUND:', {
@@ -775,22 +760,61 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
               <TableHeader>
                 <TableRow>
                   <TableHead className="gba:w-[60px]">Actions</TableHead>
-                  <TableHead className="gba:w-[120px]">Source</TableHead>
-                  <TableHead>Linked Item</TableHead>
-                  <TableHead>Cost Center</TableHead>
-                  <TableHead className="gba:w-[120px]">Reimb. %</TableHead>
-                  <TableHead>Validity</TableHead>
+                  <TableHead
+                    className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('source')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Source
+                      {sorting.renderSortIcon('source')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('linkedItem')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Linked Item
+                      {sorting.renderSortIcon('linkedItem')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('costCenter')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Cost Center
+                      {sorting.renderSortIcon('costCenter')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('reimbursablePercent')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Reimb. %{sorting.renderSortIcon('reimbursablePercent')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('activeFrom')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Validity
+                      {sorting.renderSortIcon('activeFrom')}
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {otherCalculations.length === 0 ? (
+                {sortedOtherCalculations.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="gba:text-center gba:py-8">
                       <p className="gba:text-muted-foreground">No other calculations found</p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  otherCalculations.map(record => (
+                  sortedOtherCalculations.map(record => (
                     <TableRow key={record.id} data-testid={`other-calculation-row-${record.id}`}>
                       <TableCell className="gba:py-4 gba:px-6">
                         <div className="gba:flex gba:justify-start gba:gap-2">
@@ -1146,41 +1170,19 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent data-testid="other-calculation-delete-dialog">
-          <DialogHeader>
-            <DialogTitle>Delete Other Calculation</DialogTitle>
-          </DialogHeader>
-          <div className="gba:py-4">
-            <p className="gba:text-sm gba:text-muted-foreground">
-              Are you sure you want to delete this other calculation? This action cannot be undone.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteDialogOpen(false)
-                setItemToDelete(null)
-              }}
-              disabled={isDeleting}
-              data-testid="other-calculation-delete-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="other-calculation-delete-confirm-button"
-            >
-              {isDeleting ? <Spinner className="gba:w-4 gba:h-4 gba:mr-2" /> : null}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Other Calculation"
+        itemDescription="this other calculation"
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="other-calculation-delete"
+      />
 
       <Toaster />
     </>

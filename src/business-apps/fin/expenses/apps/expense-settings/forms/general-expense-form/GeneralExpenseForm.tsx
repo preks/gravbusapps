@@ -31,18 +31,19 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import { createGeneralExpenseFormSchema, type GeneralExpenseFormSchema } from '../../schemas'
+import {
+  formatDateForInput,
+  checkPeriodUniqueness,
+  logGraphQLQuery,
+  logGraphQLResponse,
+  logUniquenessCheckStart
+} from '../../utils'
+import { UsageInfo } from '../../types'
 
 export type GeneralExpenseFormData = GeneralExpenseFormSchema
 
-export interface UsageInfo {
-  isUsed: boolean
-  usedIn: {
-    planItems?: number
-    items?: number
-    positions?: number
-  }
-  message: string
-}
+// Re-export UsageInfo for backward compatibility
+export type { UsageInfo } from '../../types'
 
 interface TaxCodeOption {
   id: string
@@ -91,14 +92,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
   const [catalogsLoading, setCatalogsLoading] = useState(true)
   const [additionalPropertiesJson, setAdditionalPropertiesJson] = useState('')
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // formatDateForInput is imported from shared utils
 
   // Create schema with date validation based on rule dates
   const schema = useMemo(
@@ -275,7 +269,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
     activeTo: string | undefined,
     excludeId?: string
   ): Promise<boolean> => {
-    console.log('[GeneralExpenseForm] checkCodeUniqueness called:', {
+    logUniquenessCheckStart('GeneralExpenseForm', 'checkCodeUniqueness', {
       code,
       activeFrom,
       activeTo,
@@ -284,10 +278,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
     })
 
     try {
-      // For overlap check: periods overlap if:
-      // - new start <= existing end (or existing end is null/infinite)
-      // - AND new end >= existing start (or new end is null/infinite)
-      // We'll fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
+      // Fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
       const query = `
         query CheckCodeUniqueness($ruleId: uuid!, $code: String!, $excludeId: uuid) {
           ExpenseRuleGeneralExpense(
@@ -312,64 +303,25 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
         excludeId: excludeId || null
       }
 
-      console.log('[GeneralExpenseForm] GraphQL query variables:', variables)
+      logGraphQLQuery('GeneralExpenseForm', variables)
 
       const result = await graphqlClient.request<{
         ExpenseRuleGeneralExpense: { id: string; code: string; activeFrom: string; activeTo?: string }[]
       }>(query, variables)
 
-      console.log('[GeneralExpenseForm] GraphQL response:', {
-        result,
-        foundCount: result.ExpenseRuleGeneralExpense?.length || 0,
-        allMatchingCodes: result.ExpenseRuleGeneralExpense
+      logGraphQLResponse('GeneralExpenseForm', 'ExpenseRuleGeneralExpense', result)
+
+      // Check for overlapping periods using shared utility
+      const uniquenessResult = checkPeriodUniqueness({
+        ruleId,
+        excludeId,
+        newPeriod: { activeFrom, activeTo },
+        existingPeriods: result.ExpenseRuleGeneralExpense,
+        componentName: 'GeneralExpenseForm',
+        entityName: 'ExpenseRuleGeneralExpense'
       })
 
-      // Check for overlapping periods in JavaScript
-      const newPeriodFrom = dayjs(activeFrom).startOf('day')
-      const newPeriodTo = activeTo ? dayjs(activeTo).endOf('day') : null
-
-      const overlappingCodes = result.ExpenseRuleGeneralExpense.filter(existing => {
-        const existingFrom = dayjs(existing.activeFrom)
-        const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
-
-        // Two periods overlap if:
-        // - new start <= existing end (or existing end is null/infinite)
-        // - AND new end >= existing start (or new end is null/infinite)
-        // They don't overlap if:
-        // - new end < existing start (if both exist)
-        // - OR existing end < new start (if both exist)
-
-        const periodsDontOverlap =
-          (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
-          (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
-
-        return !periodsDontOverlap
-      })
-
-      console.log('[GeneralExpenseForm] Overlap check:', {
-        newPeriod: {
-          from: newPeriodFrom.format('YYYY-MM-DD'),
-          to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
-        },
-        overlappingCodes: overlappingCodes.map(c => ({
-          id: c.id,
-          code: c.code,
-          from: dayjs(c.activeFrom).format('YYYY-MM-DD'),
-          to: c.activeTo ? dayjs(c.activeTo).format('YYYY-MM-DD') : 'infinite'
-        }))
-      })
-
-      if (overlappingCodes.length > 0) {
-        console.log('[GeneralExpenseForm] DUPLICATE FOUND:', {
-          code,
-          overlappingEntries: overlappingCodes,
-          isDuplicate: true
-        })
-        return true
-      }
-
-      console.log('[GeneralExpenseForm] No overlapping duplicates found - code is unique')
-      return false
+      return uniquenessResult.isDuplicate
     } catch (error) {
       console.error('[GeneralExpenseForm] Error checking code uniqueness:', {
         error,

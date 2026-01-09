@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Button,
@@ -45,6 +45,7 @@ import {
   DateInput,
   Textarea
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import {
   PiPlus,
   PiCalendar,
@@ -68,7 +69,16 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { EnhancedExpenseRuleMileage, MeasurementUnitWithTranslations } from '../../../types/ExpenseRuleTypes'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import {
+  formatDateForInput,
+  checkPeriodUniqueness,
+  logGraphQLQuery,
+  logGraphQLResponse,
+  logUniquenessCheckStart,
+  formatDate
+} from '../../../utils'
 import { useGetMileageRuleById } from '../../../queries/ExpenseRuleQueries'
+import { useTableSorting, createFieldMappings } from '../hooks'
 
 interface MileageRulesTabProps {
   ruleId: string
@@ -124,13 +134,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
   const [isMileageRulesLoading, setIsMileageRulesLoading] = useState(false)
 
   // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // formatDateForInput is imported from shared utils
 
   const form = useForm<MileageRuleFormData>({
     defaultValues: {
@@ -145,6 +149,29 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
 
   // Pre-loaded usage status for all mileage rules (id -> isUsed)
   const [mileageUsageMap, setMileageUsageMap] = useState<Record<string, boolean>>({})
+
+  // Sorting - using shared hook
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      code: createFieldMappings.string((a: EnhancedExpenseRuleMileage) => a.code),
+      mileageRule: createFieldMappings.nested((a: EnhancedExpenseRuleMileage) => a.mileageRule),
+      reimbursable: createFieldMappings.boolean((a: EnhancedExpenseRuleMileage) => a.reimbursable),
+      unitPrice: createFieldMappings.number((a: EnhancedExpenseRuleMileage) => a.unitPrice),
+      taxValue: createFieldMappings.number((a: EnhancedExpenseRuleMileage) => a.taxValue),
+      expenseGroup: createFieldMappings.nested((a: EnhancedExpenseRuleMileage) => a.expenseGroup),
+      activeFrom: createFieldMappings.date((a: EnhancedExpenseRuleMileage) => a.activeFrom)
+    }),
+    []
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<EnhancedExpenseRuleMileage>({
+    defaultSortField: 'code',
+    defaultSortOrder: 'ASC',
+    data: mileageRules,
+    fieldMappings
+  })
 
   // Restricted edit state
   const [isRestrictedEdit, setIsRestrictedEdit] = useState(false)
@@ -237,6 +264,52 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     }
   }, [graphqlClient, activeFrom, activeTo])
 
+  // Load usage status for all mileage rules in a single batched query
+  const loadMileageUsageStatus = useCallback(
+    async (mileageIds: string[]) => {
+      if (mileageIds.length === 0) return
+
+      try {
+        const query = `
+        query CheckAllMileageUsage($mileageIds: [uuid!]!) {
+          planItems: ExpensePlanItem(
+            where: { expenseRuleMileageId: { _in: $mileageIds }, isDeleted: { _eq: false } }
+          ) { expenseRuleMileageId }
+          items: ExpenseItem(
+            where: { expenseRuleMileageId: { _in: $mileageIds }, isDeleted: { _eq: false } }
+          ) { expenseRuleMileageId }
+          positions: ExpensePosition(
+            where: { expenseRuleMileageId: { _in: $mileageIds }, isDeleted: { _eq: false } }
+          ) { expenseRuleMileageId }
+        }
+      `
+
+        const result = await graphqlClient.request<{
+          planItems: { expenseRuleMileageId: string }[]
+          items: { expenseRuleMileageId: string }[]
+          positions: { expenseRuleMileageId: string }[]
+        }>(query, { mileageIds })
+
+        // Build a set of used mileage IDs
+        const usedIds = new Set<string>()
+        result.planItems?.forEach(item => usedIds.add(item.expenseRuleMileageId))
+        result.items?.forEach(item => usedIds.add(item.expenseRuleMileageId))
+        result.positions?.forEach(item => usedIds.add(item.expenseRuleMileageId))
+
+        // Create usage map
+        const usageMap: Record<string, boolean> = {}
+        mileageIds.forEach(id => {
+          usageMap[id] = usedIds.has(id)
+        })
+
+        setMileageUsageMap(usageMap)
+      } catch (error) {
+        console.error('Error loading mileage usage status:', error)
+      }
+    },
+    [graphqlClient]
+  )
+
   const fetchMileageRules = useCallback(async () => {
     setIsLoading(true)
     setError(null)
@@ -308,53 +381,10 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     } finally {
       setIsLoading(false)
     }
-  }, [graphqlClient, ruleId])
+  }, [graphqlClient, ruleId, loadMileageUsageStatus])
 
-  // Load usage status for all mileage rules in a single batched query
-  const loadMileageUsageStatus = useCallback(
-    async (mileageIds: string[]) => {
-      if (mileageIds.length === 0) return
-
-      try {
-        const query = `
-        query CheckAllMileageUsage($mileageIds: [uuid!]!) {
-          planItems: ExpensePlanItem(
-            where: { expenseRuleMileageId: { _in: $mileageIds }, isDeleted: { _eq: false } }
-          ) { expenseRuleMileageId }
-          items: ExpenseItem(
-            where: { expenseRuleMileageId: { _in: $mileageIds }, isDeleted: { _eq: false } }
-          ) { expenseRuleMileageId }
-          positions: ExpensePosition(
-            where: { expenseRuleMileageId: { _in: $mileageIds }, isDeleted: { _eq: false } }
-          ) { expenseRuleMileageId }
-        }
-      `
-
-        const result = await graphqlClient.request<{
-          planItems: { expenseRuleMileageId: string }[]
-          items: { expenseRuleMileageId: string }[]
-          positions: { expenseRuleMileageId: string }[]
-        }>(query, { mileageIds })
-
-        // Build a set of used mileage IDs
-        const usedIds = new Set<string>()
-        result.planItems?.forEach(item => usedIds.add(item.expenseRuleMileageId))
-        result.items?.forEach(item => usedIds.add(item.expenseRuleMileageId))
-        result.positions?.forEach(item => usedIds.add(item.expenseRuleMileageId))
-
-        // Create usage map
-        const usageMap: Record<string, boolean> = {}
-        mileageIds.forEach(id => {
-          usageMap[id] = usedIds.has(id)
-        })
-
-        setMileageUsageMap(usageMap)
-      } catch (error) {
-        console.error('Error loading mileage usage status:', error)
-      }
-    },
-    [graphqlClient]
-  )
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  const sortedMileageRules = sorting.sortedData || mileageRules
 
   useEffect(() => {
     if (ruleId && accessToken) {
@@ -458,7 +488,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
   // Check if code is unique within the validity period
   const checkCodeUniqueness = useCallback(
     async (code: string, activeFrom: string, activeTo: string | undefined, excludeId?: string): Promise<boolean> => {
-      console.log('[MileageRulesTab] checkCodeUniqueness called:', {
+      logUniquenessCheckStart('MileageRulesTab', 'checkCodeUniqueness', {
         code,
         activeFrom,
         activeTo,
@@ -492,58 +522,25 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
           excludeId: excludeId || null
         }
 
-        console.log('[MileageRulesTab] GraphQL query variables:', variables)
+        logGraphQLQuery('MileageRulesTab', variables)
 
         const result = await graphqlClient.request<{
           ExpenseRuleMileage: { id: string; code: string; activeFrom: string; activeTo?: string }[]
         }>(query, variables)
 
-        console.log('[MileageRulesTab] GraphQL response:', {
-          result,
-          foundCount: result.ExpenseRuleMileage?.length || 0,
-          allMatchingCodes: result.ExpenseRuleMileage
+        logGraphQLResponse('MileageRulesTab', 'ExpenseRuleMileage', result)
+
+        // Check for overlapping periods using shared utility
+        const uniquenessResult = checkPeriodUniqueness({
+          ruleId,
+          excludeId,
+          newPeriod: { activeFrom, activeTo },
+          existingPeriods: result.ExpenseRuleMileage,
+          componentName: 'MileageRulesTab',
+          entityName: 'ExpenseRuleMileage'
         })
 
-        // Check for overlapping periods in JavaScript
-        const newPeriodFrom = dayjs(activeFrom).startOf('day')
-        const newPeriodTo = activeTo ? dayjs(activeTo).endOf('day') : null
-
-        const overlappingCodes = result.ExpenseRuleMileage.filter(existing => {
-          const existingFrom = dayjs(existing.activeFrom)
-          const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
-
-          // Two periods overlap if they don't have a gap between them
-          const periodsDontOverlap =
-            (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
-            (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
-
-          return !periodsDontOverlap
-        })
-
-        console.log('[MileageRulesTab] Overlap check:', {
-          newPeriod: {
-            from: newPeriodFrom.format('YYYY-MM-DD'),
-            to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
-          },
-          overlappingCodes: overlappingCodes.map(c => ({
-            id: c.id,
-            code: c.code,
-            from: dayjs(c.activeFrom).format('YYYY-MM-DD'),
-            to: c.activeTo ? dayjs(c.activeTo).format('YYYY-MM-DD') : 'infinite'
-          }))
-        })
-
-        if (overlappingCodes.length > 0) {
-          console.log('[MileageRulesTab] DUPLICATE FOUND:', {
-            code,
-            overlappingEntries: overlappingCodes,
-            isDuplicate: true
-          })
-          return true
-        }
-
-        console.log('[MileageRulesTab] No overlapping duplicates found - code is unique')
-        return false
+        return uniquenessResult.isDuplicate
       } catch (error) {
         console.error('[MileageRulesTab] Error checking code uniqueness:', {
           error,
@@ -697,11 +694,6 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     }
   }
 
-  // Helper functions
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD.MM.YYYY')
-  }
-
   const formatTaxValue = (value?: number): string => {
     if (value === undefined || value === null) return '0.00%'
     return `${value.toFixed(2)}%`
@@ -833,29 +825,75 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                 <TableHead className="gba:w-[60px]" data-testid="mileage-rules-table-header-actions">
                   ACTIONS
                 </TableHead>
-                <TableHead className="gba:w-[180px]" data-testid="mileage-rules-table-header-mileage">
-                  MILEAGE
-                </TableHead>
-                <TableHead className="gba:w-[160px]" data-testid="mileage-rules-table-header-rule">
-                  MILEAGE RULE
+                <TableHead
+                  className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => sorting.handleSort('code')}
+                  data-testid="mileage-rules-table-header-mileage"
+                >
+                  <div className="gba:flex gba:items-center">
+                    MILEAGE
+                    {sorting.renderSortIcon('code')}
+                  </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[100px] gba:text-center"
+                  className="gba:w-[160px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => sorting.handleSort('mileageRule')}
+                  data-testid="mileage-rules-table-header-rule"
+                >
+                  <div className="gba:flex gba:items-center">
+                    MILEAGE RULE
+                    {sorting.renderSortIcon('mileageRule')}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="gba:w-[100px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => sorting.handleSort('reimbursable')}
                   data-testid="mileage-rules-table-header-reimbursable"
                 >
-                  REIMBURSABLE
+                  <div className="gba:flex gba:items-center gba:justify-center">
+                    REIMBURSABLE
+                    {sorting.renderSortIcon('reimbursable')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[120px]" data-testid="mileage-rules-table-header-rate">
-                  RATE
+                <TableHead
+                  className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => sorting.handleSort('unitPrice')}
+                  data-testid="mileage-rules-table-header-rate"
+                >
+                  <div className="gba:flex gba:items-center">
+                    RATE
+                    {sorting.renderSortIcon('unitPrice')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[120px]" data-testid="mileage-rules-table-header-tax">
-                  TAX
+                <TableHead
+                  className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => sorting.handleSort('taxValue')}
+                  data-testid="mileage-rules-table-header-tax"
+                >
+                  <div className="gba:flex gba:items-center">
+                    TAX
+                    {sorting.renderSortIcon('taxValue')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[160px]" data-testid="mileage-rules-table-header-validity">
-                  VALIDITY
+                <TableHead
+                  className="gba:w-[160px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => sorting.handleSort('activeFrom')}
+                  data-testid="mileage-rules-table-header-validity"
+                >
+                  <div className="gba:flex gba:items-center">
+                    VALIDITY
+                    {sorting.renderSortIcon('activeFrom')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[120px]" data-testid="mileage-rules-table-header-group">
-                  EXPENSE GROUP
+                <TableHead
+                  className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                  onClick={() => sorting.handleSort('expenseGroup')}
+                  data-testid="mileage-rules-table-header-group"
+                >
+                  <div className="gba:flex gba:items-center">
+                    EXPENSE GROUP
+                    {sorting.renderSortIcon('expenseGroup')}
+                  </div>
                 </TableHead>
                 <TableHead className="gba:w-[100px]" data-testid="mileage-rules-table-header-properties">
                   PROPERTIES
@@ -863,7 +901,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
               </TableRow>
             </TableHeader>
             <TableBody data-testid="mileage-rules-table-body">
-              {mileageRules.length === 0 ? (
+              {sortedMileageRules.length === 0 ? (
                 <TableRow data-testid="mileage-rules-empty-row">
                   <TableCell colSpan={9} className="gba:text-center gba:py-8" data-testid="mileage-rules-empty-cell">
                     <div className="gba:text-muted-foreground" data-testid="mileage-rules-empty-message">
@@ -872,7 +910,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                   </TableCell>
                 </TableRow>
               ) : (
-                mileageRules.map(record => (
+                sortedMileageRules.map(record => (
                   <TableRow key={record.id} data-testid={`mileage-rule-row-${record.id}`}>
                     <TableCell data-testid={`mileage-rule-action-cell-${record.id}`}>
                       <div className="gba:flex gba:justify-start gba:gap-2">
@@ -1033,7 +1071,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
           }
         }}
       >
-        <DialogContent className="gba:max-w-2xl" data-testid="mileage-rule-modal">
+        <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto" data-testid="mileage-rule-modal">
           <DialogHeader data-testid="mileage-rule-modal-header">
             <DialogTitle data-testid="mileage-rule-modal-title">
               {editingItem ? 'Edit' : 'Add'} Mileage Rule
@@ -1414,43 +1452,19 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="gba:max-w-md" data-testid="mileage-delete-confirmation-modal">
-          <DialogHeader data-testid="mileage-delete-confirmation-modal-header">
-            <DialogTitle data-testid="mileage-delete-confirmation-modal-title">Delete Mileage Rule</DialogTitle>
-          </DialogHeader>
-
-          <div className="gba:py-4" data-testid="mileage-delete-confirmation-content">
-            <p className="gba:text-muted-foreground">
-              Are you sure you want to delete the mileage rule &quot;{itemToDelete?.code} - {itemToDelete?.name}&quot;?
-            </p>
-            <p className="gba:text-sm gba:text-destructive gba:mt-2">This action cannot be undone.</p>
-          </div>
-
-          <DialogFooter data-testid="mileage-delete-confirmation-modal-footer">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteDialogOpen(false)
-                setItemToDelete(null)
-              }}
-              disabled={isDeleting}
-              data-testid="mileage-delete-confirmation-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="mileage-delete-confirmation-confirm-button"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Mileage Rule"
+        itemDescription={`the mileage rule "${itemToDelete?.code} - ${itemToDelete?.name}"`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="mileage-delete"
+      />
     </div>
   )
 }

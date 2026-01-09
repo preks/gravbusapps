@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Button,
@@ -42,6 +42,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import { PiPlus, PiPencil, PiCalendar, PiCode, PiDotsThreeVertical, PiTrash, PiWarning } from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -53,6 +54,16 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import {
+  formatDateForInput,
+  findOverlappingPeriods,
+  logGraphQLQuery,
+  logGraphQLResponse,
+  logUniquenessCheckStart,
+  formatDate
+} from '../../../utils'
+import { useTableSorting, createFieldMappings } from '../hooks'
+import { UsageInfo } from '../../../types'
 
 interface CustomFieldsTabProps {
   ruleId: string
@@ -93,16 +104,6 @@ interface RelatedOption {
   name: string
 }
 
-// Usage check result
-interface UsageInfo {
-  isUsed: boolean
-  usedIn: {
-    positions?: number
-    items?: number
-  }
-  message: string
-}
-
 const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -122,14 +123,27 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
   const [availableExpenses, setAvailableExpenses] = useState<RelatedOption[]>([])
   const [availableMileage, setAvailableMileage] = useState<RelatedOption[]>([])
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      source: createFieldMappings.string((a: CustomField) => a.source),
+      linkedItem: createFieldMappings.string((a: CustomField) => a.relatedCode || a.relatedName),
+      infoValue: createFieldMappings.string((a: CustomField) => a.infoValue),
+      mandatory: createFieldMappings.boolean((a: CustomField) => a.mandatory),
+      activeFrom: createFieldMappings.date((a: CustomField) => a.validFrom)
+    }),
+    []
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<CustomField>({
+    defaultSortField: 'source',
+    defaultSortOrder: 'ASC',
+    data: customFields,
+    fieldMappings
+  })
+
+  // formatDateForInput is imported from shared utils
 
   const form = useForm<CustomFieldFormData>({
     defaultValues: {
@@ -156,6 +170,20 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
+
+  // Load usage status for all custom fields
+  // Note: Custom fields don't have direct references in ExpensePosition/ExpenseItem,
+  // so we can't track usage. All fields are treated as not in use.
+  const loadFieldUsageStatus = useCallback(async (fieldIds: string[]) => {
+    if (fieldIds.length === 0) return
+
+    // Since there's no direct link to track usage, allow all operations
+    const emptyMap: Record<string, boolean> = {}
+    fieldIds.forEach(id => {
+      emptyMap[id] = false
+    })
+    setFieldUsageMap(emptyMap)
+  }, [])
 
   // REAL GraphQL data from ExpenseRuleOtherInfo + available expenses/mileage
   const fetchCustomFields = useCallback(async () => {
@@ -276,21 +304,10 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     } finally {
       setIsLoading(false)
     }
-  }, [ruleId, graphqlClient])
+  }, [ruleId, graphqlClient, loadFieldUsageStatus])
 
-  // Load usage status for all custom fields
-  // Note: Custom fields don't have direct references in ExpensePosition/ExpenseItem,
-  // so we can't track usage. All fields are treated as not in use.
-  const loadFieldUsageStatus = useCallback(async (fieldIds: string[]) => {
-    if (fieldIds.length === 0) return
-
-    // Since there's no direct link to track usage, allow all operations
-    const emptyMap: Record<string, boolean> = {}
-    fieldIds.forEach(id => {
-      emptyMap[id] = false
-    })
-    setFieldUsageMap(emptyMap)
-  }, [])
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  const sortedCustomFields = sorting.sortedData || customFields
 
   // Check detailed usage for a single custom field
   // Note: Custom fields don't have direct references in ExpensePosition/ExpenseItem
@@ -304,10 +321,6 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       fetchCustomFields()
     }
   }, [ruleId, accessToken, fetchCustomFields])
-
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
 
   const sourceOptions = [
     { value: 'Expense', label: 'Expense' },
@@ -409,7 +422,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       activeTo: string | undefined,
       excludeId?: string
     ): Promise<boolean> => {
-      console.log('[CustomFieldsTab] checkCustomFieldUniqueness called:', {
+      logUniquenessCheckStart('CustomFieldsTab', 'checkCustomFieldUniqueness', {
         source,
         relatedId,
         activeFrom,
@@ -453,7 +466,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           excludeId: excludeId || null
         }
 
-        console.log('[CustomFieldsTab] GraphQL query variables:', variables)
+        logGraphQLQuery('CustomFieldsTab', variables)
 
         const result = await graphqlClient.request<{
           ExpenseRuleOtherInfo: {
@@ -465,11 +478,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           }[]
         }>(query, variables)
 
-        console.log('[CustomFieldsTab] GraphQL response:', {
-          result,
-          foundCount: result.ExpenseRuleOtherInfo?.length || 0,
-          allMatchingFields: result.ExpenseRuleOtherInfo
-        })
+        logGraphQLResponse('CustomFieldsTab', 'ExpenseRuleOtherInfo', result)
 
         // Filter by relatedId based on source type
         const matchingByRelatedId = result.ExpenseRuleOtherInfo.filter(existing => {
@@ -481,33 +490,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           return false
         })
 
-        // Check for overlapping periods in JavaScript
-        const newPeriodFrom = dayjs(activeFrom).startOf('day')
-        const newPeriodTo = activeTo ? dayjs(activeTo).endOf('day') : null
-
-        const overlappingFields = matchingByRelatedId.filter(existing => {
-          const existingFrom = dayjs(existing.activeFrom)
-          const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
-
-          // Two periods overlap if they don't have a gap between them
-          const periodsDontOverlap =
-            (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
-            (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
-
-          return !periodsDontOverlap
-        })
-
-        console.log('[CustomFieldsTab] Overlap check:', {
-          newPeriod: {
-            from: newPeriodFrom.format('YYYY-MM-DD'),
-            to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
-          },
-          overlappingFields: overlappingFields.map(f => ({
-            id: f.id,
-            from: dayjs(f.activeFrom).format('YYYY-MM-DD'),
-            to: f.activeTo ? dayjs(f.activeTo).format('YYYY-MM-DD') : 'infinite'
-          }))
-        })
+        // Check for overlapping periods using shared utility
+        const overlappingFields = findOverlappingPeriods({ activeFrom, activeTo }, matchingByRelatedId)
 
         if (overlappingFields.length > 0) {
           console.log('[CustomFieldsTab] DUPLICATE FOUND:', {
@@ -537,7 +521,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         return true // Block save on error
       }
     },
-    [ruleId, graphqlClient]
+    [ruleId, graphqlClient, mapSourceToApiEnum]
   )
 
   const handleSave = async () => {
@@ -732,32 +716,67 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         </CardHeader>
 
         <CardContent data-testid="custom-fields-card-content">
-          {customFields.length > 0 ? (
+          {sortedCustomFields.length > 0 ? (
             <Table data-testid="custom-fields-table">
               <TableHeader data-testid="custom-fields-table-header">
                 <TableRow data-testid="custom-fields-table-header-row">
                   <TableHead className="gba:w-[60px]" data-testid="custom-fields-table-header-actions">
                     ACTIONS
                   </TableHead>
-                  <TableHead className="gba:w-[100px]" data-testid="custom-fields-table-header-source">
-                    SOURCE
+                  <TableHead
+                    className="gba:w-[100px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('source')}
+                    data-testid="custom-fields-table-header-source"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      SOURCE
+                      {sorting.renderSortIcon('source')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[200px]" data-testid="custom-fields-table-header-linked">
-                    LINKED ITEM
+                  <TableHead
+                    className="gba:w-[200px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('linkedItem')}
+                    data-testid="custom-fields-table-header-linked"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      LINKED ITEM
+                      {sorting.renderSortIcon('linkedItem')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[200px]" data-testid="custom-fields-table-header-value">
-                    INFO VALUE
+                  <TableHead
+                    className="gba:w-[200px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('infoValue')}
+                    data-testid="custom-fields-table-header-value"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      INFO VALUE
+                      {sorting.renderSortIcon('infoValue')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[100px]" data-testid="custom-fields-table-header-mandatory">
-                    MANDATORY
+                  <TableHead
+                    className="gba:w-[100px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('mandatory')}
+                    data-testid="custom-fields-table-header-mandatory"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      MANDATORY
+                      {sorting.renderSortIcon('mandatory')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[180px]" data-testid="custom-fields-table-header-validity">
-                    VALIDITY
+                  <TableHead
+                    className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('activeFrom')}
+                    data-testid="custom-fields-table-header-validity"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      VALIDITY
+                      {sorting.renderSortIcon('activeFrom')}
+                    </div>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody data-testid="custom-fields-table-body">
-                {customFields.map(record => (
+                {sortedCustomFields.map(record => (
                   <TableRow key={record.id} data-testid={`custom-field-row-${record.id}`}>
                     <TableCell data-testid={`custom-field-actions-cell-${record.id}`}>
                       <DropdownMenu>
@@ -878,38 +897,19 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent data-testid="custom-field-delete-dialog">
-          <DialogHeader>
-            <DialogTitle>Delete Custom Field</DialogTitle>
-          </DialogHeader>
-          <div className="gba:py-4">
-            <p>
-              Are you sure you want to delete the custom field "{itemToDelete?.infoValue}"? This action cannot be
-              undone.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={isDeleting}
-              data-testid="custom-field-delete-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="custom-field-delete-confirm-button"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Custom Field"
+        itemDescription={`the custom field "${itemToDelete?.infoValue}"`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="custom-field-delete"
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>

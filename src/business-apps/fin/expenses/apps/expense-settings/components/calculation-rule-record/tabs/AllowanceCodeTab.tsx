@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
@@ -43,6 +43,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import {
   PiPlus,
   PiPencil,
@@ -65,14 +66,23 @@ dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import {
+  formatDateForInput,
+  formatDate,
+  checkPeriodUniqueness,
+  logGraphQLQuery,
+  logGraphQLResponse,
+  logUniquenessCheckStart
+} from '../../../utils'
+import {
   validateAmountAndPercentage,
   validateAllowanceCodeDates,
   transformAllowanceCodeForUnrestrictedUpdate,
   transformAllowanceCodeForRestrictedUpdate,
   transformAllowanceCodeForCreate,
-  transformAllowanceCodeFromAPI
+  transformAllowanceCodeFromAPI,
+  type AllowanceCodeSaveData
 } from '../utils'
-import { useAllowanceCodeUsageCheck } from '../hooks'
+import { useAllowanceCodeUsageCheck, useTableSorting, createFieldMappings } from '../hooks'
 import { TravelLocation, TravelLocationLabels } from '../../../types/ExpenseEnums'
 
 interface AllowanceCodeTabProps {
@@ -154,14 +164,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   const [isSaving, setIsSaving] = useState(false)
   const [editingItem, setEditingItem] = useState<AllowanceCode | null>(null)
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // formatDateForInput is imported from shared utils
 
   // i18n translations
   const amountPercentageHelperText = getTranslationFromI18nKeyAndLabel(
@@ -217,6 +220,32 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
   // Filtered region rules based on selected travel region set
   const [filteredRegionRules, setFilteredRegionRules] = useState<AllowanceRegionRule[]>([])
+
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      code: createFieldMappings.string((a: AllowanceCode) => a.code),
+      name: createFieldMappings.string((a: AllowanceCode) => a.name),
+      reimbursable: createFieldMappings.boolean((a: AllowanceCode) => a.reimbursable),
+      amount: createFieldMappings.number((a: AllowanceCode) => a.amount),
+      activeFrom: createFieldMappings.date((a: AllowanceCode) => a.validFrom),
+      activeTo: createFieldMappings.date((a: AllowanceCode) => a.validTo, '9999-12-31'),
+      travelLocation: createFieldMappings.travelLocation((a: AllowanceCode) => a.travelLocation),
+      regionRule: createFieldMappings.nested((a: AllowanceCode) => a.firstAllowanceRegionRule),
+      percentage: createFieldMappings.number((a: AllowanceCode) => a.firstAllowanceRegionRulePercent),
+      calculation: createFieldMappings.calculation((a: AllowanceCode) => a.calculation, calculationOptions),
+      expenseGroup: createFieldMappings.nested((a: AllowanceCode) => a.expenseGroup)
+    }),
+    [calculationOptions]
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<AllowanceCode>({
+    defaultSortField: 'code',
+    defaultSortOrder: 'ASC',
+    data: allowanceCodes,
+    fieldMappings
+  })
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
@@ -372,6 +401,9 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     }
   }, [ruleId, graphqlClient])
 
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  const sortedAllowanceCodes = sorting.sortedData || allowanceCodes
+
   useEffect(() => {
     if (ruleId && accessToken) {
       fetchAllowanceCodes()
@@ -425,10 +457,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   // Locked when: adding new codes (codes exist) OR editing when multiple codes exist
   const isEditingOnlyCode = editingItem && allowanceCodes.length === 1
   const isTravelRegionSetLocked = allowanceCodes.length > 0 && !isEditingOnlyCode
-
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
 
   const handleAdd = () => {
     setEditingItem(null)
@@ -538,7 +566,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       activeTo: string | undefined,
       excludeId?: string
     ): Promise<{ isDuplicate: boolean; existingName?: string }> => {
-      console.log('[AllowanceCodeTab] checkCodeUniqueness called:', {
+      logUniquenessCheckStart('AllowanceCodeTab', 'checkCodeUniqueness', {
         code,
         activeFrom,
         activeTo,
@@ -547,10 +575,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       })
 
       try {
-        // For overlap check: periods overlap if:
-        // - new start <= existing end (or existing end is null/infinite)
-        // - AND new end >= existing start (or new end is null/infinite)
-        // We'll fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
+        // Fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
         const query = `
           query CheckAllowanceCodeUniqueness($ruleId: uuid!, $code: String!, $excludeId: uuid) {
             ExpenseRuleAllowanceCode(
@@ -570,77 +595,34 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
           }
         `
 
-        const activeFromISO = dayjs(activeFrom).startOf('day').toISOString()
-        const activeToISO = activeTo ? dayjs(activeTo).endOf('day').toISOString() : null
         const variables = {
           ruleId,
           code,
           excludeId: excludeId || null
         }
 
-        console.log('[AllowanceCodeTab] GraphQL query variables:', variables)
-        console.log('[AllowanceCodeTab] GraphQL query:', query)
+        logGraphQLQuery('AllowanceCodeTab', variables)
 
         const result = await graphqlClient.request<{
           ExpenseRuleAllowanceCode: { id: string; code: string; name: string; activeFrom: string; activeTo?: string }[]
         }>(query, variables)
 
-        console.log('[AllowanceCodeTab] GraphQL response:', {
-          result,
-          foundCount: result.ExpenseRuleAllowanceCode?.length || 0,
-          allMatchingCodes: result.ExpenseRuleAllowanceCode
+        logGraphQLResponse('AllowanceCodeTab', 'ExpenseRuleAllowanceCode', result)
+
+        // Check for overlapping periods using shared utility
+        const uniquenessResult = checkPeriodUniqueness({
+          ruleId,
+          excludeId,
+          newPeriod: { activeFrom, activeTo },
+          existingPeriods: result.ExpenseRuleAllowanceCode,
+          componentName: 'AllowanceCodeTab',
+          entityName: 'ExpenseRuleAllowanceCode'
         })
 
-        // Check for overlapping periods in JavaScript
-        const newPeriodFrom = dayjs(activeFromISO)
-        const newPeriodTo = activeToISO ? dayjs(activeToISO) : null
-
-        const overlappingCodes = result.ExpenseRuleAllowanceCode.filter(existing => {
-          const existingFrom = dayjs(existing.activeFrom)
-          const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
-
-          // Two periods overlap if:
-          // - new start <= existing end (or existing end is null/infinite)
-          // - AND new end >= existing start (or new end is null/infinite)
-          // They don't overlap if:
-          // - new end < existing start (if both exist)
-          // - OR existing end < new start (if both exist)
-
-          const periodsDontOverlap =
-            (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
-            (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
-
-          return !periodsDontOverlap
-        })
-
-        console.log('[AllowanceCodeTab] Overlap check:', {
-          newPeriod: {
-            from: newPeriodFrom.format('YYYY-MM-DD'),
-            to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
-          },
-          overlappingCodes: overlappingCodes.map(c => ({
-            id: c.id,
-            code: c.code,
-            from: dayjs(c.activeFrom).format('YYYY-MM-DD'),
-            to: c.activeTo ? dayjs(c.activeTo).format('YYYY-MM-DD') : 'infinite'
-          }))
-        })
-
-        if (overlappingCodes.length > 0) {
-          console.log('[AllowanceCodeTab] DUPLICATE FOUND:', {
-            code,
-            overlappingEntries: overlappingCodes,
-            isDuplicate: true
-          })
-          // Return the first duplicate's name for pre-filling
-          return {
-            isDuplicate: true,
-            existingName: overlappingCodes[0].name
-          }
+        return {
+          isDuplicate: uniquenessResult.isDuplicate,
+          existingName: uniquenessResult.existingName
         }
-
-        console.log('[AllowanceCodeTab] No overlapping duplicates found - code is unique')
-        return { isDuplicate: false }
       } catch (error) {
         console.error('[AllowanceCodeTab] Error checking code uniqueness:', {
           error,
@@ -773,6 +755,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       setIsRestrictedEdit(false)
       await fetchAllowanceCodes()
     } catch (error) {
+      const formValues = form.getValues()
       console.error('[AllowanceCodeTab] handleSave - Save error:', {
         error,
         errorMessage: error instanceof Error ? error.message : String(error),
@@ -838,7 +821,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         </CardHeader>
 
         <CardContent data-testid="allowance-code-card-content">
-          {allowanceCodes.length > 0 ? (
+          {sortedAllowanceCodes.length > 0 ? (
             <div className="gba:overflow-x-auto">
               <Table data-testid="allowance-codes-table">
                 <TableHeader data-testid="allowance-codes-table-header">
@@ -846,52 +829,120 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                     <TableHead className="gba:w-[60px]" data-testid="allowance-codes-table-header-actions">
                       ACTIONS
                     </TableHead>
-                    <TableHead className="gba:w-[150px]" data-testid="allowance-codes-table-header-code">
-                      CODE
-                    </TableHead>
-                    <TableHead className="gba:w-[180px]" data-testid="allowance-codes-table-header-name">
-                      NAME
+                    <TableHead
+                      className="gba:w-[150px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('code')}
+                      data-testid="allowance-codes-table-header-code"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        CODE
+                        {sorting.renderSortIcon('code')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[120px] gba:text-center"
+                      className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('name')}
+                      data-testid="allowance-codes-table-header-name"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        NAME
+                        {sorting.renderSortIcon('name')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[120px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('reimbursable')}
                       data-testid="allowance-codes-table-header-reimbursable"
                     >
-                      REIMBURSABLE
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        REIMBURSABLE
+                        {sorting.renderSortIcon('reimbursable')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[100px] gba:text-right"
+                      className="gba:w-[100px] gba:text-right gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('amount')}
                       data-testid="allowance-codes-table-header-amount"
                     >
-                      AMOUNT
-                    </TableHead>
-                    <TableHead className="gba:w-[120px]" data-testid="allowance-codes-table-header-travel-location">
-                      TRAVEL LOCATION
-                    </TableHead>
-                    <TableHead className="gba:w-[180px]" data-testid="allowance-codes-table-header-region-rule">
-                      REGION RULE
+                      <div className="gba:flex gba:items-center gba:justify-end">
+                        AMOUNT
+                        {sorting.renderSortIcon('amount')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[100px] gba:text-center"
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('travelLocation')}
+                      data-testid="allowance-codes-table-header-travel-location"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        TRAVEL LOCATION
+                        {sorting.renderSortIcon('travelLocation')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('regionRule')}
+                      data-testid="allowance-codes-table-header-region-rule"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        REGION RULE
+                        {sorting.renderSortIcon('regionRule')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[100px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('percentage')}
                       data-testid="allowance-codes-table-header-percentage"
                     >
-                      PERCENTAGE
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        PERCENTAGE
+                        {sorting.renderSortIcon('percentage')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[120px]" data-testid="allowance-codes-table-header-calculation">
-                      CALCULATION
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('calculation')}
+                      data-testid="allowance-codes-table-header-calculation"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        CALCULATION
+                        {sorting.renderSortIcon('calculation')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[130px]" data-testid="allowance-codes-table-header-expense-group">
-                      EXPENSE GROUP
+                    <TableHead
+                      className="gba:w-[130px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('expenseGroup')}
+                      data-testid="allowance-codes-table-header-expense-group"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        EXPENSE GROUP
+                        {sorting.renderSortIcon('expenseGroup')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[120px]" data-testid="allowance-codes-table-header-valid-from">
-                      VALID FROM
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('activeFrom')}
+                      data-testid="allowance-codes-table-header-valid-from"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        VALID FROM
+                        {sorting.renderSortIcon('activeFrom')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[120px]" data-testid="allowance-codes-table-header-valid-to">
-                      VALID TO
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('activeTo')}
+                      data-testid="allowance-codes-table-header-valid-to"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        VALID TO
+                        {sorting.renderSortIcon('activeTo')}
+                      </div>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody data-testid="allowance-codes-table-body">
-                  {allowanceCodes.map(record => (
+                  {sortedAllowanceCodes.map(record => (
                     <TableRow key={record.id} data-testid={`allowance-code-row-${record.id}`}>
                       {/* Actions Column */}
                       <TableCell data-testid={`allowance-code-actions-cell-${record.id}`}>
@@ -1625,46 +1676,19 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="gba:max-w-md" data-testid="allowance-code-delete-confirmation-modal">
-          <DialogHeader data-testid="allowance-code-delete-confirmation-modal-header">
-            <DialogTitle data-testid="allowance-code-delete-confirmation-modal-title">
-              Delete Allowance Code
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="gba:py-4" data-testid="allowance-code-delete-confirmation-content">
-            <p className="gba:text-muted-foreground">
-              Are you sure you want to delete the allowance code &quot;{itemToDelete?.code} - {itemToDelete?.name}
-              &quot;?
-            </p>
-            <p className="gba:text-sm gba:text-destructive gba:mt-2">This action cannot be undone.</p>
-          </div>
-
-          <DialogFooter data-testid="allowance-code-delete-confirmation-modal-footer">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteDialogOpen(false)
-                setItemToDelete(null)
-              }}
-              disabled={isDeleting}
-              data-testid="allowance-code-delete-confirmation-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="allowance-code-delete-confirmation-confirm-button"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Allowance Code"
+        itemDescription={`the allowance code "${itemToDelete?.code} - ${itemToDelete?.name}"`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="allowance-code-delete"
+      />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Button,
   Badge,
@@ -12,11 +12,6 @@ import {
   TableCell,
   Alert,
   AlertDescription,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
   Spinner,
   Toaster,
   DropdownMenu,
@@ -29,6 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import { GeneralExpenseForm, GeneralExpenseFormData, UsageInfo } from '../../../forms/general-expense-form'
 import {
   PiPlus,
@@ -38,9 +34,7 @@ import {
   PiDotsThreeVertical,
   PiPencil,
   PiTrash,
-  PiInfo,
-  PiArrowUp,
-  PiArrowDown
+  PiInfo
 } from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -52,7 +46,8 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseRuleGeneralExpense, ExpenseGroupWithTranslations } from '../../../types/ExpenseRuleTypes'
-import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import { expenseSettingsClient, formatDate } from '../../../utils'
+import { useTableSorting, createFieldMappings } from '../hooks'
 
 interface GeneralExpensesTabProps {
   ruleId: string
@@ -88,79 +83,41 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   // Pre-loaded usage status for all expenses (expense id -> isUsed)
   const [expenseUsageMap, setExpenseUsageMap] = useState<Record<string, boolean>>({})
 
-  // Sorting state - default to alphabetical by code
-  const [sortField, setSortField] = useState<string>('code')
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC')
+  // Sorting - using shared hook
+  // Memoize nestedFieldMappings to prevent function recreation on every render
+  const nestedFieldMappings = useMemo(
+    () => ({
+      expenseGroup: {
+        field: 'expenseGroup.code',
+        secondarySort: 'code'
+      }
+    }),
+    []
+  )
+
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      code: createFieldMappings.string((a: GeneralExpenseWithAdditional) => a.code),
+      reimbursable: createFieldMappings.boolean((a: GeneralExpenseWithAdditional) => a.reimbursable),
+      taxCodeRef: createFieldMappings.string((a: GeneralExpenseWithAdditional) => a.taxCodeRef),
+      expenseGroup: createFieldMappings.nested((a: GeneralExpenseWithAdditional) => a.expenseGroup),
+      activeFrom: createFieldMappings.date((a: GeneralExpenseWithAdditional) => a.activeFrom)
+    }),
+    []
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<GeneralExpenseWithAdditional>({
+    defaultSortField: 'code',
+    defaultSortOrder: 'ASC',
+    nestedFieldMappings,
+    data: generalExpenses,
+    fieldMappings
+  })
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
-
-  const fetchGeneralExpenses = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Build orderBy clause based on sortField and sortOrder
-      // Handle nested fields like expenseGroup
-      let orderByClause: string
-      if (sortField === 'expenseGroup') {
-        // Sort by expenseGroup code first, then alphabetically by code within each group
-        orderByClause = `[{ expenseGroup: { code: ${sortOrder} } }, { code: ASC }]`
-      } else {
-        orderByClause = `{ ${sortField}: ${sortOrder} }`
-      }
-
-      const query = `
-        query GetExpenseRuleGeneralExpenses($ruleId: uuid!) {
-          ExpenseRule(where: { id: { _eq: $ruleId } }) {
-            id
-            code
-            name
-            expenseRuleGeneralExpense(where: { isDeleted: { _eq: false } }, orderBy: ${orderByClause}) {
-              id
-              code
-              name
-              reimbursable
-              taxCodeRef
-              taxValue
-              activeFrom
-              activeTo
-              version
-              additionalProperties
-              expenseGroup {
-                id
-                value
-                code
-                translations {
-                  value
-                  localeCode
-                }
-              }
-            }
-          }
-        }
-      `
-
-      const result = await graphqlClient.request<{
-        ExpenseRule: { expenseRuleGeneralExpense: GeneralExpenseWithAdditional[] }[]
-      }>(query, { ruleId })
-
-      const expenseRule = result.ExpenseRule?.[0]
-      const expenses = expenseRule?.expenseRuleGeneralExpense || []
-
-      setGeneralExpenses(expenses)
-
-      // Load usage status for all expenses
-      if (expenses.length > 0) {
-        await loadExpenseUsageStatus(expenses.map(e => e.id))
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load general expenses')
-      console.error('Error fetching general expenses:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [graphqlClient, ruleId, sortField, sortOrder])
 
   // Load usage status for all expenses in a single batched query
   const loadExpenseUsageStatus = useCallback(
@@ -209,11 +166,106 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     [graphqlClient]
   )
 
+  const fetchGeneralExpenses = useCallback(async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'GeneralExpensesTab.tsx:158',
+        message: 'fetchGeneralExpenses called',
+        data: { timestamp: Date.now(), sortField: sorting.sortField, sortOrder: sorting.sortOrder },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'pre-fix',
+        hypothesisId: 'A'
+      })
+    }).catch(() => {})
+    // #endregion
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const query = `
+        query GetExpenseRuleGeneralExpenses($ruleId: uuid!) {
+          ExpenseRule(where: { id: { _eq: $ruleId } }) {
+            id
+            code
+            name
+            expenseRuleGeneralExpense(where: { isDeleted: { _eq: false } }, orderBy: { code: ASC }) {
+              id
+              code
+              name
+              reimbursable
+              taxCodeRef
+              taxValue
+              activeFrom
+              activeTo
+              version
+              additionalProperties
+              expenseGroup {
+                id
+                value
+                code
+                translations {
+                  value
+                  localeCode
+                }
+              }
+            }
+          }
+        }
+      `
+
+      const result = await graphqlClient.request<{
+        ExpenseRule: { expenseRuleGeneralExpense: GeneralExpenseWithAdditional[] }[]
+      }>(query, { ruleId })
+
+      const expenseRule = result.ExpenseRule?.[0]
+      const expenses = expenseRule?.expenseRuleGeneralExpense || []
+
+      setGeneralExpenses(expenses)
+
+      // Load usage status for all expenses
+      if (expenses.length > 0) {
+        await loadExpenseUsageStatus(expenses.map(e => e.id))
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load general expenses')
+      console.error('Error fetching general expenses:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [ruleId, graphqlClient, loadExpenseUsageStatus])
+
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'GeneralExpensesTab.tsx:218',
+        message: 'useEffect triggered',
+        data: {
+          ruleId: !!ruleId,
+          accessToken: !!accessToken,
+          fetchGeneralExpensesRef: fetchGeneralExpenses.toString().substring(0, 50)
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'pre-fix',
+        hypothesisId: 'B'
+      })
+    }).catch(() => {})
+    // #endregion
     if (ruleId && accessToken) {
       fetchGeneralExpenses()
     }
   }, [ruleId, accessToken, fetchGeneralExpenses])
+
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  // Note: expenseGroup has secondary sort by code, handled in nestedFieldMappings
+  const sortedExpenses = sorting.sortedData || generalExpenses
 
   // Check if a general expense is used in ExpensePlanItem, ExpenseItem, or ExpensePosition
   const checkGeneralExpenseUsage = useCallback(
@@ -378,10 +430,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     }
   }
 
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD.MM.YYYY')
-  }
-
   const formatTaxValue = (taxValue?: number): string => {
     if (taxValue === undefined || taxValue === null) return 'Not set'
     return `${taxValue}%`
@@ -413,29 +461,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     return expenseGroup.value || 'Not set'
   }
 
-  // Handle header click for sorting
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      // Toggle sort order if clicking the same field
-      setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC')
-    } else {
-      // Set new field and default to ASC
-      setSortField(field)
-      setSortOrder('ASC')
-    }
-  }
-
-  // Render sort icon
-  const renderSortIcon = (field: string) => {
-    if (sortField !== field) {
-      return <span className="gba:ml-1 gba:inline-block gba:w-[12px] gba:h-[12px]" />
-    }
-    return sortOrder === 'ASC' ? (
-      <PiArrowUp className="gba:ml-1 gba:h-3 gba:w-3" />
-    ) : (
-      <PiArrowDown className="gba:ml-1 gba:h-3 gba:w-3" />
-    )
-  }
+  // Sorting functions are provided by useTableSorting hook
 
   const formatTaxCode = (taxCodeRef?: string): string => {
     if (!taxCodeRef) return 'Not set'
@@ -534,52 +560,52 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                 </TableHead>
                 <TableHead
                   className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
-                  onClick={() => handleSort('code')}
+                  onClick={() => sorting.handleSort('code')}
                   data-testid="general-expenses-table-header-expense"
                 >
                   <div className="gba:flex gba:items-center">
                     EXPENSE
-                    {renderSortIcon('code')}
+                    {sorting.renderSortIcon('code')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[100px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
-                  onClick={() => handleSort('reimbursable')}
+                  onClick={() => sorting.handleSort('reimbursable')}
                   data-testid="general-expenses-table-header-reimbursable"
                 >
                   <div className="gba:flex gba:items-center gba:justify-center">
                     REIMBURSABLE
-                    {renderSortIcon('reimbursable')}
+                    {sorting.renderSortIcon('reimbursable')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
-                  onClick={() => handleSort('taxCodeRef')}
+                  onClick={() => sorting.handleSort('taxCodeRef')}
                   data-testid="general-expenses-table-header-tax"
                 >
                   <div className="gba:flex gba:items-center">
                     TAX
-                    {renderSortIcon('taxCodeRef')}
+                    {sorting.renderSortIcon('taxCodeRef')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[160px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
-                  onClick={() => handleSort('activeFrom')}
+                  onClick={() => sorting.handleSort('activeFrom')}
                   data-testid="general-expenses-table-header-validity"
                 >
                   <div className="gba:flex gba:items-center">
                     VALIDITY
-                    {renderSortIcon('activeFrom')}
+                    {sorting.renderSortIcon('activeFrom')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
-                  onClick={() => handleSort('expenseGroup')}
+                  onClick={() => sorting.handleSort('expenseGroup')}
                   data-testid="general-expenses-table-header-group"
                 >
                   <div className="gba:flex gba:items-center">
                     EXPENSE GROUP
-                    {renderSortIcon('expenseGroup')}
+                    {sorting.renderSortIcon('expenseGroup')}
                   </div>
                 </TableHead>
                 <TableHead className="gba:w-[250px]" data-testid="general-expenses-table-header-additional">
@@ -588,7 +614,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
               </TableRow>
             </TableHeader>
             <TableBody data-testid="general-expenses-table-body">
-              {generalExpenses.length === 0 ? (
+              {sortedExpenses.length === 0 ? (
                 <TableRow data-testid="general-expenses-empty-row">
                   <TableCell colSpan={7} className="gba:text-center gba:py-8" data-testid="general-expenses-empty-cell">
                     <div className="gba:text-muted-foreground" data-testid="general-expenses-empty-message">
@@ -597,7 +623,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                   </TableCell>
                 </TableRow>
               ) : (
-                generalExpenses.map(record => (
+                sortedExpenses.map(record => (
                   <TableRow key={record.id} data-testid={`general-expense-row-${record.id}`}>
                     <TableCell data-testid={`general-expense-action-cell-${record.id}`}>
                       <div className="gba:flex gba:justify-start gba:gap-2">
@@ -781,44 +807,19 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
         }}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="gba:max-w-md" data-testid="delete-confirmation-modal">
-          <DialogHeader data-testid="delete-confirmation-modal-header">
-            <DialogTitle data-testid="delete-confirmation-modal-title">Delete General Expense</DialogTitle>
-          </DialogHeader>
-
-          <div className="gba:py-4" data-testid="delete-confirmation-content">
-            <p className="gba:text-muted-foreground">
-              Are you sure you want to delete the general expense &quot;{itemToDelete?.code} - {itemToDelete?.name}
-              &quot;?
-            </p>
-            <p className="gba:text-sm gba:text-destructive gba:mt-2">This action cannot be undone.</p>
-          </div>
-
-          <DialogFooter data-testid="delete-confirmation-modal-footer">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteDialogOpen(false)
-                setItemToDelete(null)
-              }}
-              disabled={isDeleting}
-              data-testid="delete-confirmation-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="delete-confirmation-confirm-button"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete General Expense"
+        itemDescription={`the general expense "${itemToDelete?.code} - ${itemToDelete?.name}"`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="general-expense-delete"
+      />
     </div>
   )
 }
