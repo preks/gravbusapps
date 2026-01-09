@@ -88,8 +88,8 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   // Pre-loaded usage status for all expenses (expense id -> isUsed)
   const [expenseUsageMap, setExpenseUsageMap] = useState<Record<string, boolean>>({})
 
-  // Sorting state - default to alphabetical by name
-  const [sortField, setSortField] = useState<string>('name')
+  // Sorting state - default to alphabetical by code
+  const [sortField, setSortField] = useState<string>('code')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC')
 
   // Set up client
@@ -104,8 +104,8 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
       // Handle nested fields like expenseGroup
       let orderByClause: string
       if (sortField === 'expenseGroup') {
-        // Sort by expenseGroup code first, then alphabetically by name within each group
-        orderByClause = `[{ expenseGroup: { code: ${sortOrder} } }, { name: ASC }]`
+        // Sort by expenseGroup code first, then alphabetically by code within each group
+        orderByClause = `[{ expenseGroup: { code: ${sortOrder} } }, { code: ASC }]`
       } else {
         orderByClause = `{ ${sortField}: ${sortOrder} }`
       }
@@ -534,12 +534,12 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                 </TableHead>
                 <TableHead
                   className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
-                  onClick={() => handleSort('name')}
+                  onClick={() => handleSort('code')}
                   data-testid="general-expenses-table-header-expense"
                 >
                   <div className="gba:flex gba:items-center">
                     EXPENSE
-                    {renderSortIcon('name')}
+                    {renderSortIcon('code')}
                   </div>
                 </TableHead>
                 <TableHead
