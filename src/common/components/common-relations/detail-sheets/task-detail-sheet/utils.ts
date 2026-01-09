@@ -24,18 +24,26 @@ type BadgeVariant =
   | 'ext8'
 
 export const getTaskStatusBadgeVariant = (status: string): BadgeVariant => {
-  switch (status?.toLowerCase()) {
-    case 'completed':
-      return 'success'
-    case 'in_progress':
-      return 'running'
-    case 'pending':
-      return 'pending'
-    case 'overdue':
-      return 'destructive'
-    default:
-      return 'default'
+  const normalized = status?.toUpperCase()
+
+  // Handle backend status values with _TASK_STATUS suffix
+  if (normalized.includes('COMPLETED') || normalized.includes('APPROVED')) {
+    return 'success'
   }
+  if (normalized.includes('REJECTED')) {
+    return 'destructive'
+  }
+  if (normalized.includes('IN_PROGRESS') || normalized.includes('SCHEDULED')) {
+    return 'info'
+  }
+  if (normalized.includes('PENDING')) {
+    return 'pending'
+  }
+  if (normalized.includes('OVERDUE')) {
+    return 'destructive'
+  }
+
+  return 'default'
 }
 
 export const getTaskPriorityBadgeVariant = (priority: string): BadgeVariant => {

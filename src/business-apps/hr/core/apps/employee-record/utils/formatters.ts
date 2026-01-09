@@ -1,5 +1,5 @@
 import { Employee } from '../hooks/useEmployeeData'
-import { parseNumber, getCountryCallingCode } from 'libphonenumber-js'
+import { parsePhoneNumberFromString, getCountryCallingCode } from 'libphonenumber-js'
 
 export const formatPhoneNumber = (phoneNumber: string): string => {
   if (!phoneNumber) return ''
@@ -27,17 +27,11 @@ export const formatPhoneNumberWithCountryCode = (phoneNumber: string): string =>
   }
 
   if (phoneNumber.startsWith('+')) {
-    try {
-      const parsed = parseNumber(phoneNumber)
-      if (parsed && 'country' in parsed && parsed.country) {
-        const callingCode = getCountryCallingCode(parsed.country)
-        const numberWithoutCode = phoneNumber.replace(`+${callingCode}`, '').trim()
-
-        if (numberWithoutCode) {
-          return `+${callingCode} ${numberWithoutCode}`
-        }
-      }
-    } catch {}
+    const parsed = parsePhoneNumberFromString(phoneNumber)
+    if (parsed && parsed.country) {
+      const callingCode = getCountryCallingCode(parsed.country)
+      return `+${callingCode} ${parsed.nationalNumber}`
+    }
 
     const withoutPlus = phoneNumber.substring(1).trim()
 
