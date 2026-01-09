@@ -1529,7 +1529,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                         <div className="gba:text-xs gba:font-semibold gba:text-primary gba:mb-1">✨ Every AI</div>
                         {aiStreamingText ? (
                           <div className="gba:text-sm gba:text-foreground gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:rounded-lg gba:p-2 gba:border gba:border-primary/20">
-                            <AIResponseRenderer content={aiStreamingText} />
+                            <AIResponseRenderer content={aiStreamingText} accessToken={accessToken} />
                           </div>
                         ) : (
                           <AIThinkingIndicator />

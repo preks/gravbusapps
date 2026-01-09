@@ -16,13 +16,11 @@ import type {
   FlowProposalOutput
 } from '../types/models'
 import type { ConversationTurn } from '../types/models'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import DynamicFormDisplay from './DynamicFormDisplay'
 // Standardized entity card
 import GenericEntityDisplay from './entities/GenericEntityDisplay'
 import WorkflowDisplay from './entities/WorkflowDisplay'
-import EntityLink, { markdownUrlTransform } from './links/EntityLink'
+import { MarkdownWithChipsRenderer, UnifiedTableRenderer } from '@/common/components/markdown'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -268,69 +266,28 @@ export const TextBlockDisplay: React.FC<{ data: TextBlockData; accessToken: stri
 
   return (
     <div className="gba:relative" data-testid="text-block-display">
-      <div className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            ul: ({ ...props }) => <ul className="gba:list-disc gba:ml-6" {...props} />,
-            ol: ({ ...props }) => <ol className="gba:list-decimal gba:ml-6" {...props} />,
-            a: ({ href, children, ...props }) => (
-              <EntityLink href={href} accessToken={accessToken} {...props}>
-                {children}
-              </EntityLink>
-            )
-          }}
-          urlTransform={markdownUrlTransform}
-        >
-          {content}
-        </ReactMarkdown>
-      </div>
+      <MarkdownWithChipsRenderer
+        content={content}
+        accessToken={accessToken}
+        variant="ai"
+        renderHttpLinksAsChips={false}
+      />
     </div>
   )
 }
 
-// Premium Table Display
-export const TableDisplay: React.FC<{ data: TableData }> = ({ data }) => {
+// Premium Table Display - now uses unified table renderer with chip support
+export const TableDisplay: React.FC<{ data: TableData; accessToken: string }> = ({ data, accessToken }) => {
   return (
-    <Card className="gba:border-2 gba:shadow-lg gba:overflow-hidden" data-testid="table-display">
-      {data.title && (
-        <CardHeader className="gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border-b-2">
-          <CardTitle className="gba:text-lg gba:font-bold gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:bg-clip-text gba:text-transparent">
-            {data.title}
-          </CardTitle>
-          {data.description && <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{data.description}</p>}
-        </CardHeader>
-      )}
-      <CardContent className="gba:p-0">
-        <div className="gba:overflow-x-auto">
-          <table className="gba:w-full gba:text-sm">
-            <thead className="gba:bg-muted/30">
-              <tr className="gba:border-b-2 gba:border-border">
-                {data.columnsTitles.map((title, idx) => (
-                  <th key={idx} className="gba:text-left gba:px-4 gba:py-3 gba:font-semibold gba:text-foreground">
-                    {title}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.rowsContents.map((row, rowIdx) => (
-                <tr
-                  key={rowIdx}
-                  className="gba:border-b gba:border-border/50 hover:gba:bg-accent/30 gba:transition-colors"
-                >
-                  {row.map((cell, cellIdx) => (
-                    <td key={cellIdx} className="gba:px-4 gba:py-3">
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+    <UnifiedTableRenderer
+      columnsTitles={data.columnsTitles}
+      rowsContents={data.rowsContents}
+      title={data.title}
+      description={data.description}
+      accessToken={accessToken}
+      showCard={true}
+      data-testid="table-display"
+    />
   )
 }
 
@@ -832,7 +789,7 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
     case 'textBlock':
       return <TextBlockDisplay key={idx} data={item} accessToken={accessToken} />
     case 'table':
-      return <TableDisplay key={idx} data={item} />
+      return <TableDisplay key={idx} data={item} accessToken={accessToken} />
     case 'bar':
       return <BarGraphDisplay key={idx} data={item} />
     case 'scatter':
