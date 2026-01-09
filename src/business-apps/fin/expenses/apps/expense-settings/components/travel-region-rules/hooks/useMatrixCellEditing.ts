@@ -294,12 +294,26 @@ export const useMatrixCellEditing = ({
 
         toast.success('Changes saved successfully')
 
-        // Close edit mode
+        // Close edit mode immediately
         setEditingCellId(null)
         setEditingCellUsageInfo(null)
 
-        // Immediately update the cell from response for instant UI feedback
-        // This ensures the saved data is visible right away
+        // IMMEDIATELY update the cell using the response data for instant UI feedback
+        // Extract data from response if available, otherwise use latestCell data
+        const responseDetail = response?.allowanceRegionRuleDetail
+        const savedCellId = latestCell.id || responseDetail?.id
+        const savedAmount = responseDetail?.amount ?? latestCell.amount
+        const savedActiveFrom = responseDetail?.activeFrom ?? latestCell.activeFrom
+        const savedActiveTo = responseDetail?.activeTo ?? latestCell.activeTo
+        const savedCurrencyRef = responseDetail?.currencyRef || currencyRef
+        const savedCurrencyCode = savedCurrencyRef?.split(':').pop() || latestCell.currencyCode
+        const savedVersion = responseDetail?.version
+          ? responseDetail.version + 1 // Backend increments but returns old version
+          : latestCell.version !== undefined
+            ? latestCell.version + 1
+            : (latestCell.version || 0) + 1
+
+        // Update the cell immediately with saved data
         setEditableCells(prev =>
           prev.map(c => {
             const isMatchingCell = latestCell.id
@@ -307,22 +321,28 @@ export const useMatrixCellEditing = ({
               : c.validityPeriodId === latestCell.validityPeriodId
 
             if (isMatchingCell) {
-              // Use the data from the response for immediate update
               const updatedCell = {
                 ...c,
-                id: c.id || response.allowanceRegionRuleDetail?.id,
-                amount: response.allowanceRegionRuleDetail?.amount ?? c.amount,
-                activeFrom: response.allowanceRegionRuleDetail?.activeFrom ?? c.activeFrom,
-                activeTo: response.allowanceRegionRuleDetail?.activeTo ?? c.activeTo,
-                currencyCode: response.allowanceRegionRuleDetail?.currencyRef?.split(':').pop() ?? c.currencyCode,
+                id: savedCellId || c.id,
+                amount: savedAmount,
+                activeFrom: savedActiveFrom,
+                activeTo: savedActiveTo,
+                currencyCode: savedCurrencyCode,
+                currencyRef: savedCurrencyRef,
+                countryRef: latestCell.countryRef || countryRef,
                 isNew: false,
                 isModified: false,
-                // Backend returns OLD version in response, so we increment it
-                // This is a known backend quirk - it increments in DB but returns old version
-                version: response.allowanceRegionRuleDetail?.version
-                  ? response.allowanceRegionRuleDetail.version + 1
-                  : (c.version || 0) + 1
+                version: savedVersion
               }
+
+              console.log('[handleSaveSingleCell] Immediate UI update:', {
+                cellId: updatedCell.id,
+                validityPeriodId: updatedCell.validityPeriodId,
+                amount: updatedCell.amount,
+                activeFrom: updatedCell.activeFrom,
+                activeTo: updatedCell.activeTo,
+                currencyCode: updatedCell.currencyCode
+              })
 
               return updatedCell
             }
@@ -330,14 +350,8 @@ export const useMatrixCellEditing = ({
           })
         )
 
-        // Then reload data to ensure UI shows the latest state from server
-        // This ensures we have the most up-to-date data including any server-side changes
-        try {
-          await loadData()
-        } catch (reloadErr) {
-          console.error('Error reloading data after save:', reloadErr)
-          // The immediate update above already shows the saved data, so this is just a fallback
-        }
+        // Don't reload data - we already have the response and updated the cell
+        // This prevents overwriting the optimistic update and ensures instant UI feedback
       } catch (error) {
         console.error('Error saving cell:', error)
         toast.error(`Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`)
