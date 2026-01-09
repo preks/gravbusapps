@@ -31,7 +31,6 @@ import {
   RadialBarChart as RechartsRadialBarChart,
   RadialBar,
   ResponsiveContainer,
-  Legend,
   Tooltip as RechartsTooltip
 } from 'recharts'
 import { SunburstVisualizationProps, HierarchyLevelReportData } from '../types/hierarchyTypes'
@@ -431,7 +430,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                       fill={getSegmentColor(segmentKey)}
                     />
                   ))}
-                  <Legend iconSize={8} layout="horizontal" verticalAlign="bottom" align="center" />
+                  {/* Legend removed to eliminate dots under the circles */}
                   <RechartsTooltip content={<CustomTooltip />} />
                 </RechartsRadialBarChart>
               </ResponsiveContainer>

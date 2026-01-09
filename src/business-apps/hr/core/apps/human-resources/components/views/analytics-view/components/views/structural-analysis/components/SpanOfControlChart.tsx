@@ -32,18 +32,6 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
   // Table columns configuration
   const columns = [
     {
-      title: t('hr-analytics-top-manager'),
-      dataIndex: 'managerName',
-      key: 'managerName',
-      width: 200,
-      render: (text: string, record: SpanOfControlData) => (
-        <div>
-          <Text strong>{text}</Text>
-          {record.managerLevel && <div className="gba:text-xs gba:text-muted-foreground">{record.managerLevel}</div>}
-        </div>
-      )
-    },
-    {
       title: t('hr-analytics-organizational-hierarchy'),
       dataIndex: 'organizationalUnit',
       key: 'organizationalUnit',

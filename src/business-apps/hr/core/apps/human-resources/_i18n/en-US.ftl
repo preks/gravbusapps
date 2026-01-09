@@ -282,6 +282,7 @@ hr-analytics-bottleneck-managers = Bottleneck Managers
 hr-analytics-detailed-reporting-chains = Detailed Reporting Chains
 hr-analytics-chain-id = Chain ID
 hr-analytics-top-manager = Top Manager
+hr-analytics-top-org-unit = Top organizational unit
 hr-analytics-levels-title = Levels
 hr-analytics-bottlenecks = Bottlenecks
 hr-analytics-efficiency = Efficiency
