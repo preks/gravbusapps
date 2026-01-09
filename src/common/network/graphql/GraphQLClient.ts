@@ -18,11 +18,7 @@ export class GraphQLClient {
     this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
   }
 
-  async request<T = any>(
-    query: string,
-    variables?: Record<string, any>,
-    options?: { signal?: AbortSignal }
-  ): Promise<T> {
+  async request<T = any>(query: string, variables?: Record<string, any>): Promise<T> {
     if (!this.endpoint) {
       throw new Error(
         'GraphQL endpoint is not configured. Please check NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK environment variable.'
@@ -40,8 +36,7 @@ export class GraphQLClient {
       body: JSON.stringify({
         query,
         variables
-      }),
-      signal: options?.signal
+      })
     })
 
     if (response.status === 302 || response.status === 301) {
