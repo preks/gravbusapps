@@ -2,31 +2,43 @@ import type { EmployeeSalaryRecord } from '../types'
 
 /**
  * Find active salary from a list of employee salaries
- * Logic: activeFrom <= now AND (activeTo >= now OR activeTo IS NULL)
- * Falls back to most recent salary if no active salary found
  *
- * Note: Uses Date object comparison for consistency with useCurrentCompensation.ts
+ * HYBRID APPROACH (Server-side + Client-side filtering):
+ *
+ * Server-side filters (EMPLOYEE_COMPENSATION_QUERY):
+ * - requestStatus = "APPROVED_SALARY_ADJUSTMENT" (only approved salaries)
+ * - isDeleted = false (exclude soft-deleted records)
+ * - startDate <= today (salary has started)
+ * - Ordered by startDate DESC (most recent first)
+ * - Limit: 5 records (for client-side filtering)
+ *
+ * Client-side filtering (this function):
+ * - Find first salary where: startDate <= today AND (endDate IS NULL OR endDate >= today)
+ * - Returns null if no active salary found
+ *
+ * Why client-side filtering?
+ * - GraphQL doesn't handle null comparison properly with _not operator
+ * - Ensures 100% accuracy for null endDate values
+ * - Covers edge cases (expired salaries with recent startDate)
  */
 export const findActiveSalary = (salaries: EmployeeSalaryRecord[]): EmployeeSalaryRecord | null => {
   if (!salaries || salaries.length === 0) {
     return null
   }
 
-  const nowDate = new Date()
+  // Get today's date in ISO format (YYYY-MM-DD) for string comparison
+  const today = new Date().toISOString().split('T')[0]
 
-  // Find active salary based on date range
+  // Find active salary: startDate <= today (guaranteed by server) AND (endDate IS NULL OR endDate >= today)
+  // Server query already filtered by startDate <= today, so we only check endDate
+  // Use string comparison to avoid timezone issues (YYYY-MM-DD format)
   const activeSalary = salaries.find(salary => {
-    const activeFrom = salary.activeFrom ? new Date(salary.activeFrom) : null
-    const activeTo = salary.activeTo ? new Date(salary.activeTo) : null
+    // Server guarantees startDate <= today, so we only need to check endDate
+    const isNotExpired = !salary.endDate || salary.endDate >= today
 
-    // Null activeFrom means always valid from beginning
-    // Null activeTo means never expires
-    const isActiveFrom = !activeFrom || activeFrom <= nowDate
-    const isActiveTo = !activeTo || activeTo >= nowDate
-
-    return isActiveFrom && isActiveTo
+    return isNotExpired
   })
 
-  // Fallback to most recent salary (first in array since ordered by activeFrom DESC, createdAt DESC)
-  return activeSalary || salaries[0] || null
+  // Return active salary, or null if no active salary found
+  return activeSalary || null
 }
