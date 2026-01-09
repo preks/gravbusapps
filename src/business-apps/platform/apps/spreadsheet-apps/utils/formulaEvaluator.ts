@@ -67,6 +67,41 @@ function evaluateExpression(expr: string, context: FormulaContext): unknown {
     return evaluateFunction(functionName, args, context)
   }
 
+  // Handle single cell references directly (e.g., A1, B2, or column names)
+  const cellRef = parseCellReference(expr, context)
+  if (cellRef) {
+    const { colIndex, rowIndex } = cellRef
+    if (rowIndex >= 0 && rowIndex < context.allRows.length && colIndex >= 0 && colIndex < context.columns.length) {
+      const row = context.allRows[rowIndex]
+      const col = context.columns[colIndex]
+      const colName = col.name
+      
+      // Try multiple ways to get the value
+      let value = row[colName]
+      if (value === undefined) value = row[col.id]
+      if (value === undefined) {
+        const rowKeys = Object.keys(row)
+        const matchingKey = rowKeys.find(
+          key => key.toLowerCase() === colName.toLowerCase() || key.toLowerCase() === col.id.toLowerCase()
+        )
+        if (matchingKey) value = row[matchingKey]
+      }
+      
+      // Return the value (even if undefined/null, let SUM handle it)
+      return value
+    }
+    return null
+  }
+
+  // Check if it's a column name reference (for current row)
+  const col = context.columns.find(
+    c => c.name.toLowerCase() === expr.toLowerCase() || c.id.toLowerCase() === expr.toLowerCase()
+  )
+  if (col) {
+    const value = context.row[col.name] ?? context.row[col.id]
+    return value
+  }
+
   // Handle arithmetic expressions
   return evaluateArithmetic(expr, context)
 }
@@ -99,10 +134,11 @@ function evaluateFunction(name: string, args: string, context: FormulaContext): 
  */
 function sumFunction(args: string, context: FormulaContext): number {
   const values = parseFunctionArgs(args, context)
-  return values.reduce((sum, val) => {
+  const result = values.reduce((sum, val) => {
     const num = toNumber(val)
     return sum + (isNaN(num) ? 0 : num)
   }, 0)
+  return result
 }
 
 /**
@@ -259,30 +295,35 @@ function splitFunctionArgs(args: string): string[] {
 function getRangeValues(startRef: string, endRef: string, context: FormulaContext): unknown[] {
   const values: unknown[] = []
 
-  // Try Excel-style references first (A1, B2, etc.)
-  const startCell = parseCellReference(startRef, context)
-  const endCell = parseCellReference(endRef, context)
+  // Check if both references are Excel-style (A1, B2, etc.) with row numbers
+  const isExcelStyleStart = /^[A-Z]+[0-9]+$/i.test(startRef)
+  const isExcelStyleEnd = /^[A-Z]+[0-9]+$/i.test(endRef)
 
-  if (startCell && endCell) {
-    // Excel-style range
-    const startCol = startCell.colIndex
-    const endCol = endCell.colIndex
-    const startRow = startCell.rowIndex
-    const endRow = endCell.rowIndex
+  if (isExcelStyleStart && isExcelStyleEnd) {
+    // Excel-style range (A1:A10)
+    const startCell = parseCellReference(startRef, context)
+    const endCell = parseCellReference(endRef, context)
 
-    for (let rowIdx = startRow; rowIdx <= endRow; rowIdx++) {
-      if (rowIdx >= 0 && rowIdx < context.allRows.length) {
-        const row = context.allRows[rowIdx]
-        for (let colIdx = startCol; colIdx <= endCol; colIdx++) {
-          if (colIdx >= 0 && colIdx < context.columns.length) {
-            const col = context.columns[colIdx]
-            values.push(row[col.name])
+    if (startCell && endCell) {
+      const startCol = startCell.colIndex
+      const endCol = endCell.colIndex
+      const startRow = startCell.rowIndex
+      const endRow = endCell.rowIndex
+
+      for (let rowIdx = startRow; rowIdx <= endRow; rowIdx++) {
+        if (rowIdx >= 0 && rowIdx < context.allRows.length) {
+          const row = context.allRows[rowIdx]
+          for (let colIdx = startCol; colIdx <= endCol; colIdx++) {
+            if (colIdx >= 0 && colIdx < context.columns.length) {
+              const col = context.columns[colIdx]
+              values.push(row[col.name] ?? row[col.id])
+            }
           }
         }
       }
     }
   } else {
-    // Column name range (e.g., price:quantity)
+    // Column name range (e.g., price:quantity) - sum across all rows
     const startCol = context.columns.find(
       c => c.name.toLowerCase() === startRef.toLowerCase() || c.id.toLowerCase() === startRef.toLowerCase()
     )
@@ -299,7 +340,31 @@ function getRangeValues(startRef: string, endRef: string, context: FormulaContex
       for (const row of context.allRows) {
         for (let i = minIdx; i <= maxIdx; i++) {
           if (i >= 0 && i < context.columns.length) {
-            values.push(row[context.columns[i].name])
+            const col = context.columns[i]
+            values.push(row[col.name] ?? row[col.id])
+          }
+        }
+      }
+    } else {
+      // Fallback: try to parse as individual cell references
+      const startCell = parseCellReference(startRef, context)
+      const endCell = parseCellReference(endRef, context)
+      
+      if (startCell && endCell) {
+        const startCol = startCell.colIndex
+        const endCol = endCell.colIndex
+        const startRow = startCell.rowIndex
+        const endRow = endCell.rowIndex
+
+        for (let rowIdx = startRow; rowIdx <= endRow; rowIdx++) {
+          if (rowIdx >= 0 && rowIdx < context.allRows.length) {
+            const row = context.allRows[rowIdx]
+            for (let colIdx = startCol; colIdx <= endCol; colIdx++) {
+              if (colIdx >= 0 && colIdx < context.columns.length) {
+                const col = context.columns[colIdx]
+                values.push(row[col.name] ?? row[col.id])
+              }
+            }
           }
         }
       }
@@ -325,6 +390,14 @@ function parseCellReference(ref: string, context: FormulaContext): { colIndex: n
       colIndex = colIndex * 26 + (colLetter.charCodeAt(i) - 64)
     }
     colIndex -= 1 // Convert to 0-based
+    
+    // Validate indices
+    if (colIndex < 0 || colIndex >= context.columns.length) {
+      return null
+    }
+    if (rowNum < 0 || rowNum >= context.allRows.length) {
+      return null
+    }
 
     return { colIndex, rowIndex: rowNum }
   }
@@ -337,7 +410,6 @@ function parseCellReference(ref: string, context: FormulaContext): { colIndex: n
     const colIndex = context.columns.findIndex(c => c.id === col.id)
     return { colIndex, rowIndex: context.currentRowIndex }
   }
-
   return null
 }
 
@@ -461,7 +533,8 @@ function replaceCellReferences(expr: string, context: FormulaContext): string {
     const rowIndex = parseInt(rowNum, 10) - 1
 
     if (rowIndex >= 0 && rowIndex < context.allRows.length && colIndex >= 0 && colIndex < context.columns.length) {
-      const value = context.allRows[rowIndex][context.columns[colIndex].name]
+      const col = context.columns[colIndex]
+      const value = context.allRows[rowIndex][col.name] ?? context.allRows[rowIndex][col.id]
       return String(value ?? 0)
     }
     return '0'
@@ -469,11 +542,18 @@ function replaceCellReferences(expr: string, context: FormulaContext): string {
 
   // Replace column name references
   for (const col of context.columns) {
-    const regex = new RegExp(`\\b${escapeRegex(col.name)}\\b`, 'gi')
-    expr = expr.replace(regex, () => {
-      const value = context.row[col.name]
-      return String(value ?? 0)
-    })
+    const replaceToken = (token: string) => {
+      const regex = new RegExp(`\\b${escapeRegex(token)}\\b`, 'gi')
+      expr = expr.replace(regex, () => {
+        const value = context.row[col.name] ?? context.row[col.id]
+        return String(value ?? 0)
+      })
+    }
+
+    replaceToken(col.name)
+    if (col.id && col.id !== col.name) {
+      replaceToken(col.id)
+    }
   }
 
   return expr

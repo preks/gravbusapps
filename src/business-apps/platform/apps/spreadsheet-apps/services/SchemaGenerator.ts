@@ -59,6 +59,82 @@ export function generateAppSchema(
 }
 
 /**
+ * Generate an empty SpreadsheetApp schema (no Excel file required)
+ */
+export function generateEmptyAppSchema(
+  appName: string,
+  userId: string,
+  sheetName: string = 'Sheet1'
+): Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'> {
+  // Create a default empty column
+  const defaultColumn: SpreadsheetColumn = {
+    id: generateId('col'),
+    name: 'name',
+    label: 'Name',
+    type: 'text',
+    width: 150,
+    isVisible: true,
+    isEditable: true,
+    isRequired: false,
+    isUnique: false,
+    order: 0
+  }
+
+  // Create default table view
+  const defaultView: SheetView = {
+    id: generateId('view'),
+    name: 'All Data',
+    type: 'table',
+    isDefault: true,
+    config: {
+      type: 'table',
+      columns: [defaultColumn.id]
+    }
+  }
+
+  // Create empty sheet
+  const sheet: SpreadsheetSheet = {
+    id: generateId('sheet'),
+    name: sheetName,
+    description: '',
+    viewType: 'table',
+    columns: [defaultColumn],
+    views: [defaultView],
+    data: [],
+    settings: {
+      allowAdd: true,
+      allowEdit: true,
+      allowDelete: true,
+      allowExport: true,
+      allowImport: true,
+      rowsPerPage: 25,
+      showRowNumbers: true
+    }
+  }
+
+  // Create a placeholder source file info
+  const sourceFile: SpreadsheetFileInfo = {
+    fileId: `empty_${Date.now()}`,
+    fileName: 'Empty Spreadsheet',
+    fileSize: 0,
+    uploadedAt: new Date().toISOString(),
+    mimeType: 'application/json'
+  }
+
+  return {
+    name: appName,
+    description: '',
+    icon: undefined,
+    sourceFile,
+    sheets: [sheet],
+    relationships: [],
+    createdBy: userId,
+    status: 'file_based',
+    settings: generateAppSettings()
+  }
+}
+
+/**
  * Generate schema for a single sheet
  */
 function generateSheetSchema(analysis: SheetAnalysis, parsedSheet: ParsedSheet): SpreadsheetSheet {

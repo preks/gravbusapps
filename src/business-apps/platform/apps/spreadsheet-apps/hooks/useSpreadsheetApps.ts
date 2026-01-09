@@ -300,9 +300,14 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
 
   /**
    * Update an existing app
+   * Uses optimistic update pattern to avoid race conditions with server
    */
   const updateApp = useCallback(
     async (id: string, updates: Partial<SpreadsheetApp>): Promise<SpreadsheetApp | null> => {
+      console.warn('[useSpreadsheetApps] updateApp CALLED with id:', id)
+      console.warn('[useSpreadsheetApps] updateApp - updates.sheets:', updates.sheets?.length, 'sheets')
+      console.warn('[useSpreadsheetApps] updateApp - first sheet data rows:', updates.sheets?.[0]?.data?.length)
+      
       setState(prev => ({ ...prev, isSaving: true, error: null }))
 
       const { service, mode } = getService()
@@ -312,16 +317,35 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       }
 
       try {
+        console.warn('[useSpreadsheetApps] Calling service.updateApp...')
         const updatedApp = await service.updateApp(id, updates)
+        console.warn('[useSpreadsheetApps] service.updateApp returned:', updatedApp ? `${updatedApp.sheets?.[0]?.data?.length} rows` : 'null')
         if (updatedApp) {
+          // Directly update state with the returned app data (optimistic update)
+          // This avoids race conditions where loadApps() might fetch stale data
           setState(prev => ({
             ...prev,
             currentApp: prev.currentApp?.id === id ? updatedApp : prev.currentApp,
+            // Also update the apps list directly
+            apps: prev.apps.map(app => 
+              app.id === id 
+                ? {
+                    ...app,
+                    name: updatedApp.name,
+                    description: updatedApp.description,
+                    status: updatedApp.status,
+                    updatedAt: updatedApp.updatedAt,
+                    ownerId: updatedApp.ownerId,
+                    sheetCount: updatedApp.sheets.length,
+                    rowCount: updatedApp.sheets.reduce((sum, s) => sum + (s.data?.length || 0), 0)
+                  }
+                : app
+            ),
             isSaving: false,
             storageMode: mode
           }))
-          // Refresh the list
-          await loadApps()
+          // NOTE: Removed loadApps() call to prevent race condition where server
+          // returns stale data before the update has propagated
         }
         return updatedApp
       } catch (error) {
@@ -334,10 +358,23 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
               setState(prev => ({
                 ...prev,
                 currentApp: prev.currentApp?.id === id ? updatedApp : prev.currentApp,
+                apps: prev.apps.map(app => 
+                  app.id === id 
+                    ? {
+                        ...app,
+                        name: updatedApp.name,
+                        description: updatedApp.description,
+                        status: updatedApp.status,
+                        updatedAt: updatedApp.updatedAt,
+                        ownerId: updatedApp.ownerId,
+                        sheetCount: updatedApp.sheets.length,
+                        rowCount: updatedApp.sheets.reduce((sum, s) => sum + (s.data?.length || 0), 0)
+                      }
+                    : app
+                ),
                 isSaving: false,
                 storageMode: 'local'
               }))
-              await loadApps()
               return updatedApp
             }
           }
@@ -353,7 +390,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         return null
       }
     },
-    [getService, loadApps]
+    [getService]
   )
 
   /**

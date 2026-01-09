@@ -115,6 +115,8 @@ export type ColumnType =
   | 'boolean'
   | 'calculated'
   | 'reference'
+  | 'workflow_status' // Displays linked workflow status
+  | 'image' // Displays an image (e.g., avatar)
 
 /**
  * Validation rules for a column
@@ -297,6 +299,16 @@ export interface SpreadsheetSheet {
    * When configured, the sheet loads data from a NEWWORK entity instead of static data.
    */
   entityDataSource?: import('./entityDataSource').EntityDataSource
+  /**
+   * Process automations configured for this sheet.
+   * Enables row-level workflows, bulk collection, and approval flows.
+   */
+  automations?: import('./automation').SpreadsheetAutomation[]
+  /**
+   * Links between rows and their associated workflow instances.
+   * Tracks workflow status for each row that has an active or completed workflow.
+   */
+  workflowLinks?: import('./automation').WorkflowRowLink[]
 }
 
 /**
@@ -318,6 +330,16 @@ export interface SpreadsheetColumn {
   formula?: string
   referenceTo?: ColumnReference
   order: number
+  /**
+   * Whether this is an auto-generated tracking column from bulk collection.
+   * Tracking columns are displayed first and styled differently.
+   */
+  isTracking?: boolean
+  /**
+   * Configuration for workflow_status column type.
+   * Defines how the linked workflow status is displayed and interacted with.
+   */
+  workflowStatusConfig?: import('./automation').WorkflowStatusColumnConfig
 }
 
 export interface SelectOption {
