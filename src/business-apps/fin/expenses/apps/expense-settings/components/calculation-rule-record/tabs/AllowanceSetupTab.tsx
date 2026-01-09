@@ -374,12 +374,159 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     }
   }
 
+  // Check if allowanceCodeId + allowancePeriodId combination is unique within the validity period
+  const checkSetupUniqueness = useCallback(
+    async (
+      allowanceCodeId: string,
+      allowancePeriodId: string,
+      activeFrom: string,
+      activeTo: string | undefined,
+      excludeId?: string
+    ): Promise<boolean> => {
+      console.log('[AllowanceSetupTab] checkSetupUniqueness called:', {
+        allowanceCodeId,
+        allowancePeriodId,
+        activeFrom,
+        activeTo,
+        excludeId,
+        ruleId
+      })
+
+      try {
+        // Fetch all matching setups and check overlap in JavaScript to avoid GraphQL schema limitations
+        const query = `
+          query CheckAllowanceSetupUniqueness($ruleId: uuid!, $allowanceCodeId: uuid!, $allowancePeriodId: uuid!, $excludeId: uuid) {
+            ExpenseRuleAllowanceSetup(
+              where: {
+                expenseRuleId: { _eq: $ruleId }
+                allowanceCodeId: { _eq: $allowanceCodeId }
+                allowancePeriodId: { _eq: $allowancePeriodId }
+                isDeleted: { _eq: false }
+                id: { _neq: $excludeId }
+              }
+            ) {
+              id
+              activeFrom
+              activeTo
+            }
+          }
+        `
+
+        const variables = {
+          ruleId,
+          allowanceCodeId,
+          allowancePeriodId,
+          excludeId: excludeId || null
+        }
+
+        console.log('[AllowanceSetupTab] GraphQL query variables:', variables)
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleAllowanceSetup: { id: string; activeFrom: string; activeTo?: string }[]
+        }>(query, variables)
+
+        console.log('[AllowanceSetupTab] GraphQL response:', {
+          result,
+          foundCount: result.ExpenseRuleAllowanceSetup?.length || 0,
+          allMatchingSetups: result.ExpenseRuleAllowanceSetup
+        })
+
+        // Check for overlapping periods in JavaScript
+        const newPeriodFrom = dayjs(activeFrom).startOf('day')
+        const newPeriodTo = activeTo ? dayjs(activeTo).endOf('day') : null
+
+        const overlappingSetups = result.ExpenseRuleAllowanceSetup.filter(existing => {
+          const existingFrom = dayjs(existing.activeFrom)
+          const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
+
+          // Two periods overlap if they don't have a gap between them
+          const periodsDontOverlap =
+            (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
+            (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
+
+          return !periodsDontOverlap
+        })
+
+        console.log('[AllowanceSetupTab] Overlap check:', {
+          newPeriod: {
+            from: newPeriodFrom.format('YYYY-MM-DD'),
+            to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
+          },
+          overlappingSetups: overlappingSetups.map(s => ({
+            id: s.id,
+            from: dayjs(s.activeFrom).format('YYYY-MM-DD'),
+            to: s.activeTo ? dayjs(s.activeTo).format('YYYY-MM-DD') : 'infinite'
+          }))
+        })
+
+        if (overlappingSetups.length > 0) {
+          console.log('[AllowanceSetupTab] DUPLICATE FOUND:', {
+            allowanceCodeId,
+            allowancePeriodId,
+            overlappingEntries: overlappingSetups,
+            isDuplicate: true
+          })
+          return true
+        }
+
+        console.log('[AllowanceSetupTab] No overlapping duplicates found - setup is unique')
+        return false
+      } catch (error) {
+        console.error('[AllowanceSetupTab] Error checking setup uniqueness:', {
+          error,
+          allowanceCodeId,
+          allowancePeriodId,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        return true // Block save on error
+      }
+    },
+    [ruleId, graphqlClient]
+  )
+
   const handleSave = async () => {
     try {
       setIsSaving(true)
       setValidityError(null)
 
       const formValues = form.getValues()
+
+      // Check setup uniqueness (allowanceCodeId + allowancePeriodId combination)
+      console.log('[AllowanceSetupTab] handleSave - Starting uniqueness check:', {
+        allowanceCodeId: formValues.allowanceCodeId,
+        allowancePeriodId: formValues.allowancePeriodId,
+        validFrom: formValues.validFrom,
+        validTo: formValues.validTo,
+        editingItemId: editingItem?.id,
+        isEdit: !!editingItem
+      })
+
+      const setupExists = await checkSetupUniqueness(
+        formValues.allowanceCodeId,
+        formValues.allowancePeriodId,
+        formValues.validFrom,
+        formValues.validTo,
+        editingItem?.id
+      )
+
+      console.log('[AllowanceSetupTab] handleSave - Uniqueness check result:', { setupExists })
+
+      if (setupExists) {
+        console.log('[AllowanceSetupTab] handleSave - BLOCKING SAVE: Duplicate setup detected')
+        setValidityError(
+          'This allowance code and period combination already exists with an overlapping validity period. Please use a different combination or adjust the validity dates.'
+        )
+        setIsSaving(false)
+        return
+      }
+
+      console.log('[AllowanceSetupTab] handleSave - Setup is unique, proceeding with save')
 
       // Validate validity period
       const validationError = validateAllowanceSetupDates(

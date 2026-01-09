@@ -74,12 +74,12 @@ const validateNoOverlappingPeriods = (
   regionId: string
 ): boolean => {
   // Find all other details for the same rule/region (excluding the current one being saved)
+  // Include both saved and new cells to check against all existing periods
   const otherDetails = editableCells.filter(
     c =>
       c.allowanceRegionRuleId === ruleId &&
       c.travelRegionId === regionId &&
-      (currentCellId ? c.id !== currentCellId : c.validityPeriodId !== currentValidityPeriodId) &&
-      !c.isNew // Exclude new unsaved cells
+      (currentCellId ? c.id !== currentCellId : c.validityPeriodId !== currentValidityPeriodId)
   )
 
   for (const otherDetail of otherDetails) {
@@ -88,17 +88,20 @@ const validateNoOverlappingPeriods = (
     const otherFrom = dayjs(otherDetail.activeFrom)
     const otherTo = otherDetail.activeTo ? dayjs(otherDetail.activeTo) : null
 
-    // Check for overlap
     // Two periods overlap if:
-    // - detailFrom is between otherFrom and otherTo (or otherTo is null)
-    // - detailTo is between otherFrom and otherTo (or otherTo is null)
-    // - detailFrom <= otherFrom and detailTo >= otherTo (or detailTo is null)
-    // - otherFrom <= detailFrom and otherTo >= detailTo (or otherTo is null)
+    // - detailFrom <= otherTo (or otherTo is null, meaning infinite)
+    // - AND detailTo >= otherFrom (or detailTo is null, meaning infinite)
+    // They don't overlap if:
+    // - detailTo < otherFrom (if both exist)
+    // - OR otherTo < detailFrom (if both exist)
+    // - If one has null end date, they overlap unless the other ends before it starts
 
-    const detailEndsBeforeOtherStarts = detailTo && detailTo.isBefore(otherFrom, 'day')
-    const detailStartsAfterOtherEnds = otherTo && detailFrom.isAfter(otherTo, 'day')
+    // Check if periods DON'T overlap (no overlap means valid)
+    const periodsDontOverlap =
+      (detailTo && otherFrom && detailTo.isBefore(otherFrom, 'day')) ||
+      (otherTo && detailFrom && otherTo.isBefore(detailFrom, 'day'))
 
-    if (!detailEndsBeforeOtherStarts && !detailStartsAfterOtherEnds) {
+    if (!periodsDontOverlap) {
       // There's an overlap
       const otherPeriodStr = `${otherFrom.format('DD/MM/YYYY')} - ${otherTo ? otherTo.format('DD/MM/YYYY') : '∞'}`
       const newPeriodStr = `${detailFrom.format('DD/MM/YYYY')} - ${detailTo ? detailTo.format('DD/MM/YYYY') : '∞'}`
@@ -295,37 +298,43 @@ export const useMatrixCellEditing = ({
         setEditingCellId(null)
         setEditingCellUsageInfo(null)
 
-        // Update the cell with the data from response, but fetch the correct version separately
-        // We do a targeted update to avoid reloading all data and losing search/pagination state
-        setEditableCells(prev =>
-          prev.map(c => {
-            const isMatchingCell = latestCell.id
-              ? c.id === latestCell.id && c.validityPeriodId === latestCell.validityPeriodId
-              : c.validityPeriodId === latestCell.validityPeriodId
+        // Reload data to ensure UI shows the latest state from server
+        // This fixes the issue where saved data wasn't visible until editing again
+        try {
+          await loadData()
+        } catch (reloadErr) {
+          console.error('Error reloading data after save:', reloadErr)
+          // Fallback: Update the cell with the data from response if reload fails
+          setEditableCells(prev =>
+            prev.map(c => {
+              const isMatchingCell = latestCell.id
+                ? c.id === latestCell.id && c.validityPeriodId === latestCell.validityPeriodId
+                : c.validityPeriodId === latestCell.validityPeriodId
 
-            if (isMatchingCell) {
-              // Use the data from the response
-              const updatedCell = {
-                ...c,
-                id: c.id || response.allowanceRegionRuleDetail?.id,
-                amount: response.allowanceRegionRuleDetail?.amount ?? c.amount,
-                activeFrom: response.allowanceRegionRuleDetail?.activeFrom ?? c.activeFrom,
-                activeTo: response.allowanceRegionRuleDetail?.activeTo ?? c.activeTo,
-                currencyCode: response.allowanceRegionRuleDetail?.currencyRef?.split(':').pop() ?? c.currencyCode,
-                isNew: false,
-                isModified: false,
-                // Backend returns OLD version in response, so we increment it
-                // This is a known backend quirk - it increments in DB but returns old version
-                version: response.allowanceRegionRuleDetail?.version
-                  ? response.allowanceRegionRuleDetail.version + 1
-                  : (c.version || 0) + 1
+              if (isMatchingCell) {
+                // Use the data from the response
+                const updatedCell = {
+                  ...c,
+                  id: c.id || response.allowanceRegionRuleDetail?.id,
+                  amount: response.allowanceRegionRuleDetail?.amount ?? c.amount,
+                  activeFrom: response.allowanceRegionRuleDetail?.activeFrom ?? c.activeFrom,
+                  activeTo: response.allowanceRegionRuleDetail?.activeTo ?? c.activeTo,
+                  currencyCode: response.allowanceRegionRuleDetail?.currencyRef?.split(':').pop() ?? c.currencyCode,
+                  isNew: false,
+                  isModified: false,
+                  // Backend returns OLD version in response, so we increment it
+                  // This is a known backend quirk - it increments in DB but returns old version
+                  version: response.allowanceRegionRuleDetail?.version
+                    ? response.allowanceRegionRuleDetail.version + 1
+                    : (c.version || 0) + 1
+                }
+
+                return updatedCell
               }
-
-              return updatedCell
-            }
-            return c
-          })
-        )
+              return c
+            })
+          )
+        }
       } catch (error) {
         console.error('Error saving cell:', error)
         toast.error(`Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`)

@@ -530,51 +530,132 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   }
 
   // Check if code is unique within the validity period
+  // Returns { isDuplicate: boolean, existingName?: string } to allow pre-filling the name
   const checkCodeUniqueness = useCallback(
-    async (code: string, activeFrom: string, activeTo: string | undefined, excludeId?: string): Promise<boolean> => {
+    async (
+      code: string,
+      activeFrom: string,
+      activeTo: string | undefined,
+      excludeId?: string
+    ): Promise<{ isDuplicate: boolean; existingName?: string }> => {
+      console.log('[AllowanceCodeTab] checkCodeUniqueness called:', {
+        code,
+        activeFrom,
+        activeTo,
+        excludeId,
+        ruleId
+      })
+
       try {
+        // For overlap check: periods overlap if:
+        // - new start <= existing end (or existing end is null/infinite)
+        // - AND new end >= existing start (or new end is null/infinite)
+        // We'll fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
         const query = `
-          query CheckAllowanceCodeUniqueness($ruleId: uuid!, $code: String!, $activeFrom: timestamptz!, $activeTo: timestamptz, $excludeId: uuid) {
+          query CheckAllowanceCodeUniqueness($ruleId: uuid!, $code: String!, $excludeId: uuid) {
             ExpenseRuleAllowanceCode(
               where: {
                 expenseRuleId: { _eq: $ruleId }
                 code: { _eq: $code }
                 isDeleted: { _eq: false }
                 id: { _neq: $excludeId }
-                _and: [
-                  # Check if periods overlap: new start <= existing end (or null) AND new end >= existing start
-                  { activeFrom: { _lte: $activeTo } }
-                  {
-                    _or: [
-                      { activeTo: { _is_null: true } }
-                      { activeTo: { _gte: $activeFrom } }
-                    ]
-                  }
-                ]
               }
             ) {
               id
               code
+              name
               activeFrom
               activeTo
             }
           }
         `
 
-        const result = await graphqlClient.request<{
-          ExpenseRuleAllowanceCode: { id: string; code: string; activeFrom: string; activeTo?: string }[]
-        }>(query, {
+        const activeFromISO = dayjs(activeFrom).startOf('day').toISOString()
+        const activeToISO = activeTo ? dayjs(activeTo).endOf('day').toISOString() : null
+        const variables = {
           ruleId,
           code,
-          activeFrom: dayjs(activeFrom).startOf('day').toISOString(),
-          activeTo: activeTo ? dayjs(activeTo).endOf('day').toISOString() : '9999-12-31T23:59:59.999Z',
           excludeId: excludeId || null
+        }
+
+        console.log('[AllowanceCodeTab] GraphQL query variables:', variables)
+        console.log('[AllowanceCodeTab] GraphQL query:', query)
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleAllowanceCode: { id: string; code: string; name: string; activeFrom: string; activeTo?: string }[]
+        }>(query, variables)
+
+        console.log('[AllowanceCodeTab] GraphQL response:', {
+          result,
+          foundCount: result.ExpenseRuleAllowanceCode?.length || 0,
+          allMatchingCodes: result.ExpenseRuleAllowanceCode
         })
 
-        return result.ExpenseRuleAllowanceCode.length > 0
+        // Check for overlapping periods in JavaScript
+        const newPeriodFrom = dayjs(activeFromISO)
+        const newPeriodTo = activeToISO ? dayjs(activeToISO) : null
+
+        const overlappingCodes = result.ExpenseRuleAllowanceCode.filter(existing => {
+          const existingFrom = dayjs(existing.activeFrom)
+          const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
+
+          // Two periods overlap if:
+          // - new start <= existing end (or existing end is null/infinite)
+          // - AND new end >= existing start (or new end is null/infinite)
+          // They don't overlap if:
+          // - new end < existing start (if both exist)
+          // - OR existing end < new start (if both exist)
+
+          const periodsDontOverlap =
+            (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
+            (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
+
+          return !periodsDontOverlap
+        })
+
+        console.log('[AllowanceCodeTab] Overlap check:', {
+          newPeriod: {
+            from: newPeriodFrom.format('YYYY-MM-DD'),
+            to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
+          },
+          overlappingCodes: overlappingCodes.map(c => ({
+            id: c.id,
+            code: c.code,
+            from: dayjs(c.activeFrom).format('YYYY-MM-DD'),
+            to: c.activeTo ? dayjs(c.activeTo).format('YYYY-MM-DD') : 'infinite'
+          }))
+        })
+
+        if (overlappingCodes.length > 0) {
+          console.log('[AllowanceCodeTab] DUPLICATE FOUND:', {
+            code,
+            overlappingEntries: overlappingCodes,
+            isDuplicate: true
+          })
+          // Return the first duplicate's name for pre-filling
+          return {
+            isDuplicate: true,
+            existingName: overlappingCodes[0].name
+          }
+        }
+
+        console.log('[AllowanceCodeTab] No overlapping duplicates found - code is unique')
+        return { isDuplicate: false }
       } catch (error) {
-        console.error('Error checking code uniqueness:', error)
-        return false // Allow save on error for now
+        console.error('[AllowanceCodeTab] Error checking code uniqueness:', {
+          error,
+          code,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        // This is safer than allowing saves when we can't verify uniqueness
+        toast.error('Unable to verify code uniqueness. Please try again or contact support if the issue persists.')
+        return { isDuplicate: true, existingName: undefined } // Block save on error
       }
     },
     [ruleId, graphqlClient]
@@ -588,6 +669,17 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       form.clearErrors(['validFrom', 'validTo', 'amount', 'firstAllowanceRegionRulePercent', 'code'])
 
       const formValues = form.getValues()
+
+      console.log('[AllowanceCodeTab] handleSave - Starting save process:', {
+        formValues,
+        editingItem,
+        existingAllowanceCodes: allowanceCodes.map(c => ({
+          id: c.id,
+          code: c.code,
+          validFrom: c.validFrom,
+          validTo: c.validTo
+        }))
+      })
 
       // Validate mutual exclusivity: Amount and Percentage
       const amountPercentageError = validateAmountAndPercentage(
@@ -614,22 +706,46 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       }
 
       // Check code uniqueness within overlapping validity periods
-      const isDuplicate = await checkCodeUniqueness(
+      console.log('[AllowanceCodeTab] handleSave - Starting uniqueness check:', {
+        code: formValues.code,
+        validFrom: formValues.validFrom,
+        validTo: formValues.validTo,
+        editingItemId: editingItem?.id,
+        isEdit: !!editingItem
+      })
+
+      const uniquenessCheck = await checkCodeUniqueness(
         formValues.code,
         formValues.validFrom,
         formValues.validTo,
         editingItem?.id
       )
 
-      if (isDuplicate) {
-        form.setError('code', {
-          type: 'manual',
-          message:
-            'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
-        })
+      console.log('[AllowanceCodeTab] handleSave - Uniqueness check result:', uniquenessCheck)
+
+      if (uniquenessCheck.isDuplicate) {
+        console.log('[AllowanceCodeTab] handleSave - BLOCKING SAVE: Duplicate code detected or validation error')
+        // Pre-fill the name with the existing name if available
+        if (uniquenessCheck.existingName) {
+          form.setValue('name', uniquenessCheck.existingName)
+          form.setError('code', {
+            type: 'manual',
+            message:
+              'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
+          })
+        } else {
+          // This is an error case - couldn't verify uniqueness
+          form.setError('code', {
+            type: 'manual',
+            message:
+              'Unable to verify code uniqueness. Please check your connection and try again. If the problem persists, contact support.'
+          })
+        }
         setIsSaving(false)
         return
       }
+
+      console.log('[AllowanceCodeTab] handleSave - Code is unique, proceeding with save')
 
       // Build saveData based on edit mode
       const isUpdate = !!editingItem
@@ -643,14 +759,28 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         saveData = transformAllowanceCodeForCreate(formValues, ruleId)
       }
 
+      console.log('[AllowanceCodeTab] handleSave - Proceeding to save:', {
+        saveData,
+        isUpdate: !!editingItem,
+        isRestrictedEdit
+      })
+
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
+
+      console.log('[AllowanceCodeTab] handleSave - Save successful')
       toast.success(`Allowance code ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
       setIsRestrictedEdit(false)
       await fetchAllowanceCodes()
     } catch (error) {
+      console.error('[AllowanceCodeTab] handleSave - Save error:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        formValues,
+        editingItemId: editingItem?.id
+      })
       toast.error(`Failed to ${editingItem ? 'update' : 'create'} allowance code`)
-      console.error('Save error:', error)
     } finally {
       setIsSaving(false)
     }
@@ -1023,6 +1153,51 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           placeholder="e.g., A-FULL, L-FULL"
                           disabled={isRestrictedEdit}
                           data-testid="allowance-code-code-input"
+                          onBlur={async () => {
+                            field.onBlur()
+                            const codeValue = form.getValues('code')
+                            const validFrom = form.getValues('validFrom')
+                            const validTo = form.getValues('validTo')
+
+                            console.log('[AllowanceCodeTab] Code input onBlur:', {
+                              codeValue,
+                              validFrom,
+                              validTo,
+                              editingItemId: editingItem?.id
+                            })
+
+                            // Only validate if code is not empty
+                            if (codeValue && codeValue.trim()) {
+                              console.log('[AllowanceCodeTab] onBlur - Validating code uniqueness')
+                              const uniquenessCheck = await checkCodeUniqueness(
+                                codeValue,
+                                validFrom,
+                                validTo,
+                                editingItem?.id
+                              )
+
+                              console.log('[AllowanceCodeTab] onBlur - Uniqueness check result:', uniquenessCheck)
+
+                              if (uniquenessCheck.isDuplicate) {
+                                console.log('[AllowanceCodeTab] onBlur - Setting error: duplicate code')
+                                // Pre-fill the name with the existing name if available
+                                if (uniquenessCheck.existingName) {
+                                  form.setValue('name', uniquenessCheck.existingName)
+                                }
+                                form.setError('code', {
+                                  type: 'manual',
+                                  message:
+                                    'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
+                                })
+                              } else {
+                                console.log('[AllowanceCodeTab] onBlur - Code is unique, clearing errors')
+                                // Clear error if code is now unique
+                                form.clearErrors('code')
+                              }
+                            } else {
+                              console.log('[AllowanceCodeTab] onBlur - Code is empty, skipping validation')
+                            }
+                          }}
                         />
                       </FormControl>
                       <FormMessage />

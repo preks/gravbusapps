@@ -411,6 +411,113 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     }
   }
 
+  // Check if code is unique within the validity period
+  const checkCodeUniqueness = useCallback(
+    async (code: string, activeFrom: string, activeTo: string | undefined, excludeId?: string): Promise<boolean> => {
+      console.log('[AllowancePeriodTab] checkCodeUniqueness called:', {
+        code,
+        activeFrom,
+        activeTo,
+        excludeId,
+        ruleId
+      })
+
+      try {
+        // Fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
+        const query = `
+          query CheckAllowancePeriodCodeUniqueness($ruleId: uuid!, $code: String!, $excludeId: uuid) {
+            ExpenseRuleAllowancePeriod(
+              where: {
+                expenseRuleId: { _eq: $ruleId }
+                code: { _eq: $code }
+                isDeleted: { _eq: false }
+                id: { _neq: $excludeId }
+              }
+            ) {
+              id
+              code
+              activeFrom
+              activeTo
+            }
+          }
+        `
+
+        const variables = {
+          ruleId,
+          code,
+          excludeId: excludeId || null
+        }
+
+        console.log('[AllowancePeriodTab] GraphQL query variables:', variables)
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleAllowancePeriod: { id: string; code: string; activeFrom: string; activeTo?: string }[]
+        }>(query, variables)
+
+        console.log('[AllowancePeriodTab] GraphQL response:', {
+          result,
+          foundCount: result.ExpenseRuleAllowancePeriod?.length || 0,
+          allMatchingCodes: result.ExpenseRuleAllowancePeriod
+        })
+
+        // Check for overlapping periods in JavaScript
+        const newPeriodFrom = dayjs(activeFrom).startOf('day')
+        const newPeriodTo = activeTo ? dayjs(activeTo).endOf('day') : null
+
+        const overlappingCodes = result.ExpenseRuleAllowancePeriod.filter(existing => {
+          const existingFrom = dayjs(existing.activeFrom)
+          const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
+
+          // Two periods overlap if they don't have a gap between them
+          const periodsDontOverlap =
+            (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
+            (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
+
+          return !periodsDontOverlap
+        })
+
+        console.log('[AllowancePeriodTab] Overlap check:', {
+          newPeriod: {
+            from: newPeriodFrom.format('YYYY-MM-DD'),
+            to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
+          },
+          overlappingCodes: overlappingCodes.map(c => ({
+            id: c.id,
+            code: c.code,
+            from: dayjs(c.activeFrom).format('YYYY-MM-DD'),
+            to: c.activeTo ? dayjs(c.activeTo).format('YYYY-MM-DD') : 'infinite'
+          }))
+        })
+
+        if (overlappingCodes.length > 0) {
+          console.log('[AllowancePeriodTab] DUPLICATE FOUND:', {
+            code,
+            overlappingEntries: overlappingCodes,
+            isDuplicate: true
+          })
+          return true
+        }
+
+        console.log('[AllowancePeriodTab] No overlapping duplicates found - code is unique')
+        return false
+      } catch (error) {
+        console.error('[AllowancePeriodTab] Error checking code uniqueness:', {
+          error,
+          code,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        return true // Block save on error
+      }
+    },
+    [ruleId, graphqlClient]
+  )
+
   const handleSave = async () => {
     // Trigger form validation
     const isValid = await form.trigger()
@@ -422,6 +529,32 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
 
     try {
       setIsSaving(true)
+
+      // Check code uniqueness within overlapping validity periods
+      console.log('[AllowancePeriodTab] handleSave - Starting uniqueness check:', {
+        code: formData.code,
+        validFrom: formData.validFrom,
+        validTo: formData.validTo,
+        editingItemId: editingItem?.id,
+        isEdit: !!editingItem
+      })
+
+      const codeExists = await checkCodeUniqueness(formData.code, formData.validFrom, formData.validTo, editingItem?.id)
+
+      console.log('[AllowancePeriodTab] handleSave - Uniqueness check result:', { codeExists })
+
+      if (codeExists) {
+        console.log('[AllowancePeriodTab] handleSave - BLOCKING SAVE: Duplicate code detected')
+        form.setError('code', {
+          type: 'manual',
+          message:
+            'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
+        })
+        setIsSaving(false)
+        return
+      }
+
+      console.log('[AllowancePeriodTab] handleSave - Code is unique, proceeding with save')
 
       // Date validation
       const ruleFrom = dayjs(activeFrom)

@@ -232,16 +232,37 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
     // Check for code uniqueness in the validity period
     setIsSaving(true)
     try {
+      console.log('[GeneralExpenseForm] handleSave - Starting uniqueness check:', {
+        code: data.code,
+        activeFrom: data.activeFrom,
+        activeTo: data.activeTo,
+        editingItemId: editingItem?.id,
+        isEdit: !!editingItem
+      })
+
       const codeExists = await checkCodeUniqueness(data.code, data.activeFrom, data.activeTo, editingItem?.id)
+
+      console.log('[GeneralExpenseForm] handleSave - Uniqueness check result:', { codeExists })
+
       if (codeExists) {
+        console.log('[GeneralExpenseForm] handleSave - BLOCKING SAVE: Duplicate code detected')
         form.setError('code', {
           type: 'manual',
-          message: 'An expense with this code already exists in the specified validity period'
+          message:
+            'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
         })
+        setIsSaving(false)
         return
       }
 
+      console.log('[GeneralExpenseForm] handleSave - Code is unique, proceeding with save')
       await onSave({ ...data, additionalProperties })
+    } catch (error) {
+      console.error('[GeneralExpenseForm] handleSave - Save error:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      })
+      throw error // Re-throw to let parent handle it
     } finally {
       setIsSaving(false)
     }
@@ -254,25 +275,27 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
     activeTo: string | undefined,
     excludeId?: string
   ): Promise<boolean> => {
+    console.log('[GeneralExpenseForm] checkCodeUniqueness called:', {
+      code,
+      activeFrom,
+      activeTo,
+      excludeId,
+      ruleId
+    })
+
     try {
+      // For overlap check: periods overlap if:
+      // - new start <= existing end (or existing end is null/infinite)
+      // - AND new end >= existing start (or new end is null/infinite)
+      // We'll fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
       const query = `
-        query CheckCodeUniqueness($ruleId: uuid!, $code: String!, $activeFrom: timestamptz!, $activeTo: timestamptz, $excludeId: uuid) {
+        query CheckCodeUniqueness($ruleId: uuid!, $code: String!, $excludeId: uuid) {
           ExpenseRuleGeneralExpense(
             where: {
               expenseRuleId: { _eq: $ruleId }
               code: { _eq: $code }
               isDeleted: { _eq: false }
               id: { _neq: $excludeId }
-              _and: [
-                # Check if periods overlap: new start <= existing end (or null) AND new end >= existing start
-                { activeFrom: { _lte: $activeTo } }
-                {
-                  _or: [
-                    { activeTo: { _is_null: true } }
-                    { activeTo: { _gte: $activeFrom } }
-                  ]
-                }
-              ]
             }
           ) {
             id
@@ -283,20 +306,84 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
         }
       `
 
-      const result = await graphqlClient.request<{
-        ExpenseRuleGeneralExpense: { id: string; code: string; activeFrom: string; activeTo?: string }[]
-      }>(query, {
+      const variables = {
         ruleId,
         code,
-        activeFrom: dayjs(activeFrom).startOf('day').toISOString(),
-        activeTo: activeTo ? dayjs(activeTo).endOf('day').toISOString() : '9999-12-31T23:59:59.999Z',
         excludeId: excludeId || null
+      }
+
+      console.log('[GeneralExpenseForm] GraphQL query variables:', variables)
+
+      const result = await graphqlClient.request<{
+        ExpenseRuleGeneralExpense: { id: string; code: string; activeFrom: string; activeTo?: string }[]
+      }>(query, variables)
+
+      console.log('[GeneralExpenseForm] GraphQL response:', {
+        result,
+        foundCount: result.ExpenseRuleGeneralExpense?.length || 0,
+        allMatchingCodes: result.ExpenseRuleGeneralExpense
       })
 
-      return result.ExpenseRuleGeneralExpense.length > 0
+      // Check for overlapping periods in JavaScript
+      const newPeriodFrom = dayjs(activeFrom).startOf('day')
+      const newPeriodTo = activeTo ? dayjs(activeTo).endOf('day') : null
+
+      const overlappingCodes = result.ExpenseRuleGeneralExpense.filter(existing => {
+        const existingFrom = dayjs(existing.activeFrom)
+        const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
+
+        // Two periods overlap if:
+        // - new start <= existing end (or existing end is null/infinite)
+        // - AND new end >= existing start (or new end is null/infinite)
+        // They don't overlap if:
+        // - new end < existing start (if both exist)
+        // - OR existing end < new start (if both exist)
+
+        const periodsDontOverlap =
+          (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
+          (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
+
+        return !periodsDontOverlap
+      })
+
+      console.log('[GeneralExpenseForm] Overlap check:', {
+        newPeriod: {
+          from: newPeriodFrom.format('YYYY-MM-DD'),
+          to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
+        },
+        overlappingCodes: overlappingCodes.map(c => ({
+          id: c.id,
+          code: c.code,
+          from: dayjs(c.activeFrom).format('YYYY-MM-DD'),
+          to: c.activeTo ? dayjs(c.activeTo).format('YYYY-MM-DD') : 'infinite'
+        }))
+      })
+
+      if (overlappingCodes.length > 0) {
+        console.log('[GeneralExpenseForm] DUPLICATE FOUND:', {
+          code,
+          overlappingEntries: overlappingCodes,
+          isDuplicate: true
+        })
+        return true
+      }
+
+      console.log('[GeneralExpenseForm] No overlapping duplicates found - code is unique')
+      return false
     } catch (error) {
-      console.error('Error checking code uniqueness:', error)
-      return false // Allow save on error for now
+      console.error('[GeneralExpenseForm] Error checking code uniqueness:', {
+        error,
+        code,
+        activeFrom,
+        activeTo,
+        excludeId,
+        ruleId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined
+      })
+      // On error, block the save to prevent duplicates from being created
+      // This is safer than allowing saves when we can't verify uniqueness
+      return true // Block save on error
     }
   }
 

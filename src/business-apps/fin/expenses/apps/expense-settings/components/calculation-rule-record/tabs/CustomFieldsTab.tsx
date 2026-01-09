@@ -400,11 +400,184 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     }
   }
 
+  // Check if source + relatedId combination is unique within the validity period
+  const checkCustomFieldUniqueness = useCallback(
+    async (
+      source: 'Expense' | 'Mileage',
+      relatedId: string | undefined,
+      activeFrom: string,
+      activeTo: string | undefined,
+      excludeId?: string
+    ): Promise<boolean> => {
+      console.log('[CustomFieldsTab] checkCustomFieldUniqueness called:', {
+        source,
+        relatedId,
+        activeFrom,
+        activeTo,
+        excludeId,
+        ruleId
+      })
+
+      try {
+        // If no source or relatedId, skip uniqueness check
+        if (!source || !relatedId) {
+          return false
+        }
+
+        // Map source to API enum using existing function
+        const apiSource = mapSourceToApiEnum(source)
+
+        // Fetch all matching custom fields and check overlap in JavaScript
+        const query = `
+          query CheckCustomFieldUniqueness($ruleId: uuid!, $source: String!, $excludeId: uuid) {
+            ExpenseRuleOtherInfo(
+              where: {
+                expenseRuleId: { _eq: $ruleId }
+                source: { _eq: $source }
+                isDeleted: { _eq: false }
+                id: { _neq: $excludeId }
+              }
+            ) {
+              id
+              activeFrom
+              activeTo
+              expenseRuleGeneralExpenseId
+              expenseRuleMileageId
+            }
+          }
+        `
+
+        const variables = {
+          ruleId,
+          source: apiSource,
+          excludeId: excludeId || null
+        }
+
+        console.log('[CustomFieldsTab] GraphQL query variables:', variables)
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleOtherInfo: {
+            id: string
+            activeFrom: string
+            activeTo?: string
+            expenseRuleGeneralExpenseId?: string
+            expenseRuleMileageId?: string
+          }[]
+        }>(query, variables)
+
+        console.log('[CustomFieldsTab] GraphQL response:', {
+          result,
+          foundCount: result.ExpenseRuleOtherInfo?.length || 0,
+          allMatchingFields: result.ExpenseRuleOtherInfo
+        })
+
+        // Filter by relatedId based on source type
+        const matchingByRelatedId = result.ExpenseRuleOtherInfo.filter(existing => {
+          if (source === 'Expense') {
+            return existing.expenseRuleGeneralExpenseId === relatedId
+          } else if (source === 'Mileage') {
+            return existing.expenseRuleMileageId === relatedId
+          }
+          return false
+        })
+
+        // Check for overlapping periods in JavaScript
+        const newPeriodFrom = dayjs(activeFrom).startOf('day')
+        const newPeriodTo = activeTo ? dayjs(activeTo).endOf('day') : null
+
+        const overlappingFields = matchingByRelatedId.filter(existing => {
+          const existingFrom = dayjs(existing.activeFrom)
+          const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
+
+          // Two periods overlap if they don't have a gap between them
+          const periodsDontOverlap =
+            (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
+            (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
+
+          return !periodsDontOverlap
+        })
+
+        console.log('[CustomFieldsTab] Overlap check:', {
+          newPeriod: {
+            from: newPeriodFrom.format('YYYY-MM-DD'),
+            to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
+          },
+          overlappingFields: overlappingFields.map(f => ({
+            id: f.id,
+            from: dayjs(f.activeFrom).format('YYYY-MM-DD'),
+            to: f.activeTo ? dayjs(f.activeTo).format('YYYY-MM-DD') : 'infinite'
+          }))
+        })
+
+        if (overlappingFields.length > 0) {
+          console.log('[CustomFieldsTab] DUPLICATE FOUND:', {
+            source,
+            relatedId,
+            overlappingEntries: overlappingFields,
+            isDuplicate: true
+          })
+          return true
+        }
+
+        console.log('[CustomFieldsTab] No overlapping duplicates found - custom field is unique')
+        return false
+      } catch (error) {
+        console.error('[CustomFieldsTab] Error checking custom field uniqueness:', {
+          error,
+          source,
+          relatedId,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        return true // Block save on error
+      }
+    },
+    [ruleId, graphqlClient]
+  )
+
   const handleSave = async () => {
     try {
       setIsSaving(true)
 
       const formValues = form.getValues()
+
+      // Check custom field uniqueness (source + relatedId combination)
+      console.log('[CustomFieldsTab] handleSave - Starting uniqueness check:', {
+        source: formValues.source,
+        relatedId: formValues.relatedId,
+        validFrom: formValues.validFrom,
+        validTo: formValues.validTo,
+        editingItemId: editingItem?.id,
+        isEdit: !!editingItem
+      })
+
+      const fieldExists = await checkCustomFieldUniqueness(
+        formValues.source,
+        formValues.relatedId,
+        formValues.validFrom,
+        formValues.validTo,
+        editingItem?.id
+      )
+
+      console.log('[CustomFieldsTab] handleSave - Uniqueness check result:', { fieldExists })
+
+      if (fieldExists) {
+        console.log('[CustomFieldsTab] handleSave - BLOCKING SAVE: Duplicate custom field detected')
+        form.setError('source', {
+          type: 'manual',
+          message:
+            'This source and related item combination already exists with an overlapping validity period. Please use a different combination or adjust the validity dates.'
+        })
+        setIsSaving(false)
+        return
+      }
+
+      console.log('[CustomFieldsTab] handleSave - Custom field is unique, proceeding with save')
 
       // Date validation
       const ruleFrom = dayjs(activeFrom)

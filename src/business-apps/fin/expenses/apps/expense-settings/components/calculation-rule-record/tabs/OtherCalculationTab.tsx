@@ -464,11 +464,185 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     }
   }
 
+  // Check if source + relatedId combination is unique within the validity period
+  const checkOtherCalcUniqueness = useCallback(
+    async (
+      source: SourceEnum,
+      relatedId: string | undefined,
+      activeFrom: string,
+      activeTo: string | undefined,
+      excludeId?: string
+    ): Promise<boolean> => {
+      console.log('[OtherCalculationTab] checkOtherCalcUniqueness called:', {
+        source,
+        relatedId,
+        activeFrom,
+        activeTo,
+        excludeId,
+        ruleId
+      })
+
+      try {
+        // If no source or relatedId, skip uniqueness check
+        if (!source || !relatedId) {
+          return false
+        }
+
+        // Build where condition based on source type - fetch all matching and filter in JS
+        const query = `
+          query CheckOtherCalcUniqueness($ruleId: uuid!, $source: String!, $excludeId: uuid) {
+            ExpenseRuleOtherCalc(
+              where: {
+                expenseRuleId: { _eq: $ruleId }
+                source: { _eq: $source }
+                isDeleted: { _eq: false }
+                id: { _neq: $excludeId }
+              }
+            ) {
+              id
+              activeFrom
+              activeTo
+              expenseRuleGeneralExpenseId
+              expenseRuleMileageId
+              expenseRuleAllowanceCodeId
+            }
+          }
+        `
+
+        const variables = {
+          ruleId,
+          source,
+          excludeId: excludeId || null
+        }
+
+        console.log('[OtherCalculationTab] GraphQL query variables:', variables)
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleOtherCalc: {
+            id: string
+            activeFrom: string
+            activeTo?: string
+            expenseRuleGeneralExpenseId?: string
+            expenseRuleMileageId?: string
+            expenseRuleAllowanceCodeId?: string
+          }[]
+        }>(query, variables)
+
+        console.log('[OtherCalculationTab] GraphQL response:', {
+          result,
+          foundCount: result.ExpenseRuleOtherCalc?.length || 0,
+          allMatchingCalcs: result.ExpenseRuleOtherCalc
+        })
+
+        // Filter by relatedId based on source type
+        const matchingByRelatedId = result.ExpenseRuleOtherCalc.filter(existing => {
+          if (source === 'GENERAL_EXPENSE_RULE') {
+            return existing.expenseRuleGeneralExpenseId === relatedId
+          } else if (source === 'MILEAGE_RULE') {
+            return existing.expenseRuleMileageId === relatedId
+          } else if (source === 'ALLOWANCE_RULE') {
+            return existing.expenseRuleAllowanceCodeId === relatedId
+          }
+          return false
+        })
+
+        // Check for overlapping periods in JavaScript
+        const newPeriodFrom = dayjs(activeFrom).startOf('day')
+        const newPeriodTo = activeTo ? dayjs(activeTo).endOf('day') : null
+
+        const overlappingCalcs = matchingByRelatedId.filter(existing => {
+          const existingFrom = dayjs(existing.activeFrom)
+          const existingTo = existing.activeTo ? dayjs(existing.activeTo) : null
+
+          // Two periods overlap if they don't have a gap between them
+          const periodsDontOverlap =
+            (newPeriodTo && existingFrom && newPeriodTo.isBefore(existingFrom, 'day')) ||
+            (existingTo && newPeriodFrom && existingTo.isBefore(newPeriodFrom, 'day'))
+
+          return !periodsDontOverlap
+        })
+
+        console.log('[OtherCalculationTab] Overlap check:', {
+          newPeriod: {
+            from: newPeriodFrom.format('YYYY-MM-DD'),
+            to: newPeriodTo ? newPeriodTo.format('YYYY-MM-DD') : 'infinite'
+          },
+          overlappingCalcs: overlappingCalcs.map(c => ({
+            id: c.id,
+            from: dayjs(c.activeFrom).format('YYYY-MM-DD'),
+            to: c.activeTo ? dayjs(c.activeTo).format('YYYY-MM-DD') : 'infinite'
+          }))
+        })
+
+        if (overlappingCalcs.length > 0) {
+          console.log('[OtherCalculationTab] DUPLICATE FOUND:', {
+            source,
+            relatedId,
+            overlappingEntries: overlappingCalcs,
+            isDuplicate: true
+          })
+          return true
+        }
+
+        console.log('[OtherCalculationTab] No overlapping duplicates found - calculation is unique')
+        return false
+      } catch (error) {
+        console.error('[OtherCalculationTab] Error checking calculation uniqueness:', {
+          error,
+          source,
+          relatedId,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        return true // Block save on error
+      }
+    },
+    [ruleId, graphqlClient]
+  )
+
   const handleSave = async () => {
     try {
       setIsSaving(true)
 
       const formValues = form.getValues()
+
+      // Check calculation uniqueness (source + relatedId combination)
+      console.log('[OtherCalculationTab] handleSave - Starting uniqueness check:', {
+        source: formValues.source,
+        relatedId: formValues.relatedId,
+        validFrom: formValues.validFrom,
+        validTo: formValues.validTo,
+        editingItemId: editingItem?.id,
+        isEdit: !!editingItem
+      })
+
+      const calcExists = await checkOtherCalcUniqueness(
+        formValues.source,
+        formValues.relatedId,
+        formValues.validFrom,
+        formValues.validTo,
+        editingItem?.id
+      )
+
+      console.log('[OtherCalculationTab] handleSave - Uniqueness check result:', { calcExists })
+
+      if (calcExists) {
+        console.log('[OtherCalculationTab] handleSave - BLOCKING SAVE: Duplicate calculation detected')
+        form.setError('source', {
+          type: 'manual',
+          message:
+            'This source and related item combination already exists with an overlapping validity period. Please use a different combination or adjust the validity dates.'
+        })
+        setIsSaving(false)
+        return
+      }
+
+      console.log('[OtherCalculationTab] handleSave - Calculation is unique, proceeding with save')
 
       // Date validation
       const ruleFrom = dayjs(activeFrom)
