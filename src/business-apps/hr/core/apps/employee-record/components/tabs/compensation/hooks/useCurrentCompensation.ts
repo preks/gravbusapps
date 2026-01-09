@@ -25,12 +25,23 @@ import {
  * - Current year bonuses from EmployeeBonus
  * - Active benefits from EmployeeBenefit
  *
- * Salary selection logic (SERVER-SIDE):
+ * Salary selection logic (HYBRID - Server + Client):
+ *
+ * SERVER-SIDE (GraphQL query):
  * 1. Filters by requestStatus = "APPROVED_SALARY_ADJUSTMENT" (only approved salaries)
  * 2. Filters out deleted records (isDeleted = false)
- * 3. Filters by date: startDate <= today AND (endDate IS NULL OR endDate >= today)
- * 4. Orders by startDate DESC, returns most recent (limit: 1)
- * 5. Returns null if no approved active salary exists (UI shows "No active salary configured")
+ * 3. Filters by startDate <= today (salary has started)
+ * 4. Orders by startDate DESC (most recent first)
+ * 5. Returns up to 5 records for client-side filtering
+ *
+ * CLIENT-SIDE (this hook):
+ * 6. Finds first salary where: startDate <= today AND (endDate IS NULL OR endDate >= today)
+ * 7. Returns null if no active salary found (UI shows "No active salary configured")
+ *
+ * Why hybrid?
+ * - GraphQL doesn't handle null comparison properly with _not operator
+ * - Client-side filtering ensures 100% accuracy for null endDate values
+ * - Limit: 5 keeps it efficient while covering edge cases
  *
  * @param employeeId - The employee ID to fetch data for
  * @param accessToken - Access token for API authentication
@@ -64,7 +75,7 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       const today = new Date().toISOString().split('T')[0]
 
       // Fetch current compensation data from GraphQL
-      // Server-side filtering ensures we only get APPROVED active salary
+      // Server-side filtering: APPROVED + started salaries (up to 5 records)
       const result = await graphqlClient.request<EmployeeSalaryResponse>(GET_EMPLOYEE_COMPENSATION_DATA, {
         employeeId,
         today
@@ -75,16 +86,23 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
         throw new Error('No data received from server')
       }
 
-      // Get employee salary from EmployeeSalary table
-      // Query already filtered and limited to 1 record (most recent approved active salary)
+      // Get employee salaries from EmployeeSalary table
+      // Query returned up to 5 most recent approved salaries (server-filtered by startDate <= today)
       const allEmployeeSalaries: EmployeeSalary[] = result?.AllEmployeeSalaries || []
 
-      // Take the first (and only) result - server already filtered for:
-      // - requestStatus = "APPROVED_SALARY_ADJUSTMENT"
-      // - isDeleted = false
-      // - startDate <= today AND (endDate IS NULL OR endDate >= today)
-      // - Ordered by startDate DESC (most recent first)
-      const employeeSalary: EmployeeSalary | null = allEmployeeSalaries[0] || null
+      // CLIENT-SIDE FILTERING: Find truly active salary
+      // Server already filtered startDate <= today, now just check endDate
+      // Logic: endDate IS NULL OR endDate >= today (using string comparison for dates)
+      const activeSalary = allEmployeeSalaries.find(salary => {
+        // Server guarantees startDate <= today, so we only need to check endDate
+        // Use string comparison to avoid timezone issues (YYYY-MM-DD format)
+        const isNotExpired = !salary.endDate || salary.endDate >= today
+
+        return isNotExpired
+      })
+
+      // Use active salary, or null if no active salary found
+      const employeeSalary: EmployeeSalary | null = activeSalary || null
 
       // Extract and transform compensation band
       const employeePosition = result?.EmployeePosition?.[0]
