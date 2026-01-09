@@ -59,7 +59,7 @@ chat-input-send = Senden
 chat-input-attach = Datei anhängen
 chat-input-emoji = Emoji hinzufügen
 chat-attach = Datei anhängen
-chat-mention = Entität erwähnen
+chat-mention = Jemanden erwähnen
 
 # Typing Indicator
 chat-someone = Jemand
@@ -128,7 +128,18 @@ chat-startAudioCall = Audioanruf starten
 chat-startVideoCall = Videoanruf starten
 chat-closeConversation = Unterhaltung schließen
 chat-activeCallShort = Im Anruf
-chat-addExpert = Experte hinzufügen
+chat-addExpert = Experten hinzufügen
+chat-searchExperts = Experten suchen...
+chat-noExpertsFound = Keine Experten gefunden
+chat-createExpertsHint = Erstellen Sie Experten im Task Expert Studio
+chat-expertActive = Aktiv
+chat-add = Hinzufügen
+chat-knowledgeSourceCount = {$count ->
+  [one] {$count} Wissensquelle
+  *[other] {$count} Wissensquellen
+}
+chat-expertsHelpText = Experten haben spezialisiertes Wissen und können erwähnt werden mit
+chat-activeExperts = Aktive Experten:
 chat-leaveConversation = Unterhaltung verlassen
 chat-removeConversation = Unterhaltung entfernen
 chat-leaveConversationTitle = Unterhaltung verlassen?
@@ -174,13 +185,24 @@ chat-lastOwnerInfo = Sie sind der einzige Besitzer. Um diese Gruppe zu verlassen
 # Call Features
 chat-audioCall = Audioanruf
 chat-videoCall = Videoanruf
+chat-groupCall = Gruppenanruf
 chat-endCall = Anruf beenden
 chat-mute = Stummschalten
 chat-unmute = Stummschaltung aufheben
 chat-startVideo = Video starten
 chat-stopVideo = Video stoppen
+chat-turnOnCamera = Kamera einschalten
+chat-turnOffCamera = Kamera ausschalten
 chat-shareScreen = Bildschirm teilen
 chat-stopSharing = Teilen beenden
+chat-leaveCall = Anruf verlassen
+chat-minimizeCall = Anruf minimieren
+chat-settings = Einstellungen
+chat-fullscreen = Vollbild
+chat-exitFullscreen = Vollbild beenden
+chat-participant = Teilnehmer
+chat-participants = Teilnehmer
+chat-screenShare = Bildschirm von {$name}
 chat-incomingCall = Eingehender Anruf
 chat-callWith = Anruf mit {$name}
 chat-joinCall = Anruf beitreten
@@ -205,6 +227,29 @@ call-initiating = Anruf wird gestartet...
 call-connecting = Verbinde...
 call-ended = Anruf beendet
 call-failed = Anruf fehlgeschlagen
+call-disconnected = Getrennt
+
+# Call Settings
+call-videoQuality = Videoqualität
+call-highQuality = Hohe Qualität
+call-highQualityDesc = 720p, 30fps - Optimal für schnelle Verbindungen
+call-mediumQuality = Mittlere Qualität
+call-mediumQualityDesc = 480p, 24fps - Ausgewogen
+call-lowQuality = Niedrige Qualität
+call-lowQualityDesc = 240p, 15fps - Für langsame Verbindungen
+call-background = Hintergrund
+call-brandedBackground = Marken-Hintergrund
+call-brandedBackgroundDesc = Zeigt NEWWORK-Branding
+call-diagnostics = Diagnose
+call-connectionDebug = Verbindungs-Diagnose
+call-showDiagnostics = Verbindungsdiagnose anzeigen
+call-clickToClose = Klicken Sie irgendwo, um zu schließen
+call-screen = Bildschirm
+call-host = Gastgeber
+call-retryConnection = Verbindung wiederholen
+call-reconnect = Erneut verbinden
+call-retrying = Wird wiederholt...
+call-waitingForParticipants = Warte auf Teilnehmer...
 
 # Notifications
 notifications-title = Benachrichtigungen
