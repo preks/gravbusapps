@@ -59,7 +59,7 @@ chat-input-send = Trimite
 chat-input-attach = Atașează fișier
 chat-input-emoji = Adaugă emoji
 chat-attach = Atașează fișier
-chat-mention = Menționează entitate
+chat-mention = Menționează pe cineva
 
 # Typing Indicator
 chat-someone = Cineva
@@ -129,6 +129,17 @@ chat-startVideoCall = Pornește apel video
 chat-closeConversation = Închide conversația
 chat-activeCallShort = În Apel
 chat-addExpert = Adaugă Expert
+chat-searchExperts = Caută experți...
+chat-noExpertsFound = Nu s-au găsit experți
+chat-createExpertsHint = Creați experți în Task Expert Studio
+chat-expertActive = Activ
+chat-add = Adaugă
+chat-knowledgeSourceCount = {$count ->
+  [one] {$count} sursă de cunoștințe
+  *[other] {$count} surse de cunoștințe
+}
+chat-expertsHelpText = Experții au cunoștințe specializate și pot fi menționați folosind
+chat-activeExperts = Experți Activi:
 chat-leaveConversation = Părăsește conversația
 chat-removeConversation = Elimină conversația
 chat-leaveConversationTitle = Părăsești conversația?
@@ -174,13 +185,23 @@ chat-lastOwnerInfo = Ești singurul proprietar. Pentru a părăsi acest grup, f�
 # Call Features
 chat-audioCall = Apel Audio
 chat-videoCall = Apel Video
+chat-groupCall = Apel de Grup
 chat-endCall = Închide Apel
 chat-mute = Mut
 chat-unmute = Activează Sunet
 chat-startVideo = Pornește Video
 chat-stopVideo = Oprește Video
+chat-turnOnCamera = Pornește camera
+chat-turnOffCamera = Oprește camera
 chat-shareScreen = Partajează Ecranul
 chat-stopSharing = Oprește Partajarea
+chat-leaveCall = Părăsește apelul
+chat-minimizeCall = Minimizează apelul
+chat-settings = Setări
+chat-fullscreen = Ecran complet
+chat-exitFullscreen = Ieși din ecran complet
+chat-participant = participant
+chat-screenShare = Ecranul lui {$name}
 chat-incomingCall = Apel Primit
 chat-callWith = Apel cu {$name}
 chat-joinCall = Alătură-te Apelului
@@ -205,6 +226,29 @@ call-initiating = Se pornește apelul...
 call-connecting = Se conectează...
 call-ended = Apel încheiat
 call-failed = Apel eșuat
+call-disconnected = Deconectat
+
+# Call Settings
+call-videoQuality = Calitate Video
+call-highQuality = Calitate Înaltă
+call-highQualityDesc = 720p, 30fps - Optimal pentru conexiuni rapide
+call-mediumQuality = Calitate Medie
+call-mediumQualityDesc = 480p, 24fps - Echilibrat
+call-lowQuality = Calitate Scăzută
+call-lowQualityDesc = 240p, 15fps - Pentru conexiuni lente
+call-background = Fundal
+call-brandedBackground = Fundal cu Marcă
+call-brandedBackgroundDesc = Afișează marca NEWWORK
+call-diagnostics = Diagnosticare
+call-connectionDebug = Diagnosticare Conexiune
+call-showDiagnostics = Afișează diagnosticarea conexiunii
+call-clickToClose = Apăsați oriunde pentru a închide
+call-screen = Ecran
+call-host = Gazdă
+call-retryConnection = Reîncearcă conexiunea
+call-reconnect = Reconectare
+call-retrying = Se reîncearcă...
+call-waitingForParticipants = Se așteaptă participanții...
 
 # Notifications
 notifications-title = Notificări
