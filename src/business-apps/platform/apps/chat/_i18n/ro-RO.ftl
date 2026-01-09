@@ -201,6 +201,7 @@ chat-settings = Setări
 chat-fullscreen = Ecran complet
 chat-exitFullscreen = Ieși din ecran complet
 chat-participant = participant
+chat-participants = participanți
 chat-screenShare = Ecranul lui {$name}
 chat-incomingCall = Apel Primit
 chat-callWith = Apel cu {$name}

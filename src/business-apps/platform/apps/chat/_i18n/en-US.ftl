@@ -360,3 +360,17 @@ calendar-eventsScheduled = {$count ->
   *[other] {$count} events scheduled
 }
 calendar-noEventsScheduled = 0 events scheduled
+calendar-view-day = Day
+calendar-view-week = Week
+calendar-view-month = Month
+calendar-today = Today
+calendar-create-meeting = Create Meeting
+calendar-no-events = No events scheduled
+calendar-all-day = All day
+calendar-loading = Loading calendar...
+calendar-error = Failed to load calendar
+calendar-event-details = Event Details
+calendar-pending-invitations = Pending Invitations
+calendar-accept = Accept
+calendar-decline = Decline
+calendar-tentative = Tentative
