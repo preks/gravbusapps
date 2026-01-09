@@ -13,7 +13,8 @@ import {
   TabsTrigger,
   TabsContent,
   Avatar,
-  IconAvatar
+  IconAvatar,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Users, Buildings } from '@phosphor-icons/react'
 import { UserIcon } from 'lucide-react'
@@ -21,8 +22,8 @@ import { UserSelector } from './UserSelector'
 import { DimensionPicker } from './DimensionPicker'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useOrganizationalDimensions, DimensionType } from '../hooks/useOrganizationalDimensions'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
+import translations from '../_i18n'
 
 type CreationMode = 'manual' | 'dimension'
 
@@ -44,6 +45,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   prefixDataTestId = 'create-group-modal',
   accessToken
 }) => {
+  const { t } = useTranslation(translations)
   const [creationMode, setCreationMode] = useState<CreationMode>('manual')
   const [groupName, setGroupName] = useState('')
   const [description, setDescription] = useState('')
@@ -99,14 +101,14 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
 
   const handleCreate = async () => {
     if (!groupName.trim()) {
-      setError(getTranslationFromI18nKeyAndLabel('chat.groupNameRequired', 'Group name is required'))
+      setError(t('chat-groupNameRequired'))
       return
     }
 
     let participantIds = creationMode === 'manual' ? selectedUserIds : dimensionMembers.map(m => m.id)
 
     if (participantIds.length === 0) {
-      setError(getTranslationFromI18nKeyAndLabel('chat.selectAtLeastOneUser', 'Please select at least one participant'))
+      setError(t('chat-selectAtLeastOneUser'))
       return
     }
 
@@ -122,9 +124,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
       handleClose()
     } catch (err) {
       console.error('Error creating group:', err)
-      setError(
-        getTranslationFromI18nKeyAndLabel('chat.groupCreationFailed', 'Failed to create group. Please try again.')
-      )
+      setError(t('chat-groupCreationFailed'))
     } finally {
       setIsCreating(false)
     }
@@ -180,7 +180,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="gba:max-w-2xl gba:max-h-[85vh]" data-testid={prefixDataTestId}>
         <DialogHeader>
-          <DialogTitle>{getTranslationFromI18nKeyAndLabel('chat.createGroup', 'Create Group Chat')}</DialogTitle>
+          <DialogTitle>{t('chat-createGroup')}</DialogTitle>
         </DialogHeader>
 
         {showDimensionPicker ? (
@@ -211,13 +211,13 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                 <TabsTrigger value="manual" className="gba:flex-1" data-testid={`${prefixDataTestId}-tab-manual`}>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                     <Users className="gba:w-4 gba:h-4" />
-                    <span>{getTranslationFromI18nKeyAndLabel('chat.selectManually', 'Select Manually')}</span>
+                    <span>{t('chat-selectManually')}</span>
                   </div>
                 </TabsTrigger>
                 <TabsTrigger value="dimension" className="gba:flex-1" data-testid={`${prefixDataTestId}-tab-dimension`}>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                     <Buildings className="gba:w-4 gba:h-4" />
-                    <span>{getTranslationFromI18nKeyAndLabel('chat.selectByGroup', 'By Group')}</span>
+                    <span>{t('chat-selectByGroup')}</span>
                   </div>
                 </TabsTrigger>
               </TabsList>
@@ -227,12 +227,12 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                 {/* Group Name */}
                 <div className="gba:space-y-2">
                   <Label htmlFor="group-name">
-                    {getTranslationFromI18nKeyAndLabel('chat.groupName', 'Group Name')}
+                    {t('chat-groupName')}
                     <span className="gba:text-destructive">*</span>
                   </Label>
                   <Input
                     id="group-name"
-                    placeholder={getTranslationFromI18nKeyAndLabel('chat.groupNamePlaceholder', 'Enter group name...')}
+                    placeholder={t('chat-groupNamePlaceholder')}
                     value={groupName}
                     onChange={e => setGroupName(e.target.value)}
                     disabled={isCreating}
@@ -243,17 +243,12 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                 {/* Description (optional) */}
                 <div className="gba:space-y-2">
                   <Label htmlFor="group-description">
-                    {getTranslationFromI18nKeyAndLabel('chat.groupDescription', 'Description')}
-                    <span className="gba:text-muted-foreground gba:ml-1">
-                      ({getTranslationFromI18nKeyAndLabel('chat.optional', 'optional')})
-                    </span>
+                    {t('chat-groupDescription')}
+                    <span className="gba:text-muted-foreground gba:ml-1">({t('chat-optional')})</span>
                   </Label>
                   <Input
                     id="group-description"
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'chat.groupDescriptionPlaceholder',
-                      'Enter description...'
-                    )}
+                    placeholder={t('chat-groupDescriptionPlaceholder')}
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     disabled={isCreating}
@@ -264,7 +259,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                 {/* User Selector */}
                 <div className="gba:space-y-2">
                   <Label>
-                    {getTranslationFromI18nKeyAndLabel('chat.selectParticipants', 'Select Participants')}
+                    {t('chat-selectParticipants')}
                     <span className="gba:text-destructive">*</span>
                   </Label>
                   <div className="gba:h-64">
@@ -292,7 +287,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                             {selectedDimensionName}
                           </div>
                           <div className="gba:text-sm gba:text-success-secondary-foreground/70">
-                            {dimensionMembers.length} {getTranslationFromI18nKeyAndLabel('chat.members', 'members')}
+                            {dimensionMembers.length} {t('chat-members')}
                           </div>
                         </div>
                         <Button
@@ -301,7 +296,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                           onClick={handleStartDimensionPicker}
                           data-testid={`${prefixDataTestId}-change-dimension`}
                         >
-                          {getTranslationFromI18nKeyAndLabel('chat.change', 'Change')}
+                          {t('chat-change')}
                         </Button>
                       </div>
                     </div>
@@ -309,15 +304,12 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                     {/* Group Name */}
                     <div className="gba:space-y-2">
                       <Label htmlFor="group-name-dimension">
-                        {getTranslationFromI18nKeyAndLabel('chat.groupName', 'Group Name')}
+                        {t('chat-groupName')}
                         <span className="gba:text-destructive">*</span>
                       </Label>
                       <Input
                         id="group-name-dimension"
-                        placeholder={getTranslationFromI18nKeyAndLabel(
-                          'chat.groupNamePlaceholder',
-                          'Enter group name...'
-                        )}
+                        placeholder={t('chat-groupNamePlaceholder')}
                         value={groupName}
                         onChange={e => setGroupName(e.target.value)}
                         disabled={isCreating}
@@ -328,17 +320,12 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                     {/* Description (optional) */}
                     <div className="gba:space-y-2">
                       <Label htmlFor="group-description-dimension">
-                        {getTranslationFromI18nKeyAndLabel('chat.groupDescription', 'Description')}
-                        <span className="gba:text-muted-foreground gba:ml-1">
-                          ({getTranslationFromI18nKeyAndLabel('chat.optional', 'optional')})
-                        </span>
+                        {t('chat-groupDescription')}
+                        <span className="gba:text-muted-foreground gba:ml-1">({t('chat-optional')})</span>
                       </Label>
                       <Input
                         id="group-description-dimension"
-                        placeholder={getTranslationFromI18nKeyAndLabel(
-                          'chat.groupDescriptionPlaceholder',
-                          'Enter description...'
-                        )}
+                        placeholder={t('chat-groupDescriptionPlaceholder')}
                         value={description}
                         onChange={e => setDescription(e.target.value)}
                         disabled={isCreating}
@@ -348,9 +335,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
 
                     {/* Member preview */}
                     <div className="gba:space-y-2">
-                      <Label className="gba:text-muted-foreground">
-                        {getTranslationFromI18nKeyAndLabel('chat.participantsPreview', 'Participants')}
-                      </Label>
+                      <Label className="gba:text-muted-foreground">{t('chat-participantsPreview')}</Label>
                       <div className="gba:h-40 gba:overflow-y-auto gba:border gba:border-border/50 gba:rounded-lg gba:bg-muted/20 gba:p-2">
                         <div className="gba:flex gba:flex-wrap gba:gap-2">
                           {dimensionMembers.map(member => (
@@ -387,21 +372,13 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                       <Buildings className="gba:w-8 gba:h-8 gba:text-primary" />
                     </div>
                     <div>
-                      <h3 className="gba:font-medium gba:text-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'chat.createGroupByDimension',
-                          'Create Group by Organization'
-                        )}
-                      </h3>
+                      <h3 className="gba:font-medium gba:text-foreground">{t('chat-createGroupByDimension')}</h3>
                       <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:max-w-xs gba:mx-auto">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'chat.dimensionDescription',
-                          'Select an organization unit, matrix team, or location to automatically add all members.'
-                        )}
+                        {t('chat-dimensionDescription')}
                       </p>
                     </div>
                     <Button onClick={handleStartDimensionPicker} data-testid={`${prefixDataTestId}-select-dimension`}>
-                      {getTranslationFromI18nKeyAndLabel('chat.selectGroup', 'Select Group')}
+                      {t('chat-selectGroup')}
                     </Button>
                   </div>
                 )}
@@ -429,7 +406,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
               disabled={isCreating}
               data-testid={`${prefixDataTestId}-cancel`}
             >
-              {getTranslationFromI18nKeyAndLabel('chat.cancel', 'Cancel')}
+              {t('chat-cancel')}
             </Button>
             <Button
               onClick={handleCreate}
@@ -437,8 +414,8 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
               data-testid={`${prefixDataTestId}-create`}
             >
               {isCreating
-                ? getTranslationFromI18nKeyAndLabel('chat.creating', 'Creating...')
-                : `${getTranslationFromI18nKeyAndLabel('chat.createGroup', 'Create Group')}${getParticipantCount() > 0 ? ` (${getParticipantCount()})` : ''}`}
+                ? t('chat-creating')
+                : `${t('chat-createGroup')}${getParticipantCount() > 0 ? ` (${getParticipantCount()})` : ''}`}
             </Button>
           </DialogFooter>
         )}

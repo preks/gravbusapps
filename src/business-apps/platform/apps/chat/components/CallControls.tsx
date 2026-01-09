@@ -1,7 +1,7 @@
 import React from 'react'
-import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
+import { Button, Tooltip, TooltipContent, TooltipTrigger, useTranslation } from '@newwork/nw-design-system'
 import { Mic, MicOff, Video, VideoOff, PhoneOff, MonitorUp, MonitorOff } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface CallControlsProps {
   isMuted: boolean
@@ -72,6 +72,7 @@ export const CallControls: React.FC<CallControlsProps> = ({
   onEndCall,
   prefixDataTestId = 'call-controls'
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <div
       className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:py-4 gba:px-6 gba:bg-gradient-to-t gba:from-black/80 gba:to-transparent"
@@ -82,11 +83,7 @@ export const CallControls: React.FC<CallControlsProps> = ({
         <ControlButton
           icon={<Mic className="gba:w-5 gba:h-5" />}
           activeIcon={<MicOff className="gba:w-5 gba:h-5" />}
-          label={
-            isMuted
-              ? getTranslationFromI18nKeyAndLabel('call.unmute', 'Unmute')
-              : getTranslationFromI18nKeyAndLabel('call.mute', 'Mute')
-          }
+          label={isMuted ? t('call-unmute') : t('call-mute')}
           isActive={isMuted}
           onClick={onToggleMute}
           testId={`${prefixDataTestId}-mute`}
@@ -97,11 +94,7 @@ export const CallControls: React.FC<CallControlsProps> = ({
           <ControlButton
             icon={<Video className="gba:w-5 gba:h-5" />}
             activeIcon={<VideoOff className="gba:w-5 gba:h-5" />}
-            label={
-              isVideoOff
-                ? getTranslationFromI18nKeyAndLabel('call.turnOnCamera', 'Turn on camera')
-                : getTranslationFromI18nKeyAndLabel('call.turnOffCamera', 'Turn off camera')
-            }
+            label={isVideoOff ? t('call-turnOnCamera') : t('call-turnOffCamera')}
             isActive={isVideoOff}
             onClick={onToggleVideo}
             testId={`${prefixDataTestId}-video`}
@@ -113,11 +106,7 @@ export const CallControls: React.FC<CallControlsProps> = ({
           <ControlButton
             icon={<MonitorUp className="gba:w-5 gba:h-5" />}
             activeIcon={<MonitorOff className="gba:w-5 gba:h-5" />}
-            label={
-              isScreenSharing
-                ? getTranslationFromI18nKeyAndLabel('call.stopSharing', 'Stop sharing')
-                : getTranslationFromI18nKeyAndLabel('call.shareScreen', 'Share screen')
-            }
+            label={isScreenSharing ? t('call-stopSharing') : t('call-shareScreen')}
             isActive={isScreenSharing}
             onClick={onToggleScreenShare}
             testId={`${prefixDataTestId}-screen-share`}
@@ -127,7 +116,7 @@ export const CallControls: React.FC<CallControlsProps> = ({
         {/* End Call Button */}
         <ControlButton
           icon={<PhoneOff className="gba:w-5 gba:h-5" />}
-          label={getTranslationFromI18nKeyAndLabel('call.endCall', 'End call')}
+          label={t('call-endCall')}
           isActive={false}
           onClick={onEndCall}
           variant="destructive"

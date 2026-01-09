@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Tabs, TabsContent, Button, Badge } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, Button, Badge, useTranslation } from '@newwork/nw-design-system'
 import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell } from 'lucide-react'
 import { ArrowsOut } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Chat } from './Chat'
 import { Calendar } from './calendar/Calendar'
 import { EveryAI } from '../every-ai/EveryAI'
-import { RemindersPanel } from '../every-ai/components/RemindersPanel'
+import { RemindersPanel } from './components/RemindersPanel'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import translations from './_i18n'
 
 type TabValue = 'everyai' | 'chat' | 'calendar' | 'reminders'
 
@@ -30,6 +31,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
   defaultTab = 'everyai',
   ...props
 }) => {
+  const { t } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState<TabValue>(defaultTab)
   const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
 
@@ -119,7 +121,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
             onClick={openFullscreen}
             className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
             data-testid="chat-fullscreen-button"
-            title="Open in Fullscreen"
+            title={t('chat-fullscreen-button')}
           >
             <ArrowsOut
               className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
@@ -141,7 +143,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
               data-testid={`${prefixDataTestId}-everyai-tab`}
             >
               <Sparkles className="gba:h-3.5 gba:w-3.5" />
-              <span>EveryAI</span>
+              <span>{t('chat-tab-everyai')}</span>
               {activeTab === 'everyai' && (
                 <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
               )}
@@ -154,7 +156,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
               data-testid={`${prefixDataTestId}-chat-tab`}
             >
               <MessageSquare className="gba:h-3.5 gba:w-3.5" />
-              <span>Chat</span>
+              <span>{t('chat-tab-chat')}</span>
               {activeTab === 'chat' && (
                 <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
               )}
@@ -167,7 +169,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
               data-testid={`${prefixDataTestId}-calendar-tab`}
             >
               <CalendarIcon className="gba:h-3.5 gba:w-3.5" />
-              <span>Calendar</span>
+              <span>{t('chat-tab-calendar')}</span>
               {activeTab === 'calendar' && (
                 <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
               )}
@@ -182,7 +184,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
               data-testid={`${prefixDataTestId}-reminders-tab`}
             >
               <Bell className="gba:h-3.5 gba:w-3.5" />
-              <span>Reminders</span>
+              <span>{t('chat-tab-reminders')}</span>
               {overdueRemindersCount > 0 && (
                 <Badge
                   variant="destructive"
@@ -243,6 +245,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             onOverdueCountChange={setOverdueRemindersCount}
+            t={t}
           />
         </TabsContent>
       </Tabs>
