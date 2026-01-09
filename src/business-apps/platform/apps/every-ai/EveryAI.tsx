@@ -8,11 +8,8 @@ import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
-import { RemindersPanel } from './components/RemindersPanel'
-import { ErrorBoundary } from './components/ErrorBoundary'
 import { VoiceOverlay } from './components/voice/VoiceOverlay'
-import { Button } from '@newwork/nw-design-system'
-import { Bell, Sparkle } from '@phosphor-icons/react'
+import { Sparkle } from '@phosphor-icons/react'
 import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 
@@ -39,7 +36,6 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
 const EveryAIInner: React.FC<EveryAIProps> = props => {
   const { accessToken, className, userInfo } = props
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [showRemindersPanel, setShowRemindersPanel] = useState(false)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
@@ -506,61 +502,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         onStopSpeaking={voiceSynthesis.stop}
         onSendTranscript={handleVoiceSend}
       />
-
-      {/* Top Right - Reminders button (hidden in speech mode) */}
-      {!isSpeechMode && (
-        <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowRemindersPanel(!showRemindersPanel)}
-            className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
-            data-testid="reminders-bell-button"
-            title={showRemindersPanel ? 'Back to Chat' : 'My Reminders'}
-          >
-            {showRemindersPanel ? (
-              <Sparkle
-                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
-                weight="regular"
-                aria-hidden="true"
-              />
-            ) : (
-              <Bell
-                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
-                weight="regular"
-                aria-hidden="true"
-              />
-            )}
-          </Button>
-        </div>
-      )}
-
-      {/* Reminders Panel - Always mounted to check for due reminders */}
-      <div
-        className={`gba:absolute gba:inset-0 gba:z-40 gba:bg-background gba:flex gba:flex-col ${showRemindersPanel ? '' : 'gba:hidden'}`}
-        data-testid="reminders-panel-overlay"
-      >
-        <ErrorBoundary
-          fallback={
-            <div className="gba:bg-card gba:p-4 gba:rounded-lg gba:shadow-lg gba:border gba:border-border gba:m-4">
-              <p className="gba:text-destructive gba:font-semibold">Failed to load reminders</p>
-              <button
-                onClick={() => setShowRemindersPanel(false)}
-                className="gba:mt-2 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
-              >
-                Close
-              </button>
-            </div>
-          }
-        >
-          <RemindersPanel
-            accessToken={accessToken}
-            userInfo={userInfo}
-            onClose={() => setShowRemindersPanel(false)}
-            onReminderDue={() => setShowRemindersPanel(true)}
-          />
-        </ErrorBoundary>
-      </div>
 
       <FormSubmissionProvider>
         {/* Conversation Area with subtle gradient */}
