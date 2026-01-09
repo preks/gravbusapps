@@ -13,8 +13,9 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
+import { useTranslation } from '@newwork/nw-design-system'
 import { FilePdfOutlined } from '@ant-design/icons'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../_i18n'
 
 type PrintResult = { success: boolean; pdfUrl?: string; error?: string }
 
@@ -59,6 +60,8 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
   fetchPdf,
   dataTestIdPrefix
 }) => {
+  const { t } = useTranslation(translations)
+
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState<boolean>(false)
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('')
   const [pdfLoading, setPdfLoading] = useState<boolean>(false)
@@ -116,7 +119,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
       return `${record.code.trim()}.pdf`
     }
 
-    return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.travel_order_pdf', 'Travel order.pdf')
+    return t('travel-order-fallback-file-name')
   }, [record?.employeeDocument?.name, record?.employeeDocument?.file, record?.code])
 
   const openPdfPreview = useCallback(async () => {
@@ -140,21 +143,14 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
         return
       }
 
-      setPdfError(
-        result.error ||
-          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')
-      )
+      setPdfError(result.error || t('travel-order-failed-to-load-pdf'))
     } catch (e) {
       if (!isMounted.current) return
-      setPdfError(
-        e instanceof Error
-          ? e.message
-          : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')
-      )
+      setPdfError(e instanceof Error ? e.message : t('travel-order-failed-to-load-pdf'))
     } finally {
       if (isMounted.current) setPdfLoading(false)
     }
-  }, [fetchPdf, hasTravelOrder, pdfPreviewUrl, record])
+  }, [fetchPdf, hasTravelOrder, pdfPreviewUrl, record, t])
 
   if (!hasTravelOrder) {
     return (
@@ -164,12 +160,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
       >
         <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
           <FilePdfOutlined style={{ fontSize: '48px', color: 'border' }} />
-          <p className="gba:text-sm gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.no_travel_order_attached',
-              'No travel order attached'
-            )}
-          </p>
+          <p className="gba:text-sm gba:text-gray-600">{t('travel-order-no-attached')}</p>
         </div>
       </Card>
     )
@@ -240,12 +231,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
           data-testid={`${dataTestIdPrefix}-travel-order-modal`}
         >
           <DialogHeader>
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.travel_order_preview',
-                'Travel Order Preview'
-              )}
-            </DialogTitle>
+            <DialogTitle>{t('travel-order-preview-title')}</DialogTitle>
           </DialogHeader>
 
           {pdfLoading ? (
