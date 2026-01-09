@@ -335,15 +335,6 @@ export const useMatrixCellEditing = ({
                 version: savedVersion
               }
 
-              console.log('[handleSaveSingleCell] Immediate UI update:', {
-                cellId: updatedCell.id,
-                validityPeriodId: updatedCell.validityPeriodId,
-                amount: updatedCell.amount,
-                activeFrom: updatedCell.activeFrom,
-                activeTo: updatedCell.activeTo,
-                currencyCode: updatedCell.currencyCode
-              })
-
               return updatedCell
             }
             return c

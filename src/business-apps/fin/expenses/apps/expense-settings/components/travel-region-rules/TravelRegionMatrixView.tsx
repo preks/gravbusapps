@@ -115,17 +115,8 @@ const getDefaultCellDates = (
     const firstCell = sortedCells[0]
 
     // Normalize dates - MUST use the actual dates from the first cell
-    // Log the raw dates to debug
-    console.log(
-      `[getDefaultCellDates] First cell dates - raw activeFrom: ${firstCell.activeFrom}, raw activeTo: ${firstCell.activeTo}`
-    )
-
     const normalizedActiveFrom = normalizeDate(firstCell.activeFrom)
     const normalizedActiveTo = normalizeDate(firstCell.activeTo)
-
-    console.log(
-      `[getDefaultCellDates] Normalized dates - activeFrom: ${normalizedActiveFrom}, activeTo: ${normalizedActiveTo}`
-    )
 
     // If we have valid dates, use them - NEVER fall back to far future if we have a cell
     if (normalizedActiveFrom) {
@@ -289,14 +280,6 @@ const handleAddNewCell = (
   setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>,
   allowanceRegionRules: EditableAllowanceRegionRule[] // Need all rules to check other regions
 ) => {
-  console.log('[handleAddNewCell] Called for:', {
-    ruleId: rule.id,
-    ruleName: rule.name,
-    regionId: region.id,
-    regionCode: region.code,
-    regionValue: region.value
-  })
-
   try {
     let datesToUse: { activeFrom: string; activeTo: string | undefined } | undefined
 
@@ -304,7 +287,6 @@ const handleAddNewCell = (
     // use the dates from the first new cell. This ensures all new details inherit dates
     // from the first newly created detail across all regions.
     const newCellsForRule = editableCells.filter(c => c.isNew && c.allowanceRegionRuleId === rule.id)
-    console.log('[handleAddNewCell] New cells for rule:', newCellsForRule.length)
 
     if (newCellsForRule.length > 0) {
       // Use dates from the first new cell (sorted by creation order - oldest first)
@@ -322,7 +304,6 @@ const handleAddNewCell = (
     } else {
       // PRIORITY 2: Check OTHER regions for details valid today
       // Requirement: "from and to should be the one that is valid today, and already exists for another region"
-      console.log('[handleAddNewCell] Checking other regions for details valid today')
       const allOtherRegionsDetails: any[] = []
       allowanceRegionRules.forEach(r => {
         const otherRegionsDetails = (r.details || []).filter((detail: any) => detail.travelRegion?.id !== region.id)
@@ -331,12 +312,6 @@ const handleAddNewCell = (
 
       // Also check editableCells for other regions
       const allOtherRegionsCells = editableCells.filter(c => c.travelRegionId !== region.id && !c.isNew)
-
-      console.log('[handleAddNewCell] Other regions details:', {
-        fromDetails: allOtherRegionsDetails.length,
-        fromCells: allOtherRegionsCells.length,
-        total: allOtherRegionsDetails.length + allOtherRegionsCells.length
-      })
 
       if (allOtherRegionsDetails.length > 0 || allOtherRegionsCells.length > 0) {
         // Get all details from other regions
@@ -347,7 +322,6 @@ const handleAddNewCell = (
 
         // Find a detail that is valid today
         const today = dayjs().startOf('day')
-        console.log('[handleAddNewCell] Checking for details valid today. Today is:', today.format('YYYY-MM-DD'))
 
         const detailValidToday = allOtherDetails.find(detail => {
           if (!detail.activeFrom) return false
@@ -358,23 +332,10 @@ const handleAddNewCell = (
           const isTodayAfterFrom = today.isSameOrAfter(from, 'day')
           const isTodayBeforeTo = !to || today.isSameOrBefore(to, 'day')
 
-          const isValid = isTodayAfterFrom && isTodayBeforeTo
-          if (isValid) {
-            console.log('[handleAddNewCell] Found valid detail:', {
-              from: from.format('YYYY-MM-DD'),
-              to: to ? to.format('YYYY-MM-DD') : 'infinite',
-              detail
-            })
-          }
-
-          return isValid
+          return isTodayAfterFrom && isTodayBeforeTo
         })
 
-        console.log('[handleAddNewCell] Detail valid today found:', !!detailValidToday)
-
         if (detailValidToday) {
-          // Use dates from detail that's valid today - use them directly, don't normalize
-          console.log(`[handleAddNewCell] Found detail valid today in another region:`, detailValidToday)
           // Normalize the dates to ensure proper format
           const normalizedFrom = normalizeDate(detailValidToday.activeFrom)
           const normalizedTo = detailValidToday.activeTo ? normalizeDate(detailValidToday.activeTo) : undefined
@@ -393,7 +354,6 @@ const handleAddNewCell = (
           }
         } else {
           // No detail valid today - use today's date for from
-          console.log(`[handleAddNewCell] No detail valid today found, using today's date`)
           const todayISO = today.toISOString()
           datesToUse = {
             activeFrom: todayISO,
@@ -402,7 +362,6 @@ const handleAddNewCell = (
         }
       } else {
         // No other regions have details - use today's date for from
-        console.log(`[handleAddNewCell] No other regions have details, using today's date`)
         const today = dayjs().startOf('day')
         const todayISO = today.toISOString()
         datesToUse = {
@@ -419,7 +378,6 @@ const handleAddNewCell = (
     }
 
     const { activeFrom, activeTo } = datesToUse
-    console.log('[handleAddNewCell] Using dates:', { activeFrom, activeTo })
 
     const newPeriod = createNewValidityPeriod(rule, region, activeFrom, activeTo)
 
@@ -428,10 +386,8 @@ const handleAddNewCell = (
     )
 
     const newCell = createNewEditableCell(rule, region, newPeriod.id, activeFrom, activeTo, currencies)
-    console.log('[handleAddNewCell] Created new cell:', { cellId: newCell.validityPeriodId, activeFrom, activeTo })
 
     setEditableCells(prev => [...prev, newCell])
-    console.log('[handleAddNewCell] Successfully added new cell')
   } catch (error) {
     console.error('[handleAddNewCell] Error adding new cell:', error)
     toast.error('Failed to add new detail. Please try again.')
