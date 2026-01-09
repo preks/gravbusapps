@@ -22,10 +22,9 @@ export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idE
       isDeleted: { _eq: false }
       requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
       startDate: { _lte: $today }
-      _not: { endDate: { _lt: $today } }
     }
     orderBy: [{ startDate: DESC }, { createdAt: DESC }]
-    limit: 1
+    limit: 5
   ) {
     id
     employeeId
@@ -38,6 +37,14 @@ export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idE
     startDate
     endDate
     requestStatus
+    requestDate
+    decisionDate
+    requestedPercent
+    requestedAmount
+    stockOptions
+    notes
+    salaryAdjustReasonRef
+    decisionEmployeeId
     createdAt
     isDeleted
     currency {
