@@ -201,7 +201,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
           dataSource={data}
           columns={columns}
           rowKey="managerId"
-          pagination={{ pageSize: 10, showSizeChanger: true }}
+          pagination={{ defaultPageSize: 10, showSizeChanger: true }}
           size="small"
           scroll={{ x: 800 }}
           rowClassName={record => {

@@ -38,6 +38,9 @@ export const chartColors = {
   }
 }
 
+// Toggle reverse ramp for grayscale shading: when true, inner rings are darker and outer rings are lighter
+const REVERSE_GRAY_RAMP = true
+
 // (processOrganizationalData removed; hierarchy is now built from dataset/edges elsewhere)
 
 // Generate span of control analysis data
@@ -261,23 +264,53 @@ const findBottlenecks = (node: OrganizationalNode, allNodes: OrganizationalNode[
 
 // Helper function to generate color shades
 const generateColorShades = (baseColor: string, depth: number): string => {
-  // Convert hex to RGB
+  // If the color is a CSS variable (e.g., var(--nw-chart-1)), we cannot resolve it here.
+  // Fall back to a grayscale that darkens with depth (center lighter, outside darker).
+  if (typeof baseColor === 'string' && baseColor.trim().startsWith('var(')) {
+    const lightness = REVERSE_GRAY_RAMP
+      ? Math.min(90, 0 + depth * 12) // start near black at depth 0, lighten outward
+      : Math.max(18, 78 - depth * 12) // inner lighter, outer darker
+    return `hsl(0, 0%, ${lightness}%)`
+  }
+
+  // Handle hex colors (#RRGGBB or #RGB)
+  const hexMatch = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(baseColor)
+  if (!hexMatch) {
+    // Unknown format - use grayscale fallback
+    const lightness = REVERSE_GRAY_RAMP ? Math.min(90, 0 + depth * 12) : Math.max(18, 78 - depth * 12)
+    return `hsl(0, 0%, ${lightness}%)`
+  }
+
+  // Normalize #RGB to #RRGGBB
   const hex = baseColor.replace('#', '')
-  const r = parseInt(hex.substr(0, 2), 16)
-  const g = parseInt(hex.substr(2, 2), 16)
-  const b = parseInt(hex.substr(4, 2), 16)
+  const fullHex =
+    hex.length === 3
+      ? hex
+          .split('')
+          .map(ch => ch + ch)
+          .join('')
+      : hex
 
-  // Calculate shade factor (lighter for deeper levels)
-  const shadeFactor = 1 - depth * 0.15 // Each level gets 15% lighter
-  const clampedFactor = Math.max(0.3, shadeFactor) // Don't go too light
+  const r = parseInt(fullHex.substr(0, 2), 16)
+  const g = parseInt(fullHex.substr(2, 2), 16)
+  const b = parseInt(fullHex.substr(4, 2), 16)
 
-  // Apply shade
-  const newR = Math.round(r + (255 - r) * (1 - clampedFactor))
-  const newG = Math.round(g + (255 - g) * (1 - clampedFactor))
-  const newB = Math.round(b + (255 - b) * (1 - clampedFactor))
-
-  // Convert back to hex
-  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+  if (REVERSE_GRAY_RAMP) {
+    // Lighten with depth toward white
+    const lightenFactor = Math.min(0.9, depth * 0.12)
+    const newR = Math.round(r + (255 - r) * lightenFactor)
+    const newG = Math.round(g + (255 - g) * lightenFactor)
+    const newB = Math.round(b + (255 - b) * lightenFactor)
+    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+  } else {
+    // Darken with depth toward black
+    const darkenFactor = Math.min(0.9, depth * 0.12)
+    const scale = Math.max(0, 1 - darkenFactor)
+    const newR = Math.round(r * scale)
+    const newG = Math.round(g * scale)
+    const newB = Math.round(b * scale)
+    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+  }
 }
 
 // Generate sunburst chart data
