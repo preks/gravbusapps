@@ -37,7 +37,7 @@ export const ContentEntryDisplay: React.FC<ContentEntryDisplayProps> = ({ conten
       source: 'every-ai'
     })
 
-    // Force reload to ensure updated content is shown
+    // Force window refresh to ensure updated content is shown (SPA navigation, not full page reload)
     navigateTo(url, { forceReload: true })
   }
 
