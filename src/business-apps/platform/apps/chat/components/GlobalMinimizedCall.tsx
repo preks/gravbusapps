@@ -451,7 +451,7 @@ export function initGlobalMinimizedCallRenderer() {
       const participants = callData.participants || []
       const remoteStreams = callData.remoteStreams || new Map()
       const firstRemote = participants.find((p: any) => remoteStreams.has(p.id))
-      const participantName = firstRemote?.odName || t('chat-groupCall')
+      const participantName = firstRemote?.odName || 'Group Call'
       const participantInitials = participantName
         .split(' ')
         .map((n: string) => n[0])
@@ -465,11 +465,11 @@ export function initGlobalMinimizedCallRenderer() {
       const secs = duration % 60
       const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`
 
-      // Get translations for tooltips
-      const tooltipMute = callData.callState.isMuted ? t('chat-unmute') : t('chat-mute')
-      const tooltipCamera = callData.callState.isVideoEnabled ? t('chat-turnOffCamera') : t('chat-turnOnCamera')
-      const tooltipExpand = t('chat-fullscreen')
-      const tooltipLeave = t('chat-leaveCall')
+      // Hardcoded English tooltips (this vanilla DOM renderer is currently disabled)
+      const tooltipMute = callData.callState.isMuted ? 'Unmute' : 'Mute'
+      const tooltipCamera = callData.callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'
+      const tooltipExpand = 'Expand call'
+      const tooltipLeave = 'Leave call'
 
       // Render the minimized UI using innerHTML (vanilla DOM)
       container!.innerHTML = `
