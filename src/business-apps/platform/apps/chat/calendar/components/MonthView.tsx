@@ -110,24 +110,10 @@ const formatEventTime = (date: Date | string, locale?: string): string => {
 
 export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEventClick, onDayClick }) => {
   const { locale } = useLocale()
-  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
 
-  const calendarDays = useMemo(
-    () => getCalendarDays(currentDate, events, weekStartsOnMonday),
-    [currentDate, events, weekStartsOnMonday]
-  )
-
-  // Group days into weeks
-  const weeks = useMemo(() => {
-    const result: CalendarDay[][] = []
-    for (let i = 0; i < calendarDays.length; i += 7) {
-      result.push(calendarDays.slice(i, i + 7))
-    }
-    return result
-  }, [calendarDays])
-
-  // Determine if week should start on Monday (Europe) or Sunday (US)
-  const weekStartsOnMonday = baseLocale === 'de' || baseLocale === 'ro'
+  // Compute base locale and week start setting first, before any useMemo hooks
+  const baseLocale = useMemo(() => locale?.split('-')[0]?.toLowerCase() || 'en', [locale])
+  const weekStartsOnMonday = useMemo(() => baseLocale === 'de' || baseLocale === 'ro', [baseLocale])
 
   // Generate localized weekday names
   // For Europe: Monday = 0, Tuesday = 1, ..., Sunday = 6
@@ -143,6 +129,20 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
       }
     })
   }, [baseLocale, weekStartsOnMonday])
+
+  const calendarDays = useMemo(
+    () => getCalendarDays(currentDate, events, weekStartsOnMonday),
+    [currentDate, events, weekStartsOnMonday]
+  )
+
+  // Group days into weeks
+  const weeks = useMemo(() => {
+    const result: CalendarDay[][] = []
+    for (let i = 0; i < calendarDays.length; i += 7) {
+      result.push(calendarDays.slice(i, i + 7))
+    }
+    return result
+  }, [calendarDays])
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden" data-testid="calendar-month-view">
