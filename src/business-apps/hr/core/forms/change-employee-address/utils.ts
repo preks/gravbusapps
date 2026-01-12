@@ -91,6 +91,18 @@ export const shouldDisableSubmit = (
   return Boolean(errs && errs.length > 0) || limitReached
 }
 
+const buildEmployeeDocumentObject = (employeeDocument?: UploadedEmployeeDocument | null) => {
+  return employeeDocument
+    ? {
+        id: employeeDocument.id,
+        name: employeeDocument.name,
+        file: employeeDocument.file,
+        mimeType: employeeDocument.mimeType,
+        employeeId: employeeDocument.employeeId
+      }
+    : null
+}
+
 export const buildInsertPayload = (params: {
   employeeId: string
   employeeDocument?: UploadedEmployeeDocument | null
@@ -105,15 +117,7 @@ export const buildInsertPayload = (params: {
   const type = computeNewAddressType(params.addresses) || ''
   return {
     event: 'pse_submit',
-    employeeDocumentObject: params.employeeDocument
-      ? {
-          id: params.employeeDocument.id,
-          name: params.employeeDocument.name,
-          file: params.employeeDocument.file,
-          mimeType: params.employeeDocument.mimeType,
-          employeeId: params.employeeDocument.employeeId
-        }
-      : null,
+    employeeDocumentObject: buildEmployeeDocumentObject(params.employeeDocument),
     address: {
       employeeId: params.employeeId,
       type,
@@ -145,15 +149,7 @@ export const buildUpdatePayload = (params: {
   const sel = params.selected || {}
   return {
     event: 'pse_submit',
-    employeeDocumentObject: params.employeeDocument
-      ? {
-          id: params.employeeDocument.id,
-          name: params.employeeDocument.name,
-          file: params.employeeDocument.file,
-          mimeType: params.employeeDocument.mimeType,
-          employeeId: params.employeeDocument.employeeId
-        }
-      : null,
+    employeeDocumentObject: buildEmployeeDocumentObject(params.employeeDocument),
     address: {
       id: sel?.id,
       version: sel?.version,
@@ -200,15 +196,7 @@ export const buildDeletePayload = (params: {
   const sel = params.selected || {}
   return {
     event: 'pse_submit',
-    employeeDocumentObject: params.employeeDocument
-      ? {
-          id: params.employeeDocument.id,
-          name: params.employeeDocument.name,
-          file: params.employeeDocument.file,
-          mimeType: params.employeeDocument.mimeType,
-          employeeId: params.employeeDocument.employeeId
-        }
-      : null,
+    employeeDocumentObject: buildEmployeeDocumentObject(params.employeeDocument),
     address: {
       id: sel?.id,
       version: sel?.version,
