@@ -1,7 +1,7 @@
 import React from 'react'
 import { EntityCard } from './EntityCard'
-import { env } from '@/common/env/EnvUtils'
 import { getOperationBadge } from './utils/displayUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface WorkflowDisplayProps {
   workflowId: string
@@ -44,10 +44,12 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
   )
 
   const handleClick = () => {
-    const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
     // workflowId is the template_id
-    const workflowUrl = `${baseUrl}/platform/apps/flow/apps/creator?templateId=${encodeURIComponent(workflowId)}#manage`
-    window.open(workflowUrl, '_blank')
+    const workflowUrl = buildPlatformUrl('/platform/apps/flow/apps/creator', {
+      templateId: workflowId
+    })
+    // Force window refresh to ensure updated workflow content is shown (SPA navigation, not full page reload)
+    navigateTo(`${workflowUrl}#manage`, { forceReload: true })
   }
 
   const title = formatWorkflowName(workflowId)

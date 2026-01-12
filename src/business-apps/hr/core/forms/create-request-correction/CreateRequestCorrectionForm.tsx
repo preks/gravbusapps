@@ -9,7 +9,8 @@ import {
   FormItem,
   FormLabel,
   FormControl,
-  FormMessage
+  FormMessage,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import FormHeader from '../components/FormHeader'
@@ -18,6 +19,7 @@ import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import translations from '../_i18n'
 
 // Query to fetch employee header info
 const GET_EMPLOYEE_HEADER_INFO = `
@@ -59,7 +61,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
   // GraphQL client for fetching employee header info
   const graphqlClient = useGraphQLClient(accessToken)
-
+  const { t } = useTranslation(translations)
   // Resolve the actual employee ID from various sources
   const resolvedEmployeeId = useMemo(() => {
     return (
@@ -333,6 +335,10 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           userId: payloadObject?.userId,
           id: requestEmployeeId,
           employeeUserId: payloadObject?.userId
+        },
+        completeNotification: {
+          type: 'success',
+          message: t('complete-notification')
         }
       }
 

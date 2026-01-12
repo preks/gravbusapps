@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import type { ConversationTurn, UserTurn, AgentTurn, OutputItem } from '../types/models'
 import { OutputItemRenderer } from './OutputRenderers'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import EntityLink, { markdownUrlTransform } from './links/EntityLink'
+import { MarkdownWithChipsRenderer } from '@/common/components/markdown'
 import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { CheckCircleIcon, CopyIcon, PencilSimple, SparkleIcon } from '@phosphor-icons/react'
@@ -108,30 +106,13 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
             <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:rounded-[20px] gba:blur-md gba:opacity-0 gba:group-hover:opacity-30 gba:transition-opacity" />
 
             <div className="gba:max-w-md gba:rounded-[20px] gba:px-5 gba:py-3 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:text-foreground gba:shadow-lg gba:relative">
-              <div className="gba:prose gba:max-w-none gba:text-sm">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: ({ href, children, ...props }) => {
-                      if (href && href.startsWith('employee://')) {
-                        return (
-                          <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted-foreground/20 gba:text-muted-foreground gba:font-medium">
-                            @{children}
-                          </span>
-                        )
-                      }
-                      return (
-                        <EntityLink href={href} accessToken={accessToken} {...props}>
-                          {children}
-                        </EntityLink>
-                      )
-                    }
-                  }}
-                  urlTransform={markdownUrlTransform}
-                >
-                  {textWithMentions}
-                </ReactMarkdown>
-              </div>
+              <MarkdownWithChipsRenderer
+                content={textWithMentions}
+                accessToken={accessToken}
+                variant="chat"
+                renderHttpLinksAsChips={false}
+                className="gba:text-sm"
+              />
               <div className="gba:absolute gba:top-4 gba:right-2 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
                 <Button
                   variant="ghost"

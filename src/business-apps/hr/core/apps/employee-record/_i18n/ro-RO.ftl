@@ -276,3 +276,17 @@ period-daily = Zilnic
 error-end-date-required = Data de încheiere este obligatorie
 error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau mai târziu
 error-end-date-after-start-date = Data de încheiere trebuie să fie în sau după data de început a beneficiului
+
+# Employee Record - Notifications
+notification-address-updated-success = Actualizările adresei au fost trimise spre aprobare departamentului HR.
+notification-bank-account-updated-success = Actualizările contului bancar au fost trimise spre aprobare departamentului HR.
+notification-personal-data-updated-success = Actualizările datelor personale au fost trimise spre aprobare departamentului HR.
+notification-communication-updated-success = Actualizările detaliilor de comunicare au fost trimise spre aprobare departamentului HR.
+notification-profile-picture-updated-success = Actualizările fotografiei de profil au fost trimise spre aprobare departamentului HR.
+notification-relationship-updated-success = Actualizările statutului relației au fost trimise spre aprobare departamentului HR.
+notification-expense-created-success = Cheltuiala a fost creată cu succes
+notification-sick-leave-reported-success = Concediul medical a fost raportat cu succes
+notification-special-leave-requested-success = Concediul special a fost solicitat cu succes
+notification-vacation-requested-success = Concediul de odihnă a fost solicitat cu succes
+ notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
+ notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR

@@ -1,10 +1,18 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
-import { Dialog, DialogContent, Avatar, AvatarImage, AvatarFallback, IconAvatar } from '@newwork/nw-design-system'
+import {
+  Dialog,
+  DialogContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  IconAvatar,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { UserIcon, Maximize2, Minimize2, Expand, Shrink, Monitor } from 'lucide-react'
 import { CallControls } from './CallControls'
 import { AddParticipantDropdown } from './AddParticipantDropdown'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface AvailableParticipant {
   id: string
@@ -52,21 +60,25 @@ const formatDuration = (startTime: number | null): string => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
-const CallStatusIndicator: React.FC<{ status: CallState['status']; error?: string | null }> = ({ status, error }) => {
+const CallStatusIndicator: React.FC<{
+  status: CallState['status']
+  error?: string | null
+  t: (key: string) => string
+}> = ({ status, error, t }) => {
   const getStatusText = () => {
     switch (status) {
       case 'initiating':
-        return getTranslationFromI18nKeyAndLabel('call.initiating', 'Starting call...')
+        return t('call-initiating')
       case 'ringing':
-        return getTranslationFromI18nKeyAndLabel('call.ringing', 'Ringing...')
+        return t('call-ringing')
       case 'connecting':
-        return getTranslationFromI18nKeyAndLabel('call.connecting', 'Connecting...')
+        return t('call-connecting')
       case 'connected':
         return null // Don't show status when connected
       case 'ended':
-        return error || getTranslationFromI18nKeyAndLabel('call.ended', 'Call ended')
+        return error || t('call-ended')
       case 'failed':
-        return error || getTranslationFromI18nKeyAndLabel('call.failed', 'Call failed')
+        return error || t('call-failed')
       default:
         return null
     }
@@ -125,6 +137,7 @@ export const CallModal: React.FC<CallModalProps> = ({
   accessToken,
   currentUserId
 }) => {
+  const { t } = useTranslation(translations)
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const expandedVideoRef = useRef<HTMLVideoElement>(null)
@@ -215,7 +228,7 @@ export const CallModal: React.FC<CallModalProps> = ({
       >
         <div className="gba:relative gba:w-full gba:h-full gba:min-h-[400px] gba:flex gba:flex-col">
           {/* Call Status */}
-          <CallStatusIndicator status={callState.status} error={callState.error} />
+          <CallStatusIndicator status={callState.status} error={callState.error} t={t} />
 
           {/* Main Video Area */}
           <div className="gba:flex-1 gba:relative gba:bg-gray-900">

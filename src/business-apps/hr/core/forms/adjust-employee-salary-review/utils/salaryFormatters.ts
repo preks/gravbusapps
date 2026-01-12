@@ -50,17 +50,17 @@ export function formatEffectiveDate(startDate: string | null | undefined): strin
  * Extract and format reason display from catalog entries
  */
 export function extractReasonDisplay(
-  salaryAdjustReason: string | null | undefined,
+  salaryAdjustReasonRef: string | null | undefined,
   salaryAdjustReasonEntries: SalaryAdjustReasonEntry[]
 ): string {
-  const defaultReason = String(salaryAdjustReason ?? '-').trim() || '-'
+  const defaultReason = String(salaryAdjustReasonRef ?? '-').trim() || '-'
 
-  if (!salaryAdjustReason || salaryAdjustReasonEntries.length === 0) {
+  if (!salaryAdjustReasonRef || salaryAdjustReasonEntries.length === 0) {
     return defaultReason
   }
 
   // Extract code from catalog reference format: "SalaryAdjustReason:v1:promotion" -> "promotion"
-  const catalogRefParts = salaryAdjustReason.split(':')
+  const catalogRefParts = salaryAdjustReasonRef.split(':')
   const reasonCode = catalogRefParts[catalogRefParts.length - 1]
 
   // Find matching catalog entry

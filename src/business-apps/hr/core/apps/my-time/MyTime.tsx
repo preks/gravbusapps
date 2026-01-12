@@ -86,6 +86,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
               employeeId={employeeId}
               accessToken={accessToken}
               userId={userInfo?.id || ''}
+              employeeCode={employee?.code}
               employeeFirstName={employee?.firstName}
               employeeLastName={employee?.lastName}
             />
