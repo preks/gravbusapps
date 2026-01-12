@@ -1,12 +1,14 @@
 import React from 'react'
-import { Separator, Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import Pill from '@/components/pill'
-import { PiArrowRight, PiCalendarDuotone, PiClock } from 'react-icons/pi'
+import { Separator, Button, Badge } from '@newwork/nw-design-system'
+import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel, getDateFormat, formatNumberFunction } from '@/common/utils/windowUtils'
+import { PiArrowRight } from 'react-icons/pi'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { getAdvancePaymentStatusDisplay } from '../../../utils'
-import dayjs from 'dayjs'
+import {
+  DetailsPanelContent,
+  type DetailsPanelField
+} from '../../../../../common/components/details-panel/DetailsPanelContent'
 
 export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   payment: any
@@ -15,186 +17,81 @@ export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
 const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }) => {
   if (!payment) return null
 
-  // Get trip type
-  const getTripType = () => {
-    return payment.purpose || 'Advance Payment'
-  }
+  const statusConfig = getAdvancePaymentStatusDisplay(payment.status)
+
+  const fields: DetailsPanelField[] = [
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester'),
+      value: payment.expensePlan?.employee
+        ? payment.expensePlan.employee.fullName ||
+          `${payment.expensePlan.employee.firstName ?? ''} ${payment.expensePlan.employee.lastName ?? ''}`.trim() ||
+          'N/A'
+        : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration'),
+      value:
+        payment.expensePlan?.startDate && payment.expensePlan?.endDate
+          ? `${formatDate(payment.expensePlan.startDate, 'date.short')} → ${formatDate(payment.expensePlan.endDate, 'date.short')}`
+          : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.creation_date', 'Creation Date'),
+      value: payment.createdAt ? formatDate(payment.createdAt, 'date.short') : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.due_date', 'Due Date'),
+      value: payment.dueDate ? formatDate(payment.dueDate, 'date.short') : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.purpose', 'Purpose'),
+      value: payment.purpose || 'Advance Payment'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.amount', 'Amount'),
+      value:
+        typeof payment.amount === 'number'
+          ? formatCurrencyDisplay(payment.amount, payment.currencyRef?.split(':').pop() || 'EUR')
+          : '-'
+    }
+  ]
 
   return (
-    <div className="gba:p-6 gba:space-y-6" data-testid="advance-payment-details-content">
-      {/* Header Section */}
-      <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
-        <div className="gba:flex-1">
-          <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1" data-testid="advance-payment-title">
-            {payment.expensePlan?.title || 'Advance Payment'}
-          </h2>
-          <p className="gba:text-sm gba:text-gray-500" data-testid="advance-payment-code">
-            {payment.expensePlan?.code || payment.id}
-          </p>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-3">
-          {(() => {
-            const statusConfig = getAdvancePaymentStatusDisplay(payment.status)
-            return (
-              <Pill
-                type={statusConfig.type}
-                label={statusConfig.label}
-                color={statusConfig.color}
-                data-testid="advance-payment-status-badge"
-              />
-            )
-          })()}
-        </div>
-      </div>
-
-      {/* Date Information */}
-      <Card>
-        <CardContent className="gba:p-4 gba:space-y-3">
-          {payment.expensePlan?.startDate && payment.expensePlan?.endDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiCalendarDuotone className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-900">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}:{' '}
-                {dayjs(payment.expensePlan.startDate).format(getDateFormat('date.short'))} {' → '}
-                {dayjs(payment.expensePlan.endDate).format(getDateFormat('date.short'))}
-              </span>
-            </div>
-          )}
-
-          {payment.createdAt && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiClock className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-900">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.creation_date', 'Creation Date')}:{' '}
-                {dayjs(payment.createdAt).format(getDateFormat('date.short'))}
-              </span>
-            </div>
-          )}
-
-          {payment.dueDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiClock className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-900">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.due_date', 'Due Date')}:{' '}
-                {dayjs(payment.dueDate).format(getDateFormat('date.short'))}
-              </span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Description */}
-      {payment.purpose && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="gba:text-base">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.purpose', 'Purpose')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="gba:text-sm gba:text-gray-700" data-testid="advance-payment-purpose">
-              {payment.purpose}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Details Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:text-base">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="gba:space-y-4">
-          <div className="gba:grid gba:grid-cols-1 gba:gap-4">
-            {payment.expensePlan?.employee && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_overview.side_bar.requester',
-                    'Requester'
-                  )}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">
-                  {payment.expensePlan.employee.fullName ||
-                    `${payment.expensePlan.employee.firstName ?? ''} ${payment.expensePlan.employee.lastName ?? ''}`.trim()}
-                </span>
-              </div>
-            )}
-
-            {payment.expensePlan?.employee?.employeePosition?.organizationalUnit && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.profile_icon_list.department_title',
-                    'Department'
-                  )}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">
-                  {payment.expensePlan.employee.employeePosition.organizationalUnit.name}
-                </span>
-              </div>
-            )}
-
-            {payment.expensePlan?.employee?.employeePosition?.siteLocation && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.profile_icon_list.location_title',
-                    'Location'
-                  )}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">
-                  {payment.expensePlan.employee.employeePosition.siteLocation.name}
-                </span>
-              </div>
-            )}
-
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.purpose', 'Purpose')}
-              </span>
-              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
-            </div>
-
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.amount', 'Amount')}
-              </span>
-              <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                {typeof payment.amount === 'number'
-                  ? `${formatNumberFunction(String(payment.amount))} ${payment.currencyRef?.split(':').pop() || '-'}`
-                  : '-'}
-              </span>
-            </div>
+    <DetailsPanelContent
+      dataTestIdPrefix="advance-payment-details"
+      showHeader={true}
+      title={payment.expensePlan?.title || 'Advance Payment'}
+      subtitle={payment.expensePlan?.code || payment.id}
+      headerRight={
+        <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-badge">
+          {statusConfig.label}
+        </Badge>
+      }
+      fields={fields}
+      footer={
+        <>
+          <Separator />
+          <div className="gba:flex gba:justify-end gba:mt-4">
+            <Button
+              variant="default"
+              onClick={() => {
+                const url = buildPlatformUrl('/platform/fin/expenses/advance-payment-record', {
+                  advancePaymentId: payment.id
+                })
+                navigateTo(url)
+              }}
+              data-testid="advance-payment-view-details-button"
+            >
+              <PiArrowRight className="gba:mr-2" />
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.plan_details.view_full_details',
+                'View Full Details'
+              )}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <Separator />
-
-      {/* Action Buttons */}
-      <div className="gba:flex gba:justify-end gba:gap-3">
-        <Button
-          variant="default"
-          onClick={() => {
-            // Navigate to the advance payment record page
-            const url = buildPlatformUrl('/platform/fin/expenses/advance-payment-record', {
-              advancePaymentId: payment.id
-            })
-            navigateTo(url)
-          }}
-          data-testid="advance-payment-view-details-button"
-        >
-          <PiArrowRight className="gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.plan_details.view_full_details',
-            'View Full Details'
-          )}
-        </Button>
-      </div>
-    </div>
+        </>
+      }
+    />
   )
 }
 

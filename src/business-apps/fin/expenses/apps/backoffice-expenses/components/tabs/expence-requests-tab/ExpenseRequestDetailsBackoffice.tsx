@@ -6,6 +6,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
+import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 
 export interface ExpenseRequestDetailsBackofficeProps extends BusinessAppContextProps {
   selectedItem: any
@@ -15,9 +17,12 @@ export interface ExpenseRequestDetailsBackofficeProps extends BusinessAppContext
 
 const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeProps> = ({
   selectedItem,
-  requestTypeLabel
+  requestTypeLabel,
+  ...contextProps
 }) => {
   if (!selectedItem) return null
+
+  const { printExpenseRequest } = useCommonExpenseRequestFileService(contextProps)
 
   // Trip type removed in favor of explicit request/plan type labels passed from parent
   const formatTypeLabel = (value?: string) => {
@@ -236,6 +241,12 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
           </div>
         </CardContent>
       </Card>
+
+      <TravelOrderAttachmentPreview
+        record={selectedItem as any}
+        fetchPdf={printExpenseRequest as any}
+        dataTestIdPrefix="backoffice-expense-request-details"
+      />
 
       <Separator />
 

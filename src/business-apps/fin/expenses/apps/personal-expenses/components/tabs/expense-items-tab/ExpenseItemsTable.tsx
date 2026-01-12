@@ -14,8 +14,6 @@ import {
   Checkbox,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Badge
 } from '@newwork/nw-design-system'
 import { TablePagination } from '../../../../../components'
@@ -32,6 +30,7 @@ import { startProcess } from '@/common/utils/start-process'
 import { notification } from 'antd'
 import { formatCurrencyDisplay } from '../../../utils'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
 const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
 
@@ -787,21 +786,24 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         }
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.title || 'Expense Item Details'}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedItem && (
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.expense_item_details',
+                'Expense Item Details'
+              )
+            }
+          >
+            {selectedItem ? (
               <ExpenseItemDetails
                 selectedItem={selectedItem}
                 onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </>

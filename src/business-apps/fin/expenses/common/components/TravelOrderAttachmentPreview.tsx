@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useTranslation } from '@newwork/nw-design-system'
 import { FilePdfOutlined } from '@ant-design/icons'
-import translations from '../../_i18n'
+import translations from '../../apps/personal-expenses/_i18n'
 
 type PrintResult = { success: boolean; pdfUrl?: string; error?: string }
 
@@ -69,8 +69,15 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
 
   const isMounted = useRef(true)
   useEffect(() => {
+    isMounted.current = true
     return () => {
       isMounted.current = false
+    }
+  }, [])
+
+  // Revoke the previously created object URL when it changes / unmounts.
+  useEffect(() => {
+    return () => {
       if (pdfPreviewUrl) {
         URL.revokeObjectURL(pdfPreviewUrl)
       }
@@ -120,7 +127,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
     }
 
     return t('travel-order-fallback-file-name')
-  }, [record?.employeeDocument?.name, record?.employeeDocument?.file, record?.code])
+  }, [record?.employeeDocument?.name, record?.employeeDocument?.file, record?.code, t])
 
   const openPdfPreview = useCallback(async () => {
     if (!hasTravelOrder) return
@@ -218,6 +225,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
         onOpenChange={open => {
           setPdfPreviewOpen(open)
           if (!open) {
+            setPdfLoading(false)
             setPdfError(null)
             if (pdfPreviewUrl) {
               URL.revokeObjectURL(pdfPreviewUrl)
@@ -227,7 +235,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
         }}
       >
         <DialogContent
-          className="gba:max-w-[90vw] gba:max-h-[90vh]"
+          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:max-h-[90vh]"
           data-testid={`${dataTestIdPrefix}-travel-order-modal`}
         >
           <DialogHeader>

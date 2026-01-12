@@ -1,5 +1,9 @@
 import { PillType } from '@/components/pill/Pill'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale,
+  formatNumberFunction
+} from '@/common/utils/windowUtils'
 
 /**
  * Enum representing the technical statuses for expenses
@@ -21,15 +25,65 @@ export enum ExpenseStatus {
 }
 
 /**
+ * Centralized mapping from status to Badge variant
+ */
+type StatusBadgeVariant =
+  | 'default'
+  | 'secondary'
+  | 'destructive'
+  | 'success'
+  | 'warning'
+  | 'info'
+  | 'offline'
+  | 'outline'
+
+/**
  * Type for status display configuration
  */
 export interface StatusDisplayConfig {
   label: string
   type: PillType
+  color?: string // Optional color for custom styling (token-based)
+  badgeVariant?: StatusBadgeVariant // Optional design-system Badge variant for unified rendering
 }
 
 // Consolidated status keys that can come from APIs or UI
 type StatusKey = keyof typeof ExpenseStatus | 'IN_APPROVAL' | 'VERIFICATION_REQUIRED' | 'Open'
+
+/**
+ * Centralized mapping from status to Badge variant
+ */
+const STATUS_COLORS: Record<string, StatusBadgeVariant> = {
+  // Muted/Offline (Gray)
+  DRAFT: 'offline',
+  CREATED: 'offline',
+  PREPARED: 'offline',
+  CANCELLED: 'offline',
+  DISCARDED: 'offline',
+  Open: 'offline',
+
+  // Info (Blue)
+  IN_TRANSIT: 'info',
+  ASSIGNED: 'info',
+  IN_REVISION: 'info',
+  PENDING: 'info',
+  VERIFIED: 'info',
+  BOOKED: 'info',
+  TRANSFERRED: 'info',
+  IN_APPROVAL: 'info',
+  VERIFICATION_REQUIRED: 'info',
+
+  // Success (Green)
+  CLOSED: 'success',
+  PAID: 'success',
+  APPROVED: 'success',
+
+  // Warning (Amber)
+  ACTION_REQUIRED: 'warning',
+  TASK: 'warning',
+  REJECTED: 'warning',
+  RETURNED: 'warning'
+}
 
 // Base i18n + default pill type for each status (shared across entities)
 const BASE_STATUS_MAP: Record<StatusKey, { i18nKey: string; fallback: string; defaultType: PillType }> = {
@@ -82,7 +136,7 @@ const ENTITY_OVERRIDES: {
  */
 export const getEntityStatusDisplay = (entity: 'plan' | 'request' | 'advance', status: string): StatusDisplayConfig => {
   if (!status) {
-    return { label: '', type: 'draft' }
+    return { label: '', type: 'draft', badgeVariant: STATUS_COLORS.DRAFT }
   }
 
   // Check if status is a known key without unsafe type assertion
@@ -90,13 +144,14 @@ export const getEntityStatusDisplay = (entity: 'plan' | 'request' | 'advance', s
   const base = BASE_STATUS_MAP[normalized as keyof typeof BASE_STATUS_MAP]
 
   if (!base) {
-    return { label: status, type: 'draft' }
+    return { label: status, type: 'draft', badgeVariant: STATUS_COLORS.DRAFT }
   }
 
   const overrideType = ENTITY_OVERRIDES[entity]?.[normalized as StatusKey]
   const type = overrideType || base.defaultType
   const label = getTranslationFromI18nKeyAndLabel(base.i18nKey, base.fallback)
-  return { label, type }
+  const badgeVariant = STATUS_COLORS[normalized] || 'outline'
+  return { label, type, badgeVariant }
 }
 
 /**
@@ -132,4 +187,72 @@ export const getNormalizedErrorMessage = (err: unknown): string => {
     return err.message
   }
   return 'An unknown error occurred'
+}
+
+/**
+ * Formats currency display with proper locale and currency code
+ */
+export const formatCurrencyDisplay = (
+  amount: number | string | null | undefined,
+  currencyCode: string | null | undefined
+): string => {
+  // Handle null/undefined amounts
+  if (amount === null || amount === undefined) {
+    return `0 ${currencyCode || 'EUR'}`
+  }
+
+  // Handle empty string or invalid amounts
+  if (amount === '' || isNaN(Number(amount))) {
+    return `0 ${currencyCode || 'EUR'}`
+  }
+
+  // Handle missing currency code
+  if (!currencyCode) {
+    if (typeof amount === 'string' && amount.includes(' ')) {
+      const parts = amount.split(' ')
+      const lastPart = parts[parts.length - 1]
+      if (/^[A-Z]{3}$/.test(lastPart)) {
+        currencyCode = lastPart
+      } else {
+        currencyCode = 'EUR'
+      }
+    } else {
+      currencyCode = 'EUR'
+    }
+  }
+
+  const userLocale = getCurrentActiveUserLocale()
+
+  let formattedAmount: string
+  try {
+    if (formatNumberFunction) {
+      const result = formatNumberFunction(Number(amount))
+      if (result) {
+        formattedAmount = result
+      } else {
+        formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
+      }
+    } else {
+      formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
+    }
+  } catch {
+    formattedAmount = String(amount)
+  }
+
+  if (!formattedAmount || formattedAmount === 'undefined' || formattedAmount === 'null') {
+    formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
+  }
+
+  const language = userLocale.split('-')[0].toLowerCase()
+
+  switch (language) {
+    case 'de':
+      return `${formattedAmount} ${currencyCode}` // 1.234,56 EUR
+    case 'ro':
+      return `${formattedAmount} ${currencyCode}` // 1 234,56 EUR
+    case 'en':
+      return `${currencyCode} ${formattedAmount}` // EUR 1,234.56
+    default:
+      return `${formattedAmount} ${currencyCode}`
+  }
 }

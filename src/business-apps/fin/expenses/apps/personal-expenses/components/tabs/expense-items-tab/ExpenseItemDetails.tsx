@@ -3,9 +3,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Separator,
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Spinner,
   Alert,
   AlertDescription,
@@ -34,6 +31,10 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
 import { Badge } from '@newwork/nw-design-system'
 import type { UploadFile } from 'antd/es/upload/interface'
+import {
+  DetailsPanelContent,
+  type DetailsPanelField
+} from '../../../../../common/components/details-panel/DetailsPanelContent'
 
 // Utility function to truncate file names
 const truncateFileName = (fileName: string, maxLength: number = 15): string => {
@@ -439,177 +440,107 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
   const displayItem = detailedItem || selectedItem
   if (!displayItem) return null
 
+  const statusConfig = getExpenseItemStatusDisplay(displayItem.status)
+  const statusBadge = (
+    <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-item-status-badge">
+      {statusConfig.label}
+    </Badge>
+  )
+
+  const fields: DetailsPanelField[] = [
+    {
+      label: getTranslationFromI18nKeyAndLabel('common.code', 'Code'),
+      value: typeof displayItem.code === 'string' ? displayItem.code : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      value: statusBadge
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date'),
+      value: displayItem.expenseDate ? formatDate(displayItem.expenseDate, 'date.long') : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.invoice_date', 'Invoice Date'),
+      value: displayItem.invoiceDate ? formatDate(displayItem.invoiceDate, 'date.long') : 'N/A'
+    },
+    ...(typeof displayItem.description === 'string' && displayItem.description
+      ? [
+          {
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_item.change_expense_item_container.current_description_label',
+              'Description'
+            ),
+            value: displayItem.description
+          }
+        ]
+      : []),
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester'),
+      value: displayItem.employee?.fullName ? String(displayItem.employee.fullName) : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_item.change_expense_item_container.current_e_class_label',
+        'Expense Class'
+      ),
+      value: displayItem.expenseClass?.value ? getCatalogValue(displayItem.expenseClass) : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
+        'Cost Center'
+      ),
+      value: displayItem.costCenter?.name ? String(displayItem.costCenter.name) : 'N/A'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:travel_region_rule.travel_region_rule_details_list.amount',
+        'Amount'
+      ),
+      value: formatCurrencyDisplay(displayItem.reimbursableAmount, displayItem.currency?.code)
+    }
+  ]
+
+  const availableActions = generateExpenseItemActions(
+    displayItem,
+    {
+      employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+      accessToken: contextProps.accessToken || '',
+      onClose: onClose
+    },
+    { includeDetails: false, includeAssignToRequest: true }
+  )
+
   return (
     <div className="gba:space-y-6">
-      {/* Header: Title, Code, Status Badge, Action Button */}
-      <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
-        <div>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-1">
-            {typeof displayItem.title === 'string' ? displayItem.title : ''}
-          </h2>
-          <p className="gba:text-sm gba:text-gray-600">
-            {typeof displayItem.code === 'string' ? displayItem.code : ''}
-          </p>
+      {availableActions.length > 0 ? (
+        <div className="gba:flex gba:justify-end">
+          <AppActionButton
+            data-testid="expense-item-details-action-button"
+            size="icon"
+            staticFlowData={availableActions}
+            prefixDataTestId="expense-item-details-action"
+            accessToken={contextProps.accessToken}
+            emptyStateBehavior="disable"
+            deferMainContextRequestsUntilClick={true}
+          />
         </div>
-        <div className="gba:flex gba:items-center gba:gap-3">
-          {(() => {
-            const statusConfig = getExpenseItemStatusDisplay(displayItem.status)
-            return (
-              <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-item-status-badge">
-                {statusConfig.label}
-              </Badge>
-            )
-          })()}
-          {(() => {
-            const availableActions = generateExpenseItemActions(
-              displayItem,
-              {
-                employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
-                accessToken: contextProps.accessToken || '',
-                onClose: onClose
-              },
-              {
-                includeDetails: false,
-                includeAssignToRequest: true
-              }
-            )
+      ) : null}
 
-            // Only show action button if there are available actions
-            if (availableActions.length > 0) {
-              return (
-                <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
-                  <AppActionButton
-                    data-testid="expense-item-details-action-button"
-                    size="icon"
-                    staticFlowData={availableActions}
-                    prefixDataTestId="expense-item-details-action"
-                    accessToken={contextProps.accessToken}
-                    emptyStateBehavior="disable"
-                    deferMainContextRequestsUntilClick={true}
-                  />
-                </div>
-              )
-            }
-            return null
-          })()}
-        </div>
-      </div>
-
-      {/* Dates Section */}
-      <Card>
-        <CardContent className="gba:p-4 gba:space-y-3">
-          {displayItem.expenseDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date')}:{' '}
-                {formatDate(displayItem.expenseDate, 'date.long')}
-              </span>
-            </div>
-          )}
-          {displayItem.invoiceDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_item_list.expense_table.invoice_date',
-                  'Invoice Date'
-                )}
-                : {formatDate(displayItem.invoiceDate, 'date.long')}
-              </span>
-            </div>
-          )}
-          {!displayItem.expenseDate && !displayItem.invoiceDate && (
-            <div className="gba:text-center gba:py-4 gba:text-sm gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.no_date_information_available',
-                'No date information available'
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Description Section */}
-      {typeof displayItem.description === 'string' && displayItem.description && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="gba:text-base gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_item.change_expense_item_container.current_description_label',
-                'Description'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="gba:text-sm gba:text-gray-700">{displayItem.description}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Details Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:text-base gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details_title', 'Item Details')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:space-y-3 gba:text-sm">
-            {displayItem.employee && displayItem.employee.fullName && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_overview.side_bar.requester',
-                    'Requester'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-gray-900">{String(displayItem.employee.fullName)}</span>
-              </div>
-            )}
-            {displayItem.expenseClass && displayItem.expenseClass.value && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_item.change_expense_item_container.current_e_class_label',
-                    'Expense Class'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-gray-900">{getCatalogValue(displayItem.expenseClass)}</span>
-              </div>
-            )}
-            {displayItem.costCenter && displayItem.costCenter.name && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-                    'Cost Center'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-gray-900">{String(displayItem.costCenter.name)}</span>
-              </div>
-            )}
-            <div className="gba:flex gba:justify-between">
-              <span className="gba:font-medium gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:travel_region_rule.travel_region_rule_details_list.amount',
-                  'Amount'
-                )}
-                :
-              </span>
-              <span className="gba:text-gray-900 gba:font-semibold">
-                {formatCurrencyDisplay(displayItem.reimbursableAmount, displayItem.currency?.code)}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Separator />
-
-      {/* File Viewer Section */}
-      <div className="gba:mt-2">{renderAttachmentPreview()}</div>
+      <DetailsPanelContent
+        dataTestIdPrefix="expense-item-details"
+        title={typeof displayItem.title === 'string' ? displayItem.title : 'Expense Item Details'}
+        subtitle={typeof displayItem.code === 'string' ? displayItem.code : undefined}
+        fields={fields}
+        showHeader={false}
+        extraContent={
+          <>
+            <Separator />
+            <div className="gba:mt-2">{renderAttachmentPreview()}</div>
+          </>
+        }
+      />
 
       {/* Image Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

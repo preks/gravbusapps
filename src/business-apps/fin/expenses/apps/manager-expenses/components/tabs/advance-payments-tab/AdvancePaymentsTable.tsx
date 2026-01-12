@@ -11,10 +11,9 @@ import {
   AvatarImage,
   AvatarFallback,
   Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle
+  SheetContent
 } from '@newwork/nw-design-system'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
 // Status type → Tailwind classes mapping (matching Plans table)
 const ADV_STATUS_CLASSES: Record<string, string> = {
@@ -511,10 +510,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       {renderDataBody()}
 
       {/* Advance Payment Details Sheet */}
-      {/* IMPORTANT: The 'title' prop is REQUIRED by @newwork/nw-design-system Sheet interface (line 20).
-          Removing it causes TypeScript error: "Property 'title' is missing but required in type 'SheetProps'".
-          SonarCloud incorrectly flags it as unsupported. Verified in Sheet.d.ts - title: string (required).
-          The component renders the title internally. DO NOT REMOVE. */}
       <Sheet
         open={!!selectedPayment}
         onOpenChange={open => !open && setSelectedPayment(null)}
@@ -524,16 +519,18 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')
         }
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {selectedPayment?.expensePlan?.title ||
-                getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+        <SheetContent side="right" className="gba:!w-[600px] gba:sm:!w-[600px] gba:!max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedPayment?.expensePlan?.title ||
+              getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')
+            }
+            onClose={() => setSelectedPayment(null)}
+            showCloseButton={true}
+            dataTestIdPrefix="advance-payment-details"
+          >
             {selectedPayment && <AdvancePaymentDetails payment={selectedPayment} {...contextProps} />}
-          </div>
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </>

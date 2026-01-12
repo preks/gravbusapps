@@ -13,8 +13,6 @@ import {
   Spinner,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -22,6 +20,7 @@ import {
 } from '@newwork/nw-design-system'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils'
 
@@ -43,7 +42,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { useExpensePlanFileService } from '../../../../personal-expenses/utils/expensePlanFileService'
+import { useExpensePlanFileService } from '../../../../../common/files/useExpensePlanFileService'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { ensureShortDateFormat } from '../../../utils/dateUtils'
 import { TablePagination } from '../../../../../components'
@@ -157,33 +156,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
       setPrintModalOpen(true)
 
       try {
-        // Map manager-expenses ExpensePlan to personal-expenses format
-        const mappedPlan = {
-          ...plan,
-          reimbursableAmount: plan.totalAmount,
-          decisionDate: null,
-          requestTypeRef: null,
-          employeeDocumentId: plan.employeeDocument?.id || null,
-          advancePaymentPaidAmount: 0,
-          advancePaymentInTransitAmount: 0,
-          employeeDocument: plan.employeeDocument,
-          requestType: null,
-          expensePlanItem: [],
-          advancePayment: null,
-          expenseRequestTrip: null,
-          currencyRef: `Currency:v1:${plan.currency}`,
-          expenseRequest: [],
-          currency: { value: plan.currency, label: plan.currency } as any,
-          description: plan.description || '',
-          employee: {
-            ...plan.employee,
-            code: plan.employee.id,
-            firstName: plan.employee.displayName?.split(' ')[0] || '',
-            lastName: plan.employee.displayName?.split(' ').slice(1).join(' ') || ''
-          }
-        }
-
-        const result = await printExpensePlan(mappedPlan)
+        const result = await printExpensePlan(plan as any)
 
         if (result.success && result.pdfUrl && isMounted.current) {
           setPrintPdfUrl(result.pdfUrl)
@@ -191,7 +164,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
           console.error('[Print Error]', result.error)
         }
       } catch (error) {
-        console.error('[Print Exception]', error)
+        console.error('[Print Exception]', error instanceof Error ? error.message : 'Unknown error')
       } finally {
         if (isMounted.current) {
           setPrintLoading(false)
@@ -583,7 +556,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         </DialogContent>
       </Dialog>
 
-      {/* Expense Plan Details Sheet - title is required by DS Sheet props */}
+      {/* Expense Plan Details Sheet */}
       <Sheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
@@ -594,18 +567,21 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
             'Expense Plan Details'
           )
         }
+        data-testid="expense-plan-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.expense_subtitle_details',
-                  'Expense Plan Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+        <SheetContent side="right" className="gba:!w-[600px] gba:sm:!w-[600px] gba:!max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:approve_expense_plan.expense_subtitle_details',
+                'Expense Plan Details'
+              )
+            }
+            onClose={handleCloseDetails}
+            showCloseButton={true}
+            dataTestIdPrefix="expense-plan-details"
+          >
             {selectedItem && (
               <ExpensePlanDetails
                 selectedItem={selectedItem}
@@ -614,7 +590,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                 userInfo={contextProps.userInfo}
               />
             )}
-          </div>
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </div>

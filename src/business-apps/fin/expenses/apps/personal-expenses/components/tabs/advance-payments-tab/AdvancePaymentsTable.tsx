@@ -10,9 +10,7 @@ import {
   CardContent,
   Button,
   Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle
+  SheetContent
 } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { message } from 'antd'
@@ -29,6 +27,7 @@ import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
 const DEFAULT_STATUS_FILTER = ['PREPARED', 'PENDING']
@@ -850,20 +849,20 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         }
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.expensePlan?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:personal_expenses.advance_payment_details',
-                  'Advance Payment Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedItem && (
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.expensePlan?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.advance_payment_details',
+                'Advance Payment Details'
+              )
+            }
+            onClose={handleCloseDetails}
+          >
+            {selectedItem ? (
               <AdvancePaymentDetails payment={selectedItem} onClose={handleCloseDetails} {...contextProps} />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 
@@ -880,17 +879,17 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         }
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpensePlan?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.expense_subtitle_details',
-                  'Expense Plan Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedExpensePlan && (
+          <ExpenseDetailsShell
+            title={
+              selectedExpensePlan?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:approve_expense_plan.expense_subtitle_details',
+                'Expense Plan Details'
+              )
+            }
+            onClose={handleCloseDetails}
+          >
+            {selectedExpensePlan ? (
               <ExpensePlanDetails
                 selectedItem={selectedExpensePlan}
                 onClose={handleCloseDetails}
@@ -906,8 +905,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       : undefined)
                 }
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 
@@ -924,25 +923,25 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         }
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpenseRequest?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                  'Expense Request Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedExpenseRequest && (
+          <ExpenseDetailsShell
+            title={
+              selectedExpenseRequest?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+                'Expense Request Details'
+              )
+            }
+            onClose={handleCloseDetails}
+          >
+            {selectedExpenseRequest ? (
               <ExpenseRequestDetails
                 selectedItem={selectedExpenseRequest}
                 onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </div>
