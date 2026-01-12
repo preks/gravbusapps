@@ -157,6 +157,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     currentAppRef.current = currentApp
   }, [currentApp])
 
+  // Track which app ID we've attempted to load to prevent infinite loops
+  const loadAttemptedRef = useRef<string | null>(null)
+
   const { isAnalyzing, analyzeSpreadsheet, reset: resetAI } = useSpreadsheetAI(accessToken)
 
   const { promoteToDatabase } = useDataPromotion(accessToken)
@@ -164,7 +167,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Load app from URL on mount
   useEffect(() => {
     const { appId, filePath, view } = getUrlParams()
-    if (appId && !currentApp && !isLoadingApps) {
+    // Only load if we have an appId, no current app, not loading, and haven't already attempted this app
+    if (appId && !currentApp && !isLoadingApps && loadAttemptedRef.current !== appId) {
+      loadAttemptedRef.current = appId // Mark as attempted before loading
       // Load the app from URL - try with filePath for cross-device access
       loadApp(appId, filePath ? decodeURIComponent(filePath) : undefined).then(app => {
         if (app) {
@@ -463,6 +468,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
    */
   const handleBack = useCallback(() => {
     clearCurrentApp()
+    loadAttemptedRef.current = null // Reset so we can retry loading if needed
     setSelectedAppId(null)
     setParsedFile(null)
     setAnalysis(null)
@@ -488,10 +494,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     if (!newAppName.trim() || !userInfo) return
 
     const appName = newAppName.trim() || 'New Spreadsheet App'
-    const appSchema = generateEmptyAppSchema(
-      appName,
-      userInfo.id || userInfo?.employeeDetails?.employeeId || 'unknown'
-    )
+    const appSchema = generateEmptyAppSchema(appName, userInfo.id || userInfo?.employeeDetails?.employeeId || 'unknown')
 
     const createdApp = await createApp(appSchema)
 
@@ -532,7 +535,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 // Use ref to get latest currentApp to prevent stale closure issues
                 const latestApp = currentAppRef.current
                 if (!latestApp) return
-                
+
                 // Update sheet data
                 const updatedSheets = latestApp.sheets.map(s => (s.id === sheetId ? { ...s, data } : s))
                 updateApp(latestApp.id, { sheets: updatedSheets })

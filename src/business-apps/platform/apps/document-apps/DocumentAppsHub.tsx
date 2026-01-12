@@ -5,7 +5,7 @@
  * Displays existing documents, provides upload interface, and template gallery.
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { Card, Button, Input, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import {
@@ -110,10 +110,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   const { templates, createDocumentFromTemplate } = useDocumentTemplates(accessToken, currentUserId)
 
+  // Track which document ID we've attempted to load to prevent infinite loops
+  const loadAttemptedRef = useRef<string | null>(null)
+
   // Load document from URL on mount
   useEffect(() => {
     const { docId, view } = getUrlParams()
-    if (docId && !currentDocument && !isLoadingDocuments) {
+    // Only load if we have a docId, no current document, not loading, and haven't already attempted this document
+    if (docId && !currentDocument && !isLoadingDocuments && loadAttemptedRef.current !== docId) {
+      loadAttemptedRef.current = docId // Mark as attempted before loading
       loadDocument(docId).then(doc => {
         if (doc) {
           setSelectedDocumentId(docId)
@@ -255,6 +260,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    */
   const handleBack = useCallback(() => {
     clearCurrentDocument()
+    loadAttemptedRef.current = null // Reset so we can retry loading if needed
     setSelectedDocumentId(null)
     setParsedWordDocument(null)
     setCurrentView('list')

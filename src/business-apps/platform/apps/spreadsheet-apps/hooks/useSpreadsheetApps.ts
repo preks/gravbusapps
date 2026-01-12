@@ -1,18 +1,13 @@
 /**
  * useSpreadsheetApps Hook
  *
- * Manages CRUD operations for spreadsheet apps using the File Storage Service.
- * Data is persisted to the NEWWORK File Service (database-backed).
- * Falls back to localStorage if file service is unavailable.
+ * Manages CRUD operations for spreadsheet apps using the document-service backend API.
+ * Data is persisted to the PostgreSQL database via the NestJS backend.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
-import { SpreadsheetAppService } from '../services/SpreadsheetAppService'
-import {
-  createSpreadsheetFileStorageService,
-  SpreadsheetFileStorageService
-} from '../services/SpreadsheetFileStorageService'
+import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 import type { SpreadsheetApp, SpreadsheetAppSummary, SpreadsheetSheet, AppStatus } from '../types'
 
 export interface UseSpreadsheetAppsState {
@@ -21,7 +16,7 @@ export interface UseSpreadsheetAppsState {
   isLoading: boolean
   isSaving: boolean
   error: string | null
-  storageMode: 'database' | 'local' // Indicates where data is being stored
+  storageMode: 'database' | 'local'
   currentAppPermission: 'owner' | 'edit' | 'view' | null
 }
 
@@ -65,8 +60,7 @@ export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
 }
 
 /**
- * Hook for managing spreadsheet apps
- * Attempts to use File Service (database) first, falls back to localStorage
+ * Hook for managing spreadsheet apps using the document-service backend
  */
 export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpreadsheetAppsResult {
   const [state, setState] = useState<UseSpreadsheetAppsState>({
@@ -79,81 +73,36 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
     currentAppPermission: null
   })
 
-  // Service references
-  const fileStorageRef = useRef<SpreadsheetFileStorageService | null>(null)
-  const localStorageRef = useRef<SpreadsheetAppService | null>(null)
-
-  // Initialize services
-  useEffect(() => {
-    if (accessToken && userId) {
-      fileStorageRef.current = createSpreadsheetFileStorageService(accessToken, userId)
-    }
-    localStorageRef.current = new SpreadsheetAppService(accessToken)
-  }, [accessToken, userId])
-
   /**
-   * Get the appropriate storage service
-   */
-  const getService = useCallback(() => {
-    // Prefer file storage if available
-    if (fileStorageRef.current) {
-      return { service: fileStorageRef.current, mode: 'database' as const }
-    }
-    // Fallback to localStorage
-    return { service: localStorageRef.current!, mode: 'local' as const }
-  }, [])
-
-  /**
-   * Load all apps
+   * Load all apps from the backend
    */
   const loadApps = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }))
-
-    const { service, mode } = getService()
-    if (!service) {
-      setState(prev => ({ ...prev, isLoading: false, error: 'Storage service not initialized' }))
+    if (!accessToken) {
+      setState(prev => ({ ...prev, isLoading: false, error: 'Not authenticated' }))
       return
     }
 
+    setState(prev => ({ ...prev, isLoading: true, error: null }))
+
     try {
-      console.log('[useSpreadsheetApps] Loading apps using:', mode)
-      const apps = await service.getApps()
+      console.log('[useSpreadsheetApps] Loading apps from document-service backend')
+      const apps = await SpreadsheetApiService.listApps()
       setState(prev => ({
         ...prev,
         apps,
         isLoading: false,
-        storageMode: mode
+        storageMode: 'database'
       }))
-
-      if (mode === 'database') {
-        console.log('[useSpreadsheetApps] Apps loaded from database (file storage)')
-      }
+      console.log('[useSpreadsheetApps] Apps loaded from database:', apps.length)
     } catch (error) {
-      console.error('[useSpreadsheetApps] File storage failed, trying localStorage:', error)
-
-      // Fallback to localStorage
-      try {
-        const localService = localStorageRef.current
-        if (localService) {
-          const apps = await localService.getApps()
-          setState(prev => ({
-            ...prev,
-            apps,
-            isLoading: false,
-            storageMode: 'local',
-            error: 'Using local storage (file service unavailable)'
-          }))
-          toast.warning('Using local storage - file service unavailable')
-        }
-      } catch {
-        setState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to load apps'
-        }))
-      }
+      console.error('[useSpreadsheetApps] Failed to load apps:', error)
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to load apps'
+      }))
     }
-  }, [getService])
+  }, [accessToken])
 
   /**
    * Refresh apps (alias for loadApps)
@@ -162,22 +111,18 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
 
   /**
    * Load a single app by ID
-   * @param id - App ID
-   * @param directFilePath - Optional direct file path for cross-device access via URL
    */
   const loadApp = useCallback(
-    async (id: string, directFilePath?: string): Promise<SpreadsheetApp | null> => {
-      setState(prev => ({ ...prev, isLoading: true, error: null }))
-
-      const { service, mode } = getService()
-      if (!service) {
-        setState(prev => ({ ...prev, isLoading: false, error: 'Storage service not initialized' }))
+    async (id: string): Promise<SpreadsheetApp | null> => {
+      if (!accessToken) {
+        setState(prev => ({ ...prev, isLoading: false, error: 'Not authenticated' }))
         return null
       }
 
+      setState(prev => ({ ...prev, isLoading: true, error: null }))
+
       try {
-        // Pass directFilePath for cross-device loading
-        const app = await service.getApp(id, directFilePath)
+        const app = await SpreadsheetApiService.getApp(id)
         if (!app) {
           setState(prev => ({
             ...prev,
@@ -187,39 +132,26 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           return null
         }
 
-        // Get permission info if service supports it
-        let userPermission: 'owner' | 'edit' | 'view' | null = null
-        if ('getUserPermission' in service && typeof service.getUserPermission === 'function') {
-          userPermission = service.getUserPermission(app)
+        // Load row data for each sheet
+        for (const sheet of app.sheets) {
+          const rows = await SpreadsheetApiService.getRows(id, sheet.id)
+          sheet.data = rows
         }
+
+        // Determine permission
+        const isOwner = app.createdBy === userId
+        const userPermission: 'owner' | 'edit' | 'view' | null = isOwner ? 'owner' : null
 
         setState(prev => ({
           ...prev,
           currentApp: app,
           isLoading: false,
-          storageMode: mode,
+          storageMode: 'database',
           currentAppPermission: userPermission
         }))
         return app
       } catch (error) {
-        // Try localStorage fallback
-        try {
-          const localService = localStorageRef.current
-          if (localService) {
-            const app = await localService.getApp(id)
-            setState(prev => ({
-              ...prev,
-              currentApp: app,
-              isLoading: false,
-              storageMode: 'local',
-              currentAppPermission: app?.createdBy === userId ? 'owner' : null
-            }))
-            return app
-          }
-        } catch {
-          // ignore
-        }
-
+        console.error('[useSpreadsheetApps] Failed to load app:', error)
         setState(prev => ({
           ...prev,
           isLoading: false,
@@ -228,7 +160,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         return null
       }
     },
-    [getService, userId]
+    [accessToken, userId]
   )
 
   /**
@@ -236,56 +168,28 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    */
   const createApp = useCallback(
     async (app: Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'>): Promise<SpreadsheetApp | null> => {
-      setState(prev => ({ ...prev, isSaving: true, error: null }))
-
-      const { service, mode } = getService()
-      if (!service) {
-        setState(prev => ({ ...prev, isSaving: false, error: 'Storage service not initialized' }))
+      if (!accessToken) {
+        setState(prev => ({ ...prev, isSaving: false, error: 'Not authenticated' }))
         return null
       }
 
+      setState(prev => ({ ...prev, isSaving: true, error: null }))
+
       try {
-        console.log('[useSpreadsheetApps] Creating app using:', mode)
-        const newApp = await service.createApp(app)
+        console.log('[useSpreadsheetApps] Creating app via document-service backend')
+        const newApp = await SpreadsheetApiService.createApp(app)
         setState(prev => ({
           ...prev,
           currentApp: newApp,
           isSaving: false,
-          storageMode: mode
+          storageMode: 'database'
         }))
 
-        // Show success message
-        if (mode === 'database') {
-          toast.success('App saved to database!')
-        } else {
-          toast.info('App saved locally')
-        }
-
-        // Refresh the list
+        toast.success('App saved to database!')
         await loadApps()
         return newApp
       } catch (error) {
-        console.error('[useSpreadsheetApps] File storage create failed:', error)
-
-        // Try localStorage fallback
-        try {
-          const localService = localStorageRef.current
-          if (localService) {
-            const newApp = await localService.createApp(app)
-            setState(prev => ({
-              ...prev,
-              currentApp: newApp,
-              isSaving: false,
-              storageMode: 'local'
-            }))
-            toast.warning('Saved locally (file service unavailable)')
-            await loadApps()
-            return newApp
-          }
-        } catch (localError) {
-          console.error('[useSpreadsheetApps] localStorage fallback also failed:', localError)
-        }
-
+        console.error('[useSpreadsheetApps] Failed to create app:', error)
         setState(prev => ({
           ...prev,
           isSaving: false,
@@ -295,93 +199,45 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         return null
       }
     },
-    [getService, loadApps]
+    [accessToken, loadApps]
   )
 
   /**
    * Update an existing app
-   * Uses optimistic update pattern to avoid race conditions with server
    */
   const updateApp = useCallback(
     async (id: string, updates: Partial<SpreadsheetApp>): Promise<SpreadsheetApp | null> => {
-      console.warn('[useSpreadsheetApps] updateApp CALLED with id:', id)
-      console.warn('[useSpreadsheetApps] updateApp - updates.sheets:', updates.sheets?.length, 'sheets')
-      console.warn('[useSpreadsheetApps] updateApp - first sheet data rows:', updates.sheets?.[0]?.data?.length)
-      
-      setState(prev => ({ ...prev, isSaving: true, error: null }))
-
-      const { service, mode } = getService()
-      if (!service) {
-        setState(prev => ({ ...prev, isSaving: false, error: 'Storage service not initialized' }))
+      if (!accessToken) {
+        setState(prev => ({ ...prev, isSaving: false, error: 'Not authenticated' }))
         return null
       }
 
+      setState(prev => ({ ...prev, isSaving: true, error: null }))
+
       try {
-        console.warn('[useSpreadsheetApps] Calling service.updateApp...')
-        const updatedApp = await service.updateApp(id, updates)
-        console.warn('[useSpreadsheetApps] service.updateApp returned:', updatedApp ? `${updatedApp.sheets?.[0]?.data?.length} rows` : 'null')
+        const updatedApp = await SpreadsheetApiService.updateApp(id, updates)
         if (updatedApp) {
-          // Directly update state with the returned app data (optimistic update)
-          // This avoids race conditions where loadApps() might fetch stale data
           setState(prev => ({
             ...prev,
             currentApp: prev.currentApp?.id === id ? updatedApp : prev.currentApp,
-            // Also update the apps list directly
-            apps: prev.apps.map(app => 
-              app.id === id 
+            apps: prev.apps.map(app =>
+              app.id === id
                 ? {
                     ...app,
                     name: updatedApp.name,
                     description: updatedApp.description,
                     status: updatedApp.status,
-                    updatedAt: updatedApp.updatedAt,
-                    ownerId: updatedApp.ownerId,
-                    sheetCount: updatedApp.sheets.length,
-                    rowCount: updatedApp.sheets.reduce((sum, s) => sum + (s.data?.length || 0), 0)
+                    updatedAt: updatedApp.updatedAt
                   }
                 : app
             ),
             isSaving: false,
-            storageMode: mode
+            storageMode: 'database'
           }))
-          // NOTE: Removed loadApps() call to prevent race condition where server
-          // returns stale data before the update has propagated
         }
         return updatedApp
       } catch (error) {
-        // Try localStorage fallback
-        try {
-          const localService = localStorageRef.current
-          if (localService) {
-            const updatedApp = await localService.updateApp(id, updates)
-            if (updatedApp) {
-              setState(prev => ({
-                ...prev,
-                currentApp: prev.currentApp?.id === id ? updatedApp : prev.currentApp,
-                apps: prev.apps.map(app => 
-                  app.id === id 
-                    ? {
-                        ...app,
-                        name: updatedApp.name,
-                        description: updatedApp.description,
-                        status: updatedApp.status,
-                        updatedAt: updatedApp.updatedAt,
-                        ownerId: updatedApp.ownerId,
-                        sheetCount: updatedApp.sheets.length,
-                        rowCount: updatedApp.sheets.reduce((sum, s) => sum + (s.data?.length || 0), 0)
-                      }
-                    : app
-                ),
-                isSaving: false,
-                storageMode: 'local'
-              }))
-              return updatedApp
-            }
-          }
-        } catch {
-          // ignore
-        }
-
+        console.error('[useSpreadsheetApps] Failed to update app:', error)
         setState(prev => ({
           ...prev,
           isSaving: false,
@@ -390,7 +246,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         return null
       }
     },
-    [getService]
+    [accessToken]
   )
 
   /**
@@ -398,16 +254,15 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    */
   const deleteApp = useCallback(
     async (id: string): Promise<boolean> => {
-      setState(prev => ({ ...prev, isSaving: true, error: null }))
-
-      const { service } = getService()
-      if (!service) {
-        setState(prev => ({ ...prev, isSaving: false, error: 'Storage service not initialized' }))
+      if (!accessToken) {
+        setState(prev => ({ ...prev, isSaving: false, error: 'Not authenticated' }))
         return false
       }
 
+      setState(prev => ({ ...prev, isSaving: true, error: null }))
+
       try {
-        const success = await service.deleteApp(id)
+        const success = await SpreadsheetApiService.deleteApp(id)
         if (success) {
           setState(prev => ({
             ...prev,
@@ -415,11 +270,11 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
             isSaving: false
           }))
           toast.success('App deleted')
-          // Refresh the list
           await loadApps()
         }
         return success
       } catch (error) {
+        console.error('[useSpreadsheetApps] Failed to delete app:', error)
         setState(prev => ({
           ...prev,
           isSaving: false,
@@ -428,32 +283,31 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         return false
       }
     },
-    [getService, loadApps]
+    [accessToken, loadApps]
   )
 
   /**
    * Duplicate an app
    */
   const duplicateApp = useCallback(
-    async (id: string, newName?: string): Promise<SpreadsheetApp | null> => {
-      setState(prev => ({ ...prev, isSaving: true, error: null }))
-
-      const { service } = getService()
-      if (!service) {
-        setState(prev => ({ ...prev, isSaving: false, error: 'Storage service not initialized' }))
+    async (id: string): Promise<SpreadsheetApp | null> => {
+      if (!accessToken) {
+        setState(prev => ({ ...prev, isSaving: false, error: 'Not authenticated' }))
         return null
       }
 
+      setState(prev => ({ ...prev, isSaving: true, error: null }))
+
       try {
-        const duplicatedApp = await service.duplicateApp(id, newName)
+        const duplicatedApp = await SpreadsheetApiService.duplicateApp(id)
         if (duplicatedApp) {
           toast.success('App duplicated')
-          // Refresh the list
           await loadApps()
         }
         setState(prev => ({ ...prev, isSaving: false }))
         return duplicatedApp
       } catch (error) {
+        console.error('[useSpreadsheetApps] Failed to duplicate app:', error)
         setState(prev => ({
           ...prev,
           isSaving: false,
@@ -462,44 +316,53 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         return null
       }
     },
-    [getService, loadApps]
+    [accessToken, loadApps]
   )
 
   /**
-   * Update sheet data
+   * Update sheet data (bulk update rows)
    */
   const updateSheetData = useCallback(
     async (appId: string, sheetId: string, data: Record<string, unknown>[]): Promise<SpreadsheetSheet | null> => {
-      const { service } = getService()
-      if (!service) return null
-
-      // For file storage, we need to update the whole app
-      const app = state.currentApp?.id === appId ? state.currentApp : await service.getApp(appId)
-      if (!app) return null
-
-      const sheetIndex = app.sheets.findIndex(s => s.id === sheetId)
-      if (sheetIndex === -1) return null
-
-      const updatedSheet = { ...app.sheets[sheetIndex], data }
-      const updatedSheets = [...app.sheets]
-      updatedSheets[sheetIndex] = updatedSheet
+      if (!accessToken) return null
 
       try {
-        const updatedApp = await service.updateApp(appId, { sheets: updatedSheets })
-        if (updatedApp && state.currentApp?.id === appId) {
-          // Update local state
+        // For bulk updates, we need to update each row or use bulk add
+        const sheet = await SpreadsheetApiService.getSheet(appId, sheetId)
+        if (!sheet) return null
+
+        // Update rows in bulk via the API
+        for (const row of data) {
+          if (row._id) {
+            await SpreadsheetApiService.updateRow(appId, sheetId, row._id as string, row)
+          } else {
+            await SpreadsheetApiService.addRow(appId, sheetId, row)
+          }
+        }
+
+        // Refresh the sheet data
+        const updatedRows = await SpreadsheetApiService.getRows(appId, sheetId)
+        const updatedSheet = { ...sheet, data: updatedRows }
+
+        if (state.currentApp?.id === appId) {
           setState(prev => ({
             ...prev,
-            currentApp: updatedApp
+            currentApp: prev.currentApp
+              ? {
+                  ...prev.currentApp,
+                  sheets: prev.currentApp.sheets.map(s => (s.id === sheetId ? updatedSheet : s))
+                }
+              : null
           }))
         }
+
         return updatedSheet
       } catch (error) {
-        console.error('Failed to update sheet data:', error)
+        console.error('[useSpreadsheetApps] Failed to update sheet data:', error)
         return null
       }
     },
-    [getService, state.currentApp]
+    [accessToken, state.currentApp]
   )
 
   /**
@@ -507,39 +370,30 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    */
   const addRow = useCallback(
     async (appId: string, sheetId: string, row: Record<string, unknown>): Promise<Record<string, unknown> | null> => {
-      const { service } = getService()
-      if (!service) return null
-
-      const app = state.currentApp?.id === appId ? state.currentApp : await service.getApp(appId)
-      if (!app) return null
-
-      const sheetIndex = app.sheets.findIndex(s => s.id === sheetId)
-      if (sheetIndex === -1) return null
-
-      const newRow = {
-        ...row,
-        _id: `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        _createdAt: new Date().toISOString()
-      }
-
-      const updatedSheets = [...app.sheets]
-      updatedSheets[sheetIndex] = {
-        ...updatedSheets[sheetIndex],
-        data: [...updatedSheets[sheetIndex].data, newRow]
-      }
+      if (!accessToken) return null
 
       try {
-        const updatedApp = await service.updateApp(appId, { sheets: updatedSheets })
-        if (updatedApp && state.currentApp?.id === appId) {
-          setState(prev => ({ ...prev, currentApp: updatedApp }))
+        const newRow = await SpreadsheetApiService.addRow(appId, sheetId, row)
+
+        if (state.currentApp?.id === appId) {
+          setState(prev => ({
+            ...prev,
+            currentApp: prev.currentApp
+              ? {
+                  ...prev.currentApp,
+                  sheets: prev.currentApp.sheets.map(s => (s.id === sheetId ? { ...s, data: [...s.data, newRow] } : s))
+                }
+              : null
+          }))
         }
+
         return newRow
       } catch (error) {
-        console.error('Failed to add row:', error)
+        console.error('[useSpreadsheetApps] Failed to add row:', error)
         return null
       }
     },
-    [getService, state.currentApp]
+    [accessToken, state.currentApp]
   )
 
   /**
@@ -552,41 +406,34 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       rowId: string,
       updates: Record<string, unknown>
     ): Promise<Record<string, unknown> | null> => {
-      const { service } = getService()
-      if (!service) return null
-
-      const app = state.currentApp?.id === appId ? state.currentApp : await service.getApp(appId)
-      if (!app) return null
-
-      const sheetIndex = app.sheets.findIndex(s => s.id === sheetId)
-      if (sheetIndex === -1) return null
-
-      const rowIndex = app.sheets[sheetIndex].data.findIndex(r => r._id === rowId)
-      if (rowIndex === -1) return null
-
-      const updatedRow = {
-        ...app.sheets[sheetIndex].data[rowIndex],
-        ...updates,
-        _updatedAt: new Date().toISOString()
-      }
-
-      const updatedSheets = [...app.sheets]
-      const updatedData = [...updatedSheets[sheetIndex].data]
-      updatedData[rowIndex] = updatedRow
-      updatedSheets[sheetIndex] = { ...updatedSheets[sheetIndex], data: updatedData }
+      if (!accessToken) return null
 
       try {
-        const updatedApp = await service.updateApp(appId, { sheets: updatedSheets })
-        if (updatedApp && state.currentApp?.id === appId) {
-          setState(prev => ({ ...prev, currentApp: updatedApp }))
+        const updatedRow = await SpreadsheetApiService.updateRow(appId, sheetId, rowId, updates)
+
+        if (state.currentApp?.id === appId) {
+          setState(prev => ({
+            ...prev,
+            currentApp: prev.currentApp
+              ? {
+                  ...prev.currentApp,
+                  sheets: prev.currentApp.sheets.map(s =>
+                    s.id === sheetId
+                      ? { ...s, data: s.data.map(r => ((r._id as string) === rowId ? updatedRow : r)) }
+                      : s
+                  )
+                }
+              : null
+          }))
         }
+
         return updatedRow
       } catch (error) {
-        console.error('Failed to update row:', error)
+        console.error('[useSpreadsheetApps] Failed to update row:', error)
         return null
       }
     },
-    [getService, state.currentApp]
+    [accessToken, state.currentApp]
   )
 
   /**
@@ -594,33 +441,32 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    */
   const deleteRow = useCallback(
     async (appId: string, sheetId: string, rowId: string): Promise<boolean> => {
-      const { service } = getService()
-      if (!service) return false
-
-      const app = state.currentApp?.id === appId ? state.currentApp : await service.getApp(appId)
-      if (!app) return false
-
-      const sheetIndex = app.sheets.findIndex(s => s.id === sheetId)
-      if (sheetIndex === -1) return false
-
-      const updatedSheets = [...app.sheets]
-      updatedSheets[sheetIndex] = {
-        ...updatedSheets[sheetIndex],
-        data: updatedSheets[sheetIndex].data.filter(r => r._id !== rowId)
-      }
+      if (!accessToken) return false
 
       try {
-        const updatedApp = await service.updateApp(appId, { sheets: updatedSheets })
-        if (updatedApp && state.currentApp?.id === appId) {
-          setState(prev => ({ ...prev, currentApp: updatedApp }))
+        const success = await SpreadsheetApiService.deleteRow(appId, sheetId, rowId)
+
+        if (success && state.currentApp?.id === appId) {
+          setState(prev => ({
+            ...prev,
+            currentApp: prev.currentApp
+              ? {
+                  ...prev.currentApp,
+                  sheets: prev.currentApp.sheets.map(s =>
+                    s.id === sheetId ? { ...s, data: s.data.filter(r => (r._id as string) !== rowId) } : s
+                  )
+                }
+              : null
+          }))
         }
-        return true
+
+        return success
       } catch (error) {
-        console.error('Failed to delete row:', error)
+        console.error('[useSpreadsheetApps] Failed to delete row:', error)
         return false
       }
     },
-    [getService, state.currentApp]
+    [accessToken, state.currentApp]
   )
 
   /**
@@ -638,17 +484,18 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    */
   const exportApp = useCallback(
     async (id: string): Promise<string | null> => {
-      const { service } = getService()
-      if (!service) return null
+      if (!accessToken) return null
 
       try {
-        return await service.exportApp(id)
+        const app = await SpreadsheetApiService.getApp(id)
+        if (!app) return null
+        return JSON.stringify(app, null, 2)
       } catch (error) {
-        console.error('Failed to export app:', error)
+        console.error('[useSpreadsheetApps] Failed to export app:', error)
         return null
       }
     },
-    [getService]
+    [accessToken]
   )
 
   /**
@@ -656,16 +503,19 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    */
   const importApp = useCallback(
     async (jsonData: string): Promise<SpreadsheetApp | null> => {
-      setState(prev => ({ ...prev, isSaving: true, error: null }))
-
-      const { service } = getService()
-      if (!service) {
-        setState(prev => ({ ...prev, isSaving: false, error: 'Storage service not initialized' }))
+      if (!accessToken) {
+        setState(prev => ({ ...prev, isSaving: false, error: 'Not authenticated' }))
         return null
       }
 
+      setState(prev => ({ ...prev, isSaving: true, error: null }))
+
       try {
-        const importedApp = await service.importApp(jsonData)
+        const appData = JSON.parse(jsonData)
+        // Remove id and timestamps to create a new app
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...appWithoutId } = appData
+        const importedApp = await SpreadsheetApiService.createApp(appWithoutId)
         if (importedApp) {
           toast.success('App imported')
           await loadApps()
@@ -673,6 +523,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         setState(prev => ({ ...prev, isSaving: false }))
         return importedApp
       } catch (error) {
+        console.error('[useSpreadsheetApps] Failed to import app:', error)
         setState(prev => ({
           ...prev,
           isSaving: false,
@@ -681,22 +532,16 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         return null
       }
     },
-    [getService, loadApps]
+    [accessToken, loadApps]
   )
 
   /**
-   * Share an app with one or more users
+   * Share an app with users
    */
   const shareApp = useCallback(
-    async (
-      appId: string,
-      recipientUserIds: string[],
-      permission: 'view' | 'edit' = 'view',
-      ownerName?: string
-    ): Promise<boolean> => {
-      const service = fileStorageRef.current
-      if (!service) {
-        toast.error('Sharing requires database storage')
+    async (appId: string, recipientUserIds: string[], permission: 'view' | 'edit' = 'view'): Promise<boolean> => {
+      if (!accessToken) {
+        toast.error('Not authenticated')
         return false
       }
 
@@ -706,7 +551,8 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       }
 
       try {
-        const success = await service.shareApp(appId, recipientUserIds, permission, ownerName)
+        const shares = recipientUserIds.map(userId => ({ userId, permission }))
+        const success = await SpreadsheetApiService.shareApp(appId, shares)
         if (success) {
           toast.success(
             `App shared successfully with ${recipientUserIds.length} ${recipientUserIds.length === 1 ? 'user' : 'users'}`
@@ -716,12 +562,12 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         }
         return success
       } catch (error) {
-        console.error('Failed to share app:', error)
+        console.error('[useSpreadsheetApps] Failed to share app:', error)
         toast.error('Failed to share app')
         return false
       }
     },
-    []
+    [accessToken]
   )
 
   /**
@@ -739,42 +585,50 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         sharedAt: string
       }>
     > => {
-      const service = fileStorageRef.current
-      if (!service) {
+      if (!accessToken) {
         return []
       }
 
       try {
-        return await service.getSharedUsers(appId)
+        const shares = await SpreadsheetApiService.getSharedUsers(appId)
+        return shares.map(s => ({
+          userId: s.userId,
+          userName: '', // Backend doesn't return user details
+          userEmail: '',
+          permission: s.permission as 'view' | 'edit',
+          sharedAt: s.sharedAt
+        }))
       } catch (error) {
-        console.error('Failed to get shared users:', error)
+        console.error('[useSpreadsheetApps] Failed to get shared users:', error)
         return []
       }
     },
-    []
+    [accessToken]
   )
 
   /**
    * Revoke a user's access to an app
    */
-  const revokeAccess = useCallback(async (appId: string, recipientUserId: string): Promise<boolean> => {
-    const service = fileStorageRef.current
-    if (!service) {
-      toast.error('Requires database storage')
-      return false
-    }
-
-    try {
-      const success = await service.revokeAccess(appId, recipientUserId)
-      if (success) {
-        toast.success('Access revoked')
+  const revokeAccess = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async (_appId: string, _recipientUserId: string): Promise<boolean> => {
+      if (!accessToken) {
+        toast.error('Not authenticated')
+        return false
       }
-      return success
-    } catch (error) {
-      console.error('Failed to revoke access:', error)
-      return false
-    }
-  }, [])
+
+      try {
+        // Note: Backend sharing endpoint would need a revoke method
+        // For now, we'll show a message
+        toast.info('Access revocation not yet implemented in backend')
+        return false
+      } catch (error) {
+        console.error('[useSpreadsheetApps] Failed to revoke access:', error)
+        return false
+      }
+    },
+    [accessToken]
+  )
 
   /**
    * Clear current app
@@ -788,7 +642,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
     if (accessToken) {
       loadApps()
     }
-  }, [accessToken])
+  }, [accessToken, loadApps])
 
   return {
     ...state,

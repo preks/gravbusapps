@@ -3,11 +3,13 @@
  *
  * Main hook for document CRUD operations, providing
  * state management and actions for the document apps module.
+ *
+ * Uses the document-service backend API for data persistence.
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
-import { DocumentFileStorageService, DocumentApprovalService } from '../services'
+import { DocumentApiService } from '../services/DocumentApiService'
 import type { Document, DocumentSummary, ApprovalWorkflowConfig, DocumentApprovalRequest } from '../types'
 
 interface UseDocumentAppsState {
@@ -42,7 +44,7 @@ interface UseDocumentAppsResult extends UseDocumentAppsState {
 }
 
 /**
- * Hook for managing documents
+ * Hook for managing documents using the document-service backend
  */
 export function useDocumentApps(accessToken: string, userId?: string): UseDocumentAppsResult {
   const [state, setState] = useState<UseDocumentAppsState>({
@@ -54,88 +56,18 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     storageMode: 'database'
   })
 
-  // Initialize services
-  const storageService = useMemo(() => {
-    if (!accessToken || !userId) return null
-    return new DocumentFileStorageService(accessToken, userId)
-  }, [accessToken, userId])
-
-  const approvalService = useMemo(() => {
-    if (!accessToken || !userId) return null
-    return new DocumentApprovalService(accessToken, userId)
-  }, [accessToken, userId])
-
   /**
-   * Load all documents and sync pending approval statuses
+   * Load all documents from the backend
    */
   const refreshDocuments = useCallback(async () => {
-    if (!storageService) {
+    if (!accessToken) {
       setState(prev => ({ ...prev, isLoading: false, error: 'Not authenticated' }))
       return
     }
 
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
-      let documents = await storageService.listDocuments()
-
-      // Sync approval statuses for documents with pending approvals
-      if (approvalService) {
-        const pendingDocs = documents.filter(
-          doc =>
-            doc.approvalRequest?.status === 'pending' &&
-            (doc.approvalRequest?.workflowIds?.length || doc.approvalRequest?.workflowId)
-        )
-
-        // Process pending approvals in parallel (limit to 5 concurrent to avoid overload)
-        const BATCH_SIZE = 5
-        for (let i = 0; i < pendingDocs.length; i += BATCH_SIZE) {
-          const batch = pendingDocs.slice(i, i + BATCH_SIZE)
-          const results = await Promise.all(
-            batch.map(async doc => {
-              if (!doc.approvalRequest) return null
-              try {
-                const updatedApproval = await approvalService.syncApprovalStatus(doc.approvalRequest)
-                if (updatedApproval && updatedApproval.status !== 'pending') {
-                  // Update the document in storage
-                  const newStatus =
-                    updatedApproval.status === 'approved'
-                      ? 'approved'
-                      : updatedApproval.status === 'rejected'
-                        ? 'rejected'
-                        : doc.status
-
-                  await storageService.updateDocument(doc.id, {
-                    status: newStatus,
-                    approvalRequest: updatedApproval
-                  })
-
-                  return { docId: doc.id, updatedApproval, newStatus }
-                }
-              } catch (err) {
-                console.warn('[useDocumentApps] Failed to sync approval for doc:', doc.id, err)
-              }
-              return null
-            })
-          )
-
-          // Update local documents array with any changes
-          const changes = results.filter(Boolean)
-          if (changes.length > 0) {
-            documents = documents.map(doc => {
-              const change = changes.find(c => c?.docId === doc.id)
-              if (change) {
-                return {
-                  ...doc,
-                  status: change.newStatus,
-                  approvalStatus: change.updatedApproval.status,
-                  approvalRequest: change.updatedApproval
-                }
-              }
-              return doc
-            })
-          }
-        }
-      }
+      const documents = await DocumentApiService.listDocuments()
 
       setState(prev => ({
         ...prev,
@@ -148,10 +80,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: 'Failed to load documents'
+        error: error instanceof Error ? error.message : 'Failed to load documents'
       }))
     }
-  }, [storageService, approvalService])
+  }, [accessToken])
 
   // Load documents on mount
   useEffect(() => {
@@ -162,37 +94,12 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    * Load a single document
    */
   const loadDocument = useCallback(
-    async (id: string, filePath?: string): Promise<Document | null> => {
-      if (!storageService) return null
+    async (id: string): Promise<Document | null> => {
+      if (!accessToken) return null
 
       try {
-        let document = await storageService.getDocument(id, filePath)
+        const document = await DocumentApiService.getDocument(id)
         if (document) {
-          // Sync approval status if document has a pending approval request
-          if (document.approvalRequest && document.approvalRequest.status === 'pending' && approvalService) {
-            const updatedApproval = await approvalService.syncApprovalStatus(document.approvalRequest)
-            if (updatedApproval) {
-              // Update the document with synced approval status
-              const newStatus =
-                updatedApproval.status === 'approved'
-                  ? 'approved'
-                  : updatedApproval.status === 'rejected'
-                    ? 'rejected'
-                    : document.status
-
-              const updatedDoc = await storageService.updateDocument(id, {
-                status: newStatus,
-                approvalRequest: updatedApproval
-              })
-
-              if (updatedDoc) {
-                document = updatedDoc
-                // Also refresh the documents list to update the card
-                await refreshDocuments()
-              }
-            }
-          }
-
           // Determine permission
           const isOwner = document.createdBy === userId
           const share = document.sharedWith?.find(s => s.userId === userId)
@@ -211,7 +118,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [storageService, userId, approvalService, refreshDocuments]
+    [accessToken, userId]
   )
 
   /**
@@ -219,10 +126,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    */
   const createDocument = useCallback(
     async (document: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>): Promise<Document | null> => {
-      if (!storageService) return null
+      if (!accessToken) return null
 
       try {
-        const newDocument = await storageService.createDocument(document)
+        const newDocument = await DocumentApiService.createDocument(document)
         if (newDocument) {
           toast.success('Document created successfully')
           await refreshDocuments()
@@ -234,7 +141,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [storageService, refreshDocuments]
+    [accessToken, refreshDocuments]
   )
 
   /**
@@ -242,10 +149,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    */
   const updateDocument = useCallback(
     async (id: string, updates: Partial<Document>): Promise<Document | null> => {
-      if (!storageService) return null
+      if (!accessToken) return null
 
       try {
-        const updatedDocument = await storageService.updateDocument(id, updates)
+        const updatedDocument = await DocumentApiService.updateDocument(id, updates)
         if (updatedDocument) {
           setState(prev => ({
             ...prev,
@@ -274,7 +181,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [storageService]
+    [accessToken]
   )
 
   /**
@@ -282,10 +189,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    */
   const deleteDocument = useCallback(
     async (id: string): Promise<boolean> => {
-      if (!storageService) return false
+      if (!accessToken) return false
 
       try {
-        const success = await storageService.deleteDocument(id)
+        const success = await DocumentApiService.deleteDocument(id)
         if (success) {
           toast.success('Document deleted')
           setState(prev => ({
@@ -301,7 +208,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return false
       }
     },
-    [storageService]
+    [accessToken]
   )
 
   /**
@@ -309,10 +216,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    */
   const duplicateDocument = useCallback(
     async (id: string): Promise<Document | null> => {
-      if (!storageService) return null
+      if (!accessToken) return null
 
       try {
-        const duplicate = await storageService.duplicateDocument(id)
+        const duplicate = await DocumentApiService.duplicateDocument(id)
         if (duplicate) {
           toast.success('Document duplicated')
           await refreshDocuments()
@@ -324,7 +231,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [storageService, refreshDocuments]
+    [accessToken, refreshDocuments]
   )
 
   /**
@@ -332,10 +239,11 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    */
   const shareDocument = useCallback(
     async (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment'): Promise<boolean> => {
-      if (!storageService) return false
+      if (!accessToken) return false
 
       try {
-        const success = await storageService.shareDocument(id, userIds, permission)
+        const shares = userIds.map(userId => ({ userId, permission }))
+        const success = await DocumentApiService.shareDocument(id, shares)
         if (success) {
           toast.success('Document shared successfully')
           await refreshDocuments()
@@ -347,7 +255,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return false
       }
     },
-    [storageService, refreshDocuments]
+    [accessToken, refreshDocuments]
   )
 
   /**
@@ -355,10 +263,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    */
   const revokeAccess = useCallback(
     async (id: string, userId: string): Promise<boolean> => {
-      if (!storageService) return false
+      if (!accessToken) return false
 
       try {
-        const success = await storageService.revokeAccess(id, userId)
+        const success = await DocumentApiService.revokeAccess(id, userId)
         if (success) {
           toast.success('Access revoked')
           await refreshDocuments()
@@ -370,7 +278,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return false
       }
     },
-    [storageService, refreshDocuments]
+    [accessToken, refreshDocuments]
   )
 
   /**
@@ -378,27 +286,33 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    */
   const sendForApproval = useCallback(
     async (config: ApprovalWorkflowConfig): Promise<DocumentApprovalRequest | null> => {
-      if (!approvalService || !storageService) return null
+      if (!accessToken) return null
 
       try {
-        const approvalRequest = await approvalService.sendForApproval(config)
-        if (approvalRequest) {
-          // Update document with approval request
-          await storageService.updateDocument(config.documentId, {
-            status: 'pending_approval',
-            approvalRequest
-          })
+        const success = await DocumentApiService.sendForApproval(
+          config.documentId,
+          config.approvers, // approvers is already string[] of user IDs
+          config.message
+        )
+
+        if (success) {
+          // Update document status
+          await DocumentApiService.updateDocumentStatus(config.documentId, 'pending_approval')
           toast.success('Document sent for approval')
           await refreshDocuments()
+
+          // Get the approval status
+          const approvalRequest = await DocumentApiService.getApprovalStatus(config.documentId)
+          return approvalRequest
         }
-        return approvalRequest
+        return null
       } catch (error) {
         console.error('[useDocumentApps] Failed to send for approval:', error)
         toast.error('Failed to send for approval')
         return null
       }
     },
-    [approvalService, storageService, refreshDocuments]
+    [accessToken, refreshDocuments]
   )
 
   /**
@@ -406,25 +320,13 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    */
   const cancelApproval = useCallback(
     async (documentId: string): Promise<boolean> => {
-      if (!approvalService || !storageService) return false
+      if (!accessToken) return false
 
       try {
-        const document = await storageService.getDocument(documentId)
-        if (!document?.approvalRequest) return false
-
-        const success = await approvalService.cancelApproval(
-          document.approvalRequest.id,
-          document.approvalRequest.workflowId
-        )
+        const success = await DocumentApiService.cancelApproval(documentId)
 
         if (success) {
-          await storageService.updateDocument(documentId, {
-            status: 'draft',
-            approvalRequest: {
-              ...document.approvalRequest,
-              status: 'cancelled'
-            }
-          })
+          await DocumentApiService.updateDocumentStatus(documentId, 'draft')
           toast.success('Approval cancelled')
           await refreshDocuments()
         }
@@ -435,7 +337,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return false
       }
     },
-    [approvalService, storageService, refreshDocuments]
+    [accessToken, refreshDocuments]
   )
 
   /**
@@ -453,12 +355,11 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
    * Export document to specified format
    */
   const exportDocument = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async (id: string, format: 'docx' | 'pdf' | 'html'): Promise<string | null> => {
-      if (!storageService) return null
+    async (id: string): Promise<string | null> => {
+      if (!accessToken) return null
 
       try {
-        const document = await storageService.getDocument(id)
+        const document = await DocumentApiService.getDocument(id)
         if (!document) return null
 
         // Return content for export (actual export handled by exportUtils)
@@ -468,7 +369,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [storageService]
+    [accessToken]
   )
 
   return {

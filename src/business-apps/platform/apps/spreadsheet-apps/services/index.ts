@@ -22,3 +22,6 @@ export {
   type DetailedWorkflowStatus,
   type CallbackHandlerResult
 } from './WorkflowStatusSyncService'
+
+// New API-based service (document-service backend)
+export { SpreadsheetApiService } from './SpreadsheetApiService'
