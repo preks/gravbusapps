@@ -8,6 +8,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BuildingsIcon, CalendarIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatDate } from '@/common/data/investment/utils/formatters'
+import { getInvestmentStatusBadgeVariant } from '../utils/statusBadgeHelpers'
 
 // Helper function to get owner display name
 const getOwnerName = (investment: Investment): string => {
@@ -122,7 +123,9 @@ const OwnerEmployeeCell = ({ row }: CellContext<Investment, unknown>) => {
 
 // Cell renderer: Investment Status cell
 const InvestmentStatusCell = ({ row }: CellContext<Investment, unknown>) => (
-  <Badge variant="secondary">{row.original.investmentStatus?.value || 'Unknown'}</Badge>
+  <Badge variant={getInvestmentStatusBadgeVariant(row.original.investmentStatus?.type)}>
+    {row.original.investmentStatus?.value || 'Unknown'}
+  </Badge>
 )
 
 // Cell renderer: Created At cell

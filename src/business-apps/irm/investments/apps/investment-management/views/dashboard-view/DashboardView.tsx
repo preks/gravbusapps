@@ -3,7 +3,9 @@ import { Button, Alert, AlertTitle, AlertDescription, Spinner } from '@newwork/n
 import { ChartBarIcon, HouseIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { InvestmentStatistics } from './components/InvestmentStatistics'
+import { InvestmentKPICards } from '@/common/components/investment-kpi-cards'
+import { OVERVIEW_KPI_CONFIG } from '@/common/data/investment/kpis'
+import { useInvestmentPortfolioIntegration } from '../analytics-view/overview/hooks/useInvestmentPortfolioIntegration'
 import InvestmentBreakdownCard, { type InvestmentGroup, type TrendData } from './components/InvestmentBreakdownCard'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
@@ -124,6 +126,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Use centralized groups and types data
   const { data: groupsData, error: groupsError, isLoading: groupsLoading } = useInvestmentGroupsAndTypes(accessToken)
+
+  // Use centralized Overview KPIs from Analytics View
+  const overviewKPIs = useInvestmentPortfolioIntegration({ accessToken, userInfo }, masterCurrency)
 
   // Fetch ALL investments once (cards can filter by their individual currency)
   React.useEffect(() => {
@@ -288,7 +293,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Key Metrics Cards */}
       <div className="gba:mb-8">
-        <InvestmentStatistics accessToken={accessToken} userInfo={userInfo} selectedCurrency={masterCurrency} />
+        <InvestmentKPICards
+          config={OVERVIEW_KPI_CONFIG}
+          data={overviewKPIs.kpis}
+          previousData={overviewKPIs.previousKpis}
+          currencyCode={masterCurrency}
+          isLoading={overviewKPIs.isLoading}
+          error={overviewKPIs.error ? new Error(overviewKPIs.error) : null}
+          onRetry={overviewKPIs.refetch}
+          data-testid="dashboard-overview-kpis"
+        />
       </div>
 
       {/* Investment Groups Breakdown */}
