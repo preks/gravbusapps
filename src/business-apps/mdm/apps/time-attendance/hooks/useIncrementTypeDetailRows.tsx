@@ -426,21 +426,7 @@ export const useIncrementTypeDetailRows = ({
       return (
         <TableRow key={rowId} data-testid={formatDataTestId(dataTestId, `row-${rowId}`)}>
           {/* Display Order */}
-          <TableCell>
-            {isEditing ? (
-              <Input
-                type="number"
-                min={0}
-                max={details.length - 1}
-                value={values?.displayOrder ?? 0}
-                onChange={e => handleFieldChange(rowId, 'displayOrder', Number.parseInt(e.target.value) || 0)}
-                className="gba:w-[60px]"
-                disabled={isSaving}
-              />
-            ) : (
-              <span>{detail.displayOrder}</span>
-            )}
-          </TableCell>
+          <TableCell>{detail.displayOrder}</TableCell>
 
           {/* Time Issue Type */}
           <TableCell>
@@ -734,17 +720,7 @@ export const useIncrementTypeDetailRows = ({
     return (
       <TableRow key="new-row" data-testid={formatDataTestId(dataTestId, 'new-row')}>
         {/* Display Order */}
-        <TableCell>
-          <Input
-            type="number"
-            min={0}
-            max={details.length}
-            value={values?.displayOrder ?? 0}
-            onChange={e => handleFieldChange(rowId, 'displayOrder', Number.parseInt(e.target.value) || 0)}
-            className="gba:w-[60px]"
-            disabled={isSaving}
-          />
-        </TableCell>
+        <TableCell>{values?.displayOrder ?? 0}</TableCell>
 
         {/* Time Issue Type */}
         <TableCell>
