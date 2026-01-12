@@ -37,7 +37,7 @@ const GenericEntityDisplay: React.FC<GenericEntityDisplayProps> = ({
 
   const handleTitleClick = () => {
     if (!url) return
-    // Force reload to ensure updated entity content is shown
+    // Force window refresh to ensure updated entity content is shown (SPA navigation, not full page reload)
     navigateTo(url, { forceReload: true })
   }
 
