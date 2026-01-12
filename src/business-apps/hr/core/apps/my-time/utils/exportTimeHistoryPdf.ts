@@ -1,4 +1,5 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { parseDurationToMinutes } from './duration'
 import type { TimeEntry } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import PDFKitModule from 'pdfkit/js/pdfkit.standalone.js'
 
@@ -9,6 +10,18 @@ import PDFKitModule from 'pdfkit/js/pdfkit.standalone.js'
 export const exportTimeHistoryPdf = async (params: {
   reportTitle?: string
   generatedLabel?: string
+  holidayDates?: string[]
+  vacationDates?: string[]
+  workingHours?: {
+    sundayHours?: number
+    mondayHours?: number
+    tuesdayHours?: number
+    wednesdayHours?: number
+    thursdayHours?: number
+    fridayHours?: number
+    saturdayHours?: number
+  }
+  t?: (key: string, args?: Record<string, any>) => string
   entries: TimeEntry[]
   monthDate: Date
   locale: string
@@ -18,7 +31,19 @@ export const exportTimeHistoryPdf = async (params: {
   employeeLastName?: string
 }) => {
   const { entries, monthDate, locale, employeeCode, employeeFirstName, employeeLastName } = params
-
+  // Ensure the i18n bundle is referenced (tree-shaking safety in some setups)
+  const translate = (key: string, defaultValue: string) => {
+    try {
+      const tf =
+        (typeof params.t === 'function' && params.t) ||
+        ((globalThis as any)?.window?.lowcoder?.i18n?.t as undefined | ((k: string, a?: any) => string))
+      if (typeof tf === 'function') {
+        const out = tf(key, { defaultValue })
+        if (out && out !== key) return out
+      }
+    } catch {}
+    return defaultValue
+  }
   // Title
   const monthTitle = monthDate.toLocaleString(locale, { month: 'long', year: 'numeric' })
   const providedTitle = params.reportTitle && String(params.reportTitle).trim().length > 0 ? params.reportTitle : null
@@ -39,70 +64,140 @@ export const exportTimeHistoryPdf = async (params: {
       : '-'
 
   // Helper labels
-  const yesLabel = getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
-  const noLabel = getTranslationFromI18nKeyAndLabel('common.no', 'No')
-  const locationLabel = getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.label', 'Location')
-  const manualLabel = getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.manual', 'Manual')
   const notesLabel = getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.notes', 'Notes')
-  const statusLabel = getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.status', 'Status')
 
   // Table headers (aligned to UI terminology) - include weekday and extended fields
   const headers = [
-    getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.weekday', 'Weekday'),
+    translate('time_tracking_table_day', 'Day'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.date', 'Date'),
+    translate('time_tracking_table_workday', 'Workday'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.start', 'Start'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.end', 'End'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.recorded', 'Recorded'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.break', 'Break'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.effective', 'Effective'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.planned', 'Planned'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.diff', 'Diff'),
-    manualLabel,
-    locationLabel,
-    notesLabel,
-    statusLabel
+    notesLabel
   ]
 
   // Body rows
-  const getLocationText = (loc?: string) => {
-    switch (loc) {
-      case 'IS_NEAR_HOME':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.home', 'Home')
-      case 'IS_NEAR_OFFICE':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.office', 'Office')
-      case 'IS_OTHER_LOCATION':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.remote', 'Remote Location')
-      default:
-        return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.unknown', 'Unknown')
-    }
+
+  // Helper to produce a stable YYYY-MM-DD key in local time
+  const toLocalDateKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  // Build a map of entries by local date key
+  const entryByDay = new Map<string, TimeEntry>()
+  for (const e of entries || []) {
+    const d = new Date(e.attendanceDateISO)
+    entryByDay.set(toLocalDateKey(d), e)
+  }
+  const holidaySet = new Set<string>((params.holidayDates || []).map(d => String(d)))
+  const vacationSet = new Set<string>((params.vacationDates || []).map(d => String(d)))
+  const bankHolidayText = translate('absence_hub_holiday', 'Bank Holiday')
+  const vacationText = translate('absence_group_vacation', 'Vacation')
+
+  // Date formatting helper: ensure dd.MM.yyyy for de/ro
+  const formatDateForReport = (d: Date): string => {
+    try {
+      const loc = String(locale || 'en-US').toLowerCase()
+      if (loc.startsWith('de') || loc.startsWith('ro')) {
+        const day = String(d.getDate()).padStart(2, '0')
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const year = d.getFullYear()
+        return `${day}.${month}.${year}`
+      }
+    } catch {}
+    return d.toLocaleDateString(locale || 'en-US')
   }
 
-  const rows = [...(entries || [])]
-    // Sort by date ascending for the report regardless of UI sort
-    .sort((a, b) => {
-      const ta = new Date(a.attendanceDateISO).getTime()
-      const tb = new Date(b.attendanceDateISO).getTime()
-      return ta - tb
-    })
-    .map(e => {
-      const d = new Date(e.attendanceDateISO)
-      const weekday = d.toLocaleDateString(locale || 'en-US', { weekday: 'short' })
-      return [
+  // Helpers for duration formatting
+  const formatMinutes = (mins: number): string => {
+    const sign = mins < 0 ? '-' : ''
+    const abs = Math.abs(mins)
+    const h = Math.floor(abs / 60)
+    const m = abs % 60
+    if (m === 0) return `${sign}${h}h`
+    return `${sign}${h}h ${m}m`
+  }
+  const getPlannedMinutesForDate = (date: Date): number => {
+    const wh = params.workingHours
+    if (!wh) return 0
+    const day = date.getDay() // 0..6 where 0=Sun
+    const hoursByDay = [
+      wh.sundayHours,
+      wh.mondayHours,
+      wh.tuesdayHours,
+      wh.wednesdayHours,
+      wh.thursdayHours,
+      wh.fridayHours,
+      wh.saturdayHours
+    ]
+    const hours = hoursByDay[day] ?? 0
+    return typeof hours === 'number' ? Math.max(0, Math.round(hours * 60)) : 0
+  }
+
+  // Generate rows for every day in the target month, filling blanks when no entry exists
+  const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
+  const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0)
+  const rows: Array<string[]> = []
+  // Summary accumulators
+  let daysWorkedCount = 0
+  let totalPlannedMinutes = 0
+  let totalEffectiveMinutes = 0
+  const bankHolidayDays = new Set<string>()
+  const vacationDays = new Set<string>()
+
+  for (
+    let cursor = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate());
+    cursor <= monthEnd;
+    cursor.setDate(cursor.getDate() + 1)
+  ) {
+    const key = toLocalDateKey(cursor)
+    const e = entryByDay.get(key)
+    const weekday = cursor.toLocaleDateString(locale || 'en-US', { weekday: 'short' })
+    const workdayNote = holidaySet.has(key) ? bankHolidayText : vacationSet.has(key) ? vacationText : ''
+    if (holidaySet.has(key)) bankHolidayDays.add(key)
+    if (vacationSet.has(key)) vacationDays.add(key)
+    if (e) {
+      const plannedMin = parseDurationToMinutes(e.plannedTime)
+      const effectiveMin = parseDurationToMinutes(e.effectiveTime)
+      totalPlannedMinutes += plannedMin
+      totalEffectiveMinutes += effectiveMin
+      if (effectiveMin > 0 || e.startTimeISO || e.endTimeISO) daysWorkedCount += 1
+      rows.push([
         weekday,
-        d.toLocaleDateString(locale || 'en-US'),
+        formatDateForReport(cursor),
+        workdayNote,
         toTime(e.startTimeISO),
         toTime(e.endTimeISO),
-        e.recordedTime ?? '-',
         e.breakTime ?? '0h',
         e.effectiveTime ?? '-',
         e.plannedTime ?? '-',
         e.differenceTime ?? '-',
-        e.manualOverride ? yesLabel : noLabel,
-        getLocationText(e.attendanceLocation),
-        e.notes ?? '',
-        e.status ? e.status.charAt(0).toUpperCase() + e.status.slice(1) : '-'
-      ]
-    })
+        e.notes ?? ''
+      ])
+    } else {
+      // For blank days: compute planned minutes from working hours when not holiday/vacation
+      let blankPlannedMin = 0
+      if (!holidaySet.has(key) && !vacationSet.has(key)) {
+        blankPlannedMin = getPlannedMinutesForDate(cursor)
+        totalPlannedMinutes += blankPlannedMin
+      }
+      rows.push([
+        weekday,
+        formatDateForReport(cursor),
+        workdayNote,
+        '-',
+        '-',
+        '0h', // break
+        '0h', // effective
+        blankPlannedMin > 0 ? formatMinutes(blankPlannedMin) : '-', // planned
+        '0h', // diff
+        ''
+      ])
+    }
+  }
 
   // Use a more widely-available key for "Employee" label
   const employeeLabel = getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.employee_label', 'Employee')
@@ -128,8 +223,8 @@ export const exportTimeHistoryPdf = async (params: {
 
   const PDFDocument = PDFKitModule.default || PDFKitModule
 
-  // Landscape layout per requirement
-  const doc = new PDFDocument({ size: 'A4', margin: 40, layout: 'landscape' })
+  // Portrait layout
+  const doc = new PDFDocument({ size: 'A4', margin: 40 })
 
   const margin = 40
   let cursorY = margin
@@ -165,19 +260,19 @@ export const exportTimeHistoryPdf = async (params: {
   }
 
   // Title
-  doc.fillColor('#000000').fontSize(14).text(title, margin, cursorY)
-  cursorY += 18
+  doc.fillColor('#000000').fontSize(12).text(title, margin, cursorY)
+  cursorY += 16
 
   // Subtitle
   if (subtitle) {
-    doc.fillColor('#333333').fontSize(10).text(subtitle, margin, cursorY)
-    cursorY += 16
+    doc.fillColor('#333333').fontSize(9).text(subtitle, margin, cursorY)
+    cursorY += 14
   }
 
   // Generated at
   doc
     .fillColor('#595959')
-    .fontSize(9)
+    .fontSize(8)
     .text(
       `${params.generatedLabel || getTranslationFromI18nKeyAndLabel('lowcoder:common.generated', 'Generated')}: ${createdAt}`,
       margin,
@@ -189,8 +284,8 @@ export const exportTimeHistoryPdf = async (params: {
   const headerBg = '#f0f0f0'
   // Compute dynamic column widths from content to avoid header wrapping in long translations
   const paddingX = 4
-  const headerFontSize = 10
-  const rowFontSize = 10
+  const headerFontSize = 9
+  const rowFontSize = 8
   const tableX = margin
   const availableWidth = (doc.page.width as number) - margin * 2
 
@@ -215,7 +310,7 @@ export const exportTimeHistoryPdf = async (params: {
   const totalNatural = colWidths.reduce((a, b) => a + b, 0)
   if (totalNatural > availableWidth) {
     const scale = availableWidth / totalNatural
-    colWidths = colWidths.map(w => Math.max(40, Math.floor(w * scale)))
+    colWidths = colWidths.map(w => Math.max(35, Math.floor(w * scale)))
   }
   const tableWidth = colWidths.reduce((a: number, b: number) => a + b, 0)
   const rowHeight = 20
@@ -279,6 +374,40 @@ export const exportTimeHistoryPdf = async (params: {
       .stroke()
     cursorY += rowHeight
   })
+
+  // Summary section
+  const summaryTitle = translate('time_tracking_summary_title', 'Summary')
+  const daysWorkedLabel = translate('time_tracking_summary_days_worked', 'Days worked')
+  const bankHolidaysLabel = translate('time_tracking_summary_bank_holidays', 'Bank holidays')
+  const vacationDaysLabel = translate('time_tracking_summary_vacation_days', 'Vacation days')
+  const plannedHoursLabel = translate('time_tracking_summary_planned_hours', 'Planned hours')
+  const effectiveHoursLabel = translate('time_tracking_summary_effective_hours', 'Effective hours')
+
+  // Ensure space for ~6 lines
+  const linesNeeded = 8
+  if (cursorY + linesNeeded * 14 > (doc.page.height as number) - margin) {
+    // Start summary on a fresh page WITHOUT repeating the table header
+    doc.addPage()
+    cursorY = margin
+  }
+  cursorY += 8
+  doc.fillColor('#000000').fontSize(9).text(summaryTitle, tableX, cursorY)
+  cursorY += 12
+  const labelWidth = 130
+  const valueX = tableX + labelWidth + 10
+  const writeLine = (label: string, value: string) => {
+    doc.fontSize(8).fillColor('#333333').text(label, tableX, cursorY, { width: labelWidth })
+    doc.fontSize(8).fillColor('#000000').text(value, valueX, cursorY)
+    cursorY += 12
+  }
+  writeLine(daysWorkedLabel, String(daysWorkedCount))
+  writeLine(bankHolidaysLabel, String(bankHolidayDays.size))
+  writeLine(vacationDaysLabel, String(vacationDays.size))
+  writeLine(plannedHoursLabel, formatMinutes(totalPlannedMinutes))
+  writeLine(effectiveHoursLabel, formatMinutes(totalEffectiveMinutes))
+  const differenceHoursLabel = translate('time_tracking_summary_difference_hours', 'Difference')
+  const summaryDiffMinutes = totalPlannedMinutes - totalEffectiveMinutes
+  writeLine(differenceHoursLabel, formatMinutes(summaryDiffMinutes))
 
   // Collect chunks directly from PDFKit stream and download
   const chunks: Uint8Array[] = []
