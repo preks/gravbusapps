@@ -476,10 +476,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
         ]
       : []),
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester'),
-      value: displayItem.employee?.fullName ? String(displayItem.employee.fullName) : 'N/A'
-    },
-    {
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_item.change_expense_item_container.current_e_class_label',
         'Expense Class'

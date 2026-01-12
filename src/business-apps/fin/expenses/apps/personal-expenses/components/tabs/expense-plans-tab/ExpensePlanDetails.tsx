@@ -74,16 +74,9 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
       record={{
         title: selectedItem.title,
         code: selectedItem.code,
-        employee:
-          selectedItem.employee?.fullName ||
-          selectedItem.employee?.displayName ||
-          `${selectedItem.employee?.firstName || ''} ${selectedItem.employee?.lastName || ''}`.trim() ||
-          'N/A',
-        employeeCode: 'N/A',
-        sapNumber:
-          selectedItem.employee?.additionalProperties?.SAPNumber ||
-          selectedItem.employee?.additionalProperties?.sapNumber ||
-          'N/A',
+        employee: undefined,
+        employeeCode: undefined,
+        sapNumber: undefined,
         startDate: selectedItem.startDate ? formatDate(selectedItem.startDate, 'date.short') : 'N/A',
         endDate: selectedItem.endDate ? formatDate(selectedItem.endDate, 'date.short') : 'N/A',
         creationDate: selectedItem.createdAt ? formatDate(selectedItem.createdAt, 'date.short') : 'N/A',
