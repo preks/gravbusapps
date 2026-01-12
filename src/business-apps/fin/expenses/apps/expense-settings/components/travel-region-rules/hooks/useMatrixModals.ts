@@ -193,7 +193,6 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
 
   // Handle region modal save
   const handleRegionModalSave = useCallback(async () => {
-    console.log('Region created by form, reloading page...')
     await handlePageChange(currentPage)
     setIsRegionModalOpen(false)
   }, [handlePageChange, currentPage])
@@ -294,16 +293,10 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
     const { region } = deleteRegionConfirmation
     if (!region) return
 
-    console.log('Deleting region:', {
-      id: region.id,
-      code: region.code,
-      value: region.value
-    })
-
     setIsDeletingRegion(true)
     try {
       // Step 1: Check and delete catalog_entry_localized records first
-      console.log('Step 1: Checking for localized entries for', region.id)
+
       const localizedQuery = `
         query GetLocalizedEntries($catalogEntryId: String!) {
           CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
@@ -313,12 +306,11 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
           }
         }
       `
-      
+
       const localizedResult = await graphqlClient.request<any>(localizedQuery, { catalogEntryId: region.id })
       const localizedEntries = localizedResult.CatalogEntryLocalized || []
-      
+
       if (localizedEntries.length > 0) {
-        console.log(`Found ${localizedEntries.length} localized entries, deleting...`)
         const deleteLocalizedMutation = `
           mutation DeleteLocalizedEntries($catalogEntryId: String!) {
             delete_CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
@@ -326,34 +318,23 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
             }
           }
         `
-        const deleteLocalizedResult = await graphqlClient.request<any>(deleteLocalizedMutation, { catalogEntryId: region.id })
-        console.log(`✅ Deleted ${deleteLocalizedResult.delete_CatalogEntryLocalized.affected_rows} localized entries`)
+        await graphqlClient.request<any>(deleteLocalizedMutation, { catalogEntryId: region.id })
       } else {
-        console.log('No localized entries found')
       }
 
       // Step 2: Now hard delete the catalog entry
-      console.log('Step 2: Calling deleteCatalogEntry with:', 'TravelRegion', 'v1', region.id)
-      const deleteResult = await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', region.id)
-      console.log('Delete API call successful, result:', deleteResult)
+
+      await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', region.id)
 
       // Verify deletion
       try {
-        const verifyEntry = await catalogClient.getCatalogEntryById(region.id)
-        console.log('Verification: Entry after delete:', {
-          id: verifyEntry.id,
-          code: verifyEntry.code,
-          isDeleted: verifyEntry.isDeleted
-        })
-      } catch {
-        console.log('Verification: Entry not found (expected)')
-      }
+        await catalogClient.getCatalogEntryById(region.id)
+      } catch {}
 
       toast.success(`Travel region "${region.value}" deleted successfully`)
       setDeleteRegionConfirmation({ isOpen: false, region: null })
-      console.log('Reloading data after delete...')
+
       await loadData()
-      console.log('Data reloaded')
     } catch (err) {
       console.error('Error deleting region:', err)
       console.error('Error details:', {

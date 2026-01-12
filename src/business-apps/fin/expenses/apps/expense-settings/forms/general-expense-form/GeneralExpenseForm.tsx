@@ -28,20 +28,16 @@ import {
 } from '@newwork/nw-design-system'
 import { PiWarning } from 'react-icons/pi'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import { createGeneralExpenseFormSchema, type GeneralExpenseFormSchema } from '../../schemas'
+import { formatDateForInput, checkPeriodUniqueness } from '../../utils'
+import { UsageInfo } from '../../types'
 
 export type GeneralExpenseFormData = GeneralExpenseFormSchema
 
-export interface UsageInfo {
-  isUsed: boolean
-  usedIn: {
-    planItems?: number
-    items?: number
-    positions?: number
-  }
-  message: string
-}
+// Re-export UsageInfo for backward compatibility
+export type { UsageInfo } from '../../types'
 
 interface TaxCodeOption {
   id: string
@@ -82,6 +78,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
   onCancel
 }) => {
   const catalogClient = useCatalogManagerClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [isSaving, setIsSaving] = useState(false)
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
@@ -89,14 +86,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
   const [catalogsLoading, setCatalogsLoading] = useState(true)
   const [additionalPropertiesJson, setAdditionalPropertiesJson] = useState('')
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // formatDateForInput is imported from shared utils
 
   // Create schema with date validation based on rule dates
   const schema = useMemo(
@@ -126,19 +116,13 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
           { catalogIdentifier: 'TaxCode', version: 'v1' },
           { limit: 100, offset: 0, returnTotalRecords: true }
         )
-        console.log('[GeneralExpenseForm] Tax Code Catalog Response:', taxResponse?.data)
+
         if (taxResponse?.data) {
           const mappedTaxCodes = taxResponse.data.map((entry: any) => {
             // Extract percentage from value string (e.g., "Input tax 7%" -> 7)
             const percentMatch = entry.value.match(/(\d+(?:\.\d+)?)\s*%/)
             const taxPercentage = percentMatch ? parseFloat(percentMatch[1]) : 0
 
-            console.log('[GeneralExpenseForm] Tax Code Entry:', {
-              id: entry.id,
-              code: entry.code,
-              value: entry.value,
-              extractedPercentage: taxPercentage
-            })
             return {
               id: entry.id,
               value: entry.value,
@@ -146,7 +130,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
               taxPercentage // Store the extracted percentage
             }
           })
-          console.log('[GeneralExpenseForm] Mapped Tax Codes:', mappedTaxCodes)
+
           setTaxCodes(mappedTaxCodes as any)
         }
 
@@ -156,8 +140,14 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
           { limit: 100, offset: 0, returnTotalRecords: true }
         )
         if (groupResponse?.data) {
+          // Filter out Mileage and Allowance/Allowances
+          const filteredGroups = groupResponse.data.filter((entry: any) => {
+            const value = (entry.value || entry.code || '').toLowerCase()
+            return !value.includes('mileage') && !value.includes('allowance')
+          })
+
           setExpenseGroups(
-            groupResponse.data.map((entry: any) => ({
+            filteredGroups.map((entry: any) => ({
               value: entry.id,
               label: entry.value || entry.code
             }))
@@ -227,11 +217,95 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
       }
     }
 
+    // Check for code uniqueness in the validity period
     setIsSaving(true)
     try {
+      const codeExists = await checkCodeUniqueness(data.code, data.activeFrom, data.activeTo, editingItem?.id)
+
+      if (codeExists) {
+        form.setError('code', {
+          type: 'manual',
+          message:
+            'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
+        })
+        setIsSaving(false)
+        return
+      }
+
       await onSave({ ...data, additionalProperties })
+    } catch (error) {
+      console.error('[GeneralExpenseForm] handleSave - Save error:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      })
+      throw error // Re-throw to let parent handle it
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  // Check if code is unique within the validity period
+  const checkCodeUniqueness = async (
+    code: string,
+    activeFrom: string,
+    activeTo: string | undefined,
+    excludeId?: string
+  ): Promise<boolean> => {
+    try {
+      // Fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
+      const query = `
+        query CheckCodeUniqueness($ruleId: uuid!, $code: String!, $excludeId: uuid) {
+          ExpenseRuleGeneralExpense(
+            where: {
+              expenseRuleId: { _eq: $ruleId }
+              code: { _eq: $code }
+              isDeleted: { _eq: false }
+              id: { _neq: $excludeId }
+            }
+          ) {
+            id
+            code
+            activeFrom
+            activeTo
+          }
+        }
+      `
+
+      const variables = {
+        ruleId,
+        code,
+        excludeId: excludeId || null
+      }
+
+      const result = await graphqlClient.request<{
+        ExpenseRuleGeneralExpense: { id: string; code: string; activeFrom: string; activeTo?: string }[]
+      }>(query, variables)
+
+      // Check for overlapping periods using shared utility
+      const uniquenessResult = checkPeriodUniqueness({
+        ruleId,
+        excludeId,
+        newPeriod: { activeFrom, activeTo },
+        existingPeriods: result.ExpenseRuleGeneralExpense,
+        componentName: 'GeneralExpenseForm',
+        entityName: 'ExpenseRuleGeneralExpense'
+      })
+
+      return uniquenessResult.isDuplicate
+    } catch (error) {
+      console.error('[GeneralExpenseForm] Error checking code uniqueness:', {
+        error,
+        code,
+        activeFrom,
+        activeTo,
+        excludeId,
+        ruleId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined
+      })
+      // On error, block the save to prevent duplicates from being created
+      // This is safer than allowing saves when we can't verify uniqueness
+      return true // Block save on error
     }
   }
 
@@ -331,16 +405,13 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                     <Select
                       value={field.value}
                       onValueChange={value => {
-                        console.log('[GeneralExpenseForm] Tax Code Selected:', value)
                         field.onChange(value)
                         // Auto-populate tax value from extracted percentage
                         const selectedTaxCode = taxCodes.find(tc => tc.id === value) as any
-                        console.log('[GeneralExpenseForm] Selected Tax Code Object:', selectedTaxCode)
+
                         if (selectedTaxCode?.taxPercentage !== undefined) {
-                          console.log('[GeneralExpenseForm] Setting tax value to:', selectedTaxCode.taxPercentage)
                           form.setValue('taxValue', selectedTaxCode.taxPercentage)
                         } else {
-                          console.log('[GeneralExpenseForm] No tax percentage found, setting to 0')
                           form.setValue('taxValue', 0)
                         }
                       }}

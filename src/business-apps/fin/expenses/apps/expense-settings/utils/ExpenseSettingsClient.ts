@@ -230,7 +230,6 @@ export class ExpenseSettingsClient extends RestClient {
       },
       changeMode: 'DELETE'
     }
-    console.log('🗑️ Delete payload:', JSON.stringify(payload, null, 2))
     return this.post(`/${BASE_PATH}/saveAllowanceRegionRuleDetail`, payload)
   }
 
@@ -386,8 +385,6 @@ export class ExpenseSettingsClient extends RestClient {
   async saveExpenseRuleAllowanceCode(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
     const hasId = data.id
-    console.log('[ExpenseSettingsClient] saveExpenseRuleAllowanceCode - data received:', data)
-    console.log('[ExpenseSettingsClient] saveExpenseRuleAllowanceCode - hasId:', hasId)
 
     // Helper to check if a value should be included (not undefined and not empty string for strings)
     const hasValue = (val: any) => val !== undefined && val !== null && val !== ''
@@ -428,19 +425,7 @@ export class ExpenseSettingsClient extends RestClient {
       expenseRuleAllowanceCode,
       changeMode: hasId ? 'UPDATE' : 'INSERT'
     }
-    console.log('='.repeat(80))
-    console.log('[ALLOWANCE CODE] - FULL PAYLOAD TO BACKEND:')
-    console.log(JSON.stringify(payload, null, 2))
-    console.log('[ALLOWANCE CODE] - All fields present:', Object.keys(expenseRuleAllowanceCode).sort())
-    console.log(
-      '[ALLOWANCE CODE] - Null fields:',
-      Object.keys(expenseRuleAllowanceCode).filter(k => expenseRuleAllowanceCode[k] === null)
-    )
-    console.log(
-      '[ALLOWANCE CODE] - Undefined fields:',
-      Object.keys(expenseRuleAllowanceCode).filter(k => expenseRuleAllowanceCode[k] === undefined)
-    )
-    console.log('='.repeat(80))
+
     return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceCode`, payload)
   }
 
@@ -502,8 +487,6 @@ export class ExpenseSettingsClient extends RestClient {
   async saveExpenseRuleGeneralExpense(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
     const hasId = data.id
-    console.log('[ExpenseSettingsClient] saveExpenseRuleGeneralExpense - data received:', data)
-    console.log('[ExpenseSettingsClient] saveExpenseRuleGeneralExpense - hasId:', hasId)
 
     // Helper to check if a value should be included (not undefined and not empty string for strings)
     const hasValue = (val: any) => val !== undefined && val !== null && val !== ''
@@ -531,19 +514,7 @@ export class ExpenseSettingsClient extends RestClient {
       expenseRuleGeneralExpense,
       changeMode: hasId ? 'UPDATE' : 'INSERT'
     }
-    console.log('='.repeat(80))
-    console.log('[GENERAL EXPENSE] - FULL PAYLOAD TO BACKEND:')
-    console.log(JSON.stringify(payload, null, 2))
-    console.log('[GENERAL EXPENSE] - All fields present:', Object.keys(expenseRuleGeneralExpense).sort())
-    console.log(
-      '[GENERAL EXPENSE] - Null fields:',
-      Object.keys(expenseRuleGeneralExpense).filter(k => expenseRuleGeneralExpense[k] === null)
-    )
-    console.log(
-      '[GENERAL EXPENSE] - Undefined fields:',
-      Object.keys(expenseRuleGeneralExpense).filter(k => expenseRuleGeneralExpense[k] === undefined)
-    )
-    console.log('='.repeat(80))
+
     return this.post(`/${BASE_PATH}/saveExpenseRuleGeneralExpense`, payload)
   }
 
