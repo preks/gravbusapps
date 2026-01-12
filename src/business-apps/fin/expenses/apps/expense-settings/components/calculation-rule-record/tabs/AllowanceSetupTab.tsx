@@ -71,7 +71,8 @@ import {
   validateAllowanceSetupDates,
   formatDateToISO,
   transformAllowanceSetupForRestrictedUpdate,
-  transformAllowanceSetupForSave
+  transformAllowanceSetupForSave,
+  parseAllowanceSetupSaveError
 } from '../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
@@ -595,15 +596,10 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       setIsModalVisible(false)
       await fetchAllowanceSetups()
     } catch (err) {
-      // Parse the error message for better user feedback
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-
-      if (errorMessage.includes('DateTimeParseException') || errorMessage.includes('Instant')) {
-        setValidityError('Invalid date format. Please check the validity dates.')
-      } else if (errorMessage.includes('activeFrom') || errorMessage.includes('validFrom')) {
-        setValidityError('Invalid Valid From date. Please check the date format.')
-      } else if (errorMessage.includes('activeTo') || errorMessage.includes('validTo')) {
-        setValidityError('Invalid Valid To date. Please check the date format.')
+      // Parse error and show appropriate message
+      const validityErrorMessage = parseAllowanceSetupSaveError(err)
+      if (validityErrorMessage) {
+        setValidityError(validityErrorMessage)
       } else {
         toast.error(`Failed to ${editingItem ? 'update' : 'create'} allowance setup`)
       }

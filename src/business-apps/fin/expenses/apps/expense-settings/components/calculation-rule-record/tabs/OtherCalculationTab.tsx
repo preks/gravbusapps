@@ -63,7 +63,13 @@ dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
-import { validateDateRange, applyDateValidationErrors, getValidityDatesFromRule } from '../utils'
+import {
+  validateDateRange,
+  applyDateValidationErrors,
+  getValidityDatesFromRule,
+  transformOtherCalcForRestrictedUpdate,
+  transformOtherCalcForSave
+} from '../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
 
@@ -601,29 +607,13 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
         return
       }
 
-      // IMPORTANT: Always use editingItem for id and version when updating
-      const isUpdate = !!editingItem
-      const payload: any = {
-        ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
-        expenseRuleId: ruleId,
-        // Convert to ISO format for API
-        activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
-      }
+      // Build save payload using transformer utilities
+      const savePayload =
+        isRestrictedEdit && editingItem
+          ? transformOtherCalcForRestrictedUpdate(formValues, editingItem, ruleId)
+          : transformOtherCalcForSave(formValues, ruleId, editingItem)
 
-      // Only include other fields if not in restricted edit mode
-      if (!isRestrictedEdit) {
-        // Convert to ISO format for API
-        payload.activeFrom = formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null
-        payload.costCenterId = formValues.costCenterId || null
-        payload.source = formValues.source || null
-        payload.reimbursablePercent = formValues.reimbursablePercent || null
-        // Set the related ID based on source (using backend enum values)
-        payload.expenseRuleGeneralExpenseId = formValues.source === 'GENERAL_EXPENSE_RULE' ? formValues.relatedId : null
-        payload.expenseRuleMileageId = formValues.source === 'MILEAGE_RULE' ? formValues.relatedId : null
-        payload.expenseRuleAllowanceCodeId = formValues.source === 'ALLOWANCE_RULE' ? formValues.relatedId : null
-      }
-
-      await expenseSettingsClient.saveExpenseRuleOtherCalc(payload)
+      await expenseSettingsClient.saveExpenseRuleOtherCalc(savePayload)
 
       toast.success(`Other calculation ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)

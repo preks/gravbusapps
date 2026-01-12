@@ -73,6 +73,7 @@ import {
   transformAllowanceCodeForRestrictedUpdate,
   transformAllowanceCodeForCreate,
   transformAllowanceCodeFromAPI,
+  getCodeUniquenessErrorMessage,
   type AllowanceCodeSaveData
 } from '../utils'
 import { useAllowanceCodeUsageCheck, useTableSorting, createFieldMappings } from '../hooks'
@@ -666,22 +667,13 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       )
 
       if (uniquenessCheck.isDuplicate) {
-        // Pre-fill the name with the existing name if available
         if (uniquenessCheck.existingName) {
           form.setValue('name', uniquenessCheck.existingName)
-          form.setError('code', {
-            type: 'manual',
-            message:
-              'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
-          })
-        } else {
-          // This is an error case - couldn't verify uniqueness
-          form.setError('code', {
-            type: 'manual',
-            message:
-              'Unable to verify code uniqueness. Please check your connection and try again. If the problem persists, contact support.'
-          })
         }
+        form.setError('code', {
+          type: 'manual',
+          message: getCodeUniquenessErrorMessage(uniquenessCheck.existingName)
+        })
         setIsSaving(false)
         return
       }

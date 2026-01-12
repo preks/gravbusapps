@@ -60,7 +60,13 @@ dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, checkPeriodUniqueness, formatDate } from '../../../utils'
-import { validateDateRange, applyDateValidationErrors, getValidityDatesFromExisting } from '../utils'
+import {
+  validateDateRange,
+  applyDateValidationErrors,
+  getValidityDatesFromExisting,
+  transformAllowancePeriodForRestrictedUpdate,
+  transformAllowancePeriodForSave
+} from '../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
 
@@ -515,46 +521,13 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
         return
       }
 
-      // IMPORTANT: Always use editingItem for id and version when updating
-      const isUpdate = !!editingItem
+      // Build save payload using transformer utilities
+      const savePayload =
+        isRestrictedEdit && editingItem
+          ? transformAllowancePeriodForRestrictedUpdate(formData, editingItem, ruleId)
+          : transformAllowancePeriodForSave(formData, ruleId, editingItem)
 
-      // If restricted edit, only update validTo
-      if (isRestrictedEdit && editingItem) {
-        await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
-          id: editingItem.id,
-          version: editingItem.version,
-          expenseRuleId: ruleId,
-          code: editingItem.code,
-          name: editingItem.name,
-          activeFrom: editingItem.validFrom ? dayjs(editingItem.validFrom).startOf('day').toISOString() : null,
-          activeTo: formData.validTo ? dayjs(formData.validTo).endOf('day').toISOString() : null,
-          fromTime: editingItem.fromTime,
-          toTime: editingItem.toTime,
-          minHours: editingItem.minHours,
-          midnightRule: editingItem.midnightRule,
-          periodOrder: editingItem.order
-        })
-      } else {
-        // Full save
-        await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
-          ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
-          expenseRuleId: ruleId,
-          businessKey: undefined,
-          activeTo: formData.validTo ? dayjs(formData.validTo).endOf('day').toISOString() : null,
-          additionalProperties: undefined,
-          code: formData.code,
-          name: formData.name,
-          overnightAccomodation: formData.overnightAccommodation,
-          fromTime: formData.fromTime,
-          toTime: formData.toTime,
-          minHours: formData.minHours,
-          midnightRule: formData.midnightRule,
-          startAfter: formData.startAfter,
-          returnBefore: formData.returnBefore,
-          activeFrom: formData.validFrom ? dayjs(formData.validFrom).startOf('day').toISOString() : null,
-          periodOrder: formData.order
-        })
-      }
+      await expenseSettingsClient.saveExpenseRuleAllowancePeriod(savePayload)
 
       toast.success(`Allowance period ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
