@@ -19,7 +19,7 @@ import {
   shouldDisableSubmit
 } from './utils'
 import { populateFormFromRecord, buildDeletePayloadFromRecord, restoreSelectionFromId } from './helpers'
-import { uploadEmployeeDocumentIfAny } from './uploadHelpers'
+import { uploadEmployeeDocumentIfAny, UploadedEmployeeDocument } from './uploadHelpers'
 import translations from '../../apps/employee-record/_i18n'
 
 interface AddressFormValues {
@@ -31,7 +31,7 @@ interface AddressFormValues {
   regionId?: string | null
   regionLabel?: string // read-only display of region label
   comment?: string
-  employeeDocumentId?: string
+  employeeDocument?: UploadedEmployeeDocument
 }
 
 const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
@@ -222,7 +222,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
 
   return (
     <div
-      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
+      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
       data-testid="change-employee-address-form-container"
     >
       <FormHeader
@@ -241,7 +241,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
       />
 
       <div
-        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-employee-address']]:!pt-0"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-employee-address']]:pt-0!"
         data-testid="change-employee-address-form-content"
       >
         {/* moved upload below comment - removed from here */}
@@ -261,13 +261,13 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               userInfo?.employeeDetails?.employeeId ||
               data?.address?.EmployeeAddress[0]?.employeeId ||
               ''
-            const uploadedEmployeeDocumentId = await uploadEmployeeDocumentIfAny(
+            const uploadedEmployeeDocument = await uploadEmployeeDocumentIfAny(
               fileClient,
               accessToken,
               fileList,
               employeeId
             )
-            return { ...(values as any), employeeDocumentId: uploadedEmployeeDocumentId } as AddressFormValues
+            return { ...(values as any), employeeDocument: uploadedEmployeeDocument } as AddressFormValues
           }}
           onSubmit={async (values: AddressFormValues) => {
             const employeeId =
@@ -294,7 +294,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
             if (addingNew) {
               const payload = buildInsertPayload({
                 employeeId,
-                employeeDocumentId: values.employeeDocumentId || null,
+                employeeDocument: values.employeeDocument || null,
                 lines,
                 postalCode: values.postalCode,
                 city: values.city,
@@ -313,7 +313,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
             }
             const updatePayload = buildUpdatePayload({
               employeeId,
-              employeeDocumentId: values.employeeDocumentId || null,
+              employeeDocument: values.employeeDocument || null,
               lines,
               postalCode: values.postalCode,
               city: values.city,

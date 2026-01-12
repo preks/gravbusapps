@@ -90,9 +90,17 @@ export const shouldDisableSubmit = (
   return Boolean(errs && errs.length > 0) || limitReached
 }
 
+export interface EmployeeDocumentObject {
+  id: string
+  name: string
+  file: string
+  mimeType: string
+  employeeId: string
+}
+
 export const buildInsertPayload = (params: {
   employeeId: string
-  employeeDocumentId?: string | null
+  employeeDocument?: EmployeeDocumentObject | null
   lines: string[]
   postalCode?: string
   city?: string
@@ -104,7 +112,15 @@ export const buildInsertPayload = (params: {
   const type = computeNewAddressType(params.addresses) || ''
   return {
     event: 'pse_submit',
-    employeeDocumentObject: params.employeeDocumentId ? { id: params.employeeDocumentId } : null,
+    employeeDocumentObject: params.employeeDocument
+      ? {
+          id: params.employeeDocument.id,
+          name: params.employeeDocument.name,
+          file: params.employeeDocument.file,
+          mimeType: params.employeeDocument.mimeType,
+          employeeId: params.employeeDocument.employeeId
+        }
+      : null,
     address: {
       employeeId: params.employeeId,
       type,
@@ -115,7 +131,7 @@ export const buildInsertPayload = (params: {
       countryRef: params.countryId || '',
       poBox: false,
       notes: params.comment || '',
-      employeeDocument: params.employeeDocumentId || ''
+      employeeDocument: params.employeeDocument?.id || ''
     },
     changeMode: 'INSERT',
     oldAddressData: {}
@@ -124,7 +140,7 @@ export const buildInsertPayload = (params: {
 
 export const buildUpdatePayload = (params: {
   employeeId: string
-  employeeDocumentId?: string | null
+  employeeDocument?: EmployeeDocumentObject | null
   lines: string[]
   postalCode?: string
   city?: string
@@ -136,7 +152,15 @@ export const buildUpdatePayload = (params: {
   const sel = params.selected || {}
   return {
     event: 'pse_submit',
-    employeeDocumentObject: params.employeeDocumentId ? { id: params.employeeDocumentId } : null,
+    employeeDocumentObject: params.employeeDocument
+      ? {
+          id: params.employeeDocument.id,
+          name: params.employeeDocument.name,
+          file: params.employeeDocument.file,
+          mimeType: params.employeeDocument.mimeType,
+          employeeId: params.employeeDocument.employeeId
+        }
+      : null,
     address: {
       id: sel?.id,
       version: sel?.version,
@@ -149,7 +173,7 @@ export const buildUpdatePayload = (params: {
       countryRef: params.countryId || '',
       poBox: false,
       notes: params.comment || '',
-      employeeDocument: params.employeeDocumentId || ''
+      employeeDocument: params.employeeDocument?.id || ''
     },
     changeMode: 'UPDATE',
     oldAddressData: {
@@ -171,7 +195,7 @@ export const buildUpdatePayload = (params: {
 
 export const buildDeletePayload = (params: {
   employeeId: string
-  employeeDocumentId?: string | null
+  employeeDocument?: EmployeeDocumentObject | null
   lines: string[]
   postalCode?: string
   city?: string
@@ -183,7 +207,15 @@ export const buildDeletePayload = (params: {
   const sel = params.selected || {}
   return {
     event: 'pse_submit',
-    employeeDocumentObject: params.employeeDocumentId ? { id: params.employeeDocumentId } : null,
+    employeeDocumentObject: params.employeeDocument
+      ? {
+          id: params.employeeDocument.id,
+          name: params.employeeDocument.name,
+          file: params.employeeDocument.file,
+          mimeType: params.employeeDocument.mimeType,
+          employeeId: params.employeeDocument.employeeId
+        }
+      : null,
     address: {
       id: sel?.id,
       version: sel?.version,
@@ -196,7 +228,7 @@ export const buildDeletePayload = (params: {
       countryRef: params.countryId || '',
       poBox: false,
       notes: params.comment || '',
-      employeeDocument: params.employeeDocumentId || ''
+      employeeDocument: params.employeeDocument?.id || ''
     },
     changeMode: 'DELETE',
     oldAddressData: {
