@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { TableRow, TableCell, Button, Input, Combobox, Checkbox, Badge } from '@newwork/nw-design-system'
-import { PencilSimpleLineIcon, TrashIcon, CheckIcon, XIcon } from '@phosphor-icons/react'
+import { TableRow, TableCell, Input, Combobox, Checkbox, Badge } from '@newwork/nw-design-system'
+import { CheckIcon } from '@phosphor-icons/react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { RowActionsCell } from '@/components/table-form'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { TransformedIncrementTypeVersionDetail } from '../types/increment-type-version-details'
@@ -682,53 +683,18 @@ export const useIncrementTypeDetailRows = ({
           </TableCell>
 
           {/* Actions */}
-          <TableCell>
-            {isEditing ? (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSaveRow(rowId, detail)}
-                  disabled={!isValid || !isDirty || isSaving}
-                  data-testid={formatDataTestId(dataTestId, `save-row-button-${rowId}`)}
-                >
-                  <CheckIcon className="gba:h-4 gba:w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleCancelRowEdit(rowId)}
-                  disabled={isSaving}
-                  data-testid={formatDataTestId(dataTestId, `cancel-row-button-${rowId}`)}
-                >
-                  <XIcon className="gba:h-4 gba:w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleStartEdit(detail)}
-                  data-testid={formatDataTestId(dataTestId, `edit-row-button-${rowId}`)}
-                >
-                  <PencilSimpleLineIcon className="gba:h-4 gba:w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDeleteRequest(detail)}
-                  data-testid={formatDataTestId(dataTestId, `delete-row-button-${rowId}`)}
-                >
-                  <TrashIcon className="gba:h-4 gba:w-4" />
-                </Button>
-              </div>
-            )}
-          </TableCell>
+          <RowActionsCell
+            isEditing={isEditing}
+            isSaving={isSaving}
+            isValid={isValid}
+            isDirty={isDirty}
+            onSave={() => handleSaveRow(rowId, detail)}
+            onCancel={() => handleCancelRowEdit(rowId)}
+            onEdit={() => handleStartEdit(detail)}
+            onDelete={() => handleDeleteRequest(detail)}
+            dataTestId={dataTestId}
+            rowId={rowId}
+          />
         </TableRow>
       )
     },
@@ -948,30 +914,18 @@ export const useIncrementTypeDetailRows = ({
         </TableCell>
 
         {/* Actions */}
-        <TableCell>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => handleSaveRow(rowId)}
-              disabled={!isValid || isSaving}
-              data-testid={formatDataTestId(dataTestId, 'create-row-button')}
-            >
-              <CheckIcon className="gba:h-4 gba:w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => handleCancelRowEdit(rowId)}
-              disabled={isSaving}
-              data-testid={formatDataTestId(dataTestId, 'cancel-new-row-button')}
-            >
-              <XIcon className="gba:h-4 gba:w-4" />
-            </Button>
-          </div>
-        </TableCell>
+        <RowActionsCell
+          isEditing={true}
+          isSaving={isSaving}
+          isValid={isValid}
+          isNewRow={true}
+          onSave={() => handleSaveRow(rowId)}
+          onCancel={() => handleCancelRowEdit(rowId)}
+          onEdit={() => {}} // Not used for new row
+          onDelete={() => {}} // Not used for new row
+          dataTestId={dataTestId}
+          rowId={rowId}
+        />
       </TableRow>
     )
   }, [
