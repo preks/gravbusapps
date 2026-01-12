@@ -3,9 +3,9 @@ import dayjs from 'dayjs'
 import { Button, TableCell } from '@newwork/nw-design-system'
 import { PiPlus } from 'react-icons/pi'
 import { MatrixCellContent } from './MatrixCellContent'
-import type { EditableCell } from '../types'
+import type { EditableCell, MatrixCellCallbacks, MatrixCellState, MatrixCellDataProps } from '../types'
 
-interface MatrixRuleCellProps {
+interface MatrixRuleCellProps extends MatrixCellCallbacks, MatrixCellState, MatrixCellDataProps {
   rule: {
     id: string
     activeFrom: string | null
@@ -17,33 +17,6 @@ interface MatrixRuleCellProps {
     value: string
   }
   ruleCells: EditableCell[]
-  editingCellId: string | null
-  editingCellUsageInfo: { isUsed: boolean; usedIn: Record<string, unknown>; message: string } | null
-  isCheckingCellUsage: boolean
-  isSavingCell: boolean
-  onEnterCellEdit: (cellId: string) => void
-  onExitCellEdit: () => void
-  onRemoveNewCell: (validityPeriodId: string, ruleId: string) => void
-  onUpdateCellField: (cellId: string, validityPeriodId: string, field: string, value: any) => void
-  onSaveSingleCell: (cell: EditableCell) => void
-  onDeleteCell: (cellId: string, getExpenseSettingsClient: () => any) => Promise<void>
-  onAddNewCell: (
-    rule: any,
-    region: any,
-    editableCells: EditableCell[],
-    currencies: any[],
-    setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>,
-    setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>,
-    allowanceRegionRules: any[]
-  ) => void
-  currencies: Array<{ id: string; code: string; value: string }>
-  countries: Array<{ id: string; code: string; value: string }>
-  editableCells: EditableCell[]
-  setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>
-  setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
-  allowanceRegionRules: any[]
-  getExpenseSettingsClient: () => any
-  prefixDataTestId: string
 }
 
 /**

@@ -27,6 +27,27 @@ const validateActiveFromDate = (activeFrom: string | undefined): boolean => {
 }
 
 /**
+ * Helper to validate that Valid From is before Valid To
+ */
+const validateDateOrder = (activeFrom: string, activeTo: string | undefined): boolean => {
+  if (!activeTo) {
+    return true // No end date means open-ended, always valid
+  }
+
+  const fromDate = dayjs(activeFrom)
+  const toDate = dayjs(activeTo)
+
+  if (toDate.isBefore(fromDate, 'day')) {
+    toast.error(
+      `"Valid To" (${toDate.format('DD/MM/YYYY')}) cannot be before "Valid From" (${fromDate.format('DD/MM/YYYY')})`
+    )
+    return false
+  }
+
+  return true
+}
+
+/**
  * Helper to validate detail dates against rule dates
  */
 const validateDetailDatesAgainstRule = (
@@ -283,6 +304,7 @@ export const useMatrixCellEditing = ({
       // Validate cell data
       if (!validateCellAmount(latestCell.amount)) return
       if (!validateActiveFromDate(latestCell.activeFrom)) return
+      if (!validateDateOrder(latestCell.activeFrom, latestCell.activeTo)) return
 
       setIsSavingCell(true)
       try {

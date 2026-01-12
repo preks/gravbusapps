@@ -2,47 +2,16 @@ import React from 'react'
 import { Button, TableCell, TableRow } from '@newwork/nw-design-system'
 import { PiMapPin, PiTrash } from 'react-icons/pi'
 import { MatrixRuleCell } from './MatrixRuleCell'
-import type { EditableCell } from '../types'
+import type { MatrixCellCallbacks, MatrixCellState, MatrixCellDataProps } from '../types'
 
-interface MatrixRegionRowProps {
+interface MatrixRegionRowProps extends MatrixCellCallbacks, MatrixCellState, MatrixCellDataProps {
   region: {
     id: string
     code: string
     value: string
   }
-  allowanceRegionRules: Array<{
-    id: string
-    activeFrom: string | null
-    activeTo: string | null
-  }>
-  editableCells: EditableCell[]
-  editingCellId: string | null
-  editingCellUsageInfo: { isUsed: boolean; usedIn: Record<string, unknown>; message: string } | null
-  isCheckingCellUsage: boolean
-  isSavingCell: boolean
-  onEnterCellEdit: (cellId: string) => void
-  onExitCellEdit: () => void
-  onRemoveNewCell: (validityPeriodId: string, ruleId: string) => void
-  onUpdateCellField: (cellId: string, validityPeriodId: string, field: string, value: any) => void
-  onSaveSingleCell: (cell: EditableCell) => void
-  onDeleteCell: (cellId: string, getExpenseSettingsClient: () => any) => Promise<void>
-  onAddNewCell: (
-    rule: any,
-    region: any,
-    editableCells: EditableCell[],
-    currencies: any[],
-    setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>,
-    setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>,
-    allowanceRegionRules: any[]
-  ) => void
   onDeleteRegionClick: (region: any, e: React.MouseEvent) => void
   regionHasSavedDetails: (regionId: string) => boolean
-  currencies: Array<{ id: string; code: string; value: string }>
-  countries: Array<{ id: string; code: string; value: string }>
-  setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>
-  setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
-  getExpenseSettingsClient: () => any
-  prefixDataTestId: string
 }
 
 /**
