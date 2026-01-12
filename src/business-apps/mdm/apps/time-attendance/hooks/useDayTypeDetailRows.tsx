@@ -150,8 +150,8 @@ export const useDayTypeDetailRows = ({
   // Cancel editing a row
   const handleCancelRowEdit = useCallback((rowId: string) => {
     setEditingRows(prev => {
-      const { [rowId]: _removed, ...rest } = prev
-      void _removed // Acknowledge unused variable
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [rowId]: _, ...rest } = prev
       return rest
     })
   }, [])
