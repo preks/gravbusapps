@@ -103,6 +103,25 @@ const buildEmployeeDocumentObject = (employeeDocument?: UploadedEmployeeDocument
     : null
 }
 
+const buildCommonAddressFields = (params: {
+  employeeId: string
+  employeeDocument?: UploadedEmployeeDocument | null
+  lines: string | string[]
+  postalCode?: string
+  city?: string
+  regionId?: string | null
+  countryId?: string | null
+  comment?: string
+}) => ({
+  postalCode: params.postalCode || '',
+  locality: params.city || '',
+  regionRef: params.regionId || '',
+  countryRef: params.countryId || '',
+  poBox: false,
+  notes: params.comment || '',
+  employeeDocument: params.employeeDocument?.id || ''
+})
+
 export const buildInsertPayload = (params: {
   employeeId: string
   employeeDocument?: UploadedEmployeeDocument | null
@@ -122,13 +141,7 @@ export const buildInsertPayload = (params: {
       employeeId: params.employeeId,
       type,
       addressLine: params.lines || '',
-      postalCode: params.postalCode || '',
-      locality: params.city || '',
-      regionRef: params.regionId || '',
-      countryRef: params.countryId || '',
-      poBox: false,
-      notes: params.comment || '',
-      employeeDocument: params.employeeDocument?.id || ''
+      ...buildCommonAddressFields(params)
     },
     changeMode: 'INSERT',
     oldAddressData: {}
@@ -156,13 +169,7 @@ export const buildUpdatePayload = (params: {
       employeeId: params.employeeId,
       type: sel?.type,
       addressLine: params.lines,
-      postalCode: params.postalCode || '',
-      locality: params.city || '',
-      regionRef: params.regionId || '',
-      countryRef: params.countryId || '',
-      poBox: false,
-      notes: params.comment || '',
-      employeeDocument: params.employeeDocument?.id || ''
+      ...buildCommonAddressFields(params)
     },
     changeMode: 'UPDATE',
     oldAddressData: {
@@ -203,13 +210,7 @@ export const buildDeletePayload = (params: {
       employeeId: params.employeeId,
       type: sel?.type || '',
       addressLine: params.lines || '',
-      postalCode: params.postalCode || '',
-      locality: params.city || '',
-      regionRef: params.regionId || '',
-      countryRef: params.countryId || '',
-      poBox: false,
-      notes: params.comment || '',
-      employeeDocument: params.employeeDocument?.id || ''
+      ...buildCommonAddressFields(params)
     },
     changeMode: 'DELETE',
     oldAddressData: {
