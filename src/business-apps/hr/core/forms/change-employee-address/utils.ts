@@ -1,4 +1,5 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { UploadedEmployeeDocument } from './uploadHelpers'
 
 export const ensureFourLines = (lines: string[] = []): string[] => {
   return Array.from({ length: 4 }, (_, i) => String(lines?.[i] || ''))
@@ -90,17 +91,9 @@ export const shouldDisableSubmit = (
   return Boolean(errs && errs.length > 0) || limitReached
 }
 
-export interface EmployeeDocumentObject {
-  id: string
-  name: string
-  file: string
-  mimeType: string
-  employeeId: string
-}
-
 export const buildInsertPayload = (params: {
   employeeId: string
-  employeeDocument?: EmployeeDocumentObject | null
+  employeeDocument?: UploadedEmployeeDocument | null
   lines: string[]
   postalCode?: string
   city?: string
@@ -140,7 +133,7 @@ export const buildInsertPayload = (params: {
 
 export const buildUpdatePayload = (params: {
   employeeId: string
-  employeeDocument?: EmployeeDocumentObject | null
+  employeeDocument?: UploadedEmployeeDocument | null
   lines: string[]
   postalCode?: string
   city?: string
@@ -195,7 +188,7 @@ export const buildUpdatePayload = (params: {
 
 export const buildDeletePayload = (params: {
   employeeId: string
-  employeeDocument?: EmployeeDocumentObject | null
+  employeeDocument?: UploadedEmployeeDocument | null
   lines: string[]
   postalCode?: string
   city?: string
