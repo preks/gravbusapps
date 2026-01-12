@@ -1,5 +1,4 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import timeTrackingTranslations from '../_i18n'
 import type { TimeEntry } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import PDFKitModule from 'pdfkit/js/pdfkit.standalone.js'
 
@@ -32,7 +31,6 @@ export const exportTimeHistoryPdf = async (params: {
 }) => {
   const { entries, monthDate, locale, employeeCode, employeeFirstName, employeeLastName } = params
   // Ensure the i18n bundle is referenced (tree-shaking safety in some setups)
-  void timeTrackingTranslations
   const translate = (key: string, defaultValue: string) => {
     try {
       const tf =

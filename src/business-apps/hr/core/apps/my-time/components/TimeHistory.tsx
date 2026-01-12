@@ -93,9 +93,9 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
             const code = String(h?.alternativeCode ?? '')
             const m = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
             if (!m) continue
-            const y = parseInt(m[1], 10)
-            const mo = parseInt(m[2], 10)
-            const da = parseInt(m[3], 10)
+            const y = Number.parseInt(m[1], 10)
+            const mo = Number.parseInt(m[2], 10)
+            const da = Number.parseInt(m[3], 10)
             const d = new Date(y, mo - 1, da)
             if (d >= monthStart && d <= monthEnd) {
               holidayDates.push(toLocalKey(d))
