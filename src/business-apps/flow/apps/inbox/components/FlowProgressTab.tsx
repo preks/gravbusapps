@@ -9,7 +9,7 @@ import {
   WarningOutlined
 } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 const { Title, Text } = Typography
 
@@ -92,8 +92,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
     setError(null)
 
     try {
-      const API_BASE =
-        (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+      const API_BASE = getFlowEngineApiBaseUrl()
 
       // Add cache-busting parameter when forcing refresh
       const cacheBuster = forceRefresh ? `?_=${Date.now()}` : ''
