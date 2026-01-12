@@ -123,7 +123,7 @@ export const SalesActivityDisplay: React.FC<SalesActivityDisplayProps> = ({ acti
     if (!activity) return
 
     // Navigate to the associated entity (prioritize: account > opportunity > lead > contact)
-    // Force reload to ensure updated activity content is shown
+    // Force window refresh to ensure updated activity content is shown (SPA navigation, not full page reload)
     if (activity.account?.id) {
       const url = buildPlatformUrl('/platform/crm/account-record', {
         accountId: activity.account.id,
