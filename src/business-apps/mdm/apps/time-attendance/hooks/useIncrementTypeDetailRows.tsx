@@ -163,7 +163,7 @@ export const useIncrementTypeDetailRows = ({
         sumTime: detail.sumTime,
         timeTypeId: detail.timeTypeId,
         incrementCalculationType: detail.incrementCalculationType,
-        fixedValue: detail.fixedValue,
+        fixedValue: detail.fixedValue ? convertMinutesToHHMM(detail.fixedValue) : null,
         includeExcludeOption: detail.includeExcludeOption,
         alternativeIncrementTypeVersionDetailId: detail.alternativeIncrementTypeVersionDetailId,
         checkStartBefore: detail.checkStartBefore,
@@ -219,8 +219,8 @@ export const useIncrementTypeDetailRows = ({
   // Cancel editing a row
   const handleCancelRowEdit = useCallback((rowId: string) => {
     setEditingRows(prev => {
-      const { [rowId]: _removed, ...rest } = prev
-      void _removed
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [rowId]: _, ...rest } = prev
       return rest
     })
   }, [])
@@ -570,7 +570,9 @@ export const useIncrementTypeDetailRows = ({
           {/* Fixed Value */}
           <TableCell>
             {isEditing ? (
-              values?.incrementCalculationType !== 'CALCULATED_INC_CALC_TYPE' ? (
+              values?.incrementCalculationType === 'CALCULATED_INC_CALC_TYPE' ? (
+                <span>-</span>
+              ) : (
                 <Input
                   type="text"
                   placeholder="HH:mm"
@@ -579,13 +581,11 @@ export const useIncrementTypeDetailRows = ({
                   className="gba:w-[80px]"
                   disabled={isSaving}
                 />
-              ) : (
-                <span>-</span>
               )
-            ) : detail.fixedValue !== null ? (
-              <span>{convertMinutesToHHMM(detail.fixedValue as unknown as number) || '-'}</span>
-            ) : (
+            ) : detail.fixedValue === null ? (
               '-'
+            ) : (
+              <span>{convertMinutesToHHMM(detail.fixedValue) || '-'}</span>
             )}
           </TableCell>
 
@@ -820,7 +820,9 @@ export const useIncrementTypeDetailRows = ({
 
         {/* Fixed Value */}
         <TableCell>
-          {values?.incrementCalculationType !== 'CALCULATED_INC_CALC_TYPE' ? (
+          {values?.incrementCalculationType === 'CALCULATED_INC_CALC_TYPE' ? (
+            <span>-</span>
+          ) : (
             <Input
               type="text"
               placeholder="HH:mm"
@@ -829,8 +831,6 @@ export const useIncrementTypeDetailRows = ({
               className="gba:w-[80px]"
               disabled={isSaving}
             />
-          ) : (
-            <span>-</span>
           )}
         </TableCell>
 
