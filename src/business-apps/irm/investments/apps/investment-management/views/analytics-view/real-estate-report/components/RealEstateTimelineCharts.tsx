@@ -14,7 +14,7 @@ import {
 import { ComposedChart, Bar, Line, XAxis, YAxis } from 'recharts'
 import { ChartLineUpIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/data/investment/utils/formatters'
-import { formatCompactNumber } from '@/common/utils/numberFormatter'
+import { formatAmount } from '@/common/utils/numberFormatter'
 
 interface RealEstateTimelineChartsProps {
   chartData: {
@@ -73,7 +73,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
             <ComposedChart data={timelineData}>
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={value => formatCompactNumber(value, 1)} />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={value => formatAmount(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload?.length) {
@@ -158,7 +158,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
             <ComposedChart data={performanceData}>
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={value => formatCompactNumber(value, 1)} />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={value => formatAmount(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload?.length) {
@@ -232,7 +232,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
             <ComposedChart data={buildingYearData}>
               <XAxis dataKey="yearRange" />
               <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={value => formatCompactNumber(value, 1)} />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={value => formatAmount(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload?.length) {

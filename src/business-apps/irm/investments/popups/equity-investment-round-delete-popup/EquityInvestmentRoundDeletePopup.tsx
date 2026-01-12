@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Button, Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
-import { AlertTriangle } from 'lucide-react'
+import { WarningIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -117,10 +117,7 @@ const EquityInvestmentRoundDeletePopup: React.FC<EquityInvestmentRoundDeletePopu
       {/* Header with warning icon */}
       <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
         <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-red-100">
-          <AlertTriangle
-            className="gba:w-5 gba:h-5 gba:text-red-600"
-            data-testid={`${prefixDataTestId}-warning-icon`}
-          />
+          <WarningIcon className="gba:w-5 gba:h-5 gba:text-red-600" data-testid={`${prefixDataTestId}-warning-icon`} />
         </div>
         <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900" data-testid={`${prefixDataTestId}-title`}>
           {getTranslationFromI18nKeyAndLabel('investment.rounds.delete.title', 'Delete Investment Round')}

@@ -15,8 +15,12 @@ import {
   SelectContent,
   SelectItem
 } from '@newwork/nw-design-system'
-import { PieChartOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons'
-import { BarChart } from 'lucide-react'
+import {
+  ChartPieIcon,
+  ChartBarIcon as ChartBarIconAlt,
+  TrendUpIcon as TrendUpIconAlt,
+  ChartBarIcon
+} from '@phosphor-icons/react'
 import { Button, Badge } from '@newwork/nw-design-system'
 import { WidgetGroup } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -134,7 +138,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 1
               }).format(kpis.totalPortfolioValue),
-              prefix: <PieChartOutlined />,
+              prefix: <ChartPieIcon />,
               color: 'var(--nw-color-primary-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
@@ -149,7 +153,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               key: 'total-investments',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
               value: kpis.totalInvestments,
-              prefix: <BarChartOutlined />,
+              prefix: <ChartBarIconAlt />,
               color: 'var(--nw-color-success-500)',
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Investment count',
@@ -170,7 +174,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 1
               }).format(kpis.totalAmountInvested),
-              prefix: <BarChartOutlined />,
+              prefix: <ChartBarIconAlt />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
@@ -185,7 +189,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               key: 'active-investments',
               title: getTranslationFromI18nKeyAndLabel('kpi.activeInvestments', 'Active Investments'),
               value: kpis.activeInvestments,
-              prefix: <RiseOutlined />,
+              prefix: <TrendUpIconAlt />,
               color: 'var(--nw-color-purple-500)',
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Active positions',
@@ -210,21 +214,21 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             <TabsTrigger
               value="distribution"
               data-testid={formatDataTestId(prefixDataTestId, 'DistributionTab')}
-              startIcon={<PieChartOutlined />}
+              startIcon={<ChartPieIcon />}
             >
               {getTranslationFromI18nKeyAndLabel('tab.distribution.analysis', 'Distribution Analysis')}
             </TabsTrigger>
             <TabsTrigger
               value="timeline"
               data-testid={formatDataTestId(prefixDataTestId, 'TimelineTab')}
-              startIcon={<RiseOutlined />}
+              startIcon={<TrendUpIconAlt />}
             >
               {getTranslationFromI18nKeyAndLabel('tab.timeline.analysis', 'Timeline Analysis')}
             </TabsTrigger>
             <TabsTrigger
               value="analytics"
               data-testid={formatDataTestId(prefixDataTestId, 'AnalyticsTab')}
-              startIcon={<BarChart />}
+              startIcon={<ChartBarIcon />}
             >
               {getTranslationFromI18nKeyAndLabel('tab.performance.analytics', 'Performance Analysis')}
             </TabsTrigger>

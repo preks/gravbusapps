@@ -18,7 +18,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuLabel
+  DropdownMenuLabel,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { debugLog } from '../utils/debugLog'
 import {
@@ -49,6 +50,7 @@ import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
 import { AddParticipantDropdown } from './AddParticipantDropdown'
 import { Phone } from 'lucide-react'
+import translations from '../_i18n'
 
 interface AvailableParticipant {
   id: string
@@ -148,6 +150,7 @@ const VideoTile: React.FC<{
   isScreenShare?: boolean
   onReconnect?: () => void
   isReconnecting?: boolean
+  t: (key: string, params?: Record<string, any>) => string
 }> = ({
   participant,
   stream,
@@ -158,7 +161,8 @@ const VideoTile: React.FC<{
   onExpand,
   isScreenShare = false,
   onReconnect,
-  isReconnecting = false
+  isReconnecting = false,
+  t
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -230,7 +234,7 @@ const VideoTile: React.FC<{
           {isScreenShare && (
             <div className="gba:absolute gba:top-2 gba:left-2 gba:bg-primary gba:text-white gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:flex gba:items-center gba:gap-1">
               <Monitor className="gba:h-3 gba:w-3" />
-              <span>Screen</span>
+              <span>{t('call-screen')}</span>
             </div>
           )}
         </div>
@@ -248,10 +252,10 @@ const VideoTile: React.FC<{
       {/* Participant name overlay */}
       <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-2">
         <div className="gba:flex gba:items-center gba:gap-2">
-          {isHost && <Crown className="gba:h-3 gba:w-3 gba:text-yellow-400" title="Host" />}
+          {isHost && <Crown className="gba:h-3 gba:w-3 gba:text-yellow-400" title={t('call-host')} />}
           <span className="gba:text-white gba:text-sm gba:font-medium gba:truncate">
             {participant.odName}
-            {isLocal && ' (You)'}
+            {isLocal && ` (${t('chat-you')})`}
           </span>
           {isMuted && <MicOff className="gba:h-3 gba:w-3 gba:text-red-400" />}
         </div>
@@ -264,7 +268,7 @@ const VideoTile: React.FC<{
             <>
               <span className="gba:px-2 gba:py-1 gba:text-xs gba:bg-red-500/90 gba:text-white gba:rounded-full gba:flex gba:items-center gba:gap-1">
                 <AlertTriangle className="gba:h-3 gba:w-3" />
-                {participant.connectionState === 'failed' ? 'Failed' : 'Disconnected'}
+                {participant.connectionState === 'failed' ? t('call-failed') : t('call-disconnected')}
               </span>
               {onReconnect && (
                 <button
@@ -274,16 +278,16 @@ const VideoTile: React.FC<{
                   }}
                   disabled={isReconnecting}
                   className="gba:px-2 gba:py-1 gba:text-xs gba:bg-primary gba:text-white gba:rounded-full gba:flex gba:items-center gba:gap-1 hover:gba:bg-primary/80 gba:transition-colors disabled:gba:opacity-50"
-                  title="Retry connection"
+                  title={t('call-retryConnection')}
                 >
                   <RefreshCw className={`gba:h-3 gba:w-3 ${isReconnecting ? 'gba:animate-spin' : ''}`} />
-                  {isReconnecting ? 'Retrying...' : 'Reconnect'}
+                  {isReconnecting ? t('call-retrying') : t('call-reconnect')}
                 </button>
               )}
             </>
           ) : (
             <span className="gba:px-2 gba:py-1 gba:text-xs gba:bg-yellow-500/80 gba:text-white gba:rounded-full">
-              {participant.connectionState === 'connecting' ? 'Connecting...' : participant.connectionState}
+              {participant.connectionState === 'connecting' ? t('call-connecting') : participant.connectionState}
             </span>
           )}
         </div>
@@ -304,12 +308,6 @@ const QualityIcon: React.FC<{ quality: VideoQuality; className?: string }> = ({ 
     default:
       return <Signal className={className} />
   }
-}
-
-const qualityLabels: Record<VideoQuality, { label: string; description: string }> = {
-  high: { label: 'High Quality', description: '720p, 30fps - Best for fast connections' },
-  medium: { label: 'Medium Quality', description: '480p, 24fps - Balanced' },
-  low: { label: 'Low Quality', description: '240p, 15fps - For slow connections' }
 }
 
 export const GroupCallModal: React.FC<GroupCallModalProps> = ({
@@ -334,9 +332,20 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   accessToken,
   currentUserId
 }) => {
+  const { t } = useTranslation(translations)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [expandedStream, setExpandedStream] = useState<{ stream: MediaStream; participantName: string } | null>(null)
   const [showDebugPanel, setShowDebugPanel] = useState(false)
+
+  // Quality settings with translations (memoized to prevent unnecessary re-renders)
+  const qualityLabels = useMemo<Record<VideoQuality, { label: string; description: string }>>(
+    () => ({
+      high: { label: t('call-highQuality'), description: t('call-highQualityDesc') },
+      medium: { label: t('call-mediumQuality'), description: t('call-mediumQualityDesc') },
+      low: { label: t('call-lowQuality'), description: t('call-lowQualityDesc') }
+    }),
+    [t]
+  )
   const [diagnostics, setDiagnostics] = useState<Map<string, any>>(new Map())
   const [reconnectingIds, setReconnectingIds] = useState<Set<string>>(new Set())
   const containerRef = useRef<HTMLDivElement>(null)
@@ -526,7 +535,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                   ? 'gba:bg-red-500 gba:text-white'
                   : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
               }`}
-              title={callState.isMuted ? 'Unmute' : 'Mute'}
+              title={callState.isMuted ? t('chat-unmute') : t('chat-mute')}
             >
               {callState.isMuted ? <MicOff className="gba:h-4 gba:w-4" /> : <Mic className="gba:h-4 gba:w-4" />}
             </button>
@@ -537,7 +546,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                   ? 'gba:bg-red-500 gba:text-white'
                   : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
               }`}
-              title={callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+              title={callState.isVideoEnabled ? t('chat-turnOffCamera') : t('chat-turnOnCamera')}
             >
               {callState.isVideoEnabled ? (
                 <Video className="gba:h-4 gba:w-4" />
@@ -550,14 +559,14 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
             <button
               onClick={onToggleMinimize}
               className="gba:p-2 gba:rounded-full gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600 gba:transition-all"
-              title="Expand call"
+              title={t('chat-fullscreen')}
             >
               <Maximize2 className="gba:h-4 gba:w-4" />
             </button>
             <button
               onClick={onEndCall}
               className="gba:p-2 gba:rounded-full gba:bg-red-500 gba:text-white hover:gba:bg-red-600 gba:transition-all"
-              title="Leave call"
+              title={t('chat-leaveCall')}
             >
               <PhoneOff className="gba:h-4 gba:w-4" />
             </button>
@@ -597,14 +606,14 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-gray-800/50">
           <div className="gba:flex gba:items-center gba:gap-3">
             <Users className="gba:h-5 gba:w-5 gba:text-white" />
-            <span className="gba:text-white gba:font-medium">Group Call</span>
+            <span className="gba:text-white gba:font-medium">{t('chat-groupCall')}</span>
             <span className="gba:text-gray-400 gba:text-sm">
-              {participants.length} participant{participants.length !== 1 ? 's' : ''}
+              {participants.length} {participants.length === 1 ? t('chat-participant') : t('chat-participants')}
             </span>
             {/* Quality indicator */}
             <div className="gba:flex gba:items-center gba:gap-1 gba:text-gray-400 gba:text-xs">
               <QualityIcon quality={callState.videoQuality} className="gba:h-3 gba:w-3" />
-              <span className="gba:capitalize">{callState.videoQuality}</span>
+              <span className="gba:capitalize">{qualityLabels[callState.videoQuality].label}</span>
             </div>
           </div>
 
@@ -613,7 +622,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
               <span className="gba:text-white gba:font-mono gba:text-sm">{formatDuration(callState.duration)}</span>
             )}
             {callState.status === 'joining' && (
-              <span className="gba:text-yellow-400 gba:text-sm gba:animate-pulse">Connecting...</span>
+              <span className="gba:text-yellow-400 gba:text-sm gba:animate-pulse">{t('call-connecting')}</span>
             )}
 
             {/* Settings dropdown */}
@@ -621,13 +630,13 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
               <DropdownMenuTrigger asChild>
                 <button
                   className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
-                  title="Settings"
+                  title={t('chat-settings')}
                 >
                   <Settings className="gba:h-4 gba:w-4" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="gba:w-64">
-                <DropdownMenuLabel>Video Quality</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('call-videoQuality')}</DropdownMenuLabel>
                 {(['high', 'medium', 'low'] as VideoQuality[]).map(quality => (
                   <DropdownMenuItem
                     key={quality}
@@ -649,7 +658,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuLabel>Background</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('call-background')}</DropdownMenuLabel>
                 <DropdownMenuItem
                   onClick={() => onToggleBackground?.()}
                   className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
@@ -657,9 +666,11 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                   <div className="gba:flex gba:flex-col">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <ImageIcon className="gba:h-4 gba:w-4" />
-                      <span>Branded Background</span>
+                      <span>{t('call-brandedBackground')}</span>
                     </div>
-                    <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">Shows NEWWORK branding</span>
+                    <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">
+                      {t('call-brandedBackgroundDesc')}
+                    </span>
                   </div>
                   {backgroundEnabled && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
                 </DropdownMenuItem>
@@ -667,7 +678,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                 {getConnectionDiagnostics && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Diagnostics</DropdownMenuLabel>
+                    <DropdownMenuLabel>{t('call-diagnostics')}</DropdownMenuLabel>
                     <DropdownMenuItem
                       onClick={() => setShowDebugPanel(!showDebugPanel)}
                       className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
@@ -675,10 +686,10 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                       <div className="gba:flex gba:flex-col">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Signal className="gba:h-4 gba:w-4" />
-                          <span>Connection Debug</span>
+                          <span>{t('call-connectionDebug')}</span>
                         </div>
                         <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">
-                          Show connection diagnostics
+                          {t('call-showDiagnostics')}
                         </span>
                       </div>
                       {showDebugPanel && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
@@ -693,7 +704,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
               <button
                 onClick={onToggleMinimize}
                 className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
-                title="Minimize call"
+                title={t('chat-minimizeCall')}
               >
                 <Minimize2 className="gba:h-4 gba:w-4" />
               </button>
@@ -703,7 +714,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
             <button
               onClick={toggleFullscreen}
               className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
-              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              title={isFullscreen ? t('chat-exitFullscreen') : t('chat-fullscreen')}
             >
               {isFullscreen ? <Shrink className="gba:h-4 gba:w-4" /> : <Expand className="gba:h-4 gba:w-4" />}
             </button>
@@ -758,6 +769,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                         }
                       : undefined
                   }
+                  t={t}
                 />
               )
             })}
@@ -822,7 +834,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                 ? 'gba:bg-red-500 hover:gba:bg-red-600 gba:text-white'
                 : 'gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white'
             }`}
-            title={callState.isMuted ? 'Unmute' : 'Mute'}
+            title={callState.isMuted ? t('chat-unmute') : t('chat-mute')}
             data-testid={`${prefixDataTestId}-mute-btn`}
           >
             {callState.isMuted ? <MicOff className="gba:h-6 gba:w-6" /> : <Mic className="gba:h-6 gba:w-6" />}
@@ -836,7 +848,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                 ? 'gba:bg-red-500 hover:gba:bg-red-600 gba:text-white'
                 : 'gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white'
             }`}
-            title={callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+            title={callState.isVideoEnabled ? t('chat-turnOffCamera') : t('chat-turnOnCamera')}
             data-testid={`${prefixDataTestId}-video-btn`}
           >
             {callState.isVideoEnabled ? (
@@ -854,7 +866,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                 ? 'gba:bg-primary hover:gba:bg-primary/90 gba:text-white'
                 : 'gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white'
             }`}
-            title={callState.isScreenSharing ? 'Stop sharing' : 'Share screen'}
+            title={callState.isScreenSharing ? t('chat-stopSharing') : t('chat-shareScreen')}
             data-testid={`${prefixDataTestId}-screen-share-btn`}
           >
             <Monitor className="gba:h-6 gba:w-6" />
@@ -876,7 +888,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
           <button
             onClick={onEndCall}
             className="gba:p-4 gba:rounded-full gba:bg-red-500 hover:gba:bg-red-600 gba:text-white gba:transition-all gba:ml-4"
-            title="Leave call"
+            title={t('chat-leaveCall')}
             data-testid={`${prefixDataTestId}-end-btn`}
           >
             <PhoneOff className="gba:h-6 gba:w-6" />
@@ -904,7 +916,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
             {/* Participant name */}
             <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2">
               <Monitor className="gba:h-4 gba:w-4" />
-              <span>{expandedStream.participantName}'s screen</span>
+              <span>{t('chat-screenShare', { name: expandedStream.participantName })}</span>
             </div>
 
             {/* Video element - object-contain to preserve aspect ratio */}
@@ -917,7 +929,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
 
             {/* Click hint */}
             <div className="gba:absolute gba:bottom-4 gba:left-1/2 gba:-translate-x-1/2 gba:text-white/60 gba:text-sm">
-              Click anywhere to close
+              {t('call-clickToClose')}
             </div>
           </div>
         )}

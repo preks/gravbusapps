@@ -12,7 +12,7 @@ import {
   Card,
   CardContent
 } from '@newwork/nw-design-system'
-import { PiUser, PiBuilding, PiUsers, PiTarget, PiCalendar } from 'react-icons/pi'
+import { UserIcon, BuildingIcon, TargetIcon, CalendarIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CampaignEntity } from '../types/CampaignRecordTypes'
@@ -53,13 +53,18 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
   // Helper function to get entity type config
   const getEntityTypeConfig = (type: string) => {
     const typeConfig = {
-      lead: { label: 'Lead', variant: 'default' as const, icon: PiUser, color: 'var(--color-primary-500)' },
-      account: { label: 'Account', variant: 'secondary' as const, icon: PiBuilding, color: 'var(--color-primary-600)' },
-      contact: { label: 'Contact', variant: 'outline' as const, icon: PiUsers, color: 'var(--color-primary-600)' },
+      lead: { label: 'Lead', variant: 'default' as const, icon: UserIcon, color: 'var(--color-primary-500)' },
+      account: {
+        label: 'Account',
+        variant: 'secondary' as const,
+        icon: BuildingIcon,
+        color: 'var(--color-primary-600)'
+      },
+      contact: { label: 'Contact', variant: 'outline' as const, icon: UserIcons, color: 'var(--color-primary-600)' },
       opportunity: {
         label: 'Opportunity',
         variant: 'destructive' as const,
-        icon: PiTarget,
+        icon: TargetIcon,
         color: 'var(--color-primary-500)'
       }
     }
@@ -68,7 +73,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
       typeConfig[type as keyof typeof typeConfig] || {
         label: type,
         variant: 'default' as const,
-        icon: PiUser,
+        icon: UserIcon,
         color: 'var(--color-primary-500)'
       }
     )
@@ -292,7 +297,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
 
                     {/* Creation Date */}
                     <IconCell
-                      icon={PiCalendar}
+                      icon={CalendarIcon}
                       iconColor="var(--color-text-secondary)"
                       content={<span className="gba:text-sm">{formatDate(entity.creationDate)}</span>}
                       testId={`${DATA_TEST_ID_PREFIX}-creation-date-cell-${entity.id}`}
@@ -300,7 +305,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
 
                     {/* Owner */}
                     <IconCell
-                      icon={PiUser}
+                      icon={UserIcon}
                       iconColor="var(--color-text-secondary)"
                       content={
                         <span className="gba:text-sm">

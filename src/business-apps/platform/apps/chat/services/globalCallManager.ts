@@ -11,7 +11,6 @@
 import type { GroupWebRTCClient, GroupCallParticipant, VideoQuality } from './groupWebrtcClient'
 import type { ChatWebSocketClient } from './chatWebSocketClient'
 import type { CallParticipant, CallType } from './webrtcClient'
-import { debugLog } from '../utils/debugLog'
 
 // Extend Window interface for TypeScript
 declare global {
@@ -77,14 +76,14 @@ class GlobalCallManager {
 
   constructor() {
     // Check if there's existing call data from a previous instance
-    debugLog('GlobalCallManager: Constructor called')
+    console.debug('GlobalCallManager: Constructor called')
   }
 
   static getInstance(): GlobalCallManager {
     // Use window object to ensure singleton persists across module reloads
     if (!window.__GLOBAL_CALL_MANAGER__) {
       window.__GLOBAL_CALL_MANAGER__ = new GlobalCallManager()
-      debugLog('GlobalCallManager: Created new instance on window')
+      console.debug('GlobalCallManager: Created new instance on window')
     }
     return window.__GLOBAL_CALL_MANAGER__
   }
@@ -109,7 +108,7 @@ class GlobalCallManager {
     participants: GroupCallParticipant[]
     currentUser: CallParticipant | null
   }) {
-    debugLog('GlobalCallManager: Storing call data')
+    console.debug('GlobalCallManager: Storing call data')
     this.callData = {
       ...data,
       durationInterval: this.callData.durationInterval
@@ -149,7 +148,7 @@ class GlobalCallManager {
 
   // Clear call data
   clearCall() {
-    debugLog('GlobalCallManager: Clearing call data')
+    console.debug('GlobalCallManager: Clearing call data')
 
     if (this.callData.durationInterval) {
       clearInterval(this.callData.durationInterval)
@@ -199,7 +198,7 @@ class GlobalCallManager {
   }
 
   private notifyListeners() {
-    debugLog(
+    console.debug(
       'GlobalCallManager: Notifying',
       this.listeners.size,
       'listeners, status:',

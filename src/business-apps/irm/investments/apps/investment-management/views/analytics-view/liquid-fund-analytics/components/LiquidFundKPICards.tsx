@@ -1,5 +1,5 @@
 import React from 'react'
-import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons'
+import { CurrencyCircleDollarIcon, BankIcon, TrendUpIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 import { LiquidFundInvestmentKPIs } from '../LiquidFundInvestmentsReport'
@@ -45,7 +45,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       key: 'total-investments',
       title: 'Total Investments',
       value: kpis.totalInvestments,
-      prefix: <TeamOutlined />,
+      prefix: <UsersThreeIcon />,
       color: 'var(--nw-color-primary-500)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Fund count',
@@ -59,7 +59,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       key: 'average-investment-value',
       title: 'Average Investment Value',
       value: formatCurrencyCompact(kpis.averageInvestmentValue, currency, undefined, 1, true),
-      prefix: <DollarCircleOutlined />,
+      prefix: <CurrencyCircleDollarIcon />,
       color: 'var(--nw-color-success-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -74,7 +74,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       key: 'average-market-value',
       title: 'Average Market Value',
       value: formatCurrencyCompact(kpis.averageMarketValue, currency, undefined, 1, true),
-      prefix: <RiseOutlined />,
+      prefix: <TrendUpIcon />,
       color: 'var(--nw-color-purple-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -89,7 +89,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       key: 'total-fund-value',
       title: 'Total Fund Value',
       value: formatCurrencyCompact(kpis.totalFundValue, currency, undefined, 1, true),
-      prefix: <BankOutlined />,
+      prefix: <BankIcon />,
       color: 'var(--nw-color-warning-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },

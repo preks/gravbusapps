@@ -3,7 +3,7 @@ import { ServiceCatalog, ServiceDetail, RequestForm, MyRequests, AIOnboardingToo
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ServiceRequestTemplate, FlowTemplate } from '../../types'
 import type { WorkflowEngine } from '../../services'
-import { mockWorkflowEngine, createConductorWorkflowEngine, createTemplatesService } from '../../services'
+import { mockWorkflowEngine, createConductorWorkflowEngine } from '../../services'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { Alert, Spinner } from '@newwork/nw-design-system'
@@ -98,45 +98,39 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
       setIsLoadingTemplateFromUrl(true)
       try {
         console.log('[ServicePortal] Loading template from URL:', templateId)
-        const templatesService = createTemplatesService(contextProps)
-        const result = await templatesService.getTemplates({ limit: 100 })
 
-        if (result.templates && result.templates.length > 0) {
-          const foundTemplate = result.templates.find((t: any) => t.id === templateId)
-          if (foundTemplate) {
-            console.log('[ServicePortal] Found template:', foundTemplate.name, foundTemplate)
-            // Transform the template to FlowTemplate format with form schema extraction
-            const flowTemplate = transformTemplate(foundTemplate)
-            console.log(
-              '[ServicePortal] Transformed template:',
-              flowTemplate.name,
-              'formSchema:',
-              flowTemplate.formSchema?.length || 0,
-              'fields'
-            )
+        // Use the workflow engine to get a single template with resolved options
+        const workflowEngine = createConductorWorkflowEngine(contextProps)
 
-            // Determine category from template tags (same logic as navigateToFlowRequestForm)
-            let categoryId = 'flow-templates' // fallback
-            if (foundTemplate.tags?.serviceCategory && Array.isArray(foundTemplate.tags.serviceCategory)) {
-              const categoryRef = foundTemplate.tags.serviceCategory[0]
-              if (typeof categoryRef === 'string' && categoryRef.includes('ServicePortalCategory:1:')) {
-                categoryId = categoryRef.split('ServicePortalCategory:1:')[1].toLowerCase()
-              }
+        // Fetch single template with resolved options using getTemplateById
+        // Type assertion since getTemplateById is an optional method in WorkflowEngine interface
+        const foundTemplate = await (workflowEngine as any).getTemplateById(templateId)
+
+        if (foundTemplate) {
+          // Transform the template to FlowTemplate format with form schema extraction
+          const flowTemplate = transformTemplate(foundTemplate)
+
+          // Determine category from template tags (same logic as navigateToFlowRequestForm)
+          let categoryId = 'flow-templates' // fallback
+          if (foundTemplate.tags?.serviceCategory && Array.isArray(foundTemplate.tags.serviceCategory)) {
+            const categoryRef = foundTemplate.tags.serviceCategory[0]
+            if (typeof categoryRef === 'string' && categoryRef.includes('ServicePortalCategory:1:')) {
+              categoryId = categoryRef.split('ServicePortalCategory:1:')[1].toLowerCase()
             }
-
-            setState(prev => ({
-              ...prev,
-              selectedFlowTemplate: flowTemplate,
-              // Set category from URL param or extract from template tags
-              selectedCategoryId: prev.selectedCategoryId || categoryId
-            }))
-          } else {
-            console.warn('[ServicePortal] Template not found in list:', templateId)
-            // Clear invalid templateId from URL
-            const url = new URL(window.location.href)
-            url.searchParams.delete('templateId')
-            window.history.replaceState({}, '', url.toString())
           }
+
+          setState(prev => ({
+            ...prev,
+            selectedFlowTemplate: flowTemplate,
+            // Set category from URL param or extract from template tags
+            selectedCategoryId: prev.selectedCategoryId || categoryId
+          }))
+        } else {
+          console.warn('[ServicePortal] Template not found:', templateId)
+          // Clear invalid templateId from URL
+          const url = new URL(window.location.href)
+          url.searchParams.delete('templateId')
+          window.history.replaceState({}, '', url.toString())
         }
       } catch (error) {
         console.error('[ServicePortal] Failed to load template from URL:', error)
@@ -144,7 +138,7 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
         setIsLoadingTemplateFromUrl(false)
       }
     },
-    [contextProps, transformTemplate]
+    [contextProps]
   )
 
   // Load template from URL on component mount

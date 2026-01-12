@@ -13,7 +13,7 @@ import {
   AvatarImage,
   Badge
 } from '@newwork/nw-design-system'
-import { WarningOutlined } from '@ant-design/icons'
+import { WarningIcon } from '@phosphor-icons/react'
 import { type TopPerformer } from '../types'
 
 interface NeedsAttentionEmployeesCardProps {
@@ -68,7 +68,7 @@ export const NeedsAttentionEmployeesCard: React.FC<NeedsAttentionEmployeesCardPr
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-loading`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <WarningOutlined className="gba:text-warning" />
+            <WarningIcon className="gba:text-warning" />
             Employees Needing Attention
           </CardTitle>
         </CardHeader>
@@ -84,7 +84,7 @@ export const NeedsAttentionEmployeesCard: React.FC<NeedsAttentionEmployeesCardPr
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <WarningOutlined className="gba:text-warning" />
+            <WarningIcon className="gba:text-warning" />
             Employees Needing Attention
           </CardTitle>
         </CardHeader>
@@ -107,7 +107,7 @@ export const NeedsAttentionEmployeesCard: React.FC<NeedsAttentionEmployeesCardPr
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-empty`}>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <WarningOutlined className="gba:text-warning" />
+            <WarningIcon className="gba:text-warning" />
             Employees Needing Attention
           </CardTitle>
         </CardHeader>
@@ -122,7 +122,7 @@ export const NeedsAttentionEmployeesCard: React.FC<NeedsAttentionEmployeesCardPr
     <Card data-testid={DATA_TEST_ID_PREFIX} className="gba:h-full">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <WarningOutlined className="gba:text-warning" />
+          <WarningIcon className="gba:text-warning" />
           Employees Needing Attention
         </CardTitle>
       </CardHeader>

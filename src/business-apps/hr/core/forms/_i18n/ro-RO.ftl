@@ -292,3 +292,6 @@ working-conditions-unit-year = { $count ->
     [one] An
    *[other] Ani
 }
+
+# Create Request Correction Form
+complete-notification = Cererea este trimisă către manager pentru aprobare

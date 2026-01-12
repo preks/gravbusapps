@@ -40,12 +40,21 @@ export const useTopAccountsByRevenue = (accessToken: string, config: TopAccounts
         setError(null)
 
         // Step 1: Get distinct account IDs with won opportunities
+        // When using junction tables, need to navigate through the opportunity relationship
+        const opportunityStatusFilter = config.isJunctionTable
+          ? `${config.opportunityRelation || 'opportunity'}: {
+              opportunity: {
+                opportunityStatus: {code: {_eq: "WON"}}
+              }
+            }`
+          : `${config.opportunityRelation || 'opportunity'}: {opportunityStatus: {code: {_eq: "WON"}}}`
+
         const accountIdsQuery = `
           query GetTopAccountIds {
             accounts: ${config.accountEntity}(
               where: {
                 isDeleted: {_eq: false}
-                ${config.opportunityRelation || 'opportunity'}: {opportunityStatus: {code: {_eq: "WON"}}}
+                ${opportunityStatusFilter}
               }
               distinctOn: [id]
             ) {

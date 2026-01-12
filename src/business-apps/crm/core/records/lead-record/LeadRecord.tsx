@@ -9,8 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, FlagIcon } from '@phosphor-icons/react'
-import { Bot } from 'lucide-react'
+import { UserIcon, FileTextIcon, FlagIcon, RobotIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -257,7 +256,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       {
         key: 'ai-summary',
         label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <Bot size={16} />,
+        icon: <RobotIcon size={16} />,
         hook: aiSummaryHook,
         config: {
           entityType: 'lead',
@@ -503,7 +502,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     <div data-testid="lead-opportunity-investment-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={User}
+        headerIcon={UserIcon}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.lead', 'LEAD')}
         onBack={onBack}
         headerTitle={headerTitle}

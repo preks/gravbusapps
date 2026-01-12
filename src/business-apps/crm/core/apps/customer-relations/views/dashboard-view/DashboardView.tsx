@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { Alert, AlertTitle, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
-import { LineChart } from 'lucide-react'
+import { ChartLineIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PipelineInfo, DateRange } from './types/dashboardTypes'
 import { useOverviewData } from './hooks/useOverviewData'
@@ -128,7 +128,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
           ? {
               headerLeft: (
                 <div className="gba:p-3 gba:rounded-xl gba:shadow-sm gba:bg-blue-100">
-                  <LineChart className="gba:h-6 gba:w-6 gba:text-blue-600" />
+                  <ChartLineIcon className="gba:h-6 gba:w-6 gba:text-blue-600" />
                 </div>
               ),
               pipelineTitle: selectedPipeline.name,

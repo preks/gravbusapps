@@ -703,10 +703,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       {/* Detail Panel - Task Details (full-width on mobile/tablet, 60% on desktop ≥1024px) */}
       <div
-        className={`gba:flex gba:flex-col gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
+        className={`gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
           selectedTask
-            ? 'gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
-            : 'gba:hidden gba:lg:flex gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
+            ? 'gba:flex gba:flex-col gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
+            : 'gba:hidden gba:lg:flex gba:lg:flex-col gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
         }`}
       >
         {selectedTask && (

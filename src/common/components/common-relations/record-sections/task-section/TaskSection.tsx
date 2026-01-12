@@ -354,6 +354,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       code: rawTask?.code,
       description: taskItem.description || rawTask?.description || '',
       assignedTo,
+      taskAssignees: taskItem.taskAssignees || rawTask?.taskAssignees,
       creatorEmployee: creatorEmployee
         ? {
             id: creatorEmployee.id,

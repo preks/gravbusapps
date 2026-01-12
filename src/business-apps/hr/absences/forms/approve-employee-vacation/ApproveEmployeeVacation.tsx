@@ -278,6 +278,14 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
     absenceTypeRef: employeeAbsence?.typeRef
   })
 
+  // Extract requester info for chat (need userId, not employeeId!)
+  // First try explicit fields from taskPayload, then fall back to fetched employee data userId
+  const requesterUserId = (taskPayload as any)?.requester?.id || (taskPayload as any)?.creatorId || employeeData?.userId
+  const requesterName =
+    creatorName ||
+    employeeData?.displayName ||
+    `${employeeData?.firstName || ''} ${employeeData?.lastName || ''}`.trim()
+
   // Get supervisor ID for TeamAbsenceCalendar
   const supervisorId = userInfo?.employeeDetails?.employeeId
 
@@ -450,6 +458,40 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
   // Detect if we're in every-box context (has onClose callback)
   const isEveryBoxContext = !!onClose
 
+  // Prepare chat context (only if task is not completed and we have requester info)
+  const chatWithRequester = useMemo(() => {
+    if (!(!isTaskCompleted && requesterUserId && employeeAbsence?.startDate && employeeAbsence?.endDate)) {
+      return undefined
+    }
+
+    const startDate = dayjs(employeeAbsence.startDate).format('MMM D')
+    const endDate = dayjs(employeeAbsence.endDate).format('MMM D, YYYY')
+
+    return {
+      requesterId: requesterUserId,
+      requesterName,
+      prefilledMessage: t('chat-prefilled-message', {
+        requesterName: requesterName || t('chat-fallback-name'),
+        startDate,
+        endDate
+      }),
+      taskContext: {
+        taskType: 'vacation-approval',
+        absenceId: employeeAbsence.id,
+        startDate: employeeAbsence.startDate,
+        endDate: employeeAbsence.endDate
+      }
+    }
+  }, [
+    isTaskCompleted,
+    requesterUserId,
+    requesterName,
+    employeeAbsence?.startDate,
+    employeeAbsence?.endDate,
+    employeeAbsence?.id,
+    t
+  ])
+
   return (
     <TaskFormLayout
       data-testid="approve-employee-vacation"
@@ -460,6 +502,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
           employeeId={employeeAbsence?.employeeId}
           accessToken={accessToken}
           creatorName={creatorName}
+          chatWithRequester={chatWithRequester}
           onClose={isEveryBoxContext ? handleClose : undefined}
         />
       }

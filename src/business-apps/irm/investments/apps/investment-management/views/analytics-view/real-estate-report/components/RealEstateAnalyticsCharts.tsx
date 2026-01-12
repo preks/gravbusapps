@@ -14,7 +14,7 @@ import {
 import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/data/investment/utils/formatters'
-import { formatCompactNumber } from '@/common/utils/numberFormatter'
+import { formatAmount } from '@/common/utils/numberFormatter'
 
 interface RealEstateAnalyticsChartsProps {
   chartData: {
@@ -25,6 +25,10 @@ interface RealEstateAnalyticsChartsProps {
 
 export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps> = ({ chartData }) => {
   const { occupancyData, expensesValueData } = chartData
+
+  // Note: This component uses formatCurrency from investment utils which already handles currency formatting
+  // For counts, we use formatAmount directly
+  // Fixed: Using .replace() instead of .replaceAll() for ES2020 compatibility
 
   // Occupancy Analysis Config
   const occupancyConfig = useMemo(
@@ -62,8 +66,12 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
           <ChartContainer config={occupancyConfig}>
             <ComposedChart data={occupancyData}>
               <XAxis dataKey="range" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={value => formatCompactNumber(value, 1)} />
+              <YAxis yAxisId="left" tickFormatter={value => formatAmount(value, 1)} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tickFormatter={value => formatCurrency(value).replace(/[€$£¥]/g, '')}
+              />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload?.length) {
@@ -121,18 +129,20 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
         <CardContent>
           {expensesValueData && expensesValueData.length > 0 ? (
             <ChartContainer config={expensesValueConfig} className="gba:h-[400px] gba:w-full">
-              <ScatterChart data={expensesValueData}>
+              <ScatterChart data={expensesValueData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                 <XAxis
                   dataKey="propertyValue"
                   name="Property Value"
                   type="number"
-                  tickFormatter={value => formatCompactNumber(value, 1)}
+                  tickFormatter={value => formatCurrency(value).replace(/[€$£¥]/g, '')}
+                  label={{ value: 'Property Value', position: 'insideBottom', offset: -5 }}
                 />
                 <YAxis
                   dataKey="annualExpenses"
                   name="Annual Net Cold Rent"
                   type="number"
-                  tickFormatter={value => formatCompactNumber(value, 1)}
+                  tickFormatter={value => formatCurrency(value).replace(/[€$£¥]/g, '')}
+                  label={{ value: 'Annual Net Cold Rent', angle: -90, position: 'insideLeft' }}
                 />
                 <ChartTooltip
                   content={({ active, payload }) => {

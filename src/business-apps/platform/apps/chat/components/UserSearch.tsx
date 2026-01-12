@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Input, IconAvatar, Spinner, Button, Avatar } from '@newwork/nw-design-system'
+import { Input, IconAvatar, Spinner, Button, Avatar, useTranslation } from '@newwork/nw-design-system'
 import { ArrowLeft, MagnifyingGlass } from '@phosphor-icons/react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import type { User } from '../types'
 import { UserIcon } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import translations from '../_i18n'
 
 interface UserSearchProps {
   accessToken: string
@@ -33,6 +34,7 @@ interface EmployeeSearchResult {
 }
 
 export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUserId, onUserSelect, onClose }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -233,7 +235,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
           <Input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder={getTranslationFromI18nKeyAndLabel('chat.searchForUsers', 'Search for users...')}
+            placeholder={t('chat-searchForUsers')}
             className="gba:h-8 gba:text-sm gba:!pl-10 gba:bg-background/50"
             data-testid="user-search-input"
             autoFocus
@@ -249,9 +251,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
         ) : users.length === 0 ? (
           <div className="gba:p-6 gba:text-center">
             <p className="gba:text-sm gba:text-muted-foreground">
-              {debouncedQuery.trim()
-                ? getTranslationFromI18nKeyAndLabel('chat.noUsersFound', 'No users found')
-                : getTranslationFromI18nKeyAndLabel('chat.noUsersAvailable', 'No users available')}
+              {debouncedQuery.trim() ? t('chat-noUsersFound') : t('chat-noUsersAvailable')}
             </p>
           </div>
         ) : (

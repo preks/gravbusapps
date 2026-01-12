@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
 import { useChatExperts } from './hooks/useChatExperts'
+import { useOpenChatFromPlatform } from './hooks/useOpenChatFromPlatform'
 import { ConversationList } from './components/ConversationList'
 import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
 import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
@@ -23,9 +24,8 @@ import { GroupCallModal } from './components/GroupCallModal'
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
-import { debugLog } from './utils/debugLog'
+import translations from './_i18n'
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
@@ -34,6 +34,7 @@ interface ChatProps extends BusinessAppContextProps {
 }
 
 export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefixDataTestId = 'chat' }) => {
+  const { t } = useTranslation(translations)
   const containerRef = useRef<HTMLDivElement>(null)
   const chatViewRef = useRef<HTMLDivElement>(null)
   const [showConversationList, setShowConversationList] = useState(true)
@@ -93,27 +94,28 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 
-  // If running on localhost, connect to DEV environment
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  if (isLocalhost) {
+  // If platform is running on localhost (baseUrl includes localhost), connect to DEV environment
+  // This handles the case where Chat is loaded from CDN but platform is running locally
+  const isLocalPlatform = baseUrl.includes('localhost')
+  if (isLocalPlatform) {
     baseUrl = 'https://newwork-dev.newwork.com'
-    debugLog('🔄 [Chat] Local development detected - connecting to DEV environment:', baseUrl)
+    console.log('🔄 [Chat] Local platform detected (baseUrl had localhost) - connecting to DEV environment:', baseUrl)
   }
 
   // Normalize API and WS endpoints; connect to chat-service namespace with default socket path
   let apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
 
-  // Override if NEXT_PUBLIC_CHAT_API is pointing to localhost when running locally
-  if (isLocalhost && apiUrl.includes('localhost')) {
+  // Override if NEXT_PUBLIC_CHAT_API is pointing to localhost when running on local platform
+  if (apiUrl.includes('localhost')) {
     apiUrl = `${baseUrl}/chat-service/api/v1`
-    debugLog('🔄 [Chat] Overriding localhost CHAT_API to use DEV environment:', apiUrl)
+    console.log('🔄 [Chat] Overriding localhost CHAT_API to use DEV environment:', apiUrl)
   }
 
   const wsUrl = `${baseUrl}/chat-service` // namespace in URL (matches gateway)
   // Ensure Socket.IO path keeps /chat-service prefix (Kong strip-path=true compatible)
   const wsSocketPath = env('NEXT_PUBLIC_CHAT_WS_PATH') || '/chat-service/socket.io'
 
-  debugLog('📍 [Chat] Final connection URLs:', { apiUrl, wsUrl, wsSocketPath })
+  console.log('📍 [Chat] Final connection URLs:', { apiUrl, wsUrl, wsSocketPath })
 
   const chatClient = useChatClient({
     accessToken,
@@ -174,8 +176,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
   // Log for diagnostics
   useEffect(() => {
-    debugLog('[Chat] stableActiveConversation', stableActiveConversation?.id)
+    console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
   }, [stableActiveConversation?.id])
+
+  // Listen for platform messages to open chat with specific users
+  useOpenChatFromPlatform({
+    createDirectConversation,
+    setDraftMessage,
+    isConnected,
+    setShowConversationList
+  })
 
   // Register nudge callback to handle incoming nudges from OTHER users
   useEffect(() => {
@@ -184,11 +194,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     registerNudgeCallback(data => {
       // Ignore nudges from yourself (shouldn't happen, but safety check)
       if (data.fromUserId === currentUser.id) {
-        debugLog('[Chat] Ignoring nudge from self')
+        console.log('[Chat] Ignoring nudge from self')
         return
       }
 
-      debugLog('[Chat] Nudge received from:', data.fromUserName, 'conversation:', data.conversationId)
+      console.log('[Chat] Nudge received from:', data.fromUserName, 'conversation:', data.conversationId)
 
       // Play sound
       playNudgeSound()
@@ -285,10 +295,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     apiClient: apiClient || null,
     currentUser: currentUserAsParticipant,
     onCallStarted: (callId, participant) => {
-      debugLog('1:1 Call started:', callId, participant)
+      console.debug('1:1 Call started:', callId, participant)
     },
     onCallEnded: (callId, duration) => {
-      debugLog('1:1 Call ended:', callId, 'Duration:', duration, 'ms')
+      console.debug('1:1 Call ended:', callId, 'Duration:', duration, 'ms')
     }
   })
 
@@ -320,16 +330,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     apiClient: apiClient || null,
     currentUser: currentUserAsParticipant,
     onCallStarted: (roomId, participants) => {
-      debugLog('Group call started:', roomId, participants.length, 'participants')
+      console.debug('Group call started:', roomId, participants.length, 'participants')
     },
     onCallEnded: (roomId, duration) => {
-      debugLog('Group call ended:', roomId, 'Duration:', duration, 'ms')
+      console.debug('Group call ended:', roomId, 'Duration:', duration, 'ms')
     },
     onParticipantJoined: participant => {
-      debugLog('Participant joined group call:', participant.odName)
+      console.debug('Participant joined group call:', participant.odName)
     },
     onParticipantLeft: participantId => {
-      debugLog('Participant left group call:', participantId)
+      console.debug('Participant left group call:', participantId)
     }
   })
 
@@ -445,7 +455,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
     if (shouldJoinExisting) {
       // Join the existing call without ringing everyone
-      debugLog('Joining existing group call in conversation:', activeConversation.id)
+      console.debug('Joining existing group call in conversation:', activeConversation.id)
       joinGroupCall(activeConversation.id, callType)
     } else {
       // Get all participants including current user
@@ -484,7 +494,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       const roomId = activeConversation.id
       const callType = callState.type || 'video'
 
-      debugLog(
+      console.debug(
         'Upgrading 1:1 call to group call with participants:',
         callParticipants.map(p => p.odName)
       )
@@ -634,7 +644,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                     }))
 
                     // Dispatch annotations to document view
-                    debugLog('[Chat] Dispatching document annotations:', annotations.length)
+                    console.log('[Chat] Dispatching document annotations:', annotations.length)
                     globalThis.dispatchEvent(
                       new CustomEvent('document-review-annotations', {
                         detail: {
@@ -648,7 +658,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                 }
               }
             } catch (e) {
-              debugLog('[Chat] Could not parse document review annotations:', e)
+              console.log('[Chat] Could not parse document review annotations:', e)
               // Not an error - expert may not have returned JSON annotations
             }
           }
@@ -969,18 +979,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       // Check for "last owner" error
       const errorMsg = error?.response?.data?.message || error?.message || ''
       if (errorMsg.toLowerCase().includes('last owner')) {
-        setErrorMessage(
-          getTranslationFromI18nKeyAndLabel(
-            'chat.cannotLeaveAsLastOwner',
-            'You are the only owner of this group. Please transfer ownership to another member or delete the group from Group Settings.'
-          )
-        )
+        setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
         // Open group settings to let user manage the group
         setShowGroupSettingsModal(true)
       } else {
-        setErrorMessage(
-          getTranslationFromI18nKeyAndLabel('chat.failedToLeave', 'Failed to leave the conversation. Please try again.')
-        )
+        setErrorMessage(t('chat-failedToLeave'))
       }
     }
   }, [activeConversation, closeConversation, viewMode])
@@ -1025,12 +1028,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
     if (timeSinceLastNudge < NUDGE_COOLDOWN_MS) {
       const secondsRemaining = Math.ceil((NUDGE_COOLDOWN_MS - timeSinceLastNudge) / 1000)
-      setErrorMessage(
-        getTranslationFromI18nKeyAndLabel(
-          'chat.nudgeCooldown',
-          `Please wait ${secondsRemaining} seconds before sending another nudge.`
-        ).replace('{seconds}', secondsRemaining.toString())
-      )
+      setErrorMessage(t('chat-nudgeCooldown', { seconds: secondsRemaining }))
       // Auto-dismiss after 3 seconds
       setTimeout(() => setErrorMessage(null), 3000)
       return
@@ -1056,7 +1054,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       // Don't create a system message for the sender
       // The receiver will see the nudge message via the callback
       // The sender just gets visual feedback from the cooldown reset
-      debugLog('[Chat] Nudge sent successfully')
+      console.log('[Chat] Nudge sent successfully')
     }
   }, [activeConversation, currentUser, sendNudge, sendMessage])
 
@@ -1350,22 +1348,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     const getErrorMessage = () => {
       const errorKey = error.name || 'chat.connectionError'
       const errorMessages: Record<string, string> = {
-        'chat.serviceUnavailable': getTranslationFromI18nKeyAndLabel(
-          'chat.serviceUnavailable',
-          'The chat service is currently unavailable. Please try again later.'
-        ),
-        'chat.serviceNotFound': getTranslationFromI18nKeyAndLabel(
-          'chat.serviceNotFound',
-          'The chat service could not be found. Please contact your administrator.'
-        ),
-        'chat.authenticationFailed': getTranslationFromI18nKeyAndLabel(
-          'chat.authenticationFailed',
-          'Authentication failed. Please log in again.'
-        ),
-        'chat.connectionError': getTranslationFromI18nKeyAndLabel(
-          'chat.connectionError',
-          'Failed to connect to the chat service. Please check your internet connection.'
-        )
+        'chat.serviceUnavailable': t('chat-serviceUnavailable'),
+        'chat.serviceNotFound': t('chat-serviceNotFound'),
+        'chat.authenticationFailed': t('chat-authenticationFailed'),
+        'chat.connectionError': t('chat-connectionError')
       }
       return errorMessages[errorKey] || errorMessages['chat.connectionError']
     }
@@ -1392,9 +1378,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         data-testid={`${prefixDataTestId}-loading`}
       >
         <Spinner size="lg" />
-        <span className="gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('chat.connecting', 'Connecting to chat...')}
-        </span>
+        <span className="gba:text-sm gba:text-muted-foreground">{t('chat-connecting')}</span>
       </div>
     )
   }
@@ -1403,9 +1387,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const OfflineBanner = () =>
     isOffline ? (
       <div className="gba:px-3 gba:py-2 gba:bg-warning/10 gba:border-b gba:border-warning/20">
-        <p className="gba:text-xs gba:text-warning-foreground gba:text-center">
-          {getTranslationFromI18nKeyAndLabel('chat.offline', 'Reconnecting...')}
-        </p>
+        <p className="gba:text-xs gba:text-warning-foreground gba:text-center">{t('chat-offline')}</p>
       </div>
     ) : null
 
@@ -1453,12 +1435,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   console.error('Failed to remove conversation:', error)
                   const errorMsg = error?.response?.data?.message || error?.message || ''
                   if (errorMsg.toLowerCase().includes('last owner')) {
-                    setErrorMessage(
-                      getTranslationFromI18nKeyAndLabel(
-                        'chat.cannotLeaveAsLastOwner',
-                        'You are the only owner of this group. Please transfer ownership to another member or delete the group from Group Settings.'
-                      )
-                    )
+                    setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
                     // Select the conversation and open group settings
                     const conv = conversations.find(c => c.id === conversationId)
                     if (conv) {
@@ -1466,12 +1443,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                       setShowGroupSettingsModal(true)
                     }
                   } else {
-                    setErrorMessage(
-                      getTranslationFromI18nKeyAndLabel(
-                        'chat.failedToLeave',
-                        'Failed to leave the conversation. Please try again.'
-                      )
-                    )
+                    setErrorMessage(t('chat-failedToLeave'))
                   }
                 }
               }}
@@ -1557,7 +1529,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                         <div className="gba:text-xs gba:font-semibold gba:text-primary gba:mb-1">✨ Every AI</div>
                         {aiStreamingText ? (
                           <div className="gba:text-sm gba:text-foreground gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:rounded-lg gba:p-2 gba:border gba:border-primary/20">
-                            <AIResponseRenderer content={aiStreamingText} />
+                            <AIResponseRenderer content={aiStreamingText} accessToken={accessToken} />
                           </div>
                         ) : (
                           <AIThinkingIndicator />
@@ -1607,10 +1579,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   </svg>
                 </div>
                 <p className="gba:text-sm gba:text-muted-foreground gba:max-w-[200px]">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'chat.selectConversation',
-                    'Select a conversation to start chatting'
-                  )}
+                  {t('chat-selectConversation')}
                 </p>
               </div>
             )}
