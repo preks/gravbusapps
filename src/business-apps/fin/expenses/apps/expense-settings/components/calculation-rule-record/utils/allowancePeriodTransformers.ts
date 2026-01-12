@@ -44,8 +44,8 @@ export interface AllowancePeriodSaveData {
   startAfter?: string
   returnBefore?: string
   periodOrder?: number
-  businessKey?: undefined
-  additionalProperties?: undefined
+  businessKey?: never
+  additionalProperties?: never
 }
 
 /**
