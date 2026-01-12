@@ -18,3 +18,5 @@ export {
 export type { AllowanceSetupFormValues, AllowanceSetupSaveData } from './allowanceSetupTransformers'
 export { transformCustomFieldForRestrictedUpdate, transformCustomFieldForSave } from './customFieldsTransformers'
 export type { CustomFieldFormValues, CustomFieldSaveData } from './customFieldsTransformers'
+export { getValidityDatesFromExisting, getValidityDatesFromRule } from './validityDateHelpers'
+export type { ValidityDateResult } from './validityDateHelpers'

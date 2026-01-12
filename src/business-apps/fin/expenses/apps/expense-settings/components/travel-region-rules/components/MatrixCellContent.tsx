@@ -176,8 +176,14 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
 
           {/* Active From */}
           <div>
-            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">From:</label>
+            <label
+              htmlFor={`${prefixDataTestId}-cell-active-from-${ruleId}-${regionId}`}
+              className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1"
+            >
+              From:
+            </label>
             <DateInput
+              id={`${prefixDataTestId}-cell-active-from-${ruleId}-${regionId}`}
               value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
               onChange={date => {
                 const dateValue = date ? `${date}T00:00:00+00:00` : ''
@@ -190,8 +196,14 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
 
           {/* Active To */}
           <div>
-            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">To:</label>
+            <label
+              htmlFor={`${prefixDataTestId}-cell-active-to-${ruleId}-${regionId}`}
+              className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1"
+            >
+              To:
+            </label>
             <DateInput
+              id={`${prefixDataTestId}-cell-active-to-${ruleId}-${regionId}`}
               value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
               onChange={date => {
                 const dateValue = date ? `${date}T00:00:00+00:00` : undefined
@@ -203,8 +215,14 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
 
           {/* Amount */}
           <div>
-            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">Amount:</label>
+            <label
+              htmlFor={`${prefixDataTestId}-cell-amount-${ruleId}-${regionId}`}
+              className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1"
+            >
+              Amount:
+            </label>
             <Input
+              id={`${prefixDataTestId}-cell-amount-${ruleId}-${regionId}`}
               type="number"
               step="0.01"
               value={cell.amount || ''}
@@ -222,7 +240,12 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
 
           {/* Currency */}
           <div>
-            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">Currency:</label>
+            <label
+              htmlFor={`${prefixDataTestId}-cell-currency-${ruleId}-${regionId}`}
+              className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1"
+            >
+              Currency:
+            </label>
             <Select
               value={cell.currencyCode}
               onValueChange={value => {
@@ -243,6 +266,7 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
               disabled={isUsedInTransactions && !cell.isNew}
             >
               <SelectTrigger
+                id={`${prefixDataTestId}-cell-currency-${ruleId}-${regionId}`}
                 className="gba:w-full gba:h-7 gba:text-xs"
                 onClick={e => e.stopPropagation()}
                 data-testid={`${prefixDataTestId}-cell-currency-${ruleId}-${regionId}`}
@@ -261,7 +285,12 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
 
           {/* Country */}
           <div>
-            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">Country:</label>
+            <label
+              htmlFor={`${prefixDataTestId}-cell-country-${ruleId}-${regionId}`}
+              className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1"
+            >
+              Country:
+            </label>
             <Select
               value={cell.countryRef}
               onValueChange={value => {
@@ -280,6 +309,7 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
               disabled={isUsedInTransactions && !cell.isNew}
             >
               <SelectTrigger
+                id={`${prefixDataTestId}-cell-country-${ruleId}-${regionId}`}
                 className="gba:w-full gba:h-7 gba:text-xs"
                 onClick={e => e.stopPropagation()}
                 data-testid={`${prefixDataTestId}-cell-country-${ruleId}-${regionId}`}

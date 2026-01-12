@@ -70,7 +70,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { EnhancedExpenseRuleMileage, MeasurementUnitWithTranslations } from '../../../types/ExpenseRuleTypes'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, checkPeriodUniqueness, formatDate } from '../../../utils'
-import { validateDateRange, applyDateValidationErrors } from '../utils'
+import { validateDateRange, applyDateValidationErrors, getValidityDatesFromRule } from '../utils'
 import { useGetMileageRuleById } from '../../../queries/ExpenseRuleQueries'
 import { useTableSorting, createFieldMappings } from '../hooks'
 
@@ -392,9 +392,8 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     setEditingItem(null)
     setIsRestrictedEdit(false)
 
-    // ALWAYS inherit validity period from parent Expense Rule
-    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
+    // Get validity dates using shared utility (inherits from parent rule)
+    const { validFrom, validTo } = getValidityDatesFromRule(activeFrom, activeTo)
 
     form.reset({
       expenseRuleId: ruleId,
@@ -404,8 +403,8 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
       taxValue: 0,
       unitPrice: 0,
       expenseGroupRef: 'ExpenseGroup:v1:OTHER_TRANSPORT',
-      activeFrom: validFromValue,
-      activeTo: validToValue
+      activeFrom: validFrom,
+      activeTo: validTo
     })
     setAdditionalPropertiesJson('')
     setIsModalVisible(true)

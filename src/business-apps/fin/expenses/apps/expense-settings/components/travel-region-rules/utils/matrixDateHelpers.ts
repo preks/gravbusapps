@@ -68,8 +68,8 @@ export const sortCellsByActiveFrom = (cells: EditableCell[]): EditableCell[] => 
 export const sortNewCellsByCreationOrder = (cells: EditableCell[]): EditableCell[] => {
   return [...cells].sort((a, b) => {
     // First sort by validityPeriodId timestamp (creation order)
-    const aTimestamp = a.validityPeriodId ? parseInt(a.validityPeriodId.split('-').pop() || '0') : 0
-    const bTimestamp = b.validityPeriodId ? parseInt(b.validityPeriodId.split('-').pop() || '0') : 0
+    const aTimestamp = a.validityPeriodId ? Number.parseInt(a.validityPeriodId.split('-').pop() || '0', 10) : 0
+    const bTimestamp = b.validityPeriodId ? Number.parseInt(b.validityPeriodId.split('-').pop() || '0', 10) : 0
     if (aTimestamp !== bTimestamp) return aTimestamp - bTimestamp
 
     // Then by activeFrom date

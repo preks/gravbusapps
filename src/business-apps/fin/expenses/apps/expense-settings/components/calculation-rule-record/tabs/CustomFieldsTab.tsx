@@ -59,7 +59,8 @@ import {
   validateDateRange,
   applyDateValidationErrors,
   transformCustomFieldForRestrictedUpdate,
-  transformCustomFieldForSave
+  transformCustomFieldForSave,
+  getValidityDatesFromExisting
 } from '../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
@@ -331,26 +332,15 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     setIsRestrictedEdit(false)
     setCurrentUsageInfo(null)
 
-    // Determine validity period based on existing entries
-    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    let validToValue: string | undefined = undefined
-
-    if (customFields.length > 0) {
-      // Use the same validity period as the first existing entry
-      const existingEntry = customFields[0]
-      validFromValue = formatDateForInput(existingEntry.validFrom) || validFromValue
-      validToValue = formatDateForInput(existingEntry.validTo)
-    } else {
-      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = formatDateForInput(activeTo) || '9999-12-31'
-    }
+    // Get validity dates using shared utility (copies from first existing entry if available)
+    const { validFrom, validTo } = getValidityDatesFromExisting(customFields, activeFrom, activeTo)
 
     form.reset({
       source: 'Expense',
       infoValue: '',
       mandatory: false,
-      validFrom: validFromValue,
-      validTo: validToValue,
+      validFrom,
+      validTo,
       relatedId: undefined
     })
     setIsModalVisible(true)

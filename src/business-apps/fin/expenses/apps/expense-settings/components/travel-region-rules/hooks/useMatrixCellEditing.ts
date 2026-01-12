@@ -44,7 +44,7 @@ const validateDetailDatesAgainstRule = (
     return false
   }
 
-  if (ruleTo && detailTo && detailTo.isAfter(ruleTo)) {
+  if (ruleTo && detailTo?.isAfter(ruleTo)) {
     toast.error(
       `Detail's "Valid To" (${detailTo.format('DD/MM/YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD/MM/YYYY')})`
     )
@@ -150,6 +150,19 @@ const buildCellPayload = (
 })
 
 /**
+ * Helper to calculate next version number
+ */
+const calculateNextVersion = (responseVersion: number | undefined, cellVersion: number | undefined): number => {
+  if (responseVersion !== undefined) {
+    return responseVersion + 1
+  }
+  if (cellVersion !== undefined) {
+    return cellVersion + 1
+  }
+  return 1
+}
+
+/**
  * Helper to extract saved cell data from API response
  */
 const extractSavedCellData = (response: any, latestCell: EditableCell, currencyRef: string | undefined) => {
@@ -163,11 +176,7 @@ const extractSavedCellData = (response: any, latestCell: EditableCell, currencyR
     activeTo: responseDetail?.activeTo ?? latestCell.activeTo,
     currencyRef: savedCurrencyRef,
     currencyCode: savedCurrencyRef?.split(':').pop() || latestCell.currencyCode,
-    version: responseDetail?.version
-      ? responseDetail.version + 1
-      : latestCell.version !== undefined
-        ? latestCell.version + 1
-        : (latestCell.version || 0) + 1
+    version: calculateNextVersion(responseDetail?.version, latestCell.version)
   }
 }
 

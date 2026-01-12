@@ -60,7 +60,7 @@ dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, checkPeriodUniqueness, formatDate } from '../../../utils'
-import { validateDateRange, applyDateValidationErrors } from '../utils'
+import { validateDateRange, applyDateValidationErrors, getValidityDatesFromExisting } from '../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
 
@@ -337,19 +337,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     setIsRestrictedEdit(false)
     setCurrentUsageInfo(null)
 
-    // Determine validity period based on existing entries
-    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    let validToValue: string | undefined = undefined
-
-    if (allowancePeriods.length > 0) {
-      // Use the same validity period as the first existing entry
-      const existingEntry = allowancePeriods[0]
-      validFromValue = formatDateForInput(existingEntry.validFrom) || validFromValue
-      validToValue = formatDateForInput(existingEntry.validTo)
-    } else {
-      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = formatDateForInput(activeTo) || '9999-12-31'
-    }
+    // Get validity dates using shared utility (copies from first existing entry if available)
+    const { validFrom, validTo } = getValidityDatesFromExisting(allowancePeriods, activeFrom, activeTo)
 
     form.reset({
       code: '',
@@ -357,8 +346,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       minHours: 0,
       midnightRule: false,
       overnightAccommodation: false,
-      validFrom: validFromValue,
-      validTo: validToValue,
+      validFrom,
+      validTo,
       order: allowancePeriods.length + 1
     })
     setIsModalVisible(true)

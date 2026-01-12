@@ -63,7 +63,7 @@ dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
-import { validateDateRange, applyDateValidationErrors } from '../utils'
+import { validateDateRange, applyDateValidationErrors, getValidityDatesFromRule } from '../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
 
@@ -403,17 +403,16 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     setIsRestrictedEdit(false)
     setCurrentUsageInfo(null)
 
-    // ALWAYS inherit validity period from parent Expense Rule
-    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
+    // Get validity dates using shared utility (inherits from parent rule)
+    const { validFrom, validTo } = getValidityDatesFromRule(activeFrom, activeTo)
 
     form.reset({
       source: '',
       relatedId: undefined,
       costCenterId: undefined,
       reimbursablePercent: undefined,
-      validFrom: validFromValue,
-      validTo: validToValue
+      validFrom,
+      validTo
     })
     setIsModalVisible(true)
   }
