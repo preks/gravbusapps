@@ -2,7 +2,7 @@ import React from 'react'
 import type { Message } from '../types'
 import type { OutputItem, ConversationTurn } from '../../every-ai/types/models'
 import { FormSubmissionProvider } from '../../every-ai/components/FormSubmissionContext'
-import OutputItemRenderer from '../../every-ai/components/OutputRenderers'
+import { UnifiedAIMessageRenderer } from '../../every-ai/components/UnifiedAIMessageRenderer'
 import { MeetingCard } from './MeetingCard'
 import type { ScheduledMeeting } from '../hooks/useEveryAIChat'
 
@@ -12,6 +12,8 @@ interface EveryAIMessageRendererProps {
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
   isInitiatedByCurrentUser?: boolean
   onHasHiddenCards?: (hasHidden: boolean) => void
+  headerContent?: React.ReactNode
+  footerContent?: React.ReactNode
 }
 
 /**
@@ -30,7 +32,9 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
   accessToken,
   onSendMessage,
   isInitiatedByCurrentUser,
-  onHasHiddenCards
+  onHasHiddenCards,
+  headerContent,
+  footerContent
 }) => {
   // Check if this message is a result from a form submission
   const isFormResult = message.metadata?.isFormResult === true
@@ -186,26 +190,30 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
     })
   }, [outputs, scheduledMeeting])
 
+  // If we hid cards from non-initiator, don't show any outputs (message handled by MessageItem)
+  if (hasHiddenCards) {
+    return null
+  }
+
+  const meetingFooter = scheduledMeeting ? (
+    <div className="gba:mt-3">
+      <MeetingCard meeting={scheduledMeeting} />
+    </div>
+  ) : undefined
+
   return (
     <FormSubmissionProvider>
-      <div className="gba:space-y-3" data-testid="everyai-message-renderer">
-        {/* If we hid cards from non-initiator, don't show any outputs (message handled by MessageItem) */}
-        {!hasHiddenCards &&
-          // Show normal outputs if user is initiator or no cards were hidden
-          filteredOutputs.map((output, index) => (
-            <OutputItemRenderer
-              key={`output-${index}`}
-              item={output}
-              accessToken={accessToken}
-              sendMessage={handleSendMessage}
-              conversation={conversation}
-              isVoiceMode={false}
-            />
-          ))}
-
-        {/* Always render MeetingCard if we have scheduled meeting (original chat behavior) */}
-        {scheduledMeeting && <MeetingCard meeting={scheduledMeeting} />}
-      </div>
+      <UnifiedAIMessageRenderer
+        outputs={filteredOutputs}
+        accessToken={accessToken}
+        sendMessage={handleSendMessage}
+        conversation={conversation}
+        isVoiceMode={false}
+        wrapInBubble={true}
+        headerContent={headerContent}
+        footerContent={footerContent || meetingFooter}
+        data-testid="everyai-message-renderer"
+      />
     </FormSubmissionProvider>
   )
 }
