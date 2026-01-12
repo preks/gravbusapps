@@ -5,9 +5,24 @@
  * Displays existing apps and provides the upload interface for creating new ones.
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { Card, Button, Input, Spinner } from '@newwork/nw-design-system'
+import {
+  Card,
+  Button,
+  Input,
+  Spinner,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Label
+} from '@newwork/nw-design-system'
 import {
   FileSpreadsheet,
   Plus,
@@ -19,7 +34,8 @@ import {
   SortAsc,
   Upload,
   Database,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -38,7 +54,7 @@ import { useSpreadsheetAI } from './hooks/useSpreadsheetAI'
 import { useDataPromotion } from './hooks/useDataPromotion'
 
 // Services
-import { generateAppSchema } from './services/SchemaGenerator'
+import { generateAppSchema, generateEmptyAppSchema } from './services/SchemaGenerator'
 
 // Types
 import type { ParsedExcelFile, SpreadsheetAnalysis, SpreadsheetApp, SpreadsheetAppSummary } from './types'
@@ -61,6 +77,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isCreateEmptyDialogOpen, setIsCreateEmptyDialogOpen] = useState(false)
+  const [newAppName, setNewAppName] = useState('')
 
   // Data state
   const [parsedFile, setParsedFile] = useState<ParsedExcelFile | null>(null)
@@ -131,6 +149,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     clearCurrentApp,
     refreshApps
   } = useSpreadsheetApps(accessToken, currentUserId)
+
+  // Ref to always have the latest currentApp value for callbacks
+  // This prevents stale closure issues in onDataChange
+  const currentAppRef = useRef(currentApp)
+  useEffect(() => {
+    currentAppRef.current = currentApp
+  }, [currentApp])
 
   const { isAnalyzing, analyzeSpreadsheet, reset: resetAI } = useSpreadsheetAI(accessToken)
 
@@ -456,6 +481,33 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     setCurrentView('upload')
   }, [resetAI])
 
+  /**
+   * Handle create empty app
+   */
+  const handleCreateEmptyApp = useCallback(async () => {
+    if (!newAppName.trim() || !userInfo) return
+
+    const appName = newAppName.trim() || 'New Spreadsheet App'
+    const appSchema = generateEmptyAppSchema(
+      appName,
+      userInfo.id || userInfo?.employeeDetails?.employeeId || 'unknown'
+    )
+
+    const createdApp = await createApp(appSchema)
+
+    if (createdApp) {
+      // Refresh apps list to ensure permissions are set
+      await refreshApps()
+      // Load the app to ensure it's available in currentApp with proper permissions
+      await loadApp(createdApp.id, createdApp.filePath)
+      setSelectedAppId(createdApp.id)
+      setCurrentView('viewer')
+      updateUrl(createdApp.id, 'viewer', createdApp.filePath)
+      setIsCreateEmptyDialogOpen(false)
+      setNewAppName('')
+    }
+  }, [newAppName, userInfo, createApp, updateUrl, refreshApps, loadApp])
+
   // Render based on current view
   if (currentView === 'viewer' && currentApp) {
     // Check if user can edit (owner or edit permission)
@@ -477,9 +529,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         onDataChange={
           canEdit
             ? (sheetId, data) => {
+                // Use ref to get latest currentApp to prevent stale closure issues
+                const latestApp = currentAppRef.current
+                if (!latestApp) return
+                
                 // Update sheet data
-                const updatedSheets = currentApp.sheets.map(s => (s.id === sheetId ? { ...s, data } : s))
-                updateApp(currentApp.id, { sheets: updatedSheets })
+                const updatedSheets = latestApp.sheets.map(s => (s.id === sheetId ? { ...s, data } : s))
+                updateApp(latestApp.id, { sheets: updatedSheets })
               }
             : undefined
         }
@@ -531,10 +587,24 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
             <div className="gba:flex gba:items-center gba:gap-2">
               {currentView === 'list' && (
-                <Button onClick={handleStartUpload}>
-                  <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                  New App
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button>
+                      <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+                      New App
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setIsCreateEmptyDialogOpen(true)}>
+                      <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Create Empty Spreadsheet
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleStartUpload}>
+                      <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Upload Excel File
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               {currentView !== 'list' && (
                 <Button variant="outline" onClick={handleBack}>
@@ -739,6 +809,40 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           onRefreshShares={handleRefreshShares}
         />
       )}
+
+      {/* Create Empty App Dialog */}
+      <Dialog open={isCreateEmptyDialogOpen} onOpenChange={setIsCreateEmptyDialogOpen}>
+        <DialogContent className="gba:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Empty Spreadsheet</DialogTitle>
+          </DialogHeader>
+          <div className="gba:space-y-4 gba:py-4">
+            <div className="gba:space-y-2">
+              <Label htmlFor="app-name">App Name</Label>
+              <Input
+                id="app-name"
+                placeholder="My Spreadsheet App"
+                value={newAppName}
+                onChange={e => setNewAppName(e.target.value)}
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newAppName.trim()) {
+                    handleCreateEmptyApp()
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateEmptyDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateEmptyApp} disabled={!newAppName.trim()}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

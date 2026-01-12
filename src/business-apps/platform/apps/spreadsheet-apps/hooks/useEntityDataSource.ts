@@ -62,6 +62,8 @@ export interface UseEntityDataSourceResult {
   availableEntities: AvailableEntity[]
   /** Whether entities are loading */
   isLoadingEntities: boolean
+  /** Error message when fetching entities fails */
+  entitiesError: string | null
   /** Fetch available entities */
   fetchAvailableEntities: () => Promise<void>
   /** Get fields for a specific entity */
@@ -167,22 +169,32 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
   })
   const [availableEntities, setAvailableEntities] = useState<AvailableEntity[]>([])
   const [isLoadingEntities, setIsLoadingEntities] = useState(false)
+  const [entitiesError, setEntitiesError] = useState<string | null>(null)
 
   // Refs for last config (for refresh)
   const lastDataSourceRef = useRef<EntityDataSource | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const isLoadingEntitiesRef = useRef(false)
 
   /**
    * Fetch available entities from the schema API
    */
   const fetchAvailableEntities = useCallback(async () => {
-    if (isLoadingEntities) return
+    if (isLoadingEntitiesRef.current) {
+      console.log('[useEntityDataSource] Already loading entities, skipping...')
+      return
+    }
 
+    isLoadingEntitiesRef.current = true
     setIsLoadingEntities(true)
+    setEntitiesError(null)
 
     try {
       const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/api/entities?includeFields=true`, {
+      const url = `${apiUrl}/api/entities?includeFields=true`
+      console.log('[useEntityDataSource] Fetching entities from:', url)
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -191,41 +203,79 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch entities: ${response.status}`)
+        const errorText = await response.text().catch(() => 'Unknown error')
+        throw new Error(`Failed to fetch entities: ${response.status} ${response.statusText}. ${errorText}`)
       }
 
       const data = await response.json()
-      const entities = data.entities || data.schemas || {}
+      console.log('[useEntityDataSource] Received entities response:', data)
+
+      // Handle different response formats
+      let entities: Record<string, any> | any[] = {}
+      
+      if (Array.isArray(data)) {
+        // If response is an array, convert to object
+        entities = data.reduce((acc, entity) => {
+          acc[entity.type || entity.name] = entity
+          return acc
+        }, {} as Record<string, any>)
+      } else if (data.entities) {
+        entities = data.entities
+      } else if (data.schemas) {
+        entities = data.schemas
+      } else if (typeof data === 'object') {
+        entities = data
+      }
+
+      // Ensure entities is an object for Object.entries
+      if (!entities || (Array.isArray(entities) && entities.length === 0)) {
+        console.warn('[useEntityDataSource] No entities found in response')
+        setAvailableEntities([])
+        return
+      }
 
       // Convert to array format
-      const entityList: AvailableEntity[] = Object.entries(entities).map(([type, schema]: [string, any]) => ({
-        type,
-        displayName: schema.displayName || type,
-        description: schema.description || '',
-        icon: schema.icon,
-        category: schema.category,
-        fields: (schema.fields || []).map((f: any) => ({
-          name: f.name,
-          displayName: f.displayName || f.name,
-          type: f.type,
-          description: f.description,
-          required: f.required,
-          referencedEntity: f.referencedEntity,
-          catalogName: f.catalogName,
-          icon: f.icon,
-          category: f.category,
-          fields: f.fields
-        })),
-        exampleId: schema.exampleId
-      }))
+      const entityList: AvailableEntity[] = Object.entries(entities).map(([type, schema]: [string, any]) => {
+        // Handle case where schema might already be in the correct format
+        if (schema.type && !schema.displayName) {
+          return schema as AvailableEntity
+        }
 
+        return {
+          type,
+          displayName: schema.displayName || schema.name || type,
+          description: schema.description || '',
+          icon: schema.icon,
+          category: schema.category,
+          fields: (schema.fields || []).map((f: any) => ({
+            name: f.name,
+            displayName: f.displayName || f.name,
+            type: f.type,
+            description: f.description,
+            required: f.required,
+            referencedEntity: f.referencedEntity,
+            catalogName: f.catalogName,
+            icon: f.icon,
+            category: f.category,
+            fields: f.fields
+          })),
+          exampleId: schema.exampleId
+        }
+      })
+
+      console.log('[useEntityDataSource] Parsed entities:', entityList.length, 'entities')
       setAvailableEntities(entityList)
+      setEntitiesError(null)
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch entities'
       console.error('[useEntityDataSource] Failed to fetch entities:', error)
+      setEntitiesError(errorMessage)
+      setAvailableEntities([])
     } finally {
       setIsLoadingEntities(false)
+      isLoadingEntitiesRef.current = false
     }
-  }, [accessToken, isLoadingEntities])
+  }, [accessToken])
 
   /**
    * Get fields for a specific entity type
@@ -391,6 +441,7 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
     clear,
     availableEntities,
     isLoadingEntities,
+    entitiesError,
     fetchAvailableEntities,
     getEntityFields
   }

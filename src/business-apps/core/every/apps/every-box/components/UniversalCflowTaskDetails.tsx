@@ -382,6 +382,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       ...(showComment && comment?.trim() ? { comment: comment.trim() } : {})
     }
 
+    // Debug: Log the complete request to help troubleshoot userId issues
+    console.log('[UniversalCflowTaskDetails] Completing task:', {
+      taskId: task.id,
+      userId,
+      hasUserId: !!userId,
+      formDataKeys: Object.keys(processedFormData),
+      requestBody: completeRequestBody
+    })
+
     const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
       method: 'POST',
       headers: {

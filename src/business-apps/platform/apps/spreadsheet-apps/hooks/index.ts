@@ -25,3 +25,6 @@ export type { UseSpreadsheetAppsDatabaseState, UseSpreadsheetAppsDatabaseResult 
 
 export { useEntityDataSource, buildGraphQLWhere } from './useEntityDataSource'
 export type { UseEntityDataSourceOptions, UseEntityDataSourceResult } from './useEntityDataSource'
+
+export { useSpreadsheetAutomations } from './useSpreadsheetAutomations'
+export type { UseSpreadsheetAutomationsParams, UseSpreadsheetAutomationsResult } from './useSpreadsheetAutomations'

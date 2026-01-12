@@ -132,6 +132,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
   const {
     availableEntities,
     isLoadingEntities,
+    entitiesError,
     fetchAvailableEntities,
     getEntityFields,
     loadData,
@@ -204,9 +205,10 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
   // Fetch entities when dialog opens
   useEffect(() => {
     if (isOpen && availableEntities.length === 0) {
+      console.log('[EntityDataSourceDialog] Dialog opened, fetching entities...')
       fetchAvailableEntities()
     }
-  }, [isOpen, availableEntities.length, fetchAvailableEntities])
+  }, [isOpen, availableEntities.length, fetchAvailableEntities]) // fetchAvailableEntities is stable from hook
 
   // Auto-generate field mappings when entity is selected
   useEffect(() => {
@@ -417,7 +419,17 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                       <Loader2 className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
                       <span className="gba:ml-2 gba:text-muted-foreground">Loading entities...</span>
                     </div>
-                  ) : (
+                  ) : entitiesError ? (
+                    <div className="gba:text-center gba:py-8">
+                      <AlertCircle className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:text-destructive" />
+                      <p className="gba:text-destructive gba:font-medium gba:mb-1">Failed to load entities</p>
+                      <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{entitiesError}</p>
+                      <Button variant="outline" size="sm" onClick={fetchAvailableEntities}>
+                        <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
+                        Retry
+                      </Button>
+                    </div>
+                  ) : availableEntities.length > 0 ? (
                     <div className="gba:grid gba:grid-cols-2 gba:gap-3">
                       {availableEntities.map(entity => {
                         const Icon = getEntityIcon(entity.type)
@@ -461,9 +473,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                         )
                       })}
                     </div>
-                  )}
-
-                  {availableEntities.length === 0 && !isLoadingEntities && (
+                  ) : (
                     <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
                       <AlertCircle className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2" />
                       <p>No entities available</p>
