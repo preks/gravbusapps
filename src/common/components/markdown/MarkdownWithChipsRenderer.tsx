@@ -157,9 +157,9 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
       ),
       em: ({ children }: { children?: React.ReactNode }) => <em className="gba:italic">{children}</em>,
 
-      // Paragraphs
+      // Paragraphs - no bottom margin, spacing handled by gap in parent or sibling selector
       p: ({ children }: { children?: React.ReactNode }) => (
-        <p className="gba:mb-3 gba:leading-relaxed gba:text-foreground">{children}</p>
+        <p className="gba:mb-0 gba:leading-relaxed gba:text-foreground [&+p]:gba:mt-2">{children}</p>
       ),
 
       // Headers
@@ -228,11 +228,11 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
     const baseClasses = 'gba:prose gba:max-w-none gba:text-foreground'
     switch (variant) {
       case 'chat':
-        return `${baseClasses} gba:text-sm`
+        return `${baseClasses} gba:text-sm [&>*:last-child]:gba:mb-0`
       case 'ai':
-        return `${baseClasses} gba:prose-sm`
+        return `${baseClasses} gba:prose-sm [&>*:last-child]:gba:mb-0`
       default:
-        return `${baseClasses} gba:prose-sm`
+        return `${baseClasses} gba:prose-sm [&>*:last-child]:gba:mb-0`
     }
   }, [variant])
 
