@@ -113,7 +113,6 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
 
   const [, setFileList] = useState<UploadFile[]>([])
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [aiApplied, setAiApplied] = useState(false)
   const [pendingTypeValue, setPendingTypeValue] = useState<string | null>(null)
   const initialDefaultsRef = useRef(form.getValues())
 
@@ -156,59 +155,8 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
 
   // Reset AI application flags when file changes
   useEffect(() => {
-    setAiApplied(false)
     setPendingTypeValue(null)
   }, [selectedFile])
-
-  // Auto-apply AI suggestion for group/type when possible
-  useEffect(() => {
-    if (!aiSuggestion || aiApplied) return
-
-    const currentGroupId = form.getValues('documentGroupId')
-    const currentTypeId = form.getValues('documentTypeId')
-
-    // Auto-apply group if not selected yet
-    if (!currentGroupId && aiSuggestion.group && groups && groups.length > 0) {
-      const normalizedGroup = aiSuggestion.group.toString().trim().toLowerCase()
-      const matchGroup = groups.find(g => {
-        const byLabel = (g.label || '').toString().trim().toLowerCase() === normalizedGroup
-        const byValue = (g.value || '').toString().trim().toLowerCase() === normalizedGroup
-        return byLabel || byValue
-      })
-
-      if (matchGroup?.id) {
-        form.setValue('documentGroupId', matchGroup.id, {
-          shouldDirty: true,
-          shouldValidate: true,
-          shouldTouch: true
-        })
-      }
-    }
-
-    // Auto-apply type if not selected yet
-    if (!currentTypeId && aiSuggestion.type) {
-      const normalizedType = aiSuggestion.type.toString().trim().toLowerCase()
-      const availableTypes = filteredTypes && filteredTypes.length > 0 ? filteredTypes : types || []
-
-      const matchType = availableTypes.find(t => {
-        const byLabel = (t.label || '').toString().trim().toLowerCase() === normalizedType
-        const byValue = (t.value || '').toString().trim().toLowerCase() === normalizedType
-        return byLabel || byValue
-      })
-
-      if (matchType?.id) {
-        form.setValue('documentTypeId', matchType.id, {
-          shouldDirty: true,
-          shouldValidate: true,
-          shouldTouch: true
-        })
-        setAiApplied(true)
-      } else {
-        // Remember requested type so we can try again after group change
-        setPendingTypeValue(aiSuggestion.type)
-      }
-    }
-  }, [aiSuggestion, aiApplied, groups, types, filteredTypes, form])
 
   // Apply pending type suggestion after group change (when types become filtered)
   useEffect(() => {
@@ -229,26 +177,50 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
         shouldValidate: true,
         shouldTouch: true
       })
-      setAiApplied(true)
       setPendingTypeValue(null)
     }
   }, [pendingTypeValue, selectedGroupId, types, form])
 
+  const normalize = (value: unknown): string => (value ?? '').toString().trim().toLowerCase()
+
+  const buildCandidates = (raw: unknown): string[] => {
+    const base = normalize(raw)
+    if (!base) return []
+    const parts = (raw ?? '').toString().split(':')
+    const last = parts[parts.length - 1]
+    const set = new Set<string>()
+    set.add(base)
+    if (last) {
+      set.add(normalize(last))
+    }
+    return Array.from(set)
+  }
+
+  const matchesSuggestion = (entryLabel: unknown, entryValue: unknown, suggestion: string): boolean => {
+    const suggestionCandidates = buildCandidates(suggestion)
+    if (suggestionCandidates.length === 0) return false
+
+    const labelNorm = normalize(entryLabel)
+    const valueCandidates = buildCandidates(entryValue)
+
+    return suggestionCandidates.some(s => {
+      if (!s) return false
+      if (labelNorm && labelNorm === s) return true
+      return valueCandidates.some(v => v === s)
+    })
+  }
+
   const handleApplyAiSuggestion = useCallback(() => {
     if (!aiSuggestion) return
 
-    const currentGroupId = form.getValues('documentGroupId')
+    let currentGroupId = form.getValues('documentGroupId')
 
-    // Apply group suggestion explicitly
+    // 1) Try to apply group directly from AI suggestion
     if (aiSuggestion.group && groups && groups.length > 0) {
-      const normalizedGroup = aiSuggestion.group.toString().trim().toLowerCase()
-      const matchGroup = groups.find(g => {
-        const byLabel = (g.label || '').toString().trim().toLowerCase() === normalizedGroup
-        const byValue = (g.value || '').toString().trim().toLowerCase() === normalizedGroup
-        return byLabel || byValue
-      })
+      const matchGroup = groups.find(g => matchesSuggestion(g.label, g.value, aiSuggestion.group as string))
 
       if (matchGroup?.id && matchGroup.id !== currentGroupId) {
+        currentGroupId = matchGroup.id
         form.setValue('documentGroupId', matchGroup.id, {
           shouldDirty: true,
           shouldValidate: true,
@@ -257,16 +229,11 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
       }
     }
 
-    // Apply type suggestion explicitly
+    // 2) Apply type suggestion and, if needed, derive group from the type parentEntryId
     if (aiSuggestion.type) {
-      const normalizedType = aiSuggestion.type.toString().trim().toLowerCase()
       const availableTypes = filteredTypes && filteredTypes.length > 0 ? filteredTypes : types || []
 
-      const matchType = availableTypes.find(t => {
-        const byLabel = (t.label || '').toString().trim().toLowerCase() === normalizedType
-        const byValue = (t.value || '').toString().trim().toLowerCase() === normalizedType
-        return byLabel || byValue
-      })
+      const matchType = availableTypes.find(t => matchesSuggestion(t.label, t.value, aiSuggestion.type as string))
 
       if (matchType?.id) {
         form.setValue('documentTypeId', matchType.id, {
@@ -274,8 +241,22 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
           shouldValidate: true,
           shouldTouch: true
         })
-        setAiApplied(true)
         setPendingTypeValue(null)
+
+        // If group could not be matched from AI text but the type has parentEntryId,
+        // set the group based on that parentEntryId (linked pair).
+        const parentGroupId = (matchType as any)?.parentEntryId as string | null | undefined
+        if (!currentGroupId && parentGroupId) {
+          const groupFromType = (groups || []).find(g => g.id === parentGroupId)
+          const resolvedGroupId = groupFromType?.id || parentGroupId
+          if (resolvedGroupId) {
+            form.setValue('documentGroupId', resolvedGroupId, {
+              shouldDirty: true,
+              shouldValidate: true,
+              shouldTouch: true
+            })
+          }
+        }
       } else {
         setPendingTypeValue(aiSuggestion.type)
       }
