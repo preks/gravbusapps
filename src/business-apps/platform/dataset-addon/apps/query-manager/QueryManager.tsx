@@ -1,15 +1,5 @@
-import React, { useState } from 'react'
-import {
-  Button,
-  Alert,
-  Spinner,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  toast,
-  Toaster
-} from '@newwork/nw-design-system'
+import React, { useRef, useState } from 'react'
+import { Button, Alert, Tabs, TabsList, TabsTrigger, TabsContent, toast, Toaster } from '@newwork/nw-design-system'
 import {
   ArrowClockwiseIcon,
   GearIcon,
@@ -41,6 +31,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
     status?: QueryStatus
     search?: string
   }>({})
+  const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const {
     queries,
@@ -134,7 +125,13 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
   // Handle filters change
   const handleFiltersChange = (newFilters: typeof filters) => {
     setFilters(newFilters)
-    loadQueries(newFilters, 0, pageSize)
+    // debounce load to avoid refresh on every keystroke
+    if (filterDebounceRef.current) {
+      clearTimeout(filterDebounceRef.current)
+    }
+    filterDebounceRef.current = setTimeout(() => {
+      loadQueries(newFilters, 0, pageSize)
+    }, 300)
   }
 
   const formatErrorMessage = (error: string) => {
@@ -218,42 +215,28 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
         </Alert>
       )}
 
-      {/* Loading State */}
-      {isLoading ? (
-        <div
-          className="gba:flex gba:justify-center gba:items-center gba:h-full"
-          style={{
-            paddingTop: 'var(--nw-spacing-12)',
-            paddingBottom: 'var(--nw-spacing-12)'
-          }}
-        >
-          <Spinner />
-          <span style={{ marginLeft: 'var(--nw-spacing-3)' }}>
-            Loading {activeQueryType.toLowerCase()} query definitions for {getServiceLabel(activeService)}...
-          </span>
-        </div>
-      ) : (
-        <div className="gba:h-full gba:w-full gba:flex-1 gba:min-h-0">
-          <QueryDefinitionList
-            queries={queries}
-            isLoading={isLoading}
-            isUpdating={isUpdating}
-            isDeleting={isDeleting}
-            totalQueries={totalQueries}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onEdit={handleEditQuery}
-            onDelete={handleDeleteQuery}
-            onStatusChange={handleToggleQueryStatus}
-            onPageChange={(page, size) => loadQueries(filters, page - 1, size)}
-            onFilter={handleFiltersChange}
-            onCreateNew={handleCreateQuery}
-            error={error || undefined}
-            onRetry={refetch}
-            formatErrorMessage={formatErrorMessage}
-          />
-        </div>
-      )}
+      {/* Always render list; let it show inline loading to avoid unmounting filters */}
+      <div className="gba:h-full gba:w-full gba:flex-1 gba:min-h-0">
+        <QueryDefinitionList
+          queries={queries}
+          isLoading={isLoading}
+          isUpdating={isUpdating}
+          isDeleting={isDeleting}
+          totalQueries={totalQueries}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onEdit={handleEditQuery}
+          onDelete={handleDeleteQuery}
+          onStatusChange={handleToggleQueryStatus}
+          onPageChange={(page, size) => loadQueries(filters as any, page, size)}
+          filters={filters}
+          onFilter={handleFiltersChange}
+          onCreateNew={handleCreateQuery}
+          error={error || undefined}
+          onRetry={refetch}
+          formatErrorMessage={formatErrorMessage}
+        />
+      </div>
 
       {/* Query Form Modal */}
       <QueryDefinitionForm
@@ -270,36 +253,44 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
 
   const renderServiceContent = (service: Services) => {
     return (
-      <Tabs
-        value={activeQueryType}
-        onValueChange={value => setActiveQueryType(value as QueryType)}
-        className="gba:h-full gba:w-full"
-      >
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-2" data-testid={`query-type-tabs-${service}`}>
-          <TabsTrigger
-            value={QueryType.DATASET}
-            className="gba:flex gba:items-center"
-            style={{ gap: 'var(--nw-spacing-2)' }}
-          >
-            <DatabaseIcon />
-            Dataset Queries
-          </TabsTrigger>
-          <TabsTrigger
-            value={QueryType.TIMESERIES}
-            className="gba:flex gba:items-center"
-            style={{ gap: 'var(--nw-spacing-2)' }}
-          >
-            <ChartBarIcon />
-            Timeseries Queries
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value={QueryType.DATASET} className="gba:h-full gba:w-full">
-          {renderQueryTypeContent()}
-        </TabsContent>
-        <TabsContent value={QueryType.TIMESERIES} className="gba:h-full gba:w-full">
-          {renderQueryTypeContent()}
-        </TabsContent>
-      </Tabs>
+      <div className="gba:h-full gba:w-full">
+        <Tabs
+          key={service}
+          value={activeQueryType}
+          onValueChange={value => {
+            if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current)
+            setActiveQueryType(value as QueryType)
+            // Reset filters and let the hook's effect load based on new queryType
+            setFilters({})
+          }}
+          className="gba:h-full gba:w-full"
+        >
+          <TabsList className="gba:grid gba:w-full gba:grid-cols-2" data-testid={`query-type-tabs-${service}`}>
+            <TabsTrigger
+              value={QueryType.DATASET}
+              className="gba:flex gba:items-center"
+              style={{ gap: 'var(--nw-spacing-2)' }}
+            >
+              <DatabaseIcon />
+              Dataset Queries
+            </TabsTrigger>
+            <TabsTrigger
+              value={QueryType.TIMESERIES}
+              className="gba:flex gba:items-center"
+              style={{ gap: 'var(--nw-spacing-2)' }}
+            >
+              <ChartBarIcon />
+              Timeseries Queries
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value={QueryType.DATASET} className="gba:h-full gba:w-full">
+            {renderQueryTypeContent()}
+          </TabsContent>
+          <TabsContent value={QueryType.TIMESERIES} className="gba:h-full gba:w-full">
+            {renderQueryTypeContent()}
+          </TabsContent>
+        </Tabs>
+      </div>
     )
   }
 
@@ -347,7 +338,13 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
           >
             <Tabs
               value={activeService}
-              onValueChange={value => setActiveService(value as Services)}
+              onValueChange={value => {
+                // Reset filters and pagination when changing service
+                if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current)
+                setActiveService(value as Services)
+                setFilters({})
+                loadQueries({}, 0, pageSize)
+              }}
               className="gba:h-full gba:w-full"
             >
               <TabsList
