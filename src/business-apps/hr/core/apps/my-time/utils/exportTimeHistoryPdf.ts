@@ -1,4 +1,5 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { parseDurationToMinutes } from './duration'
 import type { TimeEntry } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import PDFKitModule from 'pdfkit/js/pdfkit.standalone.js'
 
@@ -110,21 +111,7 @@ export const exportTimeHistoryPdf = async (params: {
     return d.toLocaleDateString(locale || 'en-US')
   }
 
-  // Helpers for duration parsing/formatting
-  const parseDurationToMinutes = (text?: string): number => {
-    if (!text) return 0
-    let hours = 0
-    let minutes = 0
-    const tokens = String(text).trim().split(/\s+/)
-    for (const token of tokens) {
-      if (/^\d+h$/i.test(token)) {
-        hours = Number.parseInt(token.slice(0, -1), 10) || 0
-      } else if (/^\d+m$/i.test(token)) {
-        minutes = Number.parseInt(token.slice(0, -1), 10) || 0
-      }
-    }
-    return hours * 60 + minutes
-  }
+  // Helpers for duration formatting
   const formatMinutes = (mins: number): string => {
     const sign = mins < 0 ? '-' : ''
     const abs = Math.abs(mins)
