@@ -267,7 +267,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               fileList,
               employeeId
             )
-            return { ...(values as any), employeeDocument: uploadedEmployeeDocument } as AddressFormValues
+            return { ...(values as any), employeeDocument: uploadedEmployeeDocument }
           }}
           onSubmit={async (values: AddressFormValues) => {
             const employeeId =
@@ -451,7 +451,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
             {!isDeleteMode && null}
           </div>
 
-          <div className="gba:flex-grow" data-testid="change-employee-address-spacer" />
+          <div className="gba:grow" data-testid="change-employee-address-spacer" />
 
           <div
             className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mt-auto gba:pt-4"
