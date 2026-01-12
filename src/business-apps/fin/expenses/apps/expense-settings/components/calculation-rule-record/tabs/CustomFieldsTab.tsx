@@ -55,6 +55,12 @@ dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
+import {
+  validateDateRange,
+  applyDateValidationErrors,
+  transformCustomFieldForRestrictedUpdate,
+  transformCustomFieldForSave
+} from '../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
 
@@ -522,87 +528,26 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         return
       }
 
-      // Date validation
-      const ruleFrom = dayjs(activeFrom)
-      const ruleTo = activeTo ? dayjs(activeTo) : null
-      const entryFrom = dayjs(formValues.validFrom)
-      const entryTo = formValues.validTo ? dayjs(formValues.validTo) : null
+      // Date validation using shared utility
+      const dateErrors = validateDateRange({
+        entryFrom: formValues.validFrom,
+        entryTo: formValues.validTo,
+        ruleFrom: activeFrom,
+        ruleTo: activeTo
+      })
 
-      // Valid From cannot be before rule's Valid From
-      if (entryFrom.isBefore(ruleFrom, 'day')) {
-        form.setError('validFrom', {
-          type: 'manual',
-          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
-        })
+      if (applyDateValidationErrors(dateErrors, form.setError)) {
         setIsSaving(false)
         return
       }
 
-      // Valid From cannot be after rule's Valid To
-      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
-        form.setError('validFrom', {
-          type: 'manual',
-          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
-        setIsSaving(false)
-        return
-      }
+      // Build save payload using transformer utilities
+      const savePayload =
+        isRestrictedEdit && editingItem
+          ? transformCustomFieldForRestrictedUpdate(formValues, editingItem, ruleId, mapSourceToApiEnum)
+          : transformCustomFieldForSave(formValues, ruleId, editingItem, mapSourceToApiEnum)
 
-      // Valid To cannot be after rule's Valid To
-      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // Valid To cannot be before Valid From
-      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be before Valid From`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // IMPORTANT: Always use editingItem for id and version when updating
-      const isUpdate = !!editingItem
-
-      // If restricted edit, only update validTo and infoValue
-      if (isRestrictedEdit && editingItem) {
-        await expenseSettingsClient.saveExpenseRuleOtherInfo({
-          id: editingItem.id,
-          version: editingItem.version,
-          expenseRuleId: ruleId,
-          source: mapSourceToApiEnum(editingItem.source),
-          infoValue: formValues.infoValue,
-          mandatory: editingItem.mandatory,
-          activeFrom: editingItem.validFrom ? dayjs(editingItem.validFrom).startOf('day').toISOString() : null,
-          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
-          expenseRuleMileageId: editingItem.source === 'Mileage' ? editingItem.relatedId : null,
-          expenseRuleGeneralExpenseId: editingItem.source === 'Expense' ? editingItem.relatedId : null
-        })
-      } else {
-        // Full save
-        const payload = {
-          ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
-          expenseRuleId: ruleId,
-          businessKey: undefined,
-          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
-          additionalProperties: undefined,
-          source: mapSourceToApiEnum(formValues.source),
-          infoValue: formValues.infoValue,
-          mandatory: formValues.mandatory,
-          activeFrom: formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null,
-          // Set the related ID based on source
-          expenseRuleMileageId: formValues.source === 'Mileage' ? formValues.relatedId : null,
-          expenseRuleGeneralExpenseId: formValues.source === 'Expense' ? formValues.relatedId : null
-        }
-        await expenseSettingsClient.saveExpenseRuleOtherInfo(payload)
-      }
+      await expenseSettingsClient.saveExpenseRuleOtherInfo(savePayload)
 
       toast.success(`Custom field ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)

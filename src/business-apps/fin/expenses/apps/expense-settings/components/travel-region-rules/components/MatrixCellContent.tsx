@@ -14,6 +14,103 @@ import {
 import type { EditableCell } from '../types'
 import { formatPeriodShort } from '../utils/matrixFormatters'
 
+/**
+ * Action buttons for new cell (Cancel + Save)
+ */
+const NewCellActions: React.FC<{
+  cell: EditableCell
+  ruleId: string
+  isSavingCell: boolean
+  onRemoveNewCell?: (validityPeriodId: string, ruleId: string) => void
+  onExitEdit: () => void
+  onSaveCell: () => void
+}> = ({ cell, ruleId, isSavingCell, onRemoveNewCell, onExitEdit, onSaveCell }) => (
+  <div className="gba:flex gba:gap-1 gba:w-full">
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={e => {
+        e.stopPropagation()
+        if (onRemoveNewCell && cell.validityPeriodId) {
+          onRemoveNewCell(cell.validityPeriodId, ruleId)
+        } else {
+          onExitEdit()
+        }
+      }}
+      className="gba:flex-1 gba:h-7 gba:text-xs"
+      disabled={isSavingCell}
+    >
+      Cancel
+    </Button>
+    <Button
+      variant="default"
+      size="sm"
+      onClick={e => {
+        e.stopPropagation()
+        onSaveCell()
+      }}
+      className="gba:flex-1 gba:h-7 gba:text-xs"
+      disabled={isSavingCell || cell.amount <= 0}
+    >
+      {isSavingCell ? 'Saving...' : 'Save'}
+    </Button>
+  </div>
+)
+
+/**
+ * Action buttons for existing cell (Cancel + Save + Delete)
+ */
+const ExistingCellActions: React.FC<{
+  isSavingCell: boolean
+  isCheckingCellUsage: boolean
+  isUsedInTransactions: boolean
+  onExitEdit: () => void
+  onSaveCell: () => void
+  onDeleteCell: () => Promise<void>
+}> = ({ isSavingCell, isCheckingCellUsage, isUsedInTransactions, onExitEdit, onSaveCell, onDeleteCell }) => (
+  <div className="gba:flex gba:gap-1 gba:w-full">
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={e => {
+        e.stopPropagation()
+        onExitEdit()
+      }}
+      className="gba:flex-1 gba:h-7 gba:text-xs"
+      disabled={isSavingCell}
+    >
+      Cancel
+    </Button>
+    <Button
+      variant="default"
+      size="sm"
+      onClick={e => {
+        e.stopPropagation()
+        onSaveCell()
+      }}
+      className="gba:flex-1 gba:h-7 gba:text-xs"
+      disabled={isSavingCell || isCheckingCellUsage}
+    >
+      {isSavingCell ? 'Saving...' : 'Save'}
+    </Button>
+    {!isUsedInTransactions && (
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={async e => {
+          e.stopPropagation()
+          await onDeleteCell()
+        }}
+        className="gba:h-7 gba:px-2"
+        disabled={isSavingCell || isCheckingCellUsage}
+        title="Delete this detail"
+      >
+        <PiTrash className="gba:w-4 gba:h-4" />
+      </Button>
+    )}
+  </div>
+)
+
 interface MatrixCellContentProps {
   cell: EditableCell
   isEditing: boolean
@@ -199,81 +296,26 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
             </Select>
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons - extracted to reduce complexity */}
           <div className="gba:flex gba:gap-2 gba:mt-2">
             {cell.isNew ? (
-              <div className="gba:flex gba:gap-1 gba:w-full">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation()
-                    if (onRemoveNewCell && cell.validityPeriodId) {
-                      onRemoveNewCell(cell.validityPeriodId, ruleId)
-                    } else {
-                      onExitEdit()
-                    }
-                  }}
-                  className="gba:flex-1 gba:h-7 gba:text-xs"
-                  disabled={isSavingCell}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation()
-                    onSaveCell()
-                  }}
-                  className="gba:flex-1 gba:h-7 gba:text-xs"
-                  disabled={isSavingCell || cell.amount <= 0}
-                >
-                  {isSavingCell ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
+              <NewCellActions
+                cell={cell}
+                ruleId={ruleId}
+                isSavingCell={isSavingCell}
+                onRemoveNewCell={onRemoveNewCell}
+                onExitEdit={onExitEdit}
+                onSaveCell={onSaveCell}
+              />
             ) : (
-              <div className="gba:flex gba:gap-1 gba:w-full">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation()
-                    onExitEdit()
-                  }}
-                  className="gba:flex-1 gba:h-7 gba:text-xs"
-                  disabled={isSavingCell}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation()
-                    onSaveCell()
-                  }}
-                  className="gba:flex-1 gba:h-7 gba:text-xs"
-                  disabled={isSavingCell || isCheckingCellUsage}
-                >
-                  {isSavingCell ? 'Saving...' : 'Save'}
-                </Button>
-                {!isUsedInTransactions && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={async e => {
-                      e.stopPropagation()
-                      await onDeleteCell()
-                    }}
-                    className="gba:h-7 gba:px-2"
-                    disabled={isSavingCell || isCheckingCellUsage}
-                    title="Delete this detail"
-                  >
-                    <PiTrash className="gba:w-4 gba:h-4" />
-                  </Button>
-                )}
-              </div>
+              <ExistingCellActions
+                isSavingCell={isSavingCell}
+                isCheckingCellUsage={isCheckingCellUsage}
+                isUsedInTransactions={isUsedInTransactions}
+                onExitEdit={onExitEdit}
+                onSaveCell={onSaveCell}
+                onDeleteCell={onDeleteCell}
+              />
             )}
           </div>
         </div>

@@ -70,6 +70,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { EnhancedExpenseRuleMileage, MeasurementUnitWithTranslations } from '../../../types/ExpenseRuleTypes'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, checkPeriodUniqueness, formatDate } from '../../../utils'
+import { validateDateRange, applyDateValidationErrors } from '../utils'
 import { useGetMileageRuleById } from '../../../queries/ExpenseRuleQueries'
 import { useTableSorting, createFieldMappings } from '../hooks'
 
@@ -564,48 +565,17 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         return
       }
 
-      // Date validation
-      const ruleFrom = dayjs(activeFrom)
-      const ruleTo = activeTo ? dayjs(activeTo) : null
-      const entryFrom = dayjs(formValues.activeFrom)
-      const entryTo = formValues.activeTo ? dayjs(formValues.activeTo) : null
+      // Date validation using shared utility
+      const dateErrors = validateDateRange({
+        entryFrom: formValues.activeFrom,
+        entryTo: formValues.activeTo,
+        ruleFrom: activeFrom,
+        ruleTo: activeTo,
+        fromFieldName: 'activeFrom',
+        toFieldName: 'activeTo'
+      })
 
-      // Valid From cannot be before rule's Valid From
-      if (entryFrom.isBefore(ruleFrom, 'day')) {
-        form.setError('activeFrom', {
-          type: 'manual',
-          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // Valid From cannot be after rule's Valid To
-      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
-        form.setError('activeFrom', {
-          type: 'manual',
-          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // Valid To cannot be after rule's Valid To
-      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
-        form.setError('activeTo', {
-          type: 'manual',
-          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // Valid To cannot be before Valid From
-      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
-        form.setError('activeTo', {
-          type: 'manual',
-          message: `Valid To cannot be before Valid From`
-        })
+      if (applyDateValidationErrors(dateErrors, form.setError)) {
         setIsSaving(false)
         return
       }

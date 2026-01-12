@@ -47,6 +47,7 @@ import {
 import { formatDate } from './utils/matrixFormatters'
 import { convertToEditableCells, validateCurrencies } from './utils/matrixDataTransformers'
 import { regionHasSavedDetails as checkRegionHasSavedDetails } from './utils/matrixValidation'
+import { determineDatesForNewCell } from './utils/matrixDateHelpers'
 import { MatrixRegionRow } from './components/MatrixRegionRow'
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
@@ -58,110 +59,7 @@ dayjs.extend(isSameOrBefore)
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-/**
- * Helper to normalize date: ensure it's in ISO format with time component
- * Handles various date formats from API (ISO with/without time, YYYY-MM-DD, etc.)
- */
-const normalizeDate = (date: string | null | undefined): string | null => {
-  if (!date || (typeof date === 'string' && date.trim() === '')) return null
-
-  // If date is already in ISO format with time, return as is
-  if (typeof date === 'string' && date.includes('T')) {
-    // Ensure it has timezone if missing
-    if (!date.includes('+') && !date.includes('Z') && !date.includes('-', 10)) {
-      return date.endsWith('Z') ? date : `${date}+00:00`
-    }
-    return date
-  }
-
-  // If date is just YYYY-MM-DD, add time component
-  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return `${date}T00:00:00+00:00`
-  }
-
-  // Try to parse any other format and convert to ISO
-  try {
-    const parsed = dayjs(date)
-    if (parsed.isValid()) {
-      return parsed.format('YYYY-MM-DD') + 'T00:00:00+00:00'
-    }
-  } catch (e) {
-    console.warn(`[normalizeDate] Failed to parse date: ${date}`, e)
-  }
-
-  return null
-}
-
-/**
- * Helper to determine default dates for new cell
- * Uses the FIRST detail entered for this rule/region combination
- * NO FALLBACKS - must use actual dates from existing details or rule
- */
-const getDefaultCellDates = (
-  existingCells: EditableCell[],
-  rule: EditableAllowanceRegionRule
-): { activeFrom: string; activeTo: string | undefined } => {
-  // Default far future date for "no end date" (∞) - matches UI display pattern
-  const farFutureDate = '9999-12-31T00:00:00+00:00'
-
-  if (existingCells.length > 0) {
-    // Sort by activeFrom date to get the first detail (oldest activeFrom)
-    const sortedCells = [...existingCells].sort((a, b) => {
-      if (!a.activeFrom && !b.activeFrom) return 0
-      if (!a.activeFrom) return 1
-      if (!b.activeFrom) return -1
-      return dayjs(a.activeFrom).valueOf() - dayjs(b.activeFrom).valueOf()
-    })
-    const firstCell = sortedCells[0]
-
-    // Normalize dates - MUST use the actual dates from the first cell
-    const normalizedActiveFrom = normalizeDate(firstCell.activeFrom)
-    const normalizedActiveTo = normalizeDate(firstCell.activeTo)
-
-    // If we have valid dates, use them - NEVER fall back to far future if we have a cell
-    if (normalizedActiveFrom) {
-      return {
-        activeFrom: normalizedActiveFrom,
-        activeTo: normalizedActiveTo || farFutureDate
-      }
-    } else {
-      // If normalization failed, log error but still try to use the raw date
-      console.error(`[getDefaultCellDates] Failed to normalize activeFrom: ${firstCell.activeFrom}. Using raw value.`)
-      // Use raw date even if normalization failed - better than far future
-      if (firstCell.activeFrom) {
-        return {
-          activeFrom: firstCell.activeFrom.includes('T')
-            ? firstCell.activeFrom
-            : `${firstCell.activeFrom}T00:00:00+00:00`,
-          activeTo: firstCell.activeTo
-            ? firstCell.activeTo.includes('T')
-              ? firstCell.activeTo
-              : `${firstCell.activeTo}T00:00:00+00:00`
-            : farFutureDate
-        }
-      }
-    }
-  }
-
-  // Fallback to rule dates (only if no cells exist)
-  const normalizedRuleFrom = normalizeDate(rule.activeFrom)
-  const normalizedRuleTo = normalizeDate(rule.activeTo)
-
-  if (normalizedRuleFrom) {
-    return {
-      activeFrom: normalizedRuleFrom,
-      activeTo: normalizedRuleTo || farFutureDate
-    }
-  }
-
-  // This should never happen if rule is valid, but if it does, log error and use far future dates
-  // NEVER use today's date as fallback
-  console.error('Warning: Cannot determine default dates from existing details or rule. Using far future dates.')
-  return {
-    activeFrom: farFutureDate,
-    activeTo: farFutureDate
-  }
-}
+// Date helpers (normalizeDate, getDefaultCellDates) imported from ./utils/matrixDateHelpers
 
 /**
  * Helper to create a new validity period
@@ -270,114 +168,26 @@ const handleCellDelete = async (
 
 /**
  * Helper to handle adding new allowance detail cell
+ * Date determination logic extracted to determineDatesForNewCell helper
  */
 const handleAddNewCell = (
-  rule: EditableAllowanceRegionRule, // Rule object from allowanceRegionRules (has details property)
+  rule: EditableAllowanceRegionRule,
   region: EditableTravelRegion,
   editableCells: EditableCell[],
   currencies: CurrencyOption[],
   setAllowanceRegionRules: React.Dispatch<React.SetStateAction<EditableAllowanceRegionRule[]>>,
   setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>,
-  allowanceRegionRules: EditableAllowanceRegionRule[] // Need all rules to check other regions
+  allowanceRegionRules: EditableAllowanceRegionRule[]
 ) => {
   try {
-    let datesToUse: { activeFrom: string; activeTo: string | undefined } | undefined
-
-    // PRIORITY 1: If there are any new (unsaved) cells for this rule (across ALL regions),
-    // use the dates from the first new cell. This ensures all new details inherit dates
-    // from the first newly created detail across all regions.
-    const newCellsForRule = editableCells.filter(c => c.isNew && c.allowanceRegionRuleId === rule.id)
-
-    if (newCellsForRule.length > 0) {
-      // Use dates from the first new cell (sorted by creation order - oldest first)
-      const sortedNewCells = [...newCellsForRule].sort((a, b) => {
-        const aTimestamp = a.validityPeriodId ? parseInt(a.validityPeriodId.split('-').pop() || '0') : 0
-        const bTimestamp = b.validityPeriodId ? parseInt(b.validityPeriodId.split('-').pop() || '0') : 0
-        if (aTimestamp !== bTimestamp) return aTimestamp - bTimestamp
-        if (!a.activeFrom && !b.activeFrom) return 0
-        if (!a.activeFrom) return 1
-        if (!b.activeFrom) return -1
-        return dayjs(a.activeFrom).valueOf() - dayjs(b.activeFrom).valueOf()
-      })
-      const firstNewCell = sortedNewCells[0]
-      datesToUse = getDefaultCellDates([firstNewCell], rule as EditableAllowanceRegionRule)
-    } else {
-      // PRIORITY 2: Check OTHER regions for details valid today
-      // Requirement: "from and to should be the one that is valid today, and already exists for another region"
-      const allOtherRegionsDetails: any[] = []
-      allowanceRegionRules.forEach(r => {
-        const otherRegionsDetails = (r.details || []).filter((detail: any) => detail.travelRegion?.id !== region.id)
-        allOtherRegionsDetails.push(...otherRegionsDetails)
-      })
-
-      // Also check editableCells for other regions
-      const allOtherRegionsCells = editableCells.filter(c => c.travelRegionId !== region.id && !c.isNew)
-
-      if (allOtherRegionsDetails.length > 0 || allOtherRegionsCells.length > 0) {
-        // Get all details from other regions
-        const allOtherDetails =
-          allOtherRegionsDetails.length > 0
-            ? allOtherRegionsDetails.map((d: any) => ({ activeFrom: d.activeFrom, activeTo: d.activeTo }))
-            : allOtherRegionsCells.map(c => ({ activeFrom: c.activeFrom, activeTo: c.activeTo }))
-
-        // Find a detail that is valid today
-        const today = dayjs().startOf('day')
-
-        const detailValidToday = allOtherDetails.find(detail => {
-          if (!detail.activeFrom) return false
-          const from = dayjs(detail.activeFrom).startOf('day')
-          const to = detail.activeTo ? dayjs(detail.activeTo).endOf('day') : null
-
-          // Check if today is within the validity period
-          const isTodayAfterFrom = today.isSameOrAfter(from, 'day')
-          const isTodayBeforeTo = !to || today.isSameOrBefore(to, 'day')
-
-          return isTodayAfterFrom && isTodayBeforeTo
-        })
-
-        if (detailValidToday) {
-          // Normalize the dates to ensure proper format
-          const normalizedFrom = normalizeDate(detailValidToday.activeFrom)
-          const normalizedTo = detailValidToday.activeTo ? normalizeDate(detailValidToday.activeTo) : undefined
-
-          if (normalizedFrom) {
-            datesToUse = {
-              activeFrom: normalizedFrom,
-              activeTo: normalizedTo // Keep undefined if no end date
-            }
-          } else {
-            // Fallback if normalization fails
-            datesToUse = {
-              activeFrom: detailValidToday.activeFrom,
-              activeTo: detailValidToday.activeTo
-            }
-          }
-        } else {
-          // No detail valid today - use today's date for from
-          const todayISO = today.toISOString()
-          datesToUse = {
-            activeFrom: todayISO,
-            activeTo: undefined // No end date (infinite) - will display as empty in DateInput
-          }
-        }
-      } else {
-        // No other regions have details - use today's date for from
-        const today = dayjs().startOf('day')
-        const todayISO = today.toISOString()
-        datesToUse = {
-          activeFrom: todayISO,
-          activeTo: undefined // No end date (infinite) - will display as empty in DateInput
-        }
-      }
-    }
-
-    if (!datesToUse) {
-      console.error('[handleAddNewCell] datesToUse was not set - this should not happen')
-      toast.error('Failed to determine dates for new detail. Please try again.')
-      return
-    }
-
-    const { activeFrom, activeTo } = datesToUse
+    // Determine dates using helper (handles priority logic)
+    const { activeFrom, activeTo } = determineDatesForNewCell(
+      rule.id,
+      region.id,
+      editableCells,
+      allowanceRegionRules,
+      rule
+    )
 
     const newPeriod = createNewValidityPeriod(rule, region, activeFrom, activeTo)
 
@@ -719,6 +529,19 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     getExpenseSettingsClient
   })
 
+  // Create a memoized callback for cell deletion to avoid nested functions in render
+  const handleDeleteCellCallback = useCallback(
+    (cellId: string, getExpenseSettingsClientFn: () => ExpenseSettingsClient) => {
+      const cell = editableCells.find(c => c.id === cellId)
+      if (!cell) {
+        toast.error('Detail not found')
+        return Promise.resolve()
+      }
+      return handleCellDelete(cell, getExpenseSettingsClientFn, cellEditing, loadData, checkDetailUsage)
+    },
+    [editableCells, cellEditing, loadData, checkDetailUsage]
+  )
+
   // Save handlers
   const { isSaving, handleSaveAll } = useMatrixSaveHandlers({
     accessToken,
@@ -1055,20 +878,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                         onRemoveNewCell={cellEditing.handleRemoveNewCell}
                         onUpdateCellField={cellEditing.updateCellField}
                         onSaveSingleCell={cellEditing.handleSaveSingleCell}
-                        onDeleteCell={(cellId, getExpenseSettingsClient) => {
-                          const cell = editableCells.find(c => c.id === cellId)
-                          if (!cell) {
-                            toast.error('Detail not found')
-                            return Promise.resolve()
-                          }
-                          return handleCellDelete(
-                            cell,
-                            getExpenseSettingsClient,
-                            cellEditing,
-                            loadData,
-                            checkDetailUsage
-                          )
-                        }}
+                        onDeleteCell={handleDeleteCellCallback}
                         onAddNewCell={(
                           rule,
                           region,

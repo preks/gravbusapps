@@ -126,6 +126,51 @@ const validateCountryRef = (countryRef: string | undefined): boolean => {
   return true
 }
 
+/**
+ * Helper to build cell payload for API
+ */
+const buildCellPayload = (
+  latestCell: EditableCell,
+  ruleId: string,
+  currencyRef: string | undefined,
+  countryRef: string
+) => ({
+  allowanceRegionRuleDetail: {
+    ...(latestCell.id && { id: latestCell.id }),
+    amount: latestCell.amount,
+    currencyRef: currencyRef,
+    activeFrom: latestCell.activeFrom,
+    activeTo: latestCell.activeTo || null,
+    travelRegionRef: latestCell.travelRegionId,
+    countryRef: countryRef,
+    allowanceRegionRule: ruleId,
+    ...(latestCell.id && latestCell.version !== undefined && { version: latestCell.version })
+  },
+  changeMode: latestCell.id ? 'UPDATE' : 'INSERT'
+})
+
+/**
+ * Helper to extract saved cell data from API response
+ */
+const extractSavedCellData = (response: any, latestCell: EditableCell, currencyRef: string | undefined) => {
+  const responseDetail = response?.allowanceRegionRuleDetail
+  const savedCurrencyRef = responseDetail?.currencyRef || currencyRef
+
+  return {
+    id: latestCell.id || responseDetail?.id,
+    amount: responseDetail?.amount ?? latestCell.amount,
+    activeFrom: responseDetail?.activeFrom ?? latestCell.activeFrom,
+    activeTo: responseDetail?.activeTo ?? latestCell.activeTo,
+    currencyRef: savedCurrencyRef,
+    currencyCode: savedCurrencyRef?.split(':').pop() || latestCell.currencyCode,
+    version: responseDetail?.version
+      ? responseDetail.version + 1
+      : latestCell.version !== undefined
+        ? latestCell.version + 1
+        : (latestCell.version || 0) + 1
+  }
+}
+
 interface UseMatrixCellEditingProps {
   accessToken: string
   currencies: CurrencyOption[]
@@ -274,22 +319,8 @@ export const useMatrixCellEditing = ({
           return
         }
 
-        // Build the detail payload
-        const detailPayload = {
-          allowanceRegionRuleDetail: {
-            ...(latestCell.id && { id: latestCell.id }),
-            amount: latestCell.amount,
-            currencyRef: currencyRef,
-            activeFrom: latestCell.activeFrom,
-            activeTo: latestCell.activeTo || null,
-            travelRegionRef: latestCell.travelRegionId,
-            countryRef: countryRef,
-            allowanceRegionRule: rule.id,
-            ...(latestCell.id && latestCell.version !== undefined && { version: latestCell.version })
-          },
-          changeMode: latestCell.id ? 'UPDATE' : 'INSERT'
-        }
-
+        // Build payload and make API call
+        const detailPayload = buildCellPayload(latestCell, rule.id, currencyRef, countryRef)
         const response = await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
 
         toast.success('Changes saved successfully')
@@ -298,46 +329,30 @@ export const useMatrixCellEditing = ({
         setEditingCellId(null)
         setEditingCellUsageInfo(null)
 
-        // IMMEDIATELY update the cell using the response data for instant UI feedback
-        // Extract data from response if available, otherwise use latestCell data
-        const responseDetail = response?.allowanceRegionRuleDetail
-        const savedCellId = latestCell.id || responseDetail?.id
-        const savedAmount = responseDetail?.amount ?? latestCell.amount
-        const savedActiveFrom = responseDetail?.activeFrom ?? latestCell.activeFrom
-        const savedActiveTo = responseDetail?.activeTo ?? latestCell.activeTo
-        const savedCurrencyRef = responseDetail?.currencyRef || currencyRef
-        const savedCurrencyCode = savedCurrencyRef?.split(':').pop() || latestCell.currencyCode
-        const savedVersion = responseDetail?.version
-          ? responseDetail.version + 1 // Backend increments but returns old version
-          : latestCell.version !== undefined
-            ? latestCell.version + 1
-            : (latestCell.version || 0) + 1
+        // Extract saved data and update cell
+        const savedData = extractSavedCellData(response, latestCell, currencyRef)
 
-        // Update the cell immediately with saved data
         setEditableCells(prev =>
           prev.map(c => {
             const isMatchingCell = latestCell.id
               ? c.id === latestCell.id && c.validityPeriodId === latestCell.validityPeriodId
               : c.validityPeriodId === latestCell.validityPeriodId
 
-            if (isMatchingCell) {
-              const updatedCell = {
-                ...c,
-                id: savedCellId || c.id,
-                amount: savedAmount,
-                activeFrom: savedActiveFrom,
-                activeTo: savedActiveTo,
-                currencyCode: savedCurrencyCode,
-                currencyRef: savedCurrencyRef,
-                countryRef: latestCell.countryRef || countryRef,
-                isNew: false,
-                isModified: false,
-                version: savedVersion
-              }
+            if (!isMatchingCell) return c
 
-              return updatedCell
+            return {
+              ...c,
+              id: savedData.id || c.id,
+              amount: savedData.amount,
+              activeFrom: savedData.activeFrom,
+              activeTo: savedData.activeTo,
+              currencyCode: savedData.currencyCode,
+              currencyRef: savedData.currencyRef,
+              countryRef: latestCell.countryRef || countryRef,
+              isNew: false,
+              isModified: false,
+              version: savedData.version
             }
-            return c
           })
         )
 

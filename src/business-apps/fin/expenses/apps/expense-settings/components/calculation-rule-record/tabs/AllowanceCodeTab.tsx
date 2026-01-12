@@ -1160,7 +1160,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                             const validTo = form.getValues('validTo')
 
                             // Only validate if code is not empty
-                            if (codeValue && codeValue.trim()) {
+                            if (codeValue?.trim()) {
                               const uniquenessCheck = await checkCodeUniqueness(
                                 codeValue,
                                 validFrom,
