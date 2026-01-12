@@ -50,7 +50,7 @@ export const validateDateRange = (options: ValidateDateRangeOptions): DateValida
   }
 
   // Valid To cannot be after rule's Valid To
-  if (ruleDateTo && entryDateTo && entryDateTo.isAfter(ruleDateTo, 'day')) {
+  if (ruleDateTo && entryDateTo?.isAfter(ruleDateTo, 'day')) {
     errors.push({
       field: toFieldName,
       message: `Valid To cannot be after the rule's Valid To (${ruleDateTo.format('DD.MM.YYYY')})`

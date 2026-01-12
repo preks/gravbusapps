@@ -21,9 +21,9 @@ export interface CustomFieldSaveData {
   id?: string
   version?: number
   expenseRuleId: string
-  businessKey?: undefined
+  businessKey?: never
   activeTo: string | null
-  additionalProperties?: undefined
+  additionalProperties?: never
   source: string
   infoValue: string
   mandatory: boolean

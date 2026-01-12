@@ -227,7 +227,7 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
               step="0.01"
               value={cell.amount || ''}
               onChange={e => {
-                const value = parseFloat(e.target.value) || 0
+                const value = Number.parseFloat(e.target.value) || 0
                 onUpdateCell({ amount: value, isModified: true })
               }}
               onClick={e => e.stopPropagation()}
