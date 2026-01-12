@@ -66,14 +66,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import {
-  formatDateForInput,
-  findOverlappingPeriods,
-  logGraphQLQuery,
-  logGraphQLResponse,
-  logUniquenessCheckStart,
-  formatDate
-} from '../../../utils'
+import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
 import {
   validateAllowanceSetupDates,
   formatDateToISO,
@@ -494,15 +487,6 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       activeTo: string | undefined,
       excludeId?: string
     ): Promise<boolean> => {
-      logUniquenessCheckStart('AllowanceSetupTab', 'checkSetupUniqueness', {
-        allowanceCodeId,
-        allowancePeriodId,
-        activeFrom,
-        activeTo,
-        excludeId,
-        ruleId
-      })
-
       try {
         // Fetch all matching setups and check overlap in JavaScript to avoid GraphQL schema limitations
         const query = `
@@ -530,13 +514,9 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
           excludeId: excludeId || null
         }
 
-        logGraphQLQuery('AllowanceSetupTab', variables)
-
         const result = await graphqlClient.request<{
           ExpenseRuleAllowanceSetup: { id: string; activeFrom: string; activeTo?: string }[]
         }>(query, variables)
-
-        logGraphQLResponse('AllowanceSetupTab', 'ExpenseRuleAllowanceSetup', result)
 
         // Check for overlapping periods using shared utility
         const overlappingSetups = findOverlappingPeriods({ activeFrom, activeTo }, result.ExpenseRuleAllowanceSetup)

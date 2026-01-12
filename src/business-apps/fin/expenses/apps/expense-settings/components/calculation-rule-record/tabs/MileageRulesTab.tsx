@@ -69,14 +69,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { EnhancedExpenseRuleMileage, MeasurementUnitWithTranslations } from '../../../types/ExpenseRuleTypes'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import {
-  formatDateForInput,
-  checkPeriodUniqueness,
-  logGraphQLQuery,
-  logGraphQLResponse,
-  logUniquenessCheckStart,
-  formatDate
-} from '../../../utils'
+import { formatDateForInput, checkPeriodUniqueness, formatDate } from '../../../utils'
 import { useGetMileageRuleById } from '../../../queries/ExpenseRuleQueries'
 import { useTableSorting, createFieldMappings } from '../hooks'
 
@@ -488,14 +481,6 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
   // Check if code is unique within the validity period
   const checkCodeUniqueness = useCallback(
     async (code: string, activeFrom: string, activeTo: string | undefined, excludeId?: string): Promise<boolean> => {
-      logUniquenessCheckStart('MileageRulesTab', 'checkCodeUniqueness', {
-        code,
-        activeFrom,
-        activeTo,
-        excludeId,
-        ruleId
-      })
-
       try {
         // Fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
         const query = `
@@ -522,13 +507,9 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
           excludeId: excludeId || null
         }
 
-        logGraphQLQuery('MileageRulesTab', variables)
-
         const result = await graphqlClient.request<{
           ExpenseRuleMileage: { id: string; code: string; activeFrom: string; activeTo?: string }[]
         }>(query, variables)
-
-        logGraphQLResponse('MileageRulesTab', 'ExpenseRuleMileage', result)
 
         // Check for overlapping periods using shared utility
         const uniquenessResult = checkPeriodUniqueness({

@@ -31,13 +31,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import { createGeneralExpenseFormSchema, type GeneralExpenseFormSchema } from '../../schemas'
-import {
-  formatDateForInput,
-  checkPeriodUniqueness,
-  logGraphQLQuery,
-  logGraphQLResponse,
-  logUniquenessCheckStart
-} from '../../utils'
+import { formatDateForInput, checkPeriodUniqueness } from '../../utils'
 import { UsageInfo } from '../../types'
 
 export type GeneralExpenseFormData = GeneralExpenseFormSchema
@@ -257,14 +251,6 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
     activeTo: string | undefined,
     excludeId?: string
   ): Promise<boolean> => {
-    logUniquenessCheckStart('GeneralExpenseForm', 'checkCodeUniqueness', {
-      code,
-      activeFrom,
-      activeTo,
-      excludeId,
-      ruleId
-    })
-
     try {
       // Fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
       const query = `
@@ -291,13 +277,9 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
         excludeId: excludeId || null
       }
 
-      logGraphQLQuery('GeneralExpenseForm', variables)
-
       const result = await graphqlClient.request<{
         ExpenseRuleGeneralExpense: { id: string; code: string; activeFrom: string; activeTo?: string }[]
       }>(query, variables)
-
-      logGraphQLResponse('GeneralExpenseForm', 'ExpenseRuleGeneralExpense', result)
 
       // Check for overlapping periods using shared utility
       const uniquenessResult = checkPeriodUniqueness({

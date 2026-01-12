@@ -54,14 +54,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import {
-  formatDateForInput,
-  findOverlappingPeriods,
-  logGraphQLQuery,
-  logGraphQLResponse,
-  logUniquenessCheckStart,
-  formatDate
-} from '../../../utils'
+import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
 
@@ -422,15 +415,6 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       activeTo: string | undefined,
       excludeId?: string
     ): Promise<boolean> => {
-      logUniquenessCheckStart('CustomFieldsTab', 'checkCustomFieldUniqueness', {
-        source,
-        relatedId,
-        activeFrom,
-        activeTo,
-        excludeId,
-        ruleId
-      })
-
       try {
         // If no source or relatedId, skip uniqueness check
         if (!source || !relatedId) {
@@ -466,8 +450,6 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           excludeId: excludeId || null
         }
 
-        logGraphQLQuery('CustomFieldsTab', variables)
-
         const result = await graphqlClient.request<{
           ExpenseRuleOtherInfo: {
             id: string
@@ -477,8 +459,6 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
             expenseRuleMileageId?: string
           }[]
         }>(query, variables)
-
-        logGraphQLResponse('CustomFieldsTab', 'ExpenseRuleOtherInfo', result)
 
         // Filter by relatedId based on source type
         const matchingByRelatedId = result.ExpenseRuleOtherInfo.filter(existing => {

@@ -62,14 +62,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import {
-  formatDateForInput,
-  findOverlappingPeriods,
-  logGraphQLQuery,
-  logGraphQLResponse,
-  logUniquenessCheckStart,
-  formatDate
-} from '../../../utils'
+import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
 
@@ -487,15 +480,6 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       activeTo: string | undefined,
       excludeId?: string
     ): Promise<boolean> => {
-      logUniquenessCheckStart('OtherCalculationTab', 'checkOtherCalcUniqueness', {
-        source,
-        relatedId,
-        activeFrom,
-        activeTo,
-        excludeId,
-        ruleId
-      })
-
       try {
         // If no source or relatedId, skip uniqueness check
         if (!source || !relatedId) {
@@ -529,8 +513,6 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
           excludeId: excludeId || null
         }
 
-        logGraphQLQuery('OtherCalculationTab', variables)
-
         const result = await graphqlClient.request<{
           ExpenseRuleOtherCalc: {
             id: string
@@ -541,8 +523,6 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
             expenseRuleAllowanceCodeId?: string
           }[]
         }>(query, variables)
-
-        logGraphQLResponse('OtherCalculationTab', 'ExpenseRuleOtherCalc', result)
 
         // Filter by relatedId based on source type
         const matchingByRelatedId = result.ExpenseRuleOtherCalc.filter(existing => {

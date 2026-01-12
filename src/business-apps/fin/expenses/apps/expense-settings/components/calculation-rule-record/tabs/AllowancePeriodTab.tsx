@@ -59,14 +59,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import {
-  formatDateForInput,
-  checkPeriodUniqueness,
-  logGraphQLQuery,
-  logGraphQLResponse,
-  logUniquenessCheckStart,
-  formatDate
-} from '../../../utils'
+import { formatDateForInput, checkPeriodUniqueness, formatDate } from '../../../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
 
@@ -435,14 +428,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
   // Check if code is unique within the validity period
   const checkCodeUniqueness = useCallback(
     async (code: string, activeFrom: string, activeTo: string | undefined, excludeId?: string): Promise<boolean> => {
-      logUniquenessCheckStart('AllowancePeriodTab', 'checkCodeUniqueness', {
-        code,
-        activeFrom,
-        activeTo,
-        excludeId,
-        ruleId
-      })
-
       try {
         // Fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
         const query = `
@@ -469,13 +454,9 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
           excludeId: excludeId || null
         }
 
-        logGraphQLQuery('AllowancePeriodTab', variables)
-
         const result = await graphqlClient.request<{
           ExpenseRuleAllowancePeriod: { id: string; code: string; activeFrom: string; activeTo?: string }[]
         }>(query, variables)
-
-        logGraphQLResponse('AllowancePeriodTab', 'ExpenseRuleAllowancePeriod', result)
 
         // Check for overlapping periods using shared utility
         const uniquenessResult = checkPeriodUniqueness({
