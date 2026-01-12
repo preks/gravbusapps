@@ -364,22 +364,6 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
             <div className="gba:text-xs gba:text-muted-foreground gba:opacity-0 hover:gba:opacity-100">
               Click to edit
             </div>
-            {!cell.isNew && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async e => {
-                  e.stopPropagation()
-                  await onDeleteCell()
-                }}
-                className="gba:h-6 gba:w-6 gba:p-0 gba:text-destructive hover:gba:text-destructive hover:gba:bg-destructive-secondary"
-                title={isUsedInTransactions ? 'Cannot delete - detail is used in transactions' : 'Delete this detail'}
-                disabled={isUsedInTransactions}
-                data-testid={`${prefixDataTestId}-cell-delete-${ruleId}-${regionId}`}
-              >
-                <PiTrash className="gba:w-3 gba:h-3" />
-              </Button>
-            )}
           </div>
         </>
       )}

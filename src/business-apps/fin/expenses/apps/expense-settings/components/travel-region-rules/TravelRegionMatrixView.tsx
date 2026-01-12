@@ -220,7 +220,7 @@ const SortableColumnHeader: React.FC<{
 }> = ({ rule, onAddDetailForRule, onDeleteRule, children }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rule.id })
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1
@@ -229,8 +229,9 @@ const SortableColumnHeader: React.FC<{
   const hasDetails = rule.details && rule.details.length > 0
 
   return (
-    <TableHead ref={setNodeRef} style={style} className="gba:w-48 gba:min-w-48 gba:relative gba:border gba:p-0">
-      <div className="gba:p-3">
+    <TableHead className="gba:w-48 gba:min-w-48 gba:relative gba:border gba:p-0">
+      {/* Wrapper div receives the ref for dnd-kit sortable */}
+      <div ref={setNodeRef} style={style} className="gba:p-3">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
           <div
             {...attributes}
