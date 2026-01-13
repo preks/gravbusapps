@@ -25,8 +25,8 @@ import dayjs from 'dayjs'
 import { allowanceRegionRuleFormSchema } from '../../schemas'
 
 // Custom toast function
-const toast = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`[${type.toUpperCase()}] ${message}`)
+const toast = () => {
+  // Placeholder for toast functionality
 }
 
 export interface AllowanceRegionRuleFormData {

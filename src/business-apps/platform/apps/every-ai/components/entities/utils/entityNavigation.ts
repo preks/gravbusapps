@@ -69,7 +69,7 @@ export function buildEntityNavigationUrl(
 export function navigateToEntity(entityType: string, entityId: string, source: string = 'every-ai'): void {
   const url = buildEntityNavigationUrl(entityType, entityId, source)
   if (url) {
-    // Force reload to ensure updated content is shown
+    // Force window refresh to ensure updated content is shown (SPA navigation, not full page reload)
     navigateTo(url, { forceReload: true })
   }
 }

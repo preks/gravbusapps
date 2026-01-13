@@ -48,7 +48,7 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
     const workflowUrl = buildPlatformUrl('/platform/apps/flow/apps/creator', {
       templateId: workflowId
     })
-    // Force reload to ensure updated workflow content is shown
+    // Force window refresh to ensure updated workflow content is shown (SPA navigation, not full page reload)
     navigateTo(`${workflowUrl}#manage`, { forceReload: true })
   }
 

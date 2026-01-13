@@ -21,7 +21,7 @@ export type ProcessStatus = (typeof PROCESS_STATUS)[keyof typeof PROCESS_STATUS]
 /**
  * Status values that indicate a process is still active/pending
  */
-export const ACTIVE_PROCESS_STATUSES = [PROCESS_STATUS.PENDING, PROCESS_STATUS.PROCESSING] as const
+export const ACTIVE_PROCESS_STATUSES: ProcessStatus[] = [PROCESS_STATUS.PENDING, PROCESS_STATUS.PROCESSING]
 
 /**
  * Generic Kogito process instance response (NEW BACKEND - with status field!)
@@ -76,6 +76,10 @@ export class KogitoProcessClient extends RestClient {
    * @param options - Optional request options including employeeId filter and abort signal
    * @returns Array of active process instances
    *
+   * ⚠️ IMPORTANT: The backend MAY return processes where employeeId appears in ANY role
+   * (as subject, approver, or task assignee). Consumers should filter by process.employeeId
+   * to ensure they only check processes where the employee is the SUBJECT.
+   *
    * @example
    * ```typescript
    * const client = new KogitoProcessClient(accessToken)
@@ -85,10 +89,10 @@ export class KogitoProcessClient extends RestClient {
    *   employeeId: '123-456-789'
    * })
    *
-   * // Check for pending processes using constants
-   * const pending = processes.filter(p =>
-   *   ACTIVE_PROCESS_STATUSES.includes(p.status)
-   * )
+   * // Filter to only processes where user is the SUBJECT, then check status
+   * const pending = processes
+   *   .filter(p => p.employeeId === '123-456-789') // Ensure user is subject
+   *   .filter(p => ACTIVE_PROCESS_STATUSES.includes(p.status))
    * ```
    */
   async getProcessInstances(

@@ -95,11 +95,10 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     const loadData = async () => {
       if (isEditing && initialData?.id) {
         // ✅ NEW: For editing, fetch fresh data from the server
-        console.log('🔄 TravelRegionRuleForm: Fetching FRESH data for ID:', initialData.id)
+
         try {
           const freshData = await fetchAllowanceRegionRuleById(initialData.id)
           if (freshData) {
-            console.log('✅ TravelRegionRuleForm: Using FRESH data from API:', freshData)
             setDataSource('fresh')
             const transformedData = {
               id: freshData.id,
@@ -132,7 +131,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
           }
         } catch (error) {
           console.error('❌ TravelRegionRuleForm: Failed to load fresh travel region rule data:', error)
-          console.log('⚠️ TravelRegionRuleForm: Falling back to STALE list data')
+
           setDataSource('stale')
           // Continue with fallback to initial data
         }
@@ -140,10 +139,6 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
       // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
-        console.log(
-          '📝 TravelRegionRuleForm: Using initial data (could be stale list data or new item data):',
-          initialData
-        )
         // Transform the initial data to ensure amounts are in the correct format
         const transformedDetails =
           initialData.details?.map(detail => {
@@ -185,13 +180,28 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   }
 
   const addColumnGroup = () => {
+    // Determine default activeFrom and activeTo
+    let defaultActiveFrom: string
+    let defaultActiveTo: string
+
+    if (formData.details.length > 0) {
+      // If there are existing details, use the dates from the most recent detail
+      const lastDetail = formData.details[formData.details.length - 1]
+      defaultActiveFrom = lastDetail.activeFrom || dayjs().format('YYYY-MM-DD')
+      defaultActiveTo = lastDetail.activeTo || ''
+    } else {
+      // If this is the first detail, inherit from the rule
+      defaultActiveFrom = formData.activeFrom || dayjs().format('YYYY-MM-DD')
+      defaultActiveTo = formData.activeTo || ''
+    }
+
     const newDetail: AllowanceRegionDetailFormData = {
       countryRef: '',
       travelRegion: '',
       currencyRef: '',
       home: false,
-      activeFrom: dayjs().format('YYYY-MM-DD'),
-      activeTo: '',
+      activeFrom: defaultActiveFrom,
+      activeTo: defaultActiveTo,
       amounts: [0]
     }
 
@@ -217,8 +227,9 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
     setFormData(prev => ({
       ...prev,
-      details: prev.details.map(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
+      details: prev.details.map((detail, index) => {
+        const uniqueId = detail.id || `temp-${index}`
+        const detailGroupKey = `${uniqueId}-${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         if (detailGroupKey === groupKey) {
           return { ...detail, [field]: value }
         }
@@ -230,10 +241,10 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
   // Update amount in group
   const updateAmount = (groupKey: string, amountIndex: number, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      details: prev.details.map(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
+    setFormData(prev => {
+      const updatedDetails = prev.details.map((detail, index) => {
+        const uniqueId = detail.id || `temp-${index}`
+        const detailGroupKey = `${uniqueId}-${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         if (detailGroupKey === groupKey) {
           const newAmounts = [...(detail.amounts || [])]
           // Store as number but handle empty string case
@@ -242,7 +253,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         }
         return detail
       })
-    }))
+      return { ...prev, details: updatedDetails }
+    })
     setShowValidation(false) // Clear validation when user makes changes
   }
 
@@ -250,8 +262,9 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   const removeGroup = (groupKey: string) => {
     setFormData(prev => ({
       ...prev,
-      details: prev.details.filter(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
+      details: prev.details.filter((detail, index) => {
+        const uniqueId = detail.id || `temp-${index}`
+        const detailGroupKey = `${uniqueId}-${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         return detailGroupKey !== groupKey
       })
     }))

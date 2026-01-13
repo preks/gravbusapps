@@ -39,23 +39,54 @@ export const useQueryManagerData = (context: BusinessAppContextProps, service: S
   const loadQueries = useCallback(
     async (params: QueryDefinitionListParams = {}, page: number = 0, size: number = 20) => {
       if (!context.accessToken) return
+      const effectiveType = (params.queryType ?? queryType) as QueryType
+      const hasClientFilters =
+        (params.search && params.search.trim() !== '') ||
+        params.status !== undefined ||
+        (params.queryType !== undefined && params.queryType !== queryType)
 
       setIsLoading(true)
       setError(null)
 
       try {
-        const response = await managementClient.listQueryDefinitionsPaged({
-          ...params,
-          queryType, // Always include the current queryType
-          page,
-          size,
-          sort: 'name'
-        })
-
-        setQueries(response.data || [])
-        setTotalQueries(response.paging.totalRecords || 0)
-        setCurrentPage(page)
-        setPageSize(size)
+        if (hasClientFilters) {
+          // Fallback: fetch all (or server-filtered subset) then filter & paginate client-side
+          const all = await managementClient.listQueryDefinitions({
+            queryType: effectiveType,
+            status: params.status,
+            // some backends may support 'search'; pass it along but don't rely on it
+            ...(params.search ? { search: params.search } : {})
+          })
+          const searchText = (params.search || '').toLowerCase()
+          const filtered = (all || []).filter(q => {
+            const matchType = q.queryType === effectiveType
+            const matchStatus = params.status ? q.status === params.status : true
+            const matchSearch =
+              searchText.length === 0
+                ? true
+                : q.name?.toLowerCase().includes(searchText) || q.description?.toLowerCase().includes(searchText)
+            return matchType && matchStatus && matchSearch
+          })
+          const start = page * size
+          const end = start + size
+          const pageData = filtered.slice(start, end)
+          setQueries(pageData)
+          setTotalQueries(filtered.length)
+          setCurrentPage(page)
+          setPageSize(size)
+        } else {
+          // Server-side paging without extra filters
+          const response = await managementClient.listQueryDefinitionsPaged({
+            queryType: effectiveType,
+            page,
+            size,
+            sort: 'name'
+          })
+          setQueries(response.data || [])
+          setTotalQueries(response.paging.totalRecords || 0)
+          setCurrentPage(page)
+          setPageSize(size)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load query definitions')
       } finally {

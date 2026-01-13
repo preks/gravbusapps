@@ -238,7 +238,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 return (
                   <div
                     key={idx}
-                    className={`gba:calendar-day gba:p-2 gba:h-16 gba:border gba:border-border gba:rounded 
+                    className={`gba:calendar-day gba:p-2 gba:min-h-16 gba:border gba:border-border gba:rounded 
                       ${isSelectedStart || isSelectedEnd ? 'gba:bg-info-secondary gba:border-info' : isInSelectedRange ? 'gba:bg-info-secondary/20' : isToday ? 'gba:bg-info-secondary/20 gba:border-info' : isHoliday ? 'gba:bg-card gba:border-warning' : 'gba:bg-card'} 
                       ${!isCurrentMonth ? 'gba:opacity-40' : enableSelection ? 'gba:cursor-pointer' : ''}`}
                     data-testid={`calendar-day-${currentDay.date()}`}
@@ -267,6 +267,24 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                     >
                       {currentDay.date()}
                     </div>
+                    {isCurrentMonth && isHoliday && (
+                      <div className="gba:flex gba:gap-1 gba:mt-1">
+                        <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-warning-secondary/80">
+                          <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                            {t('holiday')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {isCurrentMonth && isToday && (
+                      <div className="gba:flex gba:gap-1 gba:mt-1">
+                        <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-info-secondary/80">
+                          <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                            {t('today')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     {isCurrentMonth &&
                       (() => {
                         const overlappingAbsences = absenceList.filter((absence: any) => {
@@ -345,11 +363,11 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   </div>
                 ))}
               <div className="gba:flex gba:items-center gba:gap-2">
-                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:border gba:border-warning" />
+                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning-secondary" />
                 <span className="gba:text-xs">{t('holiday')}</span>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2">
-                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:border gba:border-info" />
+                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-info-secondary" />
                 <span className="gba:text-xs">{t('today')}</span>
               </div>
             </div>

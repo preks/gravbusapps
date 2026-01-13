@@ -53,7 +53,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = (
   const [ringCount, setRingCount] = useState(0)
 
   const callerName = invite.from.odName || 'Unknown'
-  const groupName = invite.conversationName || 'Group Call'
+  const groupName = invite.conversationName || t('chat-groupCall')
   const isVideoCall = invite.callType === 'video'
 
   // Ring animation counter

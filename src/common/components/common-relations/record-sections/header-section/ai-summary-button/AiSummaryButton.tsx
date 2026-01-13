@@ -3,6 +3,7 @@ import { Button } from '@newwork/nw-design-system'
 import { Bot } from 'lucide-react'
 import { AiSummaryButtonProps } from './AiSummaryTypes'
 import { openEveryAI } from '@/common/utils/openEveryAI'
+import { buildAiSummaryPrompt } from '@/common/utils/buildAiSummaryPrompt'
 
 /**
  * Shared AI Summary Button component that opens Every AI sidebar with a summary prompt
@@ -21,8 +22,7 @@ export const AiSummaryButton: React.FC<AiSummaryButtonProps> = ({
   void summaryHook
   // Handle AI Summary button click - open Every AI sidebar with summary prompt
   const handleAiSummaryClick = () => {
-    const entityTypeCapitalized = config.entityType.charAt(0).toUpperCase() + config.entityType.slice(1)
-    const prompt = `Summarize this ${entityTypeCapitalized}`
+    const prompt = buildAiSummaryPrompt(config.entityType)
     openEveryAI({ prompt })
   }
 

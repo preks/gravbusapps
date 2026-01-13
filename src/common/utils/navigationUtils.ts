@@ -116,8 +116,8 @@ const convertToDevQueryParams = (url: string): string => {
  */
 export interface NavigateOptions {
   /**
-   * Force a full page reload even if the URL is the same
-   * Useful when content has changed and needs to be refreshed
+   * Force a window refresh via SPA navigation (not full page reload)
+   * Adds a cache-busting parameter to ensure content refreshes when it has changed
    */
   forceReload?: boolean
 }
@@ -149,29 +149,36 @@ export const navigateTo = (url: string, options?: NavigateOptions): void => {
     return url
   }
 
-  // If force reload is requested, check if we're already on the same URL
+  // If force reload is requested, add cache-busting parameter to ensure content refresh
   if (forceReload) {
-    const targetUrl = getTargetUrl()
-    const currentUrl = window.location.href
+    const baseTargetUrl = getTargetUrl()
 
-    // Normalize URLs for comparison (ignore hash)
-    const normalizeForComparison = (urlToNormalize: string): string => {
-      try {
-        const urlObj = new URL(urlToNormalize)
-        return `${urlObj.pathname}${urlObj.search}`
-      } catch {
-        return urlToNormalize.split('#')[0]
+    // Parse URL and add cache-busting parameter
+    try {
+      const urlObj = new URL(baseTargetUrl, window.location.origin)
+      // Add cache-busting parameter to force content refresh via SPA navigation
+      urlObj.searchParams.set('_refresh', Date.now().toString())
+      const urlToNavigate = urlObj.pathname + urlObj.search + (urlObj.hash || '')
+
+      if (isProduction) {
+        const nwNavigate = (window as any).nwNavigate as
+          | undefined
+          | ((path: string, options?: { replace?: boolean; scroll?: boolean }) => void)
+        if (typeof nwNavigate === 'function') {
+          // Use SPA navigation to refresh window content without full page reload
+          nwNavigate(urlToNavigate)
+        } else {
+          window.location.href = urlToNavigate
+        }
+      } else {
+        // Development: navigate to URL with refresh param
+        window.location.href = urlObj.toString()
       }
-    }
-
-    const currentNormalized = normalizeForComparison(currentUrl)
-    const targetNormalized = normalizeForComparison(targetUrl)
-
-    // If already on the same URL, force reload; otherwise navigate
-    if (currentNormalized === targetNormalized) {
-      window.location.reload()
-    } else {
-      window.location.href = targetUrl
+    } catch {
+      // Fallback if URL parsing fails
+      const separator = baseTargetUrl.includes('?') ? '&' : '?'
+      const urlWithRefresh = `${baseTargetUrl}${separator}_refresh=${Date.now()}`
+      window.location.href = urlWithRefresh
     }
     return
   }

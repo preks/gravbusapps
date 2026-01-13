@@ -22,9 +22,13 @@ export { EMPLOYEE_PROCESS_CONFIGS } from './pendingProcessConfigs'
  *
  * 🔥 HOW IT WORKS (NEW SIMPLIFIED APPROACH):
  * - Queries the Kogito process REST endpoint with employeeId filter
- * - Backend returns only that employee's processes
+ * - Backend returns processes where employeeId appears (may include task assignees)
+ * - Frontend filters to ensure employee is the SUBJECT (not just a task assignee)
  * - Checks if any process has status = PENDING or PROCESSING
  * - Returns metadata for UI display using consumer-provided display configuration
+ *
+ * 🐛 BUG FIX: Backend may return processes where user is a task assignee/approver.
+ * We filter client-side to only check processes where employeeId is the subject.
  *
  * @param config - Configuration object for the pending process check
  *
@@ -108,7 +112,11 @@ export const usePendingProcessCheck = (config: PendingProcessCheckConfig) => {
         if (shouldAbortRequest(signal, requestId, requestIdRef.current)) return
 
         // Find any process with PENDING or PROCESSING status using constants
-        const pendingProcesses = processes.filter(p => ACTIVE_PROCESS_STATUSES.includes(p.status))
+        // IMPORTANT: Filter by employeeId to ensure we only check processes where the user is the SUBJECT,
+        // not where they're a task assignee/approver (bug fix for HR Backoffice users with acknowledgement tasks)
+        const pendingProcesses = processes
+          .filter(p => p.employeeId === employeeId) // Only processes where user is the subject
+          .filter(p => ACTIVE_PROCESS_STATUSES.includes(p.status))
         const hasPending = pendingProcesses.length > 0
 
         // Warn if multiple pending processes exist (indicates potential data issue)
