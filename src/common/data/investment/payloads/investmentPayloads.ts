@@ -287,7 +287,12 @@ export const buildInvestmentPayload = (
       }),
     ...(investment.identification && { identification: investment.identification }),
     ...(investment.investmentAccount?.id && { investmentAccount: investment.investmentAccount.id }), // Extract ID from account object
-    ...(investment.investmentOpportunity && { investmentOpportunity: investment.investmentOpportunity }),
+    // Extract ID from investmentOpportunity object (backend expects UUID string, not object)
+    ...(investment.investmentOpportunity && typeof investment.investmentOpportunity === 'string'
+      ? { investmentOpportunity: investment.investmentOpportunity }
+      : investment.investmentOpportunity?.id
+        ? { investmentOpportunity: investment.investmentOpportunity.id }
+        : {}),
     ...(investment.loanRecipientInvestmentAccount?.id && {
       loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount.id
     }),
