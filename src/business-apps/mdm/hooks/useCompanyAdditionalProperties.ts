@@ -62,7 +62,7 @@ const convertToDynamicFormConfig = (raw: RawAdditionalPropertiesConfig): Dynamic
   const formFields: DynamicFormFieldGroup[] = raw.additionalProperties.map(group => ({
     groupId: group.groupId,
     groupLabel: group.groupLabel,
-    displayOrder: typeof group.displayOrder === 'string' ? parseInt(group.displayOrder, 10) : group.displayOrder,
+    displayOrder: typeof group.displayOrder === 'string' ? Number.parseInt(group.displayOrder, 10) : group.displayOrder,
     fields: group.fields.map(
       (field): DynamicFormFieldDefinition => ({
         type: field.type,
@@ -80,8 +80,8 @@ const convertToDynamicFormConfig = (raw: RawAdditionalPropertiesConfig): Dynamic
   // Sort fields within each group by displayOrder
   formFields.forEach(group => {
     group.fields.sort((a, b) => {
-      const orderA = parseFloat(String(a.displayOrder))
-      const orderB = parseFloat(String(b.displayOrder))
+      const orderA = Number.parseFloat(String(a.displayOrder))
+      const orderB = Number.parseFloat(String(b.displayOrder))
       return orderA - orderB
     })
   })

@@ -179,7 +179,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     if (!addressLine?.lines || addressLine.lines.length === 0) return undefined
 
     // Filter out empty lines first
-    const nonEmptyLines = addressLine.lines.filter(line => line && line.trim())
+    const nonEmptyLines = addressLine.lines.filter(line => line?.trim())
     if (nonEmptyLines.length === 0) return undefined
 
     const result: Record<string, string> = {}
