@@ -380,6 +380,26 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
   if (!task) return null
 
+  const handleCompleteKogitoTask = async () => {
+    if (!task?.sourceMetadata?.endpoint) {
+      message.error({
+        content: t('task-dialog-complete-error', { error: 'Task endpoint missing' }),
+        duration: 5
+      })
+      return
+    }
+
+    setIsCompleting(true)
+    try {
+      // Some Kogito tasks can be completed without payload (no form screen available).
+      await continueProcess({ payload: {} })
+    } catch {
+      // Errors are handled in the hook's onError callback
+    } finally {
+      setIsCompleting(false)
+    }
+  }
+
   const handleCompleteBlinkTask = async () => {
     if (!task.id || !task.flowId || !userId) {
       message.error(t('task-dialog-missing-user-info'))
@@ -525,6 +545,20 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           <Button variant="outline" onClick={onClose} data-testid="task-detail-cancel-button">
             {t('task-dialog-close')}
           </Button>
+
+          {/* Primary action for Kogito tasks without a screen: Complete directly */}
+          {task.source === 'kogito' &&
+            task.status !== 'COMPLETED' &&
+            task.availableActions?.canComplete &&
+            task.sourceMetadata?.endpoint && (
+              <Button
+                onClick={handleCompleteKogitoTask}
+                disabled={isCompleting}
+                data-testid="task-detail-complete-kogito-button"
+              >
+                {isCompleting ? t('task-dialog-completing') : t('task-footer-complete')}
+              </Button>
+            )}
 
           {/* Primary action for Blink tasks: Complete directly */}
           {isBlinkTask && task.status !== 'COMPLETED' && (
