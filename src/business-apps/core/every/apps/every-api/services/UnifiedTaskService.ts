@@ -14,7 +14,8 @@ import { UnifiedTask, TaskStatistics, TaskSource } from '../types/UnifiedTask'
 import { TaskFilters, ParsedTaskFilters, DEFAULT_FILTERS } from '../types/TaskFilters'
 import { adaptCflowTasks, adaptKogitoTasks } from './TaskAdapterService'
 import {
-  fetchCflowUserTasks,
+  fetchCflowUserAssignedTasks,
+  fetchCflowUserClaimableTasks,
   fetchCflowCompletedTasks,
   fetchCflowTask,
   fetchCflowTaskStats
@@ -25,6 +26,8 @@ import { getApiConfig } from '../utils/config'
 export interface FetchTasksResult {
   tasks: UnifiedTask[]
   totalCount: number // Total count of tasks before pagination
+  cflowTotalCount: number // Total count from CFlow (for accurate badge)
+  kogitoTotalCount: number // Total count from Kogito (for accurate badge)
   errors: Array<{
     source: TaskSource
     message: string
@@ -195,7 +198,14 @@ export function applyFilters(tasks: UnifiedTask[], filters: ParsedTaskFilters): 
 
   // Filter assigned only
   if (filters.assignedOnly) {
-    filtered = filtered.filter(task => task.assignment?.assignedTo !== undefined)
+    // Prefer strict "assigned to this user" filtering when assignedTo is provided (assignedOnly implies assignedTo)
+    if (filters.assignedTo) {
+      filtered = filtered.filter(
+        task => task.assignment?.assignedTo === filters.assignedTo || task.assignment?.isUserOwner === true
+      )
+    } else {
+      filtered = filtered.filter(task => task.assignment?.assignedTo !== undefined)
+    }
   }
 
   // Sort tasks
@@ -217,8 +227,16 @@ export function applyPagination(tasks: UnifiedTask[], filters: ParsedTaskFilters
   return tasks.slice(start, end)
 }
 
+export interface FetchFromBothSourcesResult {
+  tasks: UnifiedTask[]
+  errors: FetchTasksResult['errors']
+  cflowTotalCount: number
+  kogitoTotalCount: number
+}
+
 /**
  * Fetch tasks from both sources with specified offset
+ * Returns totalCounts from each source for accurate "All" badge
  */
 async function fetchFromBothSources(
   userId: string,
@@ -226,10 +244,12 @@ async function fetchFromBothSources(
   parsedFilters: ParsedTaskFilters,
   offset: number,
   limit: number
-): Promise<{ tasks: UnifiedTask[]; errors: FetchTasksResult['errors'] }> {
+): Promise<FetchFromBothSourcesResult> {
   const config = getApiConfig()
   const errors: FetchTasksResult['errors'] = []
   const allTasks: UnifiedTask[] = []
+  let cflowTotalCount = 0
+  let kogitoTotalCount = 0
 
   // Determine which sources to fetch from
   const fetchCflow = parsedFilters.source === 'all' || parsedFilters.source === 'cflow'
@@ -252,9 +272,72 @@ async function fetchFromBothSources(
     fetchPromises.push(
       (async () => {
         try {
-          const cflowTasks = await fetchCflowUserTasks(userId, accessToken, cflowParams)
-          const adapted = adaptCflowTasks(cflowTasks)
-          allTasks.push(...adapted)
+          // IMPORTANT: For the inbox we want accurate counts.
+          // The generic /api/tasks/user/:userId endpoint may not return totalCount reliably,
+          // so we fetch from /assigned and /claimable and combine.
+
+          if (parsedFilters.assignedOnly) {
+            const assigned = await fetchCflowUserAssignedTasks(userId, accessToken, cflowParams)
+            allTasks.push(...adaptCflowTasks(assigned.tasks))
+            cflowTotalCount = assigned.totalCount
+            return
+          }
+
+          if (parsedFilters.claimableOnly) {
+            const claimable = await fetchCflowUserClaimableTasks(userId, accessToken, cflowParams)
+            allTasks.push(...adaptCflowTasks(claimable.tasks))
+            cflowTotalCount = claimable.totalCount
+            return
+          }
+
+          const [assignedRes, claimableRes] = await Promise.allSettled([
+            fetchCflowUserAssignedTasks(userId, accessToken, cflowParams),
+            fetchCflowUserClaimableTasks(userId, accessToken, cflowParams)
+          ])
+
+          const combinedTasks: any[] = []
+          let assignedTotal = 0
+          let claimableTotal = 0
+
+          if (assignedRes.status === 'fulfilled') {
+            combinedTasks.push(...assignedRes.value.tasks)
+            assignedTotal = assignedRes.value.totalCount
+          } else {
+            errors.push({
+              source: 'cflow',
+              message: 'Failed to fetch custom-flow-engine assigned tasks',
+              details: assignedRes.reason instanceof Error ? assignedRes.reason.message : String(assignedRes.reason)
+            })
+            if (!config.enablePartialResults) {
+              throw assignedRes.reason
+            }
+          }
+
+          if (claimableRes.status === 'fulfilled') {
+            combinedTasks.push(...claimableRes.value.tasks)
+            claimableTotal = claimableRes.value.totalCount
+          } else {
+            errors.push({
+              source: 'cflow',
+              message: 'Failed to fetch custom-flow-engine claimable tasks',
+              details: claimableRes.reason instanceof Error ? claimableRes.reason.message : String(claimableRes.reason)
+            })
+            if (!config.enablePartialResults) {
+              throw claimableRes.reason
+            }
+          }
+
+          // De-dupe in case a task appears in both lists
+          const seen = new Set<string>()
+          const unique = combinedTasks.filter(t => {
+            const id = String(t?.id || '')
+            if (!id || seen.has(id)) return false
+            seen.add(id)
+            return true
+          })
+
+          allTasks.push(...adaptCflowTasks(unique))
+          cflowTotalCount = assignedTotal + claimableTotal
         } catch (error: any) {
           errors.push({
             source: 'cflow',
@@ -293,10 +376,14 @@ async function fetchFromBothSources(
     fetchPromises.push(
       (async () => {
         try {
-          const kogitoTasks = await fetchKogitoUserTasks(userId, accessToken, kogitoParams)
-          const adapted = adaptKogitoTasks(kogitoTasks, userId)
+          console.log('[UnifiedTaskService] Fetching Kogito tasks for user:', userId)
+          const kogitoResult = await fetchKogitoUserTasks(userId, accessToken, kogitoParams)
+          console.log('[UnifiedTaskService] Kogito tasks received:', kogitoResult.tasks.length)
+          const adapted = adaptKogitoTasks(kogitoResult.tasks, userId)
           allTasks.push(...adapted)
+          kogitoTotalCount = kogitoResult.totalCount
         } catch (error: any) {
+          console.error('[UnifiedTaskService] Kogito fetch failed:', error.message)
           errors.push({
             source: 'kogito',
             message: 'Failed to fetch Kogito tasks',
@@ -312,7 +399,7 @@ async function fetchFromBothSources(
 
   await Promise.all(fetchPromises)
 
-  return { tasks: allTasks, errors }
+  return { tasks: allTasks, errors, cflowTotalCount, kogitoTotalCount }
 }
 
 /**
@@ -323,17 +410,22 @@ export async function fetchAllUserTasks(
   accessToken?: string,
   filters?: Partial<TaskFilters>
 ): Promise<FetchTasksResult> {
-  const parsedFilters = parseFilters(filters)
+  // assignedOnly is defined as "assigned to the user" — ensure assignedTo is set so client-side filtering is correct
+  const normalizedFilters: Partial<TaskFilters> = {
+    ...(filters || {})
+  }
+  if (normalizedFilters.assignedOnly && !normalizedFilters.assignedTo) {
+    normalizedFilters.assignedTo = userId
+  }
+
+  const parsedFilters = parseFilters(normalizedFilters)
   const warnings: string[] = []
 
+  // Use the limit from filters (default is handled by parseFilters)
+  const fetchLimit = Math.min(parsedFilters.limit, FETCH_LIMIT_PER_SOURCE)
+
   // Fetch batch from both sources
-  const fetchResult = await fetchFromBothSources(
-    userId,
-    accessToken,
-    parsedFilters,
-    parsedFilters.offset,
-    FETCH_LIMIT_PER_SOURCE
-  )
+  const fetchResult = await fetchFromBothSources(userId, accessToken, parsedFilters, parsedFilters.offset, fetchLimit)
 
   const allTasks = fetchResult.tasks
 
@@ -345,12 +437,17 @@ export async function fetchAllUserTasks(
   // Apply filters (sorting handled by hook)
   const filtered = applyFilters(allTasks, parsedFilters)
 
+  // Compute accurate totalCount from both sources
+  const combinedTotalCount = fetchResult.cflowTotalCount + fetchResult.kogitoTotalCount
+
   return {
     tasks: filtered,
-    totalCount: filtered.length,
+    totalCount: combinedTotalCount,
+    cflowTotalCount: fetchResult.cflowTotalCount,
+    kogitoTotalCount: fetchResult.kogitoTotalCount,
     errors: fetchResult.errors,
     warnings,
-    hasMore: filtered.length >= FETCH_LIMIT_PER_SOURCE
+    hasMore: filtered.length >= fetchLimit
   }
 }
 
@@ -369,18 +466,23 @@ export async function fetchCompletedUserTasks(
   const errors: FetchTasksResult['errors'] = []
   const warnings: string[] = []
   const allTasks: UnifiedTask[] = []
+  let cflowTotalCount = 0
+  let kogitoTotalCount = 0
 
   // Determine which sources to fetch from
   const fetchCflow = parsedFilters.source === 'all' || parsedFilters.source === 'cflow'
   const fetchKogito = parsedFilters.source === 'all' || parsedFilters.source === 'kogito'
 
-  // Fetch from both sources in parallel (using optimized 50 limit)
+  // Respect requested limit (default from parseFilters), but cap to backend max
+  const fetchLimit = Math.min(parsedFilters.limit, FETCH_LIMIT_PER_SOURCE)
+
+  // Fetch from both sources in parallel
   const fetchPromises: Promise<void>[] = []
   const timings: Record<string, number> = {}
 
   if (fetchCflow) {
     const cflowParams: Record<string, string> = {
-      limit: FETCH_LIMIT_PER_SOURCE.toString(), // Optimized: 50 instead of 1000
+      limit: fetchLimit.toString(),
       offset: parsedFilters.offset.toString(),
       sortBy: parsedFilters.sortBy || 'createdAt',
       sortOrder: parsedFilters.sortOrder || 'desc'
@@ -391,12 +493,13 @@ export async function fetchCompletedUserTasks(
       (async () => {
         const cflowStart = performance.now()
         try {
-          const cflowTasks = await fetchCflowCompletedTasks(userId, accessToken, cflowParams)
+          const cflowResult = await fetchCflowCompletedTasks(userId, accessToken, cflowParams)
           const cflowEnd = performance.now()
           timings.cflow = cflowEnd - cflowStart
 
-          const adapted = adaptCflowTasks(cflowTasks)
+          const adapted = adaptCflowTasks(cflowResult.tasks)
           allTasks.push(...adapted)
+          cflowTotalCount = cflowResult.totalCount
         } catch (error: any) {
           const cflowEnd = performance.now()
           timings.cflow = cflowEnd - cflowStart
@@ -425,8 +528,8 @@ export async function fetchCompletedUserTasks(
     }
 
     const kogitoParams = {
-      pageSize: FETCH_LIMIT_PER_SOURCE, // Optimized: 50 instead of 1000
-      page: Math.floor(parsedFilters.offset / FETCH_LIMIT_PER_SOURCE),
+      pageSize: fetchLimit,
+      page: Math.floor(parsedFilters.offset / fetchLimit),
       sortBy: kogitoSortField,
       sortOrder: parsedFilters.sortOrder === 'asc' ? ('ASC' as const) : ('DESC' as const),
       search: parsedFilters.search,
@@ -437,11 +540,12 @@ export async function fetchCompletedUserTasks(
       (async () => {
         const kogitoStart = performance.now()
         try {
-          const kogitoTasks = await fetchKogitoUserTasks(userId, accessToken, kogitoParams)
+          const kogitoResult = await fetchKogitoUserTasks(userId, accessToken, kogitoParams)
           const kogitoEnd = performance.now()
           timings.kogito = kogitoEnd - kogitoStart
-          const adapted = adaptKogitoTasks(kogitoTasks, userId)
+          const adapted = adaptKogitoTasks(kogitoResult.tasks, userId)
           allTasks.push(...adapted)
+          kogitoTotalCount = kogitoResult.totalCount
         } catch (error: any) {
           const kogitoEnd = performance.now()
           timings.kogito = kogitoEnd - kogitoStart
@@ -471,9 +575,14 @@ export async function fetchCompletedUserTasks(
 
   const paginated = applyPagination(filtered, parsedFilters)
 
+  // Compute accurate totalCount from both sources
+  const combinedTotalCount = cflowTotalCount + kogitoTotalCount
+
   return {
     tasks: paginated,
-    totalCount: filtered.length,
+    totalCount: combinedTotalCount,
+    cflowTotalCount,
+    kogitoTotalCount,
     errors,
     warnings,
     hasMore: filtered.length > parsedFilters.limit || allTasks.length >= FETCH_LIMIT_PER_SOURCE

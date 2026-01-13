@@ -121,6 +121,14 @@ const getCreatorDisplayName = (
   // Priority 2: creatorName from task metadata (might be cached/older)
   if (task.sourceMetadata?.creatorName) return task.sourceMetadata.creatorName
   if (task.sourceMetadata?.ownerName) return task.sourceMetadata.ownerName
+  // Backwards-compatible fallbacks for CFlow initiator fields
+  if ((task.sourceMetadata as any)?.flowInitiatedByName) return (task.sourceMetadata as any).flowInitiatedByName
+  if (
+    (task.sourceMetadata as any)?.flowInitiatedBy &&
+    typeof (task.sourceMetadata as any).flowInitiatedBy === 'string'
+  ) {
+    return (task.sourceMetadata as any).flowInitiatedBy
+  }
 
   // Priority 3: Construct from firstName + lastName (fallback)
   if (employeeData) {

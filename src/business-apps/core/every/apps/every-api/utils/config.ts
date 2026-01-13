@@ -19,7 +19,12 @@ export function getCflowEndpoint(): string {
 export function getFlowMetricsEndpoint(): string {
   const endpoint = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL')
   if (!endpoint) {
-    return ''
+    // Fallback to same-origin for microfrontend contexts
+    const origin =
+      typeof globalThis !== 'undefined' && (globalThis as any).location?.origin
+        ? (globalThis as any).location.origin
+        : ''
+    return origin
   }
   return endpoint
 }

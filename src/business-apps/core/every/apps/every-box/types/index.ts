@@ -48,6 +48,7 @@ export interface Flow {
   templateId: string
   status: FlowStatus
   initiatedBy: string
+  initiatorUserId?: string // User ID of initiator (for avatar/name lookup)
   startedAt: string
   completedAt?: string
   currentStep: number
