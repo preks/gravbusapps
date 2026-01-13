@@ -89,6 +89,10 @@ team-absences-link-button = Team-Abwesenheiten Hub öffnen
 team-absences-need-details = Benötigen Sie weitere Details zu Team-Abwesenheiten?
 team-absences-full-dashboard = Vollständiges Dashboard
 
+# Chat Integration
+chat-prefilled-message = Hallo { $requesterName }, Ich habe eine Frage zu Ihrem Urlaubsantrag vom { $startDate } bis { $endDate }.
+chat-fallback-name = Sie
+
 # Shared formatters (used by formatWorkingDaysAndHours utility)
 working-days-format = {$days ->
     [1] 1 Tag

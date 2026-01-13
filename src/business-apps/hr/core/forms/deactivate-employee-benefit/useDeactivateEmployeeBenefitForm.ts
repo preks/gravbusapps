@@ -171,6 +171,7 @@ export const useDeactivateEmployeeBenefitForm = ({
     const formattedEndDate = endDate.includes('T') ? endDate.split('T')[0] : endDate
 
     return {
+      event: 'pse_submit',
       employeeBenefit: {
         id: selectedBenefit.employeeBenefitId,
         employee: employeeId,

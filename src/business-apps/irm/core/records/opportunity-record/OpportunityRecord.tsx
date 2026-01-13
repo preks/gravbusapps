@@ -9,8 +9,15 @@ import {
   TooltipTrigger,
   TooltipContent
 } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, LightbulbIcon, TrashIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react'
-import { Bot } from 'lucide-react'
+import {
+  UserIcon,
+  FileTextIcon,
+  LightbulbIcon,
+  TrashIcon,
+  PencilSimpleIcon,
+  StarIcon,
+  RobotIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -98,7 +105,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   // Use shared hook for fetching pipeline stages and catalog conditions
   const { opportunityStages, catalogStageConditions, loadingStages, stagesError, fetchOpportunityStages } =
     useOpportunityPipelineStages({
-      opportunityData,
+      opportunityData: opportunityData ?? undefined,
       stageConditionCatalog: 'InvestmentOpportunityPipelineStageCondition',
       accessToken: props.accessToken,
       contextLabel: 'investment'
@@ -737,7 +744,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       {
         key: 'ai-summary',
         label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <Bot size={16} />,
+        icon: <RobotIcon size={16} />,
         hook: aiSummaryHook,
         config: {
           entityType: 'opportunity',
@@ -893,7 +900,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                         }
                       : undefined,
                     accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
-                    accountIds: opportunityData?.opportunityAccounts?.map(a => a.accountId).filter(Boolean),
                     recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId
                       ? buildPlatformUrl('/platform/irm/account-record', {
                           accountId: opportunityData.opportunityAccounts[0].accountId,
@@ -961,8 +967,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                           // DIVESTMENT_DEAL: Use full investment entity fetched separately
                           // No fields prop - let InvestmentSection fetch from catalog (record: true)
                           ...props,
-                          investment: divestmentInvestment || undefined,
-                          investments: divestmentInvestment ? [divestmentInvestment] : undefined,
+                          investment: (divestmentInvestment as Investment) || undefined,
+                          investments: divestmentInvestment ? [divestmentInvestment as Investment] : undefined,
                           // recordUrl not needed - InvestmentSection auto-generates for real entities
                           isLoading: loading || divestmentLoading,
                           error: error,

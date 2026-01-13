@@ -1,5 +1,5 @@
 import React from 'react'
-import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@ant-design/icons'
+import { HouseIcon, ChartBarIcon, CurrencyDollarIcon, BuildingsIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatNumber, formatPercentage } from '@/common/data/investment/utils/formatters'
@@ -21,7 +21,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       key: 'total-property-value',
       title: getTranslationFromI18nKeyAndLabel('kpi.totalPropertyValue', 'Total Property Value'),
       value: formatCurrencyCompact(kpis.totalPropertyValue, 'EUR', undefined, 1, true),
-      prefix: <HomeOutlined />,
+      prefix: <HouseIcon />,
       color: 'var(--nw-color-warning-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -34,7 +34,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       key: 'average-occupancy-rate',
       title: getTranslationFromI18nKeyAndLabel('kpi.averageOccupancyRate', 'Average Occupancy Rate'),
       value: formatPercentage(kpis.averageOccupancyRate),
-      prefix: <BarChartOutlined />,
+      prefix: <ChartBarIcon />,
       color: 'var(--nw-color-success-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -44,7 +44,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       key: 'total-units',
       title: getTranslationFromI18nKeyAndLabel('kpi.totalUnits', 'Total Units'),
       value: formatNumber(kpis.totalUnits),
-      prefix: <BuildOutlined />,
+      prefix: <BuildingsIcon />,
       color: 'var(--nw-color-primary-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -54,7 +54,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       key: 'total-annual-expenses',
       title: getTranslationFromI18nKeyAndLabel('kpi.totalAnnualExpenses', 'Total Annual Expenses'),
       value: formatCurrencyCompact(kpis.totalAnnualExpenses, 'EUR', undefined, 1, true),
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon />,
       color: 'var(--nw-color-purple-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },

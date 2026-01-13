@@ -2,7 +2,7 @@ import React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Button, Badge } from '@newwork/nw-design-system'
-import { PiDotsSixVertical, PiPencil, PiTrash } from 'react-icons/pi'
+import { DotsSixVerticalIcon, PencilIcon, TrashIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FieldDefinition } from '../types'
 
@@ -42,7 +42,7 @@ export const SortableFieldItem: React.FC<SortableFieldItemProps> = ({
           className="gba:cursor-grab gba:flex gba:items-center gba:text-muted-foreground"
           data-testid={`${prefixDataTestId}-drag-handle`}
         >
-          <PiDotsSixVertical size={20} />
+          <DotsSixVerticalIcon size={20} />
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-1">
@@ -53,7 +53,7 @@ export const SortableFieldItem: React.FC<SortableFieldItemProps> = ({
             data-testid={`${prefixDataTestId}-edit`}
             aria-label={`Edit ${field.label}`}
           >
-            <PiPencil />
+            <PencilIcon />
           </Button>
           <Button
             size="icon"
@@ -62,7 +62,7 @@ export const SortableFieldItem: React.FC<SortableFieldItemProps> = ({
             data-testid={`${prefixDataTestId}-delete`}
             aria-label={`Delete ${field.label}`}
           >
-            <PiTrash />
+            <TrashIcon />
           </Button>
         </div>
       </div>

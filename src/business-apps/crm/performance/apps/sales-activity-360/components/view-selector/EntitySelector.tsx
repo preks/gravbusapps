@@ -12,7 +12,14 @@ import {
   AvatarImage,
   ScrollArea
 } from '@newwork/nw-design-system'
-import { PiMagnifyingGlass, PiArrowLeft, PiUser, PiBuilding, PiTarget, PiHandshake, PiUserCircle } from 'react-icons/pi'
+import {
+  MagnifyingGlassIcon,
+  ArrowLeftIcon,
+  UserIcon,
+  BuildingIcon,
+  TargetIcon,
+  HandshakeIcon
+} from '@phosphor-icons/react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ActivityViewFilter, EntitySelectorProps } from '../../types'
 
@@ -261,42 +268,42 @@ const getEntityConfig = (entityType: ActivityViewFilter) => {
       return {
         title: 'Select Employee',
         description: 'Choose a sales team member to view their activities',
-        icon: <PiUser className="gba:w-6 gba:h-6" />,
+        icon: <UserIcon className="gba:w-6 gba:h-6" />,
         searchPlaceholder: 'Search employees...'
       }
     case 'by-account':
       return {
         title: 'Select Account',
         description: 'Choose an account to view related activities',
-        icon: <PiBuilding className="gba:w-6 gba:h-6" />,
+        icon: <BuildingIcon className="gba:w-6 gba:h-6" />,
         searchPlaceholder: 'Search accounts...'
       }
     case 'by-contact':
       return {
         title: 'Select Contact',
         description: 'Choose a contact to view their activities',
-        icon: <PiUserCircle className="gba:w-6 gba:h-6" />,
+        icon: <UserIconCircle className="gba:w-6 gba:h-6" />,
         searchPlaceholder: 'Search contacts...'
       }
     case 'by-lead':
       return {
         title: 'Select Lead',
         description: 'Choose a lead to view related activities',
-        icon: <PiTarget className="gba:w-6 gba:h-6" />,
+        icon: <TargetIcon className="gba:w-6 gba:h-6" />,
         searchPlaceholder: 'Search leads...'
       }
     case 'by-opportunity':
       return {
         title: 'Select Opportunity',
         description: 'Choose an opportunity to view related activities',
-        icon: <PiHandshake className="gba:w-6 gba:h-6" />,
+        icon: <HandshakeIcon className="gba:w-6 gba:h-6" />,
         searchPlaceholder: 'Search opportunities...'
       }
     default:
       return {
         title: 'Select Entity',
         description: 'Choose an entity',
-        icon: <PiUser className="gba:w-6 gba:h-6" />,
+        icon: <UserIcon className="gba:w-6 gba:h-6" />,
         searchPlaceholder: 'Search...'
       }
   }
@@ -424,7 +431,7 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({ accessToken, ent
       {/* Header with back button */}
       <div className="gba:flex gba:items-center gba:gap-4">
         <Button variant="outline" size="icon" onClick={onCancel} data-testid={`${DATA_TEST_ID_PREFIX}-back-button`}>
-          <PiArrowLeft className="gba:w-5 gba:h-5" />
+          <ArrowLeftIcon className="gba:w-5 gba:h-5" />
         </Button>
         <div className="gba:flex-1">
           <div className="gba:flex gba:items-center gba:gap-3">
@@ -441,7 +448,7 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({ accessToken, ent
       <Card>
         <CardHeader className="gba:pb-4">
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-5 gba:h-5" />
+            <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-5 gba:h-5" />
             <Input
               placeholder={config.searchPlaceholder}
               value={search}

@@ -127,6 +127,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
   accessToken,
   ...context
 }) => {
+  // Store loaded flags with their IDs for proper updates
+  const [loadedFlags, setLoadedFlags] = React.useState<ExpenseRuleFlag[]>([])
   const [ruleDetails, setRuleDetails] = useState<CalculationRuleDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -272,20 +274,11 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         isDeleted: false
       }
 
-      // For now, use mock flags until we have proper flag data structure from GraphQL
-      const mockFlags: ExpenseRuleFlag[] = [
-        {
-          id: 'flag-1',
-          expenseRuleId: ruleId,
-          code: 'romanianCalculation',
-          name: 'Romanian Calculation',
-          value: 'true',
-          version: 1
-        }
-      ]
-
       setRuleDetails(ruleDetails)
-      // Note: mockFlags prepared for future rule validation feature
+
+      // Get flags from the GraphQL response and store them with their IDs
+      const flags: ExpenseRuleFlag[] = ruleData.expenseRuleFlag || []
+      setLoadedFlags(flags)
 
       // Initialize form values
       const initialValues: FormData = {
@@ -310,8 +303,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         useLastCountry: ruleDetails.useLastCountry || false,
         deductionLimit: ruleDetails.deductionLimit || false,
         useSingleCurrency: ruleDetails.useSingleCurrency || false,
-        romanianCalculation: mockFlags.some(f => f.code === 'romanianCalculation' && f.value === 'true'),
-        austrianAbroad: mockFlags.some(f => f.code === 'austrianAbroad' && f.value === 'true')
+        romanianCalculation: flags.some(f => f.code === 'romanianCalculation' && f.value === 'true'),
+        austrianAbroad: flags.some(f => f.code === 'austrianAbroad' && f.value === 'true')
       }
 
       setFormData(initialValues)
@@ -441,7 +434,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         changeMode: 'UPDATE'
       }
 
-      // Save expense rule
+      // Save expense rule first
       await restClient.post('/employee-expense/saveExpenseRule', expenseRulePayload, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -450,32 +443,51 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         }
       })
 
-      // Handle Austrian/Romanian flags if changed
-      const isAustrianAbroad = !!formData.austrianAbroad
-      const isRomanianCalculation = !!formData.romanianCalculation
+      // Handle Austrian/Romanian flags - save separately with correct field name
+      const existingRomanianFlag = loadedFlags.find(f => f.code === 'romanianCalculation')
+      const existingAustrianFlag = loadedFlags.find(f => f.code === 'austrianAbroad')
 
-      if (isAustrianAbroad || isRomanianCalculation) {
-        const flagCode = isRomanianCalculation ? 'romanianCalculation' : 'austrianAbroad'
-        const flagName = isRomanianCalculation ? 'Romanian Calculation' : 'Austrian Abroad'
-
-        const flagPayload = {
-          expenseRuleFlag: {
-            expenseRuleId: ruleDetails?.id,
-            code: flagCode,
-            name: flagName,
-            value: 'true'
-          },
-          changeMode: 'INSERT'
-        }
-
-        await restClient.post('/employee-expense/saveExpenseRuleFlag', flagPayload, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            Accept: 'application/json',
-            'Content-Type': 'application/json'
-          }
-        })
+      // Save Romanian flag
+      const romanianPayload = {
+        expenseRuleFlag: {
+          ...(existingRomanianFlag?.id && { id: existingRomanianFlag.id }),
+          ...(existingRomanianFlag?.version !== undefined && { version: existingRomanianFlag.version }),
+          code: 'romanianCalculation',
+          name: 'Romanian Calculation',
+          value: formData.romanianCalculation ? 'true' : 'false',
+          expenseRule: ruleDetails?.id // Use 'expenseRule' not 'expenseRuleId'
+        },
+        changeMode: existingRomanianFlag ? 'UPDATE' : 'INSERT'
       }
+
+      await restClient.post('/employee-expense/saveExpenseRuleFlag', romanianPayload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+
+      // Save Austrian flag
+      const austrianPayload = {
+        expenseRuleFlag: {
+          ...(existingAustrianFlag?.id && { id: existingAustrianFlag.id }),
+          ...(existingAustrianFlag?.version !== undefined && { version: existingAustrianFlag.version }),
+          code: 'austrianAbroad',
+          name: 'Austrian Abroad',
+          value: formData.austrianAbroad ? 'true' : 'false',
+          expenseRule: ruleDetails?.id // Use 'expenseRule' not 'expenseRuleId'
+        },
+        changeMode: existingAustrianFlag ? 'UPDATE' : 'INSERT'
+      }
+
+      await restClient.post('/employee-expense/saveExpenseRuleFlag', austrianPayload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
 
       toast.success('Rule saved successfully')
       setHasChanges(false)
@@ -780,11 +792,13 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                           data-testid="austrian-abroad-checkbox"
                           checked={formData.austrianAbroad}
                           onCheckedChange={checked => {
-                            if (checked) {
-                              setFormData({ ...formData, austrianAbroad: true, romanianCalculation: false })
-                            } else {
-                              setFormData({ ...formData, austrianAbroad: false })
-                            }
+                            // When turning ON, turn OFF the other one (mutually exclusive)
+                            // When turning OFF, just turn OFF (both can be OFF)
+                            setFormData({
+                              ...formData,
+                              austrianAbroad: checked,
+                              romanianCalculation: checked ? false : formData.romanianCalculation
+                            })
                           }}
                         />
                         <Label htmlFor="austrianAbroad">Austrian Calculation</Label>
@@ -796,11 +810,13 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                           data-testid="romanian-calculation-checkbox"
                           checked={formData.romanianCalculation}
                           onCheckedChange={checked => {
-                            if (checked) {
-                              setFormData({ ...formData, romanianCalculation: true, austrianAbroad: false })
-                            } else {
-                              setFormData({ ...formData, romanianCalculation: false })
-                            }
+                            // When turning ON, turn OFF the other one (mutually exclusive)
+                            // When turning OFF, just turn OFF (both can be OFF)
+                            setFormData({
+                              ...formData,
+                              romanianCalculation: checked,
+                              austrianAbroad: checked ? false : formData.austrianAbroad
+                            })
                           }}
                         />
                         <Label htmlFor="romanianCalculation">Romanian Calculation</Label>

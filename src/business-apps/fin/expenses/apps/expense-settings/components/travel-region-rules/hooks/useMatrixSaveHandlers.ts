@@ -85,8 +85,6 @@ export const useMatrixSaveHandlers = ({
                 return null // Skip this cell
               }
 
-              console.log('💾 Saving cell with countryRef:', countryRef, 'from region:', cell.travelRegionId)
-
               // Build the detail payload
               const detailPayload = {
                 allowanceRegionRuleDetail: {
@@ -102,8 +100,6 @@ export const useMatrixSaveHandlers = ({
                 },
                 changeMode: cell.id ? 'UPDATE' : 'INSERT'
               }
-
-              console.log('📦 Saving detail:', detailPayload) // Debug log
 
               const result = await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
 

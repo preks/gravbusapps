@@ -1,7 +1,15 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
-import { cn } from '@newwork/nw-design-system'
+import { cn, useTranslation, useLocale } from '@newwork/nw-design-system'
+import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
 import type { CalendarEvent } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
+import translations from '../../_i18n'
+
+dayjs.extend(localizedFormat)
 
 interface DayViewProps {
   currentDate: Date
@@ -13,10 +21,11 @@ interface DayViewProps {
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const HOUR_HEIGHT = 72 // pixels per hour (slightly larger for day view)
 
-const formatHour = (hour: number): string => {
-  if (hour === 0) return '12 AM'
-  if (hour === 12) return '12 PM'
-  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`
+const formatHour = (hour: number, locale: string): string => {
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  // Create a date at the specified hour to format it
+  const date = dayjs().hour(hour).minute(0).second(0)
+  return date.locale(baseLocale).format('LT')
 }
 
 const isToday = (date: Date): boolean => {
@@ -60,6 +69,9 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
 }
 
 export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventClick, onTimeSlotClick }) => {
+  const { t } = useTranslation(translations)
+  const { locale } = useLocale()
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
   const isTodayDate = isToday(currentDate)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef(false)
@@ -133,16 +145,18 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
             )}
           >
             <span className="gba:text-xs gba:uppercase gba:font-medium">
-              {currentDate.toLocaleDateString(undefined, { weekday: 'short' })}
+              {dayjs(currentDate).locale(baseLocale).format('ddd')}
             </span>
             <span className="gba:text-2xl gba:font-bold">{currentDate.getDate()}</span>
           </div>
           <div>
             <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
-              {currentDate.toLocaleDateString(undefined, { weekday: 'long' })}
+              {dayjs(currentDate).locale(baseLocale).format('dddd')}
             </h3>
             <p className="gba:text-sm gba:text-muted-foreground">
-              {dayEvents.length} event{dayEvents.length !== 1 ? 's' : ''} scheduled
+              {dayEvents.length === 0
+                ? t('calendar-noEventsScheduled')
+                : t('calendar-eventsScheduled', { count: dayEvents.length })}
             </p>
           </div>
         </div>
@@ -170,7 +184,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
               className="gba:text-center gba:text-xs gba:text-muted-foreground gba:flex gba:items-start gba:justify-center"
               style={{ height: HOUR_HEIGHT }}
             >
-              {hour > 0 && <span className="gba:pt-0.5">{formatHour(hour)}</span>}
+              {hour > 0 && <span className="gba:pt-0.5">{formatHour(hour, locale)}</span>}
             </div>
           ))}
         </div>

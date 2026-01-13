@@ -15,13 +15,16 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
 }
 `
 
-export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idEmployee: uuid!) {
+export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idEmployee: uuid!, $today: date!) {
   AllEmployeeSalaries: EmployeeSalary(
     where: { 
       employeeId: { _eq: $idEmployee }
       isDeleted: { _eq: false }
+      requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+      startDate: { _lte: $today }
     }
-    orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
+    orderBy: [{ startDate: DESC }, { createdAt: DESC }]
+    limit: 5
   ) {
     id
     employeeId
@@ -33,6 +36,15 @@ export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idE
     activeTo
     startDate
     endDate
+    requestStatus
+    requestDate
+    decisionDate
+    requestedPercent
+    requestedAmount
+    stockOptions
+    notes
+    salaryAdjustReasonRef
+    decisionEmployeeId
     createdAt
     isDeleted
     currency {

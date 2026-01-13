@@ -276,3 +276,17 @@ period-daily = Täglich
 error-end-date-required = Enddatum ist erforderlich
 error-end-date-today-or-later = Enddatum muss heute oder später sein
 error-end-date-after-start-date = Enddatum muss am oder nach dem Startdatum der Leistung liegen
+
+# Employee Record - Notifications
+notification-address-updated-success = Adressänderungen zur Genehmigung an die Personalabteilung gesendet.
+notification-bank-account-updated-success = Änderungen der Bankverbindung zur Genehmigung an die Personalabteilung gesendet.
+notification-personal-data-updated-success = Änderungen an den persönlichen Daten zur Genehmigung an die Personalabteilung gesendet.
+notification-communication-updated-success = Änderungen an den Kommunikationsdaten zur Genehmigung an die Personalabteilung gesendet.
+notification-profile-picture-updated-success = Änderungen am Profilbild zur Genehmigung an die Personalabteilung gesendet.
+notification-relationship-updated-success = Änderungen des Beziehungsstatus zur Genehmigung an die Personalabteilung gesendet.
+notification-expense-created-success = Spesen erfolgreich erstellt
+notification-sick-leave-reported-success = Krankmeldung erfolgreich erfasst
+notification-special-leave-requested-success = Sonderurlaub erfolgreich beantragt
+notification-vacation-requested-success = Urlaub erfolgreich beantragt
+ notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
+ notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet

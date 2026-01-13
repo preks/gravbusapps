@@ -1035,6 +1035,13 @@ export const GET_EXPENSE_RULE_BY_ID = (ruleId: string): string => {
           code
           value
         }
+        expenseRuleFlag(where: { isDeleted: { _eq: false } }) {
+          id
+          code
+          name
+          value
+          version
+        }
         expenseRuleGeneralExpense(where: { isDeleted: { _eq: false } }) {
           id
           code

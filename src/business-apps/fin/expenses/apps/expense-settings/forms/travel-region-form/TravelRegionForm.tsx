@@ -113,9 +113,6 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
         destination_country_ref: formData.countryId // e.g., "Country:v1:RO"
       }
 
-      console.log('🔍 Form data:', formData)
-      console.log('🔍 Object value being created:', objectValue)
-
       // Create the catalog entry for TravelRegion
       const catalogEntry = {
         code: formData.code.trim(),
@@ -130,8 +127,6 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
           }
         ]
       }
-
-      console.log('🚀 Creating Travel Region with full payload:', JSON.stringify(catalogEntry, null, 2))
 
       await catalogClient.createCatalogEntry('TravelRegion', 'v1', catalogEntry)
 

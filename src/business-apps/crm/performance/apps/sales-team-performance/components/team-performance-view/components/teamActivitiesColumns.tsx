@@ -1,6 +1,16 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import { User, Phone, Mail, Users, ListChecks, Target, Handshake, Building2, Calendar } from 'lucide-react'
+import {
+  UserIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon,
+  TargetIcon,
+  HandshakeIcon,
+  BuildingIcon,
+  CalendarIcon
+} from '@phosphor-icons/react'
 import type { TeamSalesActivity } from '../hooks/useTeamActivitiesData'
 import type { SalesTeamMember } from '../../sales-members-list/types'
 import { getEntityName, getEntityType, getActivityTypeVariant, safeString } from '../../../utils/activityHelpers'
@@ -11,15 +21,15 @@ import { formatDate } from '@/common/utils/windowUtils'
 const getActivityTypeIcon = (type: string) => {
   switch (type) {
     case 'Call':
-      return <Phone className="gba:h-4 gba:w-4 gba:text-success" />
+      return <PhoneIcon className="gba:h-4 gba:w-4 gba:text-success" />
     case 'Email':
-      return <Mail className="gba:h-4 gba:w-4 gba:text-primary" />
+      return <EnvelopeIcon className="gba:h-4 gba:w-4 gba:text-primary" />
     case 'Meeting':
-      return <Users className="gba:h-4 gba:w-4 gba:text-warning" />
+      return <UsersIcon className="gba:h-4 gba:w-4 gba:text-warning" />
     case 'Task':
-      return <ListChecks className="gba:h-4 gba:w-4 gba:text-accent" />
+      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-accent" />
     default:
-      return <ListChecks className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
   }
 }
 
@@ -27,15 +37,15 @@ const getActivityTypeIcon = (type: string) => {
 const getEntityTypeIcon = (entityType: string) => {
   switch (entityType) {
     case 'Contact':
-      return <User className="gba:h-4 gba:w-4" />
+      return <UserIcon className="gba:h-4 gba:w-4" />
     case 'Lead':
-      return <Target className="gba:h-4 gba:w-4" />
+      return <TargetIcon className="gba:h-4 gba:w-4" />
     case 'Opportunity':
-      return <Handshake className="gba:h-4 gba:w-4" />
+      return <HandshakeIcon className="gba:h-4 gba:w-4" />
     case 'Account':
-      return <Building2 className="gba:h-4 gba:w-4" />
+      return <BuildingIcon className="gba:h-4 gba:w-4" />
     default:
-      return <User className="gba:h-4 gba:w-4" />
+      return <UserIcon className="gba:h-4 gba:w-4" />
   }
 }
 
@@ -98,7 +108,7 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
             >
               {member?.avatar && <AvatarImage src={`data:image/jpeg;base64,${member.avatar}`} alt={fullName} />}
               <AvatarFallback>
-                <User className="gba:h-4 gba:w-4" />
+                <UserIcon className="gba:h-4 gba:w-4" />
               </AvatarFallback>
             </Avatar>
             <span className="gba:text-[color:var(--nw-color-text-primary)] group-hover:gba:text-[color:var(--nw-color-primary-500)]">
@@ -113,7 +123,7 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
           <Avatar size="sm" className="gba:opacity-50">
             {member?.avatar && <AvatarImage src={`data:image/jpeg;base64,${member.avatar}`} alt={fullName} />}
             <AvatarFallback>
-              <User className="gba:h-4 gba:w-4" />
+              <UserIcon className="gba:h-4 gba:w-4" />
             </AvatarFallback>
           </Avatar>
           <span className="gba:text-[color:var(--nw-color-text-disabled)]">{fullName}</span>
@@ -213,7 +223,7 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
 
       return (
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400" />
           <span className="gba:text-sm">{formatDate(date)}</span>
         </div>
       )
@@ -231,7 +241,7 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
 
       return (
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400" />
           <span className="gba:text-sm">{formatDate(date)}</span>
         </div>
       )

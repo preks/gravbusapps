@@ -8,7 +8,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Calendar, Flag } from 'lucide-react'
+import { CalendarIcon, FlagIcon } from '@phosphor-icons/react'
 
 /**
  * Format date helper
@@ -411,7 +411,7 @@ export const createHeaderMeta = (
         badgeContent = getTranslationFromI18nKeyAndLabel('investment.exit.planExit', 'Plan Exit')
         badgeVariant = 'secondary'
         badgeClass = 'gba:flex gba:items-center gba:gap-1 gba:cursor-pointer gba:hover:opacity-80'
-        icon = <Calendar className="gba:w-3 gba:h-3" />
+        icon = <CalendarIcon className="gba:w-3 gba:h-3" />
         break
 
       case 'planned-no-date':
@@ -419,7 +419,7 @@ export const createHeaderMeta = (
         badgeContent = getTranslationFromI18nKeyAndLabel('investment.exit.setExitDate', 'Set Exit Date')
         badgeVariant = 'warning'
         badgeClass = 'gba:flex gba:items-center gba:gap-1 gba:cursor-pointer gba:hover:opacity-80'
-        icon = <Calendar className="gba:w-3 gba:h-3" />
+        icon = <CalendarIcon className="gba:w-3 gba:h-3" />
         break
 
       case 'planned-with-date':
@@ -432,7 +432,7 @@ export const createHeaderMeta = (
         badgeContent = formatDate(plannedExitDate)
         badgeVariant = isPast && isEmptyExitDate ? 'destructive' : 'info'
         badgeClass = 'gba:flex gba:items-center gba:gap-1 gba:cursor-pointer gba:hover:opacity-80'
-        icon = <Flag className="gba:w-3 gba:h-3" />
+        icon = <FlagIcon className="gba:w-3 gba:h-3" />
         break
 
       case 'invalid':

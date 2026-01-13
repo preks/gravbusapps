@@ -12,7 +12,7 @@ import {
   ChartLegendContent
 } from '@newwork/nw-design-system'
 import { Line, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
-import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
+import { formatCurrencyCompact, extractCurrencyCode, formatAmount } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CurrencyFilter } from '../../shared/components'
@@ -239,8 +239,21 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
               <ChartContainer config={performanceChartConfig} className="gba:h-[350px] gba:w-full">
                 <ComposedChart data={investmentPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} tickFormatter={value => formatAmount(value, 1)} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(performanceCurrency),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
+                    }
+                  />
                   <ChartTooltip content={renderPerformanceTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar
@@ -333,7 +346,13 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                   <YAxis
                     tick={{ fontSize: 12 }}
                     tickFormatter={value =>
-                      formatCurrencyCompact(value, extractCurrencyCode(valueTrendsCurrency), undefined, 1, true)
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(valueTrendsCurrency),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
                     }
                   />
                   <ChartTooltip content={renderValueTrendsTooltip} />

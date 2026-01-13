@@ -2,7 +2,7 @@ import React from 'react'
 import { EmployeeSelect } from '@/components/employee-select'
 import { MultiEmployeeSelect } from '@/components/multi-employee-select'
 import { EntitySelect } from '../../selects/reference-select'
-import { CatalogSelect } from '@/components/catalog-select'
+import { CatalogSelect, type CatalogSelectConfig } from '@/components/catalog-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   FormField,
@@ -20,15 +20,11 @@ import {
   FileUpload,
   type FileMetadata,
   DateInput,
-  useTranslation,
-  Badge,
-  Alert,
-  AlertTitle,
-  AlertDescription
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
-import { Clock3, CalendarClock, Info } from 'lucide-react'
+import { Clock3, CalendarClock } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import {
@@ -36,7 +32,6 @@ import {
   createCommonEntitySelectHandler,
   type CommonEntityContext
 } from '../../selects/reference-select/entityHandlingUtils'
-import { computeTaskStatus, formatTaskProgress } from '../../utils/taskStatusUtils'
 import translations from './_i18n'
 
 export interface TaskSegmentProps {
@@ -62,6 +57,7 @@ export interface TaskSegmentProps {
   // Type selection control
   initialTypeRef?: string | null
   hideTypeSelection?: boolean
+  catalogSelectConfig?: CatalogSelectConfig // Configuration for catalog filtering
 
   // Entity selection (still needs entities array until EntitySelect is refactored)
   showEntitySelection?: boolean
@@ -111,6 +107,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   // statusCatalog kept in props for backwards compatibility, backend now computes status
   initialTypeRef,
   hideTypeSelection = false,
+  catalogSelectConfig,
   showEntitySelection = false,
   entities = [],
   entitiesLoading = false,
@@ -247,42 +244,8 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
     }
   }, [initialEntityFromContext, form, onAdditionalEntityChange])
 
-  // Compute overall task status from assignees (only for existing tasks in update mode)
-  const taskAssignees = form.watch('taskAssignees')
-  const computedStatus = React.useMemo(() => {
-    if (!entityId || !taskAssignees || taskAssignees.length === 0) return null
-    return computeTaskStatus(taskAssignees)
-  }, [entityId, taskAssignees])
-
   return (
     <>
-      {/* Overall Task Status Display (Update Mode Only) */}
-      {computedStatus && (
-        <Alert className="gba:mb-4" data-testid={`${dataTestId}-computed-status-alert`}>
-          <Info className="gba:h-4 gba:w-4" />
-          <AlertTitle className="gba:flex gba:items-center gba:gap-2">
-            Task Status (Computed from Assignees)
-            <Badge variant={computedStatus.statusColor as any} data-testid={`${dataTestId}-status-badge`}>
-              {computedStatus.overallStatus}
-            </Badge>
-          </AlertTitle>
-          <AlertDescription>
-            <span className="gba:text-sm">{formatTaskProgress(computedStatus.progress)}</span>
-            {computedStatus.progress.total > 0 && (
-              <div className="gba:mt-2 gba:flex gba:gap-4 gba:text-xs">
-                <span>✅ Completed: {computedStatus.progress.completed}</span>
-                <span>⏳ In Progress: {computedStatus.progress.inProgress}</span>
-                <span>⏸️ Pending: {computedStatus.progress.pending}</span>
-              </div>
-            )}
-            <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground">
-              Task status is automatically computed from individual assignee statuses. Assignees can update their status
-              from the Task Section or Task Detail Sheet.
-            </p>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Name */}
       <FormField
         control={form.control as any}
@@ -372,8 +335,10 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                 <FormControl>
                   <CatalogSelect
                     catalogIdentifier={typeCatalog}
+                    prefetch={false}
                     value={field.value || ''}
                     onValueChange={field.onChange}
+                    config={catalogSelectConfig}
                     data-testid={`${dataTestId}-type`}
                   />
                 </FormControl>
@@ -407,7 +372,12 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
 
       {/* Status - Backend computed, no manual selection needed */}
 
-      {/* Assigned To - Single or Multiple */}
+      {/* Assigned To - Single or Multiple
+          Note: assignedEmployeeIds is always an array, even in single-select mode.
+          - Multi-select mode: array with multiple elements
+          - Single-select mode: array with max 1 element (enforced by Zod validation)
+          This unified approach matches the backend's taskAssignees array structure.
+      */}
       {multiAssigneeMode ? (
         <FormField
           control={form.control as any}
@@ -422,7 +392,6 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                   value={field.value || []}
                   onValueChange={employeeIds => {
                     field.onChange(employeeIds)
-                    form.setValue('assignedEmployeeIds', employeeIds)
                   }}
                   onEmployeesChange={employees => {
                     form.setValue('assignedEmployees', employees)
@@ -439,7 +408,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
       ) : (
         <FormField
           control={form.control as any}
-          name="assignedEmployeeId"
+          name="assignedEmployeeIds"
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t('task-assignee-label')}</FormLabel>
@@ -449,20 +418,15 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                   businessAppContext={businessAppContext}
                   initialEmployee={assignedEmployee}
                   autoSelect={isNewEntity ? 'current-user' : undefined}
-                  value={field.value || ''}
+                  value={field.value?.[0] || ''} // Extract single value from array
                   onValueChange={(v: string | null) => {
-                    field.onChange(v || '')
+                    // Convert single value to array format (backend expects array)
+                    const newValue = v ? [v] : []
+                    field.onChange(newValue)
                   }}
                   onEmployeeChange={(employee: any) => {
-                    // Set both assignedEmployeeId and assignedEmployee
-                    form.setValue('assignedEmployeeId', employee?.id || '')
-                    form.setValue('assignedEmployee', employee)
-                    // Also set assignedUserId directly when employee changes
-                    if (employee?.userId) {
-                      form.setValue('assignedUserId', employee.userId)
-                    } else {
-                      form.setValue('assignedUserId', undefined)
-                    }
+                    // Set assignedEmployees as array with single employee
+                    form.setValue('assignedEmployees', employee ? [employee] : [])
                   }}
                   data-testid={`${dataTestId}-assignee`}
                 />
@@ -590,21 +554,31 @@ const buildTaskSegmentSchema = (options?: {
     files: z.any().optional()
   }
 
-  // Add assignee fields based on mode
-  if (multiAssigneeMode) {
-    return z.object({
-      ...baseSchema,
-      assignedEmployeeIds: requireAssignee
-        ? z.array(z.string()).min(1, 'At least one assignee is required')
-        : z.array(z.string()).optional(),
-      assignedEmployees: z.array(z.any()).optional()
-    })
-  } else {
-    return z.object({
-      ...baseSchema,
-      assignedEmployeeId: requireAssignee ? z.string().min(1, 'Assigned employee is required') : z.string().optional()
-    })
+  // Build assignee validation with independent constraints
+  // Note: assignedEmployeeIds is always an array (even for single-select mode)
+  // This unified structure matches the backend's taskAssignees array format
+  let assigneeValidation: any = z.array(z.string())
+
+  // Add min constraint if required
+  if (requireAssignee) {
+    assigneeValidation = assigneeValidation.min(1, 'At least one assignee is required')
   }
+
+  // Add max constraint for single-select mode (array with max 1 element)
+  if (!multiAssigneeMode) {
+    assigneeValidation = assigneeValidation.max(1, 'Only one assignee allowed')
+  }
+
+  // Make optional if not required
+  if (!requireAssignee) {
+    assigneeValidation = assigneeValidation.optional()
+  }
+
+  return z.object({
+    ...baseSchema,
+    assignedEmployeeIds: assigneeValidation,
+    assignedEmployees: z.array(z.any()).optional()
+  })
 }
 
 export type TaskSegmentSchema = z.infer<ReturnType<typeof buildTaskSegmentSchema>>

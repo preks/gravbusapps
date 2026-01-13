@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ActivityViewFilter } from '../../types'
 import { useEmployeeComparisonData, EmployeeComparison } from './hooks/useEmployeeComparisonData'
 import { Button, Spinner, Avatar, AvatarImage, AvatarFallback, Badge, Card, Combobox } from '@newwork/nw-design-system'
-import { PiUsersThree, PiX, PiTrendUp, PiTrendDown, PiMinus } from 'react-icons/pi'
+import { UsersThreeIcon, XIcon, TrendUpIcon, TrendDownIcon, MinusIcon } from '@phosphor-icons/react'
 
 interface Activity360ComparisonTabProps extends Pick<BusinessAppContextProps, 'accessToken'> {
   filter: ActivityViewFilter
@@ -40,6 +40,15 @@ const TrendDisplay: React.FC<{ trend: number }> = ({ trend }) => {
   const isPositive = trend > 0
   const isNegative = trend < 0
 
+  let trendIcon: React.ReactNode
+  if (isPositive) {
+    trendIcon = <TrendUpIcon className="gba:w-3 gba:h-3" />
+  } else if (isNegative) {
+    trendIcon = <TrendDownIcon className="gba:w-3 gba:h-3" />
+  } else {
+    trendIcon = <MinusIcon className="gba:w-3 gba:h-3" />
+  }
+
   return (
     <div
       className={`gba:flex gba:items-center gba:justify-center gba:gap-1 gba:text-xs gba:font-medium gba:px-2 gba:py-1 gba:rounded ${
@@ -50,13 +59,7 @@ const TrendDisplay: React.FC<{ trend: number }> = ({ trend }) => {
             : 'gba:bg-muted gba:text-muted-foreground'
       }`}
     >
-      {isPositive ? (
-        <PiTrendUp className="gba:w-3 gba:h-3" />
-      ) : isNegative ? (
-        <PiTrendDown className="gba:w-3 gba:h-3" />
-      ) : (
-        <PiMinus className="gba:w-3 gba:h-3" />
-      )}
+      {trendIcon}
       <span className="gba:tabular-nums">
         {trend > 0 ? '+' : ''}
         {trend.toFixed(0)}%
@@ -187,7 +190,7 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
     return (
       <div className="gba:flex gba:justify-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty`}>
         <div className="gba:text-center gba:max-w-md">
-          <PiUsersThree className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-muted-foreground" />
+          <UsersThreeIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-muted-foreground" />
           <h3 className="gba:text-lg gba:font-semibold gba:mb-2">No Employee Data</h3>
           <p className="gba:text-sm gba:text-muted-foreground">
             No employees with activities found for the current filters.
@@ -205,7 +208,7 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
           {/* Header */}
           <div className="gba:flex gba:items-center gba:justify-between">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <PiUsersThree className="gba:w-5 gba:h-5 gba:text-primary" />
+              <UsersThreeIcon className="gba:w-5 gba:h-5 gba:text-primary" />
               <h3 className="gba:text-sm gba:font-semibold">Compare Employees</h3>
               <span className="gba:text-xs gba:text-muted-foreground">
                 ({selectedEmployeeIds.length}/{MAX_COMPARISON_EMPLOYEES})
@@ -234,7 +237,7 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
                   onClick={() => handleRemoveEmployee(emp.id)}
                   className="gba:ml-1 gba:p-0.5 gba:rounded-full hover:gba:bg-background/50 gba:transition-colors"
                 >
-                  <PiX className="gba:w-3 gba:h-3" />
+                  <XIcon className="gba:w-3 gba:h-3" />
                 </button>
               </Badge>
             ))}
@@ -314,7 +317,7 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
       {/* Empty comparison state */}
       {selectedEmployees.length === 0 && (
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:text-center">
-          <PiUsersThree className="gba:w-16 gba:h-16 gba:text-muted-foreground/30 gba:mb-4" />
+          <UsersThreeIcon className="gba:w-16 gba:h-16 gba:text-muted-foreground/30 gba:mb-4" />
           <h3 className="gba:text-lg gba:font-medium gba:text-muted-foreground gba:mb-2">No Employees Selected</h3>
           <p className="gba:text-sm gba:text-muted-foreground/70 gba:max-w-sm">
             Use the dropdown above to select up to {MAX_COMPARISON_EMPLOYEES} employees and compare their activity

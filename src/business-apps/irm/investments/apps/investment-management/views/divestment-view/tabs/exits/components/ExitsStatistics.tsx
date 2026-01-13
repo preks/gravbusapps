@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { DollarSign, CheckCircle, Award, Target } from 'lucide-react'
+import { CurrencyDollarIcon, CheckCircleIcon, MedalIcon, TargetIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCompactCurrency } from '@/common/utils/numberFormatter'
@@ -31,7 +31,7 @@ const calculatePercentageChange = (current: number, previous: number): number =>
   return ((current - previous) / previous) * 100
 }
 
-// Helper: Calculate metrics for a dataset (opportunities are already WON from server filter)
+// Helper: Calculate metrics for a dataset (opportunities are already WON - filtered by catalog entry type field)
 const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: Date) => {
   let filteredOpportunities = opportunities
 
@@ -42,7 +42,7 @@ const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: D
     })
   }
 
-  // No need to filter for WON - server already did this
+  // No need to filter for WON - already filtered by catalog entry type field
   const totalValue = filteredOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
   const averageValue = filteredOpportunities.length > 0 ? totalValue / filteredOpportunities.length : 0
 
@@ -75,15 +75,9 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
   const filterData = useInvestmentOpportunityFilters(context)
   const { statuses } = filterData
 
-  // Identify WON status IDs for server-side filtering (same logic as ExitsTab)
+  // Identify WON status IDs by catalog entry type field (same logic as ExitsTab)
   const wonStatusIds = React.useMemo(() => {
-    return statuses
-      .filter(status => {
-        const label = status.label?.toUpperCase() || ''
-        const wonVariations = ['WON', 'CLOSED WON', 'SOLD', 'SUCCESS', 'COMPLETED']
-        return wonVariations.some(variation => label.includes(variation) || label === variation)
-      })
-      .map(status => status.id)
+    return statuses.filter(status => status.type?.toUpperCase() === 'WON').map(status => status.id)
   }, [statuses])
 
   const loadMetrics = useCallback(async () => {
@@ -115,12 +109,12 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
         limit: 1000,
         dealType: 'DIVESTMENT_DEAL',
         currencyCode: currencyCode || undefined,
-        statusIds: wonStatusIds // Server-side filter for WON status
+        statusIds: wonStatusIds // Server-side filter for WON status (filtered by catalog entry type field)
       }
 
       const currentResult = await fetchInvestmentOpportunities(currentVariables)
 
-      // All opportunities are already WON (filtered by server)
+      // All opportunities are already WON (filtered by catalog entry type field)
       const wonOpportunities = currentResult.InvestmentOpportunity || []
 
       // Calculate current and historical metrics
@@ -191,7 +185,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       key: 'total-exits',
       title: getTranslationFromI18nKeyAndLabel('total_exits', 'Total Exit'),
       value: metrics.totalExits,
-      prefix: <CheckCircle className="gba:h-5 gba:w-5 gba:text-green-600" />,
+      prefix: <CheckCircleIcon className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('exited_opportunities', 'Exited opportunities'),
@@ -206,7 +200,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       title: getTranslationFromI18nKeyAndLabel('average_exit_amount', 'Average Exit Amount'),
       value: formatCompactCurrency(metrics.averageExitAmount, metrics.currencyCode),
       valueIsString: true,
-      prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
+      prefix: <TargetIcon className="gba:h-5 gba:w-5 gba:text-purple-600" />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('avg_per_exit', 'Avg per exit'),
@@ -221,7 +215,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       title: getTranslationFromI18nKeyAndLabel('total_exit_amount', 'Total Exit Amount'),
       value: formatCompactCurrency(metrics.totalExitAmount, metrics.currencyCode),
       valueIsString: true,
-      prefix: <DollarSign className="gba:h-5 gba:w-5 gba:text-green-600" />,
+      prefix: <CurrencyDollarIcon className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#389e0d',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('total_generated', 'Total generated'),
@@ -235,7 +229,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       key: 'exits-this-year',
       title: getTranslationFromI18nKeyAndLabel('exits_this_year', 'Exits This Year'),
       value: metrics.exitsThisYear,
-      prefix: <Award className="gba:h-5 gba:w-5 gba:text-blue-600" />,
+      prefix: <MedalIcon className="gba:h-5 gba:w-5 gba:text-blue-600" />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('closed_ytd', 'Closed YTD'),

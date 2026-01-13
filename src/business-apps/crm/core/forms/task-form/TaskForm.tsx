@@ -73,8 +73,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   // Extract typeRef from additionalData or initialParameters
   const typeRef = additionalData?.typeRef || initialParameters?.typeRef || null
 
-  // Determine if this is an Approval task (type selection should be hidden)
-  const isApprovalTask = typeRef?.toUpperCase().includes('APPROVAL')
+  // Determine if this is an Approval task (for assignee mode control only)
+  const isApprovalTask = typeRef?.toUpperCase()?.includes('APPROVAL') ?? false
 
   // Determine if entity selection should be shown
   const hasEntityFromContext = accountId || contactId || opportunityId || leadId
@@ -125,8 +125,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         ...(existing?.version !== undefined && { version: existing.version }),
         assignedEmployeeId: employeeId,
         assignedUserId: employee?.userId || null,
-        taskStatus: existing?.taskStatus || 'SCHEDULED_TASK_STATUS', // Set default to SCHEDULED for new instances
-        completedAt: existing?.completedAt || null
+        ...(existing?.taskStatus && { taskStatus: existing.taskStatus }), // Preserve existing status (backend sets default)
+        ...(existing?.completedAt && { completedAt: existing.completedAt })
       }
     })
 
@@ -253,6 +253,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     }
   }, [typeRef, task, form])
 
+  // Set default task status to IN_PROGRESS for new tasks
+  useEffect(() => {
+    if (!task && !form.getValues('taskStatusRef')) {
+      // Only set for new tasks, not when editing existing ones
+      form.setValue('taskStatusRef', 'SalesTaskStatus:v1:IN_PROGRESS')
+    }
+  }, [task, form])
+
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
     const hasEntity = Boolean(
@@ -327,7 +335,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           statusCatalog={TASK_STATUS_CATALOG}
           // Type selection control
           initialTypeRef={typeRef}
-          hideTypeSelection={isApprovalTask}
+          catalogSelectConfig={{
+            code: { mode: 'omit', values: ['APPROVAL'] }
+          }}
+          // Assignee mode - multi-select for approvals, single-select for regular tasks
+          multiAssigneeMode={isApprovalTask}
           // Entity search - hide if entity provided from context OR updating existing task
           showEntitySelection={shouldShowEntitySelection && !taskId}
           entities={entities}

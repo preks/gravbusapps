@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { PageLayout, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
-import { PiChartLine } from 'react-icons/pi'
-import { BarChartOutlined, TeamOutlined, UserOutlined, LineChartOutlined } from '@ant-design/icons'
+import { PageLayout } from '@newwork/nw-design-system'
+import { ChartLineIcon, ChartBarIcon, UsersThreeIcon, UserIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { OverviewView, TeamsView, EmployeesView } from './views'
@@ -141,85 +140,95 @@ export const SalesPerformance: React.FC<SalesPerformanceProps> = ({ accessToken,
     }
   }, [activeTab, selectedEmployeeId, updateUrl])
 
-  const tabs = useMemo(
+  const viewOptions = useMemo(
     () => [
       {
-        key: 'overview' as const,
+        key: 'overview',
         label: 'Overview',
-        icon: <BarChartOutlined className="gba:mr-2" />,
-        content: <OverviewView accessToken={accessToken} userInfo={userInfo} />
+        icon: <ChartBarIcon />
       },
       {
-        key: 'teams' as const,
+        key: 'teams',
         label: 'Teams',
-        icon: <TeamOutlined className="gba:mr-2" />,
-        content: (
-          <TeamsView
-            accessToken={accessToken}
-            userInfo={userInfo}
-            selectedTeamIds={selectedTeamIds}
-            onTeamSelectionChange={setSelectedTeamIds}
-            activeTeamIds={activeTeamIds}
-            onActiveTeamIdsChange={setActiveTeamIds}
-            userTeamId={userTeamId}
-          />
-        )
+        icon: <UsersThreeIcon />
       },
       {
-        key: 'employees' as const,
+        key: 'employees',
         label: 'Employees',
-        icon: <UserOutlined className="gba:mr-2" />,
-        content: (
-          <EmployeesView
-            accessToken={accessToken}
-            userInfo={userInfo}
-            selectedEmployeeId={selectedEmployeeId}
-            onEmployeeSelect={handleEmployeeSelect}
-          />
-        )
+        icon: <UserIcon />
       },
       {
-        key: 'analytics' as const,
+        key: 'analytics',
         label: 'Analytics',
-        icon: <LineChartOutlined className="gba:mr-2" />,
-        content: <AnalyticsView accessToken={accessToken} userInfo={userInfo} moduleColor="crm" />
+        icon: <ChartLineIcon />
       }
     ],
-    [accessToken, userInfo, selectedTeamIds, activeTeamIds, userTeamId, selectedEmployeeId, handleEmployeeSelect]
+    []
   )
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-overview-content`}>
+            <OverviewView accessToken={accessToken} userInfo={userInfo} />
+          </div>
+        )
+      case 'teams':
+        return (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-teams-content`}>
+            <TeamsView
+              accessToken={accessToken}
+              userInfo={userInfo}
+              selectedTeamIds={selectedTeamIds}
+              onTeamSelectionChange={setSelectedTeamIds}
+              activeTeamIds={activeTeamIds}
+              onActiveTeamIdsChange={setActiveTeamIds}
+              userTeamId={userTeamId}
+            />
+          </div>
+        )
+      case 'employees':
+        return (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-employees-content`}>
+            <EmployeesView
+              accessToken={accessToken}
+              userInfo={userInfo}
+              selectedEmployeeId={selectedEmployeeId}
+              onEmployeeSelect={handleEmployeeSelect}
+            />
+          </div>
+        )
+      case 'analytics':
+        return (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-analytics-content`}>
+            <AnalyticsView accessToken={accessToken} userInfo={userInfo} moduleColor="crm" />
+          </div>
+        )
+      default:
+        return null
+    }
+  }
 
   return (
     <div data-testid={DATA_TEST_ID_PREFIX}>
       <PageLayout
-        headerIcon={PiChartLine}
+        headerIcon={ChartLineIcon}
         headerTitle="Sales Performance"
         headerDescription="Analyze sales performance, revenue trends, and top performers"
+        headerSubViews={{
+          value: activeTab,
+          onValueChange: handleTabChange,
+          items: viewOptions.map(option => ({
+            value: option.key,
+            label: option.label,
+            icon: option.icon
+          }))
+        }}
         variant={MODULE_COLORS.CRM}
         className="gba:min-h-screen"
       >
-        <div className="gba:h-full gba:overflow-auto gba:p-6">
-          <Tabs
-            value={activeTab}
-            onValueChange={handleTabChange}
-            className="gba:h-full"
-            data-testid={`${DATA_TEST_ID_PREFIX}-tabs`}
-          >
-            <TabsList className="gba:mb-6" data-testid={`${DATA_TEST_ID_PREFIX}-tabs-list`}>
-              {tabs.map(tab => (
-                <TabsTrigger key={tab.key} value={tab.key} data-testid={`${DATA_TEST_ID_PREFIX}-tab-${tab.key}`}>
-                  {tab.icon}
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {tabs.map(tab => (
-              <TabsContent key={tab.key} value={tab.key} className="gba:h-full gba:overflow-auto">
-                {tab.content}
-              </TabsContent>
-            ))}
-          </Tabs>
-        </div>
+        <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>
       </PageLayout>
     </div>
   )

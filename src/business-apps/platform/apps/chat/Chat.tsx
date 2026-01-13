@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
 import { useChatExperts } from './hooks/useChatExperts'
+import { useOpenChatFromPlatform } from './hooks/useOpenChatFromPlatform'
 import { ConversationList } from './components/ConversationList'
 import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
 import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
@@ -23,8 +24,8 @@ import { GroupCallModal } from './components/GroupCallModal'
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
+import translations from './_i18n'
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
@@ -33,6 +34,7 @@ interface ChatProps extends BusinessAppContextProps {
 }
 
 export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefixDataTestId = 'chat' }) => {
+  const { t } = useTranslation(translations)
   const containerRef = useRef<HTMLDivElement>(null)
   const chatViewRef = useRef<HTMLDivElement>(null)
   const [showConversationList, setShowConversationList] = useState(true)
@@ -92,18 +94,19 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 
-  // If running on localhost, connect to DEV environment
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  if (isLocalhost) {
+  // If platform is running on localhost (baseUrl includes localhost), connect to DEV environment
+  // This handles the case where Chat is loaded from CDN but platform is running locally
+  const isLocalPlatform = baseUrl.includes('localhost')
+  if (isLocalPlatform) {
     baseUrl = 'https://newwork-dev.newwork.com'
-    console.log('🔄 [Chat] Local development detected - connecting to DEV environment:', baseUrl)
+    console.log('🔄 [Chat] Local platform detected (baseUrl had localhost) - connecting to DEV environment:', baseUrl)
   }
 
   // Normalize API and WS endpoints; connect to chat-service namespace with default socket path
   let apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
 
-  // Override if NEXT_PUBLIC_CHAT_API is pointing to localhost when running locally
-  if (isLocalhost && apiUrl.includes('localhost')) {
+  // Override if NEXT_PUBLIC_CHAT_API is pointing to localhost when running on local platform
+  if (apiUrl.includes('localhost')) {
     apiUrl = `${baseUrl}/chat-service/api/v1`
     console.log('🔄 [Chat] Overriding localhost CHAT_API to use DEV environment:', apiUrl)
   }
@@ -175,6 +178,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   useEffect(() => {
     console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
   }, [stableActiveConversation?.id])
+
+  // Listen for platform messages to open chat with specific users
+  useOpenChatFromPlatform({
+    createDirectConversation,
+    setDraftMessage,
+    isConnected,
+    setShowConversationList
+  })
 
   // Register nudge callback to handle incoming nudges from OTHER users
   useEffect(() => {
@@ -968,18 +979,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       // Check for "last owner" error
       const errorMsg = error?.response?.data?.message || error?.message || ''
       if (errorMsg.toLowerCase().includes('last owner')) {
-        setErrorMessage(
-          getTranslationFromI18nKeyAndLabel(
-            'chat.cannotLeaveAsLastOwner',
-            'You are the only owner of this group. Please transfer ownership to another member or delete the group from Group Settings.'
-          )
-        )
+        setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
         // Open group settings to let user manage the group
         setShowGroupSettingsModal(true)
       } else {
-        setErrorMessage(
-          getTranslationFromI18nKeyAndLabel('chat.failedToLeave', 'Failed to leave the conversation. Please try again.')
-        )
+        setErrorMessage(t('chat-failedToLeave'))
       }
     }
   }, [activeConversation, closeConversation, viewMode])
@@ -1024,12 +1028,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
     if (timeSinceLastNudge < NUDGE_COOLDOWN_MS) {
       const secondsRemaining = Math.ceil((NUDGE_COOLDOWN_MS - timeSinceLastNudge) / 1000)
-      setErrorMessage(
-        getTranslationFromI18nKeyAndLabel(
-          'chat.nudgeCooldown',
-          `Please wait ${secondsRemaining} seconds before sending another nudge.`
-        ).replace('{seconds}', secondsRemaining.toString())
-      )
+      setErrorMessage(t('chat-nudgeCooldown', { seconds: secondsRemaining }))
       // Auto-dismiss after 3 seconds
       setTimeout(() => setErrorMessage(null), 3000)
       return
@@ -1349,22 +1348,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     const getErrorMessage = () => {
       const errorKey = error.name || 'chat.connectionError'
       const errorMessages: Record<string, string> = {
-        'chat.serviceUnavailable': getTranslationFromI18nKeyAndLabel(
-          'chat.serviceUnavailable',
-          'The chat service is currently unavailable. Please try again later.'
-        ),
-        'chat.serviceNotFound': getTranslationFromI18nKeyAndLabel(
-          'chat.serviceNotFound',
-          'The chat service could not be found. Please contact your administrator.'
-        ),
-        'chat.authenticationFailed': getTranslationFromI18nKeyAndLabel(
-          'chat.authenticationFailed',
-          'Authentication failed. Please log in again.'
-        ),
-        'chat.connectionError': getTranslationFromI18nKeyAndLabel(
-          'chat.connectionError',
-          'Failed to connect to the chat service. Please check your internet connection.'
-        )
+        'chat.serviceUnavailable': t('chat-serviceUnavailable'),
+        'chat.serviceNotFound': t('chat-serviceNotFound'),
+        'chat.authenticationFailed': t('chat-authenticationFailed'),
+        'chat.connectionError': t('chat-connectionError')
       }
       return errorMessages[errorKey] || errorMessages['chat.connectionError']
     }
@@ -1391,9 +1378,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         data-testid={`${prefixDataTestId}-loading`}
       >
         <Spinner size="lg" />
-        <span className="gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('chat.connecting', 'Connecting to chat...')}
-        </span>
+        <span className="gba:text-sm gba:text-muted-foreground">{t('chat-connecting')}</span>
       </div>
     )
   }
@@ -1402,9 +1387,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const OfflineBanner = () =>
     isOffline ? (
       <div className="gba:px-3 gba:py-2 gba:bg-warning/10 gba:border-b gba:border-warning/20">
-        <p className="gba:text-xs gba:text-warning-foreground gba:text-center">
-          {getTranslationFromI18nKeyAndLabel('chat.offline', 'Reconnecting...')}
-        </p>
+        <p className="gba:text-xs gba:text-warning-foreground gba:text-center">{t('chat-offline')}</p>
       </div>
     ) : null
 
@@ -1452,12 +1435,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   console.error('Failed to remove conversation:', error)
                   const errorMsg = error?.response?.data?.message || error?.message || ''
                   if (errorMsg.toLowerCase().includes('last owner')) {
-                    setErrorMessage(
-                      getTranslationFromI18nKeyAndLabel(
-                        'chat.cannotLeaveAsLastOwner',
-                        'You are the only owner of this group. Please transfer ownership to another member or delete the group from Group Settings.'
-                      )
-                    )
+                    setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
                     // Select the conversation and open group settings
                     const conv = conversations.find(c => c.id === conversationId)
                     if (conv) {
@@ -1465,12 +1443,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                       setShowGroupSettingsModal(true)
                     }
                   } else {
-                    setErrorMessage(
-                      getTranslationFromI18nKeyAndLabel(
-                        'chat.failedToLeave',
-                        'Failed to leave the conversation. Please try again.'
-                      )
-                    )
+                    setErrorMessage(t('chat-failedToLeave'))
                   }
                 }
               }}
@@ -1556,7 +1529,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                         <div className="gba:text-xs gba:font-semibold gba:text-primary gba:mb-1">✨ Every AI</div>
                         {aiStreamingText ? (
                           <div className="gba:text-sm gba:text-foreground gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:rounded-lg gba:p-2 gba:border gba:border-primary/20">
-                            <AIResponseRenderer content={aiStreamingText} />
+                            <AIResponseRenderer content={aiStreamingText} accessToken={accessToken} />
                           </div>
                         ) : (
                           <AIThinkingIndicator />
@@ -1606,10 +1579,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   </svg>
                 </div>
                 <p className="gba:text-sm gba:text-muted-foreground gba:max-w-[200px]">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'chat.selectConversation',
-                    'Select a conversation to start chatting'
-                  )}
+                  {t('chat-selectConversation')}
                 </p>
               </div>
             )}

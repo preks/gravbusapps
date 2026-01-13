@@ -274,8 +274,10 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
     <div className="gba:flex gba:h-full gba:overflow-hidden" data-testid="outbox-view">
       {/* Master Panel - Flow List (hidden on mobile/tablet when flow selected) */}
       <div
-        className={`gba:flex gba:flex-col gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
-          selectedFlow ? 'gba:hidden gba:lg:flex gba:lg:w-[calc(40%-12px)]' : 'gba:w-full'
+        className={`gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
+          selectedFlow
+            ? 'gba:hidden gba:lg:flex gba:lg:flex-col gba:lg:w-[calc(40%-12px)] gba:lg:flex-shrink-0'
+            : 'gba:flex gba:flex-col gba:w-full'
         }`}
       >
         {/* Search and Actions */}
@@ -382,8 +384,8 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
       <div
         className={`gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
           selectedFlow
-            ? 'gba:flex gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:translate-x-0 gba:opacity-100'
-            : 'gba:hidden gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
+            ? 'gba:flex gba:flex-col gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
+            : 'gba:hidden gba:lg:flex gba:lg:flex-col gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
         }`}
       >
         {selectedFlow && <FlowDetailDialog flow={selectedFlow} onClose={handleCloseFlow} accessToken={accessToken} />}

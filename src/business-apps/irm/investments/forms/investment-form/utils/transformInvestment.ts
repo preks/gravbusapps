@@ -26,7 +26,8 @@ export const transformInvestment = (
       ? investment.liquidFundInvestment[0]
       : investment.liquidFundInvestment
     ;(mappedValues as any).liquidFundInvestment = liquidFund
-    liquidFundTypeId = liquidFund?.investmentLiquidFundTypeRef || null
+    // Check both Ref field and nested object for liquid fund type ID
+    liquidFundTypeId = liquidFund?.investmentLiquidFundTypeRef || liquidFund?.investmentLiquidFundType?.id || null
   }
 
   if (investment.equityInvestment) {

@@ -42,16 +42,18 @@ export const getLocalizedValue = (entry: CatalogEntry, locale?: string): string 
 /**
  * Converts catalog entries to option format for select/combobox.
  * Supports localization when locale is provided.
- * Includes icon from additionalValue3 if available.
+ * Includes code, type (stable identifiers) and icon from additionalValue3 if available.
  *
  * @param entries - Array of catalog entries
  * @param locale - Optional locale code for translations
- * @returns Array of options with value, label, and optional icon
+ * @returns Array of options with value, label, code, type, and optional icon
  */
 export const toOptions = (entries: CatalogEntry[], locale?: string) =>
   entries.map(e => ({
     value: e.id,
     label: getLocalizedValue(e, locale),
+    code: e.code, // Include code for stable filtering
+    type: e.type, // Include type for classification filtering
     icon: e.additionalValue3 || undefined
   }))
 

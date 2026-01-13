@@ -6,11 +6,12 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  IconAvatar
+  IconAvatar,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Phone, PhoneOff, Video, UserIcon } from 'lucide-react'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface IncomingCallDialogProps {
   callState: CallState
@@ -53,6 +54,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   onReject,
   prefixDataTestId = 'incoming-call-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [ringCount, setRingCount] = useState(0)
 
   const isOpen = callState.status === 'ringing' && callState.direction === 'incoming'
@@ -145,12 +147,12 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
             {isVideoCall ? (
               <>
                 <Video className="gba:w-4 gba:h-4" />
-                <span>{getTranslationFromI18nKeyAndLabel('call.incomingVideoCall', 'Incoming video call')}</span>
+                <span>{t('call-incomingVideoCall')}</span>
               </>
             ) : (
               <>
                 <Phone className="gba:w-4 gba:h-4" />
-                <span>{getTranslationFromI18nKeyAndLabel('call.incomingAudioCall', 'Incoming audio call')}</span>
+                <span>{t('call-incomingAudioCall')}</span>
               </>
             )}
           </div>
@@ -179,7 +181,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
 
           {/* Ringing indicator */}
           <p className="gba:text-gray-400 gba:text-sm gba:mb-8">
-            {getTranslationFromI18nKeyAndLabel('call.ringing', 'Ringing')}
+            {t('call-ringing')}
             <span className="gba:inline-block gba:w-8">{'.'.repeat((ringCount % 3) + 1)}</span>
           </p>
 
@@ -196,9 +198,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
               >
                 <PhoneOff className="gba:w-7 gba:h-7" />
               </Button>
-              <span className="gba:text-xs gba:text-gray-400">
-                {getTranslationFromI18nKeyAndLabel('call.decline', 'Decline')}
-              </span>
+              <span className="gba:text-xs gba:text-gray-400">{t('call-decline')}</span>
             </div>
 
             {/* Accept Button */}
@@ -215,9 +215,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
                   <Phone className="gba:w-7 gba:h-7 gba:text-white" />
                 )}
               </Button>
-              <span className="gba:text-xs gba:text-gray-400">
-                {getTranslationFromI18nKeyAndLabel('call.accept', 'Accept')}
-              </span>
+              <span className="gba:text-xs gba:text-gray-400">{t('call-accept')}</span>
             </div>
           </div>
         </div>

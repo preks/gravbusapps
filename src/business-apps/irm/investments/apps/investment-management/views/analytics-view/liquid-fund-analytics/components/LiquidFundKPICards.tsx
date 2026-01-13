@@ -1,5 +1,5 @@
 import React from 'react'
-import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons'
+import { CurrencyCircleDollarIcon, ChartLineUpIcon, TrendUpIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 import { LiquidFundInvestmentKPIs } from '../LiquidFundInvestmentsReport'
@@ -37,15 +37,15 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
     kpis.averageInvestmentValue,
     kpis.previousAverageInvestmentValue || 0
   )
-  const averageMarketValueChange = calculateChange(kpis.averageMarketValue, kpis.previousAverageMarketValue || 0)
-  const totalFundValueChange = calculateChange(kpis.totalFundValue, kpis.previousTotalFundValue || 0)
+  const activeInvestmentsChange = calculateChange(kpis.activeInvestments, kpis.previousActiveInvestments || 0)
+  const totalAmountInvestedChange = calculateChange(kpis.totalAmountInvested, kpis.previousTotalAmountInvested || 0)
 
   const widgets: WidgetItem[] = [
     {
       key: 'total-investments',
       title: 'Total Investments',
       value: kpis.totalInvestments,
-      prefix: <TeamOutlined />,
+      prefix: <UsersThreeIcon />,
       color: 'var(--nw-color-primary-500)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Fund count',
@@ -59,7 +59,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       key: 'average-investment-value',
       title: 'Average Investment Value',
       value: formatCurrencyCompact(kpis.averageInvestmentValue, currency, undefined, 1, true),
-      prefix: <DollarCircleOutlined />,
+      prefix: <CurrencyCircleDollarIcon />,
       color: 'var(--nw-color-success-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -71,32 +71,31 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       }
     },
     {
-      key: 'average-market-value',
-      title: 'Average Market Value',
-      value: formatCurrencyCompact(kpis.averageMarketValue, currency, undefined, 1, true),
-      prefix: <RiseOutlined />,
-      color: 'var(--nw-color-purple-500)',
-      valueIsString: true,
+      key: 'active-investments',
+      title: 'Active Investments',
+      value: kpis.activeInvestments,
+      prefix: <ChartLineUpIcon />,
+      color: 'var(--nw-color-warning-500)',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Avg market value',
+      description: 'Active positions',
       trend: {
-        value: averageMarketValueChange.value,
-        positive: averageMarketValueChange.positive,
+        value: activeInvestmentsChange.value,
+        positive: activeInvestmentsChange.positive,
         description: 'vs last quarter'
       }
     },
     {
-      key: 'total-fund-value',
-      title: 'Total Fund Value',
-      value: formatCurrencyCompact(kpis.totalFundValue, currency, undefined, 1, true),
-      prefix: <BankOutlined />,
-      color: 'var(--nw-color-warning-500)',
+      key: 'total-investment-value',
+      title: 'Total Investment Value',
+      value: formatCurrencyCompact(kpis.totalAmountInvested, currency, undefined, 1, true),
+      prefix: <TrendUpIcon />,
+      color: 'var(--nw-color-purple-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'All funds',
+      description: 'Total capital deployed',
       trend: {
-        value: totalFundValueChange.value,
-        positive: totalFundValueChange.positive,
+        value: totalAmountInvestedChange.value,
+        positive: totalAmountInvestedChange.positive,
         description: 'vs last quarter'
       }
     }

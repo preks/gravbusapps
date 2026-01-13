@@ -2,7 +2,7 @@
 import React from 'react'
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { DatePicker } from 'antd'
-import { FilterIcon } from 'lucide-react'
+import { FunnelIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 
 const { RangePicker } = DatePicker
@@ -31,7 +31,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
       <div className="gba:p-4 gba:border-b">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <FilterIcon className="gba:w-4 gba:h-4" />
+            <FunnelIcon className="gba:w-4 gba:h-4" />
             <h3 className="gba:text-sm gba:font-medium">Filters</h3>
           </div>
           {headerActions && (

@@ -7,10 +7,11 @@
 
 import React, { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Users } from 'lucide-react'
 import { globalCallManager, type GlobalCallState } from '../services/globalCallManager'
 import type { GroupCallParticipant } from '../services/groupWebrtcClient'
+import translations from '../_i18n'
 
 // Format duration as MM:SS or HH:MM:SS
 const formatDuration = (seconds: number): string => {
@@ -56,6 +57,7 @@ const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
   onExpand,
   onEndCall
 }) => {
+  const { t } = useTranslation(translations)
   const pipVideoRef = useRef<HTMLVideoElement>(null)
   const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
 
@@ -128,7 +130,7 @@ const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
                 <span className="gba:text-white gba:text-xs">{firstRemoteParticipant.odName}</span>
               </>
             ) : (
-              <span className="gba:text-gray-400 gba:text-xs">Waiting for participants...</span>
+              <span className="gba:text-gray-400 gba:text-xs">{t('call-waitingForParticipants')}</span>
             )}
           </div>
         )}
@@ -155,7 +157,7 @@ const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
                 ? 'gba:bg-red-500 gba:text-white'
                 : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
             }`}
-            title={callState.isMuted ? 'Unmute' : 'Mute'}
+            title={callState.isMuted ? t('chat-unmute') : t('chat-mute')}
           >
             {callState.isMuted ? <MicOff className="gba:h-4 gba:w-4" /> : <Mic className="gba:h-4 gba:w-4" />}
           </button>
@@ -166,7 +168,7 @@ const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
                 ? 'gba:bg-red-500 gba:text-white'
                 : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
             }`}
-            title={callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+            title={callState.isVideoEnabled ? t('chat-turnOffCamera') : t('chat-turnOnCamera')}
           >
             {callState.isVideoEnabled ? (
               <Video className="gba:h-4 gba:w-4" />
@@ -179,14 +181,14 @@ const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
           <button
             onClick={onExpand}
             className="gba:p-2 gba:rounded-full gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600 gba:transition-all"
-            title="Expand call"
+            title={t('chat-fullscreen')}
           >
             <Maximize2 className="gba:h-4 gba:w-4" />
           </button>
           <button
             onClick={onEndCall}
             className="gba:p-2 gba:rounded-full gba:bg-red-500 gba:text-white hover:gba:bg-red-600 gba:transition-all"
-            title="Leave call"
+            title={t('chat-leaveCall')}
           >
             <PhoneOff className="gba:h-4 gba:w-4" />
           </button>
@@ -463,6 +465,12 @@ export function initGlobalMinimizedCallRenderer() {
       const secs = duration % 60
       const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`
 
+      // Hardcoded English tooltips (this vanilla DOM renderer is currently disabled)
+      const tooltipMute = callData.callState.isMuted ? 'Unmute' : 'Mute'
+      const tooltipCamera = callData.callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'
+      const tooltipExpand = 'Expand call'
+      const tooltipLeave = 'Leave call'
+
       // Render the minimized UI using innerHTML (vanilla DOM)
       container!.innerHTML = `
       <div id="global-minimized-call-ui" style="
@@ -557,7 +565,7 @@ export function initGlobalMinimizedCallRenderer() {
               display: flex;
               align-items: center;
               justify-content: center;
-            " title="${callData.callState.isMuted ? 'Unmute' : 'Mute'}">
+            " title="${tooltipMute}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 ${
                   callData.callState.isMuted
@@ -577,7 +585,7 @@ export function initGlobalMinimizedCallRenderer() {
               display: flex;
               align-items: center;
               justify-content: center;
-            " title="${callData.callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}">
+            " title="${tooltipCamera}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 ${
                   !callData.callState.isVideoEnabled
@@ -599,7 +607,7 @@ export function initGlobalMinimizedCallRenderer() {
               display: flex;
               align-items: center;
               justify-content: center;
-            " title="Expand call">
+            " title="${tooltipExpand}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
               </svg>
@@ -615,7 +623,7 @@ export function initGlobalMinimizedCallRenderer() {
               display: flex;
               align-items: center;
               justify-content: center;
-            " title="Leave call">
+            " title="${tooltipLeave}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" transform="rotate(135 12 12)"/>
               </svg>

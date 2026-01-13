@@ -181,7 +181,8 @@ export const ExpenseDisplay: React.FC<ExpenseDisplayProps> = ({ expenseId, acces
       default:
         return
     }
-    navigateTo(url)
+    // Force window refresh to ensure updated expense content is shown (SPA navigation, not full page reload)
+    navigateTo(url, { forceReload: true })
   }
 
   const formatCurrency = (amount?: number, currency?: string) => {

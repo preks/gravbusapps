@@ -10,7 +10,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentOpportunityFilters } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view/hooks/useInvestmentOpportunityFilters'
 import { ExitOpportunityStatistics } from './components/ExitOpportunityStatistics'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { TrendingDown } from 'lucide-react'
+import { TrendDownIcon } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 
@@ -119,7 +119,7 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
               >
                 <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
                   <AvatarFallback>
-                    <TrendingDown className="gba:h-4 gba:w-4" />
+                    <TrendDownIcon className="gba:h-4 gba:w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="gba:min-w-0 gba:flex-1">
