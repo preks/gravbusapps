@@ -315,7 +315,11 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
             <Button
               variant="outline"
               size="default"
-              onClick={refetch}
+              onClick={() => {
+                if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current)
+                setFilters({})
+                loadQueries({}, 0, pageSize)
+              }}
               disabled={isLoading}
               data-testid="refresh-queries-button"
               className="gba:flex gba:items-center gba:whitespace-nowrap"
