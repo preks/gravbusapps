@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { Bot, FileText, StickyNote, Clock, Globe, Inbox, Users } from 'lucide-react'
+import { Bot, FileText, StickyNote, Clock, Globe, Inbox, MessageCircle } from 'lucide-react'
 import {
   HeroSection,
   ToolCard,
@@ -47,8 +47,8 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({ 'data-testid': testI
       id: 'every-one',
       title: 'EveryOne',
       description: 'Messages, calendar integration, and reminders. Stay connected with your team and organized.',
-      icon: Users,
-      href: '/platform/apps/platform/apps/chat',
+      icon: MessageCircle,
+      href: '/platform/chat',
       badge: 'Popular',
       badgeVariant: 'success',
       accentColor: 'primary'
@@ -159,7 +159,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({ 'data-testid': testI
 
     if (maxScore > 0) {
       if (scores.everyOne === maxScore) {
-        targetUrl = '/platform/apps/platform/apps/chat'
+        targetUrl = '/platform/chat'
       } else if (scores.everyBox === maxScore) {
         targetUrl = '/platform/apps/core/every/apps/every-box'
       } else if (scores.documents === maxScore) {
@@ -209,7 +209,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({ 'data-testid': testI
           {/* Background */}
           <div className="gba:absolute gba:inset-0 gba:bg-background" />
 
-          <div className="gba:relative gba:max-w-6xl gba:mx-auto">
+          <div className="gba:relative gba:max-w-7xl gba:mx-auto">
             {/* Section header */}
             <div className="gba:text-center gba:mb-6">
               <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-2">
@@ -220,26 +220,15 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({ 'data-testid': testI
               </p>
             </div>
 
-            {/* Featured EveryAI card - Hero style */}
-            <div className="gba:mb-4">
-              <ToolCard
-                {...tools[0]}
-                onClick={() => handleToolClick(tools[0].href)}
-                data-testid={`${testId}-tool-${tools[0].id}`}
-                animationDelay={0.1}
-                featured
-              />
-            </div>
-
-            {/* Remaining tools in 2 rows of 3 */}
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4">
-              {tools.slice(1).map((tool, index) => (
+            {/* All 7 tools in one row */}
+            <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-7 gba:gap-3">
+              {tools.map((tool, index) => (
                 <ToolCard
                   key={tool.id}
                   {...tool}
                   onClick={() => handleToolClick(tool.href)}
                   data-testid={`${testId}-tool-${tool.id}`}
-                  animationDelay={0.1 * (index + 2)}
+                  animationDelay={0.1 * (index + 1)}
                 />
               ))}
             </div>
