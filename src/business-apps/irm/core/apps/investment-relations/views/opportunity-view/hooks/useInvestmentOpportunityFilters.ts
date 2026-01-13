@@ -9,6 +9,7 @@ interface SimpleItem {
 
 export interface StatusItem extends SimpleItem {
   code?: string
+  type?: string
 }
 
 export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps) => {
@@ -134,11 +135,13 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
     if (!context.accessToken) return
     try {
       const res = await graphqlClient.request<{
-        InvestmentOpportunity: Array<{ opportunityStatus?: { id: string; code?: string; value?: string } | null }>
+        InvestmentOpportunity: Array<{
+          opportunityStatus?: { id: string; code?: string; value?: string; type?: string } | null
+        }>
       }>(`
         query GetOppStatuses {
           InvestmentOpportunity(where: { isDeleted: { _eq: false } }, distinctOn: [opportunityStatusRef], limit: 50) {
-            opportunityStatus { id code value }
+            opportunityStatus { id code value type }
           }
         }
       `)
@@ -149,7 +152,8 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
           map.set(s.id, {
             id: s.id,
             label: s.value || s.code || s.id,
-            code: s.code
+            code: s.code,
+            type: s.type
           })
         }
       })

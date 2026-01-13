@@ -8,6 +8,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BuildingsIcon, CalendarIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatDate } from '@/common/data/investment/utils/formatters'
+import { getInvestmentStatusBadgeVariant } from '../utils/statusBadgeHelpers'
 
 // Helper function to format group names for display
 const formatGroupName = (groupName: string): string => {
@@ -130,7 +131,7 @@ const OwnerEmployeeCell = ({ row }: CellContext<Investment, unknown>) => {
 
 // Cell renderer: Investment Status cell
 const InvestmentStatusCell = ({ row }: CellContext<Investment, unknown>) => (
-  <Badge variant={row.original.investmentStatus?.code === 'ACTIVE' ? 'default' : 'secondary'}>
+  <Badge variant={getInvestmentStatusBadgeVariant(row.original.investmentStatus?.type)}>
     {row.original.investmentStatus?.value || 'Unknown'}
   </Badge>
 )

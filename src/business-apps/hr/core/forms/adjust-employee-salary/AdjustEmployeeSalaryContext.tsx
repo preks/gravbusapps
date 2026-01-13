@@ -21,6 +21,7 @@ import type {
   FormMode,
   CurrencyOption
 } from './types'
+import { formatDate } from '@/common/utils/windowUtils'
 
 interface CurrencyCatalogResponse {
   CatalogEntry: Array<{
@@ -83,6 +84,8 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
     setError(null)
     try {
       const empVariables = { idEmployee: employeeId }
+      const today = formatDate(new Date(), 'date.ISO') || new Date().toISOString().split('T')[0]
+      const empVariablesWithDate = { idEmployee: employeeId, today }
 
       // Fetch all queries in parallel to prevent UI twitch
       const [
@@ -95,7 +98,7 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
         bankAccountData
       ] = await Promise.all([
         graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables),
-        graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariables),
+        graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariablesWithDate),
         graphqlClient.request<SalaryAdjustReasonCatalogResponse>(SALARY_ADJUST_REASON_CATALOG_QUERY),
         graphqlClient.request<CurrencyCatalogResponse>(CURRENCY_CATALOG_QUERY),
         graphqlClient.request<EmployeeWorkingConditionResponse>(EMPLOYEE_WORKING_CONDITION_QUERY, empVariables),

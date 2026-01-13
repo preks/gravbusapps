@@ -244,8 +244,6 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
         changeMode: 'UPDATE'
       }
 
-      console.log('🔄 Assigning rule to travel region set:', saveData)
-
       // Call the save endpoint
       await expenseSettingsClient.saveAllowanceRegionRule(saveData)
 

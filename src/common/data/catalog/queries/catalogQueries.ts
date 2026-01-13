@@ -102,6 +102,30 @@ const buildCatalogEntryWhereCondition = (variables: CatalogEntryQueryVariables):
     conditions.push(`{ type: { _eq: "${variables.typeEquals.trim()}" } }`)
   }
 
+  // Exclude codes filter (case-insensitive substring match)
+  if (variables.excludeCodes && variables.excludeCodes.length > 0) {
+    const excludePatterns = variables.excludeCodes.map(pattern => `{ code: { _ilike: "%${pattern}%" } }`)
+    conditions.push(`{ _not: { _or: [${excludePatterns.join(', ')}] } }`)
+  }
+
+  // Include codes filter (case-insensitive substring match)
+  if (variables.includeCodes && variables.includeCodes.length > 0) {
+    const includePatterns = variables.includeCodes.map(pattern => `{ code: { _ilike: "%${pattern}%" } }`)
+    conditions.push(`{ _or: [${includePatterns.join(', ')}] }`)
+  }
+
+  // Exclude types filter (case-insensitive substring match)
+  if (variables.excludeTypes && variables.excludeTypes.length > 0) {
+    const excludePatterns = variables.excludeTypes.map(pattern => `{ type: { _ilike: "%${pattern}%" } }`)
+    conditions.push(`{ _not: { _or: [${excludePatterns.join(', ')}] } }`)
+  }
+
+  // Include types filter (case-insensitive substring match)
+  if (variables.includeTypes && variables.includeTypes.length > 0) {
+    const includePatterns = variables.includeTypes.map(pattern => `{ type: { _ilike: "%${pattern}%" } }`)
+    conditions.push(`{ _or: [${includePatterns.join(', ')}] }`)
+  }
+
   return conditions.length > 1 ? `where: { _and: [${conditions.join(', ')}] }` : `where: ${conditions[0]}`
 }
 

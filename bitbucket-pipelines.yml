@@ -39,7 +39,7 @@
 #   OAUTH_URL_PROD_SECONDARY
 #   OAUTH_REALM_PROD_SECONDARY
 
-image: node:20.18.0
+image: node:20.19.6
 definitions:
   services:
     docker:
@@ -60,6 +60,9 @@ definitions:
   steps:
     - step: &check-hash-file-change
         name: Check hash file change
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size1'
         size: 1x
         clone:
           enabled: true
@@ -89,6 +92,9 @@ definitions:
 
     - step: &install_dependencies
         name: Install dependencies
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size1'
         size: 1x
         clone:
           enabled: true
@@ -109,6 +115,9 @@ definitions:
 
     - step: &detect-changed-screens
         name: Detect Changed Screens
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size1'
         size: 1x
         services:
           - docker
@@ -122,6 +131,9 @@ definitions:
 
     - step: &publish-changed-screens
         name: Publish Changed Screens
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size2'
         size: 2x
         caches:
           - nodecustom
@@ -134,6 +146,9 @@ definitions:
 
     - step: &build-screens
         name: Build Screens
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size2'
         size: 2x
         caches:
           - nodecustom
@@ -155,6 +170,9 @@ definitions:
 
     - step: &publish-changed-prod-screens
         name: Publish Changed Production Screens
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size2'
         size: 2x
         caches:
           - nodecustom
@@ -168,6 +186,9 @@ definitions:
 
     - step: &publish-manual-screens
         name: Publish Manual Screens
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size2'
         size: 2x
         caches:
           - nodecustom
@@ -193,6 +214,9 @@ definitions:
 
     - step: &publish-manual-prod-screens
         name: Publish Manual Production Screens
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size2'
         size: 2x
         caches:
           - nodecustom
@@ -218,6 +242,9 @@ definitions:
           - all-screens.txt
     - step: &sonar_scan
         name: Sonar scan
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size4'
         size: 4x
         clone:
           enabled: true
@@ -234,6 +261,9 @@ definitions:
 
     - step: &sonar_scan_main
         name: Sonar scan (main)
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size4'
         size: 4x
         clone:
           enabled: true
@@ -313,6 +343,10 @@ pipelines:
               - "false"
       - step:
           name: Enforce develop/main branches for production publish
+          runs-on:
+            - 'self.hosted'
+            - 'do.global.runner.size1'
+          size: 1x
           script:
             - |
               if [ "$BITBUCKET_BRANCH" != "develop" ] && [ "$BITBUCKET_BRANCH" != "main" ]; then
@@ -344,6 +378,9 @@ pipelines:
       - step: *install_dependencies
       - step:
           name: Calculate screen hashes
+          runs-on:
+            - 'self.hosted'
+            - 'do.global.runner.size2'
           size: 2x
           caches:
             - nodecustom

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Button,
@@ -37,6 +37,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import {
   PiPlus,
   PiPencil,
@@ -58,6 +59,16 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import { formatDateForInput, checkPeriodUniqueness, formatDate } from '../../../utils'
+import {
+  validateDateRange,
+  applyDateValidationErrors,
+  getValidityDatesFromExisting,
+  transformAllowancePeriodForRestrictedUpdate,
+  transformAllowancePeriodForSave
+} from '../utils'
+import { useTableSorting, createFieldMappings } from '../hooks'
+import { UsageInfo } from '../../../types'
 
 interface AllowancePeriodTabProps {
   ruleId: string
@@ -101,26 +112,10 @@ interface AllowancePeriodFormData {
   version?: number
 }
 
-// Usage check result
-interface UsageInfo {
-  isUsed: boolean
-  usedIn: {
-    setups?: number
-  }
-  message: string
-}
-
 const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // formatDateForInput is imported from shared utils
 
   const [allowancePeriods, setAllowancePeriods] = useState<AllowancePeriod[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -128,6 +123,33 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editingItem, setEditingItem] = useState<AllowancePeriod | null>(null)
+
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      code: createFieldMappings.string((a: AllowancePeriod) => a.code),
+      name: createFieldMappings.string((a: AllowancePeriod) => a.name),
+      overnight: createFieldMappings.boolean((a: AllowancePeriod) => a.overnightAccommodation),
+      fromTime: createFieldMappings.string((a: AllowancePeriod) => a.fromTime),
+      toTime: createFieldMappings.string((a: AllowancePeriod) => a.toTime),
+      minHours: createFieldMappings.number((a: AllowancePeriod) => a.minHours),
+      midnightRule: createFieldMappings.boolean((a: AllowancePeriod) => a.midnightRule),
+      startAfter: createFieldMappings.string((a: AllowancePeriod) => a.startAfter),
+      periodOrder: createFieldMappings.number((a: AllowancePeriod) => a.order),
+      returnBefore: createFieldMappings.string((a: AllowancePeriod) => a.returnBefore),
+      activeFrom: createFieldMappings.date((a: AllowancePeriod) => a.validFrom),
+      activeTo: createFieldMappings.date((a: AllowancePeriod) => a.validTo, '9999-12-31')
+    }),
+    []
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<AllowancePeriod>({
+    defaultSortField: 'periodOrder',
+    defaultSortOrder: 'ASC',
+    data: allowancePeriods,
+    fieldMappings
+  })
 
   const form = useForm<AllowancePeriodFormData>({
     defaultValues: {
@@ -307,34 +329,22 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     }
   }, [ruleId, graphqlClient, loadPeriodUsageStatus])
 
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  const sortedAllowancePeriods = sorting.sortedData || allowancePeriods
+
   useEffect(() => {
     if (ruleId && accessToken) {
       fetchAllowancePeriods()
     }
   }, [ruleId, accessToken, fetchAllowancePeriods])
 
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
-
   const handleAdd = () => {
     setEditingItem(null)
     setIsRestrictedEdit(false)
     setCurrentUsageInfo(null)
 
-    // Determine validity period based on existing entries
-    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    let validToValue: string | undefined = undefined
-
-    if (allowancePeriods.length > 0) {
-      // Use the same validity period as the first existing entry
-      const existingEntry = allowancePeriods[0]
-      validFromValue = formatDateForInput(existingEntry.validFrom) || validFromValue
-      validToValue = formatDateForInput(existingEntry.validTo)
-    } else {
-      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = formatDateForInput(activeTo) || '9999-12-31'
-    }
+    // Get validity dates using shared utility (copies from first existing entry if available)
+    const { validFrom, validTo } = getValidityDatesFromExisting(allowancePeriods, activeFrom, activeTo)
 
     form.reset({
       code: '',
@@ -342,8 +352,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       minHours: 0,
       midnightRule: false,
       overnightAccommodation: false,
-      validFrom: validFromValue,
-      validTo: validToValue,
+      validFrom,
+      validTo,
       order: allowancePeriods.length + 1
     })
     setIsModalVisible(true)
@@ -411,6 +421,68 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     }
   }
 
+  // Check if code is unique within the validity period
+  const checkCodeUniqueness = useCallback(
+    async (code: string, activeFrom: string, activeTo: string | undefined, excludeId?: string): Promise<boolean> => {
+      try {
+        // Fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
+        const query = `
+          query CheckAllowancePeriodCodeUniqueness($ruleId: uuid!, $code: String!, $excludeId: uuid) {
+            ExpenseRuleAllowancePeriod(
+              where: {
+                expenseRuleId: { _eq: $ruleId }
+                code: { _eq: $code }
+                isDeleted: { _eq: false }
+                id: { _neq: $excludeId }
+              }
+            ) {
+              id
+              code
+              activeFrom
+              activeTo
+            }
+          }
+        `
+
+        const variables = {
+          ruleId,
+          code,
+          excludeId: excludeId || null
+        }
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleAllowancePeriod: { id: string; code: string; activeFrom: string; activeTo?: string }[]
+        }>(query, variables)
+
+        // Check for overlapping periods using shared utility
+        const uniquenessResult = checkPeriodUniqueness({
+          ruleId,
+          excludeId,
+          newPeriod: { activeFrom, activeTo },
+          existingPeriods: result.ExpenseRuleAllowancePeriod,
+          componentName: 'AllowancePeriodTab',
+          entityName: 'ExpenseRuleAllowancePeriod'
+        })
+
+        return uniquenessResult.isDuplicate
+      } catch (error) {
+        console.error('[AllowancePeriodTab] Error checking code uniqueness:', {
+          error,
+          code,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        return true // Block save on error
+      }
+    },
+    [ruleId, graphqlClient]
+  )
+
   const handleSave = async () => {
     // Trigger form validation
     const isValid = await form.trigger()
@@ -423,92 +495,39 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     try {
       setIsSaving(true)
 
-      // Date validation
-      const ruleFrom = dayjs(activeFrom)
-      const ruleTo = activeTo ? dayjs(activeTo) : null
-      const entryFrom = dayjs(formData.validFrom)
-      const entryTo = formData.validTo ? dayjs(formData.validTo) : null
+      // Check code uniqueness within overlapping validity periods
+      const codeExists = await checkCodeUniqueness(formData.code, formData.validFrom, formData.validTo, editingItem?.id)
 
-      // Valid From cannot be before rule's Valid From
-      if (entryFrom.isBefore(ruleFrom, 'day')) {
-        form.setError('validFrom', {
+      if (codeExists) {
+        form.setError('code', {
           type: 'manual',
-          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
+          message:
+            'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
         })
         setIsSaving(false)
         return
       }
 
-      // Valid From cannot be after rule's Valid To
-      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
-        form.setError('validFrom', {
-          type: 'manual',
-          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
+      // Date validation using shared utility
+      const dateErrors = validateDateRange({
+        entryFrom: formData.validFrom,
+        entryTo: formData.validTo,
+        ruleFrom: activeFrom,
+        ruleTo: activeTo
+      })
+
+      if (applyDateValidationErrors(dateErrors, form.setError)) {
         setIsSaving(false)
         return
       }
 
-      // Valid To cannot be after rule's Valid To
-      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
-        setIsSaving(false)
-        return
-      }
+      // Build save payload using transformer utilities
+      const savePayload =
+        isRestrictedEdit && editingItem
+          ? transformAllowancePeriodForRestrictedUpdate(formData, editingItem, ruleId)
+          : transformAllowancePeriodForSave(formData, ruleId, editingItem)
 
-      // Valid To cannot be before Valid From
-      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be before Valid From`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // IMPORTANT: Always use editingItem for id and version when updating
-      const isUpdate = !!editingItem
-
-      // If restricted edit, only update validTo
-      if (isRestrictedEdit && editingItem) {
-        await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
-          id: editingItem.id,
-          version: editingItem.version,
-          expenseRuleId: ruleId,
-          code: editingItem.code,
-          name: editingItem.name,
-          activeFrom: editingItem.validFrom ? dayjs(editingItem.validFrom).startOf('day').toISOString() : null,
-          activeTo: formData.validTo ? dayjs(formData.validTo).endOf('day').toISOString() : null,
-          fromTime: editingItem.fromTime,
-          toTime: editingItem.toTime,
-          minHours: editingItem.minHours,
-          midnightRule: editingItem.midnightRule,
-          periodOrder: editingItem.order
-        })
-      } else {
-        // Full save
-        await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
-          ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
-          expenseRuleId: ruleId,
-          businessKey: undefined,
-          activeTo: formData.validTo ? dayjs(formData.validTo).endOf('day').toISOString() : null,
-          additionalProperties: undefined,
-          code: formData.code,
-          name: formData.name,
-          overnightAccomodation: formData.overnightAccommodation,
-          fromTime: formData.fromTime,
-          toTime: formData.toTime,
-          minHours: formData.minHours,
-          midnightRule: formData.midnightRule,
-          startAfter: formData.startAfter,
-          returnBefore: formData.returnBefore,
-          activeFrom: formData.validFrom ? dayjs(formData.validFrom).startOf('day').toISOString() : null,
-          periodOrder: formData.order
-        })
-      }
+      await expenseSettingsClient.saveExpenseRuleAllowancePeriod(savePayload)
 
       toast.success(`Allowance period ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
@@ -578,7 +597,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
         </CardHeader>
 
         <CardContent data-testid="allowance-period-card-content">
-          {allowancePeriods.length > 0 ? (
+          {sortedAllowancePeriods.length > 0 ? (
             <div className="gba:overflow-x-auto">
               <Table data-testid="allowance-periods-table">
                 <TableHeader data-testid="allowance-periods-table-header">
@@ -586,59 +605,125 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     <TableHead className="gba:w-[60px]" data-testid="allowance-periods-table-header-actions">
                       ACTIONS
                     </TableHead>
-                    <TableHead className="gba:w-[150px]" data-testid="allowance-periods-table-header-code">
-                      CODE
-                    </TableHead>
-                    <TableHead className="gba:w-[180px]" data-testid="allowance-periods-table-header-name">
-                      NAME
+                    <TableHead
+                      className="gba:w-[150px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('code')}
+                      data-testid="allowance-periods-table-header-code"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        CODE
+                        {sorting.renderSortIcon('code')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[180px] gba:text-center"
+                      className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('name')}
+                      data-testid="allowance-periods-table-header-name"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        NAME
+                        {sorting.renderSortIcon('name')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[180px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('overnight')}
                       data-testid="allowance-periods-table-header-overnight"
                     >
-                      OVERNIGHT
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        OVERNIGHT
+                        {sorting.renderSortIcon('overnight')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[100px] gba:text-center"
+                      className="gba:w-[100px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('fromTime')}
                       data-testid="allowance-periods-table-header-from-time"
                     >
-                      TIME FROM
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        TIME FROM
+                        {sorting.renderSortIcon('fromTime')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[100px] gba:text-center"
+                      className="gba:w-[100px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('toTime')}
                       data-testid="allowance-periods-table-header-to-time"
                     >
-                      TIME TO
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        TIME TO
+                        {sorting.renderSortIcon('toTime')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[120px] gba:text-center"
+                      className="gba:w-[120px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('minHours')}
                       data-testid="allowance-periods-table-header-min-hours"
                     >
-                      MIN HOURS
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        MIN HOURS
+                        {sorting.renderSortIcon('minHours')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[120px] gba:text-center"
+                      className="gba:w-[120px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('midnightRule')}
                       data-testid="allowance-periods-table-header-midnight"
                     >
-                      MIDNIGHT RULE
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        MIDNIGHT RULE
+                        {sorting.renderSortIcon('midnightRule')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[100px] gba:text-center"
+                      className="gba:w-[100px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('startAfter')}
                       data-testid="allowance-periods-table-header-start-after"
                     >
-                      START AFTER
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        START AFTER
+                        {sorting.renderSortIcon('startAfter')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[120px] gba:text-center"
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent gba:text-center"
+                      onClick={() => sorting.handleSort('periodOrder')}
+                      data-testid="allowance-periods-table-header-order"
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        ORDER
+                        {sorting.renderSortIcon('periodOrder')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[120px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('returnBefore')}
                       data-testid="allowance-periods-table-header-return-before"
                     >
-                      RETURN BEFORE
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        RETURN BEFORE
+                        {sorting.renderSortIcon('returnBefore')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[120px]" data-testid="allowance-periods-table-header-valid-from">
-                      VALID FROM
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('activeFrom')}
+                      data-testid="allowance-periods-table-header-valid-from"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        VALID FROM
+                        {sorting.renderSortIcon('activeFrom')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[120px]" data-testid="allowance-periods-table-header-valid-to">
-                      VALID TO
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('activeTo')}
+                      data-testid="allowance-periods-table-header-valid-to"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        VALID TO
+                        {sorting.renderSortIcon('activeTo')}
+                      </div>
                     </TableHead>
                     <TableHead
                       className="gba:w-[80px] gba:text-center"
@@ -649,7 +734,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                   </TableRow>
                 </TableHeader>
                 <TableBody data-testid="allowance-periods-table-body">
-                  {allowancePeriods.map(record => (
+                  {sortedAllowancePeriods.map(record => (
                     <TableRow key={record.id} data-testid={`allowance-period-row-${record.id}`}>
                       {/* Actions Column */}
                       <TableCell data-testid={`allowance-period-actions-cell-${record.id}`}>
@@ -884,37 +969,19 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent data-testid="allowance-period-delete-dialog">
-          <DialogHeader>
-            <DialogTitle>Delete Allowance Period</DialogTitle>
-          </DialogHeader>
-          <div className="gba:py-4">
-            <p>
-              Are you sure you want to delete the allowance period "{itemToDelete?.name}"? This action cannot be undone.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={isDeleting}
-              data-testid="allowance-period-delete-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="allowance-period-delete-confirm-button"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Allowance Period"
+        itemDescription={`the allowance period "${itemToDelete?.name}"`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="allowance-period-delete"
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>

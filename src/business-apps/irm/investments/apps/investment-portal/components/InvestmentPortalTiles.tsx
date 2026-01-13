@@ -12,7 +12,7 @@ import {
   TileData,
   TextTileCard,
   KpiTileCard,
-  TableIconTileCard,
+  TableTileCard,
   ChartTileCard
 } from '@/common/components/investment/tiles'
 
@@ -57,7 +57,7 @@ export const InvestmentPortalTiles: React.FC<InvestmentPortalTilesProps> = ({
       case TILE_TYPES.KPI:
         return <KpiTileCard key={tile.id} {...tileProps} />
       case TILE_TYPES.TABLE:
-        return <TableIconTileCard key={tile.id} {...tileProps} />
+        return <TableTileCard key={tile.id} {...tileProps} />
       case TILE_TYPES.CHART:
         return <ChartTileCard key={tile.id} {...tileProps} />
       default:

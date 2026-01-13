@@ -658,7 +658,7 @@ export function useFlowBot(accessToken: string) {
           const payload: any = await res.json().catch(() => null)
           // Backend contract: if message is non-null, it's always an OutputItem.
           cancelOutput = (payload?.message ?? null) as OutputItem | null
-        } else {
+        } else if (res.status !== 404) {
           const text = await res.text().catch(() => '')
           cancelApiMessageText = text ? `Cancel failed (${res.status}): ${text}` : `Cancel failed (${res.status})`
         }
@@ -820,10 +820,17 @@ export function useFlowBot(accessToken: string) {
       if (!newText.trim()) return
 
       // Delete old message and all messages after it
-      setState(prev => ({
-        ...prev,
-        conversation: prev.conversation.slice(0, turnIndex)
-      }))
+      setState(prev => {
+        const newState = {
+          ...prev,
+          conversation: prev.conversation.slice(0, turnIndex)
+        }
+        saveState(newState)
+        return newState
+      })
+
+      // Wait for state update to complete before sending new message
+      await new Promise(resolve => setTimeout(resolve, 0))
 
       // Add new message (resend)
       await sendMessage(newText, [], false, false, undefined)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Button,
@@ -42,6 +42,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import { PiPlus, PiPencil, PiCalendar, PiCode, PiDotsThreeVertical, PiTrash, PiWarning } from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -53,6 +54,16 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
+import {
+  validateDateRange,
+  applyDateValidationErrors,
+  transformCustomFieldForRestrictedUpdate,
+  transformCustomFieldForSave,
+  getValidityDatesFromExisting
+} from '../utils'
+import { useTableSorting, createFieldMappings } from '../hooks'
+import { UsageInfo } from '../../../types'
 
 interface CustomFieldsTabProps {
   ruleId: string
@@ -93,16 +104,6 @@ interface RelatedOption {
   name: string
 }
 
-// Usage check result
-interface UsageInfo {
-  isUsed: boolean
-  usedIn: {
-    positions?: number
-    items?: number
-  }
-  message: string
-}
-
 const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -122,14 +123,27 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
   const [availableExpenses, setAvailableExpenses] = useState<RelatedOption[]>([])
   const [availableMileage, setAvailableMileage] = useState<RelatedOption[]>([])
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      source: createFieldMappings.string((a: CustomField) => a.source),
+      linkedItem: createFieldMappings.string((a: CustomField) => a.relatedCode || a.relatedName),
+      infoValue: createFieldMappings.string((a: CustomField) => a.infoValue),
+      mandatory: createFieldMappings.boolean((a: CustomField) => a.mandatory),
+      activeFrom: createFieldMappings.date((a: CustomField) => a.validFrom)
+    }),
+    []
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<CustomField>({
+    defaultSortField: 'source',
+    defaultSortOrder: 'ASC',
+    data: customFields,
+    fieldMappings
+  })
+
+  // formatDateForInput is imported from shared utils
 
   const form = useForm<CustomFieldFormData>({
     defaultValues: {
@@ -156,6 +170,20 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
+
+  // Load usage status for all custom fields
+  // Note: Custom fields don't have direct references in ExpensePosition/ExpenseItem,
+  // so we can't track usage. All fields are treated as not in use.
+  const loadFieldUsageStatus = useCallback(async (fieldIds: string[]) => {
+    if (fieldIds.length === 0) return
+
+    // Since there's no direct link to track usage, allow all operations
+    const emptyMap: Record<string, boolean> = {}
+    fieldIds.forEach(id => {
+      emptyMap[id] = false
+    })
+    setFieldUsageMap(emptyMap)
+  }, [])
 
   // REAL GraphQL data from ExpenseRuleOtherInfo + available expenses/mileage
   const fetchCustomFields = useCallback(async () => {
@@ -276,21 +304,10 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     } finally {
       setIsLoading(false)
     }
-  }, [ruleId, graphqlClient])
+  }, [ruleId, graphqlClient, loadFieldUsageStatus])
 
-  // Load usage status for all custom fields
-  // Note: Custom fields don't have direct references in ExpensePosition/ExpenseItem,
-  // so we can't track usage. All fields are treated as not in use.
-  const loadFieldUsageStatus = useCallback(async (fieldIds: string[]) => {
-    if (fieldIds.length === 0) return
-
-    // Since there's no direct link to track usage, allow all operations
-    const emptyMap: Record<string, boolean> = {}
-    fieldIds.forEach(id => {
-      emptyMap[id] = false
-    })
-    setFieldUsageMap(emptyMap)
-  }, [])
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  const sortedCustomFields = sorting.sortedData || customFields
 
   // Check detailed usage for a single custom field
   // Note: Custom fields don't have direct references in ExpensePosition/ExpenseItem
@@ -305,10 +322,6 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     }
   }, [ruleId, accessToken, fetchCustomFields])
 
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
-
   const sourceOptions = [
     { value: 'Expense', label: 'Expense' },
     { value: 'Mileage', label: 'Mileage' }
@@ -319,26 +332,15 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     setIsRestrictedEdit(false)
     setCurrentUsageInfo(null)
 
-    // Determine validity period based on existing entries
-    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    let validToValue: string | undefined = undefined
-
-    if (customFields.length > 0) {
-      // Use the same validity period as the first existing entry
-      const existingEntry = customFields[0]
-      validFromValue = formatDateForInput(existingEntry.validFrom) || validFromValue
-      validToValue = formatDateForInput(existingEntry.validTo)
-    } else {
-      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = formatDateForInput(activeTo) || '9999-12-31'
-    }
+    // Get validity dates using shared utility (copies from first existing entry if available)
+    const { validFrom, validTo } = getValidityDatesFromExisting(customFields, activeFrom, activeTo)
 
     form.reset({
       source: 'Expense',
       infoValue: '',
       mandatory: false,
-      validFrom: validFromValue,
-      validTo: validToValue,
+      validFrom,
+      validTo,
       relatedId: undefined
     })
     setIsModalVisible(true)
@@ -400,93 +402,142 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     }
   }
 
+  // Check if source + relatedId combination is unique within the validity period
+  const checkCustomFieldUniqueness = useCallback(
+    async (
+      source: 'Expense' | 'Mileage',
+      relatedId: string | undefined,
+      activeFrom: string,
+      activeTo: string | undefined,
+      excludeId?: string
+    ): Promise<boolean> => {
+      try {
+        // If no source or relatedId, skip uniqueness check
+        if (!source || !relatedId) {
+          return false
+        }
+
+        // Map source to API enum using existing function
+        const apiSource = mapSourceToApiEnum(source)
+
+        // Fetch all matching custom fields and check overlap in JavaScript
+        const query = `
+          query CheckCustomFieldUniqueness($ruleId: uuid!, $source: String!, $excludeId: uuid) {
+            ExpenseRuleOtherInfo(
+              where: {
+                expenseRuleId: { _eq: $ruleId }
+                source: { _eq: $source }
+                isDeleted: { _eq: false }
+                id: { _neq: $excludeId }
+              }
+            ) {
+              id
+              activeFrom
+              activeTo
+              expenseRuleGeneralExpenseId
+              expenseRuleMileageId
+            }
+          }
+        `
+
+        const variables = {
+          ruleId,
+          source: apiSource,
+          excludeId: excludeId || null
+        }
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleOtherInfo: {
+            id: string
+            activeFrom: string
+            activeTo?: string
+            expenseRuleGeneralExpenseId?: string
+            expenseRuleMileageId?: string
+          }[]
+        }>(query, variables)
+
+        // Filter by relatedId based on source type
+        const matchingByRelatedId = result.ExpenseRuleOtherInfo.filter(existing => {
+          if (source === 'Expense') {
+            return existing.expenseRuleGeneralExpenseId === relatedId
+          } else if (source === 'Mileage') {
+            return existing.expenseRuleMileageId === relatedId
+          }
+          return false
+        })
+
+        // Check for overlapping periods using shared utility
+        const overlappingFields = findOverlappingPeriods({ activeFrom, activeTo }, matchingByRelatedId)
+
+        if (overlappingFields.length > 0) {
+          return true
+        }
+
+        return false
+      } catch (error) {
+        console.error('[CustomFieldsTab] Error checking custom field uniqueness:', {
+          error,
+          source,
+          relatedId,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        return true // Block save on error
+      }
+    },
+    [ruleId, graphqlClient, mapSourceToApiEnum]
+  )
+
   const handleSave = async () => {
     try {
       setIsSaving(true)
 
       const formValues = form.getValues()
 
-      // Date validation
-      const ruleFrom = dayjs(activeFrom)
-      const ruleTo = activeTo ? dayjs(activeTo) : null
-      const entryFrom = dayjs(formValues.validFrom)
-      const entryTo = formValues.validTo ? dayjs(formValues.validTo) : null
+      // Check custom field uniqueness (source + relatedId combination)
+      const fieldExists = await checkCustomFieldUniqueness(
+        formValues.source,
+        formValues.relatedId,
+        formValues.validFrom,
+        formValues.validTo,
+        editingItem?.id
+      )
 
-      // Valid From cannot be before rule's Valid From
-      if (entryFrom.isBefore(ruleFrom, 'day')) {
-        form.setError('validFrom', {
+      if (fieldExists) {
+        form.setError('source', {
           type: 'manual',
-          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
+          message:
+            'This source and related item combination already exists with an overlapping validity period. Please use a different combination or adjust the validity dates.'
         })
         setIsSaving(false)
         return
       }
 
-      // Valid From cannot be after rule's Valid To
-      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
-        form.setError('validFrom', {
-          type: 'manual',
-          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
+      // Date validation using shared utility
+      const dateErrors = validateDateRange({
+        entryFrom: formValues.validFrom,
+        entryTo: formValues.validTo,
+        ruleFrom: activeFrom,
+        ruleTo: activeTo
+      })
+
+      if (applyDateValidationErrors(dateErrors, form.setError)) {
         setIsSaving(false)
         return
       }
 
-      // Valid To cannot be after rule's Valid To
-      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
-        setIsSaving(false)
-        return
-      }
+      // Build save payload using transformer utilities
+      const savePayload =
+        isRestrictedEdit && editingItem
+          ? transformCustomFieldForRestrictedUpdate(formValues, editingItem, ruleId, mapSourceToApiEnum)
+          : transformCustomFieldForSave(formValues, ruleId, editingItem, mapSourceToApiEnum)
 
-      // Valid To cannot be before Valid From
-      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be before Valid From`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // IMPORTANT: Always use editingItem for id and version when updating
-      const isUpdate = !!editingItem
-
-      // If restricted edit, only update validTo and infoValue
-      if (isRestrictedEdit && editingItem) {
-        await expenseSettingsClient.saveExpenseRuleOtherInfo({
-          id: editingItem.id,
-          version: editingItem.version,
-          expenseRuleId: ruleId,
-          source: mapSourceToApiEnum(editingItem.source),
-          infoValue: formValues.infoValue,
-          mandatory: editingItem.mandatory,
-          activeFrom: editingItem.validFrom ? dayjs(editingItem.validFrom).startOf('day').toISOString() : null,
-          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
-          expenseRuleMileageId: editingItem.source === 'Mileage' ? editingItem.relatedId : null,
-          expenseRuleGeneralExpenseId: editingItem.source === 'Expense' ? editingItem.relatedId : null
-        })
-      } else {
-        // Full save
-        const payload = {
-          ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
-          expenseRuleId: ruleId,
-          businessKey: undefined,
-          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
-          additionalProperties: undefined,
-          source: mapSourceToApiEnum(formValues.source),
-          infoValue: formValues.infoValue,
-          mandatory: formValues.mandatory,
-          activeFrom: formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null,
-          // Set the related ID based on source
-          expenseRuleMileageId: formValues.source === 'Mileage' ? formValues.relatedId : null,
-          expenseRuleGeneralExpenseId: formValues.source === 'Expense' ? formValues.relatedId : null
-        }
-        await expenseSettingsClient.saveExpenseRuleOtherInfo(payload)
-      }
+      await expenseSettingsClient.saveExpenseRuleOtherInfo(savePayload)
 
       toast.success(`Custom field ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
@@ -559,32 +610,67 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         </CardHeader>
 
         <CardContent data-testid="custom-fields-card-content">
-          {customFields.length > 0 ? (
+          {sortedCustomFields.length > 0 ? (
             <Table data-testid="custom-fields-table">
               <TableHeader data-testid="custom-fields-table-header">
                 <TableRow data-testid="custom-fields-table-header-row">
                   <TableHead className="gba:w-[60px]" data-testid="custom-fields-table-header-actions">
                     ACTIONS
                   </TableHead>
-                  <TableHead className="gba:w-[100px]" data-testid="custom-fields-table-header-source">
-                    SOURCE
+                  <TableHead
+                    className="gba:w-[100px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('source')}
+                    data-testid="custom-fields-table-header-source"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      SOURCE
+                      {sorting.renderSortIcon('source')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[200px]" data-testid="custom-fields-table-header-linked">
-                    LINKED ITEM
+                  <TableHead
+                    className="gba:w-[200px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('linkedItem')}
+                    data-testid="custom-fields-table-header-linked"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      LINKED ITEM
+                      {sorting.renderSortIcon('linkedItem')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[200px]" data-testid="custom-fields-table-header-value">
-                    INFO VALUE
+                  <TableHead
+                    className="gba:w-[200px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('infoValue')}
+                    data-testid="custom-fields-table-header-value"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      INFO VALUE
+                      {sorting.renderSortIcon('infoValue')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[100px]" data-testid="custom-fields-table-header-mandatory">
-                    MANDATORY
+                  <TableHead
+                    className="gba:w-[100px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('mandatory')}
+                    data-testid="custom-fields-table-header-mandatory"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      MANDATORY
+                      {sorting.renderSortIcon('mandatory')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[180px]" data-testid="custom-fields-table-header-validity">
-                    VALIDITY
+                  <TableHead
+                    className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('activeFrom')}
+                    data-testid="custom-fields-table-header-validity"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      VALIDITY
+                      {sorting.renderSortIcon('activeFrom')}
+                    </div>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody data-testid="custom-fields-table-body">
-                {customFields.map(record => (
+                {sortedCustomFields.map(record => (
                   <TableRow key={record.id} data-testid={`custom-field-row-${record.id}`}>
                     <TableCell data-testid={`custom-field-actions-cell-${record.id}`}>
                       <DropdownMenu>
@@ -705,38 +791,19 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent data-testid="custom-field-delete-dialog">
-          <DialogHeader>
-            <DialogTitle>Delete Custom Field</DialogTitle>
-          </DialogHeader>
-          <div className="gba:py-4">
-            <p>
-              Are you sure you want to delete the custom field "{itemToDelete?.infoValue}"? This action cannot be
-              undone.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={isDeleting}
-              data-testid="custom-field-delete-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="custom-field-delete-confirm-button"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Custom Field"
+        itemDescription={`the custom field "${itemToDelete?.infoValue}"`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="custom-field-delete"
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>

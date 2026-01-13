@@ -24,9 +24,7 @@ import TravelRegionSetModal from './TravelRegionSetModal'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 
 // Custom toast function
-const toast = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`[${type.toUpperCase()}] ${message}`)
-}
+const toast = () => {}
 
 interface TravelRegionSet {
   id: string
@@ -121,11 +119,6 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
 
       const result = await graphqlClient.request<{ CatalogEntry: any[] }>(query)
 
-      console.log('🔍 Checking travel region sets for details:', {
-        totalSets: result.CatalogEntry.length,
-        setIds: result.CatalogEntry.map((s: any) => s.id)
-      })
-
       // Check each set for rules with details by querying AllowanceRegionRule.travel_region_set_ref
       const setsWithDetails = new Map<string, { hasDetails: boolean; ruleCount: number; detailCount: number }>()
 
@@ -164,12 +157,6 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
         const hasDetails = detailCount > 0
 
         setsWithDetails.set(setId, { hasDetails, ruleCount, detailCount })
-
-        console.log(`🔍 Set "${set.value}" (${set.code}, ${setId}):`, {
-          ruleCount,
-          detailCount,
-          hasDetails
-        })
       }
 
       const sets: TravelRegionSet[] = result.CatalogEntry.map((item: any) => {
@@ -179,14 +166,6 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
         // Check if this set has rules with details
         const setInfo = setsWithDetails.get(item.id) || { hasDetails: false, ruleCount: 0, detailCount: 0 }
         const hasDetails = setInfo.hasDetails
-
-        console.log(`🔍 Final Set "${item.value}" (${item.code}):`, {
-          childCount: item.childEntriesAggregate?.aggregate?.count || 0,
-          hasDetails,
-          ruleCount: setInfo.ruleCount,
-          detailCount: setInfo.detailCount,
-          sampleChildIds: childRegionIds.slice(0, 3)
-        })
 
         return {
           id: item.id,
@@ -286,15 +265,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       const { set } = deleteConfirmation
       const childCount = set.childCount || 0
 
-      console.log('🗑️ Starting delete for set:', {
-        setId: set.id,
-        setCode: set.code,
-        childCount,
-        hasDetails: set.hasDetails
-      })
-
       // Step 1: Check for AllowanceRegionRule records that reference this set (including soft-deleted ones)
-      console.log(`🔍 Fetching ALL AllowanceRegionRule records (including soft-deleted) for set ${set.id}...`)
 
       const allRulesQuery = `
         query GetAllRulesForSet($setId: String!) {
@@ -312,14 +283,9 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       })
 
       const allRules = allRulesResult.AllowanceRegionRule || []
-      console.log(
-        `📊 Found ${allRules.length} total rules (${allRules.filter((r: any) => r.isDeleted).length} soft-deleted)`
-      )
 
       // Step 2: For each rule, hard delete all its details first, then delete the rule
       for (const rule of allRules) {
-        console.log(`🔍 Processing rule ${rule.id}...`)
-
         // Get all details for this rule (including soft-deleted ones)
         const allDetailsQuery = `
           query GetAllDetailsForRule($ruleId: uuid!) {
@@ -337,19 +303,14 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
         })
 
         const allDetails = allDetailsResult.AllowanceRegionRuleDetail || []
-        console.log(
-          `📊 Rule ${rule.id} has ${allDetails.length} details (${allDetails.filter((d: any) => d.isDeleted).length} soft-deleted)`
-        )
 
         // Hard delete all details
         for (const detail of allDetails) {
-          console.log(`🗑️ Hard deleting detail ${detail.id}...`)
           try {
             await expenseSettingsClient.deleteAllowanceRegionRuleDetail({
               id: detail.id,
               version: detail.version
             })
-            console.log(`✅ Hard deleted detail ${detail.id}`)
           } catch (err: any) {
             console.error(`❌ Failed to hard delete detail ${detail.id}:`, err)
             throw new Error(`Failed to hard delete detail ${detail.id}: ${err?.message || 'Unknown error'}`)
@@ -357,10 +318,9 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
         }
 
         // Hard delete the rule
-        console.log(`🗑️ Hard deleting rule ${rule.id}...`)
+
         try {
           await expenseSettingsClient.deleteAllowanceRegionRule(rule.id, rule.version)
-          console.log(`✅ Hard deleted rule ${rule.id}`)
         } catch (err: any) {
           console.error(`❌ Failed to hard delete rule ${rule.id}:`, err)
           throw new Error(`Failed to hard delete rule ${rule.id}: ${err?.message || 'Unknown error'}`)
@@ -368,21 +328,15 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       }
 
       if (allRules.length > 0) {
-        console.log(`✅ Hard deleted ${allRules.length} rules and their details`)
       } else {
-        console.log('✅ No rules to delete')
       }
 
       // Step 3: Hard delete all child travel regions (DELETE endpoint will physically remove them)
       if (childCount > 0 && set.childRegionIds && set.childRegionIds.length > 0) {
-        console.log(`🗑️ Hard deleting ${set.childRegionIds.length} child travel regions...`)
-        console.log('Child region IDs:', set.childRegionIds)
-
         for (const regionId of set.childRegionIds) {
-          console.log(`🗑️ Hard deleting child region: ${regionId}`)
           try {
             // Step 3a: Check and delete catalog_entry_localized records first
-            console.log(`  Checking for localized entries for ${regionId}...`)
+
             const localizedQuery = `
               query GetLocalizedEntries($catalogEntryId: String!) {
                 CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
@@ -394,9 +348,8 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
             `
             const localizedResult = await graphqlClient.request<any>(localizedQuery, { catalogEntryId: regionId })
             const localizedEntries = localizedResult.CatalogEntryLocalized || []
-            
+
             if (localizedEntries.length > 0) {
-              console.log(`  Found ${localizedEntries.length} localized entries, deleting...`)
               const deleteLocalizedMutation = `
                 mutation DeleteLocalizedEntries($catalogEntryId: String!) {
                   delete_CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
@@ -404,19 +357,15 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                   }
                 }
               `
-              const deleteLocalizedResult = await graphqlClient.request<any>(deleteLocalizedMutation, { catalogEntryId: regionId })
-              console.log(`  ✅ Deleted ${deleteLocalizedResult.delete_CatalogEntryLocalized.affected_rows} localized entries`)
+              await graphqlClient.request<any>(deleteLocalizedMutation, { catalogEntryId: regionId })
             } else {
-              console.log(`  No localized entries found`)
             }
 
             // Step 3b: Now hard delete the catalog entry
             const entryIdParts = regionId.split(':')
             const shortId = entryIdParts.length >= 3 ? entryIdParts[2] : regionId
 
-            console.log(`  Hard deleting catalog entry with ID: ${shortId}`)
-            const result = await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', shortId)
-            console.log(`✅ Hard deleted region ${regionId}:`, result)
+            await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', shortId)
           } catch (err: any) {
             console.error(`❌ Failed to hard delete region ${regionId}:`, {
               error: err,
@@ -428,15 +377,12 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
             throw new Error(`Failed to hard delete child region ${regionId}: ${err?.message || 'Unknown error'}`)
           }
         }
-
-        console.log(`✅ Hard deleted ${set.childRegionIds.length} child travel regions`)
       }
 
       // Step 4: Hard delete the travel region set (DELETE endpoint will physically remove it)
-      console.log('🗑️ Hard deleting travel region set:', set.id)
-      
+
       // Step 4a: Check and delete catalog_entry_localized records for the set first
-      console.log(`  Checking for localized entries for set ${set.id}...`)
+
       const setLocalizedQuery = `
         query GetSetLocalizedEntries($catalogEntryId: String!) {
           CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
@@ -448,9 +394,8 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       `
       const setLocalizedResult = await graphqlClient.request<any>(setLocalizedQuery, { catalogEntryId: set.id })
       const setLocalizedEntries = setLocalizedResult.CatalogEntryLocalized || []
-      
+
       if (setLocalizedEntries.length > 0) {
-        console.log(`  Found ${setLocalizedEntries.length} localized entries for set, deleting...`)
         const deleteSetLocalizedMutation = `
           mutation DeleteSetLocalizedEntries($catalogEntryId: String!) {
             delete_CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
@@ -458,10 +403,8 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
             }
           }
         `
-        const deleteSetLocalizedResult = await graphqlClient.request<any>(deleteSetLocalizedMutation, { catalogEntryId: set.id })
-        console.log(`  ✅ Deleted ${deleteSetLocalizedResult.delete_CatalogEntryLocalized.affected_rows} localized entries for set`)
+        await graphqlClient.request<any>(deleteSetLocalizedMutation, { catalogEntryId: set.id })
       } else {
-        console.log(`  No localized entries found for set`)
       }
 
       // Step 4b: Now hard delete the catalog entry for the set
@@ -470,9 +413,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       const setIdParts = set.id.split(':')
       const shortSetId = setIdParts.length >= 3 ? setIdParts.slice(2).join(':') : set.id
 
-      console.log(`  Hard deleting set catalog entry with ID: ${shortSetId}`)
-      const setDeleteResult = await catalogClient.deleteCatalogEntry('TravelRegionSet', 'v1', shortSetId)
-      console.log('✅ Hard deleted travel region set:', setDeleteResult)
+      await catalogClient.deleteCatalogEntry('TravelRegionSet', 'v1', shortSetId)
 
       const message =
         childCount > 0

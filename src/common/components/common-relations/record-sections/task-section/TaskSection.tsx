@@ -223,6 +223,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   const [docuSignAssignedUserId, setDocuSignAssignedUserId] = useState<string | undefined>(undefined)
   const [docuSignTask, setDocuSignTask] = useState<Task | null>(null)
   const [docuSignTaskFormData, setDocuSignTaskFormData] = useState<Partial<InvestmentTask> | null>(null)
+  const [docuSignFocusReferral, setDocuSignFocusReferral] = useState(false)
   const businessAppContext = useMemo(
     () => ({
       accessToken,
@@ -354,6 +355,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       code: rawTask?.code,
       description: taskItem.description || rawTask?.description || '',
       assignedTo,
+      taskAssignees: taskItem.taskAssignees || rawTask?.taskAssignees,
       creatorEmployee: creatorEmployee
         ? {
             id: creatorEmployee.id,
@@ -585,6 +587,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                               setDocuSignTaskFormData(formData)
                               setDocuSignDocs(documentsForTask)
                               setDocuSignAssignedUserId(getFirstAssignee(t.assigneeEmployee)?.userId)
+                              setDocuSignFocusReferral(false)
                               setIsDocuSignOpen(true)
                             }}
                           >
@@ -682,7 +685,10 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       {/* DocuSign Modal (from list actions) */}
       <DocuSignSignatureModal
         isOpen={isDocuSignOpen}
-        onClose={() => setIsDocuSignOpen(false)}
+        onClose={() => {
+          setIsDocuSignOpen(false)
+          setDocuSignFocusReferral(false)
+        }}
         accessToken={accessToken}
         assignedUserId={docuSignAssignedUserId}
         emailOnly={!(docuSignAssignedUserId && userInfo?.id && docuSignAssignedUserId === (userInfo?.id as any))}
@@ -703,6 +709,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           envelopeStatus: d.envelopeStatus,
           fileInfo: d.fileInfo
         }))}
+        focusReferral={docuSignFocusReferral}
       />
     </>
   )
