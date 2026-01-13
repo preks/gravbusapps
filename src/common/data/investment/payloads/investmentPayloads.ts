@@ -487,6 +487,9 @@ export const buildInvestmentPayload = (
       // Always set liquidFundInvestment (API requires exactly one subtype)
       investmentRequest.liquidFundInvestment = liquidFundPayload
       break
+
+    default:
+      throw new Error(`Unknown investment group type: ${groupType}`)
   }
 
   // Return the properly wrapped payload
