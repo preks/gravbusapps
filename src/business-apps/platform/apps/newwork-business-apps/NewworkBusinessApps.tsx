@@ -1,7 +1,17 @@
 import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { Users, Building2, Receipt, Headphones, TrendingUp, Package, Settings } from 'lucide-react'
+import {
+  Users,
+  TrendingUp,
+  Headphones,
+  DollarSign,
+  Package,
+  Presentation,
+  Database,
+  Gift,
+  Settings
+} from 'lucide-react'
 import {
   HeroSection,
   DomainCard,
@@ -16,24 +26,27 @@ export interface NewworkBusinessAppsProps extends BusinessAppContextProps {
 }
 
 /**
- * NEWWORK Business Apps - Professional business solutions landing page
+ * NEWWORK Business Domains - Professional business solutions landing page
  *
- * Provides unified access to all NEWWORK business applications:
- * - HR (Human Resources)
- * - CRM (Customer Relationship Management)
- * - Expenses (Finance & Expense Management)
- * - Services (Service Desk & Support)
- * - IRM (Investment Relationship Management)
- * - MDM (Master Data Management)
+ * Provides unified access to all NEWWORK business domains:
+ * - HR+ (Human Resources)
+ * - Sales+ (Customer Relationship Management)
+ * - Service+ (Service Desk & Support)
+ * - Finance+ (Finance & Expense Management)
+ * - ERP (Enterprise Resource Planning)
+ * - Board Room (Executive Hub, Board Room View, etc.)
+ * - Masterdata (Master Data Management)
+ * - Value Packs (Expenses, Investment Relationship, etc.)
+ * - System Management (Settings, Live Monitors, etc.)
  */
 export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
-  'data-testid': testId = 'newwork-business-apps'
+  'data-testid': testId = 'newwork-business-domains'
 }) => {
   // Business domain definitions
   const domains: Array<Omit<DomainCardProps, 'data-testid'> & { id: string }> = [
     {
-      id: 'hr',
-      title: 'Human Resources',
+      id: 'hr-plus',
+      title: 'HR+',
       description: 'Employee management, time tracking, absences, and organizational structure.',
       icon: Users,
       href: '/platform/apps/hr/core/apps/my-portal',
@@ -42,28 +55,18 @@ export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
       accentColor: 'info'
     },
     {
-      id: 'crm',
-      title: 'CRM',
+      id: 'sales-plus',
+      title: 'Sales+',
       description: 'Manage leads, contacts, accounts, and opportunities. Track your sales pipeline.',
-      icon: Building2,
+      icon: TrendingUp,
       href: '/platform/crm/customer-relations',
       badge: 'Essential',
       badgeVariant: 'info',
       accentColor: 'primary'
     },
     {
-      id: 'expenses',
-      title: 'Expenses',
-      description: 'Submit and manage expense requests. Track budgets and financial approvals.',
-      icon: Receipt,
-      href: '/platform/fin/expenses/personal-expenses',
-      badge: 'Finance',
-      badgeVariant: 'success',
-      accentColor: 'success'
-    },
-    {
-      id: 'services',
-      title: 'Services',
+      id: 'service-plus',
+      title: 'Service+',
       description: 'Service desk and support ticketing. Manage customer and internal requests.',
       icon: Headphones,
       href: '/platform/sales-demo/service-desk',
@@ -72,35 +75,66 @@ export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
       accentColor: 'warning'
     },
     {
-      id: 'irm',
-      title: 'IRM',
-      description: 'Investment relationship management. Track portfolios and investor relations.',
-      icon: TrendingUp,
-      href: '/platform/irm/investment-relations',
-      badge: 'Investments',
-      badgeVariant: 'info',
-      accentColor: 'ai'
+      id: 'finance-plus',
+      title: 'Finance+',
+      description: 'Financial management, budgets, invoices, and financial approvals.',
+      icon: DollarSign,
+      href: '/platform/fin/expenses/personal-expenses',
+      badge: 'Finance',
+      badgeVariant: 'success',
+      accentColor: 'success'
     },
     {
-      id: 'mdm',
-      title: 'Master Data',
-      description: 'Manage catalogs, reference data, and enterprise master data.',
+      id: 'erp',
+      title: 'ERP',
+      description: 'Enterprise resource planning. Integrated business processes and operations.',
       icon: Package,
+      href: '/platform/apps/launcher-manager',
+      badge: 'Enterprise',
+      badgeVariant: 'info',
+      accentColor: 'ai',
+      isComingSoon: true
+    },
+    {
+      id: 'board-room',
+      title: 'Board Room',
+      description: 'Executive Hub, Board Room View, and strategic business intelligence.',
+      icon: Presentation,
+      href: '/platform/apps/launcher-manager',
+      badge: 'Executive',
+      badgeVariant: 'info',
+      accentColor: 'primary',
+      isComingSoon: true
+    },
+    {
+      id: 'masterdata',
+      title: 'Masterdata',
+      description: 'Manage catalogs, reference data, and enterprise master data.',
+      icon: Database,
       href: '/platform/mdm/pipeline-data',
       badge: 'Data',
       badgeVariant: 'default',
-      accentColor: 'primary'
+      accentColor: 'info'
     },
     {
-      id: 'admin',
-      title: 'Administration',
-      description: 'System settings, user management, and platform configuration.',
+      id: 'value-packs',
+      title: 'Value Packs',
+      description: 'Expenses, Investment Relationship, and additional business solutions.',
+      icon: Gift,
+      href: '/platform/fin/expenses/personal-expenses',
+      badge: 'Packages',
+      badgeVariant: 'success',
+      accentColor: 'success'
+    },
+    {
+      id: 'system-management',
+      title: 'System Management',
+      description: 'Settings, Live Monitors, and platform configuration.',
       icon: Settings,
       href: '/platform/apps/launcher-manager',
-      badge: 'Admin',
+      badge: 'System',
       badgeVariant: 'offline',
-      accentColor: 'offline',
-      isComingSoon: true
+      accentColor: 'offline'
     }
   ]
 
@@ -121,41 +155,50 @@ export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
       'benefits',
       'onboarding'
     ]
-    const crmKeywords = ['lead', 'contact', 'account', 'opportunity', 'sales', 'customer', 'crm', 'pipeline', 'deal']
-    const expenseKeywords = ['expense', 'budget', 'finance', 'receipt', 'reimburse', 'cost', 'invoice', 'payment']
+    const salesKeywords = ['lead', 'contact', 'account', 'opportunity', 'sales', 'customer', 'crm', 'pipeline', 'deal']
+    const financeKeywords = ['expense', 'budget', 'finance', 'receipt', 'reimburse', 'cost', 'invoice', 'payment']
     const serviceKeywords = ['service', 'ticket', 'support', 'help desk', 'request', 'incident', 'issue']
-    const irmKeywords = ['investment', 'portfolio', 'investor', 'irm', 'fund', 'asset', 'wealth']
-    const mdmKeywords = ['catalog', 'master data', 'reference', 'mdm', 'data management']
+    const erpKeywords = ['erp', 'enterprise', 'resource planning', 'operations', 'business process']
+    const boardRoomKeywords = ['board', 'executive', 'strategy', 'intelligence', 'dashboard', 'report']
+    const masterdataKeywords = ['catalog', 'master data', 'reference', 'mdm', 'data management']
+    const valuePacksKeywords = ['value pack', 'investment', 'portfolio', 'investor', 'irm', 'fund', 'asset']
+    const systemKeywords = ['system', 'settings', 'monitor', 'configuration', 'admin', 'management']
 
     // Score each domain
     const scores = {
       hr: hrKeywords.filter(k => lowerQuery.includes(k)).length,
-      crm: crmKeywords.filter(k => lowerQuery.includes(k)).length,
-      expenses: expenseKeywords.filter(k => lowerQuery.includes(k)).length,
-      services: serviceKeywords.filter(k => lowerQuery.includes(k)).length,
-      irm: irmKeywords.filter(k => lowerQuery.includes(k)).length,
-      mdm: mdmKeywords.filter(k => lowerQuery.includes(k)).length
+      sales: salesKeywords.filter(k => lowerQuery.includes(k)).length,
+      finance: financeKeywords.filter(k => lowerQuery.includes(k)).length,
+      service: serviceKeywords.filter(k => lowerQuery.includes(k)).length,
+      erp: erpKeywords.filter(k => lowerQuery.includes(k)).length,
+      boardRoom: boardRoomKeywords.filter(k => lowerQuery.includes(k)).length,
+      masterdata: masterdataKeywords.filter(k => lowerQuery.includes(k)).length,
+      valuePacks: valuePacksKeywords.filter(k => lowerQuery.includes(k)).length,
+      system: systemKeywords.filter(k => lowerQuery.includes(k)).length
     }
 
     const maxScore = Math.max(...Object.values(scores))
 
-    // Default to CRM
+    // Default to Sales+
     let targetUrl = '/platform/crm/customer-launcher'
 
     if (maxScore > 0) {
       if (scores.hr === maxScore) {
         targetUrl = '/platform/apps/hr/core/apps/my-portal'
-      } else if (scores.crm === maxScore) {
+      } else if (scores.sales === maxScore) {
         targetUrl = '/platform/crm/customer-relations'
-      } else if (scores.expenses === maxScore) {
+      } else if (scores.finance === maxScore) {
         targetUrl = '/platform/fin/expenses/personal-expenses'
-      } else if (scores.services === maxScore) {
+      } else if (scores.service === maxScore) {
         targetUrl = '/platform/sales-demo/service-desk'
-      } else if (scores.irm === maxScore) {
-        targetUrl = '/platform/irm/investment-relations'
-      } else if (scores.mdm === maxScore) {
+      } else if (scores.masterdata === maxScore) {
         targetUrl = '/platform/mdm/pipeline-data'
+      } else if (scores.valuePacks === maxScore) {
+        targetUrl = '/platform/fin/expenses/personal-expenses'
+      } else if (scores.system === maxScore) {
+        targetUrl = '/platform/apps/launcher-manager'
       }
+      // ERP and Board Room are coming soon, so no navigation
     }
 
     // Store query for target app
@@ -204,8 +247,8 @@ export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
               </p>
             </div>
 
-            {/* All 7 domains in one row */}
-            <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-7 gba:gap-3">
+            {/* All 9 domains in grid */}
+            <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-3">
               {domains.map((domain, index) => (
                 <DomainCard
                   key={domain.id}
@@ -219,7 +262,7 @@ export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
           </div>
         </section>
 
-        {/* Business Apps Visualization Section */}
+        {/* Business Domains Visualization Section */}
         <BusinessAppsVisualization data-testid={`${testId}-visualization`} />
 
         {/* Footer tagline */}
