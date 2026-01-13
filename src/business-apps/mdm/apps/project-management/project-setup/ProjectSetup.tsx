@@ -312,6 +312,14 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
           targetProject.status === ProjectStatusUI.Canceled || targetProject.status === ProjectStatusUI.Completed,
         onClick: (targetProject: Project) => {
           setSelectedProject(targetProject)
+          // Set default status based on planned end date (validTo)
+          const currentDate = new Date()
+          const plannedEndDate = targetProject.validTo ? new Date(targetProject.validTo) : null
+          if (plannedEndDate && currentDate > plannedEndDate) {
+            setCloseProjectStatus(ProjectStatusBE.COMPLETED)
+          } else {
+            setCloseProjectStatus(ProjectStatusBE.CANCELLED)
+          }
           setIsCloseProjectOpen(true)
         }
       },
@@ -829,7 +837,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
       <CardContent className="gba:overflow-auto">
         {/* Filters */}
-        <div className="gba:mb-6 gba:relative gba:max-w-sm">
+        <div className="gba:mb-6 gba:pt-4 gba:relative gba:max-w-sm">
           <DebouncedInput
             key="search-input"
             value={searchInput}
