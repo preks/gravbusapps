@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback } from 'react'
 import * as d3 from 'd3'
-import { GuardianFilter } from '../../types/guardianTypes'
+import { GuardianFilter, GuardianNetworkData } from '../../types/guardianTypes'
 
 interface TimelineEvent {
   id: string
@@ -22,7 +22,9 @@ interface D3TimelineChartProps {
     entries: TimelineEvent[]
     total: number
     summary: any
+    window?: { startDate: string; endDate: string }
   } | null
+  networkData?: GuardianNetworkData | null
   dimensions: { width: number; height: number }
   filters: GuardianFilter
   isRealTime: boolean
@@ -32,6 +34,7 @@ interface D3TimelineChartProps {
 
 export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
   auditData,
+  networkData,
   dimensions,
   filters,
   isRealTime,
@@ -46,122 +49,44 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
     if (!svg.node()) return
 
     const { width, height } = dimensions
-    const margin = { top: 40, right: 80, bottom: 60, left: 120 }
-    const innerWidth = width - margin.left - margin.right
-    const innerHeight = height - margin.top - margin.bottom
 
     // Clear previous render
     svg.selectAll('*').remove()
 
-    // Generate mock audit data based on selected time range
-    const generateMockAuditEvents = (timeRange: string) => {
-      const now = new Date()
-      let timeSpanMs: number
-      let eventCount: number
+    const upper = (v: any) => String(v || '').toUpperCase()
+    const resolveAction = (e: any) => e.action || e.eventType || e.type || e.event || e.name || 'UNKNOWN'
+    const resolveStatus = (e: any) =>
+      e.status ||
+      e.taskStatus ||
+      e.details?.status ||
+      e.details?.newStatus ||
+      e.details?.toStatus ||
+      e.details?.workflowStatus ||
+      e.workflowStatus ||
+      e.details?.task_conductor_status ||
+      'UNKNOWN'
 
-      switch (timeRange) {
-        case '1h':
-          timeSpanMs = 60 * 60 * 1000
-          eventCount = 8
-          break
-        case '6h':
-          timeSpanMs = 6 * 60 * 60 * 1000
-          eventCount = 15
-          break
-        case '24h':
-          timeSpanMs = 24 * 60 * 60 * 1000
-          eventCount = 25
-          break
-        case '7d':
-          timeSpanMs = 7 * 24 * 60 * 60 * 1000
-          eventCount = 40
-          break
-        case '30d':
-          timeSpanMs = 30 * 24 * 60 * 60 * 1000
-          eventCount = 80
-          break
-        default:
-          timeSpanMs = 7 * 24 * 60 * 60 * 1000
-          eventCount = 40
-      }
-
-      // Department-specific users and workflows
-      const departmentData = {
-        'Human Resources': {
-          users: ['Sarah Wilson', 'Mike Johnson', 'Lisa Chen'],
-          workflows: ['Employee Onboarding', 'Performance Review', 'Leave Request']
-        },
-        'IT Department': {
-          users: ['David Brown', 'Alex Kumar', 'Emma Davis'],
-          workflows: ['System Deployment', 'Security Audit', 'Software Installation']
-        },
-        Engineering: {
-          users: ['John Smith', 'Maria Garcia', 'Chris Lee'],
-          workflows: ['Code Review', 'Feature Development', 'Bug Fix']
-        },
-        Finance: {
-          users: ['Jane Doe', 'Robert Taylor', 'Amy Zhang'],
-          workflows: ['Budget Approval', 'Expense Review', 'Invoice Processing']
-        }
-      }
-
-      const departments = Object.keys(departmentData)
-      const actions = [
-        'Task Started',
-        'Task Completed',
-        'Approval Requested',
-        'Document Reviewed',
-        'Status Updated',
-        'Task Failed',
-        'SLA Breach'
-      ]
-      const statuses = ['COMPLETED', 'IN_PROGRESS', 'FAILED', 'OVERDUE', 'REJECTED']
-
-      return Array.from({ length: eventCount }, (_, i) => {
-        const timeOffset = Math.random() * timeSpanMs
-        const eventTime = new Date(now.getTime() - timeOffset)
-
-        // Introduce some SLA breaches and failures
-        const isFailure = Math.random() < 0.1 // 10% failures
-        const isSlaBreach = Math.random() < 0.15 // 15% SLA breaches
-
-        let action = actions[Math.floor(Math.random() * actions.length)]
-        let status = statuses[Math.floor(Math.random() * statuses.length)]
-
-        if (isFailure) {
-          action = 'TASK_FAILED'
-          status = 'FAILED'
-        } else if (isSlaBreach) {
-          action = 'APPROVAL_OVERDUE'
-          status = 'OVERDUE'
-        }
-
-        // Pick a random department and corresponding user
-        const department = departments[Math.floor(Math.random() * departments.length)]
-        const departmentInfo = departmentData[department]
-        const userName = departmentInfo.users[Math.floor(Math.random() * departmentInfo.users.length)]
-        const flowName = departmentInfo.workflows[Math.floor(Math.random() * departmentInfo.workflows.length)]
-
-        return {
-          id: `audit-${i + 1}`,
-          timestamp: eventTime.toISOString(),
-          userId: `${department.toLowerCase().replace(/\s+/g, '-')}-${Math.floor(Math.random() * 10)}`,
-          userName,
-          department,
-          flowId: `wf-${Math.floor(Math.random() * 5) + 1}`,
-          flowName,
-          taskId: `task-${i + 1}`,
-          taskName: `${action} - ${flowName}`,
-          action,
-          status
-        }
-      })
-    }
-
-    const mockAuditEvents = generateMockAuditEvents(filters.timeRange)
-
-    // Always use mock data for now to ensure proper department display
-    const events = mockAuditEvents
+    // Use real audit events; do not generate mock/random data.
+    const events: TimelineEvent[] = (auditData?.entries || []).map((e: any, idx: number) => ({
+      id: e.id || `audit-${idx}`,
+      timestamp: e.timestamp || e.createdAt || e.time || new Date().toISOString(),
+      userId: e.userId || e.actorUserId || 'unknown',
+      userName: e.userName,
+      department:
+        e.department ||
+        e.details?.department ||
+        e.details?.organizationalUnit ||
+        e.details?.orgUnit ||
+        e.workflowMeta?.department ||
+        'Unknown',
+      flowId: e.flowId || e.rootWorkflowId || e.workflowId || 'unknown',
+      flowName: e.flowName || e.rootWorkflowName || e.workflowName || 'Unknown Flow',
+      taskId: e.taskId || e.task?.id || 'unknown',
+      taskName: e.taskName || e.task?.name || e.details?.taskName || 'Unknown Task',
+      action: resolveAction(e),
+      status: resolveStatus(e),
+      details: e.details
+    }))
 
     if (!events.length) {
       // Show empty state
@@ -184,72 +109,218 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
       }))
       .sort((a, b) => a.date.getTime() - b.date.getTime())
 
+    const isValid = (d: any) => d.date instanceof Date && !isNaN(d.date.getTime())
+    const cleaned = parsedEvents.filter(isValid)
+    if (!cleaned.length) {
+      svg
+        .append('text')
+        .attr('x', width / 2)
+        .attr('y', height / 2)
+        .attr('text-anchor', 'middle')
+        .style('fill', '#6b7280')
+        .style('font-size', '16px')
+        .text('No valid timestamps in audit data')
+      return
+    }
+
+    // Synthesize "Flow started" / "Flow completed" events when possible, so lifecycle is visible.
+    const isFlowStartAction = (a: string) => /(^|_)(FLOW|WORKFLOW).*(START|CREAT)/.test(upper(a))
+    const isFlowCompleteAction = (a: string) => /(^|_)(FLOW|WORKFLOW).*(COMPLETE|FINISH|DONE)/.test(upper(a))
+    const isCompletionSignal = (e: any) =>
+      upper(e.status) === 'COMPLETED' ||
+      upper(e.status) === 'DONE' ||
+      isFlowCompleteAction(e.action) ||
+      /COMPLETE/.test(upper(e.action)) ||
+      upper(e.details?.workflowStatus) === 'COMPLETED' ||
+      upper(e.workflowStatus) === 'COMPLETED'
+
+    const byFlow = d3.group(cleaned, d => String(d.flowId || 'unknown'))
+    const synthetic: any[] = []
+
+    for (const [flowId, evts] of byFlow.entries()) {
+      if (!evts.length) continue
+      const first = evts[0]
+
+      const alreadyHasStart = evts.some(e => isFlowStartAction(e.action))
+      if (!alreadyHasStart) {
+        synthetic.push({
+          ...first,
+          id: `flow-start-${flowId}`,
+          action: 'FLOW_STARTED',
+          status: 'STARTED',
+          taskId: '—',
+          taskName: 'Flow started'
+        })
+      }
+
+      // Only add a completion marker when we see a completion-like signal in the window.
+      const completionCandidate = [...evts].reverse().find(e => isCompletionSignal(e))
+      const alreadyHasFlowComplete = evts.some(e => isFlowCompleteAction(e.action))
+      if (completionCandidate && !alreadyHasFlowComplete) {
+        synthetic.push({
+          ...completionCandidate,
+          id: `flow-complete-${flowId}`,
+          action: 'FLOW_COMPLETED',
+          status: 'COMPLETED',
+          taskId: '—',
+          taskName: 'Flow completed'
+        })
+      }
+    }
+
+    const allEvents = [...cleaned, ...synthetic]
+      .map(e => ({ ...e, date: e.date instanceof Date ? e.date : new Date(e.timestamp) }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+
+    // Always group by event/action state (not by flow) so the "event states" stay consistent
+    // when switching timeframes. Flow identity stays available via tooltip.
+    const laneMode: 'flow' | 'action' = 'action'
+
+    // Reduce unused space on the left by using smaller margins + truncated labels
+    const margin = {
+      top: 20,
+      right: 20,
+      bottom: 35,
+      left: 140
+    }
+    const innerWidth = Math.max(0, width - margin.left - margin.right)
+    const innerHeight = Math.max(0, height - margin.top - margin.bottom)
+
     // Create scales
+    const fallbackExtent = d3.extent(allEvents, d => d.date) as [Date, Date]
+    const wStartRaw = auditData?.window?.startDate
+    const wEndRaw = auditData?.window?.endDate
+    const wStart = wStartRaw ? new Date(wStartRaw) : null
+    const wEnd = wEndRaw ? new Date(wEndRaw) : null
+
+    // Strategy: zoom IN on actual event extent, not the full filter window
+    // This spreads events across the chart width instead of bunching them
+    const eventExtentStart = fallbackExtent[0] || new Date(Date.now() - 60 * 60 * 1000)
+    const eventExtentEnd = fallbackExtent[1] || new Date()
+    const eventSpanMs = Math.max(1, eventExtentEnd.getTime() - eventExtentStart.getTime())
+    
+    // Add 10% padding on each side of the event extent for the "90% zoom"
+    // This ensures events fill 90% of the chart width with 5% margin on each side
+    const paddingMs = Math.max(60_000, Math.round(eventSpanMs * 0.111)) // 10% padding = 90% content
+
     const xScale = d3
       .scaleTime()
-      .domain(d3.extent(parsedEvents, d => d.date) as [Date, Date])
+      .domain([new Date(eventExtentStart.getTime() - paddingMs), new Date(eventExtentEnd.getTime() + paddingMs)])
       .range([0, innerWidth])
 
-    // Group events by department for y-positioning
-    const departments = Array.from(new Set(parsedEvents.map(e => e.department || 'Unknown')))
-    const yScale = d3.scaleBand().domain(departments).range([0, innerHeight]).padding(0.1)
+    // "Logical structure":
+    // - If there are few flows, group by flow (best mental model)
+    // - Otherwise, group by action (keeps lanes readable while still showing ALL events)
+    const actionKey = (a: string) => (a || 'UNKNOWN').toUpperCase()
+    const laneKeyFor = (e: any) => (laneMode === 'flow' ? String(e.flowId || 'unknown') : actionKey(e.action))
+    const laneLabelFor = (e: any) => {
+      if (laneMode === 'action') return actionKey(e.action)
+      const id = String(e.flowId || 'unknown')
+      const name = String(e.flowName || 'Flow')
+      return `${name} • ${id.slice(-8)}`
+    }
+
+    const truncate = (s: string, max = 18) => (s.length > max ? s.slice(0, max - 1) + '…' : s)
+
+    const laneStats = new Map<string, { label: string; count: number; lastTs: number }>()
+    for (const e of allEvents) {
+      const k = laneKeyFor(e)
+      const cur = laneStats.get(k) || { label: laneLabelFor(e), count: 0, lastTs: 0 }
+      cur.count += 1
+      cur.lastTs = Math.max(cur.lastTs, e.date.getTime())
+      if (!cur.label || cur.label.startsWith('Flow •')) cur.label = laneLabelFor(e)
+      laneStats.set(k, cur)
+    }
+
+    const actionOrder: Record<string, number> = {
+      FLOW_STARTED: 10,
+      STARTED: 12,
+      START: 15,
+      CREATED: 18,
+      ASSIGN: 20,
+      CLAIM: 30,
+      REASSIGN: 35,
+      UPDATED: 40,
+      UPDATE: 40,
+      COMPLETE: 50,
+      COMPLETED: 52,
+      FLOW_COMPLETED: 60,
+      OVERDUE: 80,
+      FAILED: 90,
+      REJECTED: 95
+    }
+
+    const lanes = Array.from(laneStats.entries())
+      .sort((a, b) => {
+        // For action lanes: keep a stable logical lifecycle order
+        const ak = String(a[0] || '')
+        const bk = String(b[0] || '')
+        const ar = actionOrder[ak] ?? 10_000
+        const br = actionOrder[bk] ?? 10_000
+        if (ar !== br) return ar - br
+
+        // Then by recency, then by label for stability
+        const last = b[1].lastTs - a[1].lastTs
+        if (last !== 0) return last
+        return (a[1].label || ak).localeCompare(b[1].label || bk)
+      })
+      .map(([k]) => k)
+
+    // Always fit into the card: compress lanes to the available height (no vertical scroll).
+    const yScale = d3.scaleBand().domain(lanes).range([0, innerHeight]).padding(0.18)
 
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
-    // Add time axis
-    g.append('g')
-      .attr('class', 'x-axis')
-      .attr('transform', `translate(0,${innerHeight})`)
-      .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat('%H:%M')).ticks(6))
-      .selectAll('text')
-      .style('fill', '#e5e7eb')
-      .style('font-size', '11px')
-
-    // Add department axis
-    g.append('g')
+    // Add lane axis (y-axis with event/action labels)
+    const yAxisG = g.append('g')
       .attr('class', 'y-axis')
-      .call(d3.axisLeft(yScale))
-      .selectAll('text')
+      .call(
+        d3
+          .axisLeft(yScale)
+          .tickFormat((k: any) => {
+            const meta = laneStats.get(String(k))
+            const label = meta ? meta.label : String(k)
+            return truncate(String(label))
+          })
+      )
+    
+    yAxisG.selectAll('text')
       .style('fill', '#e5e7eb')
-      .style('font-size', '11px')
+      .style('font-size', '12px')
+      .style('font-weight', '500')
+      .attr('dx', '-8')
+      .attr('dy', '0.32em')
+    
+    yAxisG.selectAll('path, line')
+      .style('stroke', '#374151')
+      .style('opacity', 0.5)
 
-    // Color events by department and SLA/failure status
+    // Color events by status/action (more consistent than department)
     const getEventColor = (event: any): string => {
-      // Check for SLA breach or failure indicators
-      const status = event.status?.toUpperCase()
-      const action = event.action?.toUpperCase()
+      const status = upper(event.status)
+      const action = upper(event.action)
 
       // Red for failures and rejections
       if (status === 'FAILED' || status === 'REJECTED' || action?.includes('FAILED') || action?.includes('REJECTED')) {
         return '#ef4444' // Red
       }
 
-      // Yellow for SLA breaches (overdue tasks)
+      // Amber for SLA-risky/overdue-like situations
       if (status === 'OVERDUE' || action?.includes('OVERDUE') || (event.details && event.details.slaViolation)) {
         return '#f59e0b' // Yellow/Amber
       }
 
-      // Department-based colors for normal events
-      const dept = event.department?.toLowerCase() || 'unknown'
-      switch (dept) {
-        case 'human resources':
-        case 'hr':
-          return '#10b981' // Green
-        case 'it department':
-        case 'it':
-          return '#60a5fa' // Blue
-        case 'engineering':
-          return '#8b5cf6' // Purple
-        case 'finance':
-          return '#06b6d4' // Cyan
-        default:
-          return '#e5e7eb' // White/Light gray for normal events
-      }
+      if (action === 'FLOW_COMPLETED') return '#10b981'
+      if (action === 'FLOW_STARTED') return '#60a5fa'
+      if (status === 'COMPLETED' || action === 'COMPLETE') return '#10b981'
+      if (status === 'IN_PROGRESS' || action === 'CLAIM' || action === 'ASSIGN') return '#60a5fa'
+      if (status === 'SCHEDULED') return '#a78bfa'
+      return '#e5e7eb'
     }
 
-    // Draw timeline lanes for departments
-    departments.forEach(dept => {
-      const y = yScale(dept) || 0
+    // Draw timeline lanes
+    lanes.forEach(lane => {
+      const y = yScale(lane) || 0
       g.append('line')
         .attr('x1', 0)
         .attr('x2', innerWidth)
@@ -263,13 +334,14 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
     // Draw events
     const eventGroups = g
       .selectAll('.event')
-      .data(parsedEvents)
+      .data(allEvents)
       .enter()
       .append('g')
       .attr('class', 'event')
       .attr('transform', d => {
         const x = xScale(d.date)
-        const y = (yScale(d.department || 'Unknown') || 0) + yScale.bandwidth() / 2
+        const lane = laneKeyFor(d)
+        const y = (yScale(lane) || 0) + yScale.bandwidth() / 2
         return `translate(${x},${y})`
       })
 
@@ -277,9 +349,11 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
     eventGroups
       .append('circle')
       .attr('r', d => {
-        const status = d.status?.toUpperCase()
+        const status = upper(d.status)
+        const band = yScale.bandwidth()
+        const base = Math.max(2.5, Math.min(5, band / 3))
         // Larger circles for failures and SLA breaches
-        return status === 'FAILED' || status === 'REJECTED' || status === 'OVERDUE' ? 6 : 4
+        return status === 'FAILED' || status === 'REJECTED' || status === 'OVERDUE' ? base + 2 : base
       })
       .style('fill', d => getEventColor(d))
       .style('stroke', '#1f2937')
@@ -317,12 +391,12 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
         tooltip.transition().duration(200).style('opacity', 1)
 
         tooltip.html(`
-          <div><strong>${d.taskName || d.flowName}</strong></div>
-          <div>Department: ${d.department}</div>
+          <div><strong>${d.flowName} • ${String(d.flowId).slice(-8)}</strong></div>
+          <div>Task: ${d.taskName}</div>
           <div>Action: ${d.action}</div>
           <div>Status: ${d.status}</div>
           <div>User: ${d.userName || d.userId}</div>
-          <div>Time: ${d3.timeFormat('%H:%M:%S')(d.date)}</div>
+          <div>Time: ${d3.timeFormat('%Y-%m-%d %H:%M:%S')(d.date)}</div>
         `)
 
         tooltip.style('left', event.pageX + 10 + 'px').style('top', event.pageY - 10 + 'px')
@@ -331,11 +405,38 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
         d3.selectAll('.timeline-tooltip').remove()
       })
 
-    // Style axes
-    g.selectAll('.x-axis path, .x-axis line').style('stroke', '#374151')
+    // Add time axis (draw last so it's always visible)
+    const [d0, d1] = xScale.domain()
+    const axisSpanMs = d1.getTime() - d0.getTime()
+    const fmt =
+      axisSpanMs <= 6 * 60 * 60 * 1000
+        ? d3.timeFormat('%H:%M')
+        : axisSpanMs <= 3 * 24 * 60 * 60 * 1000
+          ? d3.timeFormat('%d %b %H:%M')
+          : d3.timeFormat('%d %b')
 
+    const tickCount = Math.max(3, Math.min(10, Math.floor(innerWidth / 140)))
+    const xAxis = d3
+      .axisBottom(xScale)
+      .tickFormat(fmt as any)
+      .ticks(tickCount)
+      .tickSize(-innerHeight)
+      .tickPadding(10)
+
+    const xAxisG = g.append('g').attr('class', 'x-axis').attr('transform', `translate(0,${innerHeight})`).call(xAxis)
+
+    // Axis styling + gridlines
+    xAxisG.selectAll('text').style('fill', '#9ca3af').style('font-size', '11px')
+    xAxisG.selectAll('path.domain').style('stroke', '#374151').style('opacity', 0.8)
+    xAxisG
+      .selectAll('line')
+      .style('stroke', '#374151')
+      .style('opacity', 0.25)
+      .style('shape-rendering', 'crispEdges')
+
+    // Style axes
     g.selectAll('.y-axis path, .y-axis line').style('stroke', '#374151')
-  }, [auditData, dimensions, filters])
+  }, [auditData, networkData, dimensions, filters])
 
   useEffect(() => {
     if (!mountedRef.current) return
@@ -359,10 +460,13 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <svg
         ref={svgRef}
-        width={dimensions.width}
-        height={dimensions.height}
+        width="100%"
+        height="100%"
+        viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
+        preserveAspectRatio="xMidYMid meet"
         style={{
-          background: 'rgba(15, 23, 42, 0.3)'
+          background: 'rgba(15, 23, 42, 0.3)',
+          display: 'block'
         }}
         data-testid={`${prefixDataTestId}-timeline-svg`}
       />

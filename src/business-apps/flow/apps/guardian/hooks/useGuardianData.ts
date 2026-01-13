@@ -3,7 +3,8 @@ import {
   GuardianDataHookParams,
   GuardianDataHookResult,
   GuardianNetworkData,
-  GuardianStatistics
+  GuardianStatistics,
+  GuardianVelocityInsightsData
 } from '../types/guardianTypes'
 import { useGuardianWorkflowData } from './useGuardianWorkflowData'
 import { useGuardianOrganizationalData } from './useGuardianOrganizationalData'
@@ -20,6 +21,7 @@ export const useGuardianData = ({
 }: GuardianDataHookParams): GuardianDataHookResult => {
   const [networkData, setNetworkData] = useState<GuardianNetworkData | null>(null)
   const [statistics, setStatistics] = useState<GuardianStatistics | null>(null)
+  const [velocityInsights, setVelocityInsights] = useState<GuardianVelocityInsightsData | null>(null)
   const [auditData, setAuditData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -27,6 +29,7 @@ export const useGuardianData = ({
   // Use refs to track interval and prevent memory leaks
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const mountedRef = useRef(true)
+  const requestSeqRef = useRef(0)
 
   // Data fetching hooks
   const { fetchWorkflowData, isLoading: workflowLoading } = useGuardianWorkflowData(accessToken, userId)
@@ -34,12 +37,7 @@ export const useGuardianData = ({
   const { fetchOrganizationalData, isLoading: orgLoading } = useGuardianOrganizationalData(accessToken)
 
   const loadData = useCallback(async () => {
-    if (!accessToken) {
-      setError('Access token is required')
-      setIsLoading(false)
-      return
-    }
-
+    const requestId = ++requestSeqRef.current
     try {
       setError(null)
       setIsLoading(true)
@@ -75,28 +73,73 @@ export const useGuardianData = ({
             break
         }
 
-        promises.push(
-          getAuditLogs(accessToken, {
-            limit: 200,
-            startDate: startDate.toISOString(),
-            endDate: now.toISOString()
-          }).catch(error => {
+        const fetchAuditPaged = async () => {
+          try {
+            const pageSize = 1000 // max allowed by backend
+            const maxEntries = 3000 // guardrail for UI
+            const collected: any[] = []
+
+            for (let offset = 0; offset < maxEntries; offset += pageSize) {
+              const res = await getAuditLogs(accessToken, {
+                limit: pageSize,
+                offset,
+                startDate: startDate.toISOString(),
+                endDate: now.toISOString()
+              })
+
+              const entries = res?.data?.entries || []
+              collected.push(...entries)
+
+              const hasMore = Boolean(res?.data?.pagination?.hasMore)
+              if (!hasMore || entries.length < pageSize) {
+                return {
+                  data: {
+                    ...(res?.data || {}),
+                    entries: collected,
+                    window: { startDate: startDate.toISOString(), endDate: now.toISOString() }
+                  }
+                }
+              }
+            }
+
+            // Hard stop (maxEntries reached) — keep summary/pagination from last response
+            const last = await getAuditLogs(accessToken, {
+              limit: 1,
+              offset: 0,
+              startDate: startDate.toISOString(),
+              endDate: now.toISOString()
+            })
+            return {
+              data: {
+                ...(last?.data || {}),
+                entries: collected,
+                window: { startDate: startDate.toISOString(), endDate: now.toISOString() }
+              }
+            }
+          } catch (error) {
             console.warn('Failed to fetch audit logs:', error)
             return {
               data: {
                 entries: [],
                 total: 0,
-                summary: {}
+                summary: {},
+                window: { startDate: startDate.toISOString(), endDate: now.toISOString() }
               }
             }
-          })
-        )
+          }
+        }
+
+        promises.push(fetchAuditPaged())
       }
 
       const results = await Promise.all(promises)
       const [workflowData, organizationalData, auditResponse] = results
 
-      if (!mountedRef.current) return // Component unmounted
+      // Ignore stale responses (e.g. timeframe changed mid-flight)
+      if (!mountedRef.current || requestId !== requestSeqRef.current) return
+
+      // Velocity insights are delivered via the workflow hook (combined endpoint)
+      setVelocityInsights(workflowData?.analytics?.velocityInsights || null)
 
       // Set audit data if available (always set since timeline card is always visible)
       if (auditResponse) {
@@ -123,13 +166,13 @@ export const useGuardianData = ({
       setNetworkData(transformedData)
       setStatistics(calculatedStatistics)
     } catch (err) {
-      if (!mountedRef.current) return
+      if (!mountedRef.current || requestId !== requestSeqRef.current) return
 
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
       console.error('Error loading Guardian data:', err)
       setError(errorMessage)
     } finally {
-      if (mountedRef.current) {
+      if (mountedRef.current && requestId === requestSeqRef.current) {
         setIsLoading(false)
       }
     }
@@ -183,6 +226,7 @@ export const useGuardianData = ({
   return {
     networkData,
     statistics,
+    velocityInsights,
     auditData,
     isLoading: combinedLoading,
     error,

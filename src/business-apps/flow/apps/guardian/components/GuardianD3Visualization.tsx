@@ -132,6 +132,7 @@ export const GuardianD3Visualization: React.FC<GuardianD3VisualizationProps> = (
           return (
             <D3TimelineChart
               auditData={auditData}
+              networkData={networkData}
               dimensions={dimensions}
               filters={filters}
               isRealTime={isRealTime}
