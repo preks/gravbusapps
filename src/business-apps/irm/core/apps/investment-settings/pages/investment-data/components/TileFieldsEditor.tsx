@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { Button, Card, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { PiPlus } from 'react-icons/pi'
+import { PlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TileField } from '../types'
 import { SortableTileItem } from './SortableTileItem'
@@ -101,7 +101,7 @@ export const TileFieldsEditor: React.FC<TileFieldsEditorProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
           <h3 className="gba:text-lg gba:font-semibold gba:m-0">Tile Fields Configuration</h3>
           <Button onClick={handleAddTile} data-testid={`${prefixDataTestId}-add-button`}>
-            <PiPlus /> Add Tile
+            <PlusIcon /> Add Tile
           </Button>
         </div>
 

@@ -12,7 +12,7 @@ import {
   Input,
   Button
 } from '@newwork/nw-design-system'
-import { Plus } from 'lucide-react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
 import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentPpmForecastComponentProps, PpmForecastFormData } from '../types'
@@ -313,7 +313,7 @@ export const InvestmentPpmForecastComponent: React.FC<InvestmentPpmForecastCompo
             data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
             className="gba:w-full"
           >
-            <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+            <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
             {getTranslationFromI18nKeyAndLabel('investment.ppmForecast.addRow', 'Add Forecast Year')}
           </Button>
         </div>

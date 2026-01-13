@@ -16,9 +16,16 @@ import {
   Spinner,
   Badge
 } from '@newwork/nw-design-system'
-import { TrendingUp, BarChart, PieChart } from 'lucide-react'
+import {
+  TrendUpIcon,
+  ChartBarIcon,
+  ChartPieIcon,
+  CurrencyCircleDollarIcon,
+  CalendarBlankIcon,
+  ChartLineIcon,
+  UsersThreeIcon
+} from '@phosphor-icons/react'
 import { WidgetGroup } from '@/components/widget-group'
-import { DollarCircleOutlined, CalendarOutlined, LineChartOutlined, TeamOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -319,7 +326,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               key: 'total-investments',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
               value: kpis.totalInvestments,
-              prefix: <TeamOutlined />,
+              prefix: <UsersThreeIcon />,
               color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
               description: 'Equity count',
@@ -340,7 +347,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 1
               }).format(kpis.totalAmountInvested),
-              prefix: <DollarCircleOutlined />,
+              prefix: <CurrencyCircleDollarIcon />,
               color: 'var(--nw-color-success-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
@@ -355,7 +362,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               key: 'portfolio-moic',
               title: getTranslationFromI18nKeyAndLabel('kpi.portfolioMoic', 'Portfolio MOIC'),
               value: `${kpis.portfolioMoic.toFixed(1)}x`,
-              prefix: <LineChartOutlined />,
+              prefix: <ChartLineIcon />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
@@ -370,7 +377,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               key: 'average-duration',
               title: getTranslationFromI18nKeyAndLabel('kpi.averageDuration', 'Average Duration'),
               value: formatDuration(kpis.averageDuration),
-              prefix: <CalendarOutlined />,
+              prefix: <CalendarBlankIcon />,
               color: 'var(--nw-color-purple-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
@@ -397,13 +404,13 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
           data-testid={formatDataTestId(prefixDataTestId, 'ChartTabs')}
         >
           <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-            <TabsTrigger value="distribution" startIcon={<PieChart />}>
+            <TabsTrigger value="distribution" startIcon={<ChartPieIcon />}>
               {getTranslationFromI18nKeyAndLabel('tab.distribution', 'Distribution Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="timeline" startIcon={<TrendingUp />}>
+            <TabsTrigger value="timeline" startIcon={<TrendUpIcon />}>
               {getTranslationFromI18nKeyAndLabel('tab.timeline', 'Timeline Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="analytics" startIcon={<BarChart />}>
+            <TabsTrigger value="analytics" startIcon={<ChartBarIcon />}>
               {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analysis')}
             </TabsTrigger>
           </TabsList>

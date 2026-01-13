@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card } from '@newwork/nw-design-system'
-import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@ant-design/icons'
+import { HouseIcon, ChartBarIcon, CurrencyDollarIcon, BuildingsIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { formatCurrency, formatNumber, formatPercentage } from '@/common/data/investment/utils/formatters'
@@ -39,7 +39,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
               padding: '12px'
             }}
           >
-            <HomeOutlined style={{ fontSize: '24px' }} />
+            <HouseIcon style={{ fontSize: '24px' }} />
           </div>
           <div>
             <Text type="secondary" style={{ fontSize: '14px' }}>
@@ -64,7 +64,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
               padding: '12px'
             }}
           >
-            <BarChartOutlined style={{ fontSize: '24px' }} />
+            <ChartBarIcon style={{ fontSize: '24px' }} />
           </div>
           <div>
             <Text type="secondary" style={{ fontSize: '14px' }}>
@@ -86,7 +86,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
               padding: '12px'
             }}
           >
-            <BuildOutlined style={{ fontSize: '24px' }} />
+            <BuildingsIcon style={{ fontSize: '24px' }} />
           </div>
           <div>
             <Text type="secondary" style={{ fontSize: '14px' }}>
@@ -111,7 +111,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
               padding: '12px'
             }}
           >
-            <DollarOutlined style={{ fontSize: '24px' }} />
+            <CurrencyDollarIcon style={{ fontSize: '24px' }} />
           </div>
           <div>
             <Text type="secondary" style={{ fontSize: '14px' }}>

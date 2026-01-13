@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Spinner, TimelineLayout, Button, Alert } from '@newwork/nw-design-system'
+import { Spinner, TimelineLayout, Button, Alert, EmptyState } from '@newwork/nw-design-system'
 import {
   PhoneIcon,
   EnvelopeIcon,
@@ -17,7 +17,6 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
-import EmptyState from '@/components/empty-state/EmptyState'
 
 export type ActivityDocument = {
   id: string
@@ -161,7 +160,12 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
           </div>
         </Alert>
       ) : processedActivities.length === 0 ? (
-        <EmptyState title="No Activities" description="No activities yet. Create your first activity." />
+        <EmptyState
+          type="no-data"
+          title="No Activities"
+          description="No activities yet. Create your first activity."
+          data-testid="activity-section-empty-state"
+        />
       ) : (
         <TimelineLayout
           items={processedActivities.map((activity: any) => {

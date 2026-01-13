@@ -9,7 +9,9 @@ export const useTopAccountsByRevenue = (accessToken: string, currencyCode?: stri
     accountEntity: 'Account',
     opportunityEntity: 'Opportunity',
     industryField: 'industry',
-    opportunityRelation: 'opportunity',
+    opportunityRelation: 'opportunityAccounts',
+    isOpportunityRelationList: false, // CRM uses singular relationship pattern
+    isJunctionTable: true,
     currencyCode
   }
 

@@ -11,7 +11,7 @@ import { GroupCallModal } from '../components/GroupCallModal'
 import { useCall } from '../hooks/useCall'
 import { useGroupCall } from '../hooks/useGroupCall'
 import { useChatClient } from '../hooks/useChatClient'
-import type { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
+import { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
 import type { CallParticipant } from '../services/webrtcClient'
 
 interface CalendarProps extends BusinessAppContextProps {
@@ -355,7 +355,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
         allDay: meeting.isAllDay,
         color: meeting.color,
         status: meeting.status,
-        participantStatus: 'pending', // It's pending since it's in pending invitations
+        participantStatus: InvitationStatus.PENDING, // It's pending since it's in pending invitations
         isOrganizer: false,
         organizer: {
           id: meeting.organizer?.id || '',
@@ -638,3 +638,5 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
     </div>
   )
 }
+
+export default Calendar

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import { PiAirplaneTilt, PiWarningCircle } from 'react-icons/pi'
+import { AirplaneTiltIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { EmployeeCardProps } from '../types/ViewSelectorTypes'
 import dayjs from 'dayjs'
 
@@ -50,7 +50,7 @@ export const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp, showTrend = tru
         {/* Show absence badge if employee had significant leave */}
         {emp.absence && emp.absence.totalDays > 0 && !showAbsence && !emp.isInactive && (
           <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
-            <PiAirplaneTilt className="gba:w-3 gba:h-3 gba:text-info" />
+            <AirplaneTiltIcon className="gba:w-3 gba:h-3 gba:text-info" />
             <span className="gba:text-[10px] gba:text-info">{emp.absence.totalDays}d leave in period</span>
           </div>
         )}
@@ -61,7 +61,7 @@ export const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp, showTrend = tru
             // Inactive employee - show "No activity" instead of percentage
             <>
               <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end">
-                <PiWarningCircle className="gba:w-4 gba:h-4 gba:text-destructive" />
+                <WarningCircleIcon className="gba:w-4 gba:h-4 gba:text-destructive" />
                 <span className="gba:text-sm gba:font-bold gba:text-destructive">Inactive</span>
               </div>
               {lastActivityText && <p className="gba:text-xs gba:text-muted-foreground">Last: {lastActivityText}</p>}

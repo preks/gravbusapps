@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { MessageItem } from './MessageItem'
 import { TypingIndicatorComponent } from './TypingIndicator'
 import type { Message, TypingIndicator, ConversationParticipant } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface MessageListProps {
   messages: Message[]
@@ -34,6 +34,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onReplyToAI,
   onSendMessage
 }) => {
+  const { t } = useTranslation(translations)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const prevMessagesLengthRef = useRef<number>(0)
@@ -60,20 +61,41 @@ export const MessageList: React.FC<MessageListProps> = ({
   // Filter typing users for this conversation
   const conversationTypingUsers = typingUsers.filter(t => t.conversationId === conversationId && t.isTyping)
 
+  // Check if user is near bottom of the chat (within 150px)
+  const isNearBottom = (): boolean => {
+    const container = messagesContainerRef.current
+    if (!container) return true
+    const threshold = 150
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold
+  }
+
   // Scroll to bottom when messages load or new messages arrive
   useEffect(() => {
     // Only scroll if we have messages and the component is ready
     if (filteredMessages.length > 0 && messagesEndRef.current) {
-      // Use requestAnimationFrame to ensure DOM has fully updated
-      requestAnimationFrame(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({
-            behavior: 'auto',
-            block: 'end',
-            inline: 'nearest'
-          })
-        }
-      })
+      const isNewConversation = isInitialLoadRef.current
+      const hasNewMessages = filteredMessages.length > prevMessagesLengthRef.current
+      const lastMessage = filteredMessages[filteredMessages.length - 1]
+      const isOwnNewMessage = hasNewMessages && lastMessage?.senderId === currentUserId
+
+      // Only auto-scroll if:
+      // 1. Initial load of conversation
+      // 2. OR user was near bottom (they're following the conversation)
+      // 3. OR user just sent a message
+      const shouldScroll = isNewConversation || isNearBottom() || isOwnNewMessage
+
+      if (shouldScroll) {
+        // Use requestAnimationFrame to ensure DOM has fully updated
+        requestAnimationFrame(() => {
+          if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({
+              behavior: isNewConversation ? 'auto' : 'smooth',
+              block: 'end',
+              inline: 'nearest'
+            })
+          }
+        })
+      }
 
       if (isInitialLoadRef.current) {
         isInitialLoadRef.current = false
@@ -86,10 +108,11 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
 
     prevMessagesLengthRef.current = filteredMessages.length
-  }, [filteredMessages, conversationId, isFirstLoad])
+  }, [filteredMessages, conversationId, isFirstLoad, currentUserId])
 
   useEffect(() => {
-    if (conversationTypingUsers.length > 0 && messagesEndRef.current) {
+    // Only auto-scroll for typing indicator if user is near bottom
+    if (conversationTypingUsers.length > 0 && messagesEndRef.current && isNearBottom()) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [conversationTypingUsers.length])
@@ -193,9 +216,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                 />
               </svg>
             </div>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('chat.noMessages', 'No messages yet. Start the conversation!')}
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('chat-noMessages')}</p>
           </div>
         ) : filteredMessages.length > 0 ? (
           <div className="gba:mt-auto gba:space-y-0.5">
@@ -207,9 +228,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                   className="gba:text-xs gba:text-primary gba:hover:text-primary/80 gba:font-medium gba:transition-colors"
                   data-testid="load-more-messages"
                 >
-                  {isLoading
-                    ? getTranslationFromI18nKeyAndLabel('common.loading', 'Loading...')
-                    : getTranslationFromI18nKeyAndLabel('chat.loadOlderMessages', 'Load older messages')}
+                  {isLoading ? t('common-loading') : t('chat-loadOlderMessages')}
                 </button>
               </div>
             )}

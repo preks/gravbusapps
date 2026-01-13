@@ -12,7 +12,7 @@ import {
   Card,
   CardContent
 } from '@newwork/nw-design-system'
-import { PiCalendar, PiTag, PiMegaphone } from 'react-icons/pi'
+import { CalendarIcon, TagIcon, MegaphoneIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { SalesCampaign } from './types/SalesCampaignTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -274,7 +274,7 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-name-cell-${campaign.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-3">
-                        <PiMegaphone size={16} style={{ color: 'var(--color-primary-500)' }} />
+                        <MegaphoneIcon size={16} style={{ color: 'var(--color-primary-500)' }} />
                         <div>
                           <div className="gba:font-medium gba:text-sm">{campaign.name || '-'}</div>
                           {campaign.description && (
@@ -292,7 +292,7 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                   )}
                   {visibleColumns.has('type') && (
                     <IconCell
-                      icon={PiTag}
+                      icon={TagIcon}
                       iconColor="var(--color-primary-600)"
                       content={<span className="gba:text-sm">{campaign.type?.value || '-'}</span>}
                       testId={`${DATA_TEST_ID_PREFIX}-type-cell-${campaign.id}`}
@@ -338,7 +338,7 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                   )}
                   {visibleColumns.has('createdAt') && (
                     <IconCell
-                      icon={PiCalendar}
+                      icon={CalendarIcon}
                       iconColor="var(--color-text-secondary)"
                       content={
                         <span className="gba:text-sm">

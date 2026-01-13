@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { Eye } from 'lucide-react'
+import { EyeIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentReportData, BaseInvestment } from '../../hooks/useInvestmentReportData'
@@ -175,7 +175,7 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
             data-testid="generate-investment-one-pager-button"
             disabled={isGenerating}
           >
-            <Eye style={{ height: '1rem', width: '1rem' }} />
+            <EyeIcon style={{ height: '1rem', width: '1rem' }} />
             {isGenerating
               ? getTranslationFromI18nKeyAndLabel('investment.reports.generating', 'Generating...')
               : getTranslationFromI18nKeyAndLabel('investment.reports.generateOnePager', 'Generate One-Pager')}

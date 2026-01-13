@@ -14,7 +14,12 @@ import {
   Alert,
   AlertTitle,
   AlertDescription,
-  Badge,
+  TabSwitch,
+  TabSwitchList,
+  TabSwitchTrigger,
+  TabSwitchBadge,
+  ScrollArea,
+  ScrollBar,
   useTranslation,
   useLocale
 } from '@newwork/nw-design-system'
@@ -221,10 +226,21 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, [localTasks, localCompletedTasks])
 
   // Handler to select a task and update URL
-  const handleSelectTask = useCallback((task: UnifiedTask | null) => {
-    setSelectedTask(task)
-    updateTaskUrl(task?.id || null)
-  }, [])
+  // Toggle behavior: clicking on already selected task will deselect it
+  const handleSelectTask = useCallback(
+    (task: UnifiedTask | null) => {
+      // If clicking on the currently selected task, deselect it (close detail panel)
+      if (task && selectedTask?.id === task.id) {
+        setSelectedTask(null)
+        updateTaskUrl(null)
+      } else {
+        // Otherwise, select the new task
+        setSelectedTask(task)
+        updateTaskUrl(task?.id || null)
+      }
+    },
+    [selectedTask]
+  )
 
   // Handler to close task detail
   const handleCloseTask = useCallback(() => {
@@ -392,7 +408,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
       const nextIndex = getNextTaskIndex(currentIndex, direction, tasksToNavigate.length - 1)
       const nextTask = tasksToNavigate[nextIndex]
 
-      if (nextTask) {
+      // Don't call handleSelectTask if we're at a boundary and the task hasn't changed
+      // This prevents the toggle logic from deselecting the current task
+      if (nextTask && nextTask.id !== selectedTask.id) {
         handleSelectTask(nextTask)
       }
     }
@@ -494,11 +512,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:gap-3 gba:h-full gba:overflow-hidden" data-testid="inbox-view">
-      {/* Master Panel - Task List */}
+    <div className="gba:flex gba:h-full gba:overflow-hidden" data-testid="inbox-view">
+      {/* Master Panel - Task List (hidden on mobile/tablet when task selected) */}
       <div
-        className={`gba:flex gba:flex-col gba:gap-3 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
-          selectedTask ? 'gba:w-[40%]' : 'gba:w-full'
+        className={`gba:gap-3 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
+          selectedTask
+            ? 'gba:hidden gba:lg:flex gba:lg:flex-col gba:lg:w-[calc(40%-12px)] gba:lg:flex-shrink-0'
+            : 'gba:flex gba:flex-col gba:w-full'
         }`}
       >
         {/* New Tasks Notification Banner */}
@@ -562,69 +582,66 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
 
         {/* Task Type Filters */}
-        <div className="gba:flex gba:items-center gba:gap-1 gba:max-w-[40%]" data-testid="inbox-filter-buttons">
-          <Button
-            variant={filterType === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('all')}
-            data-testid="inbox-filter-all"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <Inbox className="gba:h-3.5 gba:w-3.5" />
-            <span>{t('inbox-filter-all')}</span>
-            <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-              {taskCounts.all}
-              {taskCounts.allHasMore ? '+' : ''}
-            </Badge>
-          </Button>
-          <Button
-            variant={filterType === 'blinks' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('blinks')}
-            data-testid="inbox-filter-blinks"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <Zap className="gba:h-3.5 gba:w-3.5" />
-            <span>{t('inbox-filter-blinks')}</span>
-            {taskCounts.blinks > 0 && (
-              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-                {taskCounts.blinks}
-                {taskCounts.blinksHasMore ? '+' : ''}
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant={filterType === 'approvals' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('approvals')}
-            data-testid="inbox-filter-approvals"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <CheckCircle className="gba:h-3.5 gba:w-3.5" />
-            <span>{t('inbox-filter-approvals')}</span>
-            {taskCounts.approvals > 0 && (
-              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-                {taskCounts.approvals}
-                {taskCounts.approvalsHasMore ? '+' : ''}
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant={filterType === 'completed' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterType('completed')}
-            data-testid="inbox-filter-completed"
-            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
-          >
-            <CheckCheck className="gba:h-3.5 gba:w-3.5" />
-            <span>{t('inbox-filter-completed')}</span>
-            {taskCounts.completed > 0 && (
-              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
-                {taskCounts.completed}
-                {taskCounts.completedHasMore ? '+' : ''}
-              </Badge>
-            )}
-          </Button>
+        <div className="gba:px-3">
+          <ScrollArea className="gba:-mx-3">
+            <TabSwitch value={filterType} onValueChange={value => setFilterType(value as TaskFilterType)}>
+              <TabSwitchList data-testid="inbox-filter-buttons">
+                <TabSwitchTrigger
+                  value="all"
+                  data-testid="inbox-filter-all"
+                  startIcon={<Inbox className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.all}
+                      {taskCounts.allHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-all')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="blinks"
+                  data-testid="inbox-filter-blinks"
+                  startIcon={<Zap className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.blinks}
+                      {taskCounts.blinksHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-blinks')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="approvals"
+                  data-testid="inbox-filter-approvals"
+                  startIcon={<CheckCircle className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.approvals}
+                      {taskCounts.approvalsHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-approvals')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="completed"
+                  data-testid="inbox-filter-completed"
+                  startIcon={<CheckCheck className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    <TabSwitchBadge>
+                      {taskCounts.completed}
+                      {taskCounts.completedHasMore ? '+' : ''}
+                    </TabSwitchBadge>
+                  }
+                >
+                  {t('inbox-filter-completed')}
+                </TabSwitchTrigger>
+              </TabSwitchList>
+            </TabSwitch>
+            <ScrollBar orientation="horizontal" className="gba:opacity-50" />
+          </ScrollArea>
         </div>
 
         {/* Error Alert */}
@@ -641,7 +658,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             <EmptyState type="inbox" message={getEmptyStateMessage(searchQuery, filterType)} />
           ) : (
             <>
-              <div className="gba:divide-y gba:divide-border/50" data-testid="inbox-task-list">
+              <div data-testid="inbox-task-list">
                 {filteredTasks.map(task => (
                   <TaskCard
                     key={task.id}
@@ -684,12 +701,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
       </div>
 
-      {/* Detail Panel - Task Details */}
+      {/* Detail Panel - Task Details (full-width on mobile/tablet, 60% on desktop ≥1024px) */}
       <div
-        className={`gba:flex-1 gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
+        className={`gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
           selectedTask
-            ? 'gba:translate-x-0 gba:opacity-100 gba:w-[60%]'
-            : 'gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
+            ? 'gba:flex gba:flex-col gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
+            : 'gba:hidden gba:lg:flex gba:lg:flex-col gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
         }`}
       >
         {selectedTask && (

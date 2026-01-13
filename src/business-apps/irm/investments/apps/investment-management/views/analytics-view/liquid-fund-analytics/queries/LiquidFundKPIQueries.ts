@@ -5,9 +5,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 export interface LiquidFundKPIData {
   totalInvestments: number
   totalAmountInvested: number
-  totalMarketValue: number
   averageInvestmentValue: number
-  averageMarketValue: number
+  activeInvestments: number
 }
 
 export interface LiquidFundKPIComparison {
@@ -35,8 +34,23 @@ export const GET_LIQUID_FUND_KPIS_WITH_COMPARISON = (comparisonDate: string, cur
           count
           sum {
             totalInvestmentAmount
-            investmentMarketValue
           }
+        }
+      }
+      
+      # Current active investments count
+      currentActiveAggregate: InvestmentAggregate(
+        where: {
+          _and: [
+            { isDeleted: { _eq: false } }
+            { liquidFundInvestment: {} }
+            { investmentStatus: { value: { _eq: "Active" } } }
+            ${currencyCondition}
+          ]
+        }
+      ) {
+        aggregate {
+          count
         }
       }
       
@@ -55,8 +69,24 @@ export const GET_LIQUID_FUND_KPIS_WITH_COMPARISON = (comparisonDate: string, cur
           count
           sum {
             totalInvestmentAmount
-            investmentMarketValue
           }
+        }
+      }
+      
+      # Previous active investments count
+      previousActiveAggregate: InvestmentAggregate(
+        where: {
+          _and: [
+            { isDeleted: { _eq: false } }
+            { createdAt: { _lte: "${comparisonDate}" } }
+            { liquidFundInvestment: {} }
+            { investmentStatus: { value: { _eq: "Active" } } }
+            ${currencyCondition}
+          ]
+        }
+      ) {
+        aggregate {
+          count
         }
       }
     }
@@ -69,8 +99,12 @@ export interface LiquidFundKPIResponse {
       count: number
       sum: {
         totalInvestmentAmount: number | null
-        investmentMarketValue: number | null
       }
+    }
+  }
+  currentActiveAggregate: {
+    aggregate: {
+      count: number
     }
   }
   previousAggregate: {
@@ -78,8 +112,12 @@ export interface LiquidFundKPIResponse {
       count: number
       sum: {
         totalInvestmentAmount: number | null
-        investmentMarketValue: number | null
       }
+    }
+  }
+  previousActiveAggregate: {
+    aggregate: {
+      count: number
     }
   }
 }
@@ -99,27 +137,25 @@ export const useGetLiquidFundKPIs = (context: BusinessAppContextProps, currency?
     // Transform current data
     const currentCount = result.currentAggregate.aggregate.count
     const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0
-    const currentMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0
+    const currentActiveCount = result.currentActiveAggregate.aggregate.count
 
     const current: LiquidFundKPIData = {
       totalInvestments: currentCount,
       totalAmountInvested: currentTotalAmount,
-      totalMarketValue: currentMarketValue,
       averageInvestmentValue: currentCount > 0 ? currentTotalAmount / currentCount : 0,
-      averageMarketValue: currentCount > 0 ? currentMarketValue / currentCount : 0
+      activeInvestments: currentActiveCount
     }
 
     // Use actual historical data
     const previousCount = result.previousAggregate.aggregate.count
     const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
-    const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
+    const previousActiveCount = result.previousActiveAggregate.aggregate.count
 
     const previous: LiquidFundKPIData = {
       totalInvestments: previousCount,
       totalAmountInvested: previousTotalAmount,
-      totalMarketValue: previousMarketValue,
       averageInvestmentValue: previousCount > 0 ? previousTotalAmount / previousCount : 0,
-      averageMarketValue: previousCount > 0 ? previousMarketValue / previousCount : 0
+      activeInvestments: previousActiveCount
     }
 
     return { current, previous }

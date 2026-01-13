@@ -307,14 +307,20 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-          // Refresh overview (items + statistics)
-          if (
+          const canFetch =
             props.accessToken &&
             props.userInfo?.employeeDetails?.employeeId &&
+            currencyInit &&
             (explicitSelectedCurrencyRef || suppressCurrencyAutoSelect)
-          ) {
+
+          // Refresh overview (items + statistics) using the same guards as the main fetch effect
+          if (canFetch) {
             const statsCurrency = explicitSelectedCurrencyRef || 'Currency:v1:EUR'
-            fetchOverview(memoizedFilters, currentPage, pageSize, sortField, sortOrder, statsCurrency)
+            // Force a fresh fetch even if parameters haven't changed, so newly
+            // created/updated plans are visible immediately after process completion.
+            fetchOverview(memoizedFilters, currentPage, pageSize, sortField, sortOrder, statsCurrency, {
+              force: true
+            })
           }
 
           // Reset active widget to force refresh of statistics
@@ -361,7 +367,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     sortOrder,
     props.accessToken,
     props.userInfo?.employeeDetails?.employeeId,
-    explicitSelectedCurrencyRef
+    explicitSelectedCurrencyRef,
+    currencyInit,
+    suppressCurrencyAutoSelect
   ])
 
   // Memoize content header to prevent unnecessary re-renders

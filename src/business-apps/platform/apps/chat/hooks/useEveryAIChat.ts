@@ -1,16 +1,47 @@
 import { useCallback, useRef, useState, useMemo } from 'react'
-import { env } from '@/common/env/EnvUtils'
 import type { MessageEntityReference } from '../types'
 import type { OutputItem } from '../../every-ai/types/models'
 import { getCurrentPageContext } from '../../every-ai/utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
-const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
 const LLM_MODEL = 'gpt-4.1'
+const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
 
-function resolveFlowbotBaseUrl(): string {
-  return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
+/**
+ * Upload files to FlowBot using the async /add_files endpoint.
+ * Returns the (possibly new) sessionId that should be used for subsequent chat calls.
+ * This is shared between EveryAI app and employee chat to enable "upload now, ask later" behaviour.
+ */
+async function uploadFilesToFlowbotSession(
+  files: File[] | undefined,
+  sessionId: string | undefined,
+  accessToken: string
+): Promise<string> {
+  if (!files || files.length === 0) return sessionId ?? ''
+
+  const baseUrl = resolveFlowbotBaseUrl()
+  const url = `${baseUrl}/flowbot/api/agent/add_files`
+
+  const form = new FormData()
+  files.forEach(file => form.append('files', file))
+  form.append('session_id', sessionId ?? '')
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: form
+  })
+
+  if (!res.ok) {
+    throw new Error(`add_files failed: ${res.status} ${res.statusText}`)
+  }
+
+  const data = await res.json()
+  return (data?.sessionId as string | undefined) ?? sessionId ?? ''
 }
 
 // Type for analytics entity
@@ -485,7 +516,8 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         data?: any
         start?: number
         end?: number
-      }>
+      }>,
+      files?: File[]
     ): Promise<EveryAIResponse> => {
       if (inFlightRef.current) {
         return { text: '', error: true }
@@ -523,8 +555,21 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         // This allows all users to share the same AI context
         const sharedSessionId = conversationContext?.existingSessionId ?? ''
 
+        // Try to pre-upload files via /add_files for this session.
+        // This enables async parsing so the first answer can be faster.
+        let effectiveSessionId = sharedSessionId
+        let usedAddFiles = false
+        if (files && files.length > 0) {
+          try {
+            effectiveSessionId = await uploadFilesToFlowbotSession(files, sharedSessionId || undefined, accessToken)
+            usedAddFiles = true
+          } catch (error) {
+            console.error('⚠️ [EveryAI] add_files failed, falling back to direct file upload:', error)
+          }
+        }
+
         const form = new FormData()
-        form.append('session_id', sharedSessionId)
+        form.append('session_id', effectiveSessionId)
         form.append('llm_model', LLM_MODEL)
         form.append('use_web_search_tool', 'false')
 
@@ -585,6 +630,14 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           form.append('mentions', JSON.stringify(enrichedMentions))
         }
 
+        // FIX 3: Send file attachments to FlowBot (like standalone EveryAI does)
+        // This allows the AI to read and analyze uploaded documents/files.
+        // If /add_files succeeded we don't need to send files again; if it failed we fall back
+        // to inline file upload with the chat request.
+        if (files && files.length > 0 && !usedAddFiles) {
+          files.forEach(file => form.append('files', file))
+        }
+
         const res = await fetch(url, {
           method: 'POST',
           headers: {
@@ -605,7 +658,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         // Parse SSE response to extract the answer and meeting data
         const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
         let responseText = ''
-        let responseSessionId = sharedSessionId // Start with existing, will be updated if new one received
+        let responseSessionId = effectiveSessionId // Start with current, will be updated if new one received
         let scheduledMeeting: ScheduledMeeting | undefined
         const collectedOutputs: OutputItem[] = [] // Collect all output items for rich rendering
         let buf = ''
@@ -858,7 +911,8 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
     async (
       content: string,
       entityReferences?: MessageEntityReference[],
-      conversationContext?: ConversationContext
+      conversationContext?: ConversationContext,
+      files?: File[]
     ): Promise<EveryAIResponse | null> => {
       // Check if this is a form submission (which doesn't have @Every mention)
       const isFormSubmission = content.includes('"action": "form_submission"')
@@ -871,23 +925,39 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
       // Extract mentions from entity references (excluding @Every AI itself)
       const mentions = entityReferences
         ?.filter(ref => (ref.type as string) !== 'ai_assistant')
-        .map(ref => ({
-          id: ref.id,
-          type: ref.type as string,
-          display: ref.name,
-          data: {
+        .map(ref => {
+          const isDocument = ['document_article', 'knowledge_article', 'intranet_article', 'news_article'].includes(
+            ref.type as string
+          )
+
+          // Build data object with document content if available
+          const data: any = {
             id: ref.id,
             name: ref.name,
             type: ref.type,
             subtitle: ref.subtitle,
             userId: 'userId' in ref ? (ref as any).userId : undefined, // For employees (Open Directory ID)
             pictureThumbnail: ref.pictureThumbnail
-          },
-          start: ref.startIndex,
-          end: ref.endIndex
-        }))
+          }
 
-      return sendToEveryAI(content, conversationContext, mentions)
+          // Add document content for AI processing
+          if (isDocument && ref.contentPreview) {
+            data.contentPreview = ref.contentPreview
+            data.contentData = ref.contentData
+            data.preview_excerpt = ref.contentPreview.substring(0, DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH)
+          }
+
+          return {
+            id: ref.id,
+            type: ref.type as string,
+            display: ref.name,
+            data,
+            start: ref.startIndex,
+            end: ref.endIndex
+          }
+        })
+
+      return sendToEveryAI(content, conversationContext, mentions, files)
     },
     [hasEveryMention, sendToEveryAI]
   )

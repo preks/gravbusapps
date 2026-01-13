@@ -22,7 +22,8 @@ import {
   OPPORTUNITY_PIPELINE,
   OPPORTUNITY_PIPELINE_STAGE,
   OPPORTUNITY_STATUS,
-  OPPORTUNITY_FORECAST
+  OPPORTUNITY_FORECAST,
+  CUSTOMER_ACCOUNT_TYPE
 } from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 
@@ -216,7 +217,7 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
           businessAppContext={{ accessToken, userInfo, additionalData }}
           ownerEmployee={opportunity?.ownerEmployee}
           entityId={opportunity?.id || opportunityId}
-          account={opportunity?.account || undefined}
+          opportunityAccounts={opportunity?.opportunityAccounts || []}
           useAccounts={useAccounts}
           opportunityContacts={opportunity?.opportunityContacts}
           useContacts={useContacts}
@@ -224,6 +225,7 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
           opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
           opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
+          accountTypeCatalogIdentifier={CUSTOMER_ACCOUNT_TYPE}
           opportunityInformationCustomFields={crmCustomFields}
           loading={loading && !!opportunityId}
         />

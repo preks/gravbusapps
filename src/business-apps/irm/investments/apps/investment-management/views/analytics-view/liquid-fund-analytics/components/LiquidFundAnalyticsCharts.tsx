@@ -12,7 +12,7 @@ import {
   ChartLegendContent
 } from '@newwork/nw-design-system'
 import { ScatterChart, Scatter, XAxis, YAxis, BarChart, Bar } from 'recharts'
-import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { ChartScatterIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CurrencyFilter } from '../../shared/components'
@@ -201,19 +201,29 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                 }}
                 className="gba:h-[400px] gba:w-full"
               >
-                <ScatterChart data={interestRateCorrelationData}>
+                <ScatterChart data={interestRateCorrelationData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                   <XAxis
                     type="number"
                     dataKey="interestRate"
                     name="Interest Rate"
                     unit="%"
                     tickFormatter={value => `${value}%`}
+                    label={{ value: 'Interest Rate (%)', position: 'insideBottom', offset: -5 }}
                   />
                   <YAxis
                     type="number"
                     dataKey="investmentAmount"
                     name="Investment Amount"
-                    tickFormatter={value => formatCurrencyCompact(value, correlationCurrencyFilter, undefined, 1, true)}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(correlationCurrencyFilter),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
+                    }
+                    label={{ value: 'Investment Amount', angle: -90, position: 'insideLeft' }}
                   />
                   <ChartTooltip content={renderRateTooltip} />
                   <Scatter name="ratevsamount" fill="var(--color-ratevsamount)" />
@@ -282,7 +292,15 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                   <YAxis
                     yAxisId="right"
                     orientation="right"
-                    tickFormatter={value => formatCurrencyCompact(value, performanceCurrencyFilter, undefined, 1, true)}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(performanceCurrencyFilter),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
+                    }
                   />
                   <ChartTooltip content={renderAverageMetricsTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />

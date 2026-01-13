@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Button, Alert, AlertTitle, AlertDescription, Spinner, PageLayout } from '@newwork/nw-design-system'
 import {
   HandshakeIcon,
-  ChartBar,
-  UsersThree,
-  Buildings,
-  Users,
-  CurrencyDollar,
-  List,
-  Megaphone,
-  House
+  ChartBarIcon,
+  UsersThreeIcon,
+  BuildingsIcon,
+  UsersIcon,
+  CurrencyDollarIcon,
+  ListIcon,
+  MegaphoneIcon,
+  HouseIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { LeadView } from './views/lead-view'
@@ -55,42 +55,42 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <House />,
+      icon: <HouseIcon />,
       label: 'Dashboard'
     },
     {
       key: 'tasks',
-      icon: <List />,
+      icon: <ListIcon />,
       label: 'Tasks'
     },
     {
       key: 'leads',
-      icon: <UsersThree />,
+      icon: <UsersThreeIcon />,
       label: 'Leads'
     },
     {
       key: 'accounts',
-      icon: <Buildings />,
+      icon: <BuildingsIcon />,
       label: 'Accounts'
     },
     {
       key: 'contacts',
-      icon: <Users />,
+      icon: <UsersIcon />,
       label: 'Contacts'
     },
     {
       key: 'opportunities',
-      icon: <CurrencyDollar />,
+      icon: <CurrencyDollarIcon />,
       label: 'Opportunities'
     },
     {
       key: 'campaigns',
-      icon: <Megaphone />,
+      icon: <MegaphoneIcon />,
       label: 'Campaigns'
     },
     {
       key: 'analytics',
-      icon: <ChartBar />,
+      icon: <ChartBarIcon />,
       label: 'Analytics'
     }
   ]

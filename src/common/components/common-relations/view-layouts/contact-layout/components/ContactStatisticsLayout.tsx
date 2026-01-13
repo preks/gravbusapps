@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, MailOutlined, TrophyOutlined, ContactsOutlined } from '@ant-design/icons'
+import { UserOutlined, TeamOutlined, TrophyOutlined, ContactsOutlined } from '@ant-design/icons'
 
 interface TrendData {
   current: number
@@ -13,7 +13,7 @@ interface TrendData {
 export interface ContactStatisticsData {
   recentContacts: TrendData
   activeContacts: TrendData
-  emailEngagements: TrendData
+  totalContacts: TrendData
   contactsThisYear: TrendData
   isLoading: boolean
   error: Error | null
@@ -34,7 +34,7 @@ export const ContactStatisticsLayout: React.FC<ContactStatisticsLayoutProps> = (
   statistics,
   'data-testid': dataTestId = 'contact-statistics'
 }) => {
-  const { recentContacts, activeContacts, emailEngagements, contactsThisYear, isLoading, error, refetch } = statistics
+  const { recentContacts, activeContacts, totalContacts, contactsThisYear, isLoading, error, refetch } = statistics
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
@@ -65,7 +65,7 @@ export const ContactStatisticsLayout: React.FC<ContactStatisticsLayoutProps> = (
       prefix: <ContactsOutlined />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Currently active',
+      description: 'With active opportunities',
       trend: {
         value: formatTrendPercent(activeContacts.changePercent),
         positive: activeContacts.isPositive,
@@ -73,16 +73,16 @@ export const ContactStatisticsLayout: React.FC<ContactStatisticsLayoutProps> = (
       }
     },
     {
-      key: 'email-engagements',
-      title: 'Email Engagements',
-      value: emailEngagements.current,
-      prefix: <MailOutlined />,
+      key: 'total-contacts',
+      title: 'Total Contacts',
+      value: totalContacts.current,
+      prefix: <TeamOutlined />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Contacts with email',
+      description: 'All contacts in system',
       trend: {
-        value: formatTrendPercent(emailEngagements.changePercent),
-        positive: emailEngagements.isPositive,
+        value: formatTrendPercent(totalContacts.changePercent),
+        positive: totalContacts.isPositive,
         description: 'vs last month'
       }
     },

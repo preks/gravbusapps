@@ -135,7 +135,11 @@ export const useGenericOpportunityVelocityData = (accessToken: string, config: O
               name
               estimatedAmount
               closeDate
-              account { name }
+              opportunityAccounts(where: { isDeleted: { _eq: false } }, limit: 1) {
+                account {
+                  name
+                }
+              }
               currency {
                 code
                 value
@@ -155,7 +159,11 @@ export const useGenericOpportunityVelocityData = (accessToken: string, config: O
               name
               estimatedAmount
               createdAt
-              account { name }
+              opportunityAccounts(where: { isDeleted: { _eq: false } }, limit: 1) {
+                account {
+                  name
+                }
+              }
               currency {
                 code
                 value

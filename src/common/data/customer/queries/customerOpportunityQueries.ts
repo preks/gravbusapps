@@ -42,6 +42,7 @@ import { CustomerDocumentFields } from '../types/customerDocumentTypes'
 import { CustomerLeadFields } from '../types/customerLeadTypes'
 import { CustomerNoteFields } from '../types/customerNoteTypes'
 import { CustomerTaskFields } from '../types/customerTaskTypes'
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 /**
  * Customer Opportunity Query Variables Interface
@@ -63,6 +64,22 @@ export const buildCustomerOpportunityQuery = (
     # Addresses relation (CRM uses "city" not "locality")
     ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
       ${CUSTOMER_ADDRESS_FRAGMENT}
+    }
+    
+    # Opportunity-Account Junction Table (many-to-many)
+    # GraphQL field name: opportunityAccounts
+    ${fields.customerOpportunityAccounts}(where: { isDeleted: { _eq: false } }) {
+      id
+      version
+      opportunityId
+      accountId
+      accountTypeRef
+      accountType {
+        ${CATALOG_ENTRY}
+      }
+      account {
+        ${buildAccountFragment(CustomerAccountFields)}
+      }
     }
     
     # Lead relation (CRM uses singular "lead" as object, not array - no where clause)
@@ -116,11 +133,27 @@ export const buildCustomerOpportunityByIdQuery = (
     stageConditionFields: CustomerOpportunityStageConditionFields
   }
 
-  // Domain-specific entity fields (addresses, leads, crmDocument, crmNote, salesCampaign)
+  // Domain-specific entity fields (addresses, opportunityAccounts, leads, crmDocument, crmNote, salesCampaign)
   const entityFields = `
     # Addresses relation (CRM uses "city" not "locality")
     ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
       ${CUSTOMER_ADDRESS_FRAGMENT}
+    }
+    
+    # Opportunity-Account Junction Table (many-to-many)
+    # GraphQL field name: opportunityAccounts
+    ${fields.customerOpportunityAccounts}(where: { isDeleted: { _eq: false } }) {
+      id
+      version
+      opportunityId
+      accountId
+      accountTypeRef
+      accountType {
+        ${CATALOG_ENTRY}
+      }
+      account {
+        ${buildAccountFragment(CustomerAccountFields)}
+      }
     }
     
     # Lead relation (CRM uses singular "lead" as object, not array - no where clause)

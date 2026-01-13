@@ -11,15 +11,21 @@ import {
 import { AppAction } from '@/components/app-action/AppAction'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
-import { useInvestmentStatistics } from '@/common/data/investment/hooks/useInvestmentStatistics'
+import { InvestmentKPICards } from '@/common/components/investment-kpi-cards'
+import {
+  OVERVIEW_KPI_CONFIG,
+  EQUITY_KPI_CONFIG,
+  LIQUID_FUND_KPI_CONFIG,
+  REAL_ESTATE_KPI_CONFIG
+} from '@/common/data/investment/kpis'
+import { useInvestmentPortfolioIntegration } from '../analytics-view/overview/hooks'
+import { useEquityKPIIntegration } from '../analytics-view/equity-analytics/hooks'
+import { useLiquidFundKPIIntegration } from '../analytics-view/liquid-fund-analytics/hooks'
+import { useRealEstateKPIIntegration } from '../analytics-view/real-estate-analytics/hooks'
 import AllInvestmentsList from './data/investment-data/AllInvestmentsList'
 import EquityInvestmentsList from './data/equity-data/EquityInvestmentsList'
 import RealEstateInvestmentsList from './data/real-estate-data/RealEstateInvestmentsList'
 import LiquidFundInvestmentsList from './data/liquid-fund-data/LiquidFundInvestmentsList'
-import InvestmentStatistics from './data/investment-data/InvestmentStatistics'
-import EquityInvestmentStatistics from './data/equity-data/EquityInvestmentStatistics'
-import LiquidFundInvestmentStatistics from './data/liquid-fund-data/LiquidFundInvestmentStatistics'
-import RealEstateInvestmentStatistics from './data/real-estate-data/RealEstateInvestmentStatistics'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -49,8 +55,11 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   const [currentSection, setCurrentSection] = useState(normalize(initialSubTab))
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
-  // Fetch investment statistics for all sections in a single query
-  const investmentStatistics = useInvestmentStatistics(accessToken || '', selectedCurrency)
+  // Fetch KPIs for each section using Analytics View hooks (single source of truth)
+  const overviewKPIs = useInvestmentPortfolioIntegration(context, selectedCurrency)
+  const equityKPIs = useEquityKPIIntegration(context, selectedCurrency)
+  const liquidFundKPIs = useLiquidFundKPIIntegration(context, selectedCurrency)
+  const realEstateKPIs = useRealEstateKPIIntegration(context, selectedCurrency)
 
   // Fetch available currencies efficiently using distinctOn (full format to get IDs)
   const { currencies: availableCurrencies } = useAvailableCurrencies(context, {
@@ -62,20 +71,27 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     setCurrentSection(normalize(initialSubTab))
   }, [initialSubTab, normalize])
 
-  // Set initial currency filter when currencies are loaded
+  // Unified filter state for all tabs
+  // Initialize with currency filter immediately if available, otherwise wait
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  const [filtersReady, setFiltersReady] = useState(false)
+
+  // Set initial currency filter when currencies are loaded (only once)
   useEffect(() => {
-    if (availableCurrencies && availableCurrencies.length > 0) {
+    if (!filtersReady && availableCurrencies && availableCurrencies.length > 0) {
       const currencyObj = (Array.isArray(availableCurrencies) ? availableCurrencies : []).find(
         (c): c is { id: string; code: string; value: string } => typeof c !== 'string' && c?.code === selectedCurrency
       )
       if (currencyObj) {
+        // Preserve any existing filters while adding currency filter
         setSelectedFilters(prev => ({
           ...prev,
           currencyIds: [currencyObj.id]
         }))
       }
+      setFiltersReady(true)
     }
-  }, [availableCurrencies, selectedCurrency])
+  }, [availableCurrencies, selectedCurrency, filtersReady])
 
   const handleSectionChange = useCallback(
     (value: string) => {
@@ -106,27 +122,31 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     return commonFilterConfig
   }, [currentSection, overviewFilterConfig, commonFilterConfig])
 
-  // Unified filter state for all tabs
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  // Use section state hooks - only fetch when currency filter is ready AND section is active
+  // This prevents unnecessary API calls for non-visible sections
+  // Empty accessToken prevents useInvestments from fetching (see useInvestments.new.ts line 78-81)
+  const shouldFetchOverview = filtersReady && currentSection === 'overview'
+  const shouldFetchLiquidFund = filtersReady && currentSection === 'liquid-funds'
+  const shouldFetchRealEstate = filtersReady && currentSection === 'real-estate'
+  const shouldFetchEquity = filtersReady && currentSection === 'equity'
 
-  // Use section state hooks
   const overviewState = useInvestmentSectionState({
-    accessToken: accessToken || '',
+    accessToken: shouldFetchOverview ? accessToken || '' : '',
     selectedFilters
   })
 
   const liquidFundState = useLiquidFundSectionState({
-    accessToken: accessToken || '',
+    accessToken: shouldFetchLiquidFund ? accessToken || '' : '',
     selectedFilters
   })
 
   const realEstateState = useRealEstateSectionState({
-    accessToken: accessToken || '',
+    accessToken: shouldFetchRealEstate ? accessToken || '' : '',
     selectedFilters
   })
 
   const equityState = useEquitySectionState({
-    accessToken: accessToken || '',
+    accessToken: shouldFetchEquity ? accessToken || '' : '',
     selectedFilters
   })
 
@@ -159,8 +179,11 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   // Listen for process completion events to refresh data
   useProcessCompletion({
     onSuccess: () => {
-      // Refetch statistics for all sections
-      investmentStatistics.refetch()
+      // Refetch KPIs for all sections
+      overviewKPIs.refetch()
+      equityKPIs.refetch()
+      liquidFundKPIs.refetch()
+      realEstateKPIs.refetch()
       // Refetch active section data
       if (currentSection === 'overview') {
         overviewState.refetch()
@@ -372,83 +395,91 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         </div>
       </div>
 
-      {/* Statistics - Load all KPIs initially, show based on active section */}
+      {/* KPI Cards - Using shared configs and Analytics View hooks */}
       <div className="gba:mb-6">
         <div style={{ display: currentSection === 'overview' ? 'block' : 'none' }}>
-          <InvestmentStatistics
-            {...context}
+          <InvestmentKPICards
+            config={OVERVIEW_KPI_CONFIG}
+            data={overviewKPIs.kpis}
+            previousData={overviewKPIs.previousKpis}
             currencyCode={selectedCurrency}
-            statistics={investmentStatistics.overview}
-            isLoading={investmentStatistics.isLoading}
-            error={investmentStatistics.error}
-            onRetry={investmentStatistics.refetch}
+            isLoading={overviewKPIs.isLoading}
+            error={overviewKPIs.error ? new Error(overviewKPIs.error) : null}
+            onRetry={overviewKPIs.refetch}
+            data-testid="investment-view-overview-kpis"
           />
         </div>
         <div style={{ display: currentSection === 'equity' ? 'block' : 'none' }}>
-          <EquityInvestmentStatistics
-            {...context}
+          <InvestmentKPICards
+            config={EQUITY_KPI_CONFIG}
+            data={equityKPIs.current}
+            previousData={equityKPIs.previous}
             currencyCode={selectedCurrency}
-            statistics={investmentStatistics.equity}
-            isLoading={investmentStatistics.isLoading}
-            error={investmentStatistics.error}
-            onRetry={investmentStatistics.refetch}
+            isLoading={equityKPIs.isLoading}
+            error={equityKPIs.error ? new Error(equityKPIs.error) : null}
+            onRetry={equityKPIs.refetch}
+            data-testid="investment-view-equity-kpis"
           />
         </div>
         <div style={{ display: currentSection === 'liquid-funds' ? 'block' : 'none' }}>
-          <LiquidFundInvestmentStatistics
-            {...context}
+          <InvestmentKPICards
+            config={LIQUID_FUND_KPI_CONFIG}
+            data={liquidFundKPIs.current}
+            previousData={liquidFundKPIs.previous}
             currencyCode={selectedCurrency}
-            statistics={investmentStatistics.liquidFund}
-            isLoading={investmentStatistics.isLoading}
-            error={investmentStatistics.error}
-            onRetry={investmentStatistics.refetch}
+            isLoading={liquidFundKPIs.isLoading}
+            error={liquidFundKPIs.error ? new Error(liquidFundKPIs.error) : null}
+            onRetry={liquidFundKPIs.refetch}
+            data-testid="investment-view-liquid-fund-kpis"
           />
         </div>
         <div style={{ display: currentSection === 'real-estate' ? 'block' : 'none' }}>
-          <RealEstateInvestmentStatistics
-            {...context}
+          <InvestmentKPICards
+            config={REAL_ESTATE_KPI_CONFIG}
+            data={realEstateKPIs.current}
+            previousData={realEstateKPIs.previous}
             currencyCode={selectedCurrency}
-            statistics={investmentStatistics.realEstate}
-            isLoading={investmentStatistics.isLoading}
-            error={investmentStatistics.error}
-            onRetry={investmentStatistics.refetch}
+            isLoading={realEstateKPIs.isLoading}
+            error={realEstateKPIs.error ? new Error(realEstateKPIs.error) : null}
+            onRetry={realEstateKPIs.refetch}
+            data-testid="investment-view-real-estate-kpis"
           />
         </div>
       </div>
 
-      {/* DataDisplay with titleSections */}
+      {/* DataDisplay with titleSections - Using KPI data for counts */}
       <DataDisplay
         titleSections={[
           {
             id: 'overview',
             label: 'Overview',
             metadata: {
-              count: overviewState.totalCount,
-              isLoading: overviewState.isInitialLoading
+              count: overviewKPIs.kpis.totalInvestments,
+              isLoading: overviewKPIs.isLoading
             }
           },
           {
             id: 'liquid-funds',
             label: 'Liquid Fund',
             metadata: {
-              count: liquidFundState.totalCount,
-              isLoading: liquidFundState.isInitialLoading
+              count: liquidFundKPIs.current.totalInvestments,
+              isLoading: liquidFundKPIs.isLoading
             }
           },
           {
             id: 'real-estate',
             label: 'Real Estate',
             metadata: {
-              count: realEstateState.totalCount,
-              isLoading: realEstateState.isInitialLoading
+              count: realEstateKPIs.current.totalInvestments,
+              isLoading: realEstateKPIs.isLoading
             }
           },
           {
             id: 'equity',
             label: 'Equity',
             metadata: {
-              count: equityState.totalCount,
-              isLoading: equityState.isInitialLoading
+              count: equityKPIs.current.totalInvestments,
+              isLoading: equityKPIs.isLoading
             }
           }
         ]}

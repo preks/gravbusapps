@@ -49,27 +49,29 @@ const GET_OPPORTUNITY_ANALYTICS = `
         lastName
         displayName
       }
-      account {
-        id
-        version
-        name
-        email
-        phone
-        website
-        industry {
-          value
-        }
-        numberOfEmployees {
-          value
-        }
-        annualRevenue {
-          value
-        }
-        ownerEmployee {
+      opportunityAccounts {
+        account {
           id
-          firstName
-          lastName
-          displayName
+          version
+          name
+          email
+          phone
+          website
+          industry {
+            value
+          }
+          numberOfEmployees {
+            value
+          }
+          annualRevenue {
+            value
+          }
+          ownerEmployee {
+            id
+            firstName
+            lastName
+            displayName
+          }
         }
       }
       lead {
@@ -214,6 +216,8 @@ const GET_OPPORTUNITY_NOTES = `
 type OpportunityRecord = Record<string, any>
 
 function buildOpportunitySummary(opportunity: OpportunityRecord, contacts: AnalyticsContact[]): AnalyticsSummary {
+  const primaryAccount = opportunity.opportunityAccounts?.[0]?.account
+
   return compactRecord({
     name: opportunity.name,
     amount: opportunity.estimatedAmount,
@@ -229,16 +233,16 @@ function buildOpportunitySummary(opportunity: OpportunityRecord, contacts: Analy
             [opportunity.ownerEmployee.firstName, opportunity.ownerEmployee.lastName].filter(Boolean).join(' ').trim()
         })
       : undefined,
-    account: opportunity.account?.id
+    account: primaryAccount?.id
       ? compactRecord({
-          id: opportunity.account.id,
-          name: opportunity.account.name,
-          email: normalizeEmail(opportunity.account.email),
-          phone: normalizePhone(opportunity.account.phone),
-          website: opportunity.account.website,
-          industry: opportunity.account.industry?.value,
-          numberOfEmployees: opportunity.account.numberOfEmployees?.value,
-          annualRevenue: opportunity.account.annualRevenue?.value
+          id: primaryAccount.id,
+          name: primaryAccount.name,
+          email: normalizeEmail(primaryAccount.email),
+          phone: normalizePhone(primaryAccount.phone),
+          website: primaryAccount.website,
+          industry: primaryAccount.industry?.value,
+          numberOfEmployees: primaryAccount.numberOfEmployees?.value,
+          annualRevenue: primaryAccount.annualRevenue?.value
         })
       : undefined,
     lead: opportunity.lead?.id
@@ -278,12 +282,13 @@ function buildOpportunityAssociates(opportunity: OpportunityRecord, contactRecor
     })
   }
 
-  if (opportunity.account?.ownerEmployee?.id) {
+  const primaryAccount = opportunity.opportunityAccounts?.[0]?.account
+  if (primaryAccount?.ownerEmployee?.id) {
     associates.push({
-      id: opportunity.account.ownerEmployee.id,
+      id: primaryAccount.ownerEmployee.id,
       name:
-        opportunity.account.ownerEmployee.displayName ||
-        [opportunity.account.ownerEmployee.firstName, opportunity.account.ownerEmployee.lastName]
+        primaryAccount.ownerEmployee.displayName ||
+        [primaryAccount.ownerEmployee.firstName, primaryAccount.ownerEmployee.lastName]
           .filter(Boolean)
           .join(' ')
           .trim() ||
@@ -291,8 +296,8 @@ function buildOpportunityAssociates(opportunity: OpportunityRecord, contactRecor
       relation: 'accountOwner',
       type: 'employee',
       meta: compactRecord({
-        accountId: opportunity.account.id,
-        accountName: opportunity.account.name
+        accountId: primaryAccount.id,
+        accountName: primaryAccount.name
       })
     })
   }
@@ -487,12 +492,13 @@ function buildOpportunityActivities(params: { activities: any[]; tasks: any[]; n
 
 function buildOpportunityLinks(opportunity: OpportunityRecord): AnalyticsLink[] {
   const links: AnalyticsLink[] = []
+  const primaryAccount = opportunity.opportunityAccounts?.[0]?.account
 
-  if (opportunity.account?.website) {
+  if (primaryAccount?.website) {
     links.push({
       id: 'opportunity.account.website',
-      title: opportunity.account.name ? `${opportunity.account.name} website` : 'Account website',
-      url: opportunity.account.website,
+      title: primaryAccount.name ? `${primaryAccount.name} website` : 'Account website',
+      url: primaryAccount.website,
       type: 'website'
     })
   }
@@ -505,6 +511,8 @@ function buildOpportunityRaw(
   contacts: AnalyticsContact[],
   stageConditions: any[]
 ): AnalyticsRawSnapshot {
+  const primaryAccount = opportunity.opportunityAccounts?.[0]?.account
+
   const rawOpportunity = compactRecord({
     id: opportunity.id,
     name: opportunity.name,
@@ -525,22 +533,22 @@ function buildOpportunityRaw(
             [opportunity.ownerEmployee.firstName, opportunity.ownerEmployee.lastName].filter(Boolean).join(' ').trim()
         })
       : undefined,
-    account: opportunity.account?.id
+    account: primaryAccount?.id
       ? compactRecord({
-          id: opportunity.account.id,
-          name: opportunity.account.name,
-          email: normalizeEmail(opportunity.account.email),
-          phone: normalizePhone(opportunity.account.phone),
-          website: opportunity.account.website,
-          industry: opportunity.account.industry?.value,
-          numberOfEmployees: opportunity.account.numberOfEmployees?.value,
-          annualRevenue: opportunity.account.annualRevenue?.value,
-          ownerEmployee: opportunity.account.ownerEmployee?.id
+          id: primaryAccount.id,
+          name: primaryAccount.name,
+          email: normalizeEmail(primaryAccount.email),
+          phone: normalizePhone(primaryAccount.phone),
+          website: primaryAccount.website,
+          industry: primaryAccount.industry?.value,
+          numberOfEmployees: primaryAccount.numberOfEmployees?.value,
+          annualRevenue: primaryAccount.annualRevenue?.value,
+          ownerEmployee: primaryAccount.ownerEmployee?.id
             ? compactRecord({
-                id: opportunity.account.ownerEmployee.id,
+                id: primaryAccount.ownerEmployee.id,
                 name:
-                  opportunity.account.ownerEmployee.displayName ||
-                  [opportunity.account.ownerEmployee.firstName, opportunity.account.ownerEmployee.lastName]
+                  primaryAccount.ownerEmployee.displayName ||
+                  [primaryAccount.ownerEmployee.firstName, primaryAccount.ownerEmployee.lastName]
                     .filter(Boolean)
                     .join(' ')
                     .trim()

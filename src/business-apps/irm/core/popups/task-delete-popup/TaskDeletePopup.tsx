@@ -91,11 +91,15 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
                 id
                 value
               }
+              taskAssignees(where: { isDeleted: { _eq: false } }) {
               assignedEmployee {
                 id
                 firstName
                 lastName
                 displayName
+                }
+                assignedEmployeeId
+                assignedUserId
               }
             }
           }
@@ -110,8 +114,10 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
 
         const tsk = result.InvestmentTask[0]
 
-        // Compute assignedEmployee displayName if not provided
-        let assignedEmployee = tsk.assignedEmployee
+        // Extract first assignee for display
+        const firstAssignee = tsk.taskAssignees?.[0]?.assignedEmployee
+        let assignedEmployee = firstAssignee
+
         if (assignedEmployee && !assignedEmployee.displayName) {
           const computedDisplayName =
             `${assignedEmployee.firstName || ''} ${assignedEmployee.lastName || ''}`.trim() || 'Unassigned'

@@ -7,27 +7,39 @@ const GET_CUSTOMER_TASK_STATISTICS = `
   query GetCustomerTaskStatistics($employeeId: uuid) {
     myTotal: SalesTaskAggregate(where: {
       isDeleted: {_eq: false},
-      assignedEmployee: {id: {_eq: $employeeId}}
+      taskAssignees: {
+        assignedEmployeeId: {_eq: $employeeId}
+        isDeleted: {_eq: false}
+      }
     }) {
       aggregate { count }
     }
     myInProgress: SalesTaskAggregate(where: {
       isDeleted: {_eq: false},
-      assignedEmployee: {id: {_eq: $employeeId}},
+      taskAssignees: {
+        assignedEmployeeId: {_eq: $employeeId}
+        isDeleted: {_eq: false}
+      },
       status: {code: {_in: ["IN_PROGRESS", "PENDING"]}}
     }) {
       aggregate { count }
     }
     myCompleted: SalesTaskAggregate(where: {
       isDeleted: {_eq: false},
-      assignedEmployee: {id: {_eq: $employeeId}},
+      taskAssignees: {
+        assignedEmployeeId: {_eq: $employeeId}
+        isDeleted: {_eq: false}
+      },
       status: {code: {_eq: "COMPLETED"}}
     }) {
       aggregate { count }
     }
     myOverdue: SalesTaskAggregate(where: {
       isDeleted: {_eq: false},
-      assignedEmployee: {id: {_eq: $employeeId}},
+      taskAssignees: {
+        assignedEmployeeId: {_eq: $employeeId}
+        isDeleted: {_eq: false}
+      },
       status: {code: {_eq: "OVERDUE"}}
     }) {
       aggregate { count }

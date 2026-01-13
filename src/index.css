@@ -176,6 +176,29 @@
       transform: translateX(400%) skewX(-15deg);
     }
   }
+
+  /* NEWWORK CREATE - Fade in up animation for staggered reveals */
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* NEWWORK CREATE - Subtle pulse animation for badges */
+  @keyframes subtlePulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
 }
 
 @layer utilities {
@@ -364,4 +387,27 @@
 
 .widget-group-cards [data-widget-key].clickable {
   cursor: pointer !important;
+}
+
+/* Elegant hover add button animation for expense settings */
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Hover add row styling */
+.gba\:hover-add-row {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.gba\:hover-add-row:hover {
+  background-color: #f0f9ff !important;
+  border-color: #3b82f6 !important;
 }

@@ -2,6 +2,7 @@ import React from 'react'
 import EmployeeLinkChip from './EmployeeLinkChip'
 import SandboxFileLinkChip from './SandboxFileLinkChip'
 import { BaseEntityLinkChip } from './BaseEntityLinkChip'
+import IrmDocumentLinkChip from './IrmDocumentLinkChip'
 
 export const SUPPORTED_PROTOCOLS = [
   'employee',
@@ -35,7 +36,9 @@ export const SUPPORTED_PROTOCOLS = [
   'employee_attendance',
   'employee_feedback_request',
   'employee_feedback_review',
-  'sandbox'
+  'sandbox',
+  'investment_document',
+  'investment_report'
 ]
 
 export function markdownUrlTransform(url: string): string {
@@ -114,7 +117,7 @@ const ENTITY_CHIP_CONFIG: Record<
     icon: () => createIcon('emoji', '💰')
   },
   intranet: {
-    urlTemplate: '/platform/knowledge/{id}',
+    urlTemplate: '/platform/content/intranet/content-record?contentId={id}',
     icon: () =>
       React.createElement(
         'svg',
@@ -265,6 +268,16 @@ const ENTITY_CHIP_CONFIG: Record<
   }
 }
 
+/**
+ * Build a platform URL for an entity using the same base mapping as the chips.
+ * Returns undefined if the entity is unknown.
+ */
+export function getEntityUrl(entity: string, id: string): string | undefined {
+  const config = ENTITY_CHIP_CONFIG[entity]
+  if (!config) return undefined
+  return config.urlTemplate.replace('{id}', id)
+}
+
 interface EntityLinkProps {
   href?: string
   accessToken: string
@@ -289,6 +302,15 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
       <SandboxFileLinkChip filePath={url} token={accessToken}>
         {children}
       </SandboxFileLinkChip>
+    )
+  }
+
+  // IRM investment document: resolve to actual file download URL and show it to the user
+  if (protocol === 'investment_document' && url) {
+    return (
+      <IrmDocumentLinkChip documentId={url} token={accessToken} fallbackHref={href}>
+        {children}
+      </IrmDocumentLinkChip>
     )
   }
 

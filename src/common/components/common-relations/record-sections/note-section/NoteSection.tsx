@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Button, EmptyState } from '@newwork/nw-design-system'
 import { PlusIcon, UserIcon, CalendarBlankIcon, BellIcon, DotsThreeVertical } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
@@ -10,7 +10,6 @@ import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { Note } from '@/common/data/relations/types/noteTypes'
-import EmptyState from '@/components/empty-state/EmptyState'
 
 export type NoteDocument = {
   id: string
@@ -107,7 +106,12 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
   return (
     <div data-testid={props['data-testid'] || 'note-section-new-content'} className="gba:space-y-4">
       {notes.length === 0 ? (
-        <EmptyState title="No Notes" description="No notes yet. Create your first note." />
+        <EmptyState
+          type="no-data"
+          title="No Notes"
+          description="No notes yet. Create your first note."
+          data-testid="note-section-empty-state"
+        />
       ) : (
         notes.map(note => (
           <Card key={note.id} className="gba:shadow-none gba:border gba:border-gray-200">

@@ -53,7 +53,13 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
 
       {/* Render only History content (no sub tabs) */}
       <div className="gba:mt-4" data-testid="history-content">
-        <TimeHistory employeeId={employeeId} accessToken={accessToken} userId={userId} />
+        <TimeHistory
+          employeeId={employeeId}
+          accessToken={accessToken}
+          userId={userId}
+          employeeCode={employee?.code}
+          workingHours={employee?.workingHours?.[0]}
+        />
       </div>
     </div>
   )

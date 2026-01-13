@@ -12,7 +12,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2 } from 'lucide-react'
+import { PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
 import { useTileSubmission } from '../hooks/useTileSubmission'
 import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
@@ -274,11 +274,11 @@ export const InvestmentTableTileComponent: React.FC<InvestmentTableTileComponent
                 onClick={handleAddColumn}
                 data-testid="add-column-button"
               >
-                <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+                <PlusIcon className="gba:h-4 gba:w-4 gba:mr-1" />
                 {getTranslationFromI18nKeyAndLabel('investment.tiles.addColumn', 'Add Column')}
               </Button>
               <Button type="button" size="sm" variant="outline" onClick={handleAddRow} data-testid="add-row-button">
-                <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+                <PlusIcon className="gba:h-4 gba:w-4 gba:mr-1" />
                 {getTranslationFromI18nKeyAndLabel('investment.tiles.addRow', 'Add Row')}
               </Button>
             </div>
@@ -307,7 +307,7 @@ export const InvestmentTableTileComponent: React.FC<InvestmentTableTileComponent
                           className="gba:h-8 gba:w-8 gba:flex-shrink-0"
                           data-testid={`remove-column-${colIndex}`}
                         >
-                          <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
+                          <TrashIcon className="gba:h-4 gba:w-4 gba:text-destructive" />
                         </Button>
                       </div>
                     </th>
@@ -341,7 +341,7 @@ export const InvestmentTableTileComponent: React.FC<InvestmentTableTileComponent
                         className="gba:h-8 gba:w-8"
                         data-testid={`remove-row-${rowIndex}`}
                       >
-                        <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
+                        <TrashIcon className="gba:h-4 gba:w-4 gba:text-destructive" />
                       </Button>
                     </td>
                   </tr>

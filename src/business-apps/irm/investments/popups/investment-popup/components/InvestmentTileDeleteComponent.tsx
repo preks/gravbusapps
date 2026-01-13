@@ -1,6 +1,6 @@
 import React from 'react'
 import { Alert, Spinner } from '@newwork/nw-design-system'
-import { AlertTriangle, Trash2 } from 'lucide-react'
+import { WarningIcon, TrashIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form'
 import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
@@ -139,7 +139,7 @@ export const InvestmentTileDeleteComponent: React.FC<InvestmentTileDeleteCompone
         {/* Warning Icon and Message */}
         <div className="gba:flex gba:items-center gba:gap-3 gba:p-4 gba:bg-destructive/10 gba:rounded-lg gba:border gba:border-destructive/20">
           <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-destructive/20">
-            <AlertTriangle className="gba:w-5 gba:h-5 gba:text-destructive" />
+            <WarningIcon className="gba:w-5 gba:h-5 gba:text-destructive" />
           </div>
           <div className="gba:flex-1">
             <p className="gba:text-sm gba:font-medium gba:text-foreground">
@@ -158,7 +158,7 @@ export const InvestmentTileDeleteComponent: React.FC<InvestmentTileDeleteCompone
 
         {/* Warning Text */}
         <Alert variant="destructive" data-testid={`${prefixDataTestId}-warning`}>
-          <Trash2 className="gba:h-4 gba:w-4" />
+          <TrashIcon className="gba:h-4 gba:w-4" />
           <div>
             <p className="gba:font-medium gba:mb-1">
               {getTranslationFromI18nKeyAndLabel('investment.tiles.deleteWarningTitle', 'This action cannot be undone')}

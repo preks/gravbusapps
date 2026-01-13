@@ -20,13 +20,12 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
     mode: 'onChange'
   })
 
-  const { employeeName, initiatorName, displayItems, benefitDetails, employee, isLoading, error } =
-    useBenefitReviewData({
-      accessToken,
-      additionalData,
-      userInfo,
-      t
-    })
+  const { initiatorName, displayItems, benefitDetails, employee, isLoading, error } = useBenefitReviewData({
+    accessToken,
+    additionalData,
+    userInfo,
+    t
+  })
 
   // Show loading state
   if (isLoading) {
@@ -57,10 +56,9 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
     )
   }
 
-  // Build title with employee name
+  // Build title (employee info is shown in FormHeader)
   const titleText = t('request-benefit-review-title', {
-    employeeName: employeeName || '',
-    defaultValue: 'Employee Benefit Review for {employeeName}'
+    defaultValue: 'Review Benefit Request'
   })
 
   // Build initiator subtitle

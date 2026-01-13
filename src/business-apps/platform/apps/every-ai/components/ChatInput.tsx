@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useId } from 'react'
+import React, { useState, useRef, useCallback, useId, useEffect } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
@@ -28,6 +28,14 @@ interface ChatInputProps {
   voiceVolume?: number
   onToggleVoiceMode?: () => void
   onStopSpeaking?: () => void
+  /**
+   * Optional callback fired as soon as the user attaches files.
+   * Used for "upload early" behaviour where files are pre-uploaded before pressing Send.
+   */
+  onFilesAttached?: (files: File[]) => void
+  // Cancel restoration props
+  cancelledMessageText?: string | null
+  onClearCancelledMessage?: () => void
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -45,7 +53,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isVoiceLoading = false,
   voiceVolume = 0,
   onToggleVoiceMode,
-  onStopSpeaking
+  onStopSpeaking,
+  onFilesAttached,
+  cancelledMessageText,
+  onClearCancelledMessage
 }) => {
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -73,9 +84,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const pickFiles = useCallback(
     (list: FileList | null) => {
       if (!list) return
+      const attachedFiles: File[] = []
       Array.from(list).forEach(file => {
         try {
           uploadFile(file)
+          attachedFiles.push(file)
         } catch (err) {
           if (err instanceof MaxNumberOfFilesError) {
             alert('You can only upload up to 5 files.')
@@ -86,8 +99,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }
         }
       })
+      // Notify parent that new files were attached so they can be pre-uploaded if desired.
+      if (attachedFiles.length > 0) {
+        onFilesAttached?.(attachedFiles)
+      }
     },
-    [uploadFile]
+    [uploadFile, onFilesAttached]
   )
 
   const focusTextarea = useCallback(() => {
@@ -98,6 +115,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Check if voice mode is supported (has the callback)
   const voiceModeSupported = !!onToggleVoiceMode
+
+  // Restore cancelled message to input when cancelledMessageText changes
+  useEffect(() => {
+    if (cancelledMessageText) {
+      setValue(cancelledMessageText)
+      onClearCancelledMessage?.()
+      // Focus the textarea after restoring the message
+      setTimeout(() => {
+        textareaRef.current?.focus()
+        // Move cursor to end of text
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = textareaRef.current.value.length
+          textareaRef.current.selectionEnd = textareaRef.current.value.length
+        }
+      }, 0)
+    }
+  }, [cancelledMessageText, onClearCancelledMessage])
 
   return (
     <>
