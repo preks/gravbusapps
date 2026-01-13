@@ -267,7 +267,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       // Build conditions array using extracted helper functions
       const conditions: any[] = [
         { isDeleted: { _eq: false } },
-        { status: { _neq: 'DISCARDED' } },
+        { status: { _nin: ['DISCARDED', 'CREATED'] } },
         ...buildStatusFilterCondition(statusFilter),
         ...buildEmployeeFilterCondition(employeeFilter),
         ...buildAmountFilterCondition(amountMinFilter, amountMaxFilter),

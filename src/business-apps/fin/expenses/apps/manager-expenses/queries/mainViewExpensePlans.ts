@@ -74,7 +74,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
           }
         },
         isDeleted: {_eq: false},
-        status: {_nin: [ "DISCARDED", "REJECTED"]},
+        status: {_nin: ["CREATED", "DISCARDED", "REJECTED"]},
         currencyRef: {_eq: $currencyRef}
       }
     ) {

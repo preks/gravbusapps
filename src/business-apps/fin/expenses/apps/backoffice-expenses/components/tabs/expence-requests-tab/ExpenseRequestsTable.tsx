@@ -269,7 +269,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   useEffect(() => {
     // Mirror personal expenses: use a fixed enum list for statuses
-    setAvailableStatuses(Object.values(ExpenseStatus))
+    // Exclude CREATED (draft) status from filter options
+    const allStatuses = Object.values(ExpenseStatus)
+    const filteredStatuses = allStatuses.filter(status => status !== ExpenseStatus.CREATED)
+    setAvailableStatuses(filteredStatuses)
   }, [])
 
   useEffect(() => {

@@ -277,7 +277,6 @@ export const useGetExpenseRequests = ({
             let actualStatus = statusValue
 
             const validStatuses = [
-              'CREATED',
               'PENDING',
               'APPROVED',
               'VERIFIED',
@@ -300,6 +299,8 @@ export const useGetExpenseRequests = ({
 
           whereClause.status = { _in: mappedStatuses }
         } else {
+          // Exclude CREATED status by default when no specific filter is provided
+          whereClause.status = { _neq: 'CREATED' }
         }
 
         // Parse the sortBy parameter to create orderBy array

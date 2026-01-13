@@ -235,6 +235,9 @@ export const useMainViewExpensePlans = ({
         // Add status filtering to server-side query
         if (activeFilter && activeFilter.length > 0) {
           whereClause.status = { _in: activeFilter }
+        } else {
+          // Exclude CREATED status by default when no specific filter is provided
+          whereClause.status = { _neq: 'CREATED' }
         }
 
         // Build the orderBy configuration based on the sort field and order

@@ -166,6 +166,9 @@ export const useMainViewAdvancePayments = ({
           status: { _in: currentStatusFilter }
         })
       }
+    } else {
+      // Exclude CREATED status by default when no specific filter is provided
+      conditions.push({ status: { _neq: 'CREATED' } })
     }
 
     // Add currency filter if provided
