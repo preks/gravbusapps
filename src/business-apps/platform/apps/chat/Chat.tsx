@@ -1457,6 +1457,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   isCallEnabled={isConnected}
                   isInCall={isInAnyCall}
                   activeCall={activeCallInfo}
+                  t={t}
                 />
 
                 {/* Active Experts Bar */}
@@ -1569,6 +1570,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   focusInputRef.current = focusFn
                 }}
                 activeExperts={activeExperts}
+                t={t}
               />
             )}
           </div>

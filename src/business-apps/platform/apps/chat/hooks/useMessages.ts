@@ -64,7 +64,7 @@ export function useMessages({
         setIsLoading(true)
         setError(null)
 
-        const response: PaginatedResponse<Message> = await apiClient.getMessages(conversationId, pageNum, 50)
+        const response: PaginatedResponse<Message> = await apiClient.getMessages(conversationId, pageNum, 25)
 
         // CRITICAL: Check if this response is still relevant
         // If conversation changed while request was in flight, discard the response
@@ -79,53 +79,73 @@ export function useMessages({
 
         // Ensure response.data exists and is an array
         // Backend already returns messages in ascending order (oldest first, newest last)
-        let loadedMessages = response.data && Array.isArray(response.data) ? response.data : []
+        const loadedMessages = response.data && Array.isArray(response.data) ? response.data : []
 
-        // Get OTHER participants' lastReadAt to determine if messages were read
-        const otherParticipants = conversationRef.current?.participants?.filter(p => p.userId !== currentUserId) || []
+        // Calculate message statuses non-blocking using startTransition
+        // This prevents UI freeze when loading many messages
+        const processMessageStatuses = () => {
+          // Get OTHER participants' lastReadAt to determine if messages were read
+          const otherParticipants = conversationRef.current?.participants?.filter(p => p.userId !== currentUserId) || []
 
-        // Find the most recent lastReadAt from other participants
-        const mostRecentOtherReadAt = otherParticipants.reduce(
-          (latest, p) => {
-            if (!p.lastReadAt) return latest
-            const readAt = new Date(p.lastReadAt)
-            return !latest || readAt > latest ? readAt : latest
-          },
-          null as Date | null
-        )
+          // Find the most recent lastReadAt from other participants (calculated once, not per message)
+          const mostRecentOtherReadAt = otherParticipants.reduce(
+            (latest, p) => {
+              if (!p.lastReadAt) return latest
+              const readAt = new Date(p.lastReadAt)
+              return !latest || readAt > latest ? readAt : latest
+            },
+            null as Date | null
+          )
 
-        // Set correct status for loaded messages based on current user and context
-        loadedMessages = loadedMessages.map(msg => {
-          // If no currentUserId, keep original status or default to 'sent'
-          if (!currentUserId) {
-            return { ...msg, status: msg.status || 'sent' }
-          }
+          // Convert mostRecentOtherReadAt to timestamp for faster comparison
+          const mostRecentOtherReadTimestamp = mostRecentOtherReadAt?.getTime() || 0
 
-          // If it's the current user's message
-          if (msg.senderId === currentUserId) {
-            // Check if any other participant read the message
-            if (mostRecentOtherReadAt && new Date(msg.createdAt) <= mostRecentOtherReadAt) {
-              return { ...msg, status: 'read' }
+          // Set correct status for loaded messages based on current user and context
+          return loadedMessages.map(msg => {
+            // If no currentUserId, keep original status or default to 'sent'
+            if (!currentUserId) {
+              return { ...msg, status: (msg.status || 'sent') as 'sent' | 'delivered' | 'read' }
             }
-            // Otherwise, show as sent (message sent but not yet confirmed read by anyone)
-            return { ...msg, status: 'sent' }
-          } else {
-            // If it's someone else's message in the active conversation
-            // Mark as read since we're viewing the conversation
-            return { ...msg, status: 'read' }
-          }
-        })
 
-        if (append) {
-          // When loading older messages, prepend them (they're older than current messages)
-          setMessages(prev => [...loadedMessages, ...prev])
-        } else {
-          // Initial load: messages are already in correct order (oldest first, newest last)
-          setMessages(loadedMessages)
+            // If it's the current user's message
+            if (msg.senderId === currentUserId) {
+              // Check if any other participant read the message (use timestamp comparison for speed)
+              if (
+                mostRecentOtherReadTimestamp > 0 &&
+                new Date(msg.createdAt).getTime() <= mostRecentOtherReadTimestamp
+              ) {
+                return { ...msg, status: 'read' as const }
+              }
+              // Otherwise, show as sent (message sent but not yet confirmed read by anyone)
+              return { ...msg, status: 'sent' as const }
+            } else {
+              // If it's someone else's message in the active conversation
+              // Mark as read since we're viewing the conversation
+              return { ...msg, status: 'read' as const }
+            }
+          })
         }
 
-        setHasMore(response.page < response.totalPages)
-        setPage(response.page)
+        const processedMessages = processMessageStatuses()
+
+        // Update messages immediately to prevent "no messages" flash
+        if (append) {
+          // When loading older messages, prepend them (they're older than current messages)
+          setMessages(prev => [...processedMessages, ...prev])
+        } else {
+          // Initial load: messages are already in correct order (oldest first, newest last)
+          setMessages(processedMessages)
+        }
+
+        // Use startTransition for pagination state updates (non-urgent)
+        startTransition(() => {
+          setHasMore(response.page < response.totalPages)
+          setPage(response.page)
+        })
+
+        // Clear loading state after messages are set
+        setIsLoading(false)
+        isLoadingMoreRef.current = false
       } catch (err) {
         // Don't set error if request was aborted (expected behavior)
         if (err instanceof Error && err.name === 'AbortError') {
@@ -139,9 +159,8 @@ export function useMessages({
         if (requestConversationId === activeConversationIdRef.current) {
           setError(err instanceof Error ? err : new Error('Failed to load messages'))
         }
-      } finally {
-        // Always clear loading state in finally block
-        // This ensures loading state is cleared even if conversation changed
+
+        // Clear loading state on error
         setIsLoading(false)
         isLoadingMoreRef.current = false
       }

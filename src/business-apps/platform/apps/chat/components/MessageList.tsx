@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useDeferredValue } from 'react'
 import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { MessageItem } from './MessageItem'
 import { TypingIndicatorComponent } from './TypingIndicator'
@@ -57,6 +57,11 @@ export const MessageList: React.FC<MessageListProps> = ({
   // This is a defensive measure to prevent showing wrong conversation's messages
   // in case of race conditions with async API calls
   const filteredMessages = messages.filter(m => m.conversationId === conversationId)
+
+  // Use deferred value to make message rendering non-blocking
+  // When many messages load, this allows React to prioritize other updates first
+  // The UI stays responsive while messages render progressively in the background
+  const deferredMessages = useDeferredValue(filteredMessages)
 
   // Filter typing users for this conversation
   const conversationTypingUsers = typingUsers.filter(t => t.conversationId === conversationId && t.isTyping)
@@ -137,22 +142,11 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
   }, [conversationId])
 
-  // Recurring timestamp update - triggers re-render every minute
-  const [, setTimestampUpdate] = useState(0)
-
-  useEffect(() => {
-    // Set up interval to update timestamps every minute
-    const intervalId = setInterval(() => {
-      setTimestampUpdate(prev => prev + 1)
-    }, 60000)
-
-    return () => {
-      clearInterval(intervalId)
-    }
-  }, [])
+  // NOTE: Timestamp updates are now handled individually by each MessageItem
+  // to avoid re-rendering the entire list every minute
 
   // Handle scroll to top for loading more messages
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!messagesContainerRef.current || !onLoadMore || isLoading || !hasMore) {
       return
     }
@@ -180,12 +174,12 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
 
     lastScrollTopRef.current = currentTop
-  }
+  }, [onLoadMore, isLoading, hasMore])
 
   // Show loading when:
-  // 1. First load for a new conversation (isFirstLoad)
-  // 2. OR when loading with no messages (switching conversations)
-  const showLoading = isLoading && filteredMessages.length === 0
+  // 1. Currently loading and no deferred messages yet
+  // 2. OR we have filtered messages but deferred rendering hasn't caught up yet
+  const showLoading = isLoading || (filteredMessages.length > 0 && deferredMessages.length === 0)
 
   return (
     <div
@@ -199,7 +193,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center">
             <Spinner size="sm" />
           </div>
-        ) : filteredMessages.length === 0 && !isLoading ? (
+        ) : deferredMessages.length === 0 && !isLoading ? (
           <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:p-4">
             <div className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
               <svg
@@ -218,7 +212,7 @@ export const MessageList: React.FC<MessageListProps> = ({
             </div>
             <p className="gba:text-sm gba:text-muted-foreground">{t('chat-noMessages')}</p>
           </div>
-        ) : filteredMessages.length > 0 ? (
+        ) : deferredMessages.length > 0 ? (
           <div className="gba:mt-auto gba:space-y-0.5">
             {hasMore && (
               <div className="gba:flex gba:items-center gba:justify-center gba:py-2 gba:mb-2">
@@ -233,7 +227,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               </div>
             )}
 
-            {filteredMessages.map(message => (
+            {deferredMessages.map(message => (
               <MessageItem
                 key={message.id}
                 message={message}

@@ -522,9 +522,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
             conversation.activeCall = currentActiveCall
           }
 
-          // Enrich conversation with real user data before updating
-          if (conversationsHookRef.current.enrichConversations) {
-            const enriched = await conversationsHookRef.current.enrichConversations([conversation])
+          // Fast enrichment - only add avatars (non-blocking, from cache)
+          // getConversationById already returns full user data, so no need for user data fetch
+          if (conversationsHookRef.current.enrichConversationsWithAvatarsOnly) {
+            const enriched = conversationsHookRef.current.enrichConversationsWithAvatarsOnly([conversation])
             conversationsHookRef.current.updateConversation(data.conversationId, enriched[0])
           } else {
             conversationsHookRef.current.updateConversation(data.conversationId, conversation)
@@ -662,9 +663,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
                   // Double-check conversation is still active
                   if (conversationIdToMarkRead === currentConversationIdRef.current) {
-                    // Enrich conversation before updating
-                    if (conversationsHookRef.current.enrichConversations) {
-                      const enriched = await conversationsHookRef.current.enrichConversations([fullConversation])
+                    // Fast enrichment - only add avatars (non-blocking)
+                    if (conversationsHookRef.current.enrichConversationsWithAvatarsOnly) {
+                      const enriched = conversationsHookRef.current.enrichConversationsWithAvatarsOnly([
+                        fullConversation
+                      ])
                       conversationsHookRef.current.updateConversation(conversationIdToMarkRead, enriched[0])
                     } else {
                       conversationsHookRef.current.updateConversation(conversationIdToMarkRead, fullConversation)
@@ -786,8 +789,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Reload conversation with full participant data including user objects
         const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-        // Add and enrich conversation - this returns the enriched version
-        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        // Add and enrich conversation (fast - avatars only, non-blocking)
+        // getConversationById already returns full user data
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation, { fastEnrich: true })
         setActiveConversationId(enrichedConversation.id)
 
         return enrichedConversation
@@ -815,8 +819,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Reload conversation with full participant data including user objects
         const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-        // Add and enrich conversation - this returns the enriched version
-        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        // Add and enrich conversation (fast - avatars only, non-blocking)
+        // getConversationById already returns full user data
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation, { fastEnrich: true })
         setActiveConversationId(enrichedConversation.id)
 
         return enrichedConversation
@@ -843,8 +848,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Reload conversation with full participant data including user objects
         const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-        // Add and enrich conversation - this returns the enriched version
-        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        // Add and enrich conversation (fast - avatars only, non-blocking)
+        // getConversationById already returns full user data
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation, { fastEnrich: true })
         setActiveConversationId(enrichedConversation.id)
 
         return enrichedConversation
@@ -872,8 +878,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Reload conversation with full participant data including user objects
         const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-        // Add and enrich conversation - this returns the enriched version
-        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        // Add and enrich conversation (fast - avatars only, non-blocking)
+        // getConversationById already returns full user data
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation, { fastEnrich: true })
         setActiveConversationId(enrichedConversation.id)
 
         return enrichedConversation
