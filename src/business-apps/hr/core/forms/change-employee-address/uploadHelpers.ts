@@ -1,12 +1,20 @@
 import { env } from '@/common/env/EnvUtils'
 
+export interface UploadedEmployeeDocument {
+  id: string
+  name: string
+  file: string
+  mimeType: string
+  employeeId: string
+}
+
 export const uploadEmployeeDocumentIfAny = async (
   fileClient: any,
   accessToken: string | undefined,
   fileList: any[],
   employeeId: string
-): Promise<string | undefined> => {
-  let uploadedEmployeeDocumentId: string | undefined
+): Promise<UploadedEmployeeDocument | undefined> => {
+  let uploadedEmployeeDocument: UploadedEmployeeDocument | undefined
   try {
     if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
       const file: File = fileList[0].originFileObj as File
@@ -47,14 +55,23 @@ export const uploadEmployeeDocumentIfAny = async (
       })
         .then(async r => {
           const json = await r.json()
-          uploadedEmployeeDocumentId = json?.employeeDocument?.id
+          const doc = json?.employeeDocument
+          if (doc?.id) {
+            uploadedEmployeeDocument = {
+              id: doc.id,
+              name: doc.name || uploadResp?.fileInfo?.fileMetadata?.originalFileName || '',
+              file: doc.file || uploadResp?.fileInfo?.fileId || '',
+              mimeType: doc.mimeType || uploadResp?.fileInfo?.fileMetadata?.mimeType || 'application/octet-stream',
+              employeeId: employeeId
+            }
+          }
         })
         .catch(() => {
-          uploadedEmployeeDocumentId = undefined
+          uploadedEmployeeDocument = undefined
         })
     }
   } catch {
-    uploadedEmployeeDocumentId = undefined
+    uploadedEmployeeDocument = undefined
   }
-  return uploadedEmployeeDocumentId
+  return uploadedEmployeeDocument
 }

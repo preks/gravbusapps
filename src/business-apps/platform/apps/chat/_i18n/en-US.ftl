@@ -129,6 +129,17 @@ chat-startVideoCall = Start video call
 chat-closeConversation = Close conversation
 chat-activeCallShort = In Call
 chat-addExpert = Add Expert
+chat-searchExperts = Search experts...
+chat-noExpertsFound = No experts found
+chat-createExpertsHint = Create experts in Task Expert Studio
+chat-expertActive = Active
+chat-add = Add
+chat-knowledgeSourceCount = {$count ->
+  [one] {$count} knowledge source
+  *[other] {$count} knowledge sources
+}
+chat-expertsHelpText = Experts have specialized knowledge and can be mentioned using
+chat-activeExperts = Active Experts:
 chat-leaveConversation = Leave conversation
 chat-removeConversation = Remove conversation
 chat-leaveConversationTitle = Leave conversation?
@@ -174,13 +185,24 @@ chat-lastOwnerInfo = You are the only owner. To leave this group, first make ano
 # Call Features
 chat-audioCall = Audio Call
 chat-videoCall = Video Call
+chat-groupCall = Group Call
 chat-endCall = End Call
 chat-mute = Mute
 chat-unmute = Unmute
 chat-startVideo = Start Video
 chat-stopVideo = Stop Video
+chat-turnOnCamera = Turn on camera
+chat-turnOffCamera = Turn off camera
 chat-shareScreen = Share Screen
 chat-stopSharing = Stop Sharing
+chat-leaveCall = Leave call
+chat-minimizeCall = Minimize call
+chat-settings = Settings
+chat-fullscreen = Fullscreen
+chat-exitFullscreen = Exit fullscreen
+chat-participant = participant
+chat-participants = participants
+chat-screenShare = {$name}'s screen
 chat-incomingCall = Incoming Call
 chat-callWith = Call with {$name}
 chat-joinCall = Join Call
@@ -205,6 +227,29 @@ call-initiating = Starting call...
 call-connecting = Connecting...
 call-ended = Call ended
 call-failed = Call failed
+call-disconnected = Disconnected
+
+# Call Settings
+call-videoQuality = Video Quality
+call-highQuality = High Quality
+call-highQualityDesc = 720p, 30fps - Best for fast connections
+call-mediumQuality = Medium Quality
+call-mediumQualityDesc = 480p, 24fps - Balanced
+call-lowQuality = Low Quality
+call-lowQualityDesc = 240p, 15fps - For slow connections
+call-background = Background
+call-brandedBackground = Branded Background
+call-brandedBackgroundDesc = Shows NEWWORK branding
+call-diagnostics = Diagnostics
+call-connectionDebug = Connection Debug
+call-showDiagnostics = Show connection diagnostics
+call-clickToClose = Click anywhere to close
+call-screen = Screen
+call-host = Host
+call-retryConnection = Retry connection
+call-reconnect = Reconnect
+call-retrying = Retrying...
+call-waitingForParticipants = Waiting for participants...
 
 # Notifications
 notifications-title = Notifications
@@ -315,3 +360,17 @@ calendar-eventsScheduled = {$count ->
   *[other] {$count} events scheduled
 }
 calendar-noEventsScheduled = 0 events scheduled
+calendar-view-day = Day
+calendar-view-week = Week
+calendar-view-month = Month
+calendar-today = Today
+calendar-create-meeting = Create Meeting
+calendar-no-events = No events scheduled
+calendar-all-day = All day
+calendar-loading = Loading calendar...
+calendar-error = Failed to load calendar
+calendar-event-details = Event Details
+calendar-pending-invitations = Pending Invitations
+calendar-accept = Accept
+calendar-decline = Decline
+calendar-tentative = Tentative

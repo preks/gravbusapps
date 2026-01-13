@@ -46,7 +46,7 @@ export const EmployeeDisplay: React.FC<EmployeeDisplayProps> = ({ employeeId, ac
       const url = buildPlatformUrl('/platform/employee-record', {
         employeeId: employeeId
       })
-      // Force reload to ensure updated employee content is shown
+      // Force window refresh to ensure updated employee content is shown (SPA navigation, not full page reload)
       navigateTo(url, { forceReload: true })
     }
   }
