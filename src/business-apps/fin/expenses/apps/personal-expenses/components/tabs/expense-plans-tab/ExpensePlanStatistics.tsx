@@ -40,15 +40,8 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   previousMonthClosedPlans = 0,
   currencyCode = 'EUR'
 }) => {
-  // If main stats are loading, show loading skeleton for all cards
-  // This prevents the "0-then-data" flicker
-  if (statsLoading) {
-    return (
-      <WidgetGroup widgets={[]} isLoading={true} error={null} skeletonCount={4} data-testid="expense-plan-statistics" />
-    )
-  }
-
   // Calculate summary statistics with memoization
+  // All hooks must be called before any early returns to comply with Rules of Hooks
   const currentMonthName = getTranslatedMonthName(new Date())
 
   // Use closed plans data for total plans widget

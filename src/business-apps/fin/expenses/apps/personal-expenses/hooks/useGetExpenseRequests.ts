@@ -4,6 +4,10 @@ import { GET_EXPENSE_REQUESTS_BY_EMPLOYEE } from '../queries/expenseRequests'
 import { CatalogEntry } from './useGetExpensePlans'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
+// Type aliases for union types
+type SortField = string | null
+type SortOrder = 'ascend' | 'descend' | null
+
 export interface ExpenseRequest {
   id: string
   code: string
@@ -47,8 +51,8 @@ export interface ExpenseRequestsDataView {
     filters: any,
     page?: number,
     pageSize?: number,
-    sortField?: string | null,
-    sortOrder?: 'ascend' | 'descend' | null,
+    sortField?: SortField,
+    sortOrder?: SortOrder,
     options?: { force?: boolean }
   ) => Promise<void>
   invalidateCache?: () => void
@@ -83,13 +87,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   }, [])
 
   const generateCacheKey = useCallback(
-    (
-      filters: any,
-      page: number,
-      pageSize: number,
-      sortField: string | null,
-      sortOrder: 'ascend' | 'descend' | null
-    ) => {
+    (filters: any, page: number, pageSize: number, sortField: SortField, sortOrder: SortOrder) => {
       return `cache:${JSON.stringify(
         normalize({
           filters,
@@ -167,8 +165,8 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
     filters: any,
     page: number,
     pageSize: number,
-    sortField?: string | null,
-    sortOrder?: 'ascend' | 'descend' | null
+    sortField?: SortField,
+    sortOrder?: SortOrder
   ): Record<string, any> => {
     const offset = (page - 1) * pageSize
     const whereClause = {
@@ -222,8 +220,8 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       filters: any = {},
       page: number = 1,
       pageSize: number = 20,
-      sortField?: string | null,
-      sortOrder?: 'ascend' | 'descend' | null,
+      sortField?: SortField,
+      sortOrder?: SortOrder,
       options?: { force?: boolean }
     ) => {
       const validated = validateAndGetValues()

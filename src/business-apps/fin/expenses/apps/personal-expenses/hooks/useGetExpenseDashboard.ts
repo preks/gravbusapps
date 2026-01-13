@@ -8,6 +8,9 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildDashboardVariables } from '../../personal-expenses/utils/dateRanges'
 import { transformDashboardResponse } from '../../personal-expenses/utils/transformExpenseDashboard'
 
+// Type alias for period union type
+type Period = 'monthly' | 'quarterly' | 'yearly'
+
 export interface ExpenseDashboard {
   pendingPayouts: number
   bookedExpenseRequests: number
@@ -74,7 +77,7 @@ export interface ExpenseDashboardDataView {
 
 export const useGetExpenseDashboard = (
   context?: BusinessAppContextProps,
-  filters?: { currency?: string; period?: 'monthly' | 'quarterly' | 'yearly' }
+  filters?: { currency?: string; period?: Period }
 ): ExpenseDashboardDataView => {
   const [stats, setStats] = useState<ExpenseDashboard | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -89,7 +92,7 @@ export const useGetExpenseDashboard = (
   const validateAndGetValues = (): {
     employeeId: string
     selectedCurrency: string
-    selectedPeriod: 'monthly' | 'quarterly' | 'yearly'
+    selectedPeriod: Period
   } | null => {
     const employeeId = depsRef.current.context?.userInfo?.employeeDetails?.employeeId
     if (!employeeId || !depsRef.current.context?.accessToken) {
@@ -105,7 +108,7 @@ export const useGetExpenseDashboard = (
       return null
     }
     const selectedCurrency = depsRef.current.filters.currency
-    const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = depsRef.current.filters?.period || 'monthly'
+    const selectedPeriod: Period = depsRef.current.filters?.period || 'monthly'
     return { employeeId, selectedCurrency, selectedPeriod }
   }
 
@@ -122,11 +125,7 @@ export const useGetExpenseDashboard = (
   }
 
   // Helper function to handle inflight requests
-  const handleInflightRequest = async (
-    key: string,
-    cacheKey: string,
-    selectedPeriod: 'monthly' | 'quarterly' | 'yearly'
-  ): Promise<boolean> => {
+  const handleInflightRequest = async (key: string, cacheKey: string, selectedPeriod: Period): Promise<boolean> => {
     if (!inflightRef.current.has(key)) {
       return false
     }
@@ -149,7 +148,7 @@ export const useGetExpenseDashboard = (
   const fetchDashboardData = async (
     employeeId: string,
     selectedCurrency: string,
-    selectedPeriod: 'monthly' | 'quarterly' | 'yearly',
+    selectedPeriod: Period,
     controller: AbortController,
     key: string,
     cacheKey: string

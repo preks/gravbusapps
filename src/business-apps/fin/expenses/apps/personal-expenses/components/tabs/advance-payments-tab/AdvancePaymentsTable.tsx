@@ -148,9 +148,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     }
 
     if (trimmedPrev === '' && trimmedDebounced !== '') {
-      if (savedPageBeforeSearchRef.current === null) {
-        savedPageBeforeSearchRef.current = currentPageRef.current
-      }
+      savedPageBeforeSearchRef.current ??= currentPageRef.current
       setCurrentPage(1)
     } else if (trimmedPrev !== '' && trimmedDebounced === '') {
       setCurrentPage(savedPageBeforeSearchRef.current || 1)
@@ -195,17 +193,17 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
 
   useEffect(() => {
     if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId && isCurrencyReady) {
-      fetchItems(
-        fetchParams.searchText,
-        fetchParams.currentPage,
-        fetchParams.pageSize,
-        fetchParams.currentStatusFilter,
-        fetchParams.currentAmountRange,
-        fetchParams.currentAdvanceRange,
-        fetchParams.sortField,
-        fetchParams.sortOrder,
-        fetchParams.selectedCurrencyRef
-      )
+      fetchItems({
+        searchTerm: fetchParams.searchText,
+        page: fetchParams.currentPage,
+        pageSize: fetchParams.pageSize,
+        statusFilter: fetchParams.currentStatusFilter,
+        amountRange: fetchParams.currentAmountRange,
+        advanceRange: fetchParams.currentAdvanceRange,
+        sortField: fetchParams.sortField,
+        sortOrder: fetchParams.sortOrder,
+        currencyRef: fetchParams.selectedCurrencyRef
+      })
     } else {
       console.warn('Cannot fetch advance payments: Missing accessToken or employeeId')
     }
@@ -220,18 +218,18 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   useEffect(() => {
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
       if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-        fetchItems(
-          fetchParams.searchText,
-          fetchParams.currentPage,
-          fetchParams.pageSize,
-          fetchParams.currentStatusFilter,
-          fetchParams.currentAmountRange,
-          fetchParams.currentAdvanceRange,
-          fetchParams.sortField,
-          fetchParams.sortOrder,
-          fetchParams.selectedCurrencyRef,
-          { force: true } // Force refresh to bypass cache
-        )
+        fetchItems({
+          searchTerm: fetchParams.searchText,
+          page: fetchParams.currentPage,
+          pageSize: fetchParams.pageSize,
+          statusFilter: fetchParams.currentStatusFilter,
+          amountRange: fetchParams.currentAmountRange,
+          advanceRange: fetchParams.currentAdvanceRange,
+          sortField: fetchParams.sortField,
+          sortOrder: fetchParams.sortOrder,
+          currencyRef: fetchParams.selectedCurrencyRef,
+          force: true // Force refresh to bypass cache
+        })
       }
     }
   }, [

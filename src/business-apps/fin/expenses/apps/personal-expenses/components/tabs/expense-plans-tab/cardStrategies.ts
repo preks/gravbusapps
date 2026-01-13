@@ -9,7 +9,7 @@ export type PlanCardContext = {
   setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
   handleFilterChange: (filterId: string, selected: boolean) => void
   setDestinationFilter: (value: string | null) => void
-  topDestination: string | null | undefined | any // Can be string or catalog entry object
+  topDestination: string | null | undefined | Record<string, unknown> // Can be string or catalog entry object
 }
 
 export type CardStrategy = {
@@ -23,35 +23,51 @@ const currentMonthRange = (): [Date, Date] => {
   return [start, end]
 }
 
-// Helper function to extract destination value from various formats
-const extractDestinationValue = (topDestination: string | null | undefined | any): string | null => {
-  if (!topDestination || topDestination === 'N/A') {
-    return null
+// Helper function to check if a string is a valid UUID
+const isValidUUID = (str: string | null | undefined): boolean => {
+  if (!str) return false
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return uuidRegex.test(str)
+}
+
+// Helper function to extract value from catalog object property
+const getCatalogProperty = (obj: Record<string, unknown>, key: string): string | null => {
+  if (!(key in obj)) return null
+  const value = (obj as Record<string, unknown>)[key]
+  return typeof value === 'string' ? value : null
+}
+
+// Helper function to extract destination value from catalog object
+const extractFromCatalogObject = (obj: Record<string, unknown>): string | null => {
+  // Prefer id (if UUID), then value, then code
+  const id = getCatalogProperty(obj, 'id')
+  if (id && isValidUUID(id)) {
+    return id
   }
 
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const value = getCatalogProperty(obj, 'value')
+  if (value) return value
 
-  if (typeof topDestination === 'object' && topDestination !== null) {
-    // Catalog object - prefer id (if UUID), then value, then code
-    if ('id' in topDestination) {
-      const maybeId = (topDestination as { id?: string })?.id ?? null
-      if (maybeId && uuidRegex.test(maybeId)) {
-        return maybeId
-      }
-    }
-    if ('value' in topDestination) {
-      const value = (topDestination as { value?: string })?.value ?? null
-      if (value) return value
-    }
-    if ('code' in topDestination) {
-      const code = (topDestination as { code?: string })?.code ?? null
-      if (code) return code
-    }
+  const code = getCatalogProperty(obj, 'code')
+  if (code) return code
+
+  return null
+}
+
+// Helper function to extract destination value from various formats
+const extractDestinationValue = (
+  topDestination: string | null | undefined | Record<string, unknown>
+): string | null => {
+  if (!topDestination || topDestination === 'N/A') {
     return null
   }
 
   if (typeof topDestination === 'string') {
     return topDestination
+  }
+
+  if (typeof topDestination === 'object' && topDestination !== null) {
+    return extractFromCatalogObject(topDestination as Record<string, unknown>)
   }
 
   return null

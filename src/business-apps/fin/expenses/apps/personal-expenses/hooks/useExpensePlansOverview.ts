@@ -9,6 +9,10 @@ import {
   GET_EXPENSE_PLANS_DESTINATIONS
 } from '../queries/expensePlans'
 
+// Type aliases for union types
+type SortField = string | null
+type SortOrder = 'ascend' | 'descend' | null
+
 export interface PlansOverviewResult {
   items: any[]
   totalCount: number
@@ -20,7 +24,7 @@ export interface PlansOverviewResult {
     currentMonthClosedPlans: number
     previousMonthClosedPlans: number
   } | null
-  topDestination?: string | any // Can be string or catalog entry object
+  topDestination?: string | Record<string, unknown> // Can be string or catalog entry object
 }
 
 export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
@@ -71,8 +75,8 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       filters: Record<string, any>,
       page: number,
       pageSize: number,
-      sortField: string | null,
-      sortOrder: 'ascend' | 'descend' | null,
+      sortField: SortField,
+      sortOrder: SortOrder,
       currencyRef: string
     ) => {
       return `${JSON.stringify(normalize({ filters, page, pageSize, sortField, sortOrder, currencyRef }))}`
@@ -88,8 +92,8 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       filters: Record<string, any>,
       page: number,
       pageSize: number,
-      sortField: string | null,
-      sortOrder: 'ascend' | 'descend' | null,
+      sortField: SortField,
+      sortOrder: SortOrder,
       currencyRef: string
     ) => {
       return `cache:${JSON.stringify(normalize({ filters, page, pageSize, sortField, sortOrder, currencyRef }))}`
@@ -103,8 +107,8 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       filters: Record<string, any>,
       page: number,
       pageSize: number,
-      sortField: string | null,
-      sortOrder: 'ascend' | 'descend' | null,
+      sortField: SortField,
+      sortOrder: SortOrder,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       _options?: { force?: boolean }
     ) => {
@@ -229,8 +233,11 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
 
   // Separate statistics fetch function (without destinations)
   const fetchStatistics = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async (currencyRef: string, _options?: { force?: boolean }) => {
+    async (
+      currencyRef: string,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _options?: { force?: boolean }
+    ) => {
       // options parameter kept for backward compatibility and future use
 
       const employeeId = context.userInfo?.employeeDetails?.employeeId
@@ -306,10 +313,10 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
 
   // Separate destinations fetch function - loads independently
   const fetchDestinations = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async (_options?: { force?: boolean }) => {
-      // options parameter kept for backward compatibility and future use
-
+    async (
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _options?: { force?: boolean }
+    ) => {
       const employeeId = context.userInfo?.employeeDetails?.employeeId
       const accessToken = context.accessToken
       if (!employeeId || !accessToken) return null
@@ -405,8 +412,8 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       filters: Record<string, any>,
       page: number,
       pageSize: number,
-      sortField: string | null,
-      sortOrder: 'ascend' | 'descend' | null,
+      sortField: SortField,
+      sortOrder: SortOrder,
       currencyRef: string,
       options?: { force?: boolean }
     ) => {

@@ -3,6 +3,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
+// Type aliases for union types
+type SortField = string | null
+type SortOrder = 'ascend' | 'descend' | null
+
 // Define types for the hook
 export interface ExpenseItem {
   id: string
@@ -62,8 +66,8 @@ export interface ExpenseItemsResult {
     page?: number,
     pageSize?: number,
     filter?: ExpenseFilter,
-    sortField?: string | null,
-    sortOrder?: 'ascend' | 'descend' | null,
+    sortField?: SortField,
+    sortOrder?: SortOrder,
     options?: { force?: boolean }
   ) => Promise<void>
   invalidateCache: () => void
@@ -119,8 +123,8 @@ export const useGetExpenseItems = (
       page: number,
       pageSize: number,
       filter: ExpenseFilter | undefined,
-      sortField: string | null,
-      sortOrder: 'ascend' | 'descend' | null
+      sortField: SortField,
+      sortOrder: SortOrder
     ) => {
       return `cache:${JSON.stringify(normalize({ searchTerm, page, pageSize, filter, sortField, sortOrder }))}`
     },
@@ -197,7 +201,7 @@ export const useGetExpenseItems = (
   }, [])
 
   // Helper function to build orderBy clause
-  const buildOrderBy = useCallback((sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null): any[] => {
+  const buildOrderBy = useCallback((sortField?: SortField, sortOrder?: SortOrder): any[] => {
     if (sortField && sortOrder) {
       const fieldMap: Record<string, string> = {
         title: 'title',
@@ -227,8 +231,8 @@ export const useGetExpenseItems = (
       page: number,
       pageSize: number,
       filter?: ExpenseFilter,
-      sortField?: string | null,
-      sortOrder?: 'ascend' | 'descend' | null
+      sortField?: SortField,
+      sortOrder?: SortOrder
     ) => {
       const offset = (page - 1) * pageSize
 
@@ -284,8 +288,8 @@ export const useGetExpenseItems = (
       page = 1,
       pageSize = 20,
       filter?: ExpenseFilter,
-      sortField?: string | null,
-      sortOrder?: 'ascend' | 'descend' | null,
+      sortField?: SortField,
+      sortOrder?: SortOrder,
       options?: { force?: boolean }
     ): Promise<void> => {
       const employeeId = context?.userInfo?.employeeDetails?.employeeId

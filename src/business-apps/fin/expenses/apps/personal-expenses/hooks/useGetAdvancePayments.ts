@@ -7,6 +7,10 @@ import {
   AdvancePaymentFilters
 } from '../../personal-expenses/utils/advancePaymentsQueryBuilder'
 
+// Type aliases for union types
+type SortField = string | null
+type SortOrder = 'ascend' | 'descend' | null
+
 export interface AdvancePayment {
   id: string
   code: string
@@ -156,23 +160,25 @@ export interface AdvancePayment {
   expensePlanId: string
 }
 
+export interface FetchItemsOptions {
+  searchTerm?: string
+  page?: number
+  pageSize?: number
+  statusFilter?: string[]
+  amountRange?: { min?: number; max?: number } | null
+  advanceRange?: { min?: number; max?: number } | null
+  sortField?: SortField
+  sortOrder?: SortOrder
+  currencyRef?: string | null
+  force?: boolean
+}
+
 export interface AdvancePaymentsDataView {
   items: AdvancePayment[]
   isLoading: boolean
   error: string | null
   totalCount: number
-  fetchItems: (
-    searchTerm?: string,
-    page?: number,
-    pageSize?: number,
-    statusFilter?: string[],
-    amountRange?: { min?: number; max?: number } | null,
-    advanceRange?: { min?: number; max?: number } | null,
-    sortField?: string | null,
-    sortOrder?: 'ascend' | 'descend' | null,
-    currencyRef?: string | null,
-    options?: { force?: boolean }
-  ) => Promise<void>
+  fetchItems: (options?: FetchItemsOptions) => Promise<void>
   invalidateCache?: () => void
 }
 
@@ -211,8 +217,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       statusFilter: string[]
       amountRange: { min?: number; max?: number } | null
       advanceRange: { min?: number; max?: number } | null
-      sortField: string | null
-      sortOrder: 'ascend' | 'descend' | null
+      sortField: SortField
+      sortOrder: SortOrder
       currencyRef: string | null
     }) => {
       return `cache:${JSON.stringify(
@@ -288,27 +294,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     return true
   }
 
-  // Helper function to build GraphQL variables
-  const buildVariables = (
-    employeeId: string,
-    searchTerm: string,
-    page: number,
-    pageSize: number,
-    sortField?: string | null,
-    sortOrder?: 'ascend' | 'descend' | null,
-    filters?: AdvancePaymentFilters,
-    filterState?: ReturnType<typeof validateFilters>
-  ): any => {
-    const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`
-    const offset = (page - 1) * pageSize
-
-    const variables: any = {
-      employeeId,
-      searchTerm: formattedSearchTerm,
-      limit: pageSize,
-      offset: offset
-    }
-
+  // Helper function to build sort order
+  const buildOrderBy = (sortField?: SortField, sortOrder?: SortOrder): any[] => {
     if (sortField && sortOrder) {
       const fieldMap: Record<string, string> = {
         status: 'status',
@@ -321,43 +308,81 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       }
       const gqlField = fieldMap[sortField] || sortField
       const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
-      variables.orderBy = [{ [gqlField]: direction }]
-    } else {
-      variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }]
+      return [{ [gqlField]: direction }]
+    }
+    return [{ createdAt: 'DESC_NULLS_LAST' }]
+  }
+
+  // Helper function to add range filter to variables
+  const addRangeFilter = (
+    variables: Record<string, any>,
+    range: { min?: number; max?: number } | null | undefined,
+    minKey: string,
+    maxKey: string
+  ): void => {
+    if (!range) return
+    if (range.min !== undefined) {
+      variables[minKey] = range.min
+    }
+    if (range.max !== undefined) {
+      variables[maxKey] = range.max
+    }
+  }
+
+  // Helper function to add filter conditions to variables
+  const addFilterConditions = (
+    variables: Record<string, any>,
+    filters: AdvancePaymentFilters,
+    filterState: ReturnType<typeof validateFilters>
+  ): void => {
+    if (filterState.hasStatusFilter && filters.statusFilter) {
+      variables.statusFilter = filters.statusFilter
+    }
+
+    if (filterState.hasAmountRange && filters.amountRange) {
+      addRangeFilter(variables, filters.amountRange, 'amountMin', 'amountMax')
+    }
+
+    if (filterState.hasAdvanceRange && filters.advanceRange) {
+      addRangeFilter(variables, filters.advanceRange, 'advanceMin', 'advanceMax')
+    }
+
+    if (filterState.hasCurrencyRef && filters.currencyRef) {
+      variables.currencyRef = filters.currencyRef
+    }
+  }
+
+  // Helper function to build GraphQL variables
+  interface BuildVariablesOptions {
+    employeeId: string
+    searchTerm: string
+    page: number
+    pageSize: number
+    sortField?: SortField
+    sortOrder?: SortOrder
+    filters?: AdvancePaymentFilters
+    filterState?: ReturnType<typeof validateFilters>
+  }
+
+  const buildVariables = useCallback((options: BuildVariablesOptions): any => {
+    const { employeeId, searchTerm, page, pageSize, sortField, sortOrder, filters, filterState } = options
+    const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`
+    const offset = (page - 1) * pageSize
+
+    const variables: any = {
+      employeeId,
+      searchTerm: formattedSearchTerm,
+      limit: pageSize,
+      offset: offset,
+      orderBy: buildOrderBy(sortField, sortOrder)
     }
 
     if (filterState && filters) {
-      if (filterState.hasStatusFilter && filters.statusFilter) {
-        variables.statusFilter = filters.statusFilter
-      }
-
-      if (filterState.hasAmountRange && filters.amountRange) {
-        const { min, max } = filters.amountRange
-        if (min !== undefined) {
-          variables.amountMin = min
-        }
-        if (max !== undefined) {
-          variables.amountMax = max
-        }
-      }
-
-      if (filterState.hasAdvanceRange && filters.advanceRange) {
-        const { min, max } = filters.advanceRange
-        if (min !== undefined) {
-          variables.advanceMin = min
-        }
-        if (max !== undefined) {
-          variables.advanceMax = max
-        }
-      }
-
-      if (filterState.hasCurrencyRef && filters.currencyRef) {
-        variables.currencyRef = filters.currencyRef
-      }
+      addFilterConditions(variables, filters, filterState)
     }
 
     return variables
-  }
+  }, [])
 
   // Helper function to process and cache response data
   const processResponseData = (result: any, cacheKey: string): void => {
@@ -369,19 +394,33 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     setItems(fetchedItems)
   }
 
+  interface FetchItemsOptions {
+    searchTerm?: string
+    page?: number
+    pageSize?: number
+    statusFilter?: string[]
+    amountRange?: { min?: number; max?: number } | null
+    advanceRange?: { min?: number; max?: number } | null
+    sortField?: SortField
+    sortOrder?: SortOrder
+    currencyRef?: string | null
+    force?: boolean
+  }
+
   const fetchItems = useCallback(
-    async (
-      searchTerm: string = '',
-      page: number = 1,
-      pageSize: number = 20,
-      statusFilter: string[] = [],
-      amountRange: { min?: number; max?: number } | null = null,
-      advanceRange: { min?: number; max?: number } | null = null,
-      sortField?: string | null,
-      sortOrder?: 'ascend' | 'descend' | null,
-      currencyRef?: string | null,
-      options?: { force?: boolean }
-    ) => {
+    async (options: FetchItemsOptions = {}) => {
+      const {
+        searchTerm = '',
+        page = 1,
+        pageSize = 20,
+        statusFilter = [],
+        amountRange = null,
+        advanceRange = null,
+        sortField,
+        sortOrder,
+        currencyRef,
+        force = false
+      } = options
       const validated = validateAndGetValues()
       if (!validated) {
         return
@@ -400,7 +439,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         currencyRef: currencyRef || null
       })
 
-      if (handleCachedData(cacheKey, options)) {
+      if (handleCachedData(cacheKey, { force })) {
         return
       }
 
@@ -416,7 +455,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         currencyRef,
         employeeId
       })
-      if (checkCallSignature(callSignature, options)) {
+      if (checkCallSignature(callSignature, { force })) {
         return
       }
 
@@ -446,16 +485,16 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
 
         const filterState = validateFilters(filters)
         const query = buildAdvancePaymentsQuery(filters)
-        const variables = buildVariables(
+        const variables = buildVariables({
           employeeId,
           searchTerm,
           page,
           pageSize,
-          sortField,
-          sortOrder,
+          sortField: sortField || null,
+          sortOrder: sortOrder || null,
           filters,
           filterState
-        )
+        })
 
         const requestPromise = graphqlClient.request<any>(query, variables).finally(() => {
           inflightRef.current.delete(requestKey)
@@ -483,7 +522,18 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         setIsLoading(false)
       }
     },
-    [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, graphqlClient, generateCacheKey]
+    [
+      context?.userInfo?.employeeDetails?.employeeId,
+      context?.accessToken,
+      graphqlClient,
+      generateCacheKey,
+      validateAndGetValues,
+      handleCachedData,
+      checkCallSignature,
+      handleInflightRequest,
+      buildVariables,
+      processResponseData
+    ]
   )
 
   const invalidateAllCache = useCallback(() => {

@@ -349,8 +349,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   ])
 
   // Reset pagination when filters change (e.g., applying a status filter while on a later page).
+  // Use debounced filters to avoid resetting page multiple times during rapid filter changes
   useEffect(() => {
-    const currentFiltersKey = JSON.stringify(selectedFilters)
+    const currentFiltersKey = JSON.stringify(debouncedSelectedFilters)
     const previousFiltersKey = prevSelectedFiltersRef.current
 
     // Skip on initial render; only react to actual changes.
@@ -359,7 +360,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     }
 
     prevSelectedFiltersRef.current = currentFiltersKey
-  }, [selectedFilters])
+  }, [debouncedSelectedFilters])
 
   // Force refetch when search is cleared to ensure table repopulates with correct filters
   useEffect(() => {
@@ -377,13 +378,20 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   }, [debouncedSearch, invalidateCache])
 
   // Validate current page after data loads to prevent invalid pagination (e.g., "Page 4 of 3")
+  // Only validate when totalCount actually changes, not on every render
+  const prevTotalCountRef = useRef<number | undefined>(undefined)
   useEffect(() => {
-    if (overview?.totalCount !== undefined && currentPage > 1) {
-      const maxPages = Math.max(1, Math.ceil(overview.totalCount / pageSize))
+    const totalCount = overview?.totalCount
+    // Only validate if totalCount changed and we're on an invalid page
+    if (totalCount !== undefined && totalCount !== prevTotalCountRef.current && currentPage > 1) {
+      const maxPages = Math.max(1, Math.ceil(totalCount / pageSize))
       if (currentPage > maxPages) {
         // Current page is invalid - reset to page 1
         setCurrentPage(1)
       }
+      prevTotalCountRef.current = totalCount
+    } else if (totalCount !== undefined) {
+      prevTotalCountRef.current = totalCount
     }
   }, [overview?.totalCount, currentPage, pageSize])
 
