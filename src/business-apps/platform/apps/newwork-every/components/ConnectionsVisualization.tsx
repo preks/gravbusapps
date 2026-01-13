@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Bot, Users, Inbox, FileText, StickyNote, Clock, Globe, LucideIcon, Orbit } from 'lucide-react'
+import { Bot, Users, Inbox, FileText, StickyNote, Clock, Globe, LucideIcon } from 'lucide-react'
+import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 
 interface ToolNode {
   id: string
@@ -11,6 +12,8 @@ interface ToolNode {
 }
 
 interface ConnectionsVisualizationProps {
+  userAvatar?: string | null
+  userInitials?: string
   'data-testid'?: string
 }
 
@@ -125,10 +128,11 @@ const animationStyles = `
 `
 
 export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> = ({
+  userAvatar,
+  userInitials = 'U',
   'data-testid': testId = 'newwork-every-connections'
 }) => {
   const [hoveredTool, setHoveredTool] = useState<string | null>(null)
-
   // Calculate positions in a circle around center
   const centerX = 200
   const centerY = 200
@@ -248,7 +252,7 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
               )
             })}
 
-            {/* Center hub - NEWWORK EVERY */}
+            {/* Center hub - User Avatar */}
             <g>
               <circle
                 cx={centerX}
@@ -266,7 +270,36 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
               />
               <foreignObject x={centerX - 20} y={centerY - 20} width={40} height={40}>
                 <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full">
-                  <Orbit className="gba:w-5 gba:h-5 gba:text-success" />
+                  <Avatar className="gba:h-10 gba:w-10 gba:ring-2 gba:ring-success/30">
+                    {userAvatar &&
+                    typeof userAvatar === 'string' &&
+                    userAvatar.trim().length > 0 &&
+                    !userAvatar.startsWith('{') ? (
+                      <AvatarImage
+                        src={userAvatar.startsWith('data:') ? userAvatar : `data:image/jpeg;base64,${userAvatar}`}
+                        alt="User avatar"
+                        onError={e => {
+                          console.error('[ConnectionsVisualization] Avatar image failed to load:', e)
+                          // Try different image formats if JPEG fails
+                          const target = e.target as HTMLImageElement
+                          const imageData = userAvatar.startsWith('data:')
+                            ? userAvatar.split('base64,')[1] || userAvatar
+                            : userAvatar
+                          if (target.src.includes('jpeg')) {
+                            target.src = `data:image/png;base64,${imageData}`
+                          } else if (target.src.includes('png')) {
+                            target.src = `data:image/gif;base64,${imageData}`
+                          }
+                        }}
+                        onLoad={() => {
+                          console.log('[ConnectionsVisualization] Avatar image loaded successfully')
+                        }}
+                      />
+                    ) : null}
+                    <AvatarFallback className="gba:text-sm gba:bg-success gba:text-success-foreground">
+                      {userInitials || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
               </foreignObject>
             </g>
@@ -324,16 +357,6 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
                 </g>
               )
             })}
-
-            {/* Center label */}
-            <text
-              x={centerX}
-              y={centerY + 55}
-              textAnchor="middle"
-              className="gba:text-xs gba:fill-success gba:font-bold"
-            >
-              EVERY
-            </text>
           </svg>
         </div>
 
