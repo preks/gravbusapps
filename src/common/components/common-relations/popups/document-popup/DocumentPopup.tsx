@@ -651,36 +651,28 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
   const handleSubmit = async () => {
     const formData = form.getValues()
 
-    console.log('[DocumentPopup] handleSubmit formData:', formData)
-
     if ((isUpdateMode || isRenameMode) && formData.files && formData.files.length > 1) {
       throw new Error('Update mode only supports single file upload')
     }
 
     const fileInfoList = await uploadFiles(formData)
 
-    console.log('[DocumentPopup] fileInfoList:', fileInfoList)
-
     if (isUpdateMode || isRenameMode) {
       const payload = buildUpdatePayload(formData, fileInfoList)
-      console.log('[DocumentPopup] buildUpdatePayload result:', payload)
       return payload
     }
 
     if (fileInfoList.length === 1) {
       const payload = buildSingleDocumentPayload(formData, fileInfoList)
-      console.log('[DocumentPopup] buildSingleDocumentPayload result:', payload)
       return payload
     }
 
     if (fileInfoList.length > 1) {
       const payload = buildBulkDocumentsPayload(formData, fileInfoList)
-      console.log('[DocumentPopup] buildBulkDocumentsPayload result:', payload)
       return payload
     }
 
     const payload = buildFolderPayload(formData)
-    console.log('[DocumentPopup] buildFolderPayload result:', payload)
     return payload
   }
 
