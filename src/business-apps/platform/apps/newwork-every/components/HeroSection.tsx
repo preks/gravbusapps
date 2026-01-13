@@ -77,8 +77,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             style={{ animation: 'fadeInUp 0.6s ease-out 0.2s both' }}
             data-testid={`${testId}-tagline`}
           >
-            Your personal productivity universe. AI assistant, documents, time tracking, and everything you need to work
-            smarter, not harder.
+            Your intelligent workplace. The personal productivity universe with AI assistant, documents, time tracking,
+            and everything you need to work smarter, not harder.
           </p>
 
           {/* Floating productivity icons hint */}
