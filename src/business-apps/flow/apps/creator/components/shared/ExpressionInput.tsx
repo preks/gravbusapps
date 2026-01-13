@@ -12,6 +12,7 @@ import {
 import { Code, Type, CheckCircle, AlertCircle, Network, Loader2 } from 'lucide-react'
 import { FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionBuilder } from './ExpressionBuilder'
+import { HumanReadablePreview } from './HumanReadablePreview'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
 import { useEntitySchemas } from '../../hooks/useEntitySchemas'
 import { env } from '@/common/env/EnvUtils'
@@ -438,6 +439,18 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
               {(value.match(/\{\{/g) || []).length} expression(s) detected
             </span>
           )}
+        </div>
+      )}
+
+      {/* Human-readable preview for expressions */}
+      {hasExpressions && value.trim() && (
+        <div className="gba:mt-2 gba:rounded-lg gba:border gba:border-muted gba:bg-muted/30 gba:p-2">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1.5">
+            <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+              Preview
+            </Badge>
+          </div>
+          <HumanReadablePreview value={value} template={template} data-testid={`${testId}-preview`} />
         </div>
       )}
 
