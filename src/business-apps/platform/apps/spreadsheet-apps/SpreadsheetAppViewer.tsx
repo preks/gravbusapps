@@ -307,10 +307,34 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onAppUpdateRef.current = _onAppUpdate
   }, [_onAppUpdate])
 
+  // Store current user ID to avoid applying our own operations
+  const currentUserIdRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('business-app-ide-access-token')
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        currentUserIdRef.current = payload.sub || payload.userId
+      }
+    } catch {}
+  }, [])
+
   // Collaboration callbacks (stable references - no dependencies)
   const onOperationReceivedCallback = useCallback((operation: any) => {
     // Handle incoming operations from other users
     console.log('[SpreadsheetAppViewer] Received operation:', operation)
+    
+    // #region agent log
+    const isOwnOperation = operation.userId === currentUserIdRef.current
+    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:onOperationReceived',message:'Operation received in viewer',data:{operationType:operation.operation.type,fromUserId:operation.userId,currentUserId:currentUserIdRef.current,isOwnOperation},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+    
+    // Skip if this is our own operation (we already applied it optimistically)
+    if (isOwnOperation) {
+      console.log('[SpreadsheetAppViewer] Skipping own operation')
+      return
+    }
+    
     // Apply the operation to local state
     if (operation.operation.type === 'cell_update') {
       const { sheetId, rowId, column, value } = operation.operation.data as {
@@ -321,6 +345,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
       // Update local data directly - only if this is the active sheet
       if (sheetId === activeSheetIdRef.current) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:cellUpdate:apply',message:'Applying cell update from other user',data:{rowId,column,value},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
+        // #endregion
         setLocalSheetData(prevData => prevData.map(row => (row._id === rowId ? { ...row, [column]: value } : row)))
       }
     } else if (operation.operation.type === 'row_add') {
@@ -334,8 +361,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           const exists = prevData.some(row => row._id === rowData._id)
           if (exists) {
             console.log('[SpreadsheetAppViewer] Row already exists, skipping duplicate:', rowData._id)
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:rowAdd:duplicate',message:'Duplicate row detected',data:{rowId:rowData._id,currentRowCount:prevData.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
+            // #endregion
             return prevData
           }
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:rowAdd:adding',message:'Adding row from collaboration',data:{rowId:rowData._id,currentRowCount:prevData.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
+          // #endregion
           return [...prevData, rowData]
         })
       }
@@ -415,7 +448,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   // Emit cursor position when selected cell changes
   useEffect(() => {
-    if (selectedCell && isCollaborationConnected) {
+    if (!selectedCell) return
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:cursor_emit_effect',message:'Selected cell changed (cursor emit check)',data:{sheetId:activeSheetId,rowId:selectedCell.rowId,colId:selectedCell.colId,isConnected:isCollaborationConnected,isTemporaryRow:typeof selectedCell.rowId==='string'&&selectedCell.rowId.startsWith('row_')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'R6'})}).catch(()=>{});
+    // #endregion
+
+    if (isCollaborationConnected) {
       emitCursor({
         path: [activeSheetId, selectedCell.rowId, selectedCell.colId],
         line: selectedCell.rowIndex,
@@ -820,26 +859,23 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     })
 
-    // When collaboration is active, use WebSocket for persistence
-    if (isCollaborationConnected) {
-      // Generate temporary ID for optimistic update
-      const newRow: Record<string, unknown> = {
-        _id: `row_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        _createdAt: new Date().toISOString(),
-        ...rowData
+    // When collaboration is active, we still need to call REST API to get real UUID
+    // Then broadcast via WebSocket so other users get the real row
+    if (isCollaborationConnected && onRowAdd) {
+      const savedRow = await onRowAdd(app.id, activeSheet.id, rowData)
+      if (savedRow) {
+        // Add to local data
+        setLocalSheetData(prev => [...prev, savedRow])
+
+        // Broadcast to other users with real UUID
+        emitOperation({
+          type: 'row_add',
+          data: {
+            sheetId: activeSheet.id,
+            rowData: savedRow
+          }
+        })
       }
-
-      // Optimistic update
-      setLocalSheetData(prev => [...prev, newRow])
-
-      // Let WebSocket persist to backend and broadcast to others
-      emitOperation({
-        type: 'row_add',
-        data: {
-          sheetId: activeSheet.id,
-          rowData: newRow
-        }
-      })
     } else if (onRowAdd) {
       // Fallback to REST API when collaboration is not connected
       const savedRow = await onRowAdd(app.id, activeSheet.id, rowData)
@@ -1661,7 +1697,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       setLocalSheetData(newData)
 
       // Emit collaboration operation for real-time sync (WebSocket saves to DB)
-      if (isCollaborationConnected) {
+      // Only emit if row has a valid UUID (not a temporary row_ ID)
+      const isTemporaryRow = typeof rowId === 'string' && rowId.startsWith('row_')
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:handleCellChange:route',message:'Routing cell change',data:{sheetId:activeSheet.id,rowId,columnName,valueType:typeof value,isConnected:isCollaborationConnected,isTemporaryRow,route:(isCollaborationConnected&&!isTemporaryRow)?'ws':'rest'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'R5'})}).catch(()=>{});
+      // #endregion
+      if (isCollaborationConnected && !isTemporaryRow) {
         emitOperation({
           type: 'cell_update',
           data: {
@@ -1673,6 +1714,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
       } else {
         // Fallback to REST API save when collaboration is not connected
+        // OR when row is temporary (not yet in database)
         debouncedSave(activeSheet.id, newData)
       }
     },
@@ -1909,6 +1951,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
    */
   const tableColumns: ColumnDef<Record<string, unknown>>[] = useMemo(() => {
     if (!activeSheet) return []
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:tableColumns:recompute',message:'Recomputing tableColumns',data:{sheetId:activeSheet.id,selectedCell:selectedCell?{rowId:selectedCell.rowId,colId:selectedCell.colId}:null,participantsCount:participants.length,participantsWithCursor:participants.filter(p=>p.cursor?.path?.length).length,isCollaborationConnected},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'R4'})}).catch(()=>{});
+    // #endregion
 
     const cols: ColumnDef<Record<string, unknown>>[] = []
 
@@ -3393,12 +3439,21 @@ const EditableCell: React.FC<EditableCellProps> = ({
     formulaSelectedCells.some(cell => cell.rowIndex === rowIndex && cell.colIndex === colIndex)
 
   // Check if another user is editing this cell
-  const collaboratorEditingCell = participants.find(p => {
-    const path = p.cursor?.path
-    if (!path || path.length < 3) return false
-    const [, cursorRowId, cursorColId] = path
-    return cursorRowId === rowId && cursorColId === column.id
-  })
+  const collaboratorEditingCell = useMemo(() => {
+    const found = participants.find(p => {
+      const path = p.cursor?.path
+      if (!path || path.length < 3) return false
+      const [, cursorRowId, cursorColId] = path
+      const matches = cursorRowId === rowId && cursorColId === column.id
+      return matches
+    })
+    
+    // #region agent log
+    if (found) fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditableCell:collaboratorMatch',message:'Found collaborator on this cell',data:{userId:found.userId,userName:found.userName,rowId,colId:column.id,cursorPath:found.cursor?.path,participantsCount:participants.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion
+    
+    return found
+  }, [participants, rowId, column.id])
 
   return (
     <div

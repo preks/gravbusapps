@@ -248,7 +248,7 @@ export const DocumentApiService = {
   /**
    * Update an existing document
    */
-  async updateDocument(id: string, updates: Partial<Document>): Promise<Document> {
+  async updateDocument(id: string, updates: Partial<Document>, options?: { createVersion?: boolean }): Promise<Document> {
     debugLog('updateDocument', id, updates)
 
     const payload = {
@@ -259,7 +259,7 @@ export const DocumentApiService = {
       category: updates.category,
       tags: updates.tags,
       formatting: updates.formatting,
-      createVersion: true // Always create version on update
+      createVersion: options?.createVersion ?? true
     }
 
     // Remove undefined values

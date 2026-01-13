@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   Avatar,
+  AvatarImage,
   AvatarFallback,
   Tooltip,
   TooltipContent,
@@ -89,6 +90,13 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
                   className={`${sizeClasses[size]} gba:border-2 gba:border-background gba:cursor-pointer gba:transition-transform hover:gba:scale-110 hover:gba:z-10`}
                   style={{ borderColor: participant.userColor }}
                 >
+                  {participant.avatarUrl && (
+                    <AvatarImage
+                      src={participant.avatarUrl}
+                      alt={participant.userName}
+                      className="gba:object-cover"
+                    />
+                  )}
                   <AvatarFallback
                     className={textSizeClasses[size]}
                     style={{

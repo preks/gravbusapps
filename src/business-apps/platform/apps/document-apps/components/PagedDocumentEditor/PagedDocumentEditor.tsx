@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Underline } from '@tiptap/extension-underline'
@@ -57,18 +58,70 @@ import {
   XCircle
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { Document, DocumentApprovalRequest } from '../../types'
 import { PageBreak } from './extensions/PageBreak'
+import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
 import { exportToWord, exportToPDF } from '../../utils/exportUtils'
+import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
+import type { DocumentParticipant } from '../../../shared/services/CollaborationClient'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
-import { CollaboratorCursor } from '../../../shared/components/CollaboratorCursor'
+import { SocketIoYjsProvider } from '../../../shared/services/SocketIoYjsProvider'
+import * as Y from 'yjs'
+import { Awareness } from 'y-protocols/awareness'
 
 // A4 dimensions in pixels at 96 DPI
 const A4_WIDTH_PX = 794 // 210mm
 const A4_HEIGHT_PX = 1123 // 297mm
 const PAGE_MARGIN_PX = 96 // 1 inch = 96px at 96 DPI
+
+// Collaboration cursor styles
+const CURSOR_STYLES = `
+  @keyframes cursor-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  
+  /* Only the cursor line blinks, not the label */
+  .collaboration-cursor__line {
+    animation: cursor-blink 1s ease-in-out infinite;
+  }
+  
+  /* Label does NOT blink - stays visible */
+  .collaboration-cursor__label {
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  
+  .collaboration-cursor__caret:hover .collaboration-cursor__label {
+    transform: scale(1.03);
+  }
+  
+  /* Avatar styling */
+  .collaboration-cursor__avatar {
+    transition: transform 0.15s ease;
+  }
+  
+  .collaboration-cursor__caret:hover .collaboration-cursor__avatar {
+    transform: scale(1.1);
+  }
+  
+  .collaboration-cursor__selection {
+    transition: background-color 0.15s ease;
+  }
+`
 
 /**
  * Format approval date for display
@@ -253,28 +306,28 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   const editorContainerRef = useRef<HTMLDivElement>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const isApplyingRemoteChange = useRef(false)
   const editorRef = useRef<any>(null) // Store editor instance
-  const isCollaborationConnectedRef = useRef(false)
-  const emitOperationRef = useRef<any>(null)
 
-  // Stable collaboration callbacks (no dependencies that change)
-  const onOperationReceivedCallback = useCallback((operation: any) => {
-    // Handle incoming operations from other users
-    console.log('[PagedDocumentEditor] Received operation:', operation)
-    if (operation.operation.type === 'content_update') {
-      const { content } = operation.operation.data as { content: string }
-      // Apply remote content update without triggering another operation
-      // Use editorRef to avoid dependency on editor
-      if (editorRef.current && !isApplyingRemoteChange.current) {
-        isApplyingRemoteChange.current = true
-        editorRef.current.commands.setContent(content, false)
-        setTimeout(() => {
-          isApplyingRemoteChange.current = false
-        }, 100)
-      }
-    }
-  }, []) // No dependencies - stable callback
+  // Current user (used for Yjs awareness user info)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null)
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null)
+
+  // Yjs CRDT state for true concurrent co-editing
+  const [isYjsSynced, setIsYjsSynced] = useState(false)
+  const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
+  const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
+  const yjsProviderRef = useRef<SocketIoYjsProvider | null>(null)
+  const scheduleSnapshotSaveRef = useRef<(editor: any) => void>(() => {})
+
+  const collaborationExtension = React.useMemo(
+    () => (document?.id ? Collaboration.configure({ document: ydoc }) : null),
+    [document?.id, ydoc]
+  )
+  const yjsCursorExtension = React.useMemo(
+    () => (document?.id ? createYjsCursorExtension(awareness) : null),
+    [document?.id, awareness]
+  )
 
   const onErrorCallback = useCallback((error: Error) => {
     console.error('[PagedDocumentEditor] Collaboration error:', error)
@@ -282,17 +335,237 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
 
   // Collaboration state
   const {
-    participants,
+    participants: rawParticipants,
     isConnected: isCollaborationConnected,
-    emitOperation,
-    emitCursor
+    socket: collaborationSocket,
+    emitOperation
   } = useCollaboration({
     entityType: 'document',
     entityId: document?.id || '',
     enabled: !!document?.id,
-    onOperationReceived: onOperationReceivedCallback,
     onError: onErrorCallback
   })
+
+  // Enriched participants with avatars (populated by useEffect after graphqlClient is initialized)
+  const [participants, setParticipants] = useState<DocumentParticipant[]>(rawParticipants)
+
+  // Drive Yjs sync + awareness over our existing Socket.IO connection.
+  useEffect(() => {
+    if (!document?.id) return
+    if (!collaborationSocket) return
+
+    // Build provider (and keep it stable while the socket/doc changes).
+    const provider = new SocketIoYjsProvider({
+      socket: collaborationSocket,
+      documentId: document.id,
+      ydoc,
+      awareness,
+      onSyncedChange: setIsYjsSynced,
+      onBootstrapRequired: async (html: string) => {
+        // Initializer: seed Yjs from legacy HTML (best-effort).
+        // We keep it simple: set the editor content once TipTap is ready.
+        // The collaboration extension will translate this into Yjs state.
+        const start = Date.now()
+        while (!editorRef.current && Date.now() - start < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 25))
+        }
+        const ed = editorRef.current
+        if (!ed) {
+          throw new Error('Editor not ready for bootstrap')
+        }
+        console.log('[PagedDocumentEditor] Bootstrap: setting content:', html?.substring(0, 100))
+        console.log('[PagedDocumentEditor] Bootstrap: editor exists:', !!ed)
+        console.log('[PagedDocumentEditor] Bootstrap: editor isEditable BEFORE:', ed.isEditable)
+        
+        // Temporarily make editor editable for setContent to work with Collaboration extension
+        const wasEditable = ed.isEditable
+        if (!wasEditable) {
+          ed.setEditable(true)
+        }
+        
+        ed.commands.setContent(html || '<p></p>', true)
+        
+        // Give TipTap time to propagate the change to Yjs
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Debug: check what's in the Y.Doc now (TipTap uses 'default' fragment by default)
+        const defaultFragment = ydoc.getXmlFragment('default')
+        console.log('[PagedDocumentEditor] Bootstrap: Y.Doc default fragment length:', defaultFragment.length)
+        console.log('[PagedDocumentEditor] Bootstrap: Y.Doc default fragment:', defaultFragment.toJSON())
+        // Also check the editor's current content
+        console.log('[PagedDocumentEditor] Bootstrap: editor HTML after setContent:', ed.getHTML())
+        console.log('[PagedDocumentEditor] Bootstrap: editor isEditable AFTER:', ed.isEditable)
+        
+        // Note: Don't restore editable to false - the bootstrap process will mark sync as complete
+        // which will trigger the setEditable effect to set the correct state
+      },
+      onLocalDocumentChange: () => {
+        const ed = editorRef.current
+        if (!ed) return
+        scheduleSnapshotSaveRef.current(ed)
+      },
+    })
+
+    yjsProviderRef.current = provider
+    provider.start()
+
+    return () => {
+      provider.destroy()
+      yjsProviderRef.current = null
+      setIsYjsSynced(false)
+    }
+  }, [document?.id, collaborationSocket, ydoc, awareness])
+
+  // Set local awareness state (user meta shown in cursors/selections)
+  useEffect(() => {
+    if (!document?.id) return
+    if (!currentUserId) return
+    if (!isYjsSynced) return
+
+    awareness.setLocalStateField('user', {
+      id: currentUserId,
+      name: currentUserName || 'User',
+      color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
+      avatar: currentUserAvatar // Include avatar URL for cursor rendering
+    })
+  }, [document?.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
+
+  // Debounced snapshot save for exports/search. This does NOT drive collaboration.
+  const scheduleSnapshotSave = useCallback(
+    (currentEditor: any) => {
+      if (!document?.id || isReadOnly) return
+      if (!isYjsSynced) return
+
+      setHasUnsavedChanges(true)
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        const html = currentEditor?.getHTML?.() || ''
+        // Persist HTML snapshot without version churn (CRDT updates are the source of truth).
+        DocumentApiService.updateDocument(
+          document.id,
+          {
+            title,
+            content: html
+          },
+          { createVersion: false }
+        )
+          .then(() => {
+            setLastSaved(new Date())
+            setHasUnsavedChanges(false)
+          })
+          .catch(error => {
+            console.error('[PagedDocumentEditor] Snapshot save failed:', error)
+          })
+      }, 2000)
+    },
+    [document?.id, isReadOnly, isYjsSynced, title]
+  )
+
+  useEffect(() => {
+    scheduleSnapshotSaveRef.current = scheduleSnapshotSave
+  }, [scheduleSnapshotSave])
+
+  // Get access token for avatar fetching
+  const accessToken = localStorage.getItem('business-app-ide-access-token') || ''
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  // Fetch avatars for participants when they change
+  useEffect(() => {
+    const fetchParticipantAvatars = async () => {
+      if (!rawParticipants.length || !accessToken) {
+        setParticipants(rawParticipants)
+        return
+      }
+
+      const userIds = rawParticipants.map(p => p.userId).filter(Boolean)
+      if (userIds.length === 0) {
+        setParticipants(rawParticipants)
+        return
+      }
+
+      try {
+        const query = `
+          query GetEmployeeAvatars($userIds: [String!]) {
+            Employee(where: {userId: {_in: $userIds}}) {
+              userId
+              pictureThumbnail
+            }
+          }
+        `
+        const result = await graphqlClient.request<{ Employee: Array<{ userId: string; pictureThumbnail: string | null }> }>(query, { userIds })
+
+        const avatarMap = new Map<string, string>()
+        result?.Employee?.forEach(emp => {
+          if (emp.pictureThumbnail) {
+            const avatarUrl = emp.pictureThumbnail.startsWith('data:')
+              ? emp.pictureThumbnail
+              : `data:image/png;base64,${emp.pictureThumbnail}`
+            avatarMap.set(emp.userId, avatarUrl)
+          }
+        })
+
+        // Enrich participants with avatar URLs
+        const enrichedParticipants = rawParticipants.map(p => ({
+          ...p,
+          avatarUrl: avatarMap.get(p.userId) || undefined
+        }))
+        setParticipants(enrichedParticipants)
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Failed to fetch participant avatars:', error)
+        setParticipants(rawParticipants)
+      }
+    }
+
+    fetchParticipantAvatars()
+  }, [rawParticipants, accessToken, graphqlClient])
+
+  // Get current user ID
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('business-app-ide-access-token')
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        setCurrentUserId(payload.sub || payload.userId || null)
+        setCurrentUserName(payload.name || payload.preferred_username || payload.username || null)
+      }
+    } catch {}
+  }, [])
+
+  // Fetch current user's avatar from Employee table
+  useEffect(() => {
+    if (!currentUserId || !accessToken) return
+
+    const fetchAvatar = async () => {
+      try {
+        const query = `
+          query GetEmployeeAvatar($userId: String!) {
+            Employee(where: {userId: {_eq: $userId}}, limit: 1) {
+              pictureThumbnail
+            }
+          }
+        `
+        const result = await graphqlClient.request<{ Employee: Array<{ pictureThumbnail: string | null }> }>(query, {
+          userId: currentUserId
+        })
+
+        if (result?.Employee?.[0]?.pictureThumbnail) {
+          const thumbnail = result.Employee[0].pictureThumbnail
+          // Convert to data URL if it's raw base64
+          const avatarUrl = thumbnail.startsWith('data:')
+            ? thumbnail
+            : `data:image/png;base64,${thumbnail}`
+          setCurrentUserAvatar(avatarUrl)
+        }
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Failed to fetch user avatar:', error)
+      }
+    }
+
+    fetchAvatar()
+  }, [currentUserId, accessToken, graphqlClient])
 
   // Initialize TipTap editor
   const editor = useEditor({
@@ -300,7 +573,9 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3, 4, 5, 6]
-        }
+        },
+        // Disable history when using Collaboration (Yjs provides its own history)
+        history: document?.id ? false : {}
       }),
       Placeholder.configure({
         placeholder: 'Start writing your document...'
@@ -338,96 +613,75 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
       Subscript,
       Superscript,
       Typography,
-      PageBreak
+      PageBreak,
+      ...(collaborationExtension ? [collaborationExtension] : []),
+      ...(yjsCursorExtension ? [yjsCursorExtension] : [])
     ],
-    content: document?.content || initialContent || '<p></p>',
-    editable: !isReadOnly,
+    // In CRDT mode, the Yjs doc becomes the single source of truth.
+    content: document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>',
+    editable: !isReadOnly && (!document?.id || isYjsSynced),
     onUpdate: ({ editor: currentEditor }) => {
-      setHasUnsavedChanges(true)
       updatePageCount()
 
-      // Emit collaboration operation (debounced) or save via REST
-      if (!isApplyingRemoteChange.current) {
+      // For documents without an ID (not yet persisted), fallback to REST save debounce.
+      if (!document?.id) {
+        setHasUnsavedChanges(true)
         if (autoSaveTimeoutRef.current) {
           clearTimeout(autoSaveTimeoutRef.current)
         }
-
-        // Use refs to avoid dependencies in the callback
-        if (isCollaborationConnectedRef.current) {
-          // When collaboration is active, use WebSocket for persistence (1s debounce)
-          autoSaveTimeoutRef.current = setTimeout(() => {
-            const content = currentEditor.getHTML()
-            if (emitOperationRef.current) {
-              emitOperationRef.current({
-                type: 'content_update',
-                data: {
-                  content
-                }
-              })
-            }
-            // Mark as saved since WebSocket persists to DB
-            setLastSaved(new Date())
-            setHasUnsavedChanges(false)
-          }, 1000)
-        } else {
-          // Fallback to REST API when collaboration is not connected (3s debounce)
-          autoSaveTimeoutRef.current = setTimeout(() => {
-            handleSave()
-          }, 3000)
-        }
+        autoSaveTimeoutRef.current = setTimeout(() => {
+          handleSave()
+        }, 3000)
       }
     }
-  })
+  }, [document?.id, ydoc])
+
+  // Inject collaboration cursor styles once on mount
+  useEffect(() => {
+    // Guard against SSR / non-browser environments
+    if (typeof window === 'undefined') return
+    
+    const styleId = 'collaboration-cursor-styles'
+    // Use window.document to avoid shadowing from the 'document' prop
+    if (!window.document.getElementById(styleId)) {
+      const styleEl = window.document.createElement('style')
+      styleEl.id = styleId
+      styleEl.textContent = CURSOR_STYLES
+      window.document.head.appendChild(styleEl)
+    }
+    return () => {
+      // Don't remove on unmount - other editors might need it
+    }
+  }, [])
 
   // Update refs when values change
   useEffect(() => {
     editorRef.current = editor
+    // Debug: check if Collaboration extension is loaded
+    if (editor) {
+      const extensionNames = editor.extensionManager.extensions.map(e => e.name)
+      console.log('[PagedDocumentEditor] Loaded extensions:', extensionNames.join(', '))
+      const hasCollaboration = extensionNames.includes('collaboration')
+      console.log('[PagedDocumentEditor] Has Collaboration extension:', hasCollaboration)
+    }
   }, [editor])
 
+  // Update editor editable state when Yjs sync status changes
   useEffect(() => {
-    isCollaborationConnectedRef.current = isCollaborationConnected
-    emitOperationRef.current = emitOperation
-  }, [isCollaborationConnected, emitOperation])
-
-  // Emit cursor position on editor selection change
-  useEffect(() => {
-    if (!editor || !isCollaborationConnected) return
-
-    const updateCursor = () => {
-      const selection = editor.state.selection
-      const pos = selection.from
-
-      // Get line and column from position
-      const doc = editor.state.doc
-      let line = 1
-      let column = 0
-
-      doc.descendants((node, nodePos) => {
-        if (nodePos + node.nodeSize > pos) {
-          if (node.isBlock) {
-            column = pos - nodePos
-          }
-          return false
-        }
-        if (node.isBlock) {
-          line++
-        }
-        return true
-      })
-
-      emitCursor({
-        line,
-        column,
-        offset: pos
-      })
+    if (!editor) return
+    const shouldBeEditable = !isReadOnly && (!document?.id || isYjsSynced)
+    console.log('[PagedDocumentEditor] Editable state check:', {
+      isReadOnly,
+      hasDocId: !!document?.id,
+      isYjsSynced,
+      shouldBeEditable,
+      currentIsEditable: editor.isEditable
+    })
+    if (editor.isEditable !== shouldBeEditable) {
+      console.log('[PagedDocumentEditor] Setting editor editable to:', shouldBeEditable)
+      editor.setEditable(shouldBeEditable)
     }
-
-    editor.on('selectionUpdate', updateCursor)
-
-    return () => {
-      editor.off('selectionUpdate', updateCursor)
-    }
-  }, [editor, isCollaborationConnected, emitCursor])
+  }, [editor, isReadOnly, document?.id, isYjsSynced])
 
   // Calculate page count based on content height
   const updatePageCount = useCallback(() => {
@@ -832,23 +1086,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
             >
               <EditorContent editor={editor} className="editor-content" />
 
-              {/* Render collaborator cursors */}
-              {participants.map(participant => {
-                if (!participant.cursor) return null
-                // Simple positioning - in a real implementation, you'd calculate exact position
-                const x = (participant.cursor.column || 0) * 8 + PAGE_MARGIN_PX
-                const y = (participant.cursor.line || 0) * 20 + PAGE_MARGIN_PX
-
-                return (
-                  <CollaboratorCursor
-                    key={participant.userId}
-                    userName={participant.userName}
-                    userColor={participant.userColor}
-                    position={{ x, y }}
-                    isActive={true}
-                  />
-                )
-              })}
+              {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
             </div>
           </div>
         </div>
