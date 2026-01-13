@@ -7,9 +7,11 @@ import {
   Progress,
   Badge,
   Avatar,
-  EmptyState
+  EmptyState,
+  Spinner
 } from '@newwork/nw-design-system'
 import { Trophy, Crown, Star, User } from 'lucide-react'
+import { formatCurrency, formatPercentage } from '@/common/utils/numberFormatter'
 
 export interface SalesRepPerformance {
   employeeId: string
@@ -24,34 +26,42 @@ export interface SalesRepPerformance {
   activitiesCount: number
 }
 
-const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  } catch {
-    return `${currencyCode} ${amount.toLocaleString()}`
-  }
-}
-
-const formatPercentage = (value: number, decimals: number = 1): string => {
-  return `${value.toFixed(decimals)}%`
-}
-
 export interface PerformanceLeaderboardProps {
   leaderboard: SalesRepPerformance[]
   pipelineId: string
   currency?: string
+  isLoading?: boolean
 }
 
 export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
   leaderboard,
   pipelineId,
-  currency = 'EUR'
+  currency = 'EUR',
+  isLoading = false
 }) => {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:p-2 gba:bg-green-100 gba:rounded-lg">
+              <Trophy className="gba:h-5 gba:w-5 gba:text-green-600" />
+            </div>
+            <CardTitle>Performance Leaderboard</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-40">
+            <div className="gba:text-center">
+              <Spinner size="sm" />
+              <div className="gba:mt-2 gba:text-sm gba:text-gray-600">Loading leaderboard...</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const getRankIcon = (index: number) => {
     switch (index) {
       case 0:
@@ -217,19 +227,19 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
           <div className="gba:mt-3 gba:flex gba:gap-2 gba:flex-wrap">
             {topPerformers[0] && (
               <Badge variant="default" className="gba:text-xs">
-                🏆 Top Performer: {topPerformers[0].displayName}
+                Top Performer: {topPerformers[0].displayName}
               </Badge>
             )}
             {topPerformers.find(rep => rep.winRate === Math.max(...topPerformers.map(r => r.winRate))) && (
               <Badge variant="secondary" className="gba:text-xs">
-                🎯 Best Win Rate: {formatPercentage(Math.max(...topPerformers.map(r => r.winRate)))}
+                Best Win Rate: {formatPercentage(Math.max(...topPerformers.map(r => r.winRate)))}
               </Badge>
             )}
             {topPerformers.find(
               rep => rep.activitiesCount === Math.max(...topPerformers.map(r => r.activitiesCount))
             ) && (
               <Badge variant="outline" className="gba:text-xs">
-                ⚡ Most Active: {Math.max(...topPerformers.map(r => r.activitiesCount))} activities
+                Most Active: {Math.max(...topPerformers.map(r => r.activitiesCount))} activities
               </Badge>
             )}
           </div>

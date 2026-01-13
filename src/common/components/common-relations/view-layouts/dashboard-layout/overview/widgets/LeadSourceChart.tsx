@@ -19,6 +19,7 @@ import { getQualityLevelBadgeVariant } from '@/common/utils/badgeUtils'
 import { PieChart, Pie } from 'recharts'
 import { ChartDonutIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatAmount as formatLargeNumber } from '@/common/utils/numberFormatter'
 
 export interface LeadSourceItem {
   source: string
@@ -38,14 +39,6 @@ export interface LeadSourceChartProps {
   items: LeadSourceItem[]
   totalLeads: number
   moduleColor?: string
-}
-
-const formatLargeNumber = (value: number | undefined): string => {
-  if (value === undefined || value === null) return '0'
-  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
-  return value.toString()
 }
 
 const toKey = (value: string): string =>
