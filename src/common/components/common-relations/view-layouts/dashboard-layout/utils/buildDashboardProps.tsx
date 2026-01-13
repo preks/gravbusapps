@@ -1,0 +1,156 @@
+import React from 'react'
+import { LineChart } from 'lucide-react'
+import { ActivityNavigationConfig } from '../overview/widgets/ActivitySummary'
+import { RecordNavigationConfig } from '../overview/widgets/RecordSummary'
+import { TaskNavigationConfig } from '../overview/widgets/TaskSummary'
+
+/**
+ * Builds overview props for DashboardLayout component
+ */
+export const buildOverviewProps = (
+  overviewData: any,
+  handlers: {
+    setSelectedCurrency: (currency: string) => void
+    handleDealClick: (dealId: string) => void
+    setSelectedDealCurrency: (currency: string) => void
+    onTasksPageChange: (page: number, pageSize: number) => void
+  },
+  selectedDealCurrency: string,
+  activityNavigationConfig: ActivityNavigationConfig,
+  recordNavigationConfig: RecordNavigationConfig,
+  taskNavigationConfig: TaskNavigationConfig
+) => {
+  if (!overviewData) return undefined
+
+  return {
+    aggregatedFunnel: overviewData.aggregatedFunnel,
+    availableCurrencies: overviewData.availableCurrencies,
+    selectedCurrency: overviewData.selectedCurrency,
+    onCurrencyChange: handlers.setSelectedCurrency,
+    revenueBySource: overviewData.revenueBySource,
+    totalRevenue: overviewData.totalRevenue,
+    totalLeadCount: overviewData.totalLeadCount,
+    recentRecords: overviewData.recentRecords,
+    activeTasks: overviewData.activeTasks.map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      assignedTo: t.assignedTo,
+      relatedTo: t.relatedTo,
+      dueDate: t.dueDate ?? undefined,
+      isOverdue: t.isOverdue,
+      priority: t.priority,
+      status: t.status,
+      relatedEntity: t.relatedEntity ?? undefined
+    })),
+    todaysActivities: overviewData.todaysActivities.map((a: any) => ({
+      id: a.id,
+      title: a.title,
+      type: a.type,
+      owner: a.owner,
+      relatedTo: a.relatedTo,
+      createdAt: a.createdAt,
+      completedAt: a.completedAt ?? undefined,
+      relatedEntity: a.relatedEntity
+    })),
+    keyDeals: overviewData.keyDeals,
+    onDealClick: handlers.handleDealClick,
+    selectedDealCurrency,
+    onDealCurrencyChange: handlers.setSelectedDealCurrency,
+    todaysActivitiesTotal: overviewData.todaysActivitiesTotal,
+    activeTasksTotal: overviewData.activeTasksTotal,
+    onTasksPageChange: handlers.onTasksPageChange,
+    activityNavigationConfig,
+    recordNavigationConfig,
+    taskNavigationConfig
+  }
+}
+
+/**
+ * Builds pipeline props for DashboardLayout component
+ */
+interface BuildPipelinePropsOptions {
+  selectedPipeline: any
+  pipelineData: any
+  pipelines: any[]
+  selectedPipelineId: string
+  pipelineCurrencies: string[]
+  pipelineCurrency: string | undefined
+  pipelineLoading: boolean
+  handlers: {
+    handlePipelineChange: (id: string) => void
+    setPipelineCurrency: (currency: string | undefined) => void
+  }
+  formatCurrency: (amount: number, currency: string) => string
+}
+
+export const buildPipelineProps = ({
+  selectedPipeline,
+  pipelineData,
+  pipelines,
+  selectedPipelineId,
+  pipelineCurrencies,
+  pipelineCurrency,
+  pipelineLoading,
+  handlers,
+  formatCurrency
+}: BuildPipelinePropsOptions) => {
+  if (!selectedPipeline) return undefined
+
+  return {
+    headerLeft: (
+      <div className="gba:p-3 gba:rounded-xl gba:shadow-sm gba:bg-blue-100">
+        <LineChart className="gba:h-6 gba:w-6 gba:text-blue-600" />
+      </div>
+    ),
+    pipelineTitle: selectedPipeline.name,
+    pipelineDescription: selectedPipeline.description,
+    pipelines: pipelines.map(p => ({ id: p.id, name: p.name })),
+    selectedPipelineId,
+    onPipelineChange: handlers.handlePipelineChange,
+    availableCurrencies: pipelineCurrencies,
+    selectedCurrency: pipelineCurrency,
+    onCurrencyChange: handlers.setPipelineCurrency,
+    isLoading: pipelineLoading,
+    pipelineHeaderBadges: pipelineData
+      ? [
+          {
+            label: `${pipelineData.metrics.totalOpportunities} opportunities`,
+            variant: 'secondary' as const
+          },
+          {
+            label: `${formatCurrency(pipelineData.metrics.totalValue, pipelineCurrency || 'EUR')}`,
+            variant: 'default' as const
+          },
+          {
+            label: `${pipelineData.metrics.dealsWon} won`,
+            variant: 'outline' as const
+          }
+        ]
+      : [],
+    pipelineId: selectedPipeline.id,
+    metrics: pipelineData
+      ? {
+          totalValue: pipelineData.metrics.totalValue,
+          avgDealSize: pipelineData.metrics.avgDealSize,
+          dealsWon: pipelineData.metrics.dealsWon,
+          winRate: pipelineData.metrics.winRate
+        }
+      : {
+          totalValue: 0,
+          avgDealSize: 0,
+          dealsWon: 0,
+          winRate: 0
+        },
+    funnelData: pipelineData?.funnelData || [],
+    winRateMetrics: pipelineData?.winRateMetrics || {
+      monthToDate: { won: 0, lost: 0, winRate: 0 },
+      quarterToDate: { won: 0, lost: 0, winRate: 0 }
+    },
+    activityVolume: pipelineData?.activityVolume || {
+      last7Days: { total: 0, types: [] },
+      last30Days: { total: 0, types: [] }
+    },
+    leaderboard: pipelineData?.leaderboard || []
+  }
+}

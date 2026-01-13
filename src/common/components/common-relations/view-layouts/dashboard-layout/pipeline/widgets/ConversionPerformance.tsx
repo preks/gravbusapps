@@ -1,8 +1,14 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Progress, Spinner } from '@newwork/nw-design-system'
 import { Trophy, TrendingUp, TrendingDown } from 'lucide-react'
+import { formatPercentage } from '@/common/utils/numberFormatter'
 
 export interface WinRateMetrics {
+  allTime: {
+    won: number
+    lost: number
+    winRate: number
+  }
   monthToDate: {
     won: number
     lost: number
@@ -15,13 +21,6 @@ export interface WinRateMetrics {
   }
 }
 
-const formatPercentage = (value: number | undefined, decimals: number = 1): string => {
-  if (value === undefined || value === null || Number.isNaN(value)) {
-    return '0%'
-  }
-  return `${value.toFixed(decimals)}%`
-}
-
 const getWinRateColorClass = (winRate: number): string => {
   if (winRate >= 70) return 'gba:text-green-600'
   if (winRate >= 50) return 'gba:text-orange-600'
@@ -31,11 +30,44 @@ const getWinRateColorClass = (winRate: number): string => {
 export interface ConversionPerformanceProps {
   winRateMetrics: WinRateMetrics
   pipelineId: string
+  isLoading?: boolean
 }
 
-export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({ winRateMetrics, pipelineId }) => {
+export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({
+  winRateMetrics,
+  pipelineId,
+  isLoading = false
+}) => {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:p-2 gba:bg-purple-100 gba:rounded-lg">
+              <Trophy className="gba:h-5 gba:w-5 gba:text-purple-600" />
+            </div>
+            <CardTitle>Win Rate</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-40">
+            <div className="gba:text-center">
+              <Spinner size="sm" />
+              <div className="gba:mt-2 gba:text-sm gba:text-gray-600">Loading metrics...</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   // Provide default values if metrics are undefined
   const safeMetrics = {
+    allTime: {
+      won: winRateMetrics?.allTime?.won ?? 0,
+      lost: winRateMetrics?.allTime?.lost ?? 0,
+      winRate: winRateMetrics?.allTime?.winRate ?? 0
+    },
     monthToDate: {
       won: winRateMetrics?.monthToDate?.won ?? 0,
       lost: winRateMetrics?.monthToDate?.lost ?? 0,
@@ -133,26 +165,22 @@ export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({ wi
           </Card>
         </div>
 
-        {/* Performance Indicators */}
+        {/* Performance Indicators - Quarter Summary */}
         <div className="gba:mt-4 gba:p-3 gba:bg-gray-50 gba:rounded-lg">
           <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:text-center">
             <div>
-              <div className="gba:text-lg gba:font-bold gba:text-blue-600">
-                {safeMetrics.monthToDate.won + safeMetrics.quarterToDate.won}
-              </div>
-              <span className="gba:text-gray-600 gba:text-xs">Total Won</span>
+              <div className="gba:text-lg gba:font-bold gba:text-blue-600">{safeMetrics.quarterToDate.won}</div>
+              <span className="gba:text-gray-600 gba:text-xs">Quarter Won</span>
             </div>
             <div>
-              <div className="gba:text-lg gba:font-bold gba:text-red-600">
-                {safeMetrics.monthToDate.lost + safeMetrics.quarterToDate.lost}
-              </div>
-              <span className="gba:text-gray-600 gba:text-xs">Total Lost</span>
+              <div className="gba:text-lg gba:font-bold gba:text-red-600">{safeMetrics.quarterToDate.lost}</div>
+              <span className="gba:text-gray-600 gba:text-xs">Quarter Lost</span>
             </div>
             <div>
               <div className="gba:text-lg gba:font-bold gba:text-green-600">
-                {((safeMetrics.monthToDate.winRate + safeMetrics.quarterToDate.winRate) / 2).toFixed(1)}%
+                {formatPercentage(safeMetrics.quarterToDate.winRate)}
               </div>
-              <span className="gba:text-gray-600 gba:text-xs">Avg Rate</span>
+              <span className="gba:text-gray-600 gba:text-xs">Quarter Rate</span>
             </div>
           </div>
         </div>

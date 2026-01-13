@@ -99,7 +99,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const isLocalPlatform = baseUrl.includes('localhost')
   if (isLocalPlatform) {
     baseUrl = 'https://newwork-dev.newwork.com'
-    console.log('🔄 [Chat] Local platform detected (baseUrl had localhost) - connecting to DEV environment:', baseUrl)
   }
 
   // Normalize API and WS endpoints; connect to chat-service namespace with default socket path
@@ -108,14 +107,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   // Override if NEXT_PUBLIC_CHAT_API is pointing to localhost when running on local platform
   if (apiUrl.includes('localhost')) {
     apiUrl = `${baseUrl}/chat-service/api/v1`
-    console.log('🔄 [Chat] Overriding localhost CHAT_API to use DEV environment:', apiUrl)
   }
 
   const wsUrl = `${baseUrl}/chat-service` // namespace in URL (matches gateway)
   // Ensure Socket.IO path keeps /chat-service prefix (Kong strip-path=true compatible)
   const wsSocketPath = env('NEXT_PUBLIC_CHAT_WS_PATH') || '/chat-service/socket.io'
-
-  console.log('📍 [Chat] Final connection URLs:', { apiUrl, wsUrl, wsSocketPath })
 
   const chatClient = useChatClient({
     accessToken,
@@ -140,7 +136,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     hasMoreMessages,
     typingUsers,
     getUserPresence,
-    presenceVersion,
     updatePresenceFromUser,
     sendMessage,
     createDirectConversation,
@@ -174,9 +169,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     }
   }, [activeConversation])
 
-  // Log for diagnostics
+  // Track active conversation changes
   useEffect(() => {
-    console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
+    // Diagnostics removed
   }, [stableActiveConversation?.id])
 
   // Listen for platform messages to open chat with specific users
@@ -194,11 +189,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     registerNudgeCallback(data => {
       // Ignore nudges from yourself (shouldn't happen, but safety check)
       if (data.fromUserId === currentUser.id) {
-        console.log('[Chat] Ignoring nudge from self')
         return
       }
-
-      console.log('[Chat] Nudge received from:', data.fromUserName, 'conversation:', data.conversationId)
 
       // Play sound
       playNudgeSound()
@@ -293,13 +285,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   } = useCall({
     wsClient: wsClient || null,
     apiClient: apiClient || null,
-    currentUser: currentUserAsParticipant,
-    onCallStarted: (callId, participant) => {
-      console.debug('1:1 Call started:', callId, participant)
-    },
-    onCallEnded: (callId, duration) => {
-      console.debug('1:1 Call ended:', callId, 'Duration:', duration, 'ms')
-    }
+    currentUser: currentUserAsParticipant
   })
 
   // Group Call functionality
@@ -328,19 +314,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   } = useGroupCall({
     wsClient: wsClient || null,
     apiClient: apiClient || null,
-    currentUser: currentUserAsParticipant,
-    onCallStarted: (roomId, participants) => {
-      console.debug('Group call started:', roomId, participants.length, 'participants')
-    },
-    onCallEnded: (roomId, duration) => {
-      console.debug('Group call ended:', roomId, 'Duration:', duration, 'ms')
-    },
-    onParticipantJoined: participant => {
-      console.debug('Participant joined group call:', participant.odName)
-    },
-    onParticipantLeft: participantId => {
-      console.debug('Participant left group call:', participantId)
-    }
+    currentUser: currentUserAsParticipant
   })
 
   // Combined in-call state
@@ -455,7 +429,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
     if (shouldJoinExisting) {
       // Join the existing call without ringing everyone
-      console.debug('Joining existing group call in conversation:', activeConversation.id)
       joinGroupCall(activeConversation.id, callType)
     } else {
       // Get all participants including current user
@@ -493,11 +466,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       // Generate a new room ID for the group call (use conversation ID or create new)
       const roomId = activeConversation.id
       const callType = callState.type || 'video'
-
-      console.debug(
-        'Upgrading 1:1 call to group call with participants:',
-        callParticipants.map(p => p.odName)
-      )
       startGroupCall(roomId, callType, callParticipants, activeConversation.name)
     }, 100)
   }
@@ -533,10 +501,18 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
           }
         })
       })
-    } catch (error) {
-      console.error('[Chat] Error initializing presence:', error)
+    } catch {
+      // Error initializing presence
     }
   }, [conversations, currentUser?.id, updatePresenceFromUser])
+
+  // Wrap sendMessage to match the expected signature (Promise<void> instead of Promise<Message>)
+  const sendMessageVoid = useCallback(
+    async (conversationId: string, content: string, metadata?: Record<string, any>): Promise<void> => {
+      await sendMessage(conversationId, content, metadata)
+    },
+    [sendMessage]
+  )
 
   const handleSendMessage = useCallback(
     async (content: string, entityReferences?: MessageEntityReference[], attachments?: any[]) => {
@@ -565,8 +541,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
             const files = attachments.map(a => a.file)
             uploadedAttachments = await apiClient.uploadFiles(activeConversationId, files)
             metadata.attachments = uploadedAttachments
-          } catch (uploadErr) {
-            console.error('Error uploading attachments:', uploadErr)
+          } catch {
             // Continue sending message without attachments if upload fails
           }
         }
@@ -644,7 +619,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                     }))
 
                     // Dispatch annotations to document view
-                    console.log('[Chat] Dispatching document annotations:', annotations.length)
                     globalThis.dispatchEvent(
                       new CustomEvent('document-review-annotations', {
                         detail: {
@@ -657,8 +631,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   }
                 }
               }
-            } catch (e) {
-              console.log('[Chat] Could not parse document review annotations:', e)
+            } catch {
               // Not an error - expert may not have returned JSON annotations
             }
           }
@@ -780,13 +753,12 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                 clearStreamingText()
               }
             }
-          } catch (aiError) {
-            console.error('Error processing Every AI response:', aiError)
-            // Don't crash the chat if AI fails - just log and continue
+          } catch {
+            // Don't crash the chat if AI fails - just continue
           }
         }
-      } catch (err) {
-        console.error('Error sending message:', err)
+      } catch {
+        // Error sending message
       }
     },
     [
@@ -880,8 +852,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
           // Regular message send
           await sendMessage(activeConversationId, content, metadata)
         }
-      } catch (err) {
-        console.error('Error sending AI message:', err)
+      } catch {
+        // Error sending AI message
       }
     },
     [
@@ -910,8 +882,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
           url.searchParams.set('conversationId', conversation.id)
           window.history.replaceState({}, '', url.toString())
         }
-      } catch (err) {
-        console.error('Error creating conversation:', err)
+      } catch {
+        // Error creating conversation
       }
     },
     [createDirectConversation]
@@ -974,7 +946,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       url.searchParams.delete('conversationId')
       window.history.replaceState({}, '', url.toString())
     } catch (error: any) {
-      console.error('Failed to remove conversation:', error)
+      // Failed to remove conversation
 
       // Check for "last owner" error
       const errorMsg = error?.response?.data?.message || error?.message || ''
@@ -1008,7 +980,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
           window.history.replaceState({}, '', url.toString())
         }
       } catch (error) {
-        console.error('Failed to create group:', error)
         throw error
       }
     },
@@ -1040,7 +1011,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     )
 
     if (!otherParticipant?.userId) {
-      console.error('[Chat] Cannot send nudge: other participant not found')
       return
     }
 
@@ -1054,7 +1024,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       // Don't create a system message for the sender
       // The receiver will see the nudge message via the callback
       // The sender just gets visual feedback from the cooldown reset
-      console.log('[Chat] Nudge sent successfully')
     }
   }, [activeConversation, currentUser, sendNudge, sendMessage])
 
@@ -1177,8 +1146,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
             setShowConversationList(false)
           }
         })
-        .catch(err => {
-          console.error('Error fetching conversation from URL:', err)
+        .catch(() => {
           // Reset the flag so we can retry if conversations reload
           conversationIdFromUrlProcessed.current = false
         })
@@ -1229,8 +1197,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
             window.history.replaceState({}, '', url.toString())
           }
         })
-        .catch(err => {
-          console.error('Error opening AI agent conversation from URL:', err)
+        .catch(() => {
+          // Error opening AI agent conversation from URL
         })
     }
     // Handle context conversation
@@ -1265,8 +1233,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
               window.history.replaceState({}, '', url.toString())
             }
           })
-          .catch(err => {
-            console.error('Error opening context conversation from URL:', err)
+          .catch(() => {
+            // Error opening context conversation from URL
           })
       }
     }
@@ -1432,7 +1400,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   setErrorMessage(null)
                   await closeConversation(conversationId)
                 } catch (error: any) {
-                  console.error('Failed to remove conversation:', error)
                   const errorMsg = error?.response?.data?.message || error?.message || ''
                   if (errorMsg.toLowerCase().includes('last owner')) {
                     setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
@@ -1457,7 +1424,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
               accessToken={accessToken}
               compact={viewMode === 'compact'}
               getUserPresence={getUserPresence}
-              presenceVersion={presenceVersion}
               conversationExpertCounts={conversationExpertCounts}
             />
           </div>
@@ -1497,7 +1463,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                 {activeExperts.length > 0 && (
                   <ActiveExpertsBar
                     experts={activeExperts}
-                    onRemoveExpert={expertId => removeExpert(expertId, sendMessage)}
+                    onRemoveExpert={expertId => {
+                      removeExpert(expertId, sendMessageVoid)
+                    }}
                     data-testid={`${prefixDataTestId}-active-experts`}
                   />
                 )}
@@ -1635,7 +1603,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         experts={availableExperts}
         activeExpertIds={activeExperts.map(e => e.expertId)}
         isLoading={expertsLoading}
-        onAddExpert={expert => addExpert(expert, sendMessage)}
+        onAddExpert={expert => {
+          addExpert(expert, sendMessageVoid)
+        }}
         data-testid={`${prefixDataTestId}-expert-selector`}
       />
 
