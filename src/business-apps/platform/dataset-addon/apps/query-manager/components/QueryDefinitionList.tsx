@@ -110,8 +110,14 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
 
   const getTypeColor = (type: QueryType) => {
     return type === QueryType.DATASET
-      ? { backgroundColor: 'var(--nw-color-primary)', color: 'var(--nw-color-on-primary)' }
-      : { backgroundColor: 'var(--nw-color-secondary)', color: 'var(--nw-color-on-secondary)' }
+      ? {
+          backgroundColor: 'var(--nw-color-primary)',
+          color: 'var(--nw-color-primary-foreground)'
+        }
+      : {
+          backgroundColor: 'var(--nw-color-secondary)',
+          color: 'var(--nw-color-secondary-foreground)'
+        }
   }
 
   return (
