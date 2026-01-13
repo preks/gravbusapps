@@ -18,6 +18,17 @@ export interface UseDocumentClassificationArgs {
    */
   entity?: string
   /**
+   * Optional catalog identifier for document groups in Hasura CatalogEntry.catalog.identifier.
+   * Examples: "SalesDocumentGroup", "InvestmentDocumentGroup", "DocumentGroup".
+   * This allows the backend to build a generic GraphQL query instead of branching by entity.
+   */
+  groupCatalogIdentifier?: string
+  /**
+   * Optional catalog identifier for document types in Hasura CatalogEntry.catalog.identifier.
+   * Examples: "SalesDocumentType", "InvestmentDocumentType", "DocumentType".
+   */
+  typeCatalogIdentifier?: string
+  /**
    * First file selected for upload. When this changes and `enabled` is true,
    * the hook will trigger a new classification request.
    */
@@ -42,6 +53,8 @@ export interface UseDocumentClassificationResult {
 export const useDocumentClassification = ({
   accessToken,
   entity,
+  groupCatalogIdentifier,
+  typeCatalogIdentifier,
   file,
   endpoint,
   enabled = true
@@ -76,6 +89,13 @@ export const useDocumentClassification = ({
         const domain = (entity || '').toLowerCase()
         if (domain === 'crm' || domain === 'irm' || domain === 'hr') {
           fd.append('entity', domain)
+        }
+
+        if (groupCatalogIdentifier) {
+          fd.append('groupCatalogIdentifier', groupCatalogIdentifier)
+        }
+        if (typeCatalogIdentifier) {
+          fd.append('typeCatalogIdentifier', typeCatalogIdentifier)
         }
 
         const url = endpoint || '/flowbot/document-autoclassify/classify'
@@ -113,7 +133,7 @@ export const useDocumentClassification = ({
       isCancelled = true
       controller.abort()
     }
-  }, [accessToken, entity, file, endpoint, enabled, restClient])
+  }, [accessToken, entity, groupCatalogIdentifier, typeCatalogIdentifier, file, endpoint, enabled, restClient])
 
   return {
     suggestion,

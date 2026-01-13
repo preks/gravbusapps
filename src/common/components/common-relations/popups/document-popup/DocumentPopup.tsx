@@ -408,6 +408,8 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
   } = useDocumentClassification({
     accessToken,
     entity: appName,
+    groupCatalogIdentifier,
+    typeCatalogIdentifier,
     file: classificationEnabled ? firstWatchedFile : undefined,
     endpoint: aiClassificationEndpoint,
     enabled: classificationEnabled

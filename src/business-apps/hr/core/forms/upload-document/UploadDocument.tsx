@@ -148,6 +148,8 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
   } = useDocumentClassification({
     accessToken: context.accessToken,
     entity: 'hr',
+    groupCatalogIdentifier: 'DocumentGroup',
+    typeCatalogIdentifier: 'DocumentType',
     file: selectedFile || undefined,
     endpoint: '/flowbot/document-autoclassify/classify',
     enabled: Boolean(selectedFile)
