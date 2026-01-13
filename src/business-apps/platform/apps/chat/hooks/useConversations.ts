@@ -107,8 +107,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         )
 
         return enrichedConversations
-      } catch (error) {
-        console.error('Error enriching conversations with user data:', error)
+      } catch {
         return conversations
       }
     },
@@ -145,7 +144,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       setConversations(sortedConversations)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load conversations'))
-      console.error('Error loading conversations:', err)
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
@@ -172,8 +170,8 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       // Append to existing conversations
       setConversations(prev => [...prev, ...enrichedConversations])
       setCurrentPage(nextPage)
-    } catch (err) {
-      console.error('Error loading more conversations:', err)
+    } catch {
+      // Error loading more conversations
     } finally {
       setIsLoadingMore(false)
     }
@@ -216,20 +214,11 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
   const updateConversationLastMessage = useCallback(
     async (conversationId: string, message: Message) => {
-      console.log(
-        '[useConversations] Updating last message for conversation:',
-        conversationId,
-        'Message:',
-        message.content?.substring(0, 30)
-      )
-
       setConversations(prev => {
         // Check if conversation exists
         const convExists = prev.some(c => c.id === conversationId)
 
         if (!convExists) {
-          console.warn('[useConversations] Conversation not found in list:', conversationId, '- fetching from API')
-
           // Trigger async fetch of the missing conversation
           // This happens when a message arrives for a conversation that's not in the paginated list
           if (apiClient) {
@@ -251,8 +240,8 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
                   })
                 })
               })
-              .catch(err => {
-                console.error('[useConversations] Failed to fetch missing conversation:', err)
+              .catch(() => {
+                // Failed to fetch missing conversation
               })
           }
 
@@ -277,10 +266,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           return new Date(bTime).getTime() - new Date(aTime).getTime()
         })
 
-        console.log(
-          '[useConversations] Re-sorted conversations, top 3:',
-          sorted.slice(0, 3).map(c => ({ id: c.id, name: c.name || 'Direct' }))
-        )
         return sorted
       })
     },
@@ -292,19 +277,16 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   }, [])
 
   const incrementUnreadCount = useCallback((conversationId: string) => {
-    console.log('[useConversations] Incrementing unread count for conversation:', conversationId)
     setConversations(prev => {
       const convExists = prev.some(c => c.id === conversationId)
 
       if (!convExists) {
-        console.warn('[useConversations] Cannot increment unread count - conversation not in list:', conversationId)
         return prev
       }
 
       return prev.map(conv => {
         if (conv.id === conversationId) {
           const newCount = (conv.unreadCount || 0) + 1
-          console.log('[useConversations] New unread count for', conversationId, ':', newCount)
           return { ...conv, unreadCount: newCount }
         }
         return conv
