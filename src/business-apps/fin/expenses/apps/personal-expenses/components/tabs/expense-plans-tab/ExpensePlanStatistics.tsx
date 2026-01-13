@@ -136,6 +136,27 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     [onWidgetClick, statsLoading, destinationLoading]
   )
 
+  // Compute destination value and description separately to avoid nested ternary operations
+  const destinationValue = useMemo(() => {
+    if (destinationLoading) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')
+    }
+    if (topDestination && topDestination !== 'N/A') {
+      return getCatalogValue(topDestination)
+    }
+    return topDestination
+  }, [destinationLoading, topDestination])
+
+  const destinationDescription = useMemo(() => {
+    if (destinationLoading) {
+      return ''
+    }
+    if (topDestination && topDestination !== 'N/A') {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.most_frequent', 'Most frequent')
+    }
+    return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_data_available', 'No data available')
+  }, [destinationLoading, topDestination])
+
   // Transform the stats data into widgets format
   const widgets: WidgetItem[] = useMemo(
     () => [
@@ -193,20 +214,12 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'top-destinations',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination'),
-        value: destinationLoading
-          ? getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')
-          : topDestination && topDestination !== 'N/A'
-            ? getCatalogValue(topDestination)
-            : topDestination,
+        value: destinationValue,
         prefix: <CompassOutlined />,
         color: '#722ed1',
         span: { xs: 24, sm: 12, md: 6 },
         valueIsString: true,
-        description: destinationLoading
-          ? ''
-          : topDestination && topDestination !== 'N/A'
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.most_frequent', 'Most frequent')
-            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_data_available', 'No data available'),
+        description: destinationDescription,
         active: activeWidgetKey === 'top-destinations',
         onClick: () => {
           // Prevent clicking when loading or when there's no valid destination data
@@ -222,7 +235,8 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       totalPlans,
       totalEstimated,
       pendingApproval,
-      topDestination,
+      destinationValue,
+      destinationDescription,
       plansTrend,
       estimatedAmountTrend,
       activeWidgetKey,

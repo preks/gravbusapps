@@ -304,8 +304,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       onTableChange(pagination, {}, {})
       savedPageBeforeSearchRef.current = currentPage
     } else if (prev !== '' && next === '') {
-      // clearing search → restore saved page
-      const pagination = { current: savedPageBeforeSearchRef.current || 1, pageSize, total: totalCount }
+      // clearing search → restore saved page, but validate it's not beyond available pages
+      const savedPage = savedPageBeforeSearchRef.current || 1
+      const maxPages = Math.max(1, Math.ceil(totalCount / pageSize))
+      const validPage = savedPage > maxPages ? 1 : savedPage
+      const pagination = { current: validPage, pageSize, total: totalCount }
       onTableChange(pagination, {}, {})
       savedPageBeforeSearchRef.current = null
     }

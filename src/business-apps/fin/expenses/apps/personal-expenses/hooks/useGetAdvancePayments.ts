@@ -194,7 +194,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     if (val && typeof val === 'object') {
       const sorted: any = {}
       Object.keys(val)
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .forEach(k => {
           sorted[k] = normalize(val[k])
         })
@@ -232,6 +232,143 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     [normalize]
   )
 
+  // Helper function to validate and get required values
+  const validateAndGetValues = (): { employeeId: string; accessToken: string } | null => {
+    const employeeId = context?.userInfo?.employeeDetails?.employeeId
+    const accessToken = context?.accessToken
+
+    if (!employeeId || !accessToken) {
+      console.warn('Missing employeeId or accessToken for advance payments query')
+      return null
+    }
+
+    return { employeeId, accessToken }
+  }
+
+  // Helper function to handle cached data
+  const handleCachedData = (cacheKey: string, options?: { force?: boolean }): boolean => {
+    const cachedData = pageCacheRef.current.get(cacheKey)
+    if (cachedData && !options?.force) {
+      setItems(cachedData.items)
+      setTotalCount(cachedData.totalCount)
+      setIsLoading(false)
+      setError(null)
+      return true
+    }
+    return false
+  }
+
+  // Helper function to check and update call signature
+  const checkCallSignature = (callSignature: string, options?: { force?: boolean }): boolean => {
+    if (!options?.force && callSignature === lastCallSignatureRef.current) {
+      return true
+    }
+    lastCallSignatureRef.current = callSignature
+    return false
+  }
+
+  // Helper function to handle inflight requests
+  const handleInflightRequest = async (requestKey: string, cacheKey: string): Promise<boolean> => {
+    if (!inflightRef.current.has(requestKey)) {
+      return false
+    }
+    try {
+      const result = await inflightRef.current.get(requestKey)
+      const fetchedItems = result?.AdvancePayment ?? []
+      const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
+
+      pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
+      setItems(fetchedItems)
+      setTotalCount(count)
+      setIsLoading(false)
+      setError(null)
+    } catch {
+      // Continue with new request if in-flight request failed
+    }
+    return true
+  }
+
+  // Helper function to build GraphQL variables
+  const buildVariables = (
+    employeeId: string,
+    searchTerm: string,
+    page: number,
+    pageSize: number,
+    sortField?: string | null,
+    sortOrder?: 'ascend' | 'descend' | null,
+    filters?: AdvancePaymentFilters,
+    filterState?: ReturnType<typeof validateFilters>
+  ): any => {
+    const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`
+    const offset = (page - 1) * pageSize
+
+    const variables: any = {
+      employeeId,
+      searchTerm: formattedSearchTerm,
+      limit: pageSize,
+      offset: offset
+    }
+
+    if (sortField && sortOrder) {
+      const fieldMap: Record<string, string> = {
+        status: 'status',
+        amount: 'amount',
+        paymentMethod: 'paymentMethod',
+        createdAt: 'createdAt',
+        updatedAt: 'updatedAt',
+        description: 'description',
+        currencyRef: 'currencyRef'
+      }
+      const gqlField = fieldMap[sortField] || sortField
+      const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
+      variables.orderBy = [{ [gqlField]: direction }]
+    } else {
+      variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }]
+    }
+
+    if (filterState && filters) {
+      if (filterState.hasStatusFilter && filters.statusFilter) {
+        variables.statusFilter = filters.statusFilter
+      }
+
+      if (filterState.hasAmountRange && filters.amountRange) {
+        const { min, max } = filters.amountRange
+        if (min !== undefined) {
+          variables.amountMin = min
+        }
+        if (max !== undefined) {
+          variables.amountMax = max
+        }
+      }
+
+      if (filterState.hasAdvanceRange && filters.advanceRange) {
+        const { min, max } = filters.advanceRange
+        if (min !== undefined) {
+          variables.advanceMin = min
+        }
+        if (max !== undefined) {
+          variables.advanceMax = max
+        }
+      }
+
+      if (filterState.hasCurrencyRef && filters.currencyRef) {
+        variables.currencyRef = filters.currencyRef
+      }
+    }
+
+    return variables
+  }
+
+  // Helper function to process and cache response data
+  const processResponseData = (result: any, cacheKey: string): void => {
+    const fetchedItems = result?.AdvancePayment ?? []
+    const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
+
+    pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
+    setTotalCount(count)
+    setItems(fetchedItems)
+  }
+
   const fetchItems = useCallback(
     async (
       searchTerm: string = '',
@@ -245,14 +382,12 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       currencyRef?: string | null,
       options?: { force?: boolean }
     ) => {
-      const employeeId = context?.userInfo?.employeeDetails?.employeeId
-      const accessToken = context?.accessToken
-
-      if (!employeeId || !accessToken) {
-        console.warn('Missing employeeId or accessToken for advance payments query')
+      const validated = validateAndGetValues()
+      if (!validated) {
         return
       }
 
+      const { employeeId } = validated
       const cacheKey = generateCacheKey({
         searchTerm,
         page,
@@ -265,12 +400,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         currencyRef: currencyRef || null
       })
 
-      const cachedData = pageCacheRef.current.get(cacheKey)
-      if (cachedData && !options?.force) {
-        setItems(cachedData.items)
-        setTotalCount(cachedData.totalCount)
-        setIsLoading(false)
-        setError(null)
+      if (handleCachedData(cacheKey, options)) {
         return
       }
 
@@ -286,10 +416,9 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         currencyRef,
         employeeId
       })
-      if (!options?.force && callSignature === lastCallSignatureRef.current) {
+      if (checkCallSignature(callSignature, options)) {
         return
       }
-      lastCallSignatureRef.current = callSignature
 
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
@@ -299,31 +428,15 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       abortControllerRef.current = controller
 
       const requestKey = `request:${cacheKey}`
-      if (inflightRef.current.has(requestKey)) {
-        try {
-          const result = await inflightRef.current.get(requestKey)
-          const fetchedItems = result?.AdvancePayment ?? []
-          const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
-
-          pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
-
-          setItems(fetchedItems)
-          setTotalCount(count)
-          setIsLoading(false)
-          setError(null)
-          return
-        } catch {
-          // Continue with new request if in-flight request failed
-        }
+      const handledInflight = await handleInflightRequest(requestKey, cacheKey)
+      if (handledInflight) {
+        return
       }
 
       setIsLoading(true)
       setError(null)
 
       try {
-        const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`
-        const offset = (page - 1) * pageSize
-
         const filters: AdvancePaymentFilters = {
           statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
           amountRange: amountRange || undefined,
@@ -333,58 +446,16 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
 
         const filterState = validateFilters(filters)
         const query = buildAdvancePaymentsQuery(filters)
-
-        const variables: any = {
+        const variables = buildVariables(
           employeeId,
-          searchTerm: formattedSearchTerm,
-          limit: pageSize,
-          offset: offset
-        }
-
-        if (sortField && sortOrder) {
-          const fieldMap: Record<string, string> = {
-            status: 'status',
-            amount: 'amount',
-            paymentMethod: 'paymentMethod',
-            createdAt: 'createdAt',
-            updatedAt: 'updatedAt',
-            description: 'description',
-            currencyRef: 'currencyRef'
-          }
-          const gqlField = fieldMap[sortField] || sortField
-          const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
-          variables.orderBy = [{ [gqlField]: direction }]
-        } else {
-          variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }]
-        }
-
-        if (filterState.hasStatusFilter && filters.statusFilter) {
-          variables.statusFilter = filters.statusFilter
-        }
-
-        if (filterState.hasAmountRange && filters.amountRange) {
-          const { min, max } = filters.amountRange
-          if (min !== undefined) {
-            variables.amountMin = min
-          }
-          if (max !== undefined) {
-            variables.amountMax = max
-          }
-        }
-
-        if (filterState.hasAdvanceRange && filters.advanceRange) {
-          const { min, max } = filters.advanceRange
-          if (min !== undefined) {
-            variables.advanceMin = min
-          }
-          if (max !== undefined) {
-            variables.advanceMax = max
-          }
-        }
-
-        if (filterState.hasCurrencyRef && filters.currencyRef) {
-          variables.currencyRef = filters.currencyRef
-        }
+          searchTerm,
+          page,
+          pageSize,
+          sortField,
+          sortOrder,
+          filters,
+          filterState
+        )
 
         const requestPromise = graphqlClient.request<any>(query, variables).finally(() => {
           inflightRef.current.delete(requestKey)
@@ -398,13 +469,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           return
         }
 
-        const fetchedItems = result?.AdvancePayment ?? []
-        const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
-
-        pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
-
-        setTotalCount(count)
-        setItems(fetchedItems)
+        processResponseData(result, cacheKey)
       } catch (err) {
         // We can't abort the underlying fetch without client support; ignore stale results instead.
         if (abortControllerRef.current !== controller || controller.signal.aborted) {

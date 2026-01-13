@@ -23,6 +23,40 @@ const currentMonthRange = (): [Date, Date] => {
   return [start, end]
 }
 
+// Helper function to extract destination value from various formats
+const extractDestinationValue = (topDestination: string | null | undefined | any): string | null => {
+  if (!topDestination || topDestination === 'N/A') {
+    return null
+  }
+
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+  if (typeof topDestination === 'object' && topDestination !== null) {
+    // Catalog object - prefer id (if UUID), then value, then code
+    if ('id' in topDestination) {
+      const maybeId = (topDestination as { id?: string })?.id ?? null
+      if (maybeId && uuidRegex.test(maybeId)) {
+        return maybeId
+      }
+    }
+    if ('value' in topDestination) {
+      const value = (topDestination as { value?: string })?.value ?? null
+      if (value) return value
+    }
+    if ('code' in topDestination) {
+      const code = (topDestination as { code?: string })?.code ?? null
+      if (code) return code
+    }
+    return null
+  }
+
+  if (typeof topDestination === 'string') {
+    return topDestination
+  }
+
+  return null
+}
+
 export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, CardStrategy> => ({
   'total-plans': {
     apply: () => {
@@ -127,41 +161,8 @@ export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, Card
       // Don't clear status filters - let destination filter work with existing status filters
       // This allows users to see plans with the destination regardless of status
 
-      if (ctx.topDestination && ctx.topDestination !== 'N/A') {
-        // Extract identifier from catalog entry object - prefer id, then value, then code
-        let destinationValue: string | null = null
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-        if (typeof ctx.topDestination === 'object' && ctx.topDestination !== null) {
-          // Catalog object
-          // Only prefer `id` when it's a UUID. Some catalog sources expose an `id` that is NOT
-          // the database UUID (e.g. a catalog ref), which won't match `travelRegion.value`.
-          if ('id' in ctx.topDestination) {
-            const maybeId = (ctx.topDestination as { id?: string })?.id ?? null
-            if (maybeId && uuidRegex.test(maybeId)) {
-              destinationValue = maybeId
-            }
-          }
-          if (!destinationValue && 'value' in ctx.topDestination) {
-            destinationValue = (ctx.topDestination as { value?: string })?.value ?? null
-          }
-          if (!destinationValue && 'code' in ctx.topDestination) {
-            destinationValue = (ctx.topDestination as { code?: string })?.code ?? null
-          }
-        } else if (typeof ctx.topDestination === 'string') {
-          // String value - use directly
-          destinationValue = ctx.topDestination
-        }
-
-        // Only set filter if we have a valid destination value
-        if (destinationValue && destinationValue !== 'N/A') {
-          ctx.setDestinationFilter(destinationValue)
-        } else {
-          ctx.setDestinationFilter(null)
-        }
-      } else {
-        ctx.setDestinationFilter(null)
-      }
+      const destinationValue = extractDestinationValue(ctx.topDestination)
+      ctx.setDestinationFilter(destinationValue)
     },
     remove: () => {
       ctx.setStartDateRange(null)

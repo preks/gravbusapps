@@ -73,7 +73,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
     if (val && typeof val === 'object') {
       const sorted: any = {}
       Object.keys(val)
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .forEach(k => {
           sorted[k] = normalize(val[k])
         })
@@ -103,6 +103,120 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
     [normalize]
   )
 
+  // Helper function to validate and get required values
+  const validateAndGetValues = (): { employeeId: string; accessToken: string } | null => {
+    const employeeId = context?.userInfo?.employeeDetails?.employeeId
+    const accessToken = context?.accessToken
+
+    if (!employeeId) {
+      setError(new Error('Employee ID not found. Cannot fetch expense requests.'))
+      setItems([])
+      setTotalCount(0)
+      setIsLoading(false)
+      return null
+    }
+
+    if (!accessToken) {
+      setError(new Error('Access token not found. Cannot fetch expense requests.'))
+      setItems([])
+      setTotalCount(0)
+      setIsLoading(false)
+      return null
+    }
+
+    return { employeeId, accessToken }
+  }
+
+  // Helper function to handle cached data
+  const handleCachedData = (cacheKey: string, options?: { force?: boolean }): boolean => {
+    const cachedData = pageCacheRef.current.get(cacheKey)
+    if (cachedData && !options?.force) {
+      setItems(cachedData.items)
+      setTotalCount(cachedData.totalCount)
+      setIsLoading(false)
+      setError(null)
+      return true
+    }
+    return false
+  }
+
+  // Helper function to handle inflight requests
+  const handleInflightRequest = async (requestKey: string, cacheKey: string): Promise<boolean> => {
+    if (!inflightRef.current.has(requestKey)) {
+      return false
+    }
+    try {
+      const result = await inflightRef.current.get(requestKey)
+      const fetchedItems = result?.ExpenseRequest ?? []
+      const count = result?.ExpenseRequestAggregate?.aggregate?.count ?? 0
+
+      pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
+      setItems(fetchedItems)
+      setTotalCount(count)
+      setIsLoading(false)
+      setError(null)
+    } catch {
+      // Continue with new request if in-flight request failed
+    }
+    return true
+  }
+
+  // Helper function to build GraphQL variables
+  const buildVariables = (
+    employeeId: string,
+    filters: any,
+    page: number,
+    pageSize: number,
+    sortField?: string | null,
+    sortOrder?: 'ascend' | 'descend' | null
+  ): Record<string, any> => {
+    const offset = (page - 1) * pageSize
+    const whereClause = {
+      _and: [{ employeeId: { _eq: employeeId } }, { isDeleted: { _eq: false } }, filters]
+    }
+
+    const variables: Record<string, any> = {
+      limit: pageSize,
+      offset: offset,
+      where: whereClause
+    }
+
+    if (sortField && sortOrder) {
+      const fieldMap: Record<string, string> = {
+        code: 'code',
+        title: 'title',
+        requestDate: 'requestDate',
+        startDate: 'startDate',
+        endDate: 'endDate',
+        status: 'status',
+        reimbursableAmount: 'reimbursableAmount',
+        totalAmount: 'totalAmount',
+        createdAt: 'createdAt',
+        updatedAt: 'updatedAt',
+        description: 'description',
+        currencyRef: 'currencyRef',
+        nonReimbursableAmount: 'nonReimbursableAmount'
+      }
+      const gqlField = fieldMap[sortField] || sortField
+      const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
+      variables.orderBy = [{ [gqlField]: direction }]
+    } else {
+      variables.orderBy = [{ requestDate: 'DESC' }]
+    }
+
+    return variables
+  }
+
+  // Helper function to process and cache response data
+  const processResponseData = (data: any, cacheKey: string): void => {
+    const count = data?.ExpenseRequestAggregate?.aggregate?.count ?? 0
+    const fetchedItems = data?.ExpenseRequest ?? []
+
+    pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
+    setTotalCount(count)
+    setItems(fetchedItems)
+  }
+
   const fetchItems = useCallback(
     async (
       filters: any = {},
@@ -112,33 +226,15 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       sortOrder?: 'ascend' | 'descend' | null,
       options?: { force?: boolean }
     ) => {
-      const employeeId = context?.userInfo?.employeeDetails?.employeeId
-      const accessToken = context?.accessToken
-
-      if (!employeeId) {
-        setError(new Error('Employee ID not found. Cannot fetch expense requests.'))
-        setItems([])
-        setTotalCount(0)
-        setIsLoading(false)
+      const validated = validateAndGetValues()
+      if (!validated) {
         return
       }
 
-      if (!accessToken) {
-        setError(new Error('Access token not found. Cannot fetch expense requests.'))
-        setItems([])
-        setTotalCount(0)
-        setIsLoading(false)
-        return
-      }
-
+      const { employeeId } = validated
       const cacheKey = generateCacheKey(filters, page, pageSize, sortField || null, sortOrder || null)
 
-      const cachedData = pageCacheRef.current.get(cacheKey)
-      if (cachedData && !options?.force) {
-        setItems(cachedData.items)
-        setTotalCount(cachedData.totalCount)
-        setIsLoading(false)
-        setError(null)
+      if (handleCachedData(cacheKey, options)) {
         return
       }
 
@@ -150,72 +246,21 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       abortControllerRef.current = controller
 
       const requestKey = `request:${cacheKey}`
-      if (inflightRef.current.has(requestKey)) {
-        try {
-          const result = await inflightRef.current.get(requestKey)
-          const fetchedItems = result?.ExpenseRequest ?? []
-          const count = result?.ExpenseRequestAggregate?.aggregate?.count ?? 0
-
-          pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
-
-          setItems(fetchedItems)
-          setTotalCount(count)
-          setIsLoading(false)
-          setError(null)
-          return
-        } catch {
-          // Continue with new request if in-flight request failed
-        }
+      const handledInflight = await handleInflightRequest(requestKey, cacheKey)
+      if (handledInflight) {
+        return
       }
 
       setIsLoading(true)
       setError(null)
 
       try {
-        const offset = (page - 1) * pageSize
-
-        const whereClause = {
-          _and: [{ employeeId: { _eq: employeeId } }, { isDeleted: { _eq: false } }, filters]
-        }
-
-        const variables: Record<string, any> = {
-          limit: pageSize,
-          offset: offset,
-          where: whereClause
-        }
-
-        if (sortField && sortOrder) {
-          const fieldMap: Record<string, string> = {
-            code: 'code',
-            title: 'title',
-            requestDate: 'requestDate',
-            startDate: 'startDate',
-            endDate: 'endDate',
-            status: 'status',
-            reimbursableAmount: 'reimbursableAmount',
-            totalAmount: 'totalAmount',
-            createdAt: 'createdAt',
-            updatedAt: 'updatedAt',
-            description: 'description',
-            currencyRef: 'currencyRef',
-            nonReimbursableAmount: 'nonReimbursableAmount'
-          }
-          const gqlField = fieldMap[sortField] || sortField
-          const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
-          variables.orderBy = [{ [gqlField]: direction }]
-        } else {
-          variables.orderBy = [{ requestDate: 'DESC' }]
-        }
+        const variables = buildVariables(employeeId, filters, page, pageSize, sortField, sortOrder)
 
         const requestStartTime = performance.now()
-
-        const requestPromise = client
-          .request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables, {
-            signal: controller.signal
-          })
-          .finally(() => {
-            inflightRef.current.delete(requestKey)
-          })
+        const requestPromise = client.request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables).finally(() => {
+          inflightRef.current.delete(requestKey)
+        })
 
         inflightRef.current.set(requestKey, requestPromise)
         const data = await requestPromise
@@ -223,13 +268,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         const requestDuration = performance.now() - requestStartTime
         console.log(`ExpenseRequests: GraphQL request completed in ${requestDuration.toFixed(2)}ms`)
 
-        const count = data?.ExpenseRequestAggregate?.aggregate?.count ?? 0
-        const fetchedItems = data?.ExpenseRequest ?? []
-
-        pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
-
-        setTotalCount(count)
-        setItems(fetchedItems)
+        processResponseData(data, cacheKey)
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
           return

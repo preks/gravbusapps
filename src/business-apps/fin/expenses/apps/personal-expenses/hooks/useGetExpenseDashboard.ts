@@ -85,40 +85,108 @@ export const useGetExpenseDashboard = (
   const abortControllerRef = useRef<AbortController | null>(null)
   const depsRef = useRef({ context, filters })
 
-  const fetchStats = async (options?: { force?: boolean }) => {
+  // Helper function to validate and get required values
+  const validateAndGetValues = (): {
+    employeeId: string
+    selectedCurrency: string
+    selectedPeriod: 'monthly' | 'quarterly' | 'yearly'
+  } | null => {
     const employeeId = depsRef.current.context?.userInfo?.employeeDetails?.employeeId
-
-    // Validate auth; missing currency is not an error (wait for preselect)
     if (!employeeId || !depsRef.current.context?.accessToken) {
       setError(new Error('Employee ID or Access Token not found.'))
       setStats(null)
       setIsLoading(false)
-      return
+      return null
     }
     if (!depsRef.current.filters?.currency) {
       setStats(null)
       setError(null)
       setIsLoading(false)
-      return
+      return null
     }
-
-    const now = dayjs()
-    const selectedCurrency = depsRef.current.filters?.currency
-    if (!selectedCurrency) {
-      setError(new Error('Currency is required'))
-      setStats(null)
-      setIsLoading(false)
-      return
-    }
+    const selectedCurrency = depsRef.current.filters.currency
     const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = depsRef.current.filters?.period || 'monthly'
+    return { employeeId, selectedCurrency, selectedPeriod }
+  }
 
-    const cacheKey = JSON.stringify({ employeeId, selectedCurrency, selectedPeriod, date: now.format('YYYY-MM') })
-
+  // Helper function to handle cached data
+  const handleCachedData = (cacheKey: string, options?: { force?: boolean }): boolean => {
     const cachedData = pageCacheRef.current.get(cacheKey)
     if (cachedData && !options?.force) {
       setStats(cachedData)
       setIsLoading(false)
       setError(null)
+      return true
+    }
+    return false
+  }
+
+  // Helper function to handle inflight requests
+  const handleInflightRequest = async (
+    key: string,
+    cacheKey: string,
+    selectedPeriod: 'monthly' | 'quarterly' | 'yearly'
+  ): Promise<boolean> => {
+    if (!inflightRef.current.has(key)) {
+      return false
+    }
+    try {
+      const result = await inflightRef.current.get(key)
+      const expenseDashboard = transformDashboardResponse(result, selectedPeriod)
+      pageCacheRef.current.set(cacheKey, expenseDashboard as ExpenseDashboard)
+      setStats(expenseDashboard as ExpenseDashboard)
+      setIsLoading(false)
+      setError(null)
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        throw err
+      }
+    }
+    return true
+  }
+
+  // Helper function to fetch and process dashboard data
+  const fetchDashboardData = async (
+    employeeId: string,
+    selectedCurrency: string,
+    selectedPeriod: 'monthly' | 'quarterly' | 'yearly',
+    controller: AbortController,
+    key: string,
+    cacheKey: string
+  ): Promise<void> => {
+    const now = dayjs()
+    const variables = buildDashboardVariables(employeeId, selectedCurrency, now, selectedPeriod)
+
+    const p = graphqlClient
+      .request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables)
+      .then(res => res)
+      .finally(() => {
+        inflightRef.current.delete(key)
+      })
+    inflightRef.current.set(key, p)
+    const data = await p
+
+    // If a newer request started, ignore this response.
+    if (abortControllerRef.current !== controller) {
+      return
+    }
+
+    const expenseDashboard = transformDashboardResponse(data, selectedPeriod)
+    pageCacheRef.current.set(cacheKey, expenseDashboard as ExpenseDashboard)
+    setStats(expenseDashboard as ExpenseDashboard)
+  }
+
+  const fetchStats = async (options?: { force?: boolean }) => {
+    const validated = validateAndGetValues()
+    if (!validated) {
+      return
+    }
+
+    const { employeeId, selectedCurrency, selectedPeriod } = validated
+    const now = dayjs()
+    const cacheKey = JSON.stringify({ employeeId, selectedCurrency, selectedPeriod, date: now.format('YYYY-MM') })
+
+    if (handleCachedData(cacheKey, options)) {
       return
     }
 
@@ -131,43 +199,16 @@ export const useGetExpenseDashboard = (
 
     setIsLoading(true)
     setError(null)
+
     try {
-      const variables = buildDashboardVariables(employeeId, selectedCurrency, now, selectedPeriod)
       const key = JSON.stringify({ employeeId, selectedCurrency, selectedPeriod, date: now.format('YYYY-MM') })
 
-      if (inflightRef.current.has(key)) {
-        try {
-          const result = await inflightRef.current.get(key)
-          const expenseDashboard = transformDashboardResponse(result, selectedPeriod)
-          pageCacheRef.current.set(cacheKey, expenseDashboard as ExpenseDashboard)
-          setStats(expenseDashboard as ExpenseDashboard)
-          setIsLoading(false)
-          setError(null)
-        } catch (err) {
-          if (err instanceof Error && err.name !== 'AbortError') {
-            throw err
-          }
-        }
+      const handledInflight = await handleInflightRequest(key, cacheKey, selectedPeriod)
+      if (handledInflight) {
         return
       }
 
-      const p = graphqlClient
-        .request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables)
-        .then(res => res)
-        .finally(() => {
-          inflightRef.current.delete(key)
-        })
-      inflightRef.current.set(key, p)
-      const data = await p
-
-      // If a newer request started, ignore this response.
-      if (abortControllerRef.current !== controller) {
-        return
-      }
-
-      const expenseDashboard = transformDashboardResponse(data, selectedPeriod)
-      pageCacheRef.current.set(cacheKey, expenseDashboard as ExpenseDashboard)
-      setStats(expenseDashboard as ExpenseDashboard)
+      await fetchDashboardData(employeeId, selectedCurrency, selectedPeriod, controller, key, cacheKey)
     } catch (err) {
       // We can't abort the underlying fetch without client support; ignore stale results instead.
       if (abortControllerRef.current !== controller || controller.signal.aborted) {

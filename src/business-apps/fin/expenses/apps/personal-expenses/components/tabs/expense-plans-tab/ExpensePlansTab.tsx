@@ -38,6 +38,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     clearFilters,
     search,
     setSearch,
+    debouncedSearch,
     getFilters,
     setStartDateRange,
     setEndDateRange,
@@ -57,7 +58,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     isStatisticsLoading,
     isDestinationLoading,
     error: overviewError,
-    fetchOverview
+    fetchOverview,
+    invalidateCache
   } = useExpensePlansOverview(props)
   const selectedCurrencyRef = useMemo(
     () => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'),
@@ -104,6 +106,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
   // Track previous selectedFilters to reset pagination when filters change.
   const prevSelectedFiltersRef = useRef<string | null>(null)
+  // Track previous search to detect when search is cleared
+  const prevSearchRef = useRef<string>('')
 
   // Persist and restore currency filter per user to avoid losing it on tab switches
   useEffect(() => {
@@ -357,6 +361,32 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     prevSelectedFiltersRef.current = currentFiltersKey
   }, [selectedFilters])
 
+  // Force refetch when search is cleared to ensure table repopulates with correct filters
+  useEffect(() => {
+    const prevSearch = (prevSearchRef.current || '').trim()
+    const currentSearch = (debouncedSearch || '').trim()
+
+    // Detect when debounced search transitions from non-empty to empty
+    // This ensures we wait for debounce to update before invalidating cache
+    if (prevSearch !== '' && currentSearch === '') {
+      // Search was cleared - invalidate cache to force fresh fetch with updated (empty) filters
+      invalidateCache()
+    }
+
+    prevSearchRef.current = debouncedSearch || ''
+  }, [debouncedSearch, invalidateCache])
+
+  // Validate current page after data loads to prevent invalid pagination (e.g., "Page 4 of 3")
+  useEffect(() => {
+    if (overview?.totalCount !== undefined && currentPage > 1) {
+      const maxPages = Math.max(1, Math.ceil(overview.totalCount / pageSize))
+      if (currentPage > maxPages) {
+        // Current page is invalid - reset to page 1
+        setCurrentPage(1)
+      }
+    }
+  }, [overview?.totalCount, currentPage, pageSize])
+
   // Process completion event listener for refreshing data
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
@@ -467,7 +497,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   // Enhanced table change handler for server-side sorting
   const handleTableChange = useCallback(
     (pagination: any, _filters: any, sorter: any) => {
-      setCurrentPage(pagination.current)
+      // Validate page number against total count to prevent invalid pagination
+      const totalCount = overview?.totalCount || 0
+      const maxPages = Math.max(1, Math.ceil(totalCount / pagination.pageSize))
+      const validPage = pagination.current > maxPages ? 1 : pagination.current
+
+      setCurrentPage(validPage)
       setPageSize(pagination.pageSize)
 
       // Handle sorting for server-side sorting
@@ -493,7 +528,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         setSortOrder('descend')
       }
     },
-    [sortField, sortOrder]
+    [sortField, sortOrder, overview?.totalCount]
   )
 
   return (

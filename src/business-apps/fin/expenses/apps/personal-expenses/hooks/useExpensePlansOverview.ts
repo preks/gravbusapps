@@ -51,7 +51,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
     if (val && typeof val === 'object') {
       const sorted: any = {}
       Object.keys(val)
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .forEach(k => {
           sorted[k] = normalize(val[k])
         })
@@ -105,10 +105,10 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       pageSize: number,
       sortField: string | null,
       sortOrder: 'ascend' | 'descend' | null,
-      options?: { force?: boolean }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _options?: { force?: boolean }
     ) => {
       // options parameter kept for backward compatibility and future use
-      void options
       const employeeId = context.userInfo?.employeeDetails?.employeeId
       const accessToken = context.accessToken
       if (!employeeId || !accessToken) return { items: [], totalCount: 0 }
@@ -229,9 +229,9 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
 
   // Separate statistics fetch function (without destinations)
   const fetchStatistics = useCallback(
-    async (currencyRef: string, options?: { force?: boolean }) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async (currencyRef: string, _options?: { force?: boolean }) => {
       // options parameter kept for backward compatibility and future use
-      void options
 
       const employeeId = context.userInfo?.employeeDetails?.employeeId
       const accessToken = context.accessToken
@@ -306,9 +306,9 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
 
   // Separate destinations fetch function - loads independently
   const fetchDestinations = useCallback(
-    async (options?: { force?: boolean }) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async (_options?: { force?: boolean }) => {
       // options parameter kept for backward compatibility and future use
-      void options
 
       const employeeId = context.userInfo?.employeeDetails?.employeeId
       const accessToken = context.accessToken
@@ -364,6 +364,39 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       normalize,
       processDestinationData
     ]
+  )
+
+  // Helper function to update all cache entries with destination data
+  const updateCacheWithDestination = useCallback((destinationData: string, cacheKey: string, updatedData: any) => {
+    // Update all cache entries that don't have destination
+    pageCacheRef.current.forEach((cachedValue, key) => {
+      if (cachedValue && !cachedValue.topDestination) {
+        pageCacheRef.current.set(key, { ...cachedValue, topDestination: destinationData })
+      }
+    })
+    // Also update current cache key with the updated data
+    pageCacheRef.current.set(cacheKey, updatedData)
+  }, [])
+
+  // Helper function to handle destination fetch result
+  const handleDestinationFetch = useCallback(
+    (destinationData: string | null, requestId: string, cacheKey: string) => {
+      if (currentRequestRef.current === requestId && destinationData !== null) {
+        setData(prevData => {
+          if (!prevData) return null
+          const updatedData = {
+            ...prevData,
+            topDestination: destinationData
+          }
+          // Update all cache entries with the destination data since it's filter-independent
+          // This ensures destination is available regardless of which filter combination is cached
+          updateCacheWithDestination(destinationData, cacheKey, updatedData)
+          return updatedData
+        })
+        setIsDestinationLoading(false)
+      }
+    },
+    [updateCacheWithDestination]
   )
 
   // Updated fetchOverview - fetch list first for immediate display, then statistics
@@ -507,27 +540,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
             setIsDestinationLoading(true)
             fetchDestinations(options)
               .then(destinationData => {
-                // Only update destination if this is still the current request
-                if (currentRequestRef.current === requestId && destinationData !== null) {
-                  setData(prevData => {
-                    if (!prevData) return null
-                    const updatedData = {
-                      ...prevData,
-                      topDestination: destinationData
-                    }
-                    // Update all cache entries with the destination data since it's filter-independent
-                    // This ensures destination is available regardless of which filter combination is cached
-                    pageCacheRef.current.forEach((cachedValue, key) => {
-                      if (cachedValue && !cachedValue.topDestination) {
-                        pageCacheRef.current.set(key, { ...cachedValue, topDestination: destinationData })
-                      }
-                    })
-                    // Also update current cache key
-                    pageCacheRef.current.set(cacheKey, updatedData)
-                    return updatedData
-                  })
-                  setIsDestinationLoading(false)
-                }
+                handleDestinationFetch(destinationData, requestId, cacheKey)
               })
               .catch(err => {
                 // Don't show error for destinations - just log it
@@ -554,7 +567,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
         setIsLoading(false)
       }
     },
-    [fetchList, fetchStatistics, fetchDestinations, generateRequestId, generateCacheKey]
+    [fetchList, fetchStatistics, fetchDestinations, generateRequestId, generateCacheKey, handleDestinationFetch]
   )
 
   // Manual cache invalidation (for manual refresh or mutations)

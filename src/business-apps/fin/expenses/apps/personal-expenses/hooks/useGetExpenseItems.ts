@@ -103,7 +103,7 @@ export const useGetExpenseItems = (
     if (val && typeof val === 'object') {
       const sorted: any = {}
       Object.keys(val)
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .forEach(k => {
           sorted[k] = normalize(val[k])
         })
@@ -127,6 +127,96 @@ export const useGetExpenseItems = (
     [normalize]
   )
 
+  // Helper function to build base where clause
+  const buildBaseWhereClause = useCallback((employeeId: string, filter?: ExpenseFilter): Record<string, any> => {
+    const where: Record<string, any> = {
+      employeeId: { _eq: employeeId },
+      isDeleted: { _eq: false },
+      // exclude allowance
+      expenseClass: { _not: { code: { _eq: 'ALLOWANCE' } } },
+      // always exclude discarded
+      status: { _nin: ['DISCARDED'] }
+    }
+
+    // Add expenseClass filter to server-side query if provided
+    if (filter?.expenseClass?.value) {
+      where.expenseClass = {
+        _and: [{ value: { _eq: filter.expenseClass.value } }, { _not: { code: { _eq: 'ALLOWANCE' } } }]
+      }
+    }
+
+    return where
+  }, [])
+
+  // Helper function to add search filters to where clause
+  const addSearchFilters = useCallback((where: Record<string, any>, searchTerm: string): void => {
+    const trimmedSearch = (searchTerm || '').trim()
+    // Only add search filter if there's an actual search term (not '%' which means "all items")
+    if (trimmedSearch && trimmedSearch !== '%') {
+      const pattern = `%${trimmedSearch}%`
+      where._or = [
+        { title: { _ilike: pattern } },
+        { code: { _ilike: pattern } },
+        { status: { _ilike: pattern } },
+        { expenseClass: { value: { _ilike: pattern } } },
+        { expenseClass: { translations: { value: { _ilike: pattern } } } },
+        { costCenter: { name: { _ilike: pattern } } }
+      ]
+    }
+  }, [])
+
+  // Helper function to add filter conditions to where clause
+  const addFilterConditions = useCallback((where: Record<string, any>, filter?: ExpenseFilter): void => {
+    if (!filter) return
+
+    if (filter.status) {
+      where.status = { ...(where.status || {}), _in: filter.status }
+    }
+
+    if (filter.expenseDateStart || filter.expenseDateEnd) {
+      where.expenseDate = {
+        ...(filter.expenseDateStart ? { _gte: filter.expenseDateStart } : {}),
+        ...(filter.expenseDateEnd ? { _lte: filter.expenseDateEnd } : {})
+      }
+    }
+
+    if (filter.totalAmountMin !== undefined || filter.totalAmountMax !== undefined) {
+      where.totalAmount = {
+        ...(filter.totalAmountMin !== undefined && filter.totalAmountMin !== null
+          ? { _gte: filter.totalAmountMin }
+          : {}),
+        ...(filter.totalAmountMax !== undefined && filter.totalAmountMax !== null
+          ? { _lte: filter.totalAmountMax }
+          : {})
+      }
+    }
+
+    if (filter.currencyRef) {
+      where.currencyRef = { _eq: filter.currencyRef }
+    }
+  }, [])
+
+  // Helper function to build orderBy clause
+  const buildOrderBy = useCallback((sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null): any[] => {
+    if (sortField && sortOrder) {
+      const fieldMap: Record<string, string> = {
+        title: 'title',
+        expenseDate: 'expenseDate',
+        status: 'status',
+        reimbursableAmount: 'reimbursableAmount',
+        totalAmount: 'totalAmount',
+        createdAt: 'createdAt',
+        updatedAt: 'updatedAt',
+        code: 'code',
+        description: 'description'
+      }
+      const gqlField = fieldMap[sortField] || sortField
+      const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
+      return [{ [gqlField]: direction }]
+    }
+    return [{ expenseDate: 'DESC' }]
+  }, [])
+
   /**
    * Helper function to build GraphQL variables for the query
    */
@@ -140,94 +230,22 @@ export const useGetExpenseItems = (
       sortField?: string | null,
       sortOrder?: 'ascend' | 'descend' | null
     ) => {
-      const trimmedSearch = (searchTerm || '').trim()
       const offset = (page - 1) * pageSize
 
-      // Build dynamic where clause to avoid forcing currency when not selected
-      const where: Record<string, any> = {
-        employeeId: { _eq: employeeId },
-        isDeleted: { _eq: false },
-        // exclude allowance
-        expenseClass: { _not: { code: { _eq: 'ALLOWANCE' } } },
-        // always exclude discarded
-        status: { _nin: ['DISCARDED'] }
-      }
-
-      // Add expenseClass filter to server-side query if provided
-      if (filter?.expenseClass?.value) {
-        where.expenseClass = {
-          _and: [{ value: { _eq: filter.expenseClass.value } }, { _not: { code: { _eq: 'ALLOWANCE' } } }]
-        }
-      }
-
-      // Only add search filter if there's an actual search term (not '%' which means "all items")
-      if (trimmedSearch && trimmedSearch !== '%') {
-        const pattern = `%${trimmedSearch}%`
-        where._or = [
-          { title: { _ilike: pattern } },
-          { code: { _ilike: pattern } },
-          { status: { _ilike: pattern } },
-          { expenseClass: { value: { _ilike: pattern } } },
-          { expenseClass: { translations: { value: { _ilike: pattern } } } },
-          { costCenter: { name: { _ilike: pattern } } }
-        ]
-      }
-
-      if (filter?.status) {
-        where.status = { ...(where.status || {}), _in: filter.status }
-      }
-
-      if (filter?.expenseDateStart || filter?.expenseDateEnd) {
-        where.expenseDate = {
-          ...(filter?.expenseDateStart ? { _gte: filter.expenseDateStart } : {}),
-          ...(filter?.expenseDateEnd ? { _lte: filter.expenseDateEnd } : {})
-        }
-      }
-
-      if (filter?.totalAmountMin !== undefined || filter?.totalAmountMax !== undefined) {
-        where.totalAmount = {
-          ...(filter?.totalAmountMin !== undefined && filter.totalAmountMin !== null
-            ? { _gte: filter.totalAmountMin }
-            : {}),
-          ...(filter?.totalAmountMax !== undefined && filter.totalAmountMax !== null
-            ? { _lte: filter.totalAmountMax }
-            : {})
-        }
-      }
-
-      if (filter?.currencyRef) {
-        where.currencyRef = { _eq: filter.currencyRef }
-      }
+      const where = buildBaseWhereClause(employeeId, filter)
+      addSearchFilters(where, searchTerm)
+      addFilterConditions(where, filter)
 
       const variables: Record<string, any> = {
         limit: pageSize,
         offset,
-        where
-      }
-
-      // Add orderBy for server-side sorting
-      if (sortField && sortOrder) {
-        const fieldMap: Record<string, string> = {
-          title: 'title',
-          expenseDate: 'expenseDate',
-          status: 'status',
-          reimbursableAmount: 'reimbursableAmount',
-          totalAmount: 'totalAmount',
-          createdAt: 'createdAt',
-          updatedAt: 'updatedAt',
-          code: 'code',
-          description: 'description'
-        }
-        const gqlField = fieldMap[sortField] || sortField
-        const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
-        variables.orderBy = [{ [gqlField]: direction }]
-      } else {
-        variables.orderBy = [{ expenseDate: 'DESC' }]
+        where,
+        orderBy: buildOrderBy(sortField, sortOrder)
       }
 
       return variables
     },
-    []
+    [buildBaseWhereClause, addSearchFilters, addFilterConditions, buildOrderBy]
   )
 
   /**
