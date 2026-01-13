@@ -366,7 +366,10 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
                 {!aiLoading && !aiError && aiSuggestion && (
                   <div className="gba:flex gba:flex-col gba:gap-1" data-testid="upload-document-ai-status-suggestion">
                     <span>
-                      {`AI suggestion: Group = ${aiSuggestion.group || '—'}, Type = ${aiSuggestion.type || '—'}`}
+                      {getTranslationFromI18nKeyAndLabel(
+                        'document.ai.suggestion',
+                        `AI suggestion: Group = ${aiSuggestion.group || '—'}, Type = ${aiSuggestion.type || '—'}`
+                      )}
                     </span>
                     <div className="gba:flex gba:gap-2">
                       <Button

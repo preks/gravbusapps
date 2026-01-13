@@ -754,7 +754,7 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
     if (!aiSuggestion) return ''
     const g = aiSuggestion.group || '—'
     const t = aiSuggestion.type || '—'
-    return `AI suggestion: Group = ${g}, Type = ${t}`
+    return getTranslationFromI18nKeyAndLabel('document.ai.suggestion', `AI suggestion: Group = ${g}, Type = ${t}`)
   }
 
   const title = getDialogTitle()
