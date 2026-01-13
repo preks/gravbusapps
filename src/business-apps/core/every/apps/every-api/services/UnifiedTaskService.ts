@@ -272,9 +272,9 @@ async function fetchFromBothSources(
     fetchPromises.push(
       (async () => {
         try {
-          // IMPORTANT: For the inbox we want accurate counts.
+          // IMPORTANT: For the inbox we want accurate counts AND we currently do NOT fetch claimable tasks.
           // The generic /api/tasks/user/:userId endpoint may not return totalCount reliably,
-          // so we fetch from /assigned and /claimable and combine.
+          // so we use /assigned here.
 
           if (parsedFilters.assignedOnly) {
             const assigned = await fetchCflowUserAssignedTasks(userId, accessToken, cflowParams)
@@ -290,54 +290,10 @@ async function fetchFromBothSources(
             return
           }
 
-          const [assignedRes, claimableRes] = await Promise.allSettled([
-            fetchCflowUserAssignedTasks(userId, accessToken, cflowParams),
-            fetchCflowUserClaimableTasks(userId, accessToken, cflowParams)
-          ])
-
-          const combinedTasks: any[] = []
-          let assignedTotal = 0
-          let claimableTotal = 0
-
-          if (assignedRes.status === 'fulfilled') {
-            combinedTasks.push(...assignedRes.value.tasks)
-            assignedTotal = assignedRes.value.totalCount
-          } else {
-            errors.push({
-              source: 'cflow',
-              message: 'Failed to fetch custom-flow-engine assigned tasks',
-              details: assignedRes.reason instanceof Error ? assignedRes.reason.message : String(assignedRes.reason)
-            })
-            if (!config.enablePartialResults) {
-              throw assignedRes.reason
-            }
-          }
-
-          if (claimableRes.status === 'fulfilled') {
-            combinedTasks.push(...claimableRes.value.tasks)
-            claimableTotal = claimableRes.value.totalCount
-          } else {
-            errors.push({
-              source: 'cflow',
-              message: 'Failed to fetch custom-flow-engine claimable tasks',
-              details: claimableRes.reason instanceof Error ? claimableRes.reason.message : String(claimableRes.reason)
-            })
-            if (!config.enablePartialResults) {
-              throw claimableRes.reason
-            }
-          }
-
-          // De-dupe in case a task appears in both lists
-          const seen = new Set<string>()
-          const unique = combinedTasks.filter(t => {
-            const id = String(t?.id || '')
-            if (!id || seen.has(id)) return false
-            seen.add(id)
-            return true
-          })
-
-          allTasks.push(...adaptCflowTasks(unique))
-          cflowTotalCount = assignedTotal + claimableTotal
+          // Default: fetch assigned only (no claimable tasks for now)
+          const assigned = await fetchCflowUserAssignedTasks(userId, accessToken, cflowParams)
+          allTasks.push(...adaptCflowTasks(assigned.tasks))
+          cflowTotalCount = assigned.totalCount
         } catch (error: any) {
           errors.push({
             source: 'cflow',
