@@ -38,9 +38,8 @@ export const useLiquidFundKPIIntegration = (
     {
       totalInvestments: 0,
       totalAmountInvested: 0,
-      totalMarketValue: 0,
       averageInvestmentValue: 0,
-      averageMarketValue: 0
+      activeInvestments: 0
     },
     [currency]
   )

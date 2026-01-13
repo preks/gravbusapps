@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   Button,
   Badge,
@@ -42,6 +43,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import {
   PiPlus,
   PiPencil,
@@ -64,6 +66,16 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
+import {
+  validateAllowanceSetupDates,
+  formatDateToISO,
+  transformAllowanceSetupForRestrictedUpdate,
+  transformAllowanceSetupForSave,
+  parseAllowanceSetupSaveError
+} from '../utils'
+import { useTableSorting, createFieldMappings } from '../hooks'
+import { UsageInfo } from '../../../types'
 
 interface AllowanceSetupTabProps {
   ruleId: string
@@ -105,15 +117,6 @@ interface AllowanceSetupFormData {
   version?: number
 }
 
-// Usage check result
-interface UsageInfo {
-  isUsed: boolean
-  usedIn: {
-    positions?: number
-  }
-  message: string
-}
-
 const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -126,14 +129,29 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
   const [allowancePeriods, setAllowancePeriods] = useState<any[]>([])
   const [allowanceCodes, setAllowanceCodes] = useState<any[]>([])
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      name: createFieldMappings.string((a: AllowanceSetup) => a.name),
+      allowancePeriod: createFieldMappings.nested((a: AllowanceSetup) => a.allowancePeriod),
+      allowanceCode: createFieldMappings.nested((a: AllowanceSetup) => a.allowanceCode),
+      issue: createFieldMappings.string((a: AllowanceSetup) => a.issue),
+      onlyTax: createFieldMappings.boolean((a: AllowanceSetup) => a.onlyTax),
+      activeFrom: createFieldMappings.date((a: AllowanceSetup) => a.validFrom),
+      activeTo: createFieldMappings.date((a: AllowanceSetup) => a.validTo, '9999-12-31')
+    }),
+    []
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<AllowanceSetup>({
+    defaultSortField: 'name',
+    defaultSortOrder: 'ASC',
+    data: allowanceSetups,
+    fieldMappings
+  })
+
+  // formatDateForInput is imported from shared utils
 
   const form = useForm<AllowanceSetupFormData>({
     defaultValues: {
@@ -167,25 +185,115 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
   expenseSettingsClient.setAccessToken(accessToken)
 
   // Load usage status for all setups
-  // Note: AllowanceSetup doesn't have direct references in ExpensePosition,
-  // so we can't track usage. All setups are treated as not in use.
-  const loadSetupUsageStatus = useCallback(async (setupIds: string[]) => {
-    if (setupIds.length === 0) return
+  // AllowanceSetup usage is determined by checking if its linked AllowanceCode is used
+  const loadSetupUsageStatus = useCallback(
+    async (setups: { id: string; allowanceCodeId: string }[]) => {
+      if (setups.length === 0) return
 
-    // Since there's no direct link to track usage, allow all operations
-    const usageMap: Record<string, boolean> = {}
-    setupIds.forEach(id => {
-      usageMap[id] = false
-    })
-    setSetupUsageMap(usageMap)
-  }, [])
+      try {
+        // Get unique allowance code IDs
+        const allowanceCodeIds = [...new Set(setups.map(s => s.allowanceCodeId).filter(Boolean))]
+
+        if (allowanceCodeIds.length === 0) {
+          const usageMap: Record<string, boolean> = {}
+          setups.forEach(s => {
+            usageMap[s.id] = false
+          })
+          setSetupUsageMap(usageMap)
+          return
+        }
+
+        // Check if any of these allowance codes are used in expense entities
+        const query = `
+          query CheckAllowanceCodeUsageForSetups($allowanceCodeIds: [uuid!]!) {
+            planItems: ExpensePlanItem(
+              where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
+            ) { expenseRuleAllowanceCodeId }
+            items: ExpenseItem(
+              where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
+            ) { expenseRuleAllowanceCodeId }
+            positions: ExpensePosition(
+              where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
+            ) { expenseRuleAllowanceCodeId }
+          }
+        `
+
+        const result = await graphqlClient.request<any>(query, { allowanceCodeIds })
+
+        // Collect all used allowance code IDs
+        const usedCodeIds = new Set<string>()
+        result.planItems?.forEach((item: any) => usedCodeIds.add(item.expenseRuleAllowanceCodeId))
+        result.items?.forEach((item: any) => usedCodeIds.add(item.expenseRuleAllowanceCodeId))
+        result.positions?.forEach((item: any) => usedCodeIds.add(item.expenseRuleAllowanceCodeId))
+
+        // Map setup IDs to usage status based on their allowance code
+        const usageMap: Record<string, boolean> = {}
+        setups.forEach(s => {
+          usageMap[s.id] = usedCodeIds.has(s.allowanceCodeId)
+        })
+        setSetupUsageMap(usageMap)
+      } catch (error) {
+        console.error('Error checking allowance setup usage:', error)
+        // On error, assume not in use to allow operations
+        const usageMap: Record<string, boolean> = {}
+        setups.forEach(s => {
+          usageMap[s.id] = false
+        })
+        setSetupUsageMap(usageMap)
+      }
+    },
+    [graphqlClient]
+  )
 
   // Check detailed usage for a single setup
-  // Note: AllowanceSetup doesn't have direct references in ExpensePosition
-  const checkAllowanceSetupUsage = useCallback(async (): Promise<UsageInfo> => {
-    // Since there's no direct link to track usage, return not used
-    return { isUsed: false, usedIn: {}, message: '' }
-  }, [])
+  const checkAllowanceSetupUsage = useCallback(
+    async (setupId: string, allowanceCodeId: string): Promise<UsageInfo> => {
+      if (!allowanceCodeId) {
+        return { isUsed: false, usedIn: {}, message: '' }
+      }
+
+      try {
+        const query = `
+          query CheckAllowanceSetupDetailedUsage($allowanceCodeId: uuid!) {
+            planItemCount: ExpensePlanItemAggregate(
+              where: { expenseRuleAllowanceCodeId: { _eq: $allowanceCodeId }, isDeleted: { _eq: false } }
+            ) { aggregate { count } }
+            itemCount: ExpenseItemAggregate(
+              where: { expenseRuleAllowanceCodeId: { _eq: $allowanceCodeId }, isDeleted: { _eq: false } }
+            ) { aggregate { count } }
+            positionCount: ExpensePositionAggregate(
+              where: { expenseRuleAllowanceCodeId: { _eq: $allowanceCodeId }, isDeleted: { _eq: false } }
+            ) { aggregate { count } }
+          }
+        `
+
+        const result = await graphqlClient.request<any>(query, { allowanceCodeId })
+
+        const planItems = result.planItemCount?.aggregate?.count || 0
+        const items = result.itemCount?.aggregate?.count || 0
+        const positions = result.positionCount?.aggregate?.count || 0
+
+        const isUsed = planItems > 0 || items > 0 || positions > 0
+
+        const messageParts: string[] = []
+        if (planItems > 0) messageParts.push(`${planItems} plan item${planItems > 1 ? 's' : ''}`)
+        if (items > 0) messageParts.push(`${items} expense item${items > 1 ? 's' : ''}`)
+        if (positions > 0) messageParts.push(`${positions} position${positions > 1 ? 's' : ''}`)
+
+        return {
+          isUsed,
+          usedIn: { planItems, items, positions },
+          message: isUsed
+            ? `This setup's allowance code is used in ${messageParts.join(', ')}. Only "Valid To" can be modified.`
+            : ''
+        }
+      } catch (error) {
+        console.error('Error checking allowance setup usage:', error)
+        return { isUsed: false, usedIn: {}, message: '' }
+      }
+    },
+    [graphqlClient]
+  )
 
   const fetchAllowanceSetups = useCallback(async () => {
     setIsLoading(true)
@@ -235,9 +343,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
       const expenseRule = result.ExpenseRule?.[0]
       const setups = expenseRule?.expenseRuleAllowanceSetup || []
-      
-      console.log('🔍 Fetched allowance setups (should exclude isDeleted=true):', setups.length, setups.map((s: any) => ({ id: s.id, name: s.name })))
-      
+
       const periods = expenseRule?.expenseRuleAllowancePeriod || []
       const codes = expenseRule?.expenseRuleAllowanceCode || []
 
@@ -258,9 +364,14 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       setAllowancePeriods(periods)
       setAllowanceCodes(codes)
 
-      // Load usage status for all setups
+      // Load usage status for all setups (based on their allowance code usage)
       if (transformedSetups.length > 0) {
-        await loadSetupUsageStatus(transformedSetups.map(s => s.id))
+        await loadSetupUsageStatus(
+          transformedSetups.map(s => ({
+            id: s.id,
+            allowanceCodeId: s.allowanceCode.id
+          }))
+        )
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load allowance setups')
@@ -269,15 +380,14 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     }
   }, [ruleId, graphqlClient, loadSetupUsageStatus])
 
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  const sortedAllowanceSetups = sorting.sortedData || allowanceSetups
+
   useEffect(() => {
     if (ruleId && accessToken) {
       fetchAllowanceSetups()
     }
   }, [ruleId, accessToken, fetchAllowanceSetups])
-
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
 
   // Issue types - value is stored in DB, label is displayed in UI
   const issueOptions = [
@@ -320,8 +430,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     setIsCheckingUsage(true)
     setValidityError(null)
 
-    // Check if setup is used
-    const usageInfo = await checkAllowanceSetupUsage(record.id)
+    // Check if setup is used (based on its allowance code usage)
+    const usageInfo = await checkAllowanceSetupUsage(record.id, record.allowanceCode.id)
     setCurrentUsageInfo(usageInfo)
     setIsRestrictedEdit(usageInfo.isUsed)
 
@@ -352,23 +462,15 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
     setIsDeleting(true)
     try {
-      console.log('🗑️ Deleting allowance setup:', itemToDelete.id, itemToDelete.name)
-      
-      const response = await expenseSettingsClient.deleteExpenseRuleAllowanceSetup(
-        itemToDelete.id,
-        itemToDelete.version
-      )
-      console.log('🗑️ Delete response:', response)
+      await expenseSettingsClient.deleteExpenseRuleAllowanceSetup(itemToDelete.id, itemToDelete.version)
 
       toast.success('Allowance setup deleted successfully')
       setDeleteDialogOpen(false)
       setItemToDelete(null)
-      
+
       // Wait a bit for the backend to process the delete
       await new Promise(resolve => setTimeout(resolve, 500))
-      console.log('🔄 Refreshing allowance setups...')
       await fetchAllowanceSetups()
-      console.log('✅ Refresh complete')
     } catch (err) {
       toast.error('Failed to delete allowance setup')
       console.error('❌ Delete error:', err)
@@ -377,6 +479,73 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     }
   }
 
+  // Check if allowanceCodeId + allowancePeriodId combination is unique within the validity period
+  const checkSetupUniqueness = useCallback(
+    async (
+      allowanceCodeId: string,
+      allowancePeriodId: string,
+      activeFrom: string,
+      activeTo: string | undefined,
+      excludeId?: string
+    ): Promise<boolean> => {
+      try {
+        // Fetch all matching setups and check overlap in JavaScript to avoid GraphQL schema limitations
+        const query = `
+          query CheckAllowanceSetupUniqueness($ruleId: uuid!, $allowanceCodeId: uuid!, $allowancePeriodId: uuid!, $excludeId: uuid) {
+            ExpenseRuleAllowanceSetup(
+              where: {
+                expenseRuleId: { _eq: $ruleId }
+                allowanceCodeId: { _eq: $allowanceCodeId }
+                allowancePeriodId: { _eq: $allowancePeriodId }
+                isDeleted: { _eq: false }
+                id: { _neq: $excludeId }
+              }
+            ) {
+              id
+              activeFrom
+              activeTo
+            }
+          }
+        `
+
+        const variables = {
+          ruleId,
+          allowanceCodeId,
+          allowancePeriodId,
+          excludeId: excludeId || null
+        }
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleAllowanceSetup: { id: string; activeFrom: string; activeTo?: string }[]
+        }>(query, variables)
+
+        // Check for overlapping periods using shared utility
+        const overlappingSetups = findOverlappingPeriods({ activeFrom, activeTo }, result.ExpenseRuleAllowanceSetup)
+
+        if (overlappingSetups.length > 0) {
+          return true
+        }
+
+        return false
+      } catch (error) {
+        console.error('[AllowanceSetupTab] Error checking setup uniqueness:', {
+          error,
+          allowanceCodeId,
+          allowancePeriodId,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        return true // Block save on error
+      }
+    },
+    [ruleId, graphqlClient]
+  )
+
   const handleSave = async () => {
     try {
       setIsSaving(true)
@@ -384,88 +553,53 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
       const formValues = form.getValues()
 
+      // Check setup uniqueness (allowanceCodeId + allowancePeriodId combination)
+      const setupExists = await checkSetupUniqueness(
+        formValues.allowanceCodeId,
+        formValues.allowancePeriodId,
+        formValues.validFrom,
+        formValues.validTo,
+        editingItem?.id
+      )
+
+      if (setupExists) {
+        setValidityError(
+          'This allowance code and period combination already exists with an overlapping validity period. Please use a different combination or adjust the validity dates.'
+        )
+        setIsSaving(false)
+        return
+      }
+
       // Validate validity period
-      if (!formValues.validFrom) {
-        setValidityError('Valid From date is required')
+      const validationError = validateAllowanceSetupDates(
+        formValues.validFrom,
+        formValues.validTo,
+        activeFrom,
+        activeTo
+      )
+
+      if (validationError) {
+        setValidityError(validationError.message)
         setIsSaving(false)
         return
-      }
-
-      // Check if validFrom is within rule's validity period
-      if (activeFrom && dayjs(formValues.validFrom).isBefore(dayjs(activeFrom))) {
-        setValidityError(`Valid From must be on or after ${dayjs(activeFrom).format('DD/MM/YYYY')} (rule start date)`)
-        setIsSaving(false)
-        return
-      }
-
-      // Check if validTo is within rule's validity period
-      if (activeTo && formValues.validTo && dayjs(formValues.validTo).isAfter(dayjs(activeTo))) {
-        setValidityError(`Valid To must be on or before ${dayjs(activeTo).format('DD/MM/YYYY')} (rule end date)`)
-        setIsSaving(false)
-        return
-      }
-
-      // Check if validFrom is before validTo
-      if (formValues.validTo && dayjs(formValues.validFrom).isAfter(dayjs(formValues.validTo))) {
-        setValidityError('Valid From must be before Valid To')
-        setIsSaving(false)
-        return
-      }
-
-      // Convert dates to ISO format for backend (expects java.time.Instant)
-      const formatDateToISO = (dateStr: string | undefined): string | undefined => {
-        if (!dateStr) return undefined
-        return dayjs(dateStr).startOf('day').toISOString()
       }
 
       // IMPORTANT: Always use editingItem for id and version when updating
-      const isUpdate = !!editingItem
+      const saveData =
+        isRestrictedEdit && editingItem
+          ? transformAllowanceSetupForRestrictedUpdate(formValues, editingItem, ruleId, formatDateToISO)
+          : transformAllowanceSetupForSave(formValues, ruleId, editingItem, formatDateToISO)
 
-      // If restricted edit, only update validTo
-      if (isRestrictedEdit && editingItem) {
-        await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
-          id: editingItem.id,
-          version: editingItem.version,
-          expenseRuleId: ruleId,
-          name: editingItem.name,
-          issue: editingItem.issue,
-          onlyTax: editingItem.onlyTax,
-          activeFrom: formatDateToISO(editingItem.validFrom),
-          activeTo: formatDateToISO(formValues.validTo),
-          allowancePeriodId: editingItem.allowancePeriod.id,
-          allowanceCodeId: editingItem.allowanceCode.id
-        })
-      } else {
-        // Full save
-        await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
-          ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
-          expenseRuleId: ruleId,
-          businessKey: undefined,
-          activeTo: formatDateToISO(formValues.validTo),
-          additionalProperties: undefined,
-          name: formValues.name,
-          issue: formValues.issue,
-          onlyTax: formValues.onlyTax,
-          activeFrom: formatDateToISO(formValues.validFrom),
-          setupOrder: undefined,
-          allowancePeriodId: formValues.allowancePeriodId,
-          allowanceCodeId: formValues.allowanceCodeId
-        })
-      }
+      await expenseSettingsClient.saveExpenseRuleAllowanceSetup(saveData)
 
       toast.success(`Allowance setup ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
       await fetchAllowanceSetups()
     } catch (err) {
-      // Parse the error message for better user feedback
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-
-      if (errorMessage.includes('DateTimeParseException') || errorMessage.includes('Instant')) {
-        setValidityError('Invalid date format. Please check the validity dates.')
-      } else if (errorMessage.includes('activeFrom') || errorMessage.includes('validFrom')) {
-        setValidityError('Invalid Valid From date. Please check the date format.')
-      } else if (errorMessage.includes('activeTo') || errorMessage.includes('validTo')) {
-        setValidityError('Invalid Valid To date. Please check the date format.')
+      // Parse error and show appropriate message
+      const validityErrorMessage = parseAllowanceSetupSaveError(err)
+      if (validityErrorMessage) {
+        setValidityError(validityErrorMessage)
       } else {
         toast.error(`Failed to ${editingItem ? 'update' : 'create'} allowance setup`)
       }
@@ -532,41 +666,87 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         </CardHeader>
 
         <CardContent data-testid="allowance-setup-card-content">
-          {allowanceSetups.length > 0 ? (
+          {sortedAllowanceSetups.length > 0 ? (
             <Table data-testid="allowance-setups-table">
               <TableHeader data-testid="allowance-setups-table-header">
                 <TableRow data-testid="allowance-setups-table-header-row">
                   <TableHead className="gba:w-[60px]" data-testid="allowance-setups-table-header-actions">
                     ACTIONS
                   </TableHead>
-                  <TableHead className="gba:w-[150px]" data-testid="allowance-setups-table-header-period">
-                    ALLOWANCE PERIOD
-                  </TableHead>
-                  <TableHead className="gba:w-[150px]" data-testid="allowance-setups-table-header-code">
-                    ALLOWANCE CODE
-                  </TableHead>
-                  <TableHead className="gba:w-[200px]" data-testid="allowance-setups-table-header-name">
-                    NAME
-                  </TableHead>
-                  <TableHead className="gba:w-[150px]" data-testid="allowance-setups-table-header-issue">
-                    ISSUE
+                  <TableHead
+                    className="gba:w-[150px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('allowancePeriod')}
+                    data-testid="allowance-setups-table-header-period"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      ALLOWANCE PERIOD
+                      {sorting.renderSortIcon('allowancePeriod')}
+                    </div>
                   </TableHead>
                   <TableHead
-                    className="gba:w-[100px] gba:text-center"
+                    className="gba:w-[150px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('allowanceCode')}
+                    data-testid="allowance-setups-table-header-code"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      ALLOWANCE CODE
+                      {sorting.renderSortIcon('allowanceCode')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[200px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('name')}
+                    data-testid="allowance-setups-table-header-name"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      NAME
+                      {sorting.renderSortIcon('name')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[150px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('issue')}
+                    data-testid="allowance-setups-table-header-issue"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      ISSUE
+                      {sorting.renderSortIcon('issue')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[100px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('onlyTax')}
                     data-testid="allowance-setups-table-header-tax-only"
                   >
-                    TAX ONLY
+                    <div className="gba:flex gba:items-center gba:justify-center">
+                      TAX ONLY
+                      {sorting.renderSortIcon('onlyTax')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[120px]" data-testid="allowance-setups-table-header-valid-from">
-                    VALID FROM
+                  <TableHead
+                    className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('activeFrom')}
+                    data-testid="allowance-setups-table-header-valid-from"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      VALID FROM
+                      {sorting.renderSortIcon('activeFrom')}
+                    </div>
                   </TableHead>
-                  <TableHead className="gba:w-[120px]" data-testid="allowance-setups-table-header-valid-to">
-                    VALID TO
+                  <TableHead
+                    className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('activeTo')}
+                    data-testid="allowance-setups-table-header-valid-to"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      VALID TO
+                      {sorting.renderSortIcon('activeTo')}
+                    </div>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody data-testid="allowance-setups-table-body">
-                {allowanceSetups.map(record => (
+                {sortedAllowanceSetups.map(record => (
                   <TableRow key={record.id} data-testid={`allowance-setup-row-${record.id}`}>
                     <TableCell data-testid={`allowance-setup-actions-cell-${record.id}`}>
                       <DropdownMenu>
@@ -706,37 +886,19 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent data-testid="allowance-setup-delete-dialog">
-          <DialogHeader>
-            <DialogTitle>Delete Allowance Setup</DialogTitle>
-          </DialogHeader>
-          <div className="gba:py-4">
-            <p>
-              Are you sure you want to delete the allowance setup "{itemToDelete?.name}"? This action cannot be undone.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={isDeleting}
-              data-testid="allowance-setup-delete-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="allowance-setup-delete-confirm-button"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Allowance Setup"
+        itemDescription={`the allowance setup "${itemToDelete?.name}"`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="allowance-setup-delete"
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
@@ -798,7 +960,18 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                 render={({ field }) => (
                   <FormItem data-testid="allowance-setup-code-field">
                     <FormLabel data-testid="allowance-setup-code-label">Allowance Code *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                    <Select
+                      value={field.value}
+                      onValueChange={value => {
+                        field.onChange(value)
+                        // Auto-populate name field with selected allowance code's name
+                        const selectedCode = allowanceCodes.find(code => code.id === value)
+                        if (selectedCode && !editingItem) {
+                          form.setValue('name', selectedCode.name)
+                        }
+                      }}
+                      disabled={isRestrictedEdit}
+                    >
                       <FormControl>
                         <SelectTrigger data-testid="allowance-setup-code-select">
                           <SelectValue placeholder="Select allowance code" />
@@ -833,7 +1006,10 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                       <Input
                         {...field}
                         disabled={isRestrictedEdit}
-                        placeholder="e.g., Full Day Setup"
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'expense-settings:allowance_setup_name_placeholder',
+                          'Enter allowance setup name'
+                        )}
                         data-testid="allowance-setup-name-input"
                       />
                     </FormControl>

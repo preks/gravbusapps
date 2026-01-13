@@ -156,7 +156,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     setError(null)
 
     try {
-      const structureId = getCurrentActiveStructureId()
+      const structureId = getCurrentActiveStructureId() || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
       if (!structureId) {
         throw new Error('No structure ID available')
       }

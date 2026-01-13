@@ -176,6 +176,29 @@
       transform: translateX(400%) skewX(-15deg);
     }
   }
+
+  /* NEWWORK CREATE - Fade in up animation for staggered reveals */
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* NEWWORK CREATE - Subtle pulse animation for badges */
+  @keyframes subtlePulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
 }
 
 @layer utilities {
@@ -368,12 +391,12 @@
 
 /* Elegant hover add button animation for expense settings */
 @keyframes fadeInScale {
-  0% { 
-    opacity: 0; 
+  0% {
+    opacity: 0;
     transform: translate(-50%, -50%) scale(0.8);
   }
-  100% { 
-    opacity: 1; 
+  100% {
+    opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
 }

@@ -47,6 +47,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import { DocuSignSignatureModal } from '@/common/components/docusign/DocuSignSignatureModal'
+import { DigitalReferralBanner } from '@/common/components/docusign/DigitalReferralBanner'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
@@ -324,6 +325,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   }
 
   const [isDocuSignOpen, setIsDocuSignOpen] = React.useState(false)
+  const [focusReferral, setFocusReferral] = React.useState(false)
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
   const investmentTaskFormData = React.useMemo(() => buildInvestmentTaskFormDataFromTask(task), [task])
   const docuSignTaskContext = React.useMemo(
@@ -365,6 +367,11 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     () => getDocuSignButtonState(documentsWithStatus, isAssignee),
     [documentsWithStatus, isAssignee]
   )
+
+  const openDocuSignModal = React.useCallback((options?: { focusReferral?: boolean }) => {
+    setFocusReferral(Boolean(options?.focusReferral))
+    setIsDocuSignOpen(true)
+  }, [])
 
   const checkEnvelopeStatus = async (envelopeId: string) => {
     try {
@@ -418,7 +425,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between">
               <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">Details</CardTitle>
               {hasSignableDocs && (
-                <Button size="sm" onClick={() => setIsDocuSignOpen(true)}>
+                <Button size="sm" onClick={() => openDocuSignModal()}>
                   {docuSignButtonLabel}
                 </Button>
               )}
@@ -576,6 +583,11 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           </CardContent>
         </Card>
 
+        <DigitalReferralBanner
+          onStartReferral={() => openDocuSignModal({ focusReferral: true })}
+          className="gba:bg-background"
+        />
+
         {documentsWithStatus.length > 0 && (
           <Card data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-documents-card`}>
             <CardHeader className="gba:pb-3">
@@ -716,7 +728,10 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       {/* DocuSign Modal */}
       <DocuSignSignatureModal
         isOpen={isDocuSignOpen}
-        onClose={() => setIsDocuSignOpen(false)}
+        onClose={() => {
+          setIsDocuSignOpen(false)
+          setFocusReferral(false)
+        }}
         accessToken={accessToken}
         assignedUserId={assignedUserId}
         emailOnly={!isAssignee}
@@ -730,6 +745,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           envelopeStatus: d.envelopeStatus,
           fileInfo: d.fileInfo
         }))}
+        focusReferral={focusReferral}
       />
     </ScrollArea>
   )

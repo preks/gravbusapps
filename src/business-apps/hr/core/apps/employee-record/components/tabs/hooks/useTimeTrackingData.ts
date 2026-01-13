@@ -14,6 +14,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
+import { parseDurationToMinutes } from '@/business-apps/hr/core/apps/my-time/utils/duration'
 
 export type TimeEntry = {
   id: string
@@ -103,21 +104,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))
   }, [])
 
-  // very small helper to parse duration text like "7h 30m" or "0h" into minutes (no backtracking)
-  const parseDurationToMinutes = (text?: string): number => {
-    if (!text) return 0
-    let hours = 0
-    let minutes = 0
-    const tokens = String(text).trim().split(/\s+/)
-    for (const token of tokens) {
-      if (/^\d+h$/i.test(token)) {
-        hours = Number.parseInt(token.slice(0, -1), 10) || 0
-      } else if (/^\d+m$/i.test(token)) {
-        minutes = Number.parseInt(token.slice(0, -1), 10) || 0
-      }
-    }
-    return hours * 60 + minutes
-  }
+  // parseDurationToMinutes moved to shared My Time utils
 
   const formatMinutes = (minutes: number): string => {
     const sign = minutes < 0 ? '-' : ''
@@ -662,6 +649,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     nextMonth,
     clockIn,
     clockOut,
-    updateLocationSelection
+    updateLocationSelection,
+    // expose refresh for external triggers (e.g., after AppAction completes)
+    refresh: loadFromGraphql
   }
 }

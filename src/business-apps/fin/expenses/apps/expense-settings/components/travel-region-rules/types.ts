@@ -61,3 +61,51 @@ export interface UsageInfo {
   }
   message: string
 }
+
+/**
+ * Shared callback signatures for matrix cell operations
+ * Used by MatrixRegionRow and MatrixRuleCell to reduce duplication
+ */
+export interface MatrixCellCallbacks {
+  onEnterCellEdit: (cellId: string) => void
+  onExitCellEdit: () => void
+  onRemoveNewCell: (validityPeriodId: string, ruleId: string) => void
+  onUpdateCellField: (cellId: string, validityPeriodId: string, field: string, value: any) => void
+  onSaveSingleCell: (cell: EditableCell) => void
+  onDeleteCell: (cellId: string, getExpenseSettingsClient: () => any) => Promise<void>
+  onAddNewCell: (
+    rule: any,
+    region: any,
+    editableCells: EditableCell[],
+    currencies: any[],
+    setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>,
+    setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>,
+    allowanceRegionRules: any[]
+  ) => void
+}
+
+/**
+ * Shared state props for matrix cell editing
+ * Used by MatrixRegionRow and MatrixRuleCell to reduce duplication
+ */
+export interface MatrixCellState {
+  editingCellId: string | null
+  editingCellUsageInfo: { isUsed: boolean; usedIn: Record<string, unknown>; message: string } | null
+  isCheckingCellUsage: boolean
+  isSavingCell: boolean
+}
+
+/**
+ * Shared data props for matrix cell components
+ * Used by MatrixRegionRow and MatrixRuleCell to reduce duplication
+ */
+export interface MatrixCellDataProps {
+  currencies: Array<{ id: string; code: string; value: string }>
+  countries: Array<{ id: string; code: string; value: string }>
+  editableCells: EditableCell[]
+  setAllowanceRegionRules: React.Dispatch<React.SetStateAction<any[]>>
+  setEditableCells: React.Dispatch<React.SetStateAction<EditableCell[]>>
+  allowanceRegionRules: any[]
+  getExpenseSettingsClient: () => any
+  prefixDataTestId: string
+}
