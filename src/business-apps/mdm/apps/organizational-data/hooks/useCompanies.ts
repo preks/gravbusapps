@@ -68,6 +68,16 @@ export const useCompanies = (context: BusinessAppContextProps) => {
       parentCompanyName,
       percentage,
       edgeId,
+      // New fields from API
+      directorId: node.data.companyData.directorId,
+      commercialRegistrationNumber: node.data.companyData.commercialRegistrationNumber,
+      taxIdentificationNumber: node.data.companyData.taxIdentificationNumber,
+      taxNumber: node.data.companyData.taxNumber,
+      valueAddedTaxNumber: node.data.companyData.valueAddedTaxNumber,
+      currencyRef: node.data.companyData.currencyRef,
+      additionalProperties: node.data.companyData.additionalProperties,
+      addresses: node.data.companyData.addresses,
+      // Statistics
       numberOfAssignedJobPositions: node.data.numberOfAssignedJobPositions,
       numberOfAssignedEmployees: node.data.numberOfAssignedEmployees,
       numberOfTotalJobPositions: node.data.numberOfTotalJobPositions,
@@ -137,16 +147,15 @@ export const useCompanies = (context: BusinessAppContextProps) => {
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     try {
       // Get structureId from additionalData or use default
-      // const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
-      //   params: {
-      //     nodeType: 'cost_center'
-      //   },
-      //   headers: {
-      //     Authorization: `Bearer ${context.accessToken}`
-      //   }
-      // })
-      // structureId.current = getStructureResponse.structure.structureId
-      structureId.current = '4ff76a51-551d-4d5a-8e50-28ef08c6ab67'
+      const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
+        params: {
+          nodeType: 'cost_center'
+        },
+        headers: {
+          Authorization: `Bearer ${context.accessToken}`
+        }
+      })
+      structureId.current = getStructureResponse.structure.structureId
 
       if (!structureId) {
         throw new Error('Structure ID is required to fetch companies')
