@@ -29,7 +29,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       width: 120
     },
     {
-      title: t('hr-analytics-top-manager'),
+      title: t('hr-analytics-top-org-unit'),
       dataIndex: 'topManager',
       key: 'topManager',
       width: 200,
@@ -46,7 +46,11 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
         if (levels > 6) color = 'red'
         else if (levels > 4) color = 'orange'
 
-        return <Tag color={color}>{levels} {t('hr-analytics-levels')}</Tag>
+        return (
+          <Tag color={color}>
+            {levels} {t('hr-analytics-levels')}
+          </Tag>
+        )
       }
     },
     {
@@ -83,7 +87,9 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
                 </div>
               ))}
               {bottlenecks.length > 2 && (
-                <div className="gba:text-xs gba:text-muted-foreground">+{bottlenecks.length - 2} {t('hr-analytics-more')}</div>
+                <div className="gba:text-xs gba:text-muted-foreground">
+                  +{bottlenecks.length - 2} {t('hr-analytics-more')}
+                </div>
               )}
             </div>
           ) : (
@@ -177,9 +183,14 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
                 title={bottleneck.managerName}
                 description={
                   <div>
-                    <Text>{bottleneck.chainsThroughManager} {t('hr-analytics-reporting-chains')} {t('hr-analytics-pass-through-this-manager')}</Text>
+                    <Text>
+                      {bottleneck.chainsThroughManager} {t('hr-analytics-reporting-chains')}{' '}
+                      {t('hr-analytics-pass-through-this-manager')}
+                    </Text>
                     <br />
-                    <Tag color="var(--nw-warning)">{t('hr-analytics-impact-score')}: {bottleneck.impact}</Tag>
+                    <Tag color="var(--nw-warning)">
+                      {t('hr-analytics-impact-score')}: {bottleneck.impact}
+                    </Tag>
                   </div>
                 }
               />
@@ -201,7 +212,8 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} ${t('hr-analytics-of')} ${total} ${t('hr-analytics-reporting-chains')}`
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} ${t('hr-analytics-of')} ${total} ${t('hr-analytics-reporting-chains')}`
           }}
           size="small"
           scroll={{ x: 1000 }}

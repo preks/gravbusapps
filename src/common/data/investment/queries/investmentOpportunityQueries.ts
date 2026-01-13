@@ -189,6 +189,11 @@ export const buildInvestmentOpportunityByIdQuery = (
     }
     divestmentId
     
+    # Investment relation (1-to-many opportunity -> investments)
+    ${fields.investments}(where: { isDeleted: { _eq: false } }) {
+      ${INVESTMENT_REF}
+    }
+    
     # IRM-specific Investment fields
     dealType
     investmentGroup {

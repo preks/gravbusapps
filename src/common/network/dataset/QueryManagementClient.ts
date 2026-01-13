@@ -132,6 +132,9 @@ export class QueryManagementClient extends RestClient {
     if (params.status !== undefined) {
       queryParams.status = params.status
     }
+    if ((params as any).search !== undefined && (params as any).search !== '') {
+      queryParams.search = (params as any).search as string
+    }
 
     return this.get<QueryDefinition[]>('/query-definitions', {
       ...options,
@@ -165,6 +168,9 @@ export class QueryManagementClient extends RestClient {
     }
     if (params.sort !== undefined) {
       queryParams.sort = params.sort
+    }
+    if ((params as any).search !== undefined && (params as any).search !== '') {
+      queryParams.search = (params as any).search as string
     }
 
     return this.get<QueryDefinitionPagedResponse>('/query-definitions/paged', {

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
 import { Card, Typography } from 'antd'
 import { SunburstChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { SunburstNode } from '../types/structuralTypes'
@@ -31,8 +31,14 @@ const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
     return (
       <div className="gba:bg-card gba:border gba:border-border gba:rounded gba:p-2 gba:shadow-sm">
         <p className="gba:m-0 gba:font-bold gba:text-foreground">{displayName}</p>
-        <p className="gba:m-0 gba:text-muted-foreground">{t('hr-analytics-employees')}: {value}</p>
-        {companyName && <p className="gba:m-0 gba:text-muted-foreground">{t('hr-analytics-company')}: {companyName}</p>}
+        <p className="gba:m-0 gba:text-muted-foreground">
+          {t('hr-analytics-employees')}: {value}
+        </p>
+        {companyName && (
+          <p className="gba:m-0 gba:text-muted-foreground">
+            {t('hr-analytics-company')}: {companyName}
+          </p>
+        )}
       </div>
     )
   }
@@ -76,6 +82,8 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
   const { t } = useTranslation(hrTranslations)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | undefined>(undefined)
   // Enhanced data validation
   const hasValidData = data && typeof data === 'object' && data.name && typeof data.value === 'number' && data.value > 0
 
@@ -88,12 +96,19 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
         <Title level={4} className="gba:m-0 gba:text-foreground">
           {t('hr-analytics-organizational-hierarchy-sunburst')}
         </Title>
-        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {t('hr-analytics-sunburst-description')}
-        </Text>
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{t('hr-analytics-sunburst-description')}</Text>
       </div>
 
-      <div className="gba:p-4">
+      <div
+        className="gba:p-4"
+        ref={containerRef}
+        onMouseMove={e => {
+          if (!containerRef.current) return
+          const rect = containerRef.current.getBoundingClientRect()
+          setTooltipPos({ x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 })
+        }}
+        onMouseLeave={() => setTooltipPos(undefined)}
+      >
         {hasValidData ? (
           <ResponsiveContainer height={450} width="100%">
             <SunburstChart
@@ -104,10 +119,26 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
               innerRadius={10}
               ringPadding={1}
               stroke="var(--nw-color-primary-foreground)"
-              textOptions={{}}
+              textOptions={{
+                fill: '#ffffff',
+                fontSize: 12 as any,
+                fontWeight: '600',
+                paintOrder: 'stroke fill',
+                stroke: 'rgba(0,0,0,0.7)',
+                // Ensure labels don't block hover on sectors
+                pointerEvents: 'none' as any
+              }}
               dataKey="value"
             >
-              <Tooltip content={<SunburstTooltip />} />
+              <Tooltip
+                content={<SunburstTooltip />}
+                isAnimationActive={false}
+                position={tooltipPos}
+                wrapperStyle={{ transition: 'none' }}
+                allowEscapeViewBox={{ x: true, y: true }}
+                cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                offset={0}
+              />
             </SunburstChart>
           </ResponsiveContainer>
         ) : (
