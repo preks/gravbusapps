@@ -1554,9 +1554,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
             {stableActiveConversation && (
               <MessageInput
-                onSend={(content, entityRefs, attachments) => {
-                  handleSendMessage(content, entityRefs, attachments)
-                }}
+                onSend={handleSendMessage}
                 onTypingStart={handleTypingStart}
                 onTypingStop={handleTypingStop}
                 disabled={false}
