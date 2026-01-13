@@ -317,7 +317,7 @@ export interface CflowBlinkTasksResponse extends CflowTasksResponse {
 /**
  * Fetch BLINK (quick-task) tasks for a user from custom-flow-engine
  * Uses tag filtering to get only blink tasks with accurate totalCount
- * Note: The task endpoint already excludes completed tasks by default
+ * Note: We fetch from the /assigned endpoint so we only get assigned (open) tasks for the user.
  */
 export async function fetchCflowBlinkTasks(
   userId: string,
@@ -337,10 +337,6 @@ export async function fetchCflowBlinkTasks(
     'tags.app': 'quick-task' // Filter for blink tasks
   }
 
-  // Default: only OPEN blinks (avoid showing completed blinks in the Blinks tab)
-  // Caller can override by explicitly setting queryParams.status.
-  cleanParams.status = 'IN_PROGRESS'
-
   if (queryParams) {
     Object.entries(queryParams).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== 'undefined' && value !== 'null') {
@@ -350,7 +346,7 @@ export async function fetchCflowBlinkTasks(
   }
 
   const params = new URLSearchParams(cleanParams)
-  const url = `${endpoint}/api/tasks/user/${userId}${params.toString() ? '?' + params.toString() : ''}`
+  const url = `${endpoint}/api/tasks/user/${userId}/assigned${params.toString() ? '?' + params.toString() : ''}`
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
