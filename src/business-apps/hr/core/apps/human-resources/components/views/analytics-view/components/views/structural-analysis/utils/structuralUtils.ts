@@ -291,9 +291,9 @@ const generateColorShades = (baseColor: string, depth: number): string => {
           .join('')
       : hex
 
-  const r = parseInt(fullHex.substr(0, 2), 16)
-  const g = parseInt(fullHex.substr(2, 2), 16)
-  const b = parseInt(fullHex.substr(4, 2), 16)
+  const r = parseInt(fullHex.substring(0, 2), 16)
+  const g = parseInt(fullHex.substring(2, 4), 16)
+  const b = parseInt(fullHex.substring(4, 6), 16)
 
   if (REVERSE_GRAY_RAMP) {
     // Lighten with depth toward white

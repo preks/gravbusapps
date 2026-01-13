@@ -32,8 +32,7 @@ import {
   Spinner,
   Alert
 } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
-import appTranslations from '@/business-apps/_i18n'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   PencilSimpleIcon,
   TrashIcon,
@@ -84,7 +83,6 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
   onRetry,
   formatErrorMessage
 }) => {
-  const { t } = useTranslation(appTranslations)
   const handleFilterChange = (key: string, value: any) => {
     const newFilters = { ...filters, [key]: value }
     onFilter(newFilters)
@@ -215,7 +213,7 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                 <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
                   <Spinner />
                   <span style={{ color: 'var(--nw-color-muted-foreground)', fontSize: '0.875rem' }}>
-                    {t('loading')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.loading', 'Loading...')}
                   </span>
                 </div>
               )}

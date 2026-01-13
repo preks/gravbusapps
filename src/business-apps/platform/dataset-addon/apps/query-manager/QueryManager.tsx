@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Button, Alert, Tabs, TabsList, TabsTrigger, TabsContent, toast, Toaster } from '@newwork/nw-design-system'
 import {
   ArrowClockwiseIcon,
@@ -32,6 +32,15 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
     search?: string
   }>({})
   const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Cleanup debounce timer on unmount to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      if (filterDebounceRef.current) {
+        clearTimeout(filterDebounceRef.current)
+      }
+    }
+  }, [])
 
   const {
     queries,
