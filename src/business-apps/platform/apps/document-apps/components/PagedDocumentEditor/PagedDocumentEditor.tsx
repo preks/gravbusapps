@@ -61,6 +61,9 @@ import type { Document, DocumentApprovalRequest } from '../../types'
 import { PageBreak } from './extensions/PageBreak'
 import { EditorToolbar } from './EditorToolbar'
 import { exportToWord, exportToPDF } from '../../utils/exportUtils'
+import { useCollaboration } from '../../../shared/hooks/useCollaboration'
+import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
+import { CollaboratorCursor } from '../../../shared/components/CollaboratorCursor'
 
 // A4 dimensions in pixels at 96 DPI
 const A4_WIDTH_PX = 794 // 210mm
@@ -250,6 +253,46 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   const editorContainerRef = useRef<HTMLDivElement>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const isApplyingRemoteChange = useRef(false)
+  const editorRef = useRef<any>(null) // Store editor instance
+  const isCollaborationConnectedRef = useRef(false)
+  const emitOperationRef = useRef<any>(null)
+
+  // Stable collaboration callbacks (no dependencies that change)
+  const onOperationReceivedCallback = useCallback((operation: any) => {
+    // Handle incoming operations from other users
+    console.log('[PagedDocumentEditor] Received operation:', operation)
+    if (operation.operation.type === 'content_update') {
+      const { content } = operation.operation.data as { content: string }
+      // Apply remote content update without triggering another operation
+      // Use editorRef to avoid dependency on editor
+      if (editorRef.current && !isApplyingRemoteChange.current) {
+        isApplyingRemoteChange.current = true
+        editorRef.current.commands.setContent(content, false)
+        setTimeout(() => {
+          isApplyingRemoteChange.current = false
+        }, 100)
+      }
+    }
+  }, []) // No dependencies - stable callback
+
+  const onErrorCallback = useCallback((error: Error) => {
+    console.error('[PagedDocumentEditor] Collaboration error:', error)
+  }, [])
+
+  // Collaboration state
+  const {
+    participants,
+    isConnected: isCollaborationConnected,
+    emitOperation,
+    emitCursor
+  } = useCollaboration({
+    entityType: 'document',
+    entityId: document?.id || '',
+    enabled: !!document?.id,
+    onOperationReceived: onOperationReceivedCallback,
+    onError: onErrorCallback
+  })
 
   // Initialize TipTap editor
   const editor = useEditor({
@@ -299,19 +342,92 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
     ],
     content: document?.content || initialContent || '<p></p>',
     editable: !isReadOnly,
-    onUpdate: () => {
+    onUpdate: ({ editor: currentEditor }) => {
       setHasUnsavedChanges(true)
       updatePageCount()
 
-      // Auto-save after 3 seconds of inactivity
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
+      // Emit collaboration operation (debounced) or save via REST
+      if (!isApplyingRemoteChange.current) {
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current)
+        }
+
+        // Use refs to avoid dependencies in the callback
+        if (isCollaborationConnectedRef.current) {
+          // When collaboration is active, use WebSocket for persistence (1s debounce)
+          autoSaveTimeoutRef.current = setTimeout(() => {
+            const content = currentEditor.getHTML()
+            if (emitOperationRef.current) {
+              emitOperationRef.current({
+                type: 'content_update',
+                data: {
+                  content
+                }
+              })
+            }
+            // Mark as saved since WebSocket persists to DB
+            setLastSaved(new Date())
+            setHasUnsavedChanges(false)
+          }, 1000)
+        } else {
+          // Fallback to REST API when collaboration is not connected (3s debounce)
+          autoSaveTimeoutRef.current = setTimeout(() => {
+            handleSave()
+          }, 3000)
+        }
       }
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        handleSave()
-      }, 3000)
     }
   })
+
+  // Update refs when values change
+  useEffect(() => {
+    editorRef.current = editor
+  }, [editor])
+
+  useEffect(() => {
+    isCollaborationConnectedRef.current = isCollaborationConnected
+    emitOperationRef.current = emitOperation
+  }, [isCollaborationConnected, emitOperation])
+
+  // Emit cursor position on editor selection change
+  useEffect(() => {
+    if (!editor || !isCollaborationConnected) return
+
+    const updateCursor = () => {
+      const selection = editor.state.selection
+      const pos = selection.from
+
+      // Get line and column from position
+      const doc = editor.state.doc
+      let line = 1
+      let column = 0
+
+      doc.descendants((node, nodePos) => {
+        if (nodePos + node.nodeSize > pos) {
+          if (node.isBlock) {
+            column = pos - nodePos
+          }
+          return false
+        }
+        if (node.isBlock) {
+          line++
+        }
+        return true
+      })
+
+      emitCursor({
+        line,
+        column,
+        offset: pos
+      })
+    }
+
+    editor.on('selectionUpdate', updateCursor)
+
+    return () => {
+      editor.off('selectionUpdate', updateCursor)
+    }
+  }, [editor, isCollaborationConnected, emitCursor])
 
   // Calculate page count based on content height
   const updatePageCount = useCallback(() => {
@@ -574,6 +690,16 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
 
             {/* Right side - Actions */}
             <div className="gba:flex gba:items-center gba:gap-2">
+              {/* Collaboration presence indicator */}
+              {participants.length > 0 && (
+                <PresenceIndicator
+                  participants={participants}
+                  maxVisible={3}
+                  size="sm"
+                  showLabel={false}
+                  className="gba:mr-2"
+                />
+              )}
               {/* Save status */}
               <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2">
                 {isSaving ? (
@@ -697,7 +823,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
           >
             {/* Page visual representation */}
             <div
-              className="gba:bg-white gba:shadow-lg gba:rounded-sm"
+              className="gba:bg-white gba:shadow-lg gba:rounded-sm gba:relative"
               style={{
                 width: `${A4_WIDTH_PX}px`,
                 minHeight: `${A4_HEIGHT_PX}px`,
@@ -705,6 +831,24 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
               }}
             >
               <EditorContent editor={editor} className="editor-content" />
+
+              {/* Render collaborator cursors */}
+              {participants.map(participant => {
+                if (!participant.cursor) return null
+                // Simple positioning - in a real implementation, you'd calculate exact position
+                const x = (participant.cursor.column || 0) * 8 + PAGE_MARGIN_PX
+                const y = (participant.cursor.line || 0) * 20 + PAGE_MARGIN_PX
+
+                return (
+                  <CollaboratorCursor
+                    key={participant.userId}
+                    userName={participant.userName}
+                    userColor={participant.userColor}
+                    position={{ x, y }}
+                    isActive={true}
+                  />
+                )
+              })}
             </div>
           </div>
         </div>

@@ -71,6 +71,9 @@ import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
 import { isTrackingColumn } from './utils/trackingColumns'
 import { TRACKING_COLUMNS } from './components/automations/TrackingColumnsConfig'
 import { normalizeImageSrc } from './utils/normalizeImageSrc'
+import { useCollaboration } from '../shared/hooks/useCollaboration'
+import { PresenceIndicator } from '../shared/components/PresenceIndicator'
+import { CellCollaboratorIndicator } from '../shared/components/CellCollaboratorIndicator'
 
 /**
  * Get a nested value from an object using dot notation path
@@ -291,6 +294,135 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   useEffect(() => {
     localSheetDataRef.current = localSheetData
   }, [localSheetData])
+
+  // Ref to track active sheet (avoid re-creating callbacks)
+  const activeSheetIdRef = useRef(activeSheetId)
+  useEffect(() => {
+    activeSheetIdRef.current = activeSheetId
+  }, [activeSheetId])
+
+  // Ref to store column update callback from parent
+  const onAppUpdateRef = useRef(_onAppUpdate)
+  useEffect(() => {
+    onAppUpdateRef.current = _onAppUpdate
+  }, [_onAppUpdate])
+
+  // Collaboration callbacks (stable references - no dependencies)
+  const onOperationReceivedCallback = useCallback((operation: any) => {
+    // Handle incoming operations from other users
+    console.log('[SpreadsheetAppViewer] Received operation:', operation)
+    // Apply the operation to local state
+    if (operation.operation.type === 'cell_update') {
+      const { sheetId, rowId, column, value } = operation.operation.data as {
+        sheetId: string
+        rowId: string
+        column: string
+        value: unknown
+      }
+      // Update local data directly - only if this is the active sheet
+      if (sheetId === activeSheetIdRef.current) {
+        setLocalSheetData(prevData => prevData.map(row => (row._id === rowId ? { ...row, [column]: value } : row)))
+      }
+    } else if (operation.operation.type === 'row_add') {
+      const { sheetId, rowData } = operation.operation.data as {
+        sheetId: string
+        rowData: Record<string, unknown>
+      }
+      if (sheetId === activeSheetIdRef.current) {
+        setLocalSheetData(prevData => {
+          // Check if row already exists (prevent duplicates)
+          const exists = prevData.some(row => row._id === rowData._id)
+          if (exists) {
+            console.log('[SpreadsheetAppViewer] Row already exists, skipping duplicate:', rowData._id)
+            return prevData
+          }
+          return [...prevData, rowData]
+        })
+      }
+    } else if (operation.operation.type === 'row_delete') {
+      const { sheetId, rowId } = operation.operation.data as {
+        sheetId: string
+        rowId: string
+      }
+      if (sheetId === activeSheetIdRef.current) {
+        setLocalSheetData(prevData => prevData.filter(row => row._id !== rowId))
+      }
+    } else if (operation.operation.type === 'column_add') {
+      const { sheetId, column } = operation.operation.data as {
+        sheetId: string
+        column: SpreadsheetColumn
+      }
+      // Trigger parent update with new column
+      if (sheetId === activeSheetIdRef.current && onAppUpdateRef.current) {
+        const currentSheet = app.sheets.find(s => s.id === sheetId)
+        if (currentSheet) {
+          const updatedSheets = app.sheets.map(sheet =>
+            sheet.id === sheetId
+              ? { ...sheet, columns: [...sheet.columns, column], data: localSheetDataRef.current }
+              : sheet
+          )
+          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
+        }
+      }
+    } else if (operation.operation.type === 'column_update') {
+      const { sheetId, columns } = operation.operation.data as {
+        sheetId: string
+        columns: SpreadsheetColumn[]
+      }
+      // Update columns
+      if (sheetId === activeSheetIdRef.current && onAppUpdateRef.current) {
+        const updatedSheets = app.sheets.map(sheet =>
+          sheet.id === sheetId ? { ...sheet, columns, data: localSheetDataRef.current } : sheet
+        )
+        onAppUpdateRef.current({ ...app, sheets: updatedSheets })
+      }
+    } else if (operation.operation.type === 'column_delete') {
+      const { sheetId, columnId } = operation.operation.data as {
+        sheetId: string
+        columnId: string
+      }
+      // Remove column
+      if (sheetId === activeSheetIdRef.current && onAppUpdateRef.current) {
+        const currentSheet = app.sheets.find(s => s.id === sheetId)
+        if (currentSheet) {
+          const updatedColumns = currentSheet.columns.filter(col => col.id !== columnId)
+          const updatedSheets = app.sheets.map(sheet =>
+            sheet.id === sheetId ? { ...sheet, columns: updatedColumns, data: localSheetDataRef.current } : sheet
+          )
+          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
+        }
+      }
+    }
+  }, []) // No dependencies - completely stable
+
+  const onErrorCallback = useCallback((error: Error) => {
+    console.error('[SpreadsheetAppViewer] Collaboration error:', error)
+  }, [])
+
+  // Collaboration state (initialized after localSheetData to avoid race conditions)
+  const {
+    participants,
+    isConnected: isCollaborationConnected,
+    emitOperation,
+    emitCursor
+  } = useCollaboration({
+    entityType: 'spreadsheet',
+    entityId: app.id,
+    enabled: true,
+    onOperationReceived: onOperationReceivedCallback,
+    onError: onErrorCallback
+  })
+
+  // Emit cursor position when selected cell changes
+  useEffect(() => {
+    if (selectedCell && isCollaborationConnected) {
+      emitCursor({
+        path: [activeSheetId, selectedCell.rowId, selectedCell.colId],
+        line: selectedCell.rowIndex,
+        column: selectedCell.colIndex
+      })
+    }
+  }, [selectedCell, activeSheetId, isCollaborationConnected, emitCursor])
 
   // Track previous sheet ID to detect actual sheet changes
   const prevSheetIdRef = React.useRef(activeSheetId)
@@ -688,13 +820,31 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     })
 
-    // If we have onRowAdd, call the backend API
-    if (onRowAdd) {
+    // When collaboration is active, use WebSocket for persistence
+    if (isCollaborationConnected) {
+      // Generate temporary ID for optimistic update
+      const newRow: Record<string, unknown> = {
+        _id: `row_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        _createdAt: new Date().toISOString(),
+        ...rowData
+      }
+
+      // Optimistic update
+      setLocalSheetData(prev => [...prev, newRow])
+
+      // Let WebSocket persist to backend and broadcast to others
+      emitOperation({
+        type: 'row_add',
+        data: {
+          sheetId: activeSheet.id,
+          rowData: newRow
+        }
+      })
+    } else if (onRowAdd) {
+      // Fallback to REST API when collaboration is not connected
       const savedRow = await onRowAdd(app.id, activeSheet.id, rowData)
       if (savedRow) {
-        // Update local data with the saved row (which has the real ID from backend)
-        const newData = [...localSheetData, savedRow]
-        setLocalSheetData(newData)
+        setLocalSheetData(prev => [...prev, savedRow])
       }
     } else {
       // Fallback: update local state only (legacy behavior)
@@ -703,11 +853,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         _createdAt: new Date().toISOString(),
         ...rowData
       }
-      const newData = [...localSheetData, newRow]
-      setLocalSheetData(newData)
-      onDataChange?.(activeSheet.id, newData)
+      setLocalSheetData(prev => [...prev, newRow])
+      onDataChange?.(activeSheet.id, [...localSheetData, newRow])
     }
-  }, [activeSheet, app, localSheetData, onRowAdd, onDataChange])
+  }, [activeSheet, app, localSheetData, onRowAdd, onDataChange, isCollaborationConnected, emitOperation])
 
   /**
    * Handle adding multiple rows (from bulk collection responses)
@@ -1200,21 +1349,44 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       order: activeSheet.columns.length
     }
 
-    // Update app with new column
-    const updatedSheets = app.sheets.map(sheet => {
-      if (sheet.id === activeSheet.id) {
-        return {
-          ...sheet,
-          // Preserve latest local data to prevent stale overwrites when column updates race with row updates
-          data: localSheetDataRef.current,
-          columns: [...sheet.columns, newColumn]
+    // When collaboration is active, use WebSocket for persistence
+    if (isCollaborationConnected) {
+      // Optimistic update - add column locally
+      const updatedSheets = app.sheets.map(sheet => {
+        if (sheet.id === activeSheet.id) {
+          return {
+            ...sheet,
+            data: localSheetDataRef.current,
+            columns: [...sheet.columns, newColumn]
+          }
         }
-      }
-      return sheet
-    })
+        return sheet
+      })
+      _onAppUpdate?.({ ...app, sheets: updatedSheets })
 
-    _onAppUpdate?.({ ...app, sheets: updatedSheets })
-  }, [activeSheet, app, _onAppUpdate])
+      // Emit WebSocket operation to persist and broadcast
+      emitOperation({
+        type: 'column_add',
+        data: {
+          sheetId: activeSheet.id,
+          column: newColumn
+        }
+      })
+    } else {
+      // Fallback to REST API when collaboration is not connected
+      const updatedSheets = app.sheets.map(sheet => {
+        if (sheet.id === activeSheet.id) {
+          return {
+            ...sheet,
+            data: localSheetDataRef.current,
+            columns: [...sheet.columns, newColumn]
+          }
+        }
+        return sheet
+      })
+      _onAppUpdate?.({ ...app, sheets: updatedSheets })
+    }
+  }, [activeSheet, app, _onAppUpdate, isCollaborationConnected, emitOperation])
 
   /**
    * Handle deleting a column
@@ -1254,8 +1426,19 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       })
 
       _onAppUpdate?.({ ...app, sheets: updatedSheets })
+
+      // Emit WebSocket operation when collaboration is active
+      if (isCollaborationConnected) {
+        emitOperation({
+          type: 'column_delete',
+          data: {
+            sheetId: activeSheet.id,
+            columnId
+          }
+        })
+      }
     },
-    [activeSheet, app, _onAppUpdate]
+    [activeSheet, app, _onAppUpdate, isCollaborationConnected, emitOperation]
   )
 
   /**
@@ -1477,10 +1660,31 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // Update local state immediately for responsive UI
       setLocalSheetData(newData)
 
-      // Trigger debounced save to backend
-      debouncedSave(activeSheet.id, newData)
+      // Emit collaboration operation for real-time sync (WebSocket saves to DB)
+      if (isCollaborationConnected) {
+        emitOperation({
+          type: 'cell_update',
+          data: {
+            sheetId: activeSheet.id,
+            rowId,
+            column: columnName,
+            value
+          }
+        })
+      } else {
+        // Fallback to REST API save when collaboration is not connected
+        debouncedSave(activeSheet.id, newData)
+      }
     },
-    [activeSheet, entityData, localSheetData, debouncedSave, recalculateAllFormulas]
+    [
+      activeSheet,
+      entityData,
+      localSheetData,
+      debouncedSave,
+      recalculateAllFormulas,
+      isCollaborationConnected,
+      emitOperation
+    ]
   )
 
   // Global keyboard handler for formula mode (Enter/Escape to finish/cancel)
@@ -1903,6 +2107,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               onEditingStateChange={editing => {
                 isEditingRef.current = editing
               }}
+              participants={participants}
             />
           )
         }
@@ -2022,6 +2227,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             </div>
 
             <div className="gba:flex gba:items-center gba:gap-2">
+              {/* Collaboration presence indicator */}
+              {participants.length > 0 && (
+                <PresenceIndicator participants={participants} maxVisible={3} size="md" showLabel={true} />
+              )}
+
               {/* Entity data source indicator */}
               {activeSheet?.entityDataSource?.enabled && (
                 <>
@@ -2745,6 +2955,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                     : sheet
                 )
                 _onAppUpdate?.({ ...app, sheets: updatedSheets })
+
+                // Emit WebSocket operation when collaboration is active
+                if (isCollaborationConnected) {
+                  emitOperation({
+                    type: 'column_update',
+                    data: {
+                      sheetId: activeSheet.id,
+                      columns: finalColumns
+                    }
+                  })
+                }
+
                 setEditingColumns([])
                 setIsManageColumnsDialogOpen(false)
               }}
@@ -2795,6 +3017,7 @@ interface EditableCellProps {
   onFormulaValueChange?: (value: string) => void
   formulaSelectedCells: Array<{ rowIndex: number; colIndex: number }>
   onEditingStateChange?: (isEditing: boolean) => void
+  participants?: import('../shared/services/CollaborationClient').DocumentParticipant[]
 }
 
 const EditableCell: React.FC<EditableCellProps> = ({
@@ -2813,7 +3036,8 @@ const EditableCell: React.FC<EditableCellProps> = ({
   setSelectedCell,
   onFormulaValueChange,
   formulaSelectedCells,
-  onEditingStateChange
+  onEditingStateChange,
+  participants = []
 }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [originalValue, setOriginalValue] = useState<string>('')
@@ -3168,6 +3392,14 @@ const EditableCell: React.FC<EditableCellProps> = ({
     !isInFormulaMode &&
     formulaSelectedCells.some(cell => cell.rowIndex === rowIndex && cell.colIndex === colIndex)
 
+  // Check if another user is editing this cell
+  const collaboratorEditingCell = participants.find(p => {
+    const path = p.cursor?.path
+    if (!path || path.length < 3) return false
+    const [, cursorRowId, cursorColId] = path
+    return cursorRowId === rowId && cursorColId === column.id
+  })
+
   return (
     <div
       ref={cellRef}
@@ -3175,7 +3407,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
       onClick={handleSelect}
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleCellKeyDown}
-      className={`gba:py-1 gba:px-1 gba:min-h-[28px] gba:rounded gba:outline-none gba:transition-all ${
+      className={`gba:relative gba:py-1 gba:px-1 gba:min-h-[28px] gba:rounded gba:outline-none gba:transition-all ${
         isSelected && !isEditing ? 'gba:ring-2 gba:ring-primary gba:bg-primary/5' : ''
       } ${canEdit && !isEditing && !isSelected ? 'gba:cursor-cell hover:gba:bg-accent/30' : ''} ${
         isInFormulaMode && isEditing ? 'gba:bg-primary/30 gba:ring-2 gba:ring-primary' : ''
@@ -3186,6 +3418,15 @@ const EditableCell: React.FC<EditableCellProps> = ({
       data-cell-rowid={rowId}
       data-cell-colid={column.id}
     >
+      {/* Show collaborator indicator if someone else is editing this cell */}
+      {collaboratorEditingCell && !isEditing && (
+        <CellCollaboratorIndicator
+          userName={collaboratorEditingCell.userName}
+          userColor={collaboratorEditingCell.userColor}
+          isActive={true}
+          showLabel={true}
+        />
+      )}
       {isEditing ? (
         <div className="gba:relative">
           <Input
