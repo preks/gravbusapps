@@ -1,4 +1,5 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { UploadedEmployeeDocument } from './uploadHelpers'
 
 export const ensureFourLines = (lines: string[] = []): string[] => {
   return Array.from({ length: 4 }, (_, i) => String(lines?.[i] || ''))
@@ -90,9 +91,40 @@ export const shouldDisableSubmit = (
   return Boolean(errs && errs.length > 0) || limitReached
 }
 
+const buildEmployeeDocumentObject = (employeeDocument?: UploadedEmployeeDocument | null) => {
+  return employeeDocument
+    ? {
+        id: employeeDocument.id,
+        name: employeeDocument.name,
+        file: employeeDocument.file,
+        mimeType: employeeDocument.mimeType,
+        employeeId: employeeDocument.employeeId
+      }
+    : null
+}
+
+const buildCommonAddressFields = (params: {
+  employeeId: string
+  employeeDocument?: UploadedEmployeeDocument | null
+  lines: string | string[]
+  postalCode?: string
+  city?: string
+  regionId?: string | null
+  countryId?: string | null
+  comment?: string
+}) => ({
+  postalCode: params.postalCode || '',
+  locality: params.city || '',
+  regionRef: params.regionId || '',
+  countryRef: params.countryId || '',
+  poBox: false,
+  notes: params.comment || '',
+  employeeDocument: params.employeeDocument?.id || ''
+})
+
 export const buildInsertPayload = (params: {
   employeeId: string
-  employeeDocumentId?: string | null
+  employeeDocument?: UploadedEmployeeDocument | null
   lines: string[]
   postalCode?: string
   city?: string
@@ -104,18 +136,12 @@ export const buildInsertPayload = (params: {
   const type = computeNewAddressType(params.addresses) || ''
   return {
     event: 'pse_submit',
-    employeeDocumentObject: params.employeeDocumentId ? { id: params.employeeDocumentId } : null,
+    employeeDocumentObject: buildEmployeeDocumentObject(params.employeeDocument),
     address: {
       employeeId: params.employeeId,
       type,
       addressLine: params.lines || '',
-      postalCode: params.postalCode || '',
-      locality: params.city || '',
-      regionRef: params.regionId || '',
-      countryRef: params.countryId || '',
-      poBox: false,
-      notes: params.comment || '',
-      employeeDocument: params.employeeDocumentId || ''
+      ...buildCommonAddressFields(params)
     },
     changeMode: 'INSERT',
     oldAddressData: {}
@@ -124,7 +150,7 @@ export const buildInsertPayload = (params: {
 
 export const buildUpdatePayload = (params: {
   employeeId: string
-  employeeDocumentId?: string | null
+  employeeDocument?: UploadedEmployeeDocument | null
   lines: string[]
   postalCode?: string
   city?: string
@@ -136,20 +162,14 @@ export const buildUpdatePayload = (params: {
   const sel = params.selected || {}
   return {
     event: 'pse_submit',
-    employeeDocumentObject: params.employeeDocumentId ? { id: params.employeeDocumentId } : null,
+    employeeDocumentObject: buildEmployeeDocumentObject(params.employeeDocument),
     address: {
       id: sel?.id,
       version: sel?.version,
       employeeId: params.employeeId,
       type: sel?.type,
       addressLine: params.lines,
-      postalCode: params.postalCode || '',
-      locality: params.city || '',
-      regionRef: params.regionId || '',
-      countryRef: params.countryId || '',
-      poBox: false,
-      notes: params.comment || '',
-      employeeDocument: params.employeeDocumentId || ''
+      ...buildCommonAddressFields(params)
     },
     changeMode: 'UPDATE',
     oldAddressData: {
@@ -171,7 +191,7 @@ export const buildUpdatePayload = (params: {
 
 export const buildDeletePayload = (params: {
   employeeId: string
-  employeeDocumentId?: string | null
+  employeeDocument?: UploadedEmployeeDocument | null
   lines: string[]
   postalCode?: string
   city?: string
@@ -183,20 +203,14 @@ export const buildDeletePayload = (params: {
   const sel = params.selected || {}
   return {
     event: 'pse_submit',
-    employeeDocumentObject: params.employeeDocumentId ? { id: params.employeeDocumentId } : null,
+    employeeDocumentObject: buildEmployeeDocumentObject(params.employeeDocument),
     address: {
       id: sel?.id,
       version: sel?.version,
       employeeId: params.employeeId,
       type: sel?.type || '',
       addressLine: params.lines || '',
-      postalCode: params.postalCode || '',
-      locality: params.city || '',
-      regionRef: params.regionId || '',
-      countryRef: params.countryId || '',
-      poBox: false,
-      notes: params.comment || '',
-      employeeDocument: params.employeeDocumentId || ''
+      ...buildCommonAddressFields(params)
     },
     changeMode: 'DELETE',
     oldAddressData: {
