@@ -20,7 +20,6 @@ import {
   MagnifyingGlassIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useDebounce } from '@/common/hooks/useDebounce'
 import { useProjects, useCreateTeam, useTeamAssignments } from '../hooks'
 import { Project, ProjectManager, ProjectStatusBE, ProjectStatusUI } from '../types'
 import {
@@ -240,13 +239,10 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
   const showNavigationItems = false
 
-  // Debounce search input
-  const debouncedSearchTerm = useDebounce(searchInput, 300)
-
   // Trigger BE search when debounced search term changes
   useEffect(() => {
-    handleSearch(debouncedSearchTerm)
-  }, [debouncedSearchTerm, handleSearch])
+    handleSearch(searchInput)
+  }, [searchInput, handleSearch])
 
   useEffect(() => {
     if (selectedProject) {

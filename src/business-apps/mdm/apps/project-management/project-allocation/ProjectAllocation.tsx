@@ -59,7 +59,6 @@ import { useTeams } from '../../organizational-data/hooks'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { showProjectManager } from '../project-setup/ProjectSetup'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
-import { useDebounce } from '@/common/hooks/useDebounce'
 
 export interface ProjectAllocationProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -372,12 +371,9 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     }
   })
 
-  // Debounce search input
-  const debouncedSearchTerm = useDebounce(searchTerm, 300)
-
   // Filter projects based on search
   const filteredProjects = useMemo(() => {
-    const searchLower = debouncedSearchTerm.toLowerCase()
+    const searchLower = searchTerm.toLowerCase()
     return projects.filter(
       project =>
         project.name.toLowerCase().includes(searchLower) ||
@@ -386,7 +382,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         (project.projectType && project.projectType.toLowerCase().includes(searchLower)) ||
         (accounts.find(acc => acc.id === project.customerId)?.name || '').toLowerCase().includes(searchLower)
     )
-  }, [projects, debouncedSearchTerm, accounts])
+  }, [projects, searchTerm, accounts])
 
   useEffect(() => {
     if (selectedProject) {
