@@ -320,9 +320,135 @@ export function jsonToHtml(jsonContent: unknown): string {
   return ''
 }
 
+/**
+ * Export document to HTML format
+ * Downloads the document as a standalone HTML file
+ */
+export async function exportToHTML(title: string, htmlContent: string): Promise<void> {
+  const htmlDoc = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${title}</title>
+      <style>
+        body {
+          font-family: 'Times New Roman', Georgia, serif;
+          font-size: 12pt;
+          line-height: 1.6;
+          color: #1a1a1a;
+          max-width: 8.5in;
+          margin: 0 auto;
+          padding: 1in;
+          background: #fff;
+        }
+        h1 { font-size: 24pt; font-weight: bold; margin: 0 0 12pt 0; }
+        h2 { font-size: 18pt; font-weight: bold; margin: 18pt 0 10pt 0; }
+        h3 { font-size: 14pt; font-weight: bold; margin: 16pt 0 8pt 0; }
+        h4, h5, h6 { font-size: 12pt; font-weight: bold; margin: 14pt 0 6pt 0; }
+        p { margin: 0 0 10pt 0; }
+        ul, ol { padding-left: 24pt; margin: 0 0 10pt 0; }
+        li { margin-bottom: 4pt; }
+        blockquote {
+          border-left: 3pt solid #ccc;
+          padding-left: 12pt;
+          margin: 12pt 0;
+          color: #555;
+          font-style: italic;
+        }
+        table {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 12pt 0;
+        }
+        td, th {
+          border: 1pt solid #333;
+          padding: 6pt 8pt;
+        }
+        th {
+          background: #f0f0f0;
+          font-weight: bold;
+        }
+        pre {
+          background: #f5f5f5;
+          border: 1pt solid #e0e0e0;
+          padding: 8pt;
+          font-family: 'Courier New', monospace;
+          font-size: 10pt;
+          white-space: pre-wrap;
+        }
+        code {
+          font-family: 'Courier New', monospace;
+          font-size: 10pt;
+          background: #f0f0f0;
+          padding: 2pt 4pt;
+        }
+        img {
+          max-width: 100%;
+          height: auto;
+        }
+        a {
+          color: #0066cc;
+          text-decoration: underline;
+        }
+        mark {
+          background-color: yellow;
+          padding: 0 2pt;
+        }
+      </style>
+    </head>
+    <body>
+      ${htmlContent}
+    </body>
+    </html>
+  `
+
+  const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${sanitizeFilename(title)}.html`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * Export document to plain text format
+ * Strips all HTML tags and downloads as .txt
+ */
+export async function exportToText(title: string, htmlContent: string): Promise<void> {
+  // Create a temporary div to parse HTML
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = htmlContent
+
+  // Get plain text content
+  let textContent = tempDiv.textContent || tempDiv.innerText || ''
+
+  // Clean up extra whitespace
+  textContent = textContent
+    .replace(/\n\s*\n\s*\n/g, '\n\n') // Remove triple+ line breaks
+    .replace(/^\s+|\s+$/g, '') // Trim start and end
+    .trim()
+
+  const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${sanitizeFilename(title)}.txt`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 export default {
   exportToWord,
   exportToPDF,
+  exportToHTML,
+  exportToText,
   prepareContentForExport,
   jsonToHtml
 }

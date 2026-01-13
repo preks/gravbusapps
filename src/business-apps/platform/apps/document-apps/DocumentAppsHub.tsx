@@ -251,6 +251,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    * Handle send for approval click
    */
   const handleSendForApprovalClick = useCallback((id: string) => {
+    console.log('[DocumentAppsHub] Opening approval dialog for document:', id)
     setDocumentForApproval(id)
     setApprovalDialogOpen(true)
   }, [])
@@ -306,6 +307,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             }
           }}
           onBack={handleBack}
+          onSendForApproval={() => {
+            toast.info('Please save the document first before sending for approval')
+          }}
           accessToken={accessToken}
           userInfo={userInfo}
           data-testid={`${testId}-editor`}
@@ -323,6 +327,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             await updateDocument(currentDocument.id, { title, content })
           }}
           onBack={handleBack}
+          onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
           isReadOnly={!canEdit}
           accessToken={accessToken}
           userInfo={userInfo}
@@ -348,6 +353,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           }
         }}
         onBack={handleBack}
+        onSendForApproval={() => {
+          toast.info('Please save the document first before sending for approval')
+        }}
         accessToken={accessToken}
         userInfo={userInfo}
         data-testid={`${testId}-editor`}

@@ -157,6 +157,22 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
   const statusBadge = getStatusBadge(document.status)
   const canEdit = document.isOwner || document.permission === 'edit'
   const canShare = document.isOwner
+  const canSendForApproval =
+    canEdit && onSendForApproval && !['pending_approval', 'approved', 'rejected'].includes(document.status)
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[DocumentPreviewCard]', {
+      id: document.id,
+      title: document.title,
+      status: document.status,
+      isOwner: document.isOwner,
+      permission: document.permission,
+      canEdit,
+      hasCallback: !!onSendForApproval,
+      canSendForApproval
+    })
+  }, [document, canEdit, onSendForApproval, canSendForApproval])
   const canDelete = document.isOwner
 
   // Get approval info
@@ -234,8 +250,8 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                   Share
                 </DropdownMenuItem>
               )}
-              {canEdit && onSendForApproval && document.status === 'draft' && (
-                <DropdownMenuItem onClick={() => onSendForApproval(document.id)}>
+              {canSendForApproval && (
+                <DropdownMenuItem onClick={() => onSendForApproval!(document.id)}>
                   <Send className="gba:w-4 gba:h-4 gba:mr-2" />
                   Send for Approval
                 </DropdownMenuItem>

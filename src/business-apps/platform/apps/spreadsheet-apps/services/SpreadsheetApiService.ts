@@ -162,19 +162,28 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
     sourceFile: apiApp.sourceFileInfo as SpreadsheetApp['sourceFile'],
     settings: (apiApp.settings as SpreadsheetApp['settings']) || {},
     relationships: apiApp.relationships as SpreadsheetApp['relationships'],
-    sheets: sheets.map(sheet => ({
-      id: sheet.id as string,
-      name: sheet.name as string,
-      description: sheet.description as string | undefined,
-      columns: (sheet.columns as SpreadsheetSheet['columns']) || [],
-      views: (sheet.views as SpreadsheetSheet['views']) || [],
-      settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
-      entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
-      chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
-      data: [], // Data loaded separately
-      automations: [],
-      workflowLinks: []
-    })),
+    sheets: sheets.map(sheet => {
+      // Map rows from backend to data array for frontend
+      const rows = (sheet.rows as Array<{ id: string; data: Record<string, unknown> }>) || []
+      const data = rows.map(row => ({
+        _id: row.id,
+        ...row.data
+      }))
+
+      return {
+        id: sheet.id as string,
+        name: sheet.name as string,
+        description: sheet.description as string | undefined,
+        columns: (sheet.columns as SpreadsheetSheet['columns']) || [],
+        views: (sheet.views as SpreadsheetSheet['views']) || [],
+        settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
+        entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
+        chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
+        data,
+        automations: [],
+        workflowLinks: []
+      }
+    }),
     sharedWith: []
   }
 }
@@ -207,17 +216,25 @@ export const SpreadsheetApiService = {
 
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
 
-    return response.items.map(app => ({
-      id: app.id as string,
-      name: app.name as string,
-      description: app.description as string | undefined,
-      icon: app.icon as string | undefined,
-      status: app.status as AppStatus,
-      createdAt: app.createdAt as string,
-      updatedAt: app.updatedAt as string,
-      createdBy: app.ownerId as string,
-      sheetCount: ((app.sheets as unknown[]) || []).length
-    }))
+    return response.items.map(app => {
+      const sheets = (app.sheets as Array<{ rows?: unknown[]; data?: unknown[] }>) || []
+      const sheetCount = sheets.length
+      // Try to get rowCount from rows (backend) or data (legacy), default to 0
+      const rowCount = sheets.reduce((sum, sheet) => sum + (sheet.rows?.length || sheet.data?.length || 0), 0)
+
+      return {
+        id: app.id as string,
+        name: app.name as string,
+        description: app.description as string | undefined,
+        icon: app.icon as string | undefined,
+        status: app.status as AppStatus,
+        createdAt: app.createdAt as string,
+        updatedAt: app.updatedAt as string,
+        createdBy: app.ownerId as string,
+        sheetCount,
+        rowCount
+      }
+    })
   },
 
   /**

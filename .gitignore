@@ -31,3 +31,6 @@ changed-tsx.txt
 wrapped-entries
 temp_build
 temp_build_files
+
+# Desktop app build artifacts
+desktop/release/

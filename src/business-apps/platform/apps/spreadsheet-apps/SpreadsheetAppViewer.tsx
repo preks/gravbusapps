@@ -97,6 +97,17 @@ export interface SpreadsheetAppViewerProps {
   activeSheetId?: string
   activeViewId?: string
   onDataChange?: (sheetId: string, data: Record<string, unknown>[]) => void
+  onRowAdd?: (
+    appId: string,
+    sheetId: string,
+    rowData: Record<string, unknown>
+  ) => Promise<Record<string, unknown> | null>
+  onRowUpdate?: (
+    appId: string,
+    sheetId: string,
+    rowId: string,
+    updates: Record<string, unknown>
+  ) => Promise<Record<string, unknown> | null>
   onAppUpdate?: (app: SpreadsheetApp) => void
   onBack?: () => void
   onEdit?: () => void
@@ -134,6 +145,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   activeSheetId: initialSheetId,
   activeViewId: initialViewId,
   onDataChange,
+  onRowAdd,
   onAppUpdate: _onAppUpdate,
   onBack,
   onEdit,
@@ -150,7 +162,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null)
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
   const [isAutomationWizardOpen, setIsAutomationWizardOpen] = useState(false)
-  const [editingAutomation, setEditingAutomation] = useState<import('./types/automation').SpreadsheetAutomation | null>(null)
+  const [editingAutomation, setEditingAutomation] = useState<import('./types/automation').SpreadsheetAutomation | null>(
+    null
+  )
 
   // Excel-like cell selection state
   const [selectedCell, setSelectedCell] = useState<{
@@ -177,44 +191,54 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [app.sheets, activeSheetId])
 
   // Automations hook - persist automations to sheet data
-  const handleAutomationsChange = useCallback((newAutomations: import('./types/automation').SpreadsheetAutomation[]) => {
-    if (_onAppUpdate) {
-      const updatedSheets = app.sheets.map(sheet =>
-        sheet.id === activeSheetId
-          ? {
-              ...sheet,
-              // IMPORTANT: Preserve latest local sheet data to avoid stale overwrites
-              // when automations change triggers a save concurrently with row updates.
-              data: localSheetDataRef.current,
-              automations: newAutomations
-            }
-          : sheet
-      )
-      _onAppUpdate({ ...app, sheets: updatedSheets })
-    }
-  }, [app, activeSheetId, _onAppUpdate])
+  const handleAutomationsChange = useCallback(
+    (newAutomations: import('./types/automation').SpreadsheetAutomation[]) => {
+      if (_onAppUpdate) {
+        const updatedSheets = app.sheets.map(sheet =>
+          sheet.id === activeSheetId
+            ? {
+                ...sheet,
+                // IMPORTANT: Preserve latest local sheet data to avoid stale overwrites
+                // when automations change triggers a save concurrently with row updates.
+                data: localSheetDataRef.current,
+                automations: newAutomations
+              }
+            : sheet
+        )
+        _onAppUpdate({ ...app, sheets: updatedSheets })
+      }
+    },
+    [app, activeSheetId, _onAppUpdate]
+  )
 
-  const handleWorkflowLinksChange = useCallback((newLinks: import('./types/automation').WorkflowRowLink[]) => {
-    if (_onAppUpdate) {
-      const updatedSheets = app.sheets.map(sheet =>
-        sheet.id === activeSheetId
-          ? {
-              ...sheet,
-              // IMPORTANT: Preserve latest local sheet data to avoid stale overwrites
-              // when workflowLinks updates race with row additions/updates.
-              data: localSheetDataRef.current,
-              workflowLinks: newLinks
-            }
-          : sheet
-      )
-      _onAppUpdate({ ...app, sheets: updatedSheets })
-    }
-  }, [app, activeSheetId, _onAppUpdate])
+  const handleWorkflowLinksChange = useCallback(
+    (newLinks: import('./types/automation').WorkflowRowLink[]) => {
+      if (_onAppUpdate) {
+        const updatedSheets = app.sheets.map(sheet =>
+          sheet.id === activeSheetId
+            ? {
+                ...sheet,
+                // IMPORTANT: Preserve latest local sheet data to avoid stale overwrites
+                // when workflowLinks updates race with row additions/updates.
+                data: localSheetDataRef.current,
+                workflowLinks: newLinks
+              }
+            : sheet
+        )
+        _onAppUpdate({ ...app, sheets: updatedSheets })
+      }
+    },
+    [app, activeSheetId, _onAppUpdate]
+  )
 
   // Refs for row callbacks (used by automation hook for bulk collection)
   // Defined before hook call to be available in the callback
-  const handleAddRowsRef = useRef<((rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => void) | undefined>(undefined)
-  const handleUpdateRowsRef = useRef<((updates: Array<{ workflowId: string; cells: Record<string, unknown> }>) => void) | undefined>(undefined)
+  const handleAddRowsRef = useRef<
+    ((rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => void) | undefined
+  >(undefined)
+  const handleUpdateRowsRef = useRef<
+    ((updates: Array<{ workflowId: string; cells: Record<string, unknown> }>) => void) | undefined
+  >(undefined)
 
   const {
     automations,
@@ -237,8 +261,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     initialWorkflowLinks: currentSheetData?.workflowLinks || [],
     onAutomationsChange: handleAutomationsChange,
     onWorkflowLinksChange: handleWorkflowLinksChange,
-    onAddRows: (rows) => handleAddRowsRef.current?.(rows),
-    onUpdateRows: (updates) => handleUpdateRowsRef.current?.(updates)
+    onAddRows: rows => handleAddRowsRef.current?.(rows),
+    onUpdateRows: updates => handleUpdateRowsRef.current?.(updates)
   })
 
   const [formulaSelectionMode, setFormulaSelectionMode] = useState<FormulaSelectionMode>(null)
@@ -260,7 +284,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [localSheetData, setLocalSheetData] = useState<Record<string, unknown>[]>(
     () => app.sheets.find(s => s.id === activeSheetId)?.data || []
   )
-  
+
   // IMPORTANT: Keep a ref to always have access to the LATEST localSheetData
   // This prevents stale closure issues when handlers are called rapidly (e.g., from polling)
   const localSheetDataRef = React.useRef(localSheetData)
@@ -274,25 +298,25 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // Only sync from app.sheets when the sheet ID actually changes (user switches sheets)
   useEffect(() => {
     const sheetData = app.sheets.find(s => s.id === activeSheetId)?.data || []
-    console.warn('[SpreadsheetAppViewer] useEffect triggered:', { 
-      prevId: prevSheetIdRef.current, 
+    console.warn('[SpreadsheetAppViewer] useEffect triggered:', {
+      prevId: prevSheetIdRef.current,
       currentId: activeSheetId,
       willSync: prevSheetIdRef.current !== activeSheetId,
       appSheetsRowCount: sheetData.length,
       localSheetDataRowCount: localSheetData.length
     })
     if (prevSheetIdRef.current !== activeSheetId) {
-      console.warn('[SpreadsheetAppViewer] Sheet ID changed, syncing from app.sheets:', { 
-        prevId: prevSheetIdRef.current, 
+      console.warn('[SpreadsheetAppViewer] Sheet ID changed, syncing from app.sheets:', {
+        prevId: prevSheetIdRef.current,
         newId: activeSheetId,
-        rowCount: sheetData.length 
+        rowCount: sheetData.length
       })
       setLocalSheetData(sheetData)
       prevSheetIdRef.current = activeSheetId
     }
   }, [activeSheetId, app.sheets])
 
-  // Debug: Log whenever localSheetData changes  
+  // Debug: Log whenever localSheetData changes
   useEffect(() => {
     console.warn('[SpreadsheetAppViewer] localSheetData CHANGED:', {
       rowCount: localSheetData.length,
@@ -644,402 +668,463 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   /**
    * Handle row add - immediately add empty row (no modal)
    */
-  const handleAddRow = useCallback(() => {
-    if (!activeSheet) return
+  const handleAddRow = useCallback(async () => {
+    if (!activeSheet || !app) return
 
-    // Create empty row with default values for each column
-    const newRow: Record<string, unknown> = {
-      _id: `row_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      _createdAt: new Date().toISOString()
-    }
+    // Create row data with default values for each column
+    const rowData: Record<string, unknown> = {}
 
     // Add default values for each column
     activeSheet.columns.forEach(col => {
       if (col.defaultValue !== undefined) {
-        newRow[col.name] = col.defaultValue
+        rowData[col.name] = col.defaultValue
       } else {
         // Set empty string for text columns, null for others
         if (col.type === 'text' || col.type === 'email' || col.type === 'url' || col.type === 'phone') {
-          newRow[col.name] = ''
+          rowData[col.name] = ''
         } else {
-          newRow[col.name] = null
+          rowData[col.name] = null
         }
       }
     })
 
-    // Update local data immediately
-    const newData = [...localSheetData, newRow]
-    setLocalSheetData(newData)
-
-    // Save to backend
-    onDataChange?.(activeSheet.id, newData)
-  }, [activeSheet, localSheetData, onDataChange])
+    // If we have onRowAdd, call the backend API
+    if (onRowAdd) {
+      const savedRow = await onRowAdd(app.id, activeSheet.id, rowData)
+      if (savedRow) {
+        // Update local data with the saved row (which has the real ID from backend)
+        const newData = [...localSheetData, savedRow]
+        setLocalSheetData(newData)
+      }
+    } else {
+      // Fallback: update local state only (legacy behavior)
+      const newRow: Record<string, unknown> = {
+        _id: `row_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        _createdAt: new Date().toISOString(),
+        ...rowData
+      }
+      const newData = [...localSheetData, newRow]
+      setLocalSheetData(newData)
+      onDataChange?.(activeSheet.id, newData)
+    }
+  }, [activeSheet, app, localSheetData, onRowAdd, onDataChange])
 
   /**
    * Handle adding multiple rows (from bulk collection responses)
    */
-  const handleAddRows = useCallback((rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => {
-    console.log('[SpreadsheetAppViewer] handleAddRows ENTRY - rows:', rows.length, 'activeSheet:', !!activeSheet)
-    
-    // CRITICAL: Cancel any pending debounced saves to prevent race condition
-    // where stale data overwrites the new rows we're about to add
-    if (saveTimeoutRef.current) {
-      console.warn('[SpreadsheetAppViewer] handleAddRows - Cancelling pending debounced save')
-      clearTimeout(saveTimeoutRef.current)
-      saveTimeoutRef.current = null
-    }
-    
-    if (!activeSheet || rows.length === 0) {
-      console.log('[SpreadsheetAppViewer] handleAddRows EARLY EXIT - no activeSheet or empty rows')
-      return
-    }
+  const handleAddRows = useCallback(
+    (rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => {
+      console.log('[SpreadsheetAppViewer] handleAddRows ENTRY - rows:', rows.length, 'activeSheet:', !!activeSheet)
 
-    console.log('[SpreadsheetAppViewer] handleAddRows called with', rows.length, 'rows')
-    console.log('[SpreadsheetAppViewer] Row data:', JSON.stringify(rows, null, 2))
+      // CRITICAL: Cancel any pending debounced saves to prevent race condition
+      // where stale data overwrites the new rows we're about to add
+      if (saveTimeoutRef.current) {
+        console.warn('[SpreadsheetAppViewer] handleAddRows - Cancelling pending debounced save')
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+      }
 
-    // Internal metadata fields to skip (not user-visible columns)
-    const internalMetadataFields = new Set([
-      '_id', '_createdAt', '_updatedAt', '_workflow_id', '_recipient_id', 
-      '_isBulkCollectionPending', '_automationId'
-    ])
+      if (!activeSheet || rows.length === 0) {
+        console.log('[SpreadsheetAppViewer] handleAddRows EARLY EXIT - no activeSheet or empty rows')
+        return
+      }
 
-    // Collect all unique field names from the incoming data
-    const allFieldNames = new Set<string>()
-    rows.forEach(rowData => {
-      Object.keys(rowData.cells).forEach(key => {
-        const isTracking = isTrackingColumn(key)
-        const isMetadata = internalMetadataFields.has(key)
-        console.log(`[SpreadsheetAppViewer] Checking field "${key}": isTrackingColumn=${isTracking}, isMetadata=${isMetadata}`)
-        
-        // Include tracking columns (like _recipient_name, _sent_at) 
-        // but skip internal metadata fields
-        if (isTracking || !isMetadata) {
-          allFieldNames.add(key)
+      console.log('[SpreadsheetAppViewer] handleAddRows called with', rows.length, 'rows')
+      console.log('[SpreadsheetAppViewer] Row data:', JSON.stringify(rows, null, 2))
+
+      // Internal metadata fields to skip (not user-visible columns)
+      const internalMetadataFields = new Set([
+        '_id',
+        '_createdAt',
+        '_updatedAt',
+        '_workflow_id',
+        '_recipient_id',
+        '_isBulkCollectionPending',
+        '_automationId'
+      ])
+
+      // Collect all unique field names from the incoming data
+      const allFieldNames = new Set<string>()
+      rows.forEach(rowData => {
+        Object.keys(rowData.cells).forEach(key => {
+          const isTracking = isTrackingColumn(key)
+          const isMetadata = internalMetadataFields.has(key)
+          console.log(
+            `[SpreadsheetAppViewer] Checking field "${key}": isTrackingColumn=${isTracking}, isMetadata=${isMetadata}`
+          )
+
+          // Include tracking columns (like _recipient_name, _sent_at)
+          // but skip internal metadata fields
+          if (isTracking || !isMetadata) {
+            allFieldNames.add(key)
+          }
+        })
+      })
+
+      // Using console.warn because console.log is stripped in production
+      console.warn('[SpreadsheetAppViewer] All field names to process:', Array.from(allFieldNames))
+
+      // Find fields that don't have corresponding columns
+      const existingColumnIds = new Set(activeSheet.columns.map(c => c.id))
+      const existingColumnNames = new Set(activeSheet.columns.map(c => c.name))
+      const newFieldNames: string[] = []
+
+      console.warn('[SpreadsheetAppViewer] Existing column IDs:', Array.from(existingColumnIds))
+      console.warn('[SpreadsheetAppViewer] Existing column names:', Array.from(existingColumnNames))
+
+      allFieldNames.forEach(fieldName => {
+        // Check if field matches existing column by ID or name
+        const existsById = existingColumnIds.has(fieldName)
+        const existsByName = existingColumnNames.has(fieldName)
+        console.warn(
+          `[SpreadsheetAppViewer] Checking field "${fieldName}": existsById=${existsById}, existsByName=${existsByName}`
+        )
+        if (!existsById && !existsByName) {
+          newFieldNames.push(fieldName)
         }
       })
-    })
 
-    // Using console.warn because console.log is stripped in production
-    console.warn('[SpreadsheetAppViewer] All field names to process:', Array.from(allFieldNames))
+      console.warn('[SpreadsheetAppViewer] New fields to create columns for:', newFieldNames)
 
-    // Find fields that don't have corresponding columns
-    const existingColumnIds = new Set(activeSheet.columns.map(c => c.id))
-    const existingColumnNames = new Set(activeSheet.columns.map(c => c.name))
-    const newFieldNames: string[] = []
+      // Create new columns for unknown fields
+      const newColumns: SpreadsheetColumn[] = newFieldNames.map((fieldName, index) => {
+        // Check if this is a tracking column and get its definition
+        const trackingCol = TRACKING_COLUMNS.find(tc => tc.name === fieldName)
 
-    console.warn('[SpreadsheetAppViewer] Existing column IDs:', Array.from(existingColumnIds))
-    console.warn('[SpreadsheetAppViewer] Existing column names:', Array.from(existingColumnNames))
+        // Generate a user-friendly label
+        let label: string
+        let colType: SpreadsheetColumn['type'] = 'text'
 
-    allFieldNames.forEach(fieldName => {
-      // Check if field matches existing column by ID or name
-      const existsById = existingColumnIds.has(fieldName)
-      const existsByName = existingColumnNames.has(fieldName)
-      console.warn(`[SpreadsheetAppViewer] Checking field "${fieldName}": existsById=${existsById}, existsByName=${existsByName}`)
-      if (!existsById && !existsByName) {
-        newFieldNames.push(fieldName)
-      }
-    })
-
-    console.warn('[SpreadsheetAppViewer] New fields to create columns for:', newFieldNames)
-
-    // Create new columns for unknown fields
-    const newColumns: SpreadsheetColumn[] = newFieldNames.map((fieldName, index) => {
-      // Check if this is a tracking column and get its definition
-      const trackingCol = TRACKING_COLUMNS.find(tc => tc.name === fieldName)
-      
-      // Generate a user-friendly label
-      let label: string
-      let colType: SpreadsheetColumn['type'] = 'text'
-      
-      if (trackingCol) {
-        // Use the tracking column's predefined label
-        label = trackingCol.label
-        // Set appropriate type for tracking columns
-        if (trackingCol.id === 'sent_at' || trackingCol.id === 'responded_at') {
-          colType = 'datetime'
-        } else if (trackingCol.id === 'recipient_email') {
-          colType = 'email'
-        } else if (trackingCol.id === 'recipient_avatar') {
-          colType = 'image'
-        }
-      } else if (fieldName === '__new__') {
-        label = 'New Response Field'
-      } else {
-        label = fieldName
-          .replace(/^col_\d+_\w+$/, 'Response')
-          .replace(/^_/, '') // Remove leading underscore
-          .replace(/_/g, ' ')
-          .replace(/\b\w/g, l => l.toUpperCase())
-      }
-      
-      return {
-        id: fieldName.startsWith('col_') || fieldName === '__new__' || fieldName.startsWith('_')
-          ? fieldName 
-          : `col_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 5)}`,
-        name: fieldName,
-        label,
-        type: colType,
-        isVisible: true,
-        isEditable: !trackingCol, // Tracking columns are read-only
-        isRequired: false,
-        isUnique: false,
-        isTracking: !!trackingCol,
-        order: index // Will be reordered below
-      }
-    })
-
-    // Update columns if needed - tracking columns first, then existing, then new non-tracking
-    let updatedColumns = activeSheet.columns
-    if (newColumns.length > 0 && _onAppUpdate) {
-      const trackingNew = newColumns.filter(c => c.isTracking)
-      const nonTrackingNew = newColumns.filter(c => !c.isTracking)
-      const existingNonTracking = activeSheet.columns.filter(c => !c.isTracking)
-      const existingTracking = activeSheet.columns.filter(c => c.isTracking)
-      
-      // Order: existing tracking, new tracking, existing non-tracking, new non-tracking
-      updatedColumns = [...existingTracking, ...trackingNew, ...existingNonTracking, ...nonTrackingNew]
-        .map((col, idx) => ({ ...col, order: idx }))
-      
-      console.log('[SpreadsheetAppViewer] Adding', newColumns.length, 'new columns (tracking columns first)')
-    }
-
-    // Build a map for column lookup (including new columns)
-    const columnMap = new Map<string, SpreadsheetColumn>()
-    updatedColumns.forEach(col => {
-      columnMap.set(col.id, col)
-      columnMap.set(col.name, col)
-    })
-
-    const newRows = rows.map((rowData, index) => {
-      const newRow: Record<string, unknown> = {
-        _id: `row_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 9)}`,
-        _createdAt: new Date().toISOString(),
-        ...rowData.metadata
-      }
-
-      // Map cell data to column names
-      for (const [key, value] of Object.entries(rowData.cells)) {
-        // Check if key is a column ID and convert to column name
-        const column = columnMap.get(key)
-        if (column) {
-          newRow[column.name] = value
+        if (trackingCol) {
+          // Use the tracking column's predefined label
+          label = trackingCol.label
+          // Set appropriate type for tracking columns
+          if (trackingCol.id === 'sent_at' || trackingCol.id === 'responded_at') {
+            colType = 'datetime'
+          } else if (trackingCol.id === 'recipient_email') {
+            colType = 'email'
+          } else if (trackingCol.id === 'recipient_avatar') {
+            colType = 'image'
+          }
+        } else if (fieldName === '__new__') {
+          label = 'New Response Field'
         } else {
-          // Store as-is if no matching column (might be a metadata field)
-          newRow[key] = value
+          label = fieldName
+            .replace(/^col_\d+_\w+$/, 'Response')
+            .replace(/^_/, '') // Remove leading underscore
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())
         }
+
+        return {
+          id:
+            fieldName.startsWith('col_') || fieldName === '__new__' || fieldName.startsWith('_')
+              ? fieldName
+              : `col_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 5)}`,
+          name: fieldName,
+          label,
+          type: colType,
+          isVisible: true,
+          isEditable: !trackingCol, // Tracking columns are read-only
+          isRequired: false,
+          isUnique: false,
+          isTracking: !!trackingCol,
+          order: index // Will be reordered below
+        }
+      })
+
+      // Update columns if needed - tracking columns first, then existing, then new non-tracking
+      let updatedColumns = activeSheet.columns
+      if (newColumns.length > 0 && _onAppUpdate) {
+        const trackingNew = newColumns.filter(c => c.isTracking)
+        const nonTrackingNew = newColumns.filter(c => !c.isTracking)
+        const existingNonTracking = activeSheet.columns.filter(c => !c.isTracking)
+        const existingTracking = activeSheet.columns.filter(c => c.isTracking)
+
+        // Order: existing tracking, new tracking, existing non-tracking, new non-tracking
+        updatedColumns = [...existingTracking, ...trackingNew, ...existingNonTracking, ...nonTrackingNew].map(
+          (col, idx) => ({ ...col, order: idx })
+        )
+
+        console.log('[SpreadsheetAppViewer] Adding', newColumns.length, 'new columns (tracking columns first)')
       }
 
-      return newRow
-    })
+      // Build a map for column lookup (including new columns)
+      const columnMap = new Map<string, SpreadsheetColumn>()
+      updatedColumns.forEach(col => {
+        columnMap.set(col.id, col)
+        columnMap.set(col.name, col)
+      })
 
-    console.log('[SpreadsheetAppViewer] DEBUG: New columns to add:', newColumns.map(c => ({ id: c.id, name: c.name, label: c.label })))
-    console.log('[SpreadsheetAppViewer] DEBUG: New rows built:', JSON.stringify(newRows, null, 2))
+      const newRows = rows.map((rowData, index) => {
+        const newRow: Record<string, unknown> = {
+          _id: `row_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 9)}`,
+          _createdAt: new Date().toISOString(),
+          ...rowData.metadata
+        }
 
-    // Update local data immediately - use ref to get LATEST state (avoid stale closures from polling)
-    const currentData = localSheetDataRef.current
-    const newData = [...currentData, ...newRows]
-    // Keep ref in sync immediately (do not wait for effect) to avoid stale overwrites
-    localSheetDataRef.current = newData
-    setLocalSheetData(newData)
-    console.log('[SpreadsheetAppViewer] DEBUG: setLocalSheetData called with', newData.length, 'total rows (was', currentData.length, ')')
+        // Map cell data to column names
+        for (const [key, value] of Object.entries(rowData.cells)) {
+          // Check if key is a column ID and convert to column name
+          const column = columnMap.get(key)
+          if (column) {
+            newRow[column.name] = value
+          } else {
+            // Store as-is if no matching column (might be a metadata field)
+            newRow[key] = value
+          }
+        }
 
-    // IMPORTANT: Only call ONE of onDataChange or _onAppUpdate to prevent race condition
-    // When we have new columns, use _onAppUpdate which includes both columns AND data
-    // Otherwise, use onDataChange for just the data update
-    if (newColumns.length > 0 && _onAppUpdate) {
-      // We have new columns - use _onAppUpdate which saves everything at once
-      console.warn('[SpreadsheetAppViewer] Adding new columns to sheet, count:', newColumns.length, 'columns:', newColumns.map(c => c.label))
-      const updatedSheets = app.sheets.map(sheet =>
-        sheet.id === activeSheet.id
-          ? { ...sheet, columns: updatedColumns, data: newData }
-          : sheet
+        return newRow
+      })
+
+      console.log(
+        '[SpreadsheetAppViewer] DEBUG: New columns to add:',
+        newColumns.map(c => ({ id: c.id, name: c.name, label: c.label }))
       )
-      _onAppUpdate({ ...app, sheets: updatedSheets })
-      console.warn('[SpreadsheetAppViewer] _onAppUpdate called with new columns and data')
-    } else if (_onAppUpdate) {
-      // No new columns but we have _onAppUpdate - use it to avoid race condition
-      console.warn('[SpreadsheetAppViewer] handleAddRows - No new columns - using _onAppUpdate for data only')
-      console.warn('[SpreadsheetAppViewer] handleAddRows - newData length:', newData.length)
-      console.warn('[SpreadsheetAppViewer] handleAddRows - newData row IDs:', newData.map(r => r._id))
-      const updatedSheets = app.sheets.map(sheet =>
-        sheet.id === activeSheet.id
-          ? { ...sheet, data: newData }
-          : sheet
-      )
-      console.warn('[SpreadsheetAppViewer] handleAddRows - Calling _onAppUpdate with', updatedSheets[0]?.data?.length, 'rows')
-      _onAppUpdate({ ...app, sheets: updatedSheets })
-    } else {
-      // Fallback to onDataChange when _onAppUpdate is not available
-      console.warn('[SpreadsheetAppViewer] Fallback to onDataChange - _onAppUpdate not available')
-      onDataChange?.(activeSheet.id, newData)
-    }
+      console.log('[SpreadsheetAppViewer] DEBUG: New rows built:', JSON.stringify(newRows, null, 2))
 
-    console.log('[SpreadsheetAppViewer] Added', newRows.length, 'rows from bulk collection')
-  }, [activeSheet, localSheetData, onDataChange, _onAppUpdate, app])
+      // Update local data immediately - use ref to get LATEST state (avoid stale closures from polling)
+      const currentData = localSheetDataRef.current
+      const newData = [...currentData, ...newRows]
+      // Keep ref in sync immediately (do not wait for effect) to avoid stale overwrites
+      localSheetDataRef.current = newData
+      setLocalSheetData(newData)
+      console.log(
+        '[SpreadsheetAppViewer] DEBUG: setLocalSheetData called with',
+        newData.length,
+        'total rows (was',
+        currentData.length,
+        ')'
+      )
+
+      // IMPORTANT: Only call ONE of onDataChange or _onAppUpdate to prevent race condition
+      // When we have new columns, use _onAppUpdate which includes both columns AND data
+      // Otherwise, use onDataChange for just the data update
+      if (newColumns.length > 0 && _onAppUpdate) {
+        // We have new columns - use _onAppUpdate which saves everything at once
+        console.warn(
+          '[SpreadsheetAppViewer] Adding new columns to sheet, count:',
+          newColumns.length,
+          'columns:',
+          newColumns.map(c => c.label)
+        )
+        const updatedSheets = app.sheets.map(sheet =>
+          sheet.id === activeSheet.id ? { ...sheet, columns: updatedColumns, data: newData } : sheet
+        )
+        _onAppUpdate({ ...app, sheets: updatedSheets })
+        console.warn('[SpreadsheetAppViewer] _onAppUpdate called with new columns and data')
+      } else if (_onAppUpdate) {
+        // No new columns but we have _onAppUpdate - use it to avoid race condition
+        console.warn('[SpreadsheetAppViewer] handleAddRows - No new columns - using _onAppUpdate for data only')
+        console.warn('[SpreadsheetAppViewer] handleAddRows - newData length:', newData.length)
+        console.warn(
+          '[SpreadsheetAppViewer] handleAddRows - newData row IDs:',
+          newData.map(r => r._id)
+        )
+        const updatedSheets = app.sheets.map(sheet =>
+          sheet.id === activeSheet.id ? { ...sheet, data: newData } : sheet
+        )
+        console.warn(
+          '[SpreadsheetAppViewer] handleAddRows - Calling _onAppUpdate with',
+          updatedSheets[0]?.data?.length,
+          'rows'
+        )
+        _onAppUpdate({ ...app, sheets: updatedSheets })
+      } else {
+        // Fallback to onDataChange when _onAppUpdate is not available
+        console.warn('[SpreadsheetAppViewer] Fallback to onDataChange - _onAppUpdate not available')
+        onDataChange?.(activeSheet.id, newData)
+      }
+
+      console.log('[SpreadsheetAppViewer] Added', newRows.length, 'rows from bulk collection')
+    },
+    [activeSheet, localSheetData, onDataChange, _onAppUpdate, app]
+  )
 
   /**
    * Handle updating existing rows (when bulk collection responses come back)
    * Finds rows by _workflow_id and updates them with response data
    * Also creates columns for tracking fields if they don't exist
    */
-  const handleUpdateRows = useCallback((updates: Array<{ workflowId: string; cells: Record<string, unknown> }>) => {
-    // CRITICAL: Cancel any pending debounced saves to prevent race condition
-    // where stale data overwrites the updates we're about to make
-    if (saveTimeoutRef.current) {
-      console.warn('[SpreadsheetAppViewer] handleUpdateRows - Cancelling pending debounced save')
-      clearTimeout(saveTimeoutRef.current)
-      saveTimeoutRef.current = null
-    }
-    
-    if (!activeSheet || updates.length === 0) return
+  const handleUpdateRows = useCallback(
+    (updates: Array<{ workflowId: string; cells: Record<string, unknown> }>) => {
+      // CRITICAL: Cancel any pending debounced saves to prevent race condition
+      // where stale data overwrites the updates we're about to make
+      if (saveTimeoutRef.current) {
+        console.warn('[SpreadsheetAppViewer] handleUpdateRows - Cancelling pending debounced save')
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+      }
 
-    // Using console.warn because console.log is stripped in production builds
-    console.warn('[SpreadsheetAppViewer] handleUpdateRows called with', updates.length, 'updates')
+      if (!activeSheet || updates.length === 0) return
 
-    // Internal metadata fields to skip (not user-visible columns)
-    const internalMetadataFields = new Set([
-      '_id', '_createdAt', '_updatedAt', '_workflow_id', '_recipient_id', 
-      '_isBulkCollectionPending', '_automationId'
-    ])
+      // Using console.warn because console.log is stripped in production builds
+      console.warn('[SpreadsheetAppViewer] handleUpdateRows called with', updates.length, 'updates')
 
-    // Collect all field names from update cells to check for missing columns
-    const allFieldNames = new Set<string>()
-    updates.forEach(update => {
-      Object.keys(update.cells).forEach(key => {
-        const isTracking = isTrackingColumn(key)
-        const isMetadata = internalMetadataFields.has(key)
-        // Include tracking columns but skip internal metadata
-        if (isTracking || !isMetadata) {
-          allFieldNames.add(key)
+      // Internal metadata fields to skip (not user-visible columns)
+      const internalMetadataFields = new Set([
+        '_id',
+        '_createdAt',
+        '_updatedAt',
+        '_workflow_id',
+        '_recipient_id',
+        '_isBulkCollectionPending',
+        '_automationId'
+      ])
+
+      // Collect all field names from update cells to check for missing columns
+      const allFieldNames = new Set<string>()
+      updates.forEach(update => {
+        Object.keys(update.cells).forEach(key => {
+          const isTracking = isTrackingColumn(key)
+          const isMetadata = internalMetadataFields.has(key)
+          // Include tracking columns but skip internal metadata
+          if (isTracking || !isMetadata) {
+            allFieldNames.add(key)
+          }
+        })
+      })
+
+      // Find fields that don't have corresponding columns
+      const existingColumnIds = new Set(activeSheet.columns.map(c => c.id))
+      const existingColumnNames = new Set(activeSheet.columns.map(c => c.name))
+      const newFieldNames: string[] = []
+
+      allFieldNames.forEach(fieldName => {
+        if (!existingColumnIds.has(fieldName) && !existingColumnNames.has(fieldName)) {
+          newFieldNames.push(fieldName)
         }
       })
-    })
 
-    // Find fields that don't have corresponding columns
-    const existingColumnIds = new Set(activeSheet.columns.map(c => c.id))
-    const existingColumnNames = new Set(activeSheet.columns.map(c => c.name))
-    const newFieldNames: string[] = []
+      console.warn('[SpreadsheetAppViewer] handleUpdateRows - new fields needing columns:', newFieldNames)
 
-    allFieldNames.forEach(fieldName => {
-      if (!existingColumnIds.has(fieldName) && !existingColumnNames.has(fieldName)) {
-        newFieldNames.push(fieldName)
-      }
-    })
+      // Create new columns for tracking fields
+      const newColumns: SpreadsheetColumn[] = newFieldNames.map((fieldName, index) => {
+        const trackingCol = TRACKING_COLUMNS.find(tc => tc.name === fieldName)
 
-    console.warn('[SpreadsheetAppViewer] handleUpdateRows - new fields needing columns:', newFieldNames)
+        let label: string
+        let colType: SpreadsheetColumn['type'] = 'text'
 
-    // Create new columns for tracking fields
-    const newColumns: SpreadsheetColumn[] = newFieldNames.map((fieldName, index) => {
-      const trackingCol = TRACKING_COLUMNS.find(tc => tc.name === fieldName)
-      
-      let label: string
-      let colType: SpreadsheetColumn['type'] = 'text'
-      
-      if (trackingCol) {
-        label = trackingCol.label
-        if (trackingCol.id === 'sent_at' || trackingCol.id === 'responded_at') {
-          colType = 'datetime'
-        } else if (trackingCol.id === 'recipient_email') {
-          colType = 'email'
-        } else if (trackingCol.id === 'recipient_avatar') {
-          colType = 'image'
+        if (trackingCol) {
+          label = trackingCol.label
+          if (trackingCol.id === 'sent_at' || trackingCol.id === 'responded_at') {
+            colType = 'datetime'
+          } else if (trackingCol.id === 'recipient_email') {
+            colType = 'email'
+          } else if (trackingCol.id === 'recipient_avatar') {
+            colType = 'image'
+          }
+        } else {
+          label = fieldName
+            .replace(/^_/, '')
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())
         }
-      } else {
-        label = fieldName.replace(/^_/, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-      }
-      
-      return {
-        id: fieldName,
-        name: fieldName,
-        label,
-        type: colType,
-        isVisible: true,
-        isEditable: !trackingCol,
-        isRequired: false,
-        isUnique: false,
-        isTracking: !!trackingCol,
-        order: index // Will be reordered below
-      }
-    })
 
-    // Build updated columns list - tracking columns first, then existing, then new non-tracking
-    let updatedColumns = activeSheet.columns
-    if (newColumns.length > 0) {
-      const trackingNew = newColumns.filter(c => c.isTracking)
-      const nonTrackingNew = newColumns.filter(c => !c.isTracking)
-      const existingNonTracking = activeSheet.columns.filter(c => !c.isTracking)
-      const existingTracking = activeSheet.columns.filter(c => c.isTracking)
-      
-      // Order: existing tracking, new tracking, existing non-tracking, new non-tracking
-      updatedColumns = [...existingTracking, ...trackingNew, ...existingNonTracking, ...nonTrackingNew]
-        .map((col, idx) => ({ ...col, order: idx }))
-      
-      console.warn('[SpreadsheetAppViewer] handleUpdateRows - adding', newColumns.length, 'new columns:', newColumns.map(c => c.label))
-    }
-
-    // Build a map of workflowId -> cells for quick lookup
-    const updateMap = new Map(updates.map(u => [u.workflowId, u.cells]))
-
-    // Update local data - find rows with matching _workflow_id
-    // IMPORTANT: Use ref to get LATEST state (avoid stale closures from polling)
-    const currentData = localSheetDataRef.current
-    let matchCount = 0
-    const newData = currentData.map(row => {
-      const workflowId = row._workflow_id as string | undefined
-      if (workflowId && updateMap.has(workflowId)) {
-        matchCount++
-        const cellUpdates = updateMap.get(workflowId)!
-        console.warn('[SpreadsheetAppViewer] MATCH! Updating row with workflowId:', workflowId)
-        return { 
-          ...row, 
-          ...cellUpdates, 
-          _updatedAt: new Date().toISOString() 
+        return {
+          id: fieldName,
+          name: fieldName,
+          label,
+          type: colType,
+          isVisible: true,
+          isEditable: !trackingCol,
+          isRequired: false,
+          isUnique: false,
+          isTracking: !!trackingCol,
+          order: index // Will be reordered below
         }
+      })
+
+      // Build updated columns list - tracking columns first, then existing, then new non-tracking
+      let updatedColumns = activeSheet.columns
+      if (newColumns.length > 0) {
+        const trackingNew = newColumns.filter(c => c.isTracking)
+        const nonTrackingNew = newColumns.filter(c => !c.isTracking)
+        const existingNonTracking = activeSheet.columns.filter(c => !c.isTracking)
+        const existingTracking = activeSheet.columns.filter(c => c.isTracking)
+
+        // Order: existing tracking, new tracking, existing non-tracking, new non-tracking
+        updatedColumns = [...existingTracking, ...trackingNew, ...existingNonTracking, ...nonTrackingNew].map(
+          (col, idx) => ({ ...col, order: idx })
+        )
+
+        console.warn(
+          '[SpreadsheetAppViewer] handleUpdateRows - adding',
+          newColumns.length,
+          'new columns:',
+          newColumns.map(c => c.label)
+        )
       }
-      return row
-    })
 
-    console.warn('[SpreadsheetAppViewer] Total matches found:', matchCount, '(from', currentData.length, 'rows)')
+      // Build a map of workflowId -> cells for quick lookup
+      const updateMap = new Map(updates.map(u => [u.workflowId, u.cells]))
 
-    // CRITICAL: Only update state and save if there were ACTUAL changes
-    // This prevents race conditions where polling triggers saves with stale data
-    if (matchCount === 0 && newColumns.length === 0) {
-      console.warn('[SpreadsheetAppViewer] handleUpdateRows - NO CHANGES, skipping save to prevent stale data overwrite')
-      return
-    }
+      // Update local data - find rows with matching _workflow_id
+      // IMPORTANT: Use ref to get LATEST state (avoid stale closures from polling)
+      const currentData = localSheetDataRef.current
+      let matchCount = 0
+      const newData = currentData.map(row => {
+        const workflowId = row._workflow_id as string | undefined
+        if (workflowId && updateMap.has(workflowId)) {
+          matchCount++
+          const cellUpdates = updateMap.get(workflowId)!
+          console.warn('[SpreadsheetAppViewer] MATCH! Updating row with workflowId:', workflowId)
+          return {
+            ...row,
+            ...cellUpdates,
+            _updatedAt: new Date().toISOString()
+          }
+        }
+        return row
+      })
 
-    // Keep ref in sync immediately (do not wait for effect) to avoid stale overwrites
-    localSheetDataRef.current = newData
-    setLocalSheetData(newData)
+      console.warn('[SpreadsheetAppViewer] Total matches found:', matchCount, '(from', currentData.length, 'rows)')
 
-    // IMPORTANT: Only call ONE of onDataChange or _onAppUpdate to prevent race condition
-    // When we have new columns, use _onAppUpdate which includes both columns AND data
-    // Otherwise, prefer _onAppUpdate if available to avoid stale closure issues
-    if (newColumns.length > 0 && _onAppUpdate) {
-      console.warn('[SpreadsheetAppViewer] handleUpdateRows - updating app with new columns')
-      const updatedSheets = app.sheets.map(sheet =>
-        sheet.id === activeSheet.id
-          ? { ...sheet, columns: updatedColumns, data: newData }
-          : sheet
+      // CRITICAL: Only update state and save if there were ACTUAL changes
+      // This prevents race conditions where polling triggers saves with stale data
+      if (matchCount === 0 && newColumns.length === 0) {
+        console.warn(
+          '[SpreadsheetAppViewer] handleUpdateRows - NO CHANGES, skipping save to prevent stale data overwrite'
+        )
+        return
+      }
+
+      // Keep ref in sync immediately (do not wait for effect) to avoid stale overwrites
+      localSheetDataRef.current = newData
+      setLocalSheetData(newData)
+
+      // IMPORTANT: Only call ONE of onDataChange or _onAppUpdate to prevent race condition
+      // When we have new columns, use _onAppUpdate which includes both columns AND data
+      // Otherwise, prefer _onAppUpdate if available to avoid stale closure issues
+      if (newColumns.length > 0 && _onAppUpdate) {
+        console.warn('[SpreadsheetAppViewer] handleUpdateRows - updating app with new columns')
+        const updatedSheets = app.sheets.map(sheet =>
+          sheet.id === activeSheet.id ? { ...sheet, columns: updatedColumns, data: newData } : sheet
+        )
+        _onAppUpdate({ ...app, sheets: updatedSheets })
+      } else if (_onAppUpdate && matchCount > 0) {
+        // Only save if we actually updated rows - avoid overwriting with stale data
+        console.warn('[SpreadsheetAppViewer] handleUpdateRows - using _onAppUpdate for data only')
+        const updatedSheets = app.sheets.map(sheet =>
+          sheet.id === activeSheet.id ? { ...sheet, data: newData } : sheet
+        )
+        _onAppUpdate({ ...app, sheets: updatedSheets })
+      } else if (matchCount > 0) {
+        // Fallback to onDataChange when _onAppUpdate is not available
+        console.warn('[SpreadsheetAppViewer] handleUpdateRows - fallback to onDataChange')
+        onDataChange?.(activeSheet.id, newData)
+      }
+
+      console.warn(
+        '[SpreadsheetAppViewer] Updated rows for',
+        updates.length,
+        'bulk collection responses, actual updates:',
+        matchCount
       )
-      _onAppUpdate({ ...app, sheets: updatedSheets })
-    } else if (_onAppUpdate && matchCount > 0) {
-      // Only save if we actually updated rows - avoid overwriting with stale data
-      console.warn('[SpreadsheetAppViewer] handleUpdateRows - using _onAppUpdate for data only')
-      const updatedSheets = app.sheets.map(sheet =>
-        sheet.id === activeSheet.id
-          ? { ...sheet, data: newData }
-          : sheet
-      )
-      _onAppUpdate({ ...app, sheets: updatedSheets })
-    } else if (matchCount > 0) {
-      // Fallback to onDataChange when _onAppUpdate is not available
-      console.warn('[SpreadsheetAppViewer] handleUpdateRows - fallback to onDataChange')
-      onDataChange?.(activeSheet.id, newData)
-    }
-
-    console.warn('[SpreadsheetAppViewer] Updated rows for', updates.length, 'bulk collection responses, actual updates:', matchCount)
-  }, [activeSheet, localSheetData, onDataChange, _onAppUpdate, app])
+    },
+    [activeSheet, localSheetData, onDataChange, _onAppUpdate, app]
+  )
 
   // Keep refs updated with latest handlers
   useEffect(() => {
@@ -1627,9 +1712,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     if (activeSheet.settings.showRowNumbers || (activeSheet.settings.allowAdd && _onAppUpdate)) {
       cols.push({
         id: 'row-number',
-        header: () => (
-          <div className="gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground gba:text-center">#</div>
-        ),
+        header: () => <div className="gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground gba:text-center">#</div>,
         cell: ({ row }: { row: Row<Record<string, unknown>> }) => (
           <div className="gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground gba:text-center gba:select-none">
             {row.index + 1}
@@ -1689,7 +1772,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
         })
       })
-
     }
 
     // Add custom spreadsheet columns (editable)
@@ -1718,15 +1800,25 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         id: col.id,
         accessorFn: (row: Record<string, unknown>) => row[col.name],
         header: () => (
-          <div className={`gba:flex gba:items-center gba:justify-between gba:w-full gba:group gba:px-2 gba:py-1 gba:rounded-sm ${
-            isTrackingCol 
-              ? 'gba:bg-gradient-to-r gba:from-info/20 gba:to-info/5 gba:border-b-2 gba:border-info/40' 
-              : ''
-          }`}>
+          <div
+            className={`gba:flex gba:items-center gba:justify-between gba:w-full gba:group gba:px-2 gba:py-1 gba:rounded-sm ${
+              isTrackingCol
+                ? 'gba:bg-gradient-to-r gba:from-info/20 gba:to-info/5 gba:border-b-2 gba:border-info/40'
+                : ''
+            }`}
+          >
             <div className="gba:flex gba:items-center gba:gap-1.5">
               {isTrackingCol && <Activity className="gba:w-3.5 gba:h-3.5 gba:text-info" />}
-              {activeSheet.entityDataSource?.enabled && !isTrackingCol && <Pencil className="gba:w-3 gba:h-3 gba:text-success" />}
-              <span className={isTrackingCol ? 'gba:text-info gba:font-semibold gba:text-xs gba:uppercase gba:tracking-wide' : ''}>{col.label}</span>
+              {activeSheet.entityDataSource?.enabled && !isTrackingCol && (
+                <Pencil className="gba:w-3 gba:h-3 gba:text-success" />
+              )}
+              <span
+                className={
+                  isTrackingCol ? 'gba:text-info gba:font-semibold gba:text-xs gba:uppercase gba:tracking-wide' : ''
+                }
+              >
+                {col.label}
+              </span>
             </div>
             {_onAppUpdate && activeSheet.columns.length > 1 && !isTrackingCol && (
               <DropdownMenu>
@@ -1757,11 +1849,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           if (col.type === 'image' && isTrackingCol) {
             const avatarUrl = normalizeImageSrc(value as string | undefined)
             return (
-              <div className={`gba:px-2 gba:py-1 gba:flex gba:items-center gba:justify-center ${isTrackingCol ? 'gba:bg-muted/20' : ''}`}>
+              <div
+                className={`gba:px-2 gba:py-1 gba:flex gba:items-center gba:justify-center ${isTrackingCol ? 'gba:bg-muted/20' : ''}`}
+              >
                 {avatarUrl ? (
-                  <img 
-                    src={avatarUrl} 
-                    alt="Avatar" 
+                  <img
+                    src={avatarUrl}
+                    alt="Avatar"
                     className="gba:w-8 gba:h-8 gba:rounded-full gba:object-cover gba:border gba:border-border"
                   />
                 ) : (
@@ -1775,14 +1869,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
           // Tracking columns are read-only with subtle background
           if (isTrackingCol) {
-            const displayValue = value !== undefined && value !== null && value !== '' 
-              ? (col.type === 'datetime' && value ? new Date(String(value)).toLocaleString() : String(value))
-              : '—'
-            return (
-              <div className="gba:px-2 gba:py-1 gba:bg-muted/20 gba:text-sm">
-                {displayValue}
-              </div>
-            )
+            const displayValue =
+              value !== undefined && value !== null && value !== ''
+                ? col.type === 'datetime' && value
+                  ? new Date(String(value)).toLocaleString()
+                  : String(value)
+                : '—'
+            return <div className="gba:px-2 gba:py-1 gba:bg-muted/20 gba:text-sm">{displayValue}</div>
           }
 
           // Use EditableCell for inline editing like Excel
@@ -1945,9 +2038,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                   </Button>
                 </>
               )}
-              <Button 
-                variant={isAutomationsOpen ? "default" : "outline"} 
-                size="sm" 
+              <Button
+                variant={isAutomationsOpen ? 'default' : 'outline'}
+                size="sm"
                 onClick={() => setIsAutomationsOpen(!isAutomationsOpen)}
                 data-testid={`${testId}-automations-button`}
               >
@@ -1965,59 +2058,64 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         </div>
 
         {/* Automations Panel - Rendered via Portal to appear above platform header */}
-        {isAutomationsOpen && createPortal(
-          <div className="gba:fixed gba:inset-0" style={{ zIndex: 999999 }}>
-            {/* Backdrop overlay */}
-            <div 
-              className="gba:absolute gba:inset-0 gba:bg-black/20 gba:backdrop-blur-sm" 
-              onClick={() => setIsAutomationsOpen(false)}
-              style={{ zIndex: 999999 }}
-            />
-            {/* Drawer panel */}
-            <div 
-              className="gba:absolute gba:top-0 gba:right-0 gba:bottom-0 gba:w-[540px] gba:bg-background gba:border-l gba:shadow-2xl gba:overflow-hidden gba:flex gba:flex-col"
-              style={{ zIndex: 1000000 }}
-            >
-              <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:bg-muted/30">
-                <h2 className="gba:text-lg gba:font-semibold">Automations</h2>
-                <Button variant="ghost" size="sm" onClick={() => setIsAutomationsOpen(false)}>
-                  <X className="gba:w-4 gba:h-4" />
-                </Button>
+        {isAutomationsOpen &&
+          createPortal(
+            <div className="gba:fixed gba:inset-0" style={{ zIndex: 999999 }}>
+              {/* Backdrop overlay */}
+              <div
+                className="gba:absolute gba:inset-0 gba:bg-black/20 gba:backdrop-blur-sm"
+                onClick={() => setIsAutomationsOpen(false)}
+                style={{ zIndex: 999999 }}
+              />
+              {/* Drawer panel */}
+              <div
+                className="gba:absolute gba:top-0 gba:right-0 gba:bottom-0 gba:w-[540px] gba:bg-background gba:border-l gba:shadow-2xl gba:overflow-hidden gba:flex gba:flex-col"
+                style={{ zIndex: 1000000 }}
+              >
+                <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:bg-muted/30">
+                  <h2 className="gba:text-lg gba:font-semibold">Automations</h2>
+                  <Button variant="ghost" size="sm" onClick={() => setIsAutomationsOpen(false)}>
+                    <X className="gba:w-4 gba:h-4" />
+                  </Button>
+                </div>
+                <div className="gba:flex-1 gba:overflow-auto gba:p-6">
+                  <AutomationsHub
+                    automations={automations}
+                    executionHistory={executionHistory}
+                    workflowLinks={workflowLinks}
+                    isLoading={isAutomationsLoading}
+                    onCreateAutomation={() => {
+                      setEditingAutomation(null)
+                      setIsAutomationWizardOpen(true)
+                    }}
+                    onEditAutomation={automation => {
+                      setEditingAutomation(automation)
+                      setIsAutomationWizardOpen(true)
+                    }}
+                    onDeleteAutomation={async id => {
+                      await deleteAutomation(id)
+                    }}
+                    onToggleAutomation={toggleAutomation}
+                    onDuplicateAutomation={async id => {
+                      await duplicateAutomation(id)
+                    }}
+                    onRunAutomation={async id => {
+                      // Pass all rows with their data to run automation
+                      // Map sheet data to expected format: { id, cells }
+                      const rows = activeSheet.data.map(row => ({
+                        id: String(row._id || row.id || ''),
+                        cells: row
+                      }))
+                      await runAutomation(id, rows)
+                    }}
+                    onRefresh={refreshWorkflowStatuses}
+                    data-testid={`${testId}-automations-hub`}
+                  />
+                </div>
               </div>
-              <div className="gba:flex-1 gba:overflow-auto gba:p-6">
-                <AutomationsHub
-                  automations={automations}
-                  executionHistory={executionHistory}
-                  workflowLinks={workflowLinks}
-                  isLoading={isAutomationsLoading}
-                  onCreateAutomation={() => {
-                    setEditingAutomation(null)
-                    setIsAutomationWizardOpen(true)
-                  }}
-                  onEditAutomation={(automation) => {
-                    setEditingAutomation(automation)
-                    setIsAutomationWizardOpen(true)
-                  }}
-                  onDeleteAutomation={async (id) => { await deleteAutomation(id) }}
-                  onToggleAutomation={toggleAutomation}
-                  onDuplicateAutomation={async (id) => { await duplicateAutomation(id) }}
-                  onRunAutomation={async (id) => { 
-                    // Pass all rows with their data to run automation
-                    // Map sheet data to expected format: { id, cells }
-                    const rows = activeSheet.data.map(row => ({
-                      id: String(row._id || row.id || ''),
-                      cells: row
-                    }))
-                    await runAutomation(id, rows) 
-                  }}
-                  onRefresh={refreshWorkflowStatuses}
-                  data-testid={`${testId}-automations-hub`}
-                />
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+            </div>,
+            document.body
+          )}
 
         {/* Automation Wizard Dialog */}
         <AutomationWizard
@@ -2029,7 +2127,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           columns={activeSheet.columns}
           existingAutomation={editingAutomation ?? undefined}
           accessToken={accessToken}
-          onSave={async (automation) => {
+          onSave={async automation => {
             if (editingAutomation) {
               await updateAutomation(editingAutomation.id, automation)
             } else {
@@ -2139,7 +2237,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
                   // Keep the currently edited cell input in sync if it exists.
                   // This is important so the user can type in the formula bar while in formula selection mode.
-                  const editingCell = formulaSelectionMode?.editingCell ?? { rowId: selectedCell.rowId, colId: selectedCell.colId }
+                  const editingCell = formulaSelectionMode?.editingCell ?? {
+                    rowId: selectedCell.rowId,
+                    colId: selectedCell.colId
+                  }
                   const activeCellElement = document.querySelector(
                     `[data-cell-rowid="${editingCell.rowId}"][data-cell-colid="${editingCell.colId}"] input`
                   ) as HTMLInputElement | null
@@ -2591,7 +2692,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                             size="sm"
                             onClick={() => {
                               setEditingColumns(prev =>
-                                prev.length > 0 ? prev.filter(c => c.id !== column.id) : activeSheet.columns.filter(c => c.id !== column.id)
+                                prev.length > 0
+                                  ? prev.filter(c => c.id !== column.id)
+                                  : activeSheet.columns.filter(c => c.id !== column.id)
                               )
                             }}
                             className="gba:text-destructive hover:gba:text-destructive"
@@ -3382,27 +3485,27 @@ function mapColumnTypeToFormType(type: string): DynamicFormField['type'] {
  */
 function getStatusBadgeVariant(value: string): 'success' | 'warning' | 'destructive' | 'info' | 'secondary' | null {
   const normalizedValue = value.toLowerCase().trim()
-  
+
   // Success statuses
   if (['completed', 'submitted', 'approved', 'done', 'finished', 'success'].includes(normalizedValue)) {
     return 'success'
   }
-  
+
   // Warning statuses (in progress)
   if (['sent', 'pending', 'waiting', 'in progress', 'in_progress', 'running', 'processing'].includes(normalizedValue)) {
     return 'warning'
   }
-  
+
   // Error/failure statuses
   if (['failed', 'error', 'rejected', 'cancelled', 'canceled', 'timeout', 'timed_out'].includes(normalizedValue)) {
     return 'destructive'
   }
-  
+
   // Info statuses
   if (['draft', 'new', 'created'].includes(normalizedValue)) {
     return 'info'
   }
-  
+
   return null
 }
 
@@ -3421,9 +3524,8 @@ function formatCellValue(value: unknown, column: SpreadsheetColumn, isStatusColu
 
   // Check if this looks like a status value and render as badge
   // Check both column.name and column.label since either might contain "status"
-  const isStatusByName = column.name?.toLowerCase().includes('status') || 
-                          column.label?.toLowerCase().includes('status')
-  
+  const isStatusByName = column.name?.toLowerCase().includes('status') || column.label?.toLowerCase().includes('status')
+
   if (typeof value === 'string' && (isStatusColumn || isStatusByName)) {
     const badgeVariant = getStatusBadgeVariant(value)
     if (badgeVariant) {

@@ -147,7 +147,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     revokeAccess,
     getSharedUsers,
     clearCurrentApp,
-    refreshApps
+    refreshApps,
+    addRow,
+    updateRow,
+    updateSheetData
   } = useSpreadsheetApps(accessToken, currentUserId)
 
   // Ref to always have the latest currentApp value for callbacks
@@ -529,6 +532,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             : undefined
         }
         onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
+        onRowAdd={canEdit ? addRow : undefined}
+        onRowUpdate={canEdit ? updateRow : undefined}
         onDataChange={
           canEdit
             ? (sheetId, data) => {
@@ -536,9 +541,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 const latestApp = currentAppRef.current
                 if (!latestApp) return
 
-                // Update sheet data
-                const updatedSheets = latestApp.sheets.map(s => (s.id === sheetId ? { ...s, data } : s))
-                updateApp(latestApp.id, { sheets: updatedSheets })
+                // Save row data to the backend using updateSheetData
+                updateSheetData(latestApp.id, sheetId, data)
               }
             : undefined
         }
