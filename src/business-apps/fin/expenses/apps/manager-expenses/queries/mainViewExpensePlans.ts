@@ -42,11 +42,20 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
           id
         }
       }
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
       employee {
         id
+        code
         displayName
         fullName
         pictureThumbnail
+        additionalProperties
         employeePosition {
           organizationalUnit {
             id
@@ -58,7 +67,17 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
           }
         }
       }
-      expenseRequest { id code }
+      expenseRequest { 
+        id 
+        code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
     }
   }
 `

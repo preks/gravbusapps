@@ -24,10 +24,30 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
       label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester'),
       value: payment.expensePlan?.employee
         ? payment.expensePlan.employee.fullName ||
+          payment.expensePlan.employee.displayName ||
           `${payment.expensePlan.employee.firstName ?? ''} ${payment.expensePlan.employee.lastName ?? ''}`.trim() ||
           'N/A'
         : 'N/A'
-    },
+    }
+  ]
+
+  // Add employee code if available
+  const employeeCode = payment.expensePlan?.employee?.code
+  if (employeeCode && employeeCode !== 'N/A') {
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.employee_code', 'Employee Code'),
+      value: employeeCode
+    })
+  }
+
+  // Add department
+  const department = payment.expensePlan?.employee?.employeePosition?.organizationalUnit?.name
+  fields.push({
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee_list.organizational_unit', 'Department'),
+    value: department || 'N/A'
+  })
+
+  fields.push(
     {
       label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration'),
       value:
@@ -54,7 +74,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
           ? formatCurrencyDisplay(payment.amount, payment.currencyRef?.split(':').pop() || 'EUR')
           : '-'
     }
-  ]
+  )
 
   return (
     <DetailsPanelContent

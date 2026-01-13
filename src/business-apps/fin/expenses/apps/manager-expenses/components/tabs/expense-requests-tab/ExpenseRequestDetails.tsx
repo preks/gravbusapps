@@ -8,6 +8,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
+import { translateTypeValue, extractRequestTypeValue } from '../../../utils/typeUtils'
 
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   request: any
@@ -28,37 +29,42 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   const canApprove = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED'
   const canReject = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED'
 
-  const formatTypeLabel = (value?: string) => {
-    if (value === null || value === undefined) return 'N/A'
-    const trimmed = String(value).trim()
-    if (!trimmed) return 'N/A'
-    if (trimmed.toUpperCase() === 'N/A') return 'N/A'
-    return trimmed
-      .replace(/[_-]/g, ' ')
-      .toLowerCase()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ')
+  const getRequestType = (): string => {
+    const typeValue = extractRequestTypeValue(request.requestType)
+    return typeValue || 'N/A'
   }
 
-  const translateRequestTypeValue = (raw?: string) => {
-    if (!raw) return 'N/A'
-    const code = raw.includes(':') ? raw.split(':').pop()?.toUpperCase() : raw.toUpperCase()
-    switch (code) {
-      case 'TRIP':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
-      case 'EXPENSE':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
-      default:
-        return formatTypeLabel(raw)
+  const getPlanType = (): string | undefined => {
+    const plan = request.expensePlan
+    return extractRequestTypeValue(plan?.requestType) || extractRequestTypeValue(plan?.type as any)
+  }
+
+  const getDepartment = () => {
+    return request.employee?.employeePosition?.organizationalUnit?.name || 'N/A'
+  }
+
+  const additionalFields = [
+    {
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
+        'Request Type'
+      ),
+      value: translateTypeValue(getRequestType())
     }
+  ]
+
+  const planTypeValue = getPlanType()
+  if (planTypeValue) {
+    additionalFields.push({
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+      value: translateTypeValue(planTypeValue)
+    })
   }
 
-  const getRequestType = () => {
-    if (request.requestType?.value) return request.requestType.value
-    if (request.requestType) return String(request.requestType)
-    return 'N/A'
-  }
+  additionalFields.push({
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee_list.organizational_unit', 'Department'),
+    value: getDepartment()
+  })
 
   return (
     <ExpenseDetailsPanelContent
@@ -72,11 +78,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           request.employee?.displayName ||
           `${request.employee?.firstName || ''} ${request.employee?.lastName || ''}`.trim() ||
           'N/A',
-        employeeCode: 'N/A',
-        sapNumber:
-          request.employee?.additionalProperties?.SAPNumber ||
-          request.employee?.additionalProperties?.sapNumber ||
-          'N/A',
+        employeeCode: request.employee?.code || undefined,
         startDate: request.startDate ? formatDate(request.startDate, 'date.short') : 'N/A',
         endDate: request.endDate ? formatDate(request.endDate, 'date.short') : 'N/A',
         creationDate: request.createdAt ? formatDate(request.createdAt, 'date.short') : 'N/A',
@@ -85,23 +87,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
         currency: request.currency?.code || request.currencyRef || 'EUR'
       }}
       formatAmount={(amount, currencyCode) => formatCurrencyDisplay(amount, currencyCode)}
-      additionalFields={[
-        {
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
-          value: translateRequestTypeValue(
-            request.expensePlan?.requestType?.value ||
-              request.expensePlan?.type?.value ||
-              (request.expensePlan?.requestType ? String(request.expensePlan.requestType) : 'N/A')
-          )
-        },
-        {
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
-            'Request Type'
-          ),
-          value: translateRequestTypeValue(getRequestType())
-        }
-      ]}
+      additionalFields={additionalFields}
       headerRight={(() => {
         const statusConfig = getExpenseRequestStatusDisplay(request.status)
         return (

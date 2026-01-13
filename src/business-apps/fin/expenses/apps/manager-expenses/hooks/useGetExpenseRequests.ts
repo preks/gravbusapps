@@ -35,11 +35,25 @@ export interface ExpenseRequest {
     fileUrl: string
     fileName: string
   }[]
+  requestType?: {
+    value: string
+    translations?: Array<{
+      value: string
+      localeCode: string
+    }>
+  }
   /**
    * Linked expense plan (if any). Added to avoid 'any' assertions when rendering Plan Code.
    */
   expensePlan?: {
     code?: string
+    requestType?: {
+      value: string
+      translations?: Array<{
+        value: string
+        localeCode: string
+      }>
+    }
   } | null
   employeeDocument?: {
     file: string
@@ -55,6 +69,7 @@ export interface ExpenseRequest {
   } | null
   employee?: {
     id: string
+    code?: string
     displayName?: string
     fullName: string
     firstName: string
@@ -71,8 +86,11 @@ export interface ExpenseRequest {
         name: string
       }
     }
-    additionalProperties?: Record<string, any>
+    additionalProperties?: {
+      [key: string]: any
+    }
   }
+  currencyRef?: string
 }
 
 export interface ExpenseRequestStatisticsData {

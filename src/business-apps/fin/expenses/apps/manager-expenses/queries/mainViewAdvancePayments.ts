@@ -78,9 +78,11 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
         }
         employee {
           id
+          code
           displayName
           fullName
           pictureThumbnail
+          additionalProperties
           employeePosition {
             organizationalUnit {
               id

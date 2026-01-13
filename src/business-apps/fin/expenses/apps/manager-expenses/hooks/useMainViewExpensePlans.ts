@@ -4,6 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_MAIN_VIEW_EXPENSE_PLANS, GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS } from '../queries/mainViewExpensePlans'
 import { APPROVE_EXPENSE_PLAN, REJECT_EXPENSE_PLAN } from '../queries/expensePlans'
 import { env } from '@/common/env/EnvUtils'
+import { extractCurrencyCode } from '../utils/currencyUtils'
 
 export interface ExpensePlan {
   id: string
@@ -16,11 +17,33 @@ export interface ExpensePlan {
   planDate: string
   totalAmount: number
   currency: string
+  currencyRef?: string
   createdAt: string
   updatedAt: string
+  requestType?: {
+    value: string
+    translations?: Array<{
+      value: string
+      localeCode: string
+    }>
+  }
+  type?: {
+    value: string
+    translations?: Array<{
+      value: string
+      localeCode: string
+    }>
+  }
   expenseRequest?: Array<{
     id: string
     code?: string
+    requestType?: {
+      value: string
+      translations?: Array<{
+        value: string
+        localeCode: string
+      }>
+    }
   }>
   employeeDocument?: {
     file: string
@@ -36,9 +59,13 @@ export interface ExpensePlan {
   } | null
   employee: {
     id: string
+    code?: string
     displayName?: string
     fullName: string
     pictureThumbnail?: string
+    additionalProperties?: {
+      [key: string]: any
+    }
     employeePosition: {
       organizationalUnit: {
         id: string
@@ -300,7 +327,7 @@ export const useMainViewExpensePlans = ({
         // Map currency information from currencyRef field (for display purposes)
         plans = plans.map(plan => ({
           ...plan,
-          currency: plan.currencyRef ? plan.currencyRef.replaceAll('Currency:v1:', '') : 'EUR'
+          currency: plan.currencyRef ? extractCurrencyCode(plan.currencyRef) || 'EUR' : 'EUR'
         }))
 
         // Filter by employee if specified (this is still client-side as it's a specific filter)

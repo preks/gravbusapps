@@ -9,6 +9,7 @@ import { ExpensePlan } from '../../../hooks/useMainViewExpensePlans'
 import { useExpensePlanFileService } from '../../../../../common/files/useExpensePlanFileService'
 import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
+import { translateTypeValue, extractRequestTypeValue } from '../../../utils/typeUtils'
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   selectedItem: ExpensePlan
@@ -20,6 +21,46 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem, .
 
   const { printExpensePlan } = useExpensePlanFileService(contextProps)
 
+  const getPlanType = (): string => {
+    // Only get from plan's own requestType - no fallbacks
+    const typeValue =
+      extractRequestTypeValue(selectedItem.requestType) || extractRequestTypeValue(selectedItem.type as any)
+    return typeValue || 'N/A'
+  }
+
+  const getExpenseType = (): string | undefined => {
+    // Only get from expense request's requestType - no fallbacks
+    const expenseRequest = selectedItem.expenseRequest?.[0]
+    return extractRequestTypeValue(expenseRequest?.requestType)
+  }
+
+  const getDepartment = () => {
+    return selectedItem.employee?.employeePosition?.organizationalUnit?.name || 'N/A'
+  }
+
+  const additionalFields = [
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+      value: translateTypeValue(getPlanType())
+    }
+  ]
+
+  const expenseTypeValue = getExpenseType()
+  if (expenseTypeValue) {
+    additionalFields.push({
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
+        'Expense Type'
+      ),
+      value: translateTypeValue(expenseTypeValue)
+    })
+  }
+
+  additionalFields.push({
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee_list.organizational_unit', 'Department'),
+    value: getDepartment()
+  })
+
   return (
     <ExpenseDetailsPanelContent
       dataTestIdPrefix="expense-plan-details"
@@ -28,17 +69,16 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem, .
         title: selectedItem.title,
         code: selectedItem.code,
         employee: selectedItem.employee?.fullName || selectedItem.employee?.displayName || 'N/A',
-        employeeCode: 'N/A',
-        sapNumber: 'N/A',
+        employeeCode: selectedItem.employee?.code || undefined,
         startDate: selectedItem.startDate ? formatDate(selectedItem.startDate, 'date.short') : 'N/A',
         endDate: selectedItem.endDate ? formatDate(selectedItem.endDate, 'date.short') : 'N/A',
         creationDate: selectedItem.createdAt ? formatDate(selectedItem.createdAt, 'date.short') : 'N/A',
         totalRemainingAmount: 0,
         totalAmount: typeof selectedItem.totalAmount === 'number' ? selectedItem.totalAmount : 0,
-        currency: selectedItem.currency || 'EUR'
+        currency: selectedItem.currencyRef || 'EUR'
       }}
       formatAmount={(amount, currencyCode) => formatCurrencyDisplay(amount, currencyCode)}
-      additionalFields={[]}
+      additionalFields={additionalFields}
       headerRight={(() => {
         const statusConfig = getExpensePlanStatusDisplay(selectedItem.status)
         return (
