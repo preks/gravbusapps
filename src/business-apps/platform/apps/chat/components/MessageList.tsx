@@ -243,6 +243,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                 participants={participants}
                 onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
                 onSendMessage={onSendMessage}
+                t={t}
               />
             ))}
 

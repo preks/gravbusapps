@@ -7,8 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-  Button,
-  useTranslation
+  Button
 } from '@newwork/nw-design-system'
 import { ArrowBendUpLeft } from '@phosphor-icons/react'
 import type { Message, ConversationParticipant } from '../types'
@@ -21,7 +20,6 @@ import { ExpertResponseRenderer } from './ExpertResponseRenderer'
 import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
-import translations from '../_i18n'
 
 const getInitials = (name: string): string => {
   if (!name) return '?'
@@ -40,6 +38,7 @@ interface MessageItemProps {
   participants?: ConversationParticipant[]
   onReplyToAI?: () => void
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 const MessageItemComponent: React.FC<MessageItemProps> = ({
@@ -49,9 +48,9 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   accessToken,
   participants,
   onReplyToAI,
-  onSendMessage
+  onSendMessage,
+  t
 }) => {
-  const { t } = useTranslation(translations)
   const isAIResponse = message.metadata?.isAIResponse === true
   const isExpertResponse = message.metadata?.isEveryExpertResponse === true
   // AI/Expert responses should never be styled as "own message" even if sent by current user
