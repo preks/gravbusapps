@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import {
   Card,
   CardContent,
@@ -32,6 +32,7 @@ import {
   Spinner,
   Alert
 } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   PencilSimpleIcon,
   TrashIcon,
@@ -55,7 +56,8 @@ interface QueryDefinitionListProps {
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: QueryStatus) => void
   onPageChange: (page: number, size: number) => void
-  onFilter: (filters: { queryType?: QueryType; status?: QueryStatus; search?: string }) => void
+  filters: { status?: QueryStatus; search?: string }
+  onFilter: (filters: { status?: QueryStatus; search?: string }) => void
   onCreateNew: () => void
   error?: string
   onRetry?: () => void
@@ -74,26 +76,19 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
   onDelete,
   onStatusChange,
   onPageChange,
+  filters,
   onFilter,
   onCreateNew,
   error,
   onRetry,
   formatErrorMessage
 }) => {
-  const [filters, setFilters] = useState<{
-    queryType?: QueryType
-    status?: QueryStatus
-    search?: string
-  }>({})
-
   const handleFilterChange = (key: string, value: any) => {
     const newFilters = { ...filters, [key]: value }
-    setFilters(newFilters)
     onFilter(newFilters)
   }
 
   const clearFilters = () => {
-    setFilters({})
     onFilter({})
   }
 
@@ -113,23 +108,14 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
 
   const getTypeColor = (type: QueryType) => {
     return type === QueryType.DATASET
-      ? { backgroundColor: 'var(--nw-color-primary)', color: 'var(--nw-color-on-primary)' }
-      : { backgroundColor: 'var(--nw-color-secondary)', color: 'var(--nw-color-on-secondary)' }
-  }
-
-  if (isLoading) {
-    return (
-      <div
-        className="gba:flex gba:justify-center gba:items-center"
-        style={{
-          paddingTop: 'var(--nw-spacing-12)',
-          paddingBottom: 'var(--nw-spacing-12)'
-        }}
-      >
-        <Spinner />
-        <span style={{ marginLeft: 'var(--nw-spacing-3)' }}>Loading query definitions...</span>
-      </div>
-    )
+      ? {
+          backgroundColor: 'var(--nw-color-primary)',
+          color: 'var(--nw-color-primary-foreground)'
+        }
+      : {
+          backgroundColor: 'var(--nw-color-secondary)',
+          color: 'var(--nw-color-secondary-foreground)'
+        }
   }
 
   return (
@@ -223,6 +209,14 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
               >
                 Query Definitions ({totalQueries})
               </h4>
+              {isLoading && (
+                <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                  <Spinner />
+                  <span style={{ color: 'var(--nw-color-muted-foreground)', fontSize: '0.875rem' }}>
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.loading', 'Loading...')}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Filters and Actions */}
@@ -233,19 +227,6 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
               }}
             >
               <div className="gba:flex gba:flex-wrap gba:items-center" style={{ gap: 'var(--nw-spacing-3)' }}>
-                <Select
-                  value={filters.queryType || ''}
-                  onValueChange={value => handleFilterChange('queryType', value || undefined)}
-                >
-                  <SelectTrigger data-testid="filter-by-type" className="gba:w-40">
-                    <SelectValue placeholder="Filter by Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={QueryType.DATASET}>Dataset</SelectItem>
-                    <SelectItem value={QueryType.TIMESERIES}>Timeseries</SelectItem>
-                  </SelectContent>
-                </Select>
-
                 <Select
                   value={filters.status || ''}
                   onValueChange={value => handleFilterChange('status', value || undefined)}
