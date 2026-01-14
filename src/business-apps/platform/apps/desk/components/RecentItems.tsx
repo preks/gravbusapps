@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, Badge, Button, Spinner } from '@newwork/nw-design-system'
-import { FileText, FileSpreadsheet, StickyNote, Clock, ArrowRight, Inbox } from 'lucide-react'
+import { FileText, FileSpreadsheet, StickyNote, Clock, ArrowRight, Inbox, Search } from 'lucide-react'
 import type { ContentItem } from '../hooks/useDeskData'
 
 interface RecentItemsProps {
@@ -58,6 +58,29 @@ function formatRelativeTime(dateString: string): string {
 }
 
 /**
+ * Highlight text matching the search query
+ */
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>
+
+  const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'))
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={i} className="gba:bg-primary/20 gba:text-primary gba:rounded gba:px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  )
+}
+
+/**
  * RecentItems - Premium recent items list with animations
  */
 export const RecentItems: React.FC<RecentItemsProps> = ({
@@ -70,6 +93,8 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
   onCreateNote,
   'data-testid': testId = 'desk-recent'
 }) => {
+  const isSearchMode = Boolean(searchQuery.trim())
+
   return (
     <section
       className="gba:py-6 gba:px-6 gba:relative"
@@ -81,13 +106,26 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
           <div>
             <div className="gba:inline-flex gba:items-center gba:gap-2 gba:text-muted-foreground gba:mb-2">
-              <Clock className="gba:h-4 gba:w-4" />
-              <span className="gba:text-sm gba:font-medium gba:uppercase gba:tracking-wider">Recent</span>
+              {isSearchMode ? <Search className="gba:h-4 gba:w-4" /> : <Clock className="gba:h-4 gba:w-4" />}
+              <span className="gba:text-sm gba:font-medium gba:uppercase gba:tracking-wider">
+                {isSearchMode ? 'Search Results' : 'Recent'}
+              </span>
             </div>
             <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {searchQuery ? `Search results` : 'Pick up where you left off'}
+              {isSearchMode ? (
+                <>
+                  Results for <span className="gba:text-primary">"{searchQuery}"</span>
+                </>
+              ) : (
+                'Pick up where you left off'
+              )}
             </h2>
           </div>
+          {isSearchMode && items.length > 0 && (
+            <Badge variant="secondary" className="gba:text-sm">
+              {items.length} {items.length === 1 ? 'result' : 'results'}
+            </Badge>
+          )}
         </div>
 
         {/* Content */}
@@ -146,7 +184,9 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
                   <CardContent className="gba:p-4">
                     <div className="gba:flex gba:items-start gba:gap-3">
                       {/* Icon */}
-                      <div className={`gba:w-10 gba:h-10 gba:rounded-lg ${config.bg} gba:flex gba:items-center gba:justify-center gba:flex-shrink-0`}>
+                      <div
+                        className={`gba:w-10 gba:h-10 gba:rounded-lg ${config.bg} gba:flex gba:items-center gba:justify-center gba:flex-shrink-0`}
+                      >
                         <Icon className={`gba:w-5 gba:h-5 ${config.color}`} />
                       </div>
 
@@ -154,7 +194,7 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
                       <div className="gba:flex-1 gba:min-w-0">
                         <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
                           <h4 className="gba:font-medium gba:text-card-foreground gba:truncate gba:leading-tight">
-                            {item.title || 'Untitled'}
+                            <HighlightedText text={item.title || 'Untitled'} query={searchQuery} />
                           </h4>
                           <ArrowRight className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex-shrink-0" />
                         </div>

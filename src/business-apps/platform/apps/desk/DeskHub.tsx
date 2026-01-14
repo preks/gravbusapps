@@ -13,14 +13,7 @@ import { FileText, FileSpreadsheet, StickyNote } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Components
-import {
-  ContentBackground,
-  HeroSection,
-  AppCard,
-  QuickActions,
-  ActivityVisualization,
-  RecentItems
-} from './components'
+import { ContentBackground, HeroSection, AppCard, QuickActions, ActivityVisualization, RecentItems } from './components'
 
 // Hooks
 import { useDeskData, type ContentItem } from './hooks/useDeskData'
@@ -48,26 +41,32 @@ const navigateToApp = (appPath: string, params?: Record<string, string>) => {
 /**
  * Every Desk Component - Premium Edition
  */
-export const DeskHub: React.FC<DeskHubProps> = ({
-  accessToken,
-  userInfo,
-  'data-testid': testId = 'desk-hub'
-}) => {
+export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-testid': testId = 'desk-hub' }) => {
   const [searchQuery, setSearchQuery] = useState('')
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
   // Fetch data from all three apps
-  const { recentItems, isLoading, stats, activityData } = useDeskData(accessToken, currentUserId)
+  const { documents, spreadsheets, notes, recentItems, isLoading, stats, activityData } = useDeskData(
+    accessToken,
+    currentUserId
+  )
 
-  // Filter recent items based on search
-  const filteredRecentItems = useMemo(() => {
+  // Combine all items for search
+  const allItems = useMemo(() => {
+    return [...documents, ...spreadsheets, ...notes].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    )
+  }, [documents, spreadsheets, notes])
+
+  // Filter items based on search - search all items when searching, show recent when not
+  const displayItems = useMemo(() => {
     if (!searchQuery.trim()) return recentItems
 
     const query = searchQuery.toLowerCase()
-    return recentItems.filter(item => item.title.toLowerCase().includes(query))
-  }, [recentItems, searchQuery])
+    return allItems.filter(item => item.title.toLowerCase().includes(query))
+  }, [allItems, recentItems, searchQuery])
 
   // Navigation handlers
   const handleOpenDocuments = useCallback(() => {
@@ -128,6 +127,9 @@ export const DeskHub: React.FC<DeskHubProps> = ({
           onCreateDocument={handleCreateDocument}
           onCreateSpreadsheet={handleCreateSpreadsheet}
           onCreateNote={handleCreateNote}
+          searchResults={displayItems}
+          onItemClick={handleItemClick}
+          isLoading={isLoading}
           data-testid={`${testId}-quick-actions`}
         />
 
@@ -203,9 +205,9 @@ export const DeskHub: React.FC<DeskHubProps> = ({
           data-testid={`${testId}-activity`}
         />
 
-        {/* Recent Items */}
+        {/* Recent Items / Search Results */}
         <RecentItems
-          items={filteredRecentItems}
+          items={displayItems}
           isLoading={isLoading}
           searchQuery={searchQuery}
           onItemClick={handleItemClick}
