@@ -51,7 +51,7 @@ export const BusinessSearch: React.FC<BusinessSearchProps> = ({
                 <Input
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Search across all business apps..."
+                  placeholder="Search across all business domains..."
                   className="gba:pl-10"
                   data-testid={`${testId}-input`}
                 />

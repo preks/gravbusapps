@@ -263,6 +263,30 @@ export const GET_ACTIVITY_STATS = `
     ) {
       aggregate { count }
     }
+    generalActivities: SalesActivityAggregate(
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } }
+          { accountId: { _isNull: true } }
+          { contactId: { _isNull: true } }
+          { leadId: { _isNull: true } }
+          { opportunityId: { _isNull: true } }
+          {
+            ownerEmployee: {
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ) {
+      aggregate { count }
+    }
     # Active Sales Associate employees with activities
     activeEmployees: SalesActivity(
       where: { 

@@ -103,129 +103,132 @@ export const useHeadcountTrendsData = (context: BusinessAppContextProps): UseHea
     }
   }, [])
 
-  const loadHeadcountData = useCallback(async () => {
-    if (!context.accessToken) return
+  const loadHeadcountData = useCallback(
+    async (force: boolean = false) => {
+      if (!context.accessToken) return
 
-    setIsLoading(true)
-    setError(null)
+      setIsLoading(true)
+      setError(null)
 
-    try {
-      // Calculate date range (last 2 years to current date)
-      const endDate = new Date().toISOString().split('T')[0] // Today
-      const startDate = new Date()
-      startDate.setFullYear(startDate.getFullYear() - 2) // 2 years ago
-      const startDateStr = startDate.toISOString().split('T')[0]
+      try {
+        // Calculate date range (last 2 years to current date)
+        const endDate = new Date().toISOString().split('T')[0] // Today
+        const startDate = new Date()
+        startDate.setFullYear(startDate.getFullYear() - 2) // 2 years ago
+        const startDateStr = startDate.toISOString().split('T')[0]
 
-      const dateParams = {
-        startDate: startDateStr,
-        endDate: endDate
-      }
+        const dateParams = {
+          startDate: startDateStr,
+          endDate: endDate
+        }
 
-      // Dedupe by token and date range
-      const fetchKey = `${context.accessToken}|${startDateStr}|${endDate}`
-      if (lastFetchKeyRef.current === fetchKey) {
+        // Dedupe by token and date range
+        const fetchKey = `${context.accessToken}|${startDateStr}|${endDate}`
+        if (!force && lastFetchKeyRef.current === fetchKey) {
+          setIsLoading(false)
+          return
+        }
+        lastFetchKeyRef.current = fetchKey
+
+        console.log('[useHeadcountTrendsData] Using date range:', dateParams)
+
+        // Execute all headcount queries in parallel
+        const [currentHeadcountData, headcountTimeData, hiresData, exitsData, netChangeData, departmentData] =
+          await Promise.all([
+            // Current total headcount (Query 17) - authoritative source
+            queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {}),
+
+            // Total headcount over time (Query 20) - with date parameters
+            queryClient.executeQuery('totalHeadcountOverTime', QueryType.TIMESERIES, dateParams),
+
+            // Monthly hires (Query 18) - with date parameters
+            queryClient.executeQuery('hiresPerMonth', QueryType.TIMESERIES, dateParams),
+
+            // Monthly exits (Query 19) - with date parameters
+            queryClient.executeQuery('exitsPerMonth', QueryType.TIMESERIES, dateParams),
+
+            // Net headcount change (Query 22) - with date parameters
+            queryClient.executeQuery('netHeadcountChange', QueryType.TIMESERIES, dateParams),
+
+            // Employees by department (existing Query 6)
+            queryClient.executeQuery('employeesByDepartment', QueryType.DATASET, {})
+          ])
+
+        console.log('[useHeadcountTrendsData] Query results:', {
+          currentHeadcount: currentHeadcountData.data?.length,
+          headcountOverTime: headcountTimeData.data?.length,
+          monthlyHires: hiresData.data?.length,
+          monthlyExits: exitsData.data?.length,
+          netChange: netChangeData.data?.length,
+          departmentData: departmentData.data?.length
+        })
+
+        // Log raw data for debugging
+        console.log('[useHeadcountTrendsData] Raw data samples:', {
+          headcountSample: headcountTimeData.data?.slice(0, 2),
+          hiresSample: hiresData.data?.slice(0, 2),
+          exitsSample: exitsData.data?.slice(0, 2),
+          netChangeSample: netChangeData.data?.slice(0, 2)
+        })
+
+        const loadedData: HeadcountTrendsData = {
+          currentHeadcount:
+            currentHeadcountData.data?.map(item => ({
+              category: item.category,
+              value: item.value
+            })) || [],
+          headcountOverTime:
+            headcountTimeData.data?.map(item => ({
+              category: item.category,
+              dateCategory: item.dateCategory || '',
+              value: item.value
+            })) || [],
+          monthlyHires:
+            hiresData.data?.map(item => ({
+              category: item.category,
+              dateCategory: item.dateCategory || '',
+              value: item.value
+            })) || [],
+          monthlyExits:
+            exitsData.data?.map(item => ({
+              category: item.category,
+              dateCategory: item.dateCategory || '',
+              value: item.value
+            })) || [],
+          netChange:
+            netChangeData.data?.map(item => ({
+              category: item.category,
+              dateCategory: item.dateCategory || '',
+              value: item.value
+            })) || [],
+          departmentData:
+            departmentData.data?.map(item => ({
+              category: item.category,
+              value: item.value
+            })) || []
+        }
+
+        console.log('[useHeadcountTrendsData] Transformed data:', {
+          headcountOverTime: loadedData.headcountOverTime.length,
+          monthlyHires: loadedData.monthlyHires.length,
+          monthlyExits: loadedData.monthlyExits.length,
+          netChange: loadedData.netChange.length
+        })
+
+        setData(loadedData)
+        setStatistics(calculateStatistics(loadedData))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load headcount data')
+      } finally {
         setIsLoading(false)
-        return
       }
-      lastFetchKeyRef.current = fetchKey
-
-      console.log('[useHeadcountTrendsData] Using date range:', dateParams)
-
-      // Execute all headcount queries in parallel
-      const [currentHeadcountData, headcountTimeData, hiresData, exitsData, netChangeData, departmentData] =
-        await Promise.all([
-          // Current total headcount (Query 17) - authoritative source
-          queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {}),
-
-          // Total headcount over time (Query 20) - with date parameters
-          queryClient.executeQuery('totalHeadcountOverTime', QueryType.TIMESERIES, dateParams),
-
-          // Monthly hires (Query 18) - with date parameters
-          queryClient.executeQuery('hiresPerMonth', QueryType.TIMESERIES, dateParams),
-
-          // Monthly exits (Query 19) - with date parameters
-          queryClient.executeQuery('exitsPerMonth', QueryType.TIMESERIES, dateParams),
-
-          // Net headcount change (Query 22) - with date parameters
-          queryClient.executeQuery('netHeadcountChange', QueryType.TIMESERIES, dateParams),
-
-          // Employees by department (existing Query 6)
-          queryClient.executeQuery('employeesByDepartment', QueryType.DATASET, {})
-        ])
-
-      console.log('[useHeadcountTrendsData] Query results:', {
-        currentHeadcount: currentHeadcountData.data?.length,
-        headcountOverTime: headcountTimeData.data?.length,
-        monthlyHires: hiresData.data?.length,
-        monthlyExits: exitsData.data?.length,
-        netChange: netChangeData.data?.length,
-        departmentData: departmentData.data?.length
-      })
-
-      // Log raw data for debugging
-      console.log('[useHeadcountTrendsData] Raw data samples:', {
-        headcountSample: headcountTimeData.data?.slice(0, 2),
-        hiresSample: hiresData.data?.slice(0, 2),
-        exitsSample: exitsData.data?.slice(0, 2),
-        netChangeSample: netChangeData.data?.slice(0, 2)
-      })
-
-      const loadedData: HeadcountTrendsData = {
-        currentHeadcount:
-          currentHeadcountData.data?.map(item => ({
-            category: item.category,
-            value: item.value
-          })) || [],
-        headcountOverTime:
-          headcountTimeData.data?.map(item => ({
-            category: item.category,
-            dateCategory: item.dateCategory || '',
-            value: item.value
-          })) || [],
-        monthlyHires:
-          hiresData.data?.map(item => ({
-            category: item.category,
-            dateCategory: item.dateCategory || '',
-            value: item.value
-          })) || [],
-        monthlyExits:
-          exitsData.data?.map(item => ({
-            category: item.category,
-            dateCategory: item.dateCategory || '',
-            value: item.value
-          })) || [],
-        netChange:
-          netChangeData.data?.map(item => ({
-            category: item.category,
-            dateCategory: item.dateCategory || '',
-            value: item.value
-          })) || [],
-        departmentData:
-          departmentData.data?.map(item => ({
-            category: item.category,
-            value: item.value
-          })) || []
-      }
-
-      console.log('[useHeadcountTrendsData] Transformed data:', {
-        headcountOverTime: loadedData.headcountOverTime.length,
-        monthlyHires: loadedData.monthlyHires.length,
-        monthlyExits: loadedData.monthlyExits.length,
-        netChange: loadedData.netChange.length
-      })
-
-      setData(loadedData)
-      setStatistics(calculateStatistics(loadedData))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load headcount data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [context.accessToken, calculateStatistics])
+    },
+    [context.accessToken, calculateStatistics]
+  )
 
   useEffect(() => {
     if (context.accessToken) {
-      loadHeadcountData()
+      loadHeadcountData(false)
     }
   }, [context.accessToken, loadHeadcountData])
 
@@ -239,6 +242,6 @@ export const useHeadcountTrendsData = (context: BusinessAppContextProps): UseHea
     statistics,
     isLoading,
     error,
-    refetch: loadHeadcountData
+    refetch: () => loadHeadcountData(true)
   }
 }

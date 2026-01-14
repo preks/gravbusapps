@@ -187,6 +187,7 @@ export type FlowProposalOutput = {
   module_name: string
   uuid: string
   operation?: 'create' | 'update' | 'delete'
+  submitted?: boolean
   arguments: {
     flow?: Record<string, any>
     task?: Record<string, any>
