@@ -89,7 +89,7 @@ import { useDataPromotion } from './hooks/useDataPromotion'
 
 // Services
 import { generateAppSchema, generateEmptyAppSchema } from './services/SchemaGenerator'
-import { SpreadsheetApiService } from './services/SpreadsheetApiService'
+import { SpreadsheetApiService, setSpreadsheetApiAuthTokenProvider } from './services/SpreadsheetApiService'
 
 // Types
 import type { ParsedExcelFile, SpreadsheetAnalysis, SpreadsheetApp, SpreadsheetAppSummary } from './types'
@@ -183,6 +183,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
+  // Ensure SpreadsheetApiService can authenticate in published screens (token might not be in localStorage)
+  useEffect(() => {
+    if (!accessToken) return
+    setSpreadsheetApiAuthTokenProvider(() => accessToken)
+    return () => setSpreadsheetApiAuthTokenProvider(null)
+  }, [accessToken])
 
   // URL helpers for deep linking
   const getUrlParams = useCallback((): { appId: string | null; filePath: string | null; view: HubView | null } => {
@@ -293,10 +300,30 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     }
   }, [getUrlParams, loadApp, currentApp, isLoadingApps])
 
+  // Track if we came from desk
+  const cameFromDeskRef = useRef(false)
+  useEffect(() => {
+    const referrer = document.referrer
+    const urlParams = new URLSearchParams(window.location.search)
+    cameFromDeskRef.current = referrer.includes('/platform/apps/desk') || referrer.includes('?app=platform/apps/desk') || urlParams.get('from') === 'desk'
+    
+    // Push state to track navigation from desk
+    if (cameFromDeskRef.current && currentView === 'list') {
+      window.history.replaceState({ fromDesk: true }, '', window.location.href)
+    }
+  }, [currentView])
+
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { appId?: string; view?: HubView } | null
+      const state = event.state as { appId?: string; view?: HubView; fromDesk?: boolean } | null
+      
+      // If we came from desk and there's no app, go back to desk
+      if (state?.fromDesk && !state?.appId && currentView === 'list') {
+        navigateTo('/platform/apps/desk')
+        return
+      }
+      
       if (state?.appId) {
         loadApp(state.appId).then(app => {
           if (app) {
@@ -312,7 +339,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [loadApp])
+  }, [loadApp, currentView])
 
   // Filter and sort apps based on active section
   const filteredApps = useMemo(() => {

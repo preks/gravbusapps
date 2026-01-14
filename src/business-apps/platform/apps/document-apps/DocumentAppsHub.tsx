@@ -44,7 +44,6 @@ import {
   MoreHorizontal,
   Share2,
   Link2,
-  Download,
   Copy,
   ArrowUpDown,
   Check,
@@ -247,10 +246,30 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     }
   }, [getUrlParams, loadDocument, currentDocument, isLoadingDocuments])
 
+  // Track if we came from desk
+  const cameFromDeskRef = useRef(false)
+  useEffect(() => {
+    const referrer = document.referrer
+    const urlParams = new URLSearchParams(window.location.search)
+    cameFromDeskRef.current = referrer.includes('/platform/apps/desk') || referrer.includes('?app=platform/apps/desk') || urlParams.get('from') === 'desk'
+    
+    // Push state to track navigation from desk
+    if (cameFromDeskRef.current && currentView === 'list') {
+      window.history.replaceState({ fromDesk: true }, '', window.location.href)
+    }
+  }, [currentView])
+
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { docId?: string; view?: HubView } | null
+      const state = event.state as { docId?: string; view?: HubView; fromDesk?: boolean } | null
+      
+      // If we came from desk and there's no document, go back to desk
+      if (state?.fromDesk && !state?.docId && currentView === 'list') {
+        navigateTo('/platform/apps/desk')
+        return
+      }
+      
       if (state?.docId) {
         loadDocument(state.docId).then(doc => {
           if (doc) {
@@ -266,7 +285,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [loadDocument])
+  }, [loadDocument, currentView])
 
   /**
    * Helper to fetch user info by userId using GraphQL

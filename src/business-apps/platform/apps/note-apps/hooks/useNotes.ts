@@ -105,7 +105,14 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
       const note = await NoteApiService.getNote(id)
       if (note) {
         setCurrentNote(note)
-        setCurrentNotePermission(note.permission || 'owner')
+        // Use backend permission, default to 'owner' if not specified (creator case)
+        const resolvedPermission = note.permission || 'owner'
+        console.log('[useNotes] loadNote permission:', { 
+          noteId: note.id,
+          backendPermission: note.permission, 
+          resolvedPermission 
+        })
+        setCurrentNotePermission(resolvedPermission)
       }
       return note
     } catch (err) {

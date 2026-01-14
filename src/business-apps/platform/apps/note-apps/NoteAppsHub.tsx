@@ -234,10 +234,30 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     }
   }, [getUrlParams, loadNote, currentNote, isLoadingNotes])
 
+  // Track if we came from desk
+  const cameFromDeskRef = useRef(false)
+  useEffect(() => {
+    const referrer = document.referrer
+    const urlParams = new URLSearchParams(window.location.search)
+    cameFromDeskRef.current = referrer.includes('/platform/apps/desk') || referrer.includes('?app=platform/apps/desk') || urlParams.get('from') === 'desk'
+    
+    // Push state to track navigation from desk
+    if (cameFromDeskRef.current && currentView === 'list') {
+      window.history.replaceState({ fromDesk: true }, '', window.location.href)
+    }
+  }, [currentView])
+
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { noteId?: string; view?: HubView } | null
+      const state = event.state as { noteId?: string; view?: HubView; fromDesk?: boolean } | null
+      
+      // If we came from desk and there's no note, go back to desk
+      if (state?.fromDesk && !state?.noteId && currentView === 'list') {
+        navigateTo('/platform/apps/desk')
+        return
+      }
+      
       if (state?.noteId) {
         loadNote(state.noteId).then(note => {
           if (note) {
@@ -253,7 +273,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [loadNote])
+  }, [loadNote, currentView])
 
   // Save favorites to localStorage
   useEffect(() => {
@@ -652,8 +672,19 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   // Render editor view
   if (currentView === 'editor' && currentNote) {
-    const canEdit = currentNotePermission === 'owner' || currentNotePermission === 'edit'
-    const isOwner = currentNote.ownerId === currentUserId || currentNotePermission === 'owner'
+    // IMPORTANT: Default to 'owner' if permission is null/undefined (means user owns the note)
+    const effectivePermission = currentNotePermission || 'owner'
+    const canEdit = effectivePermission === 'owner' || effectivePermission === 'edit'
+    const isOwner = currentNote.ownerId === currentUserId || effectivePermission === 'owner'
+    
+    console.log('[NoteAppsHub] Editor permissions:', {
+      currentNotePermission,
+      effectivePermission,
+      canEdit,
+      isOwner,
+      noteOwnerId: currentNote.ownerId,
+      currentUserId
+    })
 
     return (
       <NoteEditor

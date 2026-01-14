@@ -4,7 +4,7 @@
  * Connects to the document-service backend API for spreadsheet app management.
  * This replaces the file-based storage with proper REST API calls.
  *
- * Backend: https://newwork-dev.newwork.com/document-service/api/v1 (dev)
+ * Backend: https://newwork-dev.newwork.com/document/api/v1 (dev)
  *          http://localhost:3002/api/v1 (local, if VITE_DOCUMENT_SERVICE_URL is set)
  */
 
@@ -24,7 +24,7 @@ const getApiUrl = (): string => {
     const host = window.location.hostname
     const isLocalHost = host === 'localhost' || host === '127.0.0.1'
     if (isLocalHost) {
-      return 'https://newwork-dev.newwork.com/document-service/api/v1'
+      return 'https://newwork-dev.newwork.com/document/api/v1'
     }
   }
 
@@ -32,11 +32,11 @@ const getApiUrl = (): string => {
   const baseUrl = env('NEXT_PUBLIC_BASE_URL')
   if (baseUrl) {
     const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-    return `${trimmed}/document-service/api/v1`
+    return `${trimmed}/document/api/v1`
   }
 
   // Default to dev environment
-  return 'https://newwork-dev.newwork.com/document-service/api/v1'
+  return 'https://newwork-dev.newwork.com/document/api/v1'
 }
 
 const API_URL = getApiUrl()
@@ -59,9 +59,24 @@ const debugLog = (...args: unknown[]) => {
   }
 }
 
+/**
+ * Optional external auth token provider.
+ * This is required for published screens where the access token may not be in localStorage,
+ * but is available via BusinessAppContext / props.
+ */
+let externalAuthTokenProvider: (() => string | null) | null = null
+
+export function setSpreadsheetApiAuthTokenProvider(provider: (() => string | null) | null) {
+  externalAuthTokenProvider = provider
+}
+
 // Get auth token - check multiple storage locations
 const getAuthToken = (): string | null => {
   try {
+    // Prefer external token provider (e.g., BusinessAppContext accessToken)
+    const externalToken = externalAuthTokenProvider?.()
+    if (externalToken) return externalToken
+
     // First check the IDE's storage key (Business App IDE)
     const ideToken = localStorage.getItem('business-app-ide-access-token')
     if (ideToken) return ideToken
@@ -124,6 +139,10 @@ interface PaginatedResponse<T> {
   totalPages: number
 }
 
+type SpreadsheetRowData = Record<string, unknown> & {
+  _clientRowId?: string
+}
+
 // Map backend permission to frontend permission
 function mapPermission(backendPermission: string | undefined): SpreadsheetApp['permission'] {
   if (!backendPermission) return undefined
@@ -150,10 +169,22 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
     sheets: sheets.map(sheet => {
       // Map rows from backend to data array for frontend
       const rows = (sheet.rows as Array<{ id: string; data: Record<string, unknown> }>) || []
-      const data = rows.map(row => ({
-        _id: row.id,
-        ...row.data
-      }))
+      const data = rows.map(row => {
+        const rowData = (row.data || {}) as SpreadsheetRowData
+        // If a client row id is present (entity-data-source mode), use it as the UI row key
+        // and preserve the backend UUID separately for PATCH calls.
+        if (rowData._clientRowId) {
+          return {
+            ...rowData,
+            _id: rowData._clientRowId,
+            _rowUuid: row.id
+          }
+        }
+        return {
+          ...rowData,
+          _id: row.id
+        }
+      })
 
       return {
         id: sheet.id as string,
@@ -486,10 +517,21 @@ export const SpreadsheetApiService = {
       debugLog('getRows', endpoint)
 
       const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
-      return response.items.map(row => ({
-        _id: row.id,
-        ...(row.data as Record<string, unknown>)
-      }))
+      return response.items.map(row => {
+        const rowData = (((row as Record<string, unknown>).data as Record<string, unknown>) || {}) as SpreadsheetRowData
+        const clientRowId = rowData._clientRowId
+        if (clientRowId) {
+          return {
+            ...rowData,
+            _id: clientRowId,
+            _rowUuid: (row as Record<string, unknown>).id as string
+          }
+        }
+        return {
+          ...rowData,
+          _id: (row as Record<string, unknown>).id as string
+        }
+      })
     } catch (error) {
       console.error('Failed to get rows:', error)
       return []
@@ -507,9 +549,23 @@ export const SpreadsheetApiService = {
       body: JSON.stringify(data)
     })
 
+    const createdData = (((created as Record<string, unknown>).data as Record<string, unknown>) || {}) as SpreadsheetRowData
+    const clientRowId = (data as SpreadsheetRowData)._clientRowId
+
+    // If we created a row for a client row id (entity-data-source), keep the UI key stable
+    // and store the backend UUID separately.
+    if (clientRowId) {
+      return {
+        ...createdData,
+        _id: clientRowId,
+        _rowUuid: (created as Record<string, unknown>).id as string,
+        _clientRowId: clientRowId
+      }
+    }
+
     return {
-      _id: created.id,
-      ...(created.data as Record<string, unknown>)
+      ...createdData,
+      _id: (created as Record<string, unknown>).id as string
     }
   },
 
@@ -532,9 +588,19 @@ export const SpreadsheetApiService = {
       }
     )
 
+    const updatedData = (((updated as Record<string, unknown>).data as Record<string, unknown>) || {}) as SpreadsheetRowData
+    const clientRowId = updatedData._clientRowId
+    if (clientRowId) {
+      return {
+        ...updatedData,
+        _id: clientRowId,
+        _rowUuid: (updated as Record<string, unknown>).id as string
+      }
+    }
+
     return {
-      _id: updated.id,
-      ...(updated.data as Record<string, unknown>)
+      ...updatedData,
+      _id: (updated as Record<string, unknown>).id as string
     }
   },
 

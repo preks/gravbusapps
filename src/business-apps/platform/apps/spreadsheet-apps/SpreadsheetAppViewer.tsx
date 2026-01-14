@@ -85,6 +85,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { DocumentParticipant } from '../shared/services/CollaborationClient'
 import { PresenceIndicator } from '../shared/components/PresenceIndicator'
 import { CellCollaboratorIndicator } from '../shared/components/CellCollaboratorIndicator'
+import { SpreadsheetApiService } from './services/SpreadsheetApiService'
 
 /**
  * Get a nested value from an object using dot notation path
@@ -165,6 +166,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   activeViewId: initialViewId,
   onDataChange,
   onRowAdd,
+  onRowUpdate,
   onAppUpdate: _onAppUpdate,
   onSheetUpdate,
   onBack,
@@ -173,6 +175,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   userId,
   'data-testid': testId = 'spreadsheet-app-viewer'
 }) => {
+  void onRowAdd
+  void onRowUpdate
   // State
   const [activeSheetId, setActiveSheetId] = useState(initialSheetId || app.sheets[0]?.id || '')
   const [activeViewId, setActiveViewId] = useState<string | null>(initialViewId || null)
@@ -345,8 +349,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   // Debounced save for rapid cell edits
   const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
-  const isSavingRef = React.useRef(false)
-  const SAVE_DEBOUNCE_MS = 500 // Debounce saves by 500ms
+  // (saving refs removed)
+
+  // Prevent duplicate backing-row creation for entity-data-source rows (non-UUID row ids)
+  const pendingBackingRowCreateRef = React.useRef<Set<string>>(new Set())
 
   // Local data state - completely independent from app.sheets during editing
   const [localSheetData, setLocalSheetData] = useState<Record<string, unknown>[]>(
@@ -562,6 +568,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     entityType: 'spreadsheet',
     entityId: app.id,
     enabled: true,
+    accessToken,
     onOperationReceived: onOperationReceivedCallback,
     onError: onErrorCallback
   })
@@ -570,20 +577,23 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const authToken = accessToken || localStorage.getItem('business-app-ide-access-token') || ''
   const graphqlClient = useGraphQLClient(authToken)
 
-  // Enriched participants with avatars
-  const [participants, setParticipants] = useState<DocumentParticipant[]>([])
+  // Enriched participants for header presence (keep old behavior: resolve by Employee.userId)
+  const [headerParticipants, setHeaderParticipants] = useState<DocumentParticipant[]>([])
 
-  // Fetch avatars for participants when they change
+  // Enriched participants for cell cursor indicators (more robust: Employee.userId OR Employee.id)
+  const [cursorParticipants, setCursorParticipants] = useState<DocumentParticipant[]>([])
+
+  // Fetch avatars for HEADER presence when participants change (keep old behavior)
   useEffect(() => {
     async function fetchAvatars() {
       if (!rawParticipants.length || !authToken) {
-        setParticipants(rawParticipants)
+        setHeaderParticipants(rawParticipants)
         return
       }
 
-      const userIds = rawParticipants.map(p => p.userId).filter(Boolean)
+      const userIds = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (userIds.length === 0) {
-        setParticipants(rawParticipants)
+        setHeaderParticipants(rawParticipants)
         return
       }
 
@@ -610,19 +620,103 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
         })
 
-        // Enrich participants with avatar URLs
         const enrichedParticipants = rawParticipants.map(p => ({
           ...p,
           avatarUrl: avatarMap.get(p.userId) || undefined
         }))
-        setParticipants(enrichedParticipants)
+        setHeaderParticipants(enrichedParticipants)
       } catch (error) {
         console.error('[SpreadsheetAppViewer] Failed to fetch participant avatars:', error)
-        setParticipants(rawParticipants)
+        setHeaderParticipants(rawParticipants)
       }
     }
 
     fetchAvatars()
+  }, [rawParticipants, authToken, graphqlClient])
+
+  // Fetch avatars for CELL cursor indicators (robust resolution: Employee.userId OR Employee.id)
+  useEffect(() => {
+    async function fetchCursorAvatars() {
+      if (!rawParticipants.length || !authToken) {
+        setCursorParticipants(rawParticipants)
+        return
+      }
+
+      const ids = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
+      if (ids.length === 0) {
+        setCursorParticipants(rawParticipants)
+        return
+      }
+
+      try {
+        // IMPORTANT:
+        // Employee.id is a UUID field; querying `id _in $ids` with non-UUID strings will fail the whole query.
+        // So we do this in two passes:
+        // 1) Always query by Employee.userId (string)
+        // 2) Only query by Employee.id for ids that look like UUIDs (string UUIDs)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+        const byUserIdQuery = `
+          query GetEmployeeAvatarsByUserId($userIds: [String!]!) {
+            Employee(where: { userId: { _in: $userIds } }) {
+              id
+              userId
+              pictureThumbnail
+            }
+          }
+        `
+        const byUserIdResult = await graphqlClient.request<{
+          Employee: Array<{ id: string; userId: string; pictureThumbnail: string | null }>
+        }>(byUserIdQuery, { userIds: ids })
+
+        const avatarMap = new Map<string, string>()
+        byUserIdResult?.Employee?.forEach(emp => {
+          if (!emp.pictureThumbnail) return
+          const avatarUrl = emp.pictureThumbnail.startsWith('data:')
+            ? emp.pictureThumbnail
+            : `data:image/png;base64,${emp.pictureThumbnail}`
+          avatarMap.set(emp.userId, avatarUrl)
+          avatarMap.set(emp.id, avatarUrl)
+        })
+
+        const uuidIdsMissing = ids.filter(id => uuidRegex.test(id) && !avatarMap.has(id))
+        if (uuidIdsMissing.length > 0) {
+          const byEmployeeIdQuery = `
+            query GetEmployeeAvatarsByEmployeeId($employeeIds: [uuid!]!) {
+              Employee(where: { id: { _in: $employeeIds } }) {
+                id
+                userId
+                pictureThumbnail
+              }
+            }
+          `
+          const byEmployeeIdResult = await graphqlClient.request<{
+            Employee: Array<{ id: string; userId: string; pictureThumbnail: string | null }>
+          }>(byEmployeeIdQuery, { employeeIds: uuidIdsMissing })
+
+          byEmployeeIdResult?.Employee?.forEach(emp => {
+            if (!emp.pictureThumbnail) return
+            const avatarUrl = emp.pictureThumbnail.startsWith('data:')
+              ? emp.pictureThumbnail
+              : `data:image/png;base64,${emp.pictureThumbnail}`
+            avatarMap.set(emp.id, avatarUrl)
+            avatarMap.set(emp.userId, avatarUrl)
+          })
+        }
+
+        // Keep userName exactly as provided by collaboration; only fix avatar resolution.
+        const enriched = rawParticipants.map(p => ({
+          ...p,
+          avatarUrl: avatarMap.get(p.userId) || undefined
+        }))
+        setCursorParticipants(enriched)
+      } catch (error) {
+        console.error('[SpreadsheetAppViewer] Failed to fetch cursor participant avatars:', error)
+        setCursorParticipants(rawParticipants)
+      }
+    }
+
+    fetchCursorAvatars()
   }, [rawParticipants, authToken, graphqlClient])
 
   // Stable callback to emit cursor immediately (used by EditableCell on click)
@@ -717,34 +811,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
   }, [selectedCell?.rowId, selectedCell?.colId])
 
-  // Debounced save function - batches rapid changes and prevents concurrent saves
-  const debouncedSave = useCallback(
-    (sheetId: string, data: Record<string, unknown>[]) => {
-      // Clear any pending save
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-
-      saveTimeoutRef.current = setTimeout(() => {
-        // Don't save if already saving
-        if (isSavingRef.current) {
-          return
-        }
-
-        isSavingRef.current = true
-        saveTimeoutRef.current = null
-
-        // Save the data
-        onDataChange?.(sheetId, data)
-
-        // Reset saving flag after a short delay to allow the save to complete
-        setTimeout(() => {
-          isSavingRef.current = false
-        }, 100)
-      }, SAVE_DEBOUNCE_MS)
-    },
-    [onDataChange]
-  )
+  // Debounced save removed (we persist via per-row REST calls + collaboration ops)
 
   // Cleanup: cancel any pending save on unmount
   useEffect(() => {
@@ -1036,40 +1103,28 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     })
 
-    // When collaboration is active, we still need to call REST API to get real UUID
-    // Then broadcast via WebSocket so other users get the real row
-    if (isCollaborationConnected && onRowAdd) {
-      const savedRow = await onRowAdd(app.id, activeSheet.id, rowData)
+    // Call API directly to get proper UUID (don't use onRowAdd which also updates app.sheets)
+    try {
+      const savedRow = await SpreadsheetApiService.addRow(app.id, activeSheet.id, rowData)
       if (savedRow) {
-        // Add to local data
+        // Only update localSheetData (don't touch app.sheets to prevent duplicates)
         setLocalSheetData(prev => [...prev, savedRow])
 
-        // Broadcast to other users with real UUID
-        emitOperation({
-          type: 'row_add',
-          data: {
-            sheetId: activeSheet.id,
-            rowData: savedRow
-          }
-        })
+        // Broadcast to other users if collaboration is connected
+        if (isCollaborationConnected) {
+          emitOperation({
+            type: 'row_add',
+            data: {
+              sheetId: activeSheet.id,
+              rowData: savedRow
+            }
+          })
+        }
       }
-    } else if (onRowAdd) {
-      // Fallback to REST API when collaboration is not connected
-      const savedRow = await onRowAdd(app.id, activeSheet.id, rowData)
-      if (savedRow) {
-        setLocalSheetData(prev => [...prev, savedRow])
-      }
-    } else {
-      // Fallback: update local state only (legacy behavior)
-      const newRow: Record<string, unknown> = {
-        _id: `row_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        _createdAt: new Date().toISOString(),
-        ...rowData
-      }
-      setLocalSheetData(prev => [...prev, newRow])
-      onDataChange?.(activeSheet.id, [...localSheetData, newRow])
+    } catch (err) {
+      console.error('[SpreadsheetAppViewer] Failed to add row:', err)
     }
-  }, [activeSheet, app, localSheetData, onRowAdd, onDataChange, isCollaborationConnected, emitOperation])
+  }, [activeSheet, app, localSheetData, isCollaborationConnected, emitOperation])
 
   /**
    * Handle adding multiple rows (from bulk collection responses)
@@ -1218,9 +1273,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         columnMap.set(col.name, col)
       })
 
-      const newRows = rows.map((rowData, index) => {
+      const newRows = rows.map((rowData, _index) => {
         const newRow: Record<string, unknown> = {
-          _id: `row_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 9)}`,
+          _id: crypto.randomUUID(),
           _createdAt: new Date().toISOString(),
           ...rowData.metadata
         }
@@ -1981,10 +2036,66 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // Update local state immediately for responsive UI
       setLocalSheetData(newData)
 
-      // Emit collaboration operation for real-time sync (WebSocket saves to DB)
-      // Only emit if row has a valid UUID (not a temporary row_ ID)
-      const isTemporaryRow = typeof rowId === 'string' && rowId.startsWith('row_')
-      if (isCollaborationConnected && !isTemporaryRow) {
+      // Persist change:
+      // - Normal rows: rowId is a backend UUID -> PATCH /rows/:uuid
+      // - Entity-data-source rows: rowId is an entity id (non-UUID) -> we create ONE backend row with
+      //   `_clientRowId = entityId`, store returned backend uuid in `_rowUuid`, then PATCH that uuid.
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+      const localRow = newData.find(r => (r._id as string | undefined) === rowId) as
+        | (Record<string, unknown> & { _rowUuid?: string })
+        | undefined
+
+      const backendRowUuid = localRow?._rowUuid
+      const isBackendUuid = uuidRegex.test(backendRowUuid || '')
+      const isRowIdUuid = uuidRegex.test(rowId)
+
+      const patchRow = (rowUuid: string) => {
+        SpreadsheetApiService.updateRow(app.id, activeSheet.id, rowUuid, { [columnName]: value }).catch(err =>
+          console.error('[SpreadsheetAppViewer] Failed to update cell:', err)
+        )
+      }
+
+      if (isRowIdUuid) {
+        patchRow(rowId)
+      } else if (isBackendUuid && backendRowUuid) {
+        patchRow(backendRowUuid)
+      } else if (localRow) {
+        // Create backing row once (idempotent on client): include `_clientRowId` so we can map it on reload.
+        // We avoid spamming creation by storing `_rowUuid` once we get it back.
+        if (pendingBackingRowCreateRef.current.has(rowId)) {
+          // Already creating backing row for this client row id
+          // (localSheetData update above is still applied)
+        } else {
+          pendingBackingRowCreateRef.current.add(rowId)
+
+        const payload: Record<string, unknown> = { _clientRowId: rowId }
+        for (const [k, v] of Object.entries(localRow)) {
+          if (k === '_id' || k === '_rowUuid' || k === 'id') continue
+          if (k === '_entityType' || k === '_fetchedAt') continue
+          payload[k] = v
+        }
+
+          SpreadsheetApiService.addRow(app.id, activeSheet.id, payload)
+            .then(saved => {
+              const savedRowUuid = (saved as Record<string, unknown>)._rowUuid as string | undefined
+              if (savedRowUuid && uuidRegex.test(savedRowUuid)) {
+                setLocalSheetData(prev =>
+                  prev.map(r => ((r._id as string | undefined) === rowId ? { ...r, _rowUuid: savedRowUuid } : r))
+                )
+                // Now PATCH the specific cell as well (in case server only stored partial row)
+                patchRow(savedRowUuid)
+              }
+            })
+            .catch(err => console.error('[SpreadsheetAppViewer] Failed to create backing row:', err))
+            .finally(() => {
+              pendingBackingRowCreateRef.current.delete(rowId)
+            })
+        }
+      }
+
+      // Also emit collaboration operation for real-time sync to other clients (uses UI row id)
+      if (isCollaborationConnected) {
         emitOperation({
           type: 'cell_update',
           data: {
@@ -1994,17 +2105,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             value
           }
         })
-      } else {
-        // Fallback to REST API save when collaboration is not connected
-        // OR when row is temporary (not yet in database)
-        debouncedSave(activeSheet.id, newData)
       }
     },
     [
       activeSheet,
       entityData,
       localSheetData,
-      debouncedSave,
+      app.id,
       recalculateAllFormulas,
       isCollaborationConnected,
       emitOperation
@@ -2436,7 +2543,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               onEditingStateChange={editing => {
                 isEditingRef.current = editing
               }}
-              participants={participants}
+              participants={cursorParticipants}
               onCursorEmit={emitCursorImmediate}
             />
           )
@@ -2513,7 +2620,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     formulaSelectionMode,
     // selectedCell is needed to trigger cell re-renders for selection highlighting
     selectedCell,
-    participants,
+    cursorParticipants,
     emitCursorImmediate,
     // Column editing state - needed to trigger re-renders when editing state changes
     // Using refs for stable closures inside the header function
@@ -2586,18 +2693,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               {/* Live Status Indicators */}
               <div className="gba:flex gba:items-center gba:gap-2">
                 {/* Collaboration presence indicator - shows active users */}
-                {participants.length > 0 && (
+                {headerParticipants.length > 0 && (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-success/10 gba:border gba:border-success/20">
                     <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
-                    <PresenceIndicator participants={participants} maxVisible={3} size="sm" showLabel={false} />
+                    <PresenceIndicator participants={headerParticipants} maxVisible={3} size="sm" showLabel={false} />
                     <span className="gba:text-xs gba:font-medium gba:text-success-foreground">
-                      {participants.length} active
+                      {headerParticipants.length} active
                     </span>
                   </div>
                 )}
 
                 {/* Connection status indicator - shows when connected but alone */}
-                {participants.length === 0 && isCollaborationConnected && (
+                {headerParticipants.length === 0 && isCollaborationConnected && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -3812,19 +3919,12 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = ({
   )
 }
 
-type ActiveEditCell = { rowId: string; colId: string } | null
 type FormulaSelectionMode = {
   editingCell: { rowId: string; colId: string }
   startCell: { rowIndex: number; colIndex: number } | null
   endCell: { rowIndex: number; colIndex: number } | null
   isRangeSelection: boolean
 } | null
-
-// Global state to keep the currently edited cell stable across table re-renders/remounts.
-// IMPORTANT: We intentionally keep this around (do NOT clear when starting edit),
-// so a re-render doesn't make the input lose focus / exit edit mode.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let activeEditCell: ActiveEditCell = null
 
 /**
  * Editable Cell Component - Excel-like behavior
@@ -3974,7 +4074,6 @@ const EditableCell: React.FC<EditableCellProps> = ({
       setOriginalValue(storedFormula || String(value ?? ''))
       setEditValue(startChar)
       setIsEditing(true)
-      activeEditCell = { rowId, colId: column.id }
 
       // If it's a formula, enter formula selection mode and store the value
       if (startChar.trim().startsWith('=')) {
@@ -4001,7 +4100,6 @@ const EditableCell: React.FC<EditableCellProps> = ({
     setOriginalValue(storedFormula || String(value ?? ''))
     setEditValue(initialValue)
     setIsEditing(true)
-    activeEditCell = { rowId, colId: column.id }
   }
 
   // Save the cell value
@@ -4021,7 +4119,6 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
     onSave(rowId, column.name, convertedValue)
     setIsEditing(false)
-    activeEditCell = null
 
     setTimeout(() => {
       isCommittingRef.current = false
@@ -4130,7 +4227,6 @@ const EditableCell: React.FC<EditableCellProps> = ({
         setOriginalValue(storedFormula || String(value ?? ''))
         setEditValue(e.key)
         setIsEditing(true)
-        activeEditCell = { rowId, colId: column.id }
       }
     }
   }
@@ -4154,7 +4250,6 @@ const EditableCell: React.FC<EditableCellProps> = ({
       setFormulaSelectionMode(null)
       setEditValue(originalValue)
       setIsEditing(false)
-      activeEditCell = null
       // Keep cell selected
       cellRef.current?.focus()
     } else if (e.key === 'Tab') {

@@ -113,7 +113,8 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         if (document) {
           // Use permission from backend API response (already computed by backend)
           // Backend returns 'admin' for owner, which gets mapped to 'owner' in the API service
-          const permission = document.permission || 'view'
+          // Default to 'owner' if not specified (for newly created documents)
+          const permission = document.permission || 'owner'
           
           console.log('[useDocumentApps] loadDocument:', {
             id: document.id,

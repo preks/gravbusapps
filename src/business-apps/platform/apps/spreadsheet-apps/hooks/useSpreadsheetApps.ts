@@ -339,6 +339,14 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
   )
 
   /**
+   * Check if a string is a valid UUID
+   */
+  const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+  }
+
+  /**
    * Update sheet data (bulk update rows)
    */
   const updateSheetData = useCallback(
@@ -352,10 +360,15 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
 
         // Update rows in bulk via the API
         for (const row of data) {
-          if (row._id) {
-            await SpreadsheetApiService.updateRow(appId, sheetId, row._id as string, row)
+          const rowId = row._id as string | undefined
+          // Only update if row has a valid UUID ID (was created via API)
+          // Otherwise add as new row (for locally-created rows with non-UUID IDs)
+          if (rowId && isValidUUID(rowId)) {
+            await SpreadsheetApiService.updateRow(appId, sheetId, rowId, row)
           } else {
-            await SpreadsheetApiService.addRow(appId, sheetId, row)
+            // Remove the local non-UUID _id before adding via API
+            const { _id: _, ...rowWithoutId } = row
+            await SpreadsheetApiService.addRow(appId, sheetId, rowWithoutId)
           }
         }
 

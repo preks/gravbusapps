@@ -397,38 +397,47 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
       const host = window.location.hostname
       const isLocalHost = host === 'localhost' || host === '127.0.0.1'
       if (isLocalHost) {
-        apiUrl = 'https://newwork-dev.newwork.com/document-service/api/v1'
+        apiUrl = 'https://newwork-dev.newwork.com/document/api/v1'
       } else {
         // Try to get base URL from environment and construct document-service URL
         const baseUrl = env('NEXT_PUBLIC_BASE_URL')
         if (baseUrl) {
           const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-          apiUrl = `${trimmed}/document-service/api/v1`
+          apiUrl = `${trimmed}/document/api/v1`
         }
       }
     }
 
     // Default to dev environment if nothing else worked
     if (!apiUrl) {
-      apiUrl = 'https://newwork-dev.newwork.com/document-service/api/v1'
+      apiUrl = 'https://newwork-dev.newwork.com/document/api/v1'
     }
   }
 
-  // Remove /api/v1 suffix if present
-  const baseUrl = apiUrl.replace(/\/api\/v1$/, '')
+  // Remove /api/v1 suffix if present to get base service URL
+  // e.g., 'https://newwork-dev.newwork.com/document/api/v1' -> 'https://newwork-dev.newwork.com/document'
+  const serviceUrl = apiUrl.replace(/\/api\/v1$/, '')
+  
+  // Extract the service path (e.g., '/document') for socket.io path
+  const urlObj = new URL(serviceUrl)
+  const servicePath = urlObj.pathname // e.g., '/document'
+  
+  // Socket.io namespace URL is: origin + namespace (NOT service path)
+  // The namespace on the server is '/collaboration'
+  const wsUrl = `${urlObj.origin}/collaboration`
+  
+  // Socket.io path should include the service path prefix
+  // This is where the socket.io server is actually listening
+  const socketPath = `${servicePath}/socket.io`
 
-  // Create WebSocket URL (keep http/https protocol, socket.io will handle upgrade)
-  const wsUrl = baseUrl
+  console.log('[CollaborationClient] Creating client:')
+  console.log('[CollaborationClient]   Service URL:', serviceUrl)
+  console.log('[CollaborationClient]   WebSocket URL (namespace):', wsUrl)
+  console.log('[CollaborationClient]   Socket.io Path:', socketPath)
 
-  console.log('[CollaborationClient] Creating client with base URL:', wsUrl)
-
-  // For Socket.IO with namespace, we need to append the namespace to the URL
-  // and use the default socket.io path
-  const wsUrlWithNamespace = `${wsUrl}/collaboration`
-
-  return new CollaborationClient(wsUrlWithNamespace, {
+  return new CollaborationClient(wsUrl, {
     ...options,
-    path: '/socket.io' // Socket.IO default path
+    path: socketPath
   })
 }
 

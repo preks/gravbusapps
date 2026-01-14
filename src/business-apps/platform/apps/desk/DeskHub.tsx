@@ -11,6 +11,7 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { FileText, FileSpreadsheet, StickyNote } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 // Components
 import { ContentBackground, HeroSection, AppCard, QuickActions, ActivityVisualization, RecentItems } from './components'
@@ -23,19 +24,15 @@ export interface DeskHubProps extends BusinessAppContextProps {
 }
 
 /**
- * Navigate to a specific app screen
+ * Navigate to a specific app screen using platform URLs
+ * Path format: /platform/apps/platform/apps/{appName}
  */
 const navigateToApp = (appPath: string, params?: Record<string, string>) => {
-  const baseUrl = window.location.origin
-  const searchParams = new URLSearchParams({ app: appPath })
-
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      searchParams.set(key, value)
-    })
-  }
-
-  window.location.href = `${baseUrl}?${searchParams.toString()}`
+  // Extract just the app name (e.g., 'document-apps' from 'platform/apps/document-apps' or 'document-apps')
+  const appName = appPath.replace(/^\/?platform\/apps\//, '')
+  // Use doubled path: /platform/apps/platform/apps/{appName}
+  const platformUrl = `/platform/apps/platform/apps/${appName}`
+  navigateTo(buildPlatformUrl(platformUrl, params))
 }
 
 /**
@@ -70,40 +67,40 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
 
   // Navigation handlers
   const handleOpenDocuments = useCallback(() => {
-    navigateToApp('platform/apps/document-apps')
+    navigateToApp('document-apps')
   }, [])
 
   const handleOpenSpreadsheets = useCallback(() => {
-    navigateToApp('platform/apps/spreadsheet-apps')
+    navigateToApp('spreadsheet-apps')
   }, [])
 
   const handleOpenNotes = useCallback(() => {
-    navigateToApp('platform/apps/note-apps')
+    navigateToApp('note-apps')
   }, [])
 
   const handleCreateDocument = useCallback(() => {
-    navigateToApp('platform/apps/document-apps', { action: 'new' })
+    navigateToApp('document-apps', { action: 'new' })
   }, [])
 
   const handleCreateSpreadsheet = useCallback(() => {
-    navigateToApp('platform/apps/spreadsheet-apps', { action: 'upload' })
+    navigateToApp('spreadsheet-apps', { action: 'upload' })
   }, [])
 
   const handleCreateNote = useCallback(() => {
-    navigateToApp('platform/apps/note-apps', { action: 'new' })
+    navigateToApp('note-apps', { action: 'new' })
   }, [])
 
   // Handle item click - navigate to the specific item
   const handleItemClick = useCallback((item: ContentItem) => {
     switch (item.type) {
       case 'document':
-        navigateToApp('platform/apps/document-apps', { docId: item.id, view: 'editor' })
+        navigateToApp('document-apps', { docId: item.id, view: 'editor' })
         break
       case 'spreadsheet':
-        navigateToApp('platform/apps/spreadsheet-apps', { appId: item.id, view: 'viewer' })
+        navigateToApp('spreadsheet-apps', { appId: item.id, view: 'viewer' })
         break
       case 'note':
-        navigateToApp('platform/apps/note-apps', { noteId: item.id, view: 'editor' })
+        navigateToApp('note-apps', { noteId: item.id, view: 'editor' })
         break
     }
   }, [])
@@ -130,6 +127,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           searchResults={displayItems}
           onItemClick={handleItemClick}
           isLoading={isLoading}
+          accessToken={accessToken}
           data-testid={`${testId}-quick-actions`}
         />
 

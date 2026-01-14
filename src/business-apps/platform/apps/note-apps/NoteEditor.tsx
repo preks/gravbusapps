@@ -267,6 +267,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     entityType: 'note',
     entityId: note.id,
     enabled: !!note.id,
+    accessToken,
     onError: onErrorCallback
   })
 
@@ -375,17 +376,18 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
     awareness.setLocalStateField('user', {
       id: currentUserId,
+      userId: currentUserId,
       name: currentUserName || 'User',
       color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
       avatar: currentUserAvatar
     })
   }, [note.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
 
-  // Debounced snapshot save
+  // Debounced snapshot save - works even without Yjs collaboration
   const scheduleSnapshotSave = useCallback(
     (currentEditor: any) => {
       if (!note.id || isReadOnly) return
-      if (!isYjsSynced) return
+      // Allow saving even if Yjs sync hasn't completed
 
       setHasUnsavedChanges(true)
       if (autoSaveTimeoutRef.current) {
@@ -408,7 +410,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           })
       }, 2000)
     },
-    [note.id, isReadOnly, isYjsSynced, title]
+    [note.id, isReadOnly, title]
   )
 
   useEffect(() => {
@@ -419,7 +421,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => {
     const loadUserInfo = async () => {
       try {
-        const token = localStorage.getItem('business-app-ide-access-token')
+        // Prefer accessToken prop (published screens may not have token in localStorage)
+        const token = accessToken || localStorage.getItem('business-app-ide-access-token')
         if (token) {
           const payload = JSON.parse(atob(token.split('.')[1]))
           const userId = payload.sub || payload.userId || null
@@ -454,7 +457,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }
 
     loadUserInfo()
-  }, [graphqlClient])
+  }, [graphqlClient, accessToken])
 
   // Create mention suggestion with access token
   const mentionSuggestion = React.useMemo(
@@ -590,7 +593,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ],
       content: note.id ? '<p></p>' : note.content || '<p></p>', // Empty for synced notes (Yjs will populate)
-      editable: !isReadOnly && (!note.id || isYjsSynced),
+      // Allow editing even if Yjs sync fails - user should be able to edit their own notes
+      editable: !isReadOnly,
       onUpdate: () => {
         // For notes with Yjs sync, changes are auto-saved via the Yjs provider
         // Just mark as having unsaved changes for UI
@@ -599,21 +603,21 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       }
     },
-    [note.id, note.content, ydoc, isReadOnly, isYjsSynced, mentionSuggestion]
+    [note.id, note.content, ydoc, isReadOnly, mentionSuggestion]
   )
 
   useEffect(() => {
     editorRef.current = editor
   }, [editor])
 
-  // Update editable state based on sync status
+  // Update editable state - allow editing even if Yjs sync fails
   useEffect(() => {
     if (!editor) return
-    const shouldBeEditable = !isReadOnly && (!note.id || isYjsSynced)
+    const shouldBeEditable = !isReadOnly
     if (editor.isEditable !== shouldBeEditable) {
       editor.setEditable(shouldBeEditable)
     }
-  }, [editor, isReadOnly, note.id, isYjsSynced])
+  }, [editor, isReadOnly])
 
   // Cleanup
   useEffect(() => {

@@ -23,6 +23,11 @@ export interface PresenceParticipant {
   avatar?: string
 }
 
+export interface UseDocumentPresenceOptions {
+  /** Access token for authentication (optional, will try to get from storage if not provided) */
+  accessToken?: string
+}
+
 export interface UseDocumentPresenceReturn {
   /** Map of entityKey (entityType:entityId) -> participants */
   presenceMap: Map<string, PresenceParticipant[]>
@@ -87,7 +92,7 @@ function normalizeImageSrc(raw?: string): string | undefined {
  *
  * @example
  * ```tsx
- * const { getPresence, hasActiveUsers, fetchPresence } = useDocumentPresence()
+ * const { getPresence, hasActiveUsers, fetchPresence } = useDocumentPresence({ accessToken })
  *
  * // Fetch presence for search results
  * useEffect(() => {
@@ -104,7 +109,8 @@ function normalizeImageSrc(raw?: string): string | undefined {
  * )}
  * ```
  */
-export function useDocumentPresence(): UseDocumentPresenceReturn {
+export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): UseDocumentPresenceReturn {
+  const { accessToken: providedToken } = options
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceParticipant[]>>(new Map())
   const [isConnected, setIsConnected] = useState(false)
   const clientRef = useRef<CollaborationClient | null>(null)
@@ -113,9 +119,10 @@ export function useDocumentPresence(): UseDocumentPresenceReturn {
   const avatarCacheRef = useRef<Map<string, string | undefined>>(new Map())
   const tokenRef = useRef<string | null>(null)
 
-  // Get auth token
+  // Get auth token - prefer provided token, fall back to storage
   useEffect(() => {
     const token =
+      providedToken ||
       localStorage.getItem('business-app-ide-access-token') ||
       localStorage.getItem('keycloak-token') ||
       sessionStorage.getItem('auth_token')
@@ -124,7 +131,7 @@ export function useDocumentPresence(): UseDocumentPresenceReturn {
       tokenRef.current = token
       graphQLClient.setAccessToken(token)
     }
-  }, [])
+  }, [providedToken])
 
   // Fetch avatars for a list of user IDs
   const fetchAvatars = useCallback(async (userIds: string[]): Promise<Map<string, string | undefined>> => {
@@ -181,106 +188,152 @@ export function useDocumentPresence(): UseDocumentPresenceReturn {
     return result
   }, [])
 
-  // Initialize collaboration client
+  // Initialize collaboration client - with retry logic
   useEffect(() => {
-    const token =
-      localStorage.getItem('business-app-ide-access-token') ||
-      localStorage.getItem('keycloak-token') ||
-      sessionStorage.getItem('auth_token')
+    let retryCount = 0
+    const maxRetries = 3
+    let retryTimeout: NodeJS.Timeout | null = null
 
-    if (!token) {
-      console.warn('[useDocumentPresence] No auth token found')
-      return
-    }
+    const attemptConnection = () => {
+      const token =
+        providedToken ||
+        localStorage.getItem('business-app-ide-access-token') ||
+        localStorage.getItem('keycloak-token') ||
+        sessionStorage.getItem('auth_token')
 
-    try {
-      const client = createCollaborationClient()
-      clientRef.current = client
-
-      const socket = client.connect(token)
-      socketRef.current = socket
-
-      socket.on('connect', () => {
-        console.log('[useDocumentPresence] Connected to collaboration server')
-        setIsConnected(true)
-
-        // If there's a pending fetch, execute it now
-        if (pendingFetchRef.current && pendingFetchRef.current.length > 0) {
-          fetchPresenceInternal(pendingFetchRef.current)
-          pendingFetchRef.current = null
+      if (!token) {
+        console.warn('[useDocumentPresence] No auth token found (providedToken:', !!providedToken, '), attempt', retryCount + 1)
+        
+        // Retry after a delay if we haven't exceeded max retries
+        if (retryCount < maxRetries) {
+          retryCount++
+          retryTimeout = setTimeout(attemptConnection, 1000 * retryCount)
         }
-      })
+        return
+      }
 
-      socket.on('disconnect', () => {
-        console.log('[useDocumentPresence] Disconnected from collaboration server')
-        setIsConnected(false)
-      })
+      console.log('[useDocumentPresence] Attempting to connect with token...')
 
-      socket.on('connect_error', error => {
-        console.error('[useDocumentPresence] Connection error:', error.message)
-      })
+      try {
+        const client = createCollaborationClient()
+        clientRef.current = client
 
-      // Listen for individual user join/leave events to update presence in real-time
-      socket.on('user_joined', (data: { userId: string; userName: string; userColor: string }) => {
-        console.log('[useDocumentPresence] User joined:', data.userName)
-      })
+        const socket = client.connect(token)
+        socketRef.current = socket
 
-      socket.on('user_left', (data: { userId: string }) => {
-        // Remove user from all entries in presence map
-        setPresenceMap(prev => {
-          const newMap = new Map(prev)
-          let changed = false
-          for (const [key, participants] of newMap) {
-            const filtered = participants.filter(p => p.userId !== data.userId && p.odId !== data.userId)
-            if (filtered.length !== participants.length) {
-              changed = true
-              if (filtered.length > 0) {
-                newMap.set(key, filtered)
-              } else {
-                newMap.delete(key)
+        socket.on('connect', () => {
+          console.log('[useDocumentPresence] ✓ Connected to collaboration server')
+          setIsConnected(true)
+          retryCount = 0 // Reset retry count on successful connection
+
+          // If there's a pending fetch, execute it now
+          if (pendingFetchRef.current && pendingFetchRef.current.length > 0) {
+            console.log('[useDocumentPresence] Executing pending fetch for', pendingFetchRef.current.length, 'entities')
+            fetchPresenceInternal(pendingFetchRef.current)
+            pendingFetchRef.current = null
+          }
+        })
+
+        socket.on('disconnect', (reason) => {
+          console.log('[useDocumentPresence] ✗ Disconnected from collaboration server. Reason:', reason)
+          setIsConnected(false)
+        })
+
+        socket.on('connect_error', error => {
+          console.error('[useDocumentPresence] ✗ Connection error:', error.message)
+          
+          // Retry connection if we haven't exceeded max retries
+          if (retryCount < maxRetries) {
+            retryCount++
+            console.log('[useDocumentPresence] Retrying connection in', retryCount, 'seconds...')
+            retryTimeout = setTimeout(attemptConnection, 1000 * retryCount)
+          }
+        })
+
+        // Listen for individual user join/leave events to update presence in real-time
+        socket.on('user_joined', (data: { userId: string; userName: string; userColor: string }) => {
+          console.log('[useDocumentPresence] 👤 User joined:', data.userName)
+        })
+
+        socket.on('user_left', (data: { userId: string }) => {
+          console.log('[useDocumentPresence] 👤 User left:', data.userId)
+          // Remove user from all entries in presence map
+          setPresenceMap(prev => {
+            const newMap = new Map(prev)
+            let changed = false
+            for (const [key, participants] of newMap) {
+              const filtered = participants.filter(p => p.userId !== data.userId && p.odId !== data.userId)
+              if (filtered.length !== participants.length) {
+                changed = true
+                if (filtered.length > 0) {
+                  newMap.set(key, filtered)
+                } else {
+                  newMap.delete(key)
+                }
               }
             }
-          }
-          return changed ? newMap : prev
+            return changed ? newMap : prev
+          })
         })
-      })
+      } catch (error) {
+        console.error('[useDocumentPresence] ✗ Failed to initialize:', error)
+        
+        // Retry connection if we haven't exceeded max retries
+        if (retryCount < maxRetries) {
+          retryCount++
+          console.log('[useDocumentPresence] Retrying connection in', retryCount, 'seconds...')
+          retryTimeout = setTimeout(attemptConnection, 1000 * retryCount)
+        }
+      }
+    }
 
-      return () => {
-        console.log('[useDocumentPresence] Cleaning up...')
-        client.disconnect()
+    // Start connection attempt
+    attemptConnection()
+
+    return () => {
+      console.log('[useDocumentPresence] Cleaning up...')
+      if (retryTimeout) {
+        clearTimeout(retryTimeout)
+      }
+      if (clientRef.current) {
+        clientRef.current.disconnect()
         socketRef.current = null
         clientRef.current = null
       }
-    } catch (error) {
-      console.error('[useDocumentPresence] Failed to initialize:', error)
     }
-  }, [])
+  }, [providedToken])
 
   // Internal fetch function
   const fetchPresenceInternal = useCallback(
     async (entities: { entityType: string; entityId: string }[]) => {
       const socket = socketRef.current
       if (!socket?.connected) {
-        console.warn('[useDocumentPresence] Socket not connected, queuing fetch')
+        console.warn('[useDocumentPresence] ⚠️ Socket not connected, queuing fetch for', entities.length, 'entities')
         pendingFetchRef.current = entities
         return
       }
 
       if (entities.length === 0) {
+        console.log('[useDocumentPresence] No entities to fetch presence for')
         return
       }
 
-      console.log('[useDocumentPresence] Fetching presence for', entities.length, 'entities')
+      console.log('[useDocumentPresence] 📡 Fetching presence for', entities.length, 'entities:', entities.map(e => `${e.entityType}:${e.entityId.substring(0, 8)}`).join(', '))
 
       socket.emit(
         'get_multi_presence',
         { entities },
         async (response: { success: boolean; presence?: Record<string, PresenceParticipant[]>; error?: string }) => {
           if (response?.success && response?.presence) {
+            const entitiesWithUsers = Object.keys(response.presence).length
+            const totalUsers = Object.values(response.presence).reduce((sum, p) => sum + p.length, 0)
+            
             console.log(
-              '[useDocumentPresence] Received presence data:',
-              Object.keys(response.presence).length,
-              'entities have active users'
+              '[useDocumentPresence] ✓ Received presence data:',
+              entitiesWithUsers,
+              'entities have',
+              totalUsers,
+              'active users'
             )
 
             // Collect all unique user IDs to fetch avatars
@@ -295,6 +348,7 @@ export function useDocumentPresence(): UseDocumentPresenceReturn {
             // Fetch avatars for all users
             let avatarMap = new Map<string, string | undefined>()
             if (allUserIds.size > 0) {
+              console.log('[useDocumentPresence] 🖼️ Fetching avatars for', allUserIds.size, 'users')
               avatarMap = await fetchAvatars(Array.from(allUserIds))
             }
 
@@ -307,11 +361,12 @@ export function useDocumentPresence(): UseDocumentPresenceReturn {
                   avatar: avatarMap.get(p.odId) || avatarMap.get(p.userId)
                 }))
                 newMap.set(key, enrichedParticipants)
+                console.log('[useDocumentPresence] 👥', key, '→', enrichedParticipants.map(p => p.userName).join(', '))
               }
             }
             setPresenceMap(newMap)
           } else {
-            console.warn('[useDocumentPresence] Failed to fetch presence:', response?.error)
+            console.warn('[useDocumentPresence] ✗ Failed to fetch presence:', response?.error || 'Unknown error')
           }
         }
       )

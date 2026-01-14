@@ -11,6 +11,7 @@ export interface UseCollaborationOptions {
   entityType: 'document' | 'spreadsheet' | 'note'
   entityId: string
   enabled?: boolean
+  accessToken?: string
   onOperationReceived?: (operation: {
     userId: string
     userName: string
@@ -58,7 +59,7 @@ export interface UseCollaborationReturn {
  * ```
  */
 export function useCollaboration(options: UseCollaborationOptions): UseCollaborationReturn {
-  const { entityType, entityId, enabled = true, onOperationReceived, onError } = options
+  const { entityType, entityId, enabled = true, accessToken, onOperationReceived, onError } = options
 
   const [participants, setParticipants] = useState<DocumentParticipant[]>([])
   const [isConnected, setIsConnected] = useState(false)
@@ -67,8 +68,11 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   const clientRef = useRef<CollaborationClient | null>(null)
   const hasJoinedRef = useRef(false)
 
-  // Get auth token
+  // Get auth token - prefer passed accessToken, then try localStorage
   const getAuthToken = useCallback((): string | null => {
+    // Use passed accessToken first
+    if (accessToken) return accessToken
+
     try {
       // Check IDE token
       const ideToken = localStorage.getItem('business-app-ide-access-token')
@@ -93,7 +97,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     } catch {
       return null
     }
-  }, [])
+  }, [accessToken])
 
   // Initialize client and connect
   useEffect(() => {

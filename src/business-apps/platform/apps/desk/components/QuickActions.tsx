@@ -23,6 +23,7 @@ interface QuickActionsProps {
   searchResults?: ContentItem[]
   onItemClick?: (item: ContentItem) => void
   isLoading?: boolean
+  accessToken?: string
   'data-testid'?: string
 }
 
@@ -194,6 +195,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   searchResults = [],
   onItemClick,
   isLoading = false,
+  accessToken,
   'data-testid': testId = 'desk-quick-actions'
 }) => {
   const [isFocused, setIsFocused] = useState(false)
@@ -202,7 +204,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Track presence across documents
-  const { getPresence, hasActiveUsers, fetchPresence, isConnected } = useDocumentPresence()
+  const { getPresence, hasActiveUsers, fetchPresence, isConnected } = useDocumentPresence({ accessToken })
 
   const showResults = isFocused && searchQuery.trim().length > 0
   const limitedResults = useMemo(() => searchResults.slice(0, 8), [searchResults])
@@ -212,16 +214,25 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 
   // Fetch presence when search results change (debounced via entityListKey)
   useEffect(() => {
-    if (!entityListKey || !isConnected) return
+    console.log('[QuickActions] Presence fetch effect triggered. Connected:', isConnected, 'Results:', limitedResults.length)
+    
+    if (!entityListKey || !isConnected) {
+      if (!isConnected) {
+        console.warn('[QuickActions] ⚠️ Presence service not connected yet')
+      }
+      return
+    }
 
     const entities = limitedResults.map(item => ({
       entityType: item.type,
       entityId: item.id
     }))
+    
     if (entities.length > 0) {
+      console.log('[QuickActions] 📞 Requesting presence for', entities.length, 'search results')
       fetchPresence(entities)
     }
-  }, [entityListKey, isConnected, fetchPresence])
+  }, [entityListKey, isConnected, fetchPresence, limitedResults])
 
   // Group results by type
   const groupedResults = useMemo(() => {

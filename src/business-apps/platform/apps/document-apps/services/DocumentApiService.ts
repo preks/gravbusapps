@@ -4,7 +4,7 @@
  * Connects to the document-service backend API for document management.
  * This replaces the file-based storage with proper REST API calls.
  *
- * Backend: https://newwork-dev.newwork.com/document-service/api/v1 (dev)
+ * Backend: https://newwork-dev.newwork.com/document/api/v1 (dev)
  *          http://localhost:3002/api/v1 (local, if VITE_DOCUMENT_SERVICE_URL is set)
  */
 
@@ -32,7 +32,7 @@ const getApiUrl = (): string => {
     const host = window.location.hostname
     const isLocalHost = host === 'localhost' || host === '127.0.0.1'
     if (isLocalHost) {
-      return 'https://newwork-dev.newwork.com/document-service/api/v1'
+      return 'https://newwork-dev.newwork.com/document/api/v1'
     }
   }
 
@@ -40,11 +40,11 @@ const getApiUrl = (): string => {
   const baseUrl = env('NEXT_PUBLIC_BASE_URL')
   if (baseUrl) {
     const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-    return `${trimmed}/document-service/api/v1`
+    return `${trimmed}/document/api/v1`
   }
 
   // Default to dev environment
-  return 'https://newwork-dev.newwork.com/document-service/api/v1'
+  return 'https://newwork-dev.newwork.com/document/api/v1'
 }
 
 const API_URL = getApiUrl()

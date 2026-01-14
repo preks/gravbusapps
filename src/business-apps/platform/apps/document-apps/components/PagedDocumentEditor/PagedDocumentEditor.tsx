@@ -291,6 +291,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   onSaveAsTemplate,
   onSendForApproval,
   isReadOnly = false,
+  accessToken: accessTokenProp,
   'data-testid': testId = 'paged-document-editor'
 }) => {
   // Editor state
@@ -333,16 +334,20 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
     console.error('[PagedDocumentEditor] Collaboration error:', error)
   }, [])
 
+  // Get access token for collaboration and avatar fetching - prefer prop, fallback to localStorage
+  const accessToken = accessTokenProp || localStorage.getItem('business-app-ide-access-token') || ''
+
   // Collaboration state
   const {
     participants: rawParticipants,
-    isConnected: isCollaborationConnected,
+    isConnected: _isCollaborationConnected,
     socket: collaborationSocket,
-    emitOperation
+    emitOperation: _emitOperation
   } = useCollaboration({
     entityType: 'document',
     entityId: document?.id || '',
     enabled: !!document?.id,
+    accessToken,
     onError: onErrorCallback
   })
 
@@ -424,6 +429,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
 
     awareness.setLocalStateField('user', {
       id: currentUserId,
+      userId: currentUserId,
       name: currentUserName || 'User',
       color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
       avatar: currentUserAvatar // Include avatar URL for cursor rendering
@@ -468,8 +474,6 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
     scheduleSnapshotSaveRef.current = scheduleSnapshotSave
   }, [scheduleSnapshotSave])
 
-  // Get access token for avatar fetching
-  const accessToken = localStorage.getItem('business-app-ide-access-token') || ''
   const graphqlClient = useGraphQLClient(accessToken)
 
   // Fetch avatars for participants when they change
@@ -525,14 +529,15 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   // Get current user ID
   useEffect(() => {
     try {
-      const token = localStorage.getItem('business-app-ide-access-token')
+      // Prefer accessToken prop (published screens may not have token in localStorage)
+      const token = accessToken || localStorage.getItem('business-app-ide-access-token')
       if (token) {
         const payload = JSON.parse(atob(token.split('.')[1]))
         setCurrentUserId(payload.sub || payload.userId || null)
         setCurrentUserName(payload.name || payload.preferred_username || payload.username || null)
       }
     } catch {}
-  }, [])
+  }, [accessToken])
 
   // Fetch current user's avatar from Employee table
   useEffect(() => {
@@ -620,7 +625,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
     // In CRDT mode, the Yjs doc becomes the single source of truth.
     content: document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>',
     editable: !isReadOnly && (!document?.id || isYjsSynced),
-    onUpdate: ({ editor: currentEditor }) => {
+    onUpdate: ({ editor: _currentEditor }) => {
       updatePageCount()
 
       // For documents without an ID (not yet persisted), fallback to REST save debounce.
