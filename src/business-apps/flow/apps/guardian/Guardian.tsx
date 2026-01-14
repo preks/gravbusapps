@@ -47,7 +47,9 @@ const guardianStyles = {
     '--guardian-text': '#f9fafb',
     '--guardian-text-muted': '#9ca3af',
     '--guardian-border': 'rgba(156, 163, 175, 0.2)',
-    '--guardian-card': 'rgba(17, 24, 39, 0.6)'
+    '--guardian-card': 'rgba(17, 24, 39, 0.6)',
+    '--guardian-card-hover': 'rgba(51, 65, 85, 0.6)',
+    '--guardian-row': 'rgba(30, 41, 59, 0.5)'
   } as React.CSSProperties
 }
 
@@ -205,22 +207,20 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
     ({ active, payload, label }: any) => {
       if (!active || !payload?.length) return null
 
-      const allowedKeys = new Set(['flowsStarted', 'flowsCompleted', 'wipActive'])
+      const keyConfig: Record<string, { name: string; order: number }> = {
+        flowsStarted: { name: 'Started', order: 1 },
+        wipActive: { name: 'In Progress', order: 2 },
+        flowsCompleted: { name: 'Completed', order: 3 }
+      }
       const rows = payload
-        .filter((p: any) => allowedKeys.has(String(p.dataKey)))
+        .filter((p: any) => keyConfig[String(p.dataKey)])
         .map((p: any) => {
           const key = String(p.dataKey)
-          const name =
-            key === 'flowsStarted'
-              ? 'Started'
-              : key === 'flowsCompleted'
-                ? 'Completed'
-                : key === 'wipActive'
-                  ? 'WIP'
-                  : key
+          const config = keyConfig[key]
           const value = Number.isFinite(p.value) ? Math.round(Number(p.value)) : p.value
-          return { name, value, color: p.color }
+          return { name: config.name, value, color: p.color, order: config.order }
         })
+        .sort((a: any, b: any) => a.order - b.order)
 
       if (!rows.length) return null
 
@@ -278,9 +278,11 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
       >
         <div
           aria-hidden="true"
-          className="gba:absolute gba:inset-0 gba:z-0 gba:pointer-events-none"
+          className="gba:fixed gba:inset-0 gba:z-0 gba:pointer-events-none"
           style={{
-            background: 'linear-gradient(to bottom right, var(--guardian-bg), var(--guardian-bg-secondary))'
+            backgroundImage: 'linear-gradient(135deg, rgba(11, 15, 25, 0.92) 0%, rgba(17, 24, 39, 0.96) 100%)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center center'
           }}
         />
 
@@ -315,12 +317,14 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
         color: 'var(--guardian-text)'
       }}
     >
-      {/* Dark gradient background */}
+      {/* Fixed dark gradient background - stays in place while scrolling */}
       <div
         aria-hidden="true"
-        className="gba:absolute gba:inset-0 gba:z-0 gba:pointer-events-none"
+        className="gba:fixed gba:inset-0 gba:z-0 gba:pointer-events-none"
         style={{
-          background: 'linear-gradient(to bottom right, var(--guardian-bg), var(--guardian-bg-secondary))'
+          backgroundImage: 'linear-gradient(135deg, #0b0f19 0%, #111827 100%)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center center'
         }}
       />
 
@@ -391,7 +395,7 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
               data-testid={`${prefixDataTestId}-kpi-throughput`}
             />
             <GuardianKPICard
-              title="WIP (active)"
+              title="In Progress"
               value={velocityInsights ? velocityInsights.overview.kpis.wipActive : '—'}
               description="Workflows currently active"
               color={guardianAccentColors.warning}
@@ -439,7 +443,7 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
                 Velocity trends
               </h3>
               <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
-                Flows started vs completed and WIP over time
+                Flows started vs in progress and completed over time
               </p>
             </div>
             <div className="gba:h-80 gba:p-3">
@@ -462,17 +466,17 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
                     />
                     <Line
                       type="monotone"
+                      dataKey="wipActive"
+                      stroke={guardianAccentColors.warning}
+                      dot={false}
+                      name="In Progress"
+                    />
+                    <Line
+                      type="monotone"
                       dataKey="flowsCompleted"
                       stroke={guardianAccentColors.success}
                       dot={false}
                       name="Completed"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="wipActive"
-                      stroke={guardianAccentColors.warning}
-                      dot={false}
-                      name="WIP"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -716,11 +720,13 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
                           {pageItems.map(item => (
                             <div
                               key={item.flowId}
-                              className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:p-3 gba:rounded-lg"
+                              className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:p-3 gba:rounded-lg gba:transition-colors"
                               style={{
-                                background: 'var(--guardian-card)',
+                                background: 'var(--guardian-row)',
                                 border: '1px solid var(--guardian-border)'
                               }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'var(--guardian-card-hover)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'var(--guardian-row)')}
                             >
                               <div className="gba:min-w-0">
                                 <Button

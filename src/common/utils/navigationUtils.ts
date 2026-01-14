@@ -71,6 +71,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // Platform
   '/platform/every-box': 'core/every/apps/every-box',
+  '/platform/task-manager': 'core/every/apps/every-box',
 
   // Core
   '/platform/content/intranet': 'core/content/apps/content-portal',
