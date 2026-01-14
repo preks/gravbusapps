@@ -111,10 +111,10 @@ export const createInvestmentTabsConfig = (
 ) => {
   // Create base tabs array
   const tabs = [
-    // HouseIcon Tab
+    // Home Tab
     {
       value: 'home',
-      label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'HouseIcon'),
+      label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'Home'),
       icon: <HouseIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: <InvestmentHomeTab investmentId={investmentId} investment={investment} {...props} />
     }
@@ -216,7 +216,7 @@ export const createInvestmentTabsConfig = (
           {/* Type-specific content */}
           {getTypeSpecificOverviewContent(investmentType, typeSpecificData, props, loadData)}
 
-          {/* Note: Account and Contact sections removed - now available in HouseIcon tab */}
+          {/* Note: Account and Contact sections removed - now available in Home tab */}
         </div>
       )
     })

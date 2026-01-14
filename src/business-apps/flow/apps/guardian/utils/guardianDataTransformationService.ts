@@ -225,7 +225,8 @@ export class GuardianDataTransformationService {
         totalUsers: organizationalData.metadata.totalUsers,
         totalDepartments: organizationalData.metadata.activeDepartments,
         lastUpdated: new Date().toISOString(),
-        viewMode: 'force-directed'
+        viewMode: 'force-directed',
+        analytics: workflowData?.analytics
       }
     }
   }
@@ -401,14 +402,6 @@ export class GuardianDataTransformationService {
     const systemHealth = workflowData?.analytics?.flowAnalytics?.systemHealth || {}
     const taskOverview = workflowData?.analytics?.taskAnalytics?.taskOverview || {}
     const userMetrics = workflowData?.analytics?.flowAnalytics?.userMetrics || {}
-
-    console.log('Real backend analytics data:', {
-      businessKpis,
-      systemHealth,
-      taskOverview,
-      userMetrics,
-      fullAnalytics: workflowData?.analytics
-    })
 
     // Use real backend data for overview statistics
     const totalWorkflows = businessKpis.totalWorkflows || workflowData.workflows.length

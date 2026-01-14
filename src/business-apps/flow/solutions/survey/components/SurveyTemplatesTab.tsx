@@ -28,10 +28,10 @@ import {
 } from '@newwork/nw-design-system'
 import { FileText, Filter, RefreshCw, Eye, Play, Calendar, Users } from 'lucide-react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
-import { env } from '@/common/env/EnvUtils'
 import { toast } from 'sonner'
 import { AssignmentSelector } from '@/components/assignment-selector'
 import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
+import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 interface SurveyTemplate {
   id: string
@@ -71,7 +71,7 @@ export const SurveyTemplatesTab: React.FC<SurveyTemplatesTabProps> = ({ accessTo
       setIsLoading(true)
       setError(null)
 
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+      const baseUrl = getFlowEngineBaseUrl()
 
       // Fetch flow templates tagged with solution=survey using the full template endpoint
       const params = new URLSearchParams({
@@ -258,7 +258,7 @@ export const SurveyTemplatesTab: React.FC<SurveyTemplatesTabProps> = ({ accessTo
     try {
       setIsLaunching(true)
 
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+      const baseUrl = getFlowEngineBaseUrl()
 
       // Get template metadata to check for steps requiring runtime assignment
       const templateResponse = await fetch(`${baseUrl}/api/templates/${selectedTemplate.id}`, {

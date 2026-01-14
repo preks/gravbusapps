@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
-import { useEmployeeAvatars } from './useEmployeeAvatars'
+import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
 
 interface UseConversationsOptions {
   apiClient: ChatApiClient
@@ -18,17 +18,18 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   const [hasMore, setHasMore] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const isLoadingRef = useRef(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const LIMIT = 20
 
   // Use user management client to fetch real user data
   const { getUsersByIds } = useUserManagementClient(accessToken)
-  const { fetchAvatarsWithEmployeeIds } = useEmployeeAvatars(accessToken)
+  const { requestAvatars, cacheVersion } = useEmployeeAvatarsCache(accessToken)
 
   // Helper function to enrich conversations with real user data and avatars
   // Only enriches user data for placeholder users (who haven't logged in yet)
-  // But fetches avatars for ALL participants
+  // Avatars are loaded non-blocking from cache or fetched in background
   const enrichConversations = useCallback(
-    async (conversations: Conversation[]): Promise<Conversation[]> => {
+    async (conversations: Conversation[], options: { skipUserDataFetch?: boolean } = {}): Promise<Conversation[]> => {
       if (!conversations || conversations.length === 0) {
         return conversations
       }
@@ -43,23 +44,23 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           conv.participants?.forEach(p => {
             if (p.user?.id) {
               allParticipantIds.add(p.user.id)
-              // Check for placeholder email pattern
-              if (p.user?.email?.includes('@placeholder.local')) {
+              // Check for placeholder email pattern (only if not skipping)
+              if (!options.skipUserDataFetch && p.user?.email?.includes('@placeholder.local')) {
                 placeholderUserIds.add(p.user.id)
               }
             }
           })
         })
 
-        // Fetch avatars and employeeIds for ALL participants (parallel request)
-        const employeeInfoMapPromise = fetchAvatarsWithEmployeeIds(Array.from(allParticipantIds))
+        // Get avatars and employeeIds non-blocking (returns cached + triggers background fetch)
+        const employeeInfoMap = requestAvatars(Array.from(allParticipantIds))
 
-        // Fetch real user data only for placeholder users (parallel request)
-        const userDataMapPromise =
-          placeholderUserIds.size > 0 ? getUsersByIds(Array.from(placeholderUserIds)) : Promise.resolve(new Map())
-
-        // Wait for both requests to complete
-        const [employeeInfoMap, userDataMap] = await Promise.all([employeeInfoMapPromise, userDataMapPromise])
+        // Fetch real user data only for placeholder users
+        // Skip entirely if flag is set or no placeholder users found
+        const userDataMap =
+          !options.skipUserDataFetch && placeholderUserIds.size > 0
+            ? await getUsersByIds(Array.from(placeholderUserIds))
+            : new Map()
 
         // Enrich conversations with user data, avatars, and employeeIds
         const enrichedConversations = conversations.map(
@@ -107,12 +108,60 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         )
 
         return enrichedConversations
-      } catch (error) {
-        console.error('Error enriching conversations with user data:', error)
+      } catch {
         return conversations
       }
     },
-    [getUsersByIds, fetchAvatarsWithEmployeeIds]
+    [getUsersByIds, requestAvatars]
+  )
+
+  // Fast enrichment - only adds avatars (non-blocking), no user data fetch
+  // Use this when conversation already has complete user data (e.g., from getConversationById)
+  const enrichConversationsWithAvatarsOnly = useCallback(
+    (conversations: Conversation[]): Conversation[] => {
+      if (!conversations || conversations.length === 0) {
+        return conversations
+      }
+
+      try {
+        // Extract all participant user IDs
+        const allParticipantIds = new Set<string>()
+        conversations.forEach(conv => {
+          conv.participants?.forEach(p => {
+            if (p.user?.id) {
+              allParticipantIds.add(p.user.id)
+            }
+          })
+        })
+
+        // Get avatars non-blocking (returns cached + triggers background fetch)
+        const employeeInfoMap = requestAvatars(Array.from(allParticipantIds))
+
+        // Enrich conversations with avatars and employeeIds (synchronous, from cache)
+        return conversations.map(
+          (conv: Conversation): Conversation => ({
+            ...conv,
+            participants: conv.participants?.map((p: ConversationParticipant) => {
+              const employeeInfo = employeeInfoMap.get(p?.user?.id || '')
+              if (employeeInfo && p?.user) {
+                return {
+                  ...p,
+                  user: {
+                    ...p.user,
+                    avatarUrl: employeeInfo.avatarUrl || p.user.avatarUrl,
+                    employeeId: employeeInfo.employeeId || p.user.employeeId
+                  }
+                }
+              }
+              return p
+            })
+          })
+        )
+      } catch {
+        return conversations
+      }
+    },
+    [requestAvatars]
   )
 
   const loadConversations = useCallback(async () => {
@@ -132,8 +181,12 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       // Check if there are more conversations to load
       setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
 
-      // Enrich conversations with real user data from User Management Service
-      const enrichedConversations = await enrichConversations(conversationsData)
+      // For initial load, use fast avatar-only enrichment (synchronous, no blocking)
+      // The API returns full user data, so we don't need to fetch placeholder users
+      // This prevents the "no conversation" flash while waiting for enrichment
+      const enrichedConversations = !hasLoadedOnce
+        ? enrichConversationsWithAvatarsOnly(conversationsData)
+        : await enrichConversations(conversationsData)
 
       // Sort by most recent activity (lastMessage or updatedAt)
       const sortedConversations = enrichedConversations.sort((a, b) => {
@@ -142,11 +195,13 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         return new Date(bTime).getTime() - new Date(aTime).getTime()
       })
 
+      // Set conversations and clear loading in same tick to prevent flash
       setConversations(sortedConversations)
+      setHasLoadedOnce(true)
+      setIsLoading(false)
+      isLoadingRef.current = false
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load conversations'))
-      console.error('Error loading conversations:', err)
-    } finally {
       setIsLoading(false)
       isLoadingRef.current = false
     }
@@ -172,8 +227,8 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       // Append to existing conversations
       setConversations(prev => [...prev, ...enrichedConversations])
       setCurrentPage(nextPage)
-    } catch (err) {
-      console.error('Error loading more conversations:', err)
+    } catch {
+      // Error loading more conversations
     } finally {
       setIsLoadingMore(false)
     }
@@ -195,10 +250,11 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   }, [])
 
   const addConversation = useCallback(
-    async (conversation: Conversation): Promise<Conversation> => {
-      // Enrich the new conversation with real user data
-      const enriched = await enrichConversations([conversation])
-      const enrichedConversation = enriched[0] || conversation
+    async (conversation: Conversation, options: { fastEnrich?: boolean } = {}): Promise<Conversation> => {
+      // Fast enrichment (avatars only, non-blocking) or full enrichment (with user data fetch)
+      const enrichedConversation = options.fastEnrich
+        ? enrichConversationsWithAvatarsOnly([conversation])[0] || conversation
+        : (await enrichConversations([conversation]))[0] || conversation
 
       setConversations(prev => {
         // Check if conversation already exists
@@ -211,25 +267,22 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       // Return enriched conversation so caller can use it
       return enrichedConversation
     },
-    [enrichConversations]
+    [enrichConversations, enrichConversationsWithAvatarsOnly]
   )
 
   const updateConversationLastMessage = useCallback(
     async (conversationId: string, message: Message) => {
-      console.log(
-        '[useConversations] Updating last message for conversation:',
-        conversationId,
-        'Message:',
-        message.content?.substring(0, 30)
-      )
-
       setConversations(prev => {
-        // Check if conversation exists
-        const convExists = prev.some(c => c.id === conversationId)
+        // OPTIMIZATION: Find conversation index in single pass (faster than some() + map())
+        let convIndex = -1
+        for (let i = 0; i < prev.length; i++) {
+          if (prev[i].id === conversationId) {
+            convIndex = i
+            break
+          }
+        }
 
-        if (!convExists) {
-          console.warn('[useConversations] Conversation not found in list:', conversationId, '- fetching from API')
-
+        if (convIndex === -1) {
           // Trigger async fetch of the missing conversation
           // This happens when a message arrives for a conversation that's not in the paginated list
           if (apiClient) {
@@ -251,37 +304,36 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
                   })
                 })
               })
-              .catch(err => {
-                console.error('[useConversations] Failed to fetch missing conversation:', err)
+              .catch(() => {
+                // Failed to fetch missing conversation
               })
           }
 
           return prev
         }
 
-        // Update the conversation
-        const updated = prev.map(conv =>
-          conv.id === conversationId
-            ? {
-                ...conv,
-                lastMessage: message,
-                updatedAt: new Date().toISOString()
-              }
-            : conv
-        )
+        // OPTIMIZATION: Instead of map() + sort(), manually reorder
+        // If conversation is already at top (index 0), just update it - no sorting needed
+        if (convIndex === 0) {
+          const newArray = [...prev]
+          newArray[0] = {
+            ...prev[0],
+            lastMessage: message,
+            updatedAt: new Date().toISOString()
+          }
+          return newArray
+        }
 
-        // Re-sort by most recent activity (move updated conversation to top)
-        const sorted = updated.sort((a, b) => {
-          const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-          const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-          return new Date(bTime).getTime() - new Date(aTime).getTime()
-        })
+        // Otherwise, move conversation to top (it's the most recent now)
+        const updatedConv = {
+          ...prev[convIndex],
+          lastMessage: message,
+          updatedAt: new Date().toISOString()
+        }
 
-        console.log(
-          '[useConversations] Re-sorted conversations, top 3:',
-          sorted.slice(0, 3).map(c => ({ id: c.id, name: c.name || 'Direct' }))
-        )
-        return sorted
+        // Create new array with updated conversation at top, preserving order of others
+        const newArray = [updatedConv, ...prev.slice(0, convIndex), ...prev.slice(convIndex + 1)]
+        return newArray
       })
     },
     [apiClient, enrichConversations]
@@ -292,23 +344,27 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   }, [])
 
   const incrementUnreadCount = useCallback((conversationId: string) => {
-    console.log('[useConversations] Incrementing unread count for conversation:', conversationId)
     setConversations(prev => {
-      const convExists = prev.some(c => c.id === conversationId)
+      // OPTIMIZATION: Find and update in single pass (no some() + map())
+      let convIndex = -1
+      for (let i = 0; i < prev.length; i++) {
+        if (prev[i].id === conversationId) {
+          convIndex = i
+          break
+        }
+      }
 
-      if (!convExists) {
-        console.warn('[useConversations] Cannot increment unread count - conversation not in list:', conversationId)
+      if (convIndex === -1) {
         return prev
       }
 
-      return prev.map(conv => {
-        if (conv.id === conversationId) {
-          const newCount = (conv.unreadCount || 0) + 1
-          console.log('[useConversations] New unread count for', conversationId, ':', newCount)
-          return { ...conv, unreadCount: newCount }
-        }
-        return conv
-      })
+      // Update only the found conversation (avoids full array map)
+      const newArray = [...prev]
+      newArray[convIndex] = {
+        ...prev[convIndex],
+        unreadCount: (prev[convIndex].unreadCount || 0) + 1
+      }
+      return newArray
     })
   }, [])
 
@@ -322,6 +378,16 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       loadConversations()
     }
   }, [enabled])
+
+  // Re-enrich conversations when avatars are loaded from cache
+  // Use fast enrichment to avoid re-fetching user data
+  useEffect(() => {
+    if (conversations.length > 0 && cacheVersion > 0) {
+      // Use fast avatar-only enrichment to avoid slow user data fetch
+      const enriched = enrichConversationsWithAvatarsOnly(conversations)
+      setConversations(enriched)
+    }
+  }, [cacheVersion, enrichConversationsWithAvatarsOnly])
 
   return {
     conversations,
@@ -337,6 +403,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
     markConversationAsRead,
     incrementUnreadCount,
     removeConversation,
-    enrichConversations // Export for use in websocket handlers
+    enrichConversations, // Export for use in websocket handlers (full enrichment with user data fetch)
+    enrichConversationsWithAvatarsOnly // Export for fast enrichment (avatars only, no blocking)
   }
 }

@@ -288,5 +288,3 @@ notification-expense-created-success = Cheltuiala a fost creată cu succes
 notification-sick-leave-reported-success = Concediul medical a fost raportat cu succes
 notification-special-leave-requested-success = Concediul special a fost solicitat cu succes
 notification-vacation-requested-success = Concediul de odihnă a fost solicitat cu succes
- notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
- notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR

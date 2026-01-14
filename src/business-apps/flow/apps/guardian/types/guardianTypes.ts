@@ -105,6 +105,8 @@ export interface GuardianNetworkData {
     totalDepartments: number
     lastUpdated: string
     viewMode: GuardianViewMode
+    /** Optional raw analytics used by some "advanced" cards */
+    analytics?: any
   }
 }
 
@@ -205,6 +207,8 @@ export interface GuardianDataHookParams {
 export interface GuardianDataHookResult {
   networkData: GuardianNetworkData | null
   statistics: GuardianStatistics | null
+  /** Combined ops-focused velocity insights (new Guardian experience) */
+  velocityInsights?: GuardianVelocityInsightsData | null
   auditData?: any
   isLoading: boolean
   error: string | null
@@ -262,5 +266,95 @@ export interface GuardianRealtimeEvent {
       from: string[]
       to: string[]
     }
+  }
+}
+
+// ======================================================================================
+// Velocity Insights (Ops-focused Guardian experience)
+// ======================================================================================
+
+export interface GuardianVelocityOverviewKpis {
+  /** Completed workflows per day (or per bucket, normalized to day) */
+  throughputPerDay: number
+  /** Number of currently active workflows */
+  wipActive: number
+  /** Median cycle time in minutes */
+  cycleTimeMedianMinutes: number
+  /** P90 cycle time in minutes */
+  cycleTimeP90Minutes: number
+  /** Percent of workflows meeting SLA (0-100) */
+  slaAdherencePercent: number
+  /** Number of flows likely to breach soon */
+  atRiskCount: number
+  /** Number of SLA breaches in the selected window */
+  slaBreaches: number
+}
+
+export type GuardianVelocityKpiDeltas = Partial<Record<keyof GuardianVelocityOverviewKpis, number>>
+
+export interface GuardianVelocityOverview {
+  kpis: GuardianVelocityOverviewKpis
+  /** Optional deltas vs previous comparable window (same duration) */
+  deltas?: GuardianVelocityKpiDeltas
+}
+
+export interface GuardianVelocityTimeseriesPoint {
+  bucketStart: string
+  bucketEnd?: string
+  throughputCompleted: number
+  wipActive: number
+  cycleTimeMedianMinutes: number
+  cycleTimeP90Minutes: number
+  slaBreaches: number
+}
+
+export interface GuardianBottleneckItem {
+  /** Stable key for drilldowns (hash of template/step/org) */
+  key: string
+  templateId?: string
+  templateName?: string
+  stepName: string
+  orgUnit?: string
+  avgTimeInStepMinutes: number
+  avgQueueMinutes?: number
+  affectedCount: number
+  /** Higher = worse (unitless score) */
+  impactScore: number
+}
+
+export type GuardianSlaRiskReasonCode = 'STALE_ACTIVITY' | 'QUEUE_TIME' | 'STEP_HOTSPOT' | 'CAPACITY_MISMATCH' | 'OVERDUE'
+
+export interface GuardianSlaRiskReason {
+  code: GuardianSlaRiskReasonCode
+  message: string
+}
+
+export interface GuardianSlaRiskItem {
+  flowId: string
+  templateId?: string
+  templateName?: string
+  stepName?: string
+  orgUnit?: string
+  /** 0-100 */
+  riskScore: number
+  reasons: GuardianSlaRiskReason[]
+  etaToBreachMinutes?: number
+  lastActivityTime?: string
+}
+
+export interface GuardianVelocityInsightsData {
+  overview: GuardianVelocityOverview
+  timeseries: GuardianVelocityTimeseriesPoint[]
+  bottlenecks: GuardianBottleneckItem[]
+  slaRisk: GuardianSlaRiskItem[]
+}
+
+export interface GuardianVelocityInsightsResponse {
+  status: 'success' | 'error'
+  data: GuardianVelocityInsightsData
+  metadata?: {
+    timeframe?: string
+    generatedAt?: string
+    filters?: Record<string, unknown>
   }
 }

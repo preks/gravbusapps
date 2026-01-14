@@ -185,22 +185,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
 
   // Handle status filter changes - use the hook's function (direct usage in handlers)
 
-  // Handle clicking on missing receipts card
-  const handleMissingReceiptsClick = useCallback(() => {
-    const isNoReceiptFilterActive = selectedFilters.includes('noreceiptfilter')
-
-    if (isNoReceiptFilterActive) {
-      // Deactivate missing receipts → remove only that filter
-      removeFilter('noreceiptfilter')
-    } else {
-      // Preserve currency filters while activating the missing receipts filter
-      const currencyFilters = selectedFilters.filter(f => f.startsWith('currency:'))
-      clearFilters()
-      currencyFilters.forEach(cf => addFilter(cf))
-      addFilter('noreceiptfilter')
-    }
-  }, [addFilter, removeFilter, selectedFilters, clearFilters])
-
   // Function to fetch statistics data specifically (kept for compatibility; will be replaced by hook usage)
   const {
     data: statsOverview,
@@ -334,7 +318,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     totalExpenses,
     previousMonthTotalExpenses,
     selectedFilters,
-    handleMissingReceiptsClick,
     statsLoading,
     statsError,
     fetchItemStatistics,
