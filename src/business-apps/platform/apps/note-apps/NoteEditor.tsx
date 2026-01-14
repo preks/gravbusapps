@@ -141,37 +141,37 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
         onClick={handleClick}
         onDragStart={() => setIsDragging(true)}
         onDragEnd={() => setTimeout(() => setIsDragging(false), 100)}
-        className={`entity-mention-card gba:inline-flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1 gba:rounded-lg gba:border gba:text-sm gba:font-medium gba:cursor-grab active:gba:cursor-grabbing gba:transition-all gba:duration-200 hover:gba:shadow-md gba:mx-0.5 gba:my-0.5 gba:select-none ${colors.bg} ${colors.border} ${colors.text} ${isDragging ? 'gba:opacity-50 gba:scale-95' : 'hover:gba:scale-[1.02]'}`}
+        className={`entity-mention-card gba:inline-flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:h-10 gba:rounded-lg gba:border gba:text-sm gba:font-medium gba:cursor-grab active:gba:cursor-grabbing gba:transition-all gba:duration-200 hover:gba:shadow-md gba:mx-0.5 gba:my-0.5 gba:select-none ${colors.bg} ${colors.border} ${colors.text} ${isDragging ? 'gba:opacity-50 gba:scale-95' : 'hover:gba:scale-[1.02]'}`}
         contentEditable={false}
         data-entity-id={id}
         data-entity-type={entityType}
         title={`Drag to move • Click to open ${label || 'entity'}`}
       >
         {/* Drag handle indicator */}
-        <span className="gba:flex gba:flex-col gba:gap-px gba:opacity-40 gba:mr-0.5">
+        <span className="gba:flex gba:flex-col gba:gap-px gba:opacity-40 gba:mr-0.5 gba:shrink-0">
           <span className="gba:w-1 gba:h-1 gba:rounded-full gba:bg-current"></span>
           <span className="gba:w-1 gba:h-1 gba:rounded-full gba:bg-current"></span>
         </span>
         
         {/* Icon/Avatar/Logo */}
-        <span className={`gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:rounded-md ${hasPicture ? '' : `${colors.bg}`}`}>
+        <span className={`gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-lg gba:overflow-hidden gba:shrink-0 ${hasPicture ? '' : `${colors.bg}`}`}>
           {hasPicture && pictureUrl ? (
             <img
               src={pictureUrl}
               alt={label}
-              className="gba:w-5 gba:h-5 gba:rounded-md gba:object-cover"
+              className="gba:w-8 gba:h-8 gba:rounded-lg gba:object-cover"
               onError={(e) => {
                 // Hide broken images
                 (e.target as HTMLImageElement).style.display = 'none'
               }}
             />
           ) : (
-            <Icon className="gba:w-3.5 gba:h-3.5" />
+            <Icon className="gba:w-5 gba:h-5" />
           )}
         </span>
         
         {/* Content */}
-        <span className="gba:flex gba:flex-col gba:leading-tight">
+        <span className="gba:flex gba:flex-col gba:leading-tight gba:justify-center">
           <span className="gba:font-semibold gba:truncate gba:max-w-[150px]">{label || 'Unknown'}</span>
           {subtitle && (
             <span className="gba:text-[10px] gba:opacity-70 gba:truncate gba:max-w-[150px]">{subtitle}</span>
@@ -179,7 +179,7 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
         </span>
         
         {/* Type indicator */}
-        <span className={`gba:text-[9px] gba:font-bold gba:px-1.5 gba:py-0.5 gba:rounded gba:uppercase gba:tracking-wider gba:opacity-60`}>
+        <span className={`gba:text-[9px] gba:font-bold gba:px-1.5 gba:py-0.5 gba:rounded gba:uppercase gba:tracking-wider gba:opacity-60 gba:shrink-0`}>
           {entityType.replace(/_/g, ' ').split(' ')[0]}
         </span>
       </span>

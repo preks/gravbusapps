@@ -365,14 +365,14 @@ export const MentionSuggestionList = forwardRef<MentionSuggestionListRef, Mentio
                     <img
                       src={pictureUrl}
                       alt={item.name}
-                      className="gba:w-7 gba:h-7 gba:rounded-md gba:object-cover"
+                      className="gba:w-9 gba:h-9 gba:rounded-lg gba:object-cover"
                       onError={(e) => {
                         // Hide broken images and show icon instead
                         (e.target as HTMLImageElement).style.display = 'none'
                       }}
                     />
                   ) : (
-                    <Icon className={`gba:w-4 gba:h-4 ${colors.text}`} />
+                    <Icon className={`gba:w-5 gba:h-5 ${colors.text}`} />
                   )}
                 </div>
 
