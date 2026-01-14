@@ -244,7 +244,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     const accessToken = context?.accessToken
 
     if (!employeeId || !accessToken) {
-      console.warn('Missing employeeId or accessToken for advance payments query')
       return null
     }
 
@@ -514,7 +513,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         if (abortControllerRef.current !== controller || controller.signal.aborted) {
           return
         }
-        console.error('Error fetching advance payments:', err)
         setError(err instanceof Error ? err : new Error(String(err)))
         setItems([])
         setTotalCount(0)

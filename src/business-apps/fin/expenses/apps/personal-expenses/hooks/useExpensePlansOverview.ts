@@ -173,12 +173,11 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
           items: result?.plans ?? [],
           totalCount: result?.plansAggregate?.aggregate?.count ?? 0
         }
-      } catch (err) {
+      } catch {
         // We can't abort the underlying fetch without client support; ignore stale results instead.
         if (abortControllerRef.current !== controller || controller.signal.aborted) {
           return { items: [], totalCount: 0 }
         }
-        console.error('Error fetching expense plans list:', err)
         return { items: [], totalCount: 0 }
       }
     },
@@ -293,12 +292,11 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
         }
 
         return processStatisticsData(result)
-      } catch (err) {
+      } catch {
         // We can't abort the underlying fetch without client support; ignore stale results instead.
         if (statsAbortControllerRef.current !== controller || controller.signal.aborted) {
           return null
         }
-        console.error('Error fetching expense plans statistics:', err)
         return null
       }
     },
@@ -355,12 +353,11 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
         }
 
         return processDestinationData(result)
-      } catch (err) {
+      } catch {
         // We can't abort the underlying fetch without client support; ignore stale results instead.
         if (destinationsAbortControllerRef.current !== controller || controller.signal.aborted) {
           return null
         }
-        console.error('Error fetching expense plans destinations:', err)
         return null
       }
     },
@@ -533,9 +530,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
                 setIsStatisticsLoading(false) // Stop statistics loading once data is set
               }
             })
-            .catch(err => {
-              // Don't show error for statistics - just log it
-              console.error('Error fetching statistics (non-blocking):', err)
+            .catch(() => {
               setIsStatisticsLoading(false) // Stop loading on error too
             })
 
@@ -549,9 +544,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
               .then(destinationData => {
                 handleDestinationFetch(destinationData, requestId, cacheKey)
               })
-              .catch(err => {
-                // Don't show error for destinations - just log it
-                console.error('Error fetching destinations (non-blocking):', err)
+              .catch(() => {
                 setIsDestinationLoading(false)
               })
           } else {

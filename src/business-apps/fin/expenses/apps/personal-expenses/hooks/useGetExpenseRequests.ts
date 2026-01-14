@@ -255,16 +255,12 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       try {
         const variables = buildVariables(employeeId, filters, page, pageSize, sortField, sortOrder)
 
-        const requestStartTime = performance.now()
         const requestPromise = client.request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables).finally(() => {
           inflightRef.current.delete(requestKey)
         })
 
         inflightRef.current.set(requestKey, requestPromise)
         const data = await requestPromise
-
-        const requestDuration = performance.now() - requestStartTime
-        console.log(`ExpenseRequests: GraphQL request completed in ${requestDuration.toFixed(2)}ms`)
 
         processResponseData(data, cacheKey)
       } catch (err) {
