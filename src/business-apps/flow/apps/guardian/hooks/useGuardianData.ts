@@ -64,12 +64,9 @@ export const useGuardianData = ({
           case '7d':
             startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
             break
-          case '30d':
-            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-            break
-          case 'all':
+          // Guardrail: audit-based timelines are limited to 7 days max
           default:
-            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) // Default to 30 days
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
             break
         }
 

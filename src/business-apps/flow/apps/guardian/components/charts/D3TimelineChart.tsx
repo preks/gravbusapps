@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, useState } from 'react'
 import * as d3 from 'd3'
 import { GuardianFilter, GuardianNetworkData } from '../../types/guardianTypes'
 
@@ -27,7 +27,6 @@ interface D3TimelineChartProps {
   networkData?: GuardianNetworkData | null
   dimensions: { width: number; height: number }
   filters: GuardianFilter
-  isRealTime: boolean
   onError: (error: string) => void
   prefixDataTestId: string
 }
@@ -37,18 +36,29 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
   networkData,
   dimensions,
   filters,
-  isRealTime,
   onError,
   prefixDataTestId
 }) => {
   const svgRef = useRef<SVGSVGElement>(null)
+  const [svgSize, setSvgSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 })
   const mountedRef = useRef(true)
 
   const renderTimeline = useCallback(() => {
     const svg = d3.select(svgRef.current)
     if (!svg.node()) return
 
-    const { width, height } = dimensions
+    // Measure the actual rendered SVG size. This avoids relying on upstream container measurements
+    // that can be wrong on first paint in the platform (causing a centered ~800px chart).
+    const rect = (svgRef.current as any)?.getBoundingClientRect?.()
+    const measuredWidth = rect ? Math.round(rect.width) : 0
+    const measuredHeight = rect ? Math.round(rect.height) : 0
+
+    const width = measuredWidth || svgSize.width || dimensions.width
+    const height = measuredHeight || svgSize.height || dimensions.height
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width < 50 || height < 50) return
+
+    // Ensure the internal coordinate system matches the actual pixel size.
+    svg.attr('viewBox', `0 0 ${width} ${height}`)
 
     // Clear previous render
     svg.selectAll('*').remove()
@@ -65,6 +75,68 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
       e.workflowStatus ||
       e.details?.task_conductor_status ||
       'UNKNOWN'
+
+    const normalizeTense = (token: string): string => {
+      const t = upper(token).trim()
+      if (!t) return 'UNKNOWN'
+      if (t === 'UPDATE' || t === 'UPDATED') return 'UPDATED'
+      if (t === 'COMMENT' || t === 'COMMENTED') return 'COMMENTED'
+      if (t === 'COMPLETE' || t === 'COMPLETED') return 'COMPLETED'
+      if (t === 'START' || t === 'STARTED' || t === 'CREATED' || t === 'CREATE') return 'STARTED'
+      if (t === 'ASSIGN' || t === 'ASSIGNED') return 'ASSIGNED'
+      if (t === 'CLAIM' || t === 'CLAIMED') return 'CLAIMED'
+      if (t === 'REJECT' || t === 'REJECTED') return 'REJECTED'
+      if (t === 'FAIL' || t === 'FAILED') return 'FAILED'
+      if (t === 'CANCEL' || t === 'CANCELED' || t === 'CANCELLED') return 'CANCELED'
+      return t
+    }
+
+    const normalizeActionLabel = (rawAction: string): string => {
+      const raw = upper(rawAction)
+      if (!raw) return 'TASK UNKNOWN'
+
+      // Split on underscores and whitespace, keep alphanumerics.
+      const words = raw
+        .replace(/[^A-Z0-9_ ]+/g, ' ')
+        .replace(/_+/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean)
+
+      const hasFlowWord = words.includes('FLOW') || words.includes('WORKFLOW')
+      const hasTaskWord = words.includes('TASK')
+
+      // Pick a primary verb-like token for consistent tense.
+      const verbCandidates = [
+        'COMMENT',
+        'COMMENTED',
+        'UPDATE',
+        'UPDATED',
+        'COMPLETE',
+        'COMPLETED',
+        'START',
+        'STARTED',
+        'CREATE',
+        'CREATED',
+        'ASSIGN',
+        'ASSIGNED',
+        'CLAIM',
+        'CLAIMED',
+        'REJECT',
+        'REJECTED',
+        'FAIL',
+        'FAILED',
+        'CANCEL',
+        'CANCELED',
+        'CANCELLED'
+      ]
+
+      const found = verbCandidates.find(v => words.includes(v))
+      const verb = normalizeTense(found || words[0] || 'UNKNOWN')
+
+      if (hasFlowWord) return `FLOW ${verb}`
+      if (hasTaskWord) return `TASK ${verb}`
+      return `TASK ${verb}`
+    }
 
     // Use real audit events; do not generate mock/random data.
     const events: TimelineEvent[] = (auditData?.entries || []).map((e: any, idx: number) => ({
@@ -83,7 +155,7 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
       flowName: e.flowName || e.rootWorkflowName || e.workflowName || 'Unknown Flow',
       taskId: e.taskId || e.task?.id || 'unknown',
       taskName: e.taskName || e.task?.name || e.details?.taskName || 'Unknown Task',
-      action: resolveAction(e),
+      action: normalizeActionLabel(resolveAction(e)),
       status: resolveStatus(e),
       details: e.details
     }))
@@ -146,7 +218,7 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
         synthetic.push({
           ...first,
           id: `flow-start-${flowId}`,
-          action: 'FLOW_STARTED',
+          action: 'FLOW STARTED',
           status: 'STARTED',
           taskId: '—',
           taskName: 'Flow started'
@@ -160,7 +232,7 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
         synthetic.push({
           ...completionCandidate,
           id: `flow-complete-${flowId}`,
-          action: 'FLOW_COMPLETED',
+          action: 'FLOW COMPLETED',
           status: 'COMPLETED',
           taskId: '—',
           taskName: 'Flow completed'
@@ -172,9 +244,11 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
       .map(e => ({ ...e, date: e.date instanceof Date ? e.date : new Date(e.timestamp) }))
       .sort((a, b) => a.date.getTime() - b.date.getTime())
 
-    // Always group by event/action state (not by flow) so the "event states" stay consistent
-    // when switching timeframes. Flow identity stays available via tooltip.
-    const laneMode: 'flow' | 'action' = 'action'
+    // Choose a lane strategy:
+    // - If there are few flows, group by flow (best mental model)
+    // - Otherwise, group by action (keeps lanes readable while still showing ALL events)
+    const flowCount = new Set(allEvents.map(e => String(e.flowId || 'unknown'))).size
+    const laneMode: 'flow' | 'action' = flowCount <= 12 ? 'flow' : 'action'
 
     // Reduce unused space on the left by using smaller margins + truncated labels
     const margin = {
@@ -188,17 +262,13 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
 
     // Create scales
     const fallbackExtent = d3.extent(allEvents, d => d.date) as [Date, Date]
-    const wStartRaw = auditData?.window?.startDate
-    const wEndRaw = auditData?.window?.endDate
-    const wStart = wStartRaw ? new Date(wStartRaw) : null
-    const wEnd = wEndRaw ? new Date(wEndRaw) : null
 
     // Strategy: zoom IN on actual event extent, not the full filter window
     // This spreads events across the chart width instead of bunching them
     const eventExtentStart = fallbackExtent[0] || new Date(Date.now() - 60 * 60 * 1000)
     const eventExtentEnd = fallbackExtent[1] || new Date()
     const eventSpanMs = Math.max(1, eventExtentEnd.getTime() - eventExtentStart.getTime())
-    
+
     // Add 10% padding on each side of the event extent for the "90% zoom"
     // This ensures events fill 90% of the chart width with 5% margin on each side
     const paddingMs = Math.max(60_000, Math.round(eventSpanMs * 0.111)) // 10% padding = 90% content
@@ -232,22 +302,24 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
       laneStats.set(k, cur)
     }
 
+    // Stable, logical lane order. Requirement:
+    // - Comment after Updated and before Complete
+    // - Flow lifecycle uses "FLOW STARTED/COMPLETED" (no underscores)
+    // - Task events use "TASK <PAST_TENSE>" consistently
+    // - FLOW COMPLETED should always be last
     const actionOrder: Record<string, number> = {
-      FLOW_STARTED: 10,
-      STARTED: 12,
-      START: 15,
-      CREATED: 18,
-      ASSIGN: 20,
-      CLAIM: 30,
-      REASSIGN: 35,
-      UPDATED: 40,
-      UPDATE: 40,
-      COMPLETE: 50,
-      COMPLETED: 52,
-      FLOW_COMPLETED: 60,
-      OVERDUE: 80,
-      FAILED: 90,
-      REJECTED: 95
+      'FLOW STARTED': 10,
+      'TASK ASSIGNED': 20,
+      'TASK CLAIMED': 30,
+      'TASK UPDATED': 40,
+      'TASK COMMENTED': 45,
+      'TASK COMPLETED': 50,
+      'TASK TIMED_OUT': 70,
+      'TASK OVERDUE': 80,
+      'TASK FAILED': 90,
+      'TASK REJECTED': 95,
+      'TASK CANCELED': 98,
+      'FLOW COMPLETED': 1_000_000
     }
 
     const lanes = Array.from(laneStats.entries())
@@ -272,28 +344,26 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
     // Add lane axis (y-axis with event/action labels)
-    const yAxisG = g.append('g')
+    const yAxisG = g
+      .append('g')
       .attr('class', 'y-axis')
       .call(
-        d3
-          .axisLeft(yScale)
-          .tickFormat((k: any) => {
-            const meta = laneStats.get(String(k))
-            const label = meta ? meta.label : String(k)
-            return truncate(String(label))
-          })
+        d3.axisLeft(yScale).tickFormat((k: any) => {
+          const meta = laneStats.get(String(k))
+          const label = meta ? meta.label : String(k)
+          return truncate(String(label))
+        })
       )
-    
-    yAxisG.selectAll('text')
+
+    yAxisG
+      .selectAll('text')
       .style('fill', '#e5e7eb')
       .style('font-size', '12px')
       .style('font-weight', '500')
       .attr('dx', '-8')
       .attr('dy', '0.32em')
-    
-    yAxisG.selectAll('path, line')
-      .style('stroke', '#374151')
-      .style('opacity', 0.5)
+
+    yAxisG.selectAll('path, line').style('stroke', '#374151').style('opacity', 0.5)
 
     // Color events by status/action (more consistent than department)
     const getEventColor = (event: any): string => {
@@ -310,10 +380,10 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
         return '#f59e0b' // Yellow/Amber
       }
 
-      if (action === 'FLOW_COMPLETED') return '#10b981'
-      if (action === 'FLOW_STARTED') return '#60a5fa'
-      if (status === 'COMPLETED' || action === 'COMPLETE') return '#10b981'
-      if (status === 'IN_PROGRESS' || action === 'CLAIM' || action === 'ASSIGN') return '#60a5fa'
+      if (action === 'FLOW COMPLETED') return '#10b981'
+      if (action === 'FLOW STARTED') return '#60a5fa'
+      if (status === 'COMPLETED' || action.includes('COMPLETED')) return '#10b981'
+      if (status === 'IN_PROGRESS' || action.includes('CLAIMED') || action.includes('ASSIGNED')) return '#60a5fa'
       if (status === 'SCHEDULED') return '#a78bfa'
       return '#e5e7eb'
     }
@@ -428,15 +498,11 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
     // Axis styling + gridlines
     xAxisG.selectAll('text').style('fill', '#9ca3af').style('font-size', '11px')
     xAxisG.selectAll('path.domain').style('stroke', '#374151').style('opacity', 0.8)
-    xAxisG
-      .selectAll('line')
-      .style('stroke', '#374151')
-      .style('opacity', 0.25)
-      .style('shape-rendering', 'crispEdges')
+    xAxisG.selectAll('line').style('stroke', '#374151').style('opacity', 0.25).style('shape-rendering', 'crispEdges')
 
     // Style axes
     g.selectAll('.y-axis path, .y-axis line').style('stroke', '#374151')
-  }, [auditData, networkData, dimensions, filters])
+  }, [auditData, networkData, dimensions, filters, svgSize.width, svgSize.height])
 
   useEffect(() => {
     if (!mountedRef.current) return
@@ -448,6 +514,28 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
       onError(error instanceof Error ? error.message : 'Failed to render timeline')
     }
   }, [renderTimeline, onError])
+
+  // Track actual SVG size with ResizeObserver (covers layout changes without window resize).
+  useEffect(() => {
+    const node = svgRef.current
+    if (!node || typeof ResizeObserver === 'undefined') return
+
+    const ro = new ResizeObserver(() => {
+      const r = node.getBoundingClientRect()
+      const w = Math.round(r.width)
+      const h = Math.round(r.height)
+      if (w > 0 && h > 0) setSvgSize({ width: w, height: h })
+    })
+    ro.observe(node)
+
+    // Kick once after mount
+    const r0 = node.getBoundingClientRect()
+    const w0 = Math.round(r0.width)
+    const h0 = Math.round(r0.height)
+    if (w0 > 0 && h0 > 0) setSvgSize({ width: w0, height: h0 })
+
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -462,12 +550,8 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
         ref={svgRef}
         width="100%"
         height="100%"
-        viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{
-          background: 'rgba(15, 23, 42, 0.3)',
-          display: 'block'
-        }}
+        className="gba:bg-card/30 gba:block"
         data-testid={`${prefixDataTestId}-timeline-svg`}
       />
     </div>

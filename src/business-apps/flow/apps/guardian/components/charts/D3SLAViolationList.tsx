@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, Button } from '@newwork/nw-design-system'
 import { GuardianFilter } from '../../types/guardianTypes'
 
 interface SLAViolation {
@@ -24,8 +24,6 @@ interface D3SLAViolationListProps {
 
 export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
   workflowData,
-  dimensions,
-  filters,
   grouping = 'flow',
   prefixDataTestId,
   pageSize = 5
@@ -57,7 +55,16 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
     // Fallback: current SLA risk queue (due soon / overdue)
     if (Array.isArray(slaRisk) && slaRisk.length > 0) {
       const mapped: SLAViolation[] = slaRisk.slice(0, 50).map((it: any, idx: number) => {
-        const eta = typeof it.etaToBreachMinutes === 'number' ? it.etaToBreachMinutes : undefined
+        // Some backends may not provide etaToBreachMinutes; derive it from dueDate when possible.
+        const dueRaw = it.dueDate || it.due_date || it.due_date_utc || it.due || it.dueAt || it.due_at
+        const etaFromField = typeof it.etaToBreachMinutes === 'number' ? it.etaToBreachMinutes : undefined
+        const eta =
+          etaFromField !== undefined
+            ? etaFromField
+            : dueRaw
+              ? Math.round((new Date(dueRaw).getTime() - Date.now()) / 60000)
+              : undefined
+
         const overdueHours = eta !== undefined && eta < 0 ? Math.abs(eta) / 60 : 0
         const riskScore = typeof it.riskScore === 'number' ? it.riskScore : 0
 
@@ -69,7 +76,8 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
           // Reuse the same visual language: show "risk" as the % chip
           violationRate: Math.max(0, Math.min(100, riskScore)),
           avgOverdueHours: Math.round(overdueHours * 10) / 10,
-          totalTasks: 1,
+          totalTasks: typeof it.totalTasks === 'number' ? it.totalTasks : 1,
+          // For the risk queue, treat "breaches" as currently overdue items.
           slaViolations: overdueHours > 0 ? 1 : 0
         }
       })
@@ -89,12 +97,6 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
     setPage(0)
   }, [items.length])
 
-  const rowTint = (rate: number): { border: string; bg: string; chip: string } => {
-    if (rate > 50) return { border: '#7f1d1d', bg: '#1a0f12', chip: '#ef4444' }
-    if (rate > 20) return { border: '#7c2d12', bg: '#1a1308', chip: '#f59e0b' }
-    return { border: '#374151', bg: '#111827', chip: '#eab308' }
-  }
-
   const safePageSize = Math.max(1, Math.floor(pageSize))
   const totalPages = Math.max(1, Math.ceil(items.length / safePageSize))
   const pageIndex = Math.min(Math.max(0, page), totalPages - 1)
@@ -103,59 +105,43 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
   return (
     <div
       data-testid={`${prefixDataTestId}-container`}
-      style={{
-        width: '100%',
-        height: 'auto',
-        padding: 16,
-        background: 'rgba(15, 23, 42, 0.3)', // Match card background
-        overflow: 'hidden'
-      }}
+      className="gba:w-full gba:h-auto gba:p-4 gba:bg-card/30 gba:overflow-hidden gba:rounded-lg"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="gba:flex gba:flex-col gba:gap-3">
         {pagedItems.map(it => {
-          const tint = rowTint(it.violationRate)
           return (
             <div
               key={it.id}
               data-testid={`${prefixDataTestId}-row-${it.id}`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                border: `1px solid ${tint.border}`,
-                background: tint.bg,
-                borderRadius: 8,
-                padding: 12
-              }}
+              className="gba:flex gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-card/30 gba:p-3"
             >
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 8,
-                  background: tint.chip + '22',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: tint.chip,
-                  fontWeight: 700
-                }}
-              >
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-lg gba:bg-muted gba:text-foreground gba:font-bold">
                 {Math.round(it.violationRate)}%
               </div>
 
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#e5e7eb', fontWeight: 600 }}>
+              <div className="gba:flex-1">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <span className="gba:text-foreground gba:font-semibold">
                     {grouping === 'task' ? it.stepName : it.flowName}
                   </span>
-                  <Badge variant="outline" style={{ borderColor: tint.chip, color: tint.chip }}>
-                    {grouping === 'task' ? it.flowName : it.stepName}
+                  <Badge variant="outline" className="gba:max-w-64 gba:overflow-hidden">
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        verticalAlign: 'bottom'
+                      }}
+                      title={grouping === 'task' ? it.flowName : it.stepName}
+                    >
+                      {grouping === 'task' ? it.flowName : it.stepName}
+                    </span>
                   </Badge>
                 </div>
-                <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>
-                  {it.department} • Avg overdue {it.avgOverdueHours}h • {it.totalTasks} tasks • {it.slaViolations}{' '}
-                  breaches
+                <div className="gba:text-muted-foreground gba:text-xs gba:mt-0.5">
+                  {it.department} • {it.totalTasks} tasks
                 </div>
               </div>
             </div>
@@ -164,41 +150,31 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
       </div>
 
       {items.length > safePageSize ? (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-          <div style={{ color: '#9ca3af', fontSize: 12 }}>
+        <div className="gba:flex gba:items-center gba:justify-between gba:mt-3">
+          <div className="gba:text-muted-foreground gba:text-xs">
             Page {pageIndex + 1}/{totalPages} • {items.length} total
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
+          <div className="gba:flex gba:gap-2">
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={pageIndex === 0}
-              style={{
-                padding: '6px 10px',
-                borderRadius: 8,
-                border: '1px solid rgba(148, 163, 184, 0.2)',
-                background: pageIndex === 0 ? 'rgba(15,23,42,0.25)' : 'rgba(15,23,42,0.45)',
-                color: pageIndex === 0 ? '#6b7280' : '#e5e7eb',
-                cursor: pageIndex === 0 ? 'not-allowed' : 'pointer'
-              }}
+              data-testid={`${prefixDataTestId}-prev-page`}
             >
               Prev
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={pageIndex >= totalPages - 1}
-              style={{
-                padding: '6px 10px',
-                borderRadius: 8,
-                border: '1px solid rgba(148, 163, 184, 0.2)',
-                background: pageIndex >= totalPages - 1 ? 'rgba(15,23,42,0.25)' : 'rgba(15,23,42,0.45)',
-                color: pageIndex >= totalPages - 1 ? '#6b7280' : '#e5e7eb',
-                cursor: pageIndex >= totalPages - 1 ? 'not-allowed' : 'pointer'
-              }}
+              data-testid={`${prefixDataTestId}-next-page`}
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
