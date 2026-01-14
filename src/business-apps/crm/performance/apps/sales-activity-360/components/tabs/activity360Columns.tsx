@@ -32,6 +32,8 @@ import {
   getScoreBadgeVariant
 } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { ActivityBadge } from '@/business-apps/crm/personal/apps/my-sales-manager/components/my-activities/ActivityBadge'
+import type { MySalesActivity } from '@/business-apps/crm/personal/apps/my-sales-manager/types'
 
 // Format date with time
 const formatDateTime = (date: string | Date) => {
@@ -265,22 +267,42 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
       )
     }
   },
-  // 3. Reference Column
+  // 3. Reference/Entity Column with Badge for unlinked activities
   {
     id: 'reference',
-    header: 'Reference',
+    header: 'Entity',
     size: 200,
     enableSorting: false,
     cell: ({ row }) => {
       const activity = row.original
+
+      // Convert to MySalesActivity format for ActivityBadge
+      const activityForBadge: MySalesActivity = {
+        id: activity.id,
+        title: activity.title,
+        description: activity.description || '',
+        occurredAt: activity.occurredAt,
+        createdAt: activity.createdAt,
+        activityType: activity.activityType,
+        accountId: activity.accountId,
+        account: activity.account,
+        contactId: activity.contactId,
+        contact: activity.contact,
+        leadId: activity.leadId,
+        lead: activity.lead,
+        opportunityId: activity.opportunityId,
+        opportunity: activity.opportunity
+      }
+
+      // Check if unlinked
+      const isUnlinked = !activity.accountId && !activity.contactId && !activity.leadId && !activity.opportunityId
+
+      if (isUnlinked) {
+        return <ActivityBadge activity={activityForBadge} data-testid={`activity360-badge-${activity.id}`} />
+      }
+
       const entityName = getEntityName(activity)
       const entityType = getEntityType(activity)
-
-      const hasReference = entityName !== 'No reference' && entityType !== 'No reference'
-
-      if (!hasReference) {
-        return <span className="gba:text-sm gba:text-muted-foreground gba:italic">No reference</span>
-      }
 
       const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation()

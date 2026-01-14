@@ -178,6 +178,15 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
         iconBg: 'gba:bg-muted',
         iconColor: 'gba:text-muted-foreground',
         count: stats?.byContact
+      },
+      {
+        id: 'by-general',
+        title: 'General Activities',
+        subtitle: 'Unlinked activities',
+        icon: <ListBulletsIcon className="gba:w-5 gba:h-5" />,
+        iconBg: 'gba:bg-secondary',
+        iconColor: 'gba:text-secondary-foreground',
+        count: stats?.byGeneral
       }
     ],
     [stats]
