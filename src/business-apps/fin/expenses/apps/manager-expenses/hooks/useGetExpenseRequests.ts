@@ -177,6 +177,73 @@ export const useGetExpenseRequests = ({
   } | null>(null)
 
   /**
+   * Maps status values to valid GraphQL status values
+   * Reduces cognitive complexity by extracting status mapping logic
+   */
+  const mapStatusValues = useCallback((statusValues: string[]): string[] => {
+    const validStatuses = [
+      'PENDING',
+      'APPROVED',
+      'VERIFIED',
+      'BOOKED',
+      'TRANSFERRED',
+      'PAID',
+      'CLOSED',
+      'RETURNED',
+      'REJECTED'
+    ]
+
+    return statusValues.map(statusValue => {
+      if (validStatuses.includes(statusValue.toUpperCase())) {
+        return statusValue.toUpperCase()
+      }
+      if (statusValue.toLowerCase() === 'in_approval') {
+        return 'PENDING'
+      }
+      return statusValue
+    })
+  }, [])
+
+  /**
+   * Builds orderBy array from sortBy string
+   * Reduces cognitive complexity by extracting orderBy parsing logic
+   */
+  const buildOrderByFromSortString = useCallback((sortBy: string): any[] | undefined => {
+    if (!sortBy || sortBy === 'none') {
+      return sortBy === 'none' ? undefined : [{ requestDate: 'DESC' }]
+    }
+
+    const [field, order] = sortBy.split(':')
+    if (!field || !order) {
+      return [{ requestDate: 'DESC' }]
+    }
+
+    const orderDirection = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
+
+    // Handle nested fields like 'employee.fullName'
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.')
+      if (parent === 'employee' && child === 'fullName') {
+        return [{ employee: { firstName: orderDirection } }, { employee: { lastName: orderDirection } }]
+      }
+      return [{ [parent]: { [child]: orderDirection } }]
+    }
+
+    // Handle specific field mappings
+    const fieldMap: Record<string, string> = {
+      amount: 'totalAmount',
+      requestDate: 'requestDate',
+      status: 'status',
+      title: 'title',
+      startDate: 'startDate',
+      endDate: 'endDate'
+    }
+
+    const mappedField = fieldMap[field] || field
+    return [{ [mappedField]: orderDirection }]
+  }, [])
+
+  /**
    * Maps GraphQL response data to ExpenseRequest array
    */
   const mapResponseToRequests = (data: any): ExpenseRequest[] => {
@@ -290,80 +357,17 @@ export const useGetExpenseRequests = ({
           whereClause._or = [{ title: { _ilike: `%${searchTerm}%` } }, { description: { _ilike: `%${searchTerm}%` } }]
         }
 
+        // Apply status filter using helper function
         if (status && status.length > 0) {
-          const mappedStatuses = status.map(statusValue => {
-            let actualStatus = statusValue
-
-            const validStatuses = [
-              'PENDING',
-              'APPROVED',
-              'VERIFIED',
-              'BOOKED',
-              'TRANSFERRED',
-              'PAID',
-              'CLOSED',
-              'RETURNED',
-              'REJECTED'
-            ]
-
-            if (validStatuses.includes(statusValue.toUpperCase())) {
-              actualStatus = statusValue.toUpperCase()
-            } else if (statusValue.toLowerCase() === 'in_approval') {
-              actualStatus = 'PENDING'
-            }
-
-            return actualStatus
-          })
-
+          const mappedStatuses = mapStatusValues(status)
           whereClause.status = { _in: mappedStatuses }
         } else {
           // Exclude CREATED status by default when no specific filter is provided
           whereClause.status = { _neq: 'CREATED' }
         }
 
-        // Parse the sortBy parameter to create orderBy array
-        let orderBy: any[] | undefined = [{ requestDate: 'DESC' }] // Default sorting
-        if (effectiveSortBy && effectiveSortBy !== 'none') {
-          const [field, order] = effectiveSortBy.split(':')
-          if (field && order) {
-            const orderDirection = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
-
-            // Handle nested fields like 'employee.fullName'
-            if (field.includes('.')) {
-              const [parent, child] = field.split('.')
-              // Try different approaches for nested field sorting
-              if (parent === 'employee' && child === 'fullName') {
-                // Try sorting by firstName and lastName separately
-                orderBy = [{ employee: { firstName: orderDirection } }, { employee: { lastName: orderDirection } }]
-              } else {
-                orderBy = [{ [parent]: { [child]: orderDirection } }]
-              }
-            } else if (field === 'amount') {
-              // The GraphQL server is receiving the correct sorting parameters
-              // but the sorting is still not working correctly. This suggests the issue
-              // is in the GraphQL server or database handling of the totalAmount field.
-              //
-              // Since the data is numeric but sorting isn't working, this appears to be
-              // a server-side issue with how the totalAmount field is handled for sorting.
-              orderBy = [{ totalAmount: orderDirection }]
-            } else if (field === 'requestDate') {
-              orderBy = [{ requestDate: orderDirection }]
-            } else if (field === 'status') {
-              orderBy = [{ status: orderDirection }]
-            } else if (field === 'title') {
-              orderBy = [{ title: orderDirection }]
-            } else if (field === 'startDate') {
-              orderBy = [{ startDate: orderDirection }]
-            } else if (field === 'endDate') {
-              orderBy = [{ endDate: orderDirection }]
-            } else {
-              orderBy = [{ [field]: orderDirection }]
-            }
-          }
-        } else if (effectiveSortBy === 'none') {
-          // No sorting - use natural order (no orderBy parameter)
-          orderBy = undefined
-        }
+        // Build orderBy using helper function
+        const orderBy = buildOrderByFromSortString(effectiveSortBy)
 
         const variables: any = {
           where: whereClause,
@@ -412,7 +416,16 @@ export const useGetExpenseRequests = ({
         setIsLoading(false)
       }
     },
-    [accessToken, supervisorEmployeeId, setIsLoading, setError, setRequests, setTotalCount]
+    [
+      accessToken,
+      supervisorEmployeeId,
+      setIsLoading,
+      setError,
+      setRequests,
+      setTotalCount,
+      mapStatusValues,
+      buildOrderByFromSortString
+    ]
   )
 
   const approveRequest = useCallback(
