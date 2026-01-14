@@ -361,26 +361,26 @@ export const useEmployeeTeamAllocations = ({
           sunday: workingHours.sundayHours ?? 0
         })
       } else {
-        // Default to standard work week if no data
+        // No working hours configured - set all to 0 (will show all days as non-working)
         setWorkingHoursPerDay({
-          monday: 8,
-          tuesday: 8,
-          wednesday: 8,
-          thursday: 8,
-          friday: 8,
+          monday: 0,
+          tuesday: 0,
+          wednesday: 0,
+          thursday: 0,
+          friday: 0,
           saturday: 0,
           sunday: 0
         })
       }
     } catch (err) {
       console.error('Error fetching employee working hours:', err)
-      // Default to standard work week on error
+      // On error, set all to 0 (will show all days as non-working)
       setWorkingHoursPerDay({
-        monday: 8,
-        tuesday: 8,
-        wednesday: 8,
-        thursday: 8,
-        friday: 8,
+        monday: 0,
+        tuesday: 0,
+        wednesday: 0,
+        thursday: 0,
+        friday: 0,
         saturday: 0,
         sunday: 0
       })

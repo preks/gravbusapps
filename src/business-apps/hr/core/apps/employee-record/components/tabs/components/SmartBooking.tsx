@@ -25,7 +25,7 @@ import {
 } from '@newwork/nw-design-system'
 import { TableForm, EditableCell } from '@/components/table-form'
 import { CalendarIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
-import { getWeekStart } from '../../../utils/weekUtils'
+import { getWeekStart, getWeekDays } from '../../../utils/weekUtils'
 import { WeekBooking, DayHours } from '../../../types'
 import CardTabHeaderComponent from '@/business-apps/mdm/apps/generic-components/card'
 import dayjs from 'dayjs'
@@ -124,13 +124,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   // Calculate week start and days (full week Mon-Sun)
   const weekStart = useMemo(() => getWeekStart(selectedDate), [selectedDate])
   // Generate all 7 days of the week (Monday to Sunday)
-  const weekDays = useMemo(() => {
-    const days: Date[] = []
-    for (let i = 0; i < 7; i++) {
-      days.push(dayjs(weekStart).add(i, 'day').toDate())
-    }
-    return days
-  }, [weekStart])
+  const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart])
   const weekKey = useMemo(() => dayjs(weekStart).format('YYYY-MM-DD'), [weekStart])
 
   // Reset form state when week changes to prevent flicker with old values
