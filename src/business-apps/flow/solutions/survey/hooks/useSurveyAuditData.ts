@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 export interface SurveyAuditEntry {
   id: string
@@ -49,7 +49,7 @@ export const useSurveyAuditLogs = (filters: SurveyAuditFilters, accessToken: str
       setIsLoading(true)
       setError(null)
 
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+      const baseUrl = getFlowEngineBaseUrl()
 
       // Build query parameters
       const queryParams = new URLSearchParams({

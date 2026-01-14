@@ -36,13 +36,19 @@ export interface KogitoTasksResponse {
  *
  * Uses the /flow-executions/tasks endpoint with cockpitPage=INBOX
  */
+export interface KogitoTasksWithCount {
+  tasks: KogitoTask[]
+  totalCount: number
+}
+
 export async function fetchKogitoUserTasks(
   userId: string,
   accessToken?: string,
   params?: KogitoTaskQueryParams
-): Promise<KogitoTask[]> {
+): Promise<KogitoTasksWithCount> {
   if (!accessToken) {
-    return []
+    console.warn('[KogitoClient] No access token provided, skipping FlowMetrics fetch')
+    return { tasks: [], totalCount: 0 }
   }
 
   try {
@@ -53,7 +59,7 @@ export async function fetchKogitoUserTasks(
     // For active tasks: cockpitPage='INBOX' (no filterState needed)
     const isCompletedRequest = params?.status?.[0]?.toUpperCase() === 'COMPLETED'
 
-    const response: FlowExecutionTasksResponse = await client.getFlowExecutionTasks({
+    const requestParams = {
       cockpitPage: isCompletedRequest ? 'ALL' : 'INBOX',
       userId: userId,
       size: params?.pageSize || 100,
@@ -64,14 +70,25 @@ export async function fetchKogitoUserTasks(
       filterTaskName: params?.taskName,
       filterProcessName: params?.processName,
       ...(isCompletedRequest && { filterState: ['Closed'] }) // Only for completed tasks
-    })
+    }
+
+    console.log('[KogitoClient] Fetching FlowMetrics tasks:', { userId, params: requestParams })
+
+    const response: FlowExecutionTasksResponse = await client.getFlowExecutionTasks(requestParams)
 
     // Handle both response formats (processingStates or content)
     const tasks = response.processingStates || response.content || []
+    const totalCount = response.totalCount || response.totalElements || 0
 
-    return tasks
+    console.log('[KogitoClient] FlowMetrics response:', {
+      taskCount: tasks.length,
+      totalCount
+    })
+
+    return { tasks, totalCount }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
+    console.error('[KogitoClient] FlowMetrics error:', errorMsg)
     throw new Error(`Kogito/FlowMetrics error: ${errorMsg}`)
   }
 }
@@ -106,13 +123,13 @@ export async function fetchKogitoTaskStats(
   accessToken?: string
 ): Promise<{ total: number; byStatus: Record<string, number> }> {
   try {
-    const tasks = await fetchKogitoUserTasks(userId, accessToken, {
+    const result = await fetchKogitoUserTasks(userId, accessToken, {
       pageSize: 100 // OPTIMIZED: 100 instead of 1000
     })
 
     const byStatus: Record<string, number> = {}
 
-    tasks.forEach(task => {
+    result.tasks.forEach(task => {
       // FlowExecutionTask has both 'state' and 'status' fields
       // Use state first (Kogito native), fallback to status
       const taskState = task.state || task.status || 'Unknown'
@@ -120,7 +137,7 @@ export async function fetchKogitoTaskStats(
     })
 
     return {
-      total: tasks.length,
+      total: result.totalCount, // Use accurate totalCount from API
       byStatus
     }
   } catch {

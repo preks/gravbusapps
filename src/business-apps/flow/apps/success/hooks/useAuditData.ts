@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 export interface AuditLogEntry {
   id: string
@@ -84,8 +84,7 @@ export const useAuditLogs = (filters: AuditFilters, accessToken: string) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   const fetchAuditLogs = useCallback(async () => {
     if (!accessToken) return
@@ -149,8 +148,7 @@ export const useAuditFilterOptions = (accessToken: string) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   const fetchFilterOptions = useCallback(async () => {
     if (!accessToken) return
@@ -209,8 +207,7 @@ export const exportAuditLogs = async (
   try {
     console.log('Exporting audit logs:', { filters, format })
 
-    const API_BASE =
-      (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+      const API_BASE = getFlowEngineApiBaseUrl()
 
     // Build query string
     const queryParams = new URLSearchParams()

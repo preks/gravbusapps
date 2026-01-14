@@ -290,18 +290,18 @@ const FlowHub: React.FC<FlowHubProps> = context => {
       })
 
       areas.push({
-        id: 'flow-solutions',
-        title: 'Flow Solutions',
-        description: 'Prebuilt business solutions for flows',
+        id: 'flow-value-packs',
+        title: 'Flow Value Packs',
+        description: 'Prebuilt value packs for flows',
         icon: Gear,
         category: 'core',
         links: [
-          { label: 'Compliance Solution', action: 'solution-compliance' },
+          { label: 'Compliance Value Pack', action: 'value-pack-compliance' },
           { label: 'Employee Lifecycle', action: 'solution-employee-lifecycle' },
-          { label: 'Survey Solution', action: 'solution-survey' }
+          { label: 'Survey Value Pack', action: 'value-pack-survey' }
         ],
-        buttonLabel: 'Browse Solutions',
-        buttonAction: 'navigate-solution-compliance'
+        buttonLabel: 'Browse Value Packs',
+        buttonAction: 'navigate-value-pack-compliance'
       })
 
       areas.push({
@@ -402,7 +402,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
               value: formatNumber(stats.activeTasks),
               label: 'Open Tasks'
             }
-          case 'flow-solutions':
+          case 'flow-value-packs':
             return {
               value: formatNumber(1),
               label: 'Enabled Solutions'
@@ -545,14 +545,14 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         case 'navigate-admin-workflows':
           console.log('Navigating to admin flows')
           break
-        case 'navigate-solution-compliance':
-          navigateTo('/platform/apps/flow/apps/solutions/compliance')
+        case 'navigate-value-pack-compliance':
+          navigateTo('/platform/apps/flow/apps/value-packs/compliance')
           break
         case 'navigate-solution-employee-lifecycle':
-          navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle')
+          navigateTo('/platform/apps/flow/apps/value-packs/employee-lifecycle')
           break
         case 'navigate-solution-survey':
-          navigateTo('/platform/apps/flow/apps/solutions/survey')
+          navigateTo('/platform/apps/flow/apps/value-packs/survey')
           break
         case 'navigate-personal-analytics':
         case 'navigate-team-analytics':
@@ -607,15 +607,15 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         navigateTo('/platform/apps/flow/apps/inbox?tab=participated')
         return
 
-      // Flow Solutions
-      case 'solution-compliance':
-        navigateTo('/platform/apps/flow/apps/solutions/compliance')
+      // Flow Value Packs
+      case 'value-pack-compliance':
+        navigateTo('/platform/apps/flow/apps/value-packs/compliance')
         return
       case 'solution-employee-lifecycle':
-        navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle')
+        navigateTo('/platform/apps/flow/apps/value-packs/employee-lifecycle')
         return
-      case 'solution-survey':
-        navigateTo('/platform/apps/flow/apps/solutions/survey')
+      case 'value-pack-survey':
+        navigateTo('/platform/apps/flow/apps/value-packs/survey')
         return
 
       // Flow Templates / Creator
