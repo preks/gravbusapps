@@ -3,7 +3,8 @@ import { DataDisplay, Spinner, AiButton } from '@newwork/nw-design-system'
 import { UploadIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EquityAnalyticsFilters } from './types'
-import { EquityAnalyticsTable } from './components/EquityAnalyticsTable'
+import { InvestmentReportTable } from '../../components/shared/InvestmentReportTable'
+import { EQUITY_TABLE_CONFIG } from '../../components/shared/tableConfigs'
 import { useEquityInvestmentTypes } from './hooks/useEquityInvestmentTypes'
 import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -11,6 +12,10 @@ import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../ho
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
+import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/utils/filterHelpers'
+import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/investmentReportTypes'
+import { generateFiltersFromCatalog } from '../../utils/catalogFilterGenerator'
 
 interface EquityReportProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -57,6 +62,14 @@ export const EquityReport: React.FC<EquityReportProps> = ({
 
   // Search state
   const [search, setSearch] = useState<string>('')
+
+  // Filter state for report-specific filters
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+
+  // Fetch filter groups using descriptors
+  const filterGroups = useFilterGroups({ accessToken, userInfo }, 'InvestmentReport', INVESTMENT_REPORT_DESCRIPTORS, {
+    limit: 100
+  })
 
   // Track total counts for each section
   const [totalCounts, setTotalCounts] = useState<Record<string, { count: number; isLoading: boolean }>>({})
@@ -218,6 +231,40 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     return effectiveInvestmentTypes.find(type => type.code === currentSection)
   }, [currentSection, effectiveInvestmentTypes])
 
+  // Generate filter configuration dynamically from catalog
+  // Note: Equity uses GROUP-level catalog (same fields for all equity types: Mezzanine, Venture, etc.)
+  const dynamicFilterConfig = useMemo(() => {
+    if (!catalogData?.investmentGroups) {
+      // Return empty config if catalog not loaded yet
+      return { id: 'equity-report-filters-empty', name: 'Equity Report Filters', groups: [] }
+    }
+
+    // Find the EQUITY investment group (not individual types)
+    const equityGroup = catalogData.investmentGroups.find((group: any) => group.code === 'EQUITY')
+    if (!equityGroup?.objectValue) {
+      return { id: 'equity-report-filters-empty', name: 'Equity Report Filters', groups: [] }
+    }
+
+    // Parse objectValue if it's a string
+    const parsedObjectValue =
+      typeof equityGroup.objectValue === 'string' ? JSON.parse(equityGroup.objectValue) : equityGroup.objectValue
+
+    if (!parsedObjectValue?.formFields) {
+      return { id: 'equity-report-filters-empty', name: 'Equity Report Filters', groups: [] }
+    }
+
+    // Generate filters from catalog formFields
+    const catalogGeneratedConfig = generateFiltersFromCatalog(
+      parsedObjectValue.formFields,
+      'equity', // Entity prefix for equityInvestment fields
+      'equity-report-filters-dynamic',
+      'Equity Report Filters'
+    )
+
+    // Populate multi-select filter options from filterGroups (for catalog-based filters)
+    return buildDynamicFilterConfig(catalogGeneratedConfig, INVESTMENT_REPORT_DESCRIPTORS, filterGroups)
+  }, [catalogData, filterGroups])
+
   // Create filters for equity analytics (with investment type filtering)
   const equityAnalyticsFilters = useMemo((): EquityAnalyticsFilters => {
     const filters = {
@@ -225,7 +272,9 @@ export const EquityReport: React.FC<EquityReportProps> = ({
       endDate: reportFilters.computedFilters.endDate,
       currencyIds: reportFilters.computedFilters.currencyIds,
       investmentType: selectedInvestmentType?.code || undefined,
-      search: search || undefined
+      search: search || undefined,
+      // Merge in report-specific filters from the filter UI
+      ...selectedFilters
     }
 
     return filters
@@ -235,6 +284,7 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     reportFilters.computedFilters.currencyIds,
     selectedInvestmentType,
     search,
+    selectedFilters,
     currentSection
   ])
 
@@ -260,6 +310,11 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     },
     [localReportFilters]
   )
+
+  // Filter change handler
+  const handleFilterChange = useCallback((newFilters: Record<string, any>) => {
+    setSelectedFilters(newFilters)
+  }, [])
 
   // Primary action for "Add Report" - memoized to prevent reload on tab change
   const primaryActions = useMemo(() => {
@@ -329,6 +384,9 @@ export const EquityReport: React.FC<EquityReportProps> = ({
         searchValue={search}
         searchPlaceholder="Search investments..."
         onSearchChange={setSearch}
+        filters={selectedFilters}
+        filterConfiguration={dynamicFilterConfig}
+        onFilterChange={handleFilterChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
@@ -338,7 +396,8 @@ export const EquityReport: React.FC<EquityReportProps> = ({
       >
         {effectiveInvestmentTypes.map(type => (
           <div key={type.code} style={{ display: currentSection === type.code ? 'block' : 'none' }}>
-            <EquityAnalyticsTable
+            <InvestmentReportTable
+              config={EQUITY_TABLE_CONFIG}
               accessToken={accessToken}
               userInfo={userInfo}
               filters={equityAnalyticsFilters}
