@@ -18,7 +18,12 @@ export interface KeyValidationResult {
  * Validates if a key press should be allowed
  * Follows Single Responsibility Principle
  */
-export const validateKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): KeyValidationResult => {
+export const validateKeyPress = (
+  e: React.KeyboardEvent<HTMLInputElement>,
+  options: { allowNegative?: boolean } = {}
+): KeyValidationResult => {
+  const { allowNegative = false } = options
+
   // Control keys (always allowed)
   const controlKeys = [8, 9, 27, 13, 46] // backspace, tab, escape, enter, delete
   if (controlKeys.includes(e.keyCode)) {
@@ -43,6 +48,11 @@ export const validateKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): KeyV
   // Decimal point (conditional)
   if (e.key === '.') {
     return { isAllowed: true, shouldPreventDefault: false } // Let change handler decide
+  }
+
+  // Minus sign (conditional - let change handler enforce validity)
+  if (e.key === '-' && allowNegative) {
+    return { isAllowed: true, shouldPreventDefault: false }
   }
 
   // Block everything else

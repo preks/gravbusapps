@@ -54,7 +54,7 @@ export const useNumericInput = (
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      const validation = validateKeyPress(e)
+      const validation = validateKeyPress(e, { allowNegative: options.allowNegative })
 
       if (!validation.isAllowed && validation.shouldPreventDefault) {
         e.preventDefault()
@@ -69,7 +69,7 @@ export const useNumericInput = (
 
       clearError()
     },
-    [displayValue, clearError]
+    [displayValue, options.allowNegative, clearError]
   )
 
   const handleChange = useCallback(

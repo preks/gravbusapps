@@ -179,6 +179,9 @@ label-country = Țară
 label-city = Oraș
 label-currency = Monedă
 
+# Common Text
+common-characters = caractere
+
 # Benefit Summary Card Translations
 benefit-provider = Furnizor
 benefit-value-yearly = Valoare anuală
