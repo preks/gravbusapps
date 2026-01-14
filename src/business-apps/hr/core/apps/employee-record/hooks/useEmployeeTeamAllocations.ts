@@ -198,6 +198,52 @@ export interface HistoricalProject {
   isHistorical: true // Always true - these are projects from booked hours, not current allocations
 }
 
+/**
+ * Working hours per day of week for an employee
+ */
+export interface WorkingHoursPerDay {
+  monday: number
+  tuesday: number
+  wednesday: number
+  thursday: number
+  friday: number
+  saturday: number
+  sunday: number
+}
+
+interface EmployeeWorkingHoursResponse {
+  Employee: Array<{
+    workingHours: Array<{
+      mondayHours: number
+      tuesdayHours: number
+      wednesdayHours: number
+      thursdayHours: number
+      fridayHours: number
+      saturdayHours: number
+      sundayHours: number
+    }> | null
+  }>
+}
+
+/**
+ * GraphQL query to get employee's working hours schedule
+ */
+const GET_EMPLOYEE_WORKING_HOURS = `
+  query GetEmployeeWorkingHours($employeeId: uuid!) {
+    Employee(where: {id: {_eq: $employeeId}}) {
+      workingHours {
+        mondayHours
+        tuesdayHours
+        wednesdayHours
+        thursdayHours
+        fridayHours
+        saturdayHours
+        sundayHours
+      }
+    }
+  }
+`
+
 export const useEmployeeTeamAllocations = ({
   accessToken,
   employeeId
@@ -215,6 +261,7 @@ export const useEmployeeTeamAllocations = ({
   const [isLoadingWeekData, setIsLoadingWeekData] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [workingHoursPerDay, setWorkingHoursPerDay] = useState<WorkingHoursPerDay | null>(null)
   const graphqlClient = useGraphqlClient(accessToken)
   const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL') || '')
 
@@ -288,6 +335,57 @@ export const useEmployeeTeamAllocations = ({
       setIsLoading(false)
     }
   }, [employeeId, structureId, graphqlClient])
+
+  /**
+   * Fetch employee's working hours schedule (hours per day of week)
+   */
+  const fetchWorkingHoursPerDay = useCallback(async () => {
+    if (!employeeId) {
+      return
+    }
+
+    try {
+      const response = await graphqlClient.request<EmployeeWorkingHoursResponse>(GET_EMPLOYEE_WORKING_HOURS, {
+        employeeId
+      })
+
+      const workingHours = response.Employee?.[0]?.workingHours?.[0]
+      if (workingHours) {
+        setWorkingHoursPerDay({
+          monday: workingHours.mondayHours ?? 0,
+          tuesday: workingHours.tuesdayHours ?? 0,
+          wednesday: workingHours.wednesdayHours ?? 0,
+          thursday: workingHours.thursdayHours ?? 0,
+          friday: workingHours.fridayHours ?? 0,
+          saturday: workingHours.saturdayHours ?? 0,
+          sunday: workingHours.sundayHours ?? 0
+        })
+      } else {
+        // Default to standard work week if no data
+        setWorkingHoursPerDay({
+          monday: 8,
+          tuesday: 8,
+          wednesday: 8,
+          thursday: 8,
+          friday: 8,
+          saturday: 0,
+          sunday: 0
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching employee working hours:', err)
+      // Default to standard work week on error
+      setWorkingHoursPerDay({
+        monday: 8,
+        tuesday: 8,
+        wednesday: 8,
+        thursday: 8,
+        friday: 8,
+        saturday: 0,
+        sunday: 0
+      })
+    }
+  }, [employeeId, graphqlClient])
 
   /**
    * Fetch booked working hours and attendance for a specific week
@@ -418,6 +516,13 @@ export const useEmployeeTeamAllocations = ({
     }
   }, [employeeId, structureId, fetchTeamAllocations])
 
+  // Fetch working hours schedule on mount
+  useEffect(() => {
+    if (employeeId) {
+      fetchWorkingHoursPerDay()
+    }
+  }, [employeeId, fetchWorkingHoursPerDay])
+
   /**
    * Submit working hours for a week
    * @param weekBookings - Array of bookings with days containing time strings in HH:MM format
@@ -493,6 +598,7 @@ export const useEmployeeTeamAllocations = ({
     historicalProjects,
     recordedHoursByDate,
     bookedHours,
+    workingHoursPerDay,
     isLoading,
     isLoadingWeekData,
     isSubmitting,

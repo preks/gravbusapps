@@ -25,15 +25,19 @@ import {
 } from '@newwork/nw-design-system'
 import { TableForm, EditableCell } from '@/components/table-form'
 import { CalendarIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
-import { getWeekStart, getWeekEnd, getWeekdays } from '../../../utils/weekUtils'
+import { getWeekStart } from '../../../utils/weekUtils'
 import { WeekBooking, DayHours } from '../../../types'
 import CardTabHeaderComponent from '@/business-apps/mdm/apps/generic-components/card'
 import dayjs from 'dayjs'
 import 'dayjs/locale/de'
 import 'dayjs/locale/ro'
+import isoWeek from 'dayjs/plugin/isoWeek'
+
+dayjs.extend(isoWeek)
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useEmployeeTeamAllocations } from '../../../hooks/useEmployeeTeamAllocations'
 import SubmitConfirmationDialog, { HoursDiscrepancy, DiscrepancyType } from './SubmitConfirmationDialog'
+import { cn } from '@/common/utils/cn'
 
 const DATA_TEST_ID_PREFIX = 'SmartBooking'
 
@@ -83,6 +87,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     historicalProjects,
     recordedHoursByDate,
     bookedHours,
+    workingHoursPerDay,
     isLoading: isLoadingAllocations,
     isLoadingWeekData,
     isSubmitting,
@@ -116,10 +121,16 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     defaultValues: {}
   })
 
-  // Calculate week start and end
+  // Calculate week start and days (full week Mon-Sun)
   const weekStart = useMemo(() => getWeekStart(selectedDate), [selectedDate])
-  const weekEnd = useMemo(() => getWeekEnd(selectedDate), [selectedDate])
-  const weekDays = useMemo(() => getWeekdays(weekStart), [weekStart])
+  // Generate all 7 days of the week (Monday to Sunday)
+  const weekDays = useMemo(() => {
+    const days: Date[] = []
+    for (let i = 0; i < 7; i++) {
+      days.push(dayjs(weekStart).add(i, 'day').toDate())
+    }
+    return days
+  }, [weekStart])
   const weekKey = useMemo(() => dayjs(weekStart).format('YYYY-MM-DD'), [weekStart])
 
   // Reset form state when week changes to prevent flicker with old values
@@ -295,6 +306,25 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       return { isSubmitted, isBeforeAssignment, isNotCurrentMonth, isEditable, dateKey, bookedKey }
     },
     [bookedHours]
+  )
+
+  // Helper function to check if a day is a non-working day (0 scheduled hours)
+  const isNonWorkingDay = useCallback(
+    (date: Date): boolean => {
+      if (!workingHoursPerDay) return false
+      const dayOfWeek = dayjs(date).day() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const dayMap: Record<number, keyof typeof workingHoursPerDay> = {
+        0: 'sunday',
+        1: 'monday',
+        2: 'tuesday',
+        3: 'wednesday',
+        4: 'thursday',
+        5: 'friday',
+        6: 'saturday'
+      }
+      return workingHoursPerDay[dayMap[dayOfWeek]] === 0
+    },
+    [workingHoursPerDay]
   )
 
   // Check if there are any unsubmitted hours (to enable/disable submit button)
@@ -623,13 +653,13 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="gba:justify-start gba:text-left gba:font-normal gba:w-[280px]"
+                className="gba:justify-start gba:text-left gba:font-normal gba:w-[300px]"
                 data-testid={`${dataTestId}-week-selector`}
               >
                 <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                 <span>
-                  {dayjs(weekStart).date()} -{' '}
-                  {formatDate(weekEnd, 'date.medium') || dayjs(weekEnd).format('D MMM YYYY')}
+                  {dayjs(weekStart).date()} - {dayjs(weekStart).add(6, 'day').format('D MMM YYYY')} (CW
+                  {dayjs(weekStart).isoWeek().toString().padStart(2, '0')})
                 </span>
               </Button>
             </PopoverTrigger>
@@ -676,11 +706,16 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
               <TableHead className="gba:text-center">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.allocation', 'Allocation')}
               </TableHead>
-              {weekDays.map(day => (
-                <TableHead key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:min-w-[100px]">
-                  <span className="gba:text-sm gba:font-normal">{getLocalizedDayjs(day).format('ddd')}</span>
-                </TableHead>
-              ))}
+              {weekDays.map(day => {
+                const nonWorking = isNonWorkingDay(day)
+                return (
+                  <TableHead key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:min-w-[100px]">
+                    <span className={cn('gba:text-sm gba:font-normal', { 'gba:text-muted-foreground/70': nonWorking })}>
+                      {getLocalizedDayjs(day).format('ddd')}
+                    </span>
+                  </TableHead>
+                )
+              })}
               <TableHead className="gba:text-center">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.total', 'Total')}
               </TableHead>
@@ -698,8 +733,12 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
             <TableCell></TableCell>
             {weekDays.map(day => {
               const recordedHours = getRecordedHoursForDay(day)
+              const nonWorking = isNonWorkingDay(day)
               return (
-                <TableCell key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:font-semibold">
+                <TableCell
+                  key={dayjs(day).format('YYYY-MM-DD')}
+                  className={cn('gba:text-center gba:font-semibold', { 'gba:text-muted-foreground/70': nonWorking })}
+                >
                   {hoursToTimeString(recordedHours)}
                 </TableCell>
               )
@@ -836,8 +875,14 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
             </TableCell>
             {weekDays.map((day, dayIndex) => {
               const total = getTotalHoursForDay(dayIndex)
+              const nonWorking = isNonWorkingDay(day)
               return (
-                <TableCell key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:font-semibold">
+                <TableCell
+                  key={dayjs(day).format('YYYY-MM-DD')}
+                  className={cn('gba:text-center gba:font-semibold', {
+                    'gba:bg-muted gba:text-muted-foreground/70': nonWorking
+                  })}
+                >
                   {hoursToTimeString(total)}
                 </TableCell>
               )
