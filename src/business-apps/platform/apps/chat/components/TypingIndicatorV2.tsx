@@ -23,11 +23,11 @@ export const TypingIndicatorV2: React.FC<TypingIndicatorV2Props> = React.memo(
     // Format typing indicator text
     let typingText: string
     if (activeTypingUsers.length === 1) {
-      const userName = activeTypingUsers[0].userName || 'Someone'
+      const userName = activeTypingUsers[0].username || 'Someone'
       typingText = `${userName} is typing...`
     } else if (activeTypingUsers.length === 2) {
-      const user1 = activeTypingUsers[0].userName || 'Someone'
-      const user2 = activeTypingUsers[1].userName || 'Someone'
+      const user1 = activeTypingUsers[0].username || 'Someone'
+      const user2 = activeTypingUsers[1].username || 'Someone'
       typingText = `${user1} and ${user2} are typing...`
     } else {
       typingText = `${activeTypingUsers.length} people are typing...`

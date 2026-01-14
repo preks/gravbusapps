@@ -209,16 +209,23 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     // Create new WebSocket client
+    console.log('[useChatClient] 🔌 Creating new WebSocket client', {
+      wsUrl,
+      wsSocketPath,
+      hasAccessToken: !!accessToken
+    })
     const client = new ChatWebSocketClient(wsUrl, { path: wsSocketPath })
     sharedWsClient = client
     sharedWsKey = key
     sharedWsRefCount = 1 // Initialize ref count to 1
     wsClientRef.current = client
 
+    console.log('[useChatClient] 📡 Connecting to WebSocket...')
     const socket = client.connect(accessToken)
 
     // CRITICAL FIX: Define handlers as named functions so we can properly clean them up
     const handleConnect = async () => {
+      console.log('[useChatClient] ✅ WebSocket connected successfully')
       setIsConnected(true)
       setIsOffline(false)
       setError(null)
@@ -242,11 +249,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleDisconnect = () => {
+      console.warn('[useChatClient] ⚠️ WebSocket disconnected')
       setIsConnected(false)
       setIsOffline(true)
     }
 
-    const handleError = () => {
+    const handleError = (error: any) => {
+      console.error('[useChatClient] ❌ WebSocket error:', error)
       setIsOffline(true)
       // Don't set full error for WebSocket issues, just mark as offline
     }

@@ -81,10 +81,18 @@ export class ChatWebSocketClient {
     })
 
     this.socket.on('connect', () => {
+      console.log('[WebSocket] ✅ Connected to chat service', {
+        socketId: this.socket?.id,
+        transport: this.socket?.io.engine.transport.name
+      })
       this.reconnectAttempts = 0 // Reset reconnect counter on successful connection
     })
 
     this.socket.on('disconnect', reason => {
+      console.warn('[WebSocket] ⚠️ Disconnected from chat service', {
+        reason,
+        socketId: this.socket?.id
+      })
       // Handle different disconnect reasons
       if (reason === 'io server disconnect') {
         // Server forcibly disconnected - attempt manual reconnection
@@ -92,7 +100,12 @@ export class ChatWebSocketClient {
       }
     })
 
-    this.socket.on('connect_error', () => {
+    this.socket.on('connect_error', error => {
+      console.error('[WebSocket] ❌ Connection error', {
+        attempt: this.reconnectAttempts + 1,
+        maxAttempts: this.maxReconnectAttempts,
+        error: error.message
+      })
       this.reconnectAttempts++
     })
 
@@ -294,6 +307,14 @@ export class ChatWebSocketClient {
     to: CallParticipant
     conversationId?: string
   }) {
+    console.log('[WebSocket] 📡 Emitting call:initiate', {
+      callId: signal.callId,
+      type: signal.callType,
+      from: signal.from.odName,
+      to: signal.to.odName,
+      conversationId: signal.conversationId,
+      socketConnected: this.socket?.connected
+    })
     this.socket?.emit('call:initiate', signal)
   }
 
@@ -365,7 +386,16 @@ export class ChatWebSocketClient {
 
   // Call event listeners
   onCallInitiate(handler: (signal: CallSignal) => void) {
-    this.socket?.on('call:initiate', handler)
+    console.log('[WebSocket] 👂 Registering call:initiate listener')
+    this.socket?.on('call:initiate', (signal: CallSignal) => {
+      console.log('[WebSocket] 📞 Received call:initiate event', {
+        callId: signal.callId,
+        type: signal.callType,
+        from: signal.from.odName,
+        to: signal.to?.odName || 'unknown'
+      })
+      handler(signal)
+    })
   }
 
   onCallAccept(handler: (signal: CallSignal) => void) {

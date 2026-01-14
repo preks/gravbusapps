@@ -116,6 +116,7 @@ export class WebRTCClient {
    */
   async initializeLocalStream(type: CallType): Promise<MediaStream> {
     try {
+      console.log('[WebRTC] 🎥 Initializing local stream:', { callType: type })
       const constraints: MediaStreamConstraints = {
         audio: {
           echoCancellation: true,
@@ -132,11 +133,23 @@ export class WebRTCClient {
             : false
       }
 
+      console.log('[WebRTC] 📋 Media constraints:', JSON.stringify(constraints, null, 2))
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints)
+
+      const videoTracks = this.localStream.getVideoTracks()
+      const audioTracks = this.localStream.getAudioTracks()
+      console.log('[WebRTC] ✅ Got local stream:', {
+        videoTracks: videoTracks.length,
+        audioTracks: audioTracks.length,
+        videoEnabled: videoTracks[0]?.enabled,
+        videoLabel: videoTracks[0]?.label,
+        audioEnabled: audioTracks[0]?.enabled
+      })
+
       this.emit('localStreamReady', this.localStream)
       return this.localStream
     } catch (error) {
-      console.error('Failed to get local media stream:', error)
+      console.error('[WebRTC] ❌ Failed to get local media stream:', error)
       this.emit('error', { type: 'media', message: 'Failed to access camera/microphone', error })
       throw error
     }
@@ -328,13 +341,20 @@ export class WebRTCClient {
    * Toggle local video
    */
   toggleVideo(): boolean {
-    if (!this.localStream) return false
+    console.log('[WebRTC] 🎬 Toggle video requested')
+    if (!this.localStream) {
+      console.warn('[WebRTC] ⚠️ No local stream available for toggle')
+      return false
+    }
 
     const videoTrack = this.localStream.getVideoTracks()[0]
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled
-      return !videoTrack.enabled // Returns true if video is now off
+      const isVideoOff = !videoTrack.enabled
+      console.log('[WebRTC] 📹 Video toggled:', { isVideoOff, enabled: videoTrack.enabled })
+      return isVideoOff // Returns true if video is now off
     }
+    console.warn('[WebRTC] ⚠️ No video track found in local stream')
     return false
   }
 

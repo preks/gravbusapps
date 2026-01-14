@@ -120,6 +120,7 @@ export const ChatMessagesV2: React.FC<ChatMessagesV2Props> = ({ conversation, ap
       messages={messages}
       currentUserId={currentUserId}
       conversationType={conversation.type}
+      conversationId={conversation.id}
       isLoading={isLoading}
       hasMore={hasMore}
       onLoadMore={loadMore}
