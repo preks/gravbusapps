@@ -4,7 +4,8 @@
  * Connects to the document-service backend API for note management.
  * Handles CRUD operations, sharing, and tree structure management.
  *
- * Backend: http://localhost:3002/api/v1/notes
+ * Backend: https://newwork-dev.newwork.com/document-service/api/v1 (dev)
+ *          http://localhost:3002/api/v1 (local, if VITE_DOCUMENT_SERVICE_URL is set)
  */
 
 import type {
@@ -19,13 +20,34 @@ import type {
   PaginatedNotes,
   NoteTreeNode
 } from '../types'
+import { env } from '@/common/env/EnvUtils'
 
-// Get the API URL from environment or default to localhost
+// Get the API URL from environment or default to dev environment
 const getApiUrl = (): string => {
+  // Check for explicit environment variable first (Vite env var)
   if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL) {
     return import.meta.env.VITE_DOCUMENT_SERVICE_URL
   }
-  return 'http://localhost:3002/api/v1'
+
+  // If platform is running on localhost, connect to DEV environment
+  // This handles the case where UI is loaded from CDN but platform is running locally
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1'
+    if (isLocalHost) {
+      return 'https://newwork-dev.newwork.com/document-service/api/v1'
+    }
+  }
+
+  // Try to get base URL from environment and construct document-service URL
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+  if (baseUrl) {
+    const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+    return `${trimmed}/document-service/api/v1`
+  }
+
+  // Default to dev environment
+  return 'https://newwork-dev.newwork.com/document-service/api/v1'
 }
 
 const API_URL = getApiUrl()
@@ -131,9 +153,7 @@ function mapApiNoteToNote(apiNote: Record<string, unknown>): Note {
     currentVersion: (apiNote.currentVersion as number) || 1,
     createdAt: apiNote.createdAt as string,
     updatedAt: apiNote.updatedAt as string,
-    children: apiNote.children
-      ? (apiNote.children as Record<string, unknown>[]).map(mapApiNoteToNote)
-      : undefined,
+    children: apiNote.children ? (apiNote.children as Record<string, unknown>[]).map(mapApiNoteToNote) : undefined,
     permission,
     isShared: apiNote.isShared as boolean | undefined,
     sharedBy: apiNote.sharedBy as string | undefined
@@ -414,10 +434,7 @@ export const NoteApiService = {
   /**
    * Share a note with users
    */
-  async shareNote(
-    noteId: string,
-    shares: Array<{ userId: string; permission: NotePermission }>
-  ): Promise<boolean> {
+  async shareNote(noteId: string, shares: Array<{ userId: string; permission: NotePermission }>): Promise<boolean> {
     try {
       const payload = {
         entityType: 'note',
@@ -552,9 +569,7 @@ export const NoteApiService = {
   /**
    * Get share links for a note
    */
-  async getShareLinks(
-    noteId: string
-  ): Promise<
+  async getShareLinks(noteId: string): Promise<
     Array<{
       id: string
       token: string

@@ -4,7 +4,8 @@
  * Connects to the document-service backend API for document management.
  * This replaces the file-based storage with proper REST API calls.
  *
- * Backend: http://localhost:3002/api/v1
+ * Backend: https://newwork-dev.newwork.com/document-service/api/v1 (dev)
+ *          http://localhost:3002/api/v1 (local, if VITE_DOCUMENT_SERVICE_URL is set)
  */
 
 import type {
@@ -16,15 +17,34 @@ import type {
   DocumentShare,
   DocumentApprovalRequest
 } from '../types'
+import { env } from '@/common/env/EnvUtils'
 
-// Get the API URL from environment or default to localhost
+// Get the API URL from environment or default to dev environment
 const getApiUrl = (): string => {
-  // Check for environment variable
+  // Check for explicit environment variable first (Vite env var)
   if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL) {
     return import.meta.env.VITE_DOCUMENT_SERVICE_URL
   }
-  // Default to localhost for development
-  return 'http://localhost:3002/api/v1'
+
+  // If platform is running on localhost, connect to DEV environment
+  // This handles the case where UI is loaded from CDN but platform is running locally
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1'
+    if (isLocalHost) {
+      return 'https://newwork-dev.newwork.com/document-service/api/v1'
+    }
+  }
+
+  // Try to get base URL from environment and construct document-service URL
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+  if (baseUrl) {
+    const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+    return `${trimmed}/document-service/api/v1`
+  }
+
+  // Default to dev environment
+  return 'https://newwork-dev.newwork.com/document-service/api/v1'
 }
 
 const API_URL = getApiUrl()
@@ -120,7 +140,7 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
   if (permission === 'admin') {
     permission = 'owner'
   }
-  
+
   return {
     id: apiDoc.id as string,
     title: apiDoc.title as string,
@@ -197,16 +217,19 @@ export const DocumentApiService = {
     debugLog('listDocuments', endpoint)
 
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
-    
-    console.log('[DocumentApiService] listDocuments raw response:', response.items.map(d => ({
-      id: d.id,
-      title: d.title,
-      ownerId: d.ownerId,
-      isShared: d.isShared,
-      sharedBy: d.sharedBy,
-      permission: d.permission,
-      rawPermission: d.permission // Log the exact value
-    })))
+
+    console.log(
+      '[DocumentApiService] listDocuments raw response:',
+      response.items.map(d => ({
+        id: d.id,
+        title: d.title,
+        ownerId: d.ownerId,
+        isShared: d.isShared,
+        sharedBy: d.sharedBy,
+        permission: d.permission,
+        rawPermission: d.permission // Log the exact value
+      }))
+    )
 
     return response.items.map(doc => ({
       id: doc.id as string,
@@ -276,7 +299,11 @@ export const DocumentApiService = {
   /**
    * Update an existing document
    */
-  async updateDocument(id: string, updates: Partial<Document>, options?: { createVersion?: boolean }): Promise<Document> {
+  async updateDocument(
+    id: string,
+    updates: Partial<Document>,
+    options?: { createVersion?: boolean }
+  ): Promise<Document> {
     debugLog('updateDocument', id, updates)
 
     const payload = {
@@ -396,7 +423,10 @@ export const DocumentApiService = {
         sharedAt: s.createdAt as string,
         sharedBy: s.sharedBy as string
       }))
-      console.log('[DocumentApiService] getSharedUsers mapped:', mapped.map(m => ({ userId: m.userId, permission: m.permission })))
+      console.log(
+        '[DocumentApiService] getSharedUsers mapped:',
+        mapped.map(m => ({ userId: m.userId, permission: m.permission }))
+      )
       return mapped
     } catch (error) {
       console.error('[DocumentApiService] Failed to get shared users:', error)

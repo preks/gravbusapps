@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client'
+import { env } from '@/common/env/EnvUtils'
 
 // Client version for tracking
 const CLIENT_VERSION = '1'
@@ -201,9 +202,24 @@ export class CollaborationClient {
     this.socket?.emit('join_document', { entityType, entityId }, (response: any) => {
       console.log('[CollaborationClient] Join document response:', response)
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CollaborationClient.ts:joinDocument:callback',message:'Join document callback received',data:{success:response?.success,participantsCount:response?.participants?.length,participants:response?.participants},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'CollaborationClient.ts:joinDocument:callback',
+          message: 'Join document callback received',
+          data: {
+            success: response?.success,
+            participantsCount: response?.participants?.length,
+            participants: response?.participants
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          hypothesisId: 'B'
+        })
+      }).catch(() => {})
       // #endregion
-      
+
       // Call callback with participants list
       if (response?.success && response?.participants) {
         onParticipantsReceived?.(response.participants)
@@ -234,7 +250,18 @@ export class CollaborationClient {
 
     console.log('[CollaborationClient] Sending operation:', { entityType, entityId, operation })
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CollaborationClient.ts:sendDocumentOperation',message:'Emitting operation',data:{entityType,entityId,operationType:operation.type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'CollaborationClient.ts:sendDocumentOperation',
+        message: 'Emitting operation',
+        data: { entityType, entityId, operationType: operation.type },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        hypothesisId: 'C'
+      })
+    }).catch(() => {})
     // #endregion
     this.socket.emit(
       'document_operation',
@@ -246,7 +273,18 @@ export class CollaborationClient {
       (response: any) => {
         console.log('[CollaborationClient] Operation response:', response)
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CollaborationClient.ts:sendDocumentOperation:callback',message:'Operation callback received',data:{success:response?.success,version:response?.version},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'CollaborationClient.ts:sendDocumentOperation:callback',
+            message: 'Operation callback received',
+            data: { success: response?.success, version: response?.version },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            hypothesisId: 'D'
+          })
+        }).catch(() => {})
         // #endregion
       }
     )
@@ -266,7 +304,27 @@ export class CollaborationClient {
     }
   ) {
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CollaborationClient.ts:sendCursorMove',message:'Emitting cursor_move',data:{entityType,entityId,connected:this.socket?.connected,socketId:this.socket?.id,hasPath:!!position?.path,path:(position?.path||[]).slice(0,3),line:position?.line,column:position?.column},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'R3'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'CollaborationClient.ts:sendCursorMove',
+        message: 'Emitting cursor_move',
+        data: {
+          entityType,
+          entityId,
+          connected: this.socket?.connected,
+          socketId: this.socket?.id,
+          hasPath: !!position?.path,
+          path: (position?.path || []).slice(0, 3),
+          line: position?.line,
+          column: position?.column
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        hypothesisId: 'R3'
+      })
+    }).catch(() => {})
     // #endregion
     this.socket?.emit('cursor_move', {
       entityType,
@@ -386,9 +444,35 @@ export class CollaborationClient {
  * Automatically determines the WebSocket URL from the document service URL
  */
 export function createCollaborationClient(options?: CollaborationWebSocketOptions): CollaborationClient {
-  // Get API URL from environment
-  const apiUrl =
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL) || 'http://localhost:3002/api/v1'
+  // Get API URL from environment or determine from context
+  let apiUrl: string | undefined
+
+  // Check for explicit environment variable first (Vite env var)
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL) {
+    apiUrl = import.meta.env.VITE_DOCUMENT_SERVICE_URL
+  } else {
+    // If platform is running on localhost, connect to DEV environment
+    // This handles the case where UI is loaded from CDN but platform is running locally
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname
+      const isLocalHost = host === 'localhost' || host === '127.0.0.1'
+      if (isLocalHost) {
+        apiUrl = 'https://newwork-dev.newwork.com/document-service/api/v1'
+      } else {
+        // Try to get base URL from environment and construct document-service URL
+        const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+        if (baseUrl) {
+          const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+          apiUrl = `${trimmed}/document-service/api/v1`
+        }
+      }
+    }
+
+    // Default to dev environment if nothing else worked
+    if (!apiUrl) {
+      apiUrl = 'https://newwork-dev.newwork.com/document-service/api/v1'
+    }
+  }
 
   // Remove /api/v1 suffix if present
   const baseUrl = apiUrl.replace(/\/api\/v1$/, '')
