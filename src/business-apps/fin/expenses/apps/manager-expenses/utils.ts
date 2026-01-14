@@ -189,6 +189,43 @@ export const getNormalizedErrorMessage = (err: unknown): string => {
   return 'An unknown error occurred'
 }
 
+const extractCurrencyCodeFromAmount = (amount: string): string => {
+  if (amount.includes(' ')) {
+    const parts = amount.split(' ')
+    const lastPart = parts[parts.length - 1]
+    if (/^[A-Z]{3}$/.test(lastPart)) {
+      return lastPart
+    }
+  }
+  return 'EUR'
+}
+
+const formatAmountWithLocale = (amount: number, userLocale: string): string => {
+  try {
+    if (formatNumberFunction) {
+      const result = formatNumberFunction(amount)
+      if (result) {
+        return result
+      }
+    }
+    return new Intl.NumberFormat(userLocale).format(amount)
+  } catch {
+    return String(amount)
+  }
+}
+
+const formatCurrencyOutput = (formattedAmount: string, currencyCode: string, language: string): string => {
+  switch (language) {
+    case 'de':
+    case 'ro':
+      return `${formattedAmount} ${currencyCode}`
+    case 'en':
+      return `${currencyCode} ${formattedAmount}`
+    default:
+      return `${formattedAmount} ${currencyCode}`
+  }
+}
+
 /**
  * Formats currency display with proper locale and currency code
  */
@@ -208,51 +245,17 @@ export const formatCurrencyDisplay = (
 
   // Handle missing currency code
   if (!currencyCode) {
-    if (typeof amount === 'string' && amount.includes(' ')) {
-      const parts = amount.split(' ')
-      const lastPart = parts[parts.length - 1]
-      if (/^[A-Z]{3}$/.test(lastPart)) {
-        currencyCode = lastPart
-      } else {
-        currencyCode = 'EUR'
-      }
-    } else {
-      currencyCode = 'EUR'
-    }
+    currencyCode = typeof amount === 'string' ? extractCurrencyCodeFromAmount(amount) : 'EUR'
   }
 
   const userLocale = getCurrentActiveUserLocale()
-
-  let formattedAmount: string
-  try {
-    if (formatNumberFunction) {
-      const result = formatNumberFunction(Number(amount))
-      if (result) {
-        formattedAmount = result
-      } else {
-        formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
-      }
-    } else {
-      formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
-    }
-  } catch {
-    formattedAmount = String(amount)
-  }
+  const numericAmount = Number(amount)
+  let formattedAmount = formatAmountWithLocale(numericAmount, userLocale)
 
   if (!formattedAmount || formattedAmount === 'undefined' || formattedAmount === 'null') {
-    formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
+    formattedAmount = new Intl.NumberFormat(userLocale).format(numericAmount)
   }
 
   const language = userLocale.split('-')[0].toLowerCase()
-
-  switch (language) {
-    case 'de':
-      return `${formattedAmount} ${currencyCode}` // 1.234,56 EUR
-    case 'ro':
-      return `${formattedAmount} ${currencyCode}` // 1 234,56 EUR
-    case 'en':
-      return `${currencyCode} ${formattedAmount}` // EUR 1,234.56
-    default:
-      return `${formattedAmount} ${currencyCode}`
-  }
+  return formatCurrencyOutput(formattedAmount, currencyCode, language)
 }

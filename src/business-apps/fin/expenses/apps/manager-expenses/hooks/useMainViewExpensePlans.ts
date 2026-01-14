@@ -190,31 +190,81 @@ export const useMainViewExpensePlans = ({
     currencyFilter: string | null
   } | null>(null)
 
+  const buildWhereClause = useCallback(
+    (managerId: string, activeFilter: string[] | null, activeCurrencyFilter: string | null, searchValue: string) => {
+      const whereClause: Record<string, any> = {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: { _eq: managerId }
+          }
+        },
+        isDeleted: { _eq: false }
+      }
+
+      if (activeCurrencyFilter) {
+        whereClause.currencyRef = {
+          _eq: `Currency:v1:${activeCurrencyFilter}`
+        }
+      }
+
+      if (searchValue !== '%%') {
+        whereClause._or = [
+          { code: { _ilike: searchValue } },
+          { title: { _ilike: searchValue } },
+          { employee: { fullName: { _ilike: searchValue } } }
+        ]
+      }
+
+      if (activeFilter && activeFilter.length > 0) {
+        whereClause.status = { _in: activeFilter }
+      } else {
+        whereClause.status = { _neq: 'CREATED' }
+      }
+
+      return whereClause
+    },
+    []
+  )
+
+  const buildOrderBy = useCallback((activeSortConfig: SortConfig): Record<string, any>[] | undefined => {
+    if (!activeSortConfig.field || !activeSortConfig.order) {
+      return undefined
+    }
+
+    if (activeSortConfig.field === 'employee.fullName') {
+      return [{ employee: { firstName: activeSortConfig.order } }, { employee: { lastName: activeSortConfig.order } }]
+    }
+
+    if (activeSortConfig.field.includes('.')) {
+      const [parent, child] = activeSortConfig.field.split('.')
+      return [{ [parent]: { [child]: activeSortConfig.order } }]
+    }
+
+    return [{ [activeSortConfig.field]: activeSortConfig.order }]
+  }, [])
+
   const fetchPlans = useCallback(
     async (forceFilter?: string[] | null, forceCurrencyFilter?: string | null, forceSortConfig?: SortConfig) => {
-      // Use forced filter or current filter - this prevents stale closure issues
-      const activeFilter = forceFilter !== undefined ? forceFilter : currentStatusFilter
-      const activeCurrencyFilter = forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter
+      const activeFilter = (forceFilter !== undefined ? forceFilter : currentStatusFilter) ?? null
+      const activeCurrencyFilter =
+        (forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter) ?? null
       const activeSortConfig = forceSortConfig || sorting
       const offset = (currentPage - 1) * pageSize
       const searchValue = searchTerm ? `%${searchTerm}%` : '%%'
 
-      // Check if we already fetched with these exact parameters to prevent duplicate fetches
       const currentFetchParams = {
-        filter: activeFilter || null, // Ensure it's never undefined
-        currencyFilter: activeCurrencyFilter || null, // Ensure it's never undefined
+        filter: activeFilter || null,
+        currencyFilter: activeCurrencyFilter || null,
         sortConfig: activeSortConfig,
         page: currentPage,
         pageSize,
         searchTerm: searchTerm || ''
       }
 
-      // Skip if parameters haven't changed
       if (lastFetchParams.current && JSON.stringify(lastFetchParams.current) === JSON.stringify(currentFetchParams)) {
         return
       }
 
-      // Update last fetch parameters
       lastFetchParams.current = currentFetchParams
 
       if (!accessToken) {
@@ -233,63 +283,10 @@ export const useMainViewExpensePlans = ({
       setError(null)
 
       try {
-        // Build the where clause for filtering
-        const whereClause: Record<string, any> = {
-          employee: {
-            employeePosition: {
-              supervisorEmployeeId: { _eq: managerId }
-            }
-          },
-          isDeleted: { _eq: false }
-        }
-
-        // Add currency filtering if specified
-        if (currentCurrencyFilter) {
-          whereClause.currencyRef = {
-            _eq: `Currency:v1:${currentCurrencyFilter}`
-          }
-        }
-
-        // Add search functionality
-        if (searchTerm && searchTerm.trim() !== '') {
-          whereClause._or = [
-            { code: { _ilike: searchValue } },
-            { title: { _ilike: searchValue } },
-            { employee: { fullName: { _ilike: searchValue } } }
-          ]
-        }
-
-        // Add status filtering to server-side query
-        if (activeFilter && activeFilter.length > 0) {
-          whereClause.status = { _in: activeFilter }
-        } else {
-          // Exclude CREATED status by default when no specific filter is provided
-          whereClause.status = { _neq: 'CREATED' }
-        }
-
-        // Build the orderBy configuration based on the sort field and order
-        let orderBy: Record<string, any>[] | undefined = undefined
-
-        // Only add orderBy if sorting is active
-        if (activeSortConfig.field && activeSortConfig.order) {
-          orderBy = []
-
-          // Handle specific nested fields with proper GraphQL structure
-          if (activeSortConfig.field === 'employee.fullName') {
-            // For employee fullName, sort by firstName and lastName separately
-            orderBy = [
-              { employee: { firstName: activeSortConfig.order } },
-              { employee: { lastName: activeSortConfig.order } }
-            ]
-          } else if (activeSortConfig.field.includes('.')) {
-            // Handle other nested fields
-            const [parent, child] = activeSortConfig.field.split('.')
-            orderBy = [{ [parent]: { [child]: activeSortConfig.order } }]
-          } else {
-            // Handle regular fields
-            orderBy = [{ [activeSortConfig.field]: activeSortConfig.order }]
-          }
-        }
+        const normalizedFilter = activeFilter ?? null
+        const normalizedCurrencyFilter = activeCurrencyFilter ?? null
+        const whereClause = buildWhereClause(managerId, normalizedFilter, normalizedCurrencyFilter, searchValue)
+        const orderBy = buildOrderBy(activeSortConfig)
 
         const variables: any = {
           where: whereClause,
@@ -297,7 +294,6 @@ export const useMainViewExpensePlans = ({
           offset
         }
 
-        // Only include orderBy if it's defined
         if (orderBy) {
           variables.orderBy = orderBy
         }
@@ -321,22 +317,16 @@ export const useMainViewExpensePlans = ({
         }
 
         const data = result.data as ExpensePlanResponse
-
-        let plans = data.ExpensePlan
-
-        // Map currency information from currencyRef field (for display purposes)
-        plans = plans.map(plan => ({
+        let plans = data.ExpensePlan.map(plan => ({
           ...plan,
           currency: plan.currencyRef ? extractCurrencyCode(plan.currencyRef) || 'EUR' : 'EUR'
         }))
 
-        // Filter by employee if specified (this is still client-side as it's a specific filter)
         if (employeeFilter) {
           plans = plans.filter(plan => plan.employee?.id === employeeFilter)
         }
 
         setPlans(plans || [])
-        // Use server response count for total count since filtering is now server-side
         setTotalCount(data.ExpensePlanAggregate?.aggregate?.count || 0)
       } catch (err) {
         console.error('Error fetching expense plans:', err)
@@ -355,7 +345,9 @@ export const useMainViewExpensePlans = ({
       employeeFilter,
       hookId,
       currentCurrencyFilter,
-      sorting
+      sorting,
+      buildWhereClause,
+      buildOrderBy
     ]
   )
 

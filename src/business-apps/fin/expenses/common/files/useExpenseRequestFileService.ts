@@ -6,13 +6,13 @@ import {
 } from './useEmployeeDocumentPdfFileService'
 
 export type PrintRequestResult = PrintPdfResult
+export type { HasEmployeeDocument }
 
 export const useExpenseRequestFileService = (props: BusinessAppContextProps) => {
   const { printEmployeeDocumentPdf, isMounted } = useEmployeeDocumentPdfFileService(props)
 
-  const printExpenseRequest = (record: HasEmployeeDocument): Promise<PrintRequestResult> => {
-    return printEmployeeDocumentPdf(record)
+  return {
+    printExpenseRequest: printEmployeeDocumentPdf,
+    isMounted
   }
-
-  return { printExpenseRequest, isMounted }
 }

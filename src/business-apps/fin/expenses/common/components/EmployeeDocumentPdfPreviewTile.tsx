@@ -16,51 +16,8 @@ import {
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import type { HasEmployeeDocument, PrintPdfResult } from '../files/useEmployeeDocumentPdfFileService'
-
-const getFileNameFromRecord = (record: HasEmployeeDocument): string => {
-  const name = record.employeeDocument?.name
-  const trimmedName = typeof name === 'string' ? name.trim() : ''
-  if (trimmedName) return trimmedName
-
-  const file = record.employeeDocument?.file
-  const trimmedFile = typeof file === 'string' ? file.trim() : ''
-  if (trimmedFile) {
-    try {
-      const url = new URL(trimmedFile, globalThis.location?.origin || 'http://localhost')
-      const paramName =
-        url.searchParams.get('fileName') ||
-        url.searchParams.get('filename') ||
-        url.searchParams.get('name') ||
-        url.searchParams.get('download')
-      if (paramName) {
-        const decoded = decodeURIComponent(paramName).trim()
-        if (decoded) return decoded
-      }
-    } catch {
-      // ignore
-    }
-
-    const clean = trimmedFile.split('?')[0]
-    const segment = clean.split('/').filter(Boolean).pop()
-    if (segment) {
-      try {
-        return decodeURIComponent(segment)
-      } catch {
-        return segment
-      }
-    }
-  }
-
-  const code = record.code
-  const trimmedCode = typeof code === 'string' ? code.trim() : ''
-  if (trimmedCode) return `${trimmedCode}.pdf`
-
-  return getTranslationFromI18nKeyAndLabel(
-    'lowcoder:expenses.employee_document_pdf.fallback_file_name',
-    'employee-document.pdf'
-  )
-}
+import { getFileNameFromEmployeeDocument, type HasEmployeeDocument } from '../utils/fileNameUtils'
+import type { PrintPdfResult } from '../files/useEmployeeDocumentPdfFileService'
 
 export interface EmployeeDocumentPdfPreviewTileProps {
   record: HasEmployeeDocument
@@ -88,7 +45,15 @@ export const EmployeeDocumentPdfPreviewTile: React.FC<EmployeeDocumentPdfPreview
 
   const hasDocument = Boolean(record?.employeeDocument?.file && String(record.employeeDocument.file).trim() !== '')
 
-  const fileName = useMemo(() => getFileNameFromRecord(record), [record])
+  const fileName = useMemo(
+    () =>
+      getFileNameFromEmployeeDocument(
+        record,
+        'lowcoder:expenses.employee_document_pdf.fallback_file_name',
+        'employee-document.pdf'
+      ),
+    [record]
+  )
 
   const openPreview = useCallback(async () => {
     if (!hasDocument) return

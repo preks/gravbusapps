@@ -419,7 +419,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       // Filter out CREATED (draft) status from the filter options
       return Array.from(statuses)
         .filter(status => status !== 'CREATED')
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
     } catch (err: any) {
       console.error('Error searching statuses:', err)
       return []

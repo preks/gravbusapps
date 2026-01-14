@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Separator,
@@ -22,7 +22,7 @@ import {
   FileExcelOutlined,
   FileOutlined
 } from '@ant-design/icons'
-import { FileClient } from '@/common/network/files/FileClient'
+import { useFileClient } from '@/common/network/files/useFileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems'
 import { getExpenseItemStatusDisplay } from '../../../utils'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
@@ -120,15 +120,8 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
     }
   }, [selectedItem])
 
-  // Create FileClient with proper authorization
-  const fileClient = useMemo(() => {
-    const client = new FileClient()
-    // Set authorization header if we have an access token
-    if (contextProps.accessToken) {
-      client.setAccessToken(contextProps.accessToken)
-    }
-    return client
-  }, [contextProps.accessToken])
+  // Use FileClient hook for proper authorization
+  const fileClient = useFileClient(contextProps)
 
   /**
    * Extracts file ID from URL or returns the provided ID

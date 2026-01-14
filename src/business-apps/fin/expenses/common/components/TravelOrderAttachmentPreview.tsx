@@ -16,6 +16,7 @@ import {
 import { useTranslation } from '@newwork/nw-design-system'
 import { FilePdfOutlined } from '@ant-design/icons'
 import translations from '../../apps/personal-expenses/_i18n'
+import { getFileNameFromEmployeeDocument } from '../utils/fileNameUtils'
 
 type PrintResult = { success: boolean; pdfUrl?: string; error?: string }
 
@@ -87,47 +88,13 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
   const hasTravelOrder = Boolean(record?.employeeDocument?.file && String(record.employeeDocument.file).trim() !== '')
 
   const fileName = useMemo(() => {
-    const name = record?.employeeDocument?.name
-    const trimmed = typeof name === 'string' ? name.trim() : ''
-    if (trimmed) return trimmed
-
-    const file = record?.employeeDocument?.file
-    if (typeof file === 'string' && file.trim()) {
-      // Try to extract a filename from query params (common patterns)
-      try {
-        const url = new URL(file, window.location.origin)
-        const paramName =
-          url.searchParams.get('fileName') ||
-          url.searchParams.get('filename') ||
-          url.searchParams.get('name') ||
-          url.searchParams.get('download')
-        if (paramName) {
-          const decoded = decodeURIComponent(paramName).trim()
-          if (decoded) return decoded
-        }
-      } catch {
-        // ignore (file might be a relative path or not a valid URL)
-      }
-
-      // Fallback to last path segment (may be a human name or file id)
-      const clean = file.split('?')[0]
-      const segment = clean.split('/').filter(Boolean).pop()
-      if (segment) {
-        try {
-          return decodeURIComponent(segment)
-        } catch {
-          return segment
-        }
-      }
+    const result = getFileNameFromEmployeeDocument(record)
+    // If utility returned default, use component's translation system
+    if (result === 'document.pdf') {
+      return t('travel-order-fallback-file-name')
     }
-
-    // Last resort: at least show something unique-ish
-    if (typeof record?.code === 'string' && record.code.trim()) {
-      return `${record.code.trim()}.pdf`
-    }
-
-    return t('travel-order-fallback-file-name')
-  }, [record?.employeeDocument?.name, record?.employeeDocument?.file, record?.code, t])
+    return result
+  }, [record, t])
 
   const openPdfPreview = useCallback(async () => {
     if (!hasTravelOrder) return

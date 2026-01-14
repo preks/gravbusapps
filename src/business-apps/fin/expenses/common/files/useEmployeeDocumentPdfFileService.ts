@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { FileClient } from '@/common/network/files/FileClient'
+import { useFileClient } from '@/common/network/files/useFileClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface EmployeeDocumentRef {
@@ -37,13 +37,7 @@ export const useEmployeeDocumentPdfFileService = (props: BusinessAppContextProps
     }
   }, [])
 
-  const fileClient = useMemo(() => {
-    const client = new FileClient()
-    if (props.accessToken) {
-      client.setAccessToken(props.accessToken)
-    }
-    return client
-  }, [props.accessToken])
+  const fileClient = useFileClient(props)
 
   const printEmployeeDocumentPdf = useCallback(
     async (record: HasEmployeeDocument): Promise<PrintPdfResult> => {
