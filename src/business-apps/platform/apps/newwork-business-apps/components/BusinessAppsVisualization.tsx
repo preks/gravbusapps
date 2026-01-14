@@ -1,10 +1,14 @@
 import React, { useState } from 'react'
 import {
   Users,
-  Building2,
-  Receipt,
-  Headphones,
   TrendingUp,
+  Headphones,
+  DollarSign,
+  Package,
+  Presentation,
+  Database,
+  Gift,
+  Settings,
   Briefcase,
   LucideIcon,
   Orbit,
@@ -25,46 +29,78 @@ interface BusinessAppsVisualizationProps {
   'data-testid'?: string
 }
 
-// Business Apps domains
+// Business Domains
 const BUSINESS_DOMAINS: DomainNode[] = [
   {
-    id: 'hr',
-    label: 'HR',
+    id: 'hr-plus',
+    label: 'HR+',
     icon: Users,
     color: 'info',
     description: 'Human Resources',
     category: 'business'
   },
   {
-    id: 'crm',
-    label: 'CRM',
-    icon: Building2,
+    id: 'sales-plus',
+    label: 'Sales+',
+    icon: TrendingUp,
     color: 'primary',
-    description: 'Customer Relations',
+    description: 'Sales & CRM',
     category: 'business'
   },
   {
-    id: 'expenses',
-    label: 'Expenses',
-    icon: Receipt,
-    color: 'success',
-    description: 'Finance & Expenses',
-    category: 'business'
-  },
-  {
-    id: 'services',
-    label: 'Services',
+    id: 'service-plus',
+    label: 'Service+',
     icon: Headphones,
     color: 'warning',
     description: 'Service Desk',
     category: 'business'
   },
   {
-    id: 'irm',
-    label: 'IRM',
-    icon: TrendingUp,
+    id: 'finance-plus',
+    label: 'Finance+',
+    icon: DollarSign,
+    color: 'success',
+    description: 'Finance',
+    category: 'business'
+  },
+  {
+    id: 'erp',
+    label: 'ERP',
+    icon: Package,
     color: 'ai',
-    description: 'Investment Relations',
+    description: 'Enterprise Planning',
+    category: 'business'
+  },
+  {
+    id: 'board-room',
+    label: 'Board Room',
+    icon: Presentation,
+    color: 'primary',
+    description: 'Executive Hub',
+    category: 'business'
+  },
+  {
+    id: 'masterdata',
+    label: 'Masterdata',
+    icon: Database,
+    color: 'info',
+    description: 'Master Data',
+    category: 'business'
+  },
+  {
+    id: 'value-packs',
+    label: 'Value Packs',
+    icon: Gift,
+    color: 'success',
+    description: 'Value Packages',
+    category: 'business'
+  },
+  {
+    id: 'system-management',
+    label: 'System Mgmt',
+    icon: Settings,
+    color: 'offline',
+    description: 'System Management',
     category: 'business'
   }
 ]
@@ -177,7 +213,7 @@ const animationStyles = `
 `
 
 export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps> = ({
-  'data-testid': testId = 'business-apps-visualization'
+  'data-testid': testId = 'business-domains-visualization'
 }) => {
   const [hoveredNode, setHoveredNode] = useState<string | null>(null)
 
@@ -188,18 +224,18 @@ export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps>
   const centerY = 90 // Center hub near top
 
   // Position calculations
-  // Business apps in a U-shape below center hub
+  // Business apps in a grid layout below center hub
   const businessBaseY = 200 // Base row for business apps
-  const businessSpacing = 130 // Horizontal spacing between business apps (closer together)
-  const businessStartX = centerX - businessSpacing * 2 // Start from left
+  const businessSpacing = 110 // Horizontal spacing between business apps
+  const businessStartX = centerX - businessSpacing * 2 // Start from left (for 5 columns)
 
-  // U-shape: outer nodes higher, middle node lower
+  // Grid layout: 5 columns, 2 rows
   const getBusinessPosition = (index: number) => {
-    // Create U-shape: indices 0,4 highest, 1,3 mid, 2 lowest
-    const uShapeOffsets = [0, 25, 45, 25, 0] // Y offsets for U-shape
+    const col = index % 5
+    const row = Math.floor(index / 5)
     return {
-      x: businessStartX + index * businessSpacing,
-      y: businessBaseY + uShapeOffsets[index]
+      x: businessStartX + col * businessSpacing,
+      y: businessBaseY + row * 80 // 80px vertical spacing between rows
     }
   }
 
@@ -388,8 +424,8 @@ export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps>
             Connected to your entire ecosystem
           </h2>
           <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-            Business Apps integrate with NW Create for building, NW Every for collaboration — all powered by the NEWWORK
-            Platform
+            Business Domains integrate with NW Create for building, NW Every for collaboration — all powered by the
+            NEWWORK Platform
           </p>
         </div>
 
@@ -456,7 +492,7 @@ export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps>
               )
             })}
 
-            {/* Center hub - BUSINESS APPS */}
+            {/* Center hub - BUSINESS DOMAINS */}
             <g>
               <circle
                 cx={centerX}
@@ -483,7 +519,7 @@ export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps>
                 textAnchor="middle"
                 className="gba:text-xs gba:fill-primary gba:font-bold"
               >
-                BUSINESS APPS
+                BUSINESS DOMAINS
               </text>
             </g>
 
@@ -516,7 +552,7 @@ export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps>
         >
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-primary" />
-            <span>Business Apps</span>
+            <span>Business Domains</span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-destructive" />

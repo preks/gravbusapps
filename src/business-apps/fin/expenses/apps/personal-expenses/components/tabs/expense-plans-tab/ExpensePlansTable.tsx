@@ -75,6 +75,52 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     ...contextProps
   } = props
 
+  const dataControllerFilterLabelMap = useMemo(() => {
+    const currencyLabelMap: Record<string, string> = {}
+    ;(props.currencyStats || []).forEach(cs => {
+      currencyLabelMap[`currency:${cs.ref}`] = cs.code
+    })
+
+    // Ensure selected currency filters always have a readable label (e.g. "EUR"),
+    // even when currencyStats is empty or does not include the selected ref.
+    ;(props.selectedFilters || [])
+      .filter(token => token.startsWith('currency:'))
+      .forEach(token => {
+        if (!currencyLabelMap[token]) {
+          const ref = token.substring('currency:'.length)
+          const codeFromRef = (ref.split(':').pop() || '').toUpperCase()
+          currencyLabelMap[token] = codeFromRef || ref
+        }
+      })
+
+    return { ...props.filterLabelMap, ...currencyLabelMap }
+  }, [props.filterLabelMap, props.currencyStats, props.selectedFilters])
+
+  const dataFilterGroups = useMemo(() => {
+    const currencyFilters =
+      props.currencyStats?.map(cs => ({
+        id: `currency:${cs.ref}`,
+        label: cs.code,
+        selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
+      })) || []
+
+    const currencyGroup =
+      currencyFilters.length > 0
+        ? [
+            {
+              id: 'currency',
+              title: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                'Currency'
+              ),
+              filters: currencyFilters
+            }
+          ]
+        : []
+
+    return [...currencyGroup, ...props.filterGroups]
+  }, [props.filterGroups, props.selectedFilters, props.currencyStats])
+
   // Preserve page index across search clear (search is controlled by parent via props)
   const savedPageBeforeSearchRef = useRef<number | null>(null)
   const prevSearchRef = useRef<string>('')
@@ -258,8 +304,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       onTableChange(pagination, {}, {})
       savedPageBeforeSearchRef.current = currentPage
     } else if (prev !== '' && next === '') {
-      // clearing search → restore saved page
-      const pagination = { current: savedPageBeforeSearchRef.current || 1, pageSize, total: totalCount }
+      // clearing search → restore saved page, but validate it's not beyond available pages
+      const savedPage = savedPageBeforeSearchRef.current || 1
+      const maxPages = Math.max(1, Math.ceil(totalCount / pageSize))
+      const validPage = savedPage > maxPages ? 1 : savedPage
+      const pagination = { current: validPage, pageSize, total: totalCount }
       onTableChange(pagination, {}, {})
       savedPageBeforeSearchRef.current = null
     }
@@ -722,26 +771,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           setSearch: props.onSearchChange,
           filter: props.selectedFilters,
           setFilter: props.setFilters,
-          filterLabelMap: useMemo(() => {
-            const currencyLabelMap: Record<string, string> = {}
-            ;(props.currencyStats || []).forEach(cs => {
-              currencyLabelMap[`currency:${cs.ref}`] = cs.code
-            })
-
-            // Ensure selected currency filters always have a readable label (e.g. "EUR"),
-            // even when currencyStats is empty or does not include the selected ref.
-            ;(props.selectedFilters || [])
-              .filter(token => token.startsWith('currency:'))
-              .forEach(token => {
-                if (!currencyLabelMap[token]) {
-                  const ref = token.substring('currency:'.length)
-                  const codeFromRef = (ref.split(':').pop() || '').toUpperCase()
-                  currencyLabelMap[token] = codeFromRef || ref
-                }
-              })
-
-            return { ...props.filterLabelMap, ...currencyLabelMap }
-          }, [props.filterLabelMap, props.currencyStats, props.selectedFilters]),
+          filterLabelMap: dataControllerFilterLabelMap,
           placeholder:
             getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
             '...',
@@ -757,28 +787,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           listAmount: totalCount ? `${totalCount}` : undefined
         }}
         dataFilterProps={{
-          filterGroups: useMemo(() => {
-            const currencyFilters =
-              props.currencyStats?.map(cs => ({
-                id: `currency:${cs.ref}`,
-                label: cs.code,
-                selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
-              })) || []
-            const currencyGroup =
-              currencyFilters.length > 0
-                ? [
-                    {
-                      id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                        'Currency'
-                      ),
-                      filters: currencyFilters
-                    }
-                  ]
-                : []
-            return [...currencyGroup, ...props.filterGroups]
-          }, [props.filterGroups, props.selectedFilters, (props as any).currencyStats]),
+          filterGroups: dataFilterGroups,
           onFilterChange: props.handleFilterChange
         }}
         hideFilter={false}

@@ -105,6 +105,7 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       context.userInfo?.employeeDetails?.employeeId
 
     return {
+      employeeId,
       event: 'pse_submit',
       employeeCommunication: {
         channelRef: formState.channelType,

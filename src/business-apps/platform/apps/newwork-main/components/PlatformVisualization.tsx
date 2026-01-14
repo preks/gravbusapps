@@ -671,7 +671,7 @@ export const PlatformVisualization: React.FC<PlatformVisualizationProps> = ({
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-info" />
-              <span className="gba:text-sm gba:text-muted-foreground">Business Apps</span>
+              <span className="gba:text-sm gba:text-muted-foreground">Business Domains</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-ai" />
