@@ -64,6 +64,107 @@ export const validateKeyPress = (
 }
 
 /**
+ * Helper: Normalizes negative signs (only one at start)
+ */
+const normalizeNegativeSign = (value: string, currentValue: string, allowNegative: boolean): string => {
+  if (!allowNegative || !value.includes('-')) {
+    return value
+  }
+
+  const minusCount = (value.match(/-/g) || []).length
+  if (minusCount > 1 || value.indexOf('-') > 0) {
+    let cleaned = value.replace(/-/g, '')
+    if (currentValue.startsWith('-')) {
+      cleaned = '-' + cleaned
+    }
+    return cleaned
+  }
+
+  return value
+}
+
+/**
+ * Helper: Normalizes decimal points (only one allowed)
+ */
+const normalizeDecimalPoint = (value: string): string => {
+  const decimalCount = (value.match(/\./g) || []).length
+  if (decimalCount <= 1) {
+    return value
+  }
+
+  const firstDecimalIndex = value.indexOf('.')
+  return value.substring(0, firstDecimalIndex + 1) + value.substring(firstDecimalIndex + 1).replace(/\./g, '')
+}
+
+/**
+ * Helper: Limits decimal places
+ */
+const limitDecimalPlaces = (value: string, maxDecimals: number): string => {
+  if (!value.includes('.')) {
+    return value
+  }
+
+  const parts = value.split('.')
+  if (parts[1] && parts[1].length > maxDecimals) {
+    return `${parts[0]}.${parts[1].substring(0, maxDecimals)}`
+  }
+
+  return value
+}
+
+/**
+ * Helper: Removes leading zeros
+ */
+const removeLeadingZeros = (value: string): string => {
+  const hasNegativeSign = value.startsWith('-')
+  const sign = hasNegativeSign ? '-' : ''
+  let core = hasNegativeSign ? value.substring(1) : value
+
+  if (core.includes('.')) {
+    core = core.replace(/^0+/, '')
+    if (core === '' || core.startsWith('.')) {
+      core = '0' + core
+    }
+  } else {
+    core = core.replace(/^0+/, '') || '0'
+  }
+
+  return sign + core
+}
+
+/**
+ * Helper: Validates numeric range
+ */
+const validateRange = (
+  value: string,
+  maxValue: number | undefined,
+  minValue: number | undefined
+): ValidationResult | null => {
+  const numericValue = Number.parseFloat(value)
+  if (Number.isNaN(numericValue)) {
+    return null
+  }
+
+  if (maxValue !== undefined && numericValue > maxValue) {
+    return {
+      isValid: false,
+      cleanedValue: value,
+      error: `Value cannot exceed ${maxValue}`
+    }
+  }
+
+  if (minValue !== undefined && numericValue < minValue) {
+    return {
+      isValid: false,
+      cleanedValue: value,
+      error: `Value cannot be less than ${minValue}`
+    }
+  }
+
+  return null
+}
+
+/**
  * Validates and cleans numeric input
  * Follows Single Responsibility Principle
  */
@@ -83,68 +184,16 @@ export const validateNumericInput = (
   const pattern = allowNegative ? /[^\d.-]/g : /[^\d.]/g
   let cleanValue = value.replace(pattern, '')
 
-  // Handle negative sign (only at start)
-  if (allowNegative && cleanValue.includes('-')) {
-    const minusCount = (cleanValue.match(/-/g) || []).length
-    if (minusCount > 1 || cleanValue.indexOf('-') > 0) {
-      cleanValue = cleanValue.replace(/-/g, '')
-      if (currentValue.startsWith('-')) {
-        cleanValue = '-' + cleanValue
-      }
-    }
-  }
-
-  // Handle decimal points (only one allowed)
-  const decimalCount = (cleanValue.match(/\./g) || []).length
-  if (decimalCount > 1) {
-    const firstDecimalIndex = cleanValue.indexOf('.')
-    cleanValue =
-      cleanValue.substring(0, firstDecimalIndex + 1) + cleanValue.substring(firstDecimalIndex + 1).replace(/\./g, '')
-  }
-
-  // Limit decimal places
-  if (cleanValue.includes('.')) {
-    const parts = cleanValue.split('.')
-    if (parts[1] && parts[1].length > maxDecimals) {
-      cleanValue = `${parts[0]}.${parts[1].substring(0, maxDecimals)}`
-    }
-  }
-
-  // Remove leading zeros (handle multiple and negatives)
-  const hasNegativeSign = cleanValue.startsWith('-')
-  const sign = hasNegativeSign ? '-' : ''
-  let core = hasNegativeSign ? cleanValue.substring(1) : cleanValue
-
-  if (core.includes('.')) {
-    // Has decimal point: strip leading zeros but keep one before '.'
-    core = core.replace(/^0+/, '')
-    if (core === '' || core.startsWith('.')) {
-      core = '0' + core
-    }
-  } else {
-    // Integer: strip leading zeros but keep one if result is empty
-    core = core.replace(/^0+/, '') || '0'
-  }
-
-  cleanValue = sign + core
+  // Apply normalization steps
+  cleanValue = normalizeNegativeSign(cleanValue, currentValue, allowNegative)
+  cleanValue = normalizeDecimalPoint(cleanValue)
+  cleanValue = limitDecimalPlaces(cleanValue, maxDecimals)
+  cleanValue = removeLeadingZeros(cleanValue)
 
   // Validate range
-  const numericValue = parseFloat(cleanValue)
-  if (!isNaN(numericValue)) {
-    if (maxValue !== undefined && numericValue > maxValue) {
-      return {
-        isValid: false,
-        cleanedValue: cleanValue,
-        error: `Value cannot exceed ${maxValue}`
-      }
-    }
-    if (minValue !== undefined && numericValue < minValue) {
-      return {
-        isValid: false,
-        cleanedValue: cleanValue,
-        error: `Value cannot be less than ${minValue}`
-      }
-    }
+  const rangeError = validateRange(cleanValue, maxValue, minValue)
+  if (rangeError) {
+    return rangeError
   }
 
   return {
@@ -163,8 +212,12 @@ export const validatePastedContent = (
   options: {
     maxDecimals?: number
     allowNegative?: boolean
+    maxValue?: number
+    minValue?: number
   } = {}
 ): ValidationResult => {
+  const { maxValue, minValue } = options
+
   // Clean the pasted content first
   const pattern = options.allowNegative ? /[^\d.-]/g : /[^\d.]/g
   const cleanPasteData = pastedText.replace(pattern, '')
@@ -185,6 +238,12 @@ export const validatePastedContent = (
 
   if (currentHasDecimal && pasteHasDecimal) {
     finalPasteData = cleanPasteData.replace(/\./g, '')
+  }
+
+  // Validate range for the pasted content
+  const rangeError = validateRange(finalPasteData, maxValue, minValue)
+  if (rangeError) {
+    return rangeError
   }
 
   return {

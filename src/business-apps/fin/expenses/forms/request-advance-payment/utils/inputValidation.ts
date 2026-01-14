@@ -25,23 +25,24 @@ export const validateKeyPress = (
   const { allowNegative = false } = options
 
   // Control keys (always allowed)
-  const controlKeys = [8, 9, 27, 13, 46] // backspace, tab, escape, enter, delete
-  if (controlKeys.includes(e.keyCode)) {
+  const controlKeys = ['Backspace', 'Tab', 'Escape', 'Enter', 'Delete']
+  if (controlKeys.includes(e.key)) {
     return { isAllowed: true, shouldPreventDefault: false }
   }
 
   // Keyboard shortcuts (always allowed)
-  if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88, 90].includes(e.keyCode)) {
+  if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
     return { isAllowed: true, shouldPreventDefault: false }
   }
 
   // Navigation keys (always allowed)
-  if (e.keyCode >= 35 && e.keyCode <= 40) {
+  const navigationKeys = ['Home', 'End', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']
+  if (navigationKeys.includes(e.key)) {
     return { isAllowed: true, shouldPreventDefault: false }
   }
 
   // Numbers (0-9) from main keyboard and numpad
-  if ((e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105)) {
+  if (/^\d$/.test(e.key)) {
     return { isAllowed: true, shouldPreventDefault: false }
   }
 
@@ -146,8 +147,12 @@ export const validatePastedContent = (
   options: {
     maxDecimals?: number
     allowNegative?: boolean
+    maxValue?: number
+    minValue?: number
   } = {}
 ): ValidationResult => {
+  const { maxValue, minValue } = options
+
   // Clean the pasted content first
   const pattern = options.allowNegative ? /[^\d.-]/g : /[^\d.]/g
   const cleanPasteData = pastedText.replace(pattern, '')
@@ -168,6 +173,25 @@ export const validatePastedContent = (
 
   if (currentHasDecimal && pasteHasDecimal) {
     finalPasteData = cleanPasteData.replace(/\./g, '')
+  }
+
+  // Validate range for the pasted content
+  const numericValue = parseFloat(finalPasteData)
+  if (!isNaN(numericValue)) {
+    if (maxValue !== undefined && numericValue > maxValue) {
+      return {
+        isValid: false,
+        cleanedValue: finalPasteData,
+        error: `Value cannot exceed ${maxValue}`
+      }
+    }
+    if (minValue !== undefined && numericValue < minValue) {
+      return {
+        isValid: false,
+        cleanedValue: finalPasteData,
+        error: `Value cannot be less than ${minValue}`
+      }
+    }
   }
 
   return {

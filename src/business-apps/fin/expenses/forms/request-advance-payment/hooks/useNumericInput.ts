@@ -97,7 +97,12 @@ export const useNumericInput = (
       e.preventDefault()
 
       const pastedText = e.clipboardData.getData('text')
-      const validation = validatePastedContent(pastedText, displayValue, options)
+      const validation = validatePastedContent(pastedText, displayValue, {
+        maxDecimals: options.maxDecimals,
+        allowNegative: options.allowNegative,
+        maxValue: options.maxValue,
+        minValue: options.minValue
+      })
 
       if (!validation.isValid) {
         reportError(validation.error || 'Invalid paste content')

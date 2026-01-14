@@ -112,7 +112,7 @@ export const useNumericInput = (
       setDisplayValue(validation.cleanedValue)
 
       // Pass undefined for empty string to distinguish from user entering 0
-      const parsedValue = validation.cleanedValue === '' ? undefined : parseFloat(validation.cleanedValue) || 0
+      const parsedValue = validation.cleanedValue === '' ? undefined : Number.parseFloat(validation.cleanedValue) || 0
       onChange(parsedValue)
     },
     [displayValue, maxDecimals, allowNegative, maxValue, minValue, onChange, clearError, reportError]
@@ -125,7 +125,9 @@ export const useNumericInput = (
       const pastedText = e.clipboardData.getData('text')
       const validation = validatePastedContent(pastedText, displayValue, {
         maxDecimals,
-        allowNegative
+        allowNegative,
+        maxValue,
+        minValue
       })
 
       if (!validation.isValid) {
@@ -155,7 +157,7 @@ export const useNumericInput = (
         input.setSelectionRange(newCaretPosition, newCaretPosition)
       })
     },
-    [displayValue, maxDecimals, allowNegative, handleChange, reportError]
+    [displayValue, maxDecimals, allowNegative, maxValue, minValue, handleChange, reportError]
   )
 
   const setValue = useCallback(
@@ -179,7 +181,7 @@ export const useNumericInput = (
 
   return {
     displayValue,
-    numericValue: parseFloat(displayValue) || 0,
+    numericValue: Number.parseFloat(displayValue) || 0,
     handleKeyDown,
     handleChange,
     handlePaste,
