@@ -156,3 +156,24 @@ export const getDefaultBreakTypeDetailValues = (): BreakTypeDetailRowFormData =>
   payOption: null,
   combinedWithBreakTypeVersionDetailId: null
 })
+
+// Helper to determine which fields are required based on the selected type
+export const getRequiredFieldsForType = (
+  type: string | null | undefined
+): {
+  startTime: boolean
+  endTime: boolean
+  hours: boolean
+  length: boolean
+} => {
+  const isFixedOrClocking = type === 'BREAK_TYPE_FIXED' || type === 'BREAK_TYPE_CLOCKING'
+  const isAttendanceOrTargetTime = type === 'BREAK_TYPE_ATTENDANCE' || type === 'BREAK_TYPE_TARGET_TIME'
+  const isClocking = type === 'BREAK_TYPE_CLOCKING'
+
+  return {
+    startTime: isFixedOrClocking,
+    endTime: isFixedOrClocking,
+    hours: isAttendanceOrTargetTime,
+    length: isClocking || isAttendanceOrTargetTime
+  }
+}
