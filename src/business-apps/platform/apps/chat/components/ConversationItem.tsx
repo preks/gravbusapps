@@ -9,14 +9,12 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-  useTranslation
+  DialogTitle
 } from '@newwork/nw-design-system'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { UserIcon, UsersIcon, Sparkles } from 'lucide-react'
 import { SignOut } from '@phosphor-icons/react'
-import translations from '../_i18n'
 
 interface ConversationItemProps {
   conversation: Conversation
@@ -27,6 +25,7 @@ interface ConversationItemProps {
   compact?: boolean
   otherUserPresence?: UserPresence
   activeExpertCount?: number
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -94,9 +93,9 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   currentUserId = null,
   compact = false,
   otherUserPresence,
-  activeExpertCount = 0
+  activeExpertCount = 0,
+  t
 }) => {
-  const { t } = useTranslation(translations)
   const name = getConversationName(conversation, currentUserId, t)
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
   const avatarUrl = otherParticipant?.user?.avatarUrl

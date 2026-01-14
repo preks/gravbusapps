@@ -1,22 +1,14 @@
 import React from 'react'
-import {
-  Badge,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-  useLocale,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Badge, Tooltip, TooltipContent, TooltipTrigger, TooltipProvider, useLocale } from '@newwork/nw-design-system'
 import { Video, MapPin, Users, Clock, Check, X, HelpCircle } from 'lucide-react'
 import type { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
-import translations from '../../_i18n'
 
 interface CalendarEventItemProps {
   event: CalendarEvent
   compact?: boolean
   height?: number // Available height in pixels
   onClick?: () => void
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 const formatTime = (date: Date, locale?: string): string => {
@@ -66,9 +58,8 @@ const getInvitationStatusIcon = (status?: InvitationStatus) => {
   }
 }
 
-export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, compact = false, height, onClick }) => {
+export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, compact = false, height, onClick, t }) => {
   const { locale } = useLocale()
-  const { t } = useTranslation(translations)
   const statusClass = getStatusColor(event.status)
   const organizerName =
     event.organizer.displayName ||

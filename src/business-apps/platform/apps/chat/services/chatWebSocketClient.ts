@@ -229,8 +229,13 @@ export class ChatWebSocketClient {
   }
 
   // Emit events
-  joinConversation(conversationId: string) {
-    this.socket?.emit('join_conversation', { conversationId })
+  joinConversation(conversationId: string, lastMessageTimestamp?: number) {
+    // PERFORMANCE: Tell backend the newest message we have
+    // Backend should skip sending historical messages older than this timestamp
+    this.socket?.emit('join_conversation', {
+      conversationId,
+      lastMessageTimestamp: lastMessageTimestamp || 0
+    })
   }
 
   leaveConversation(conversationId: string) {

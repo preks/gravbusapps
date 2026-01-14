@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { MessageItem } from './MessageItem'
 import { TypingIndicatorComponent } from './TypingIndicator'
@@ -57,6 +57,11 @@ export const MessageList: React.FC<MessageListProps> = ({
   // This is a defensive measure to prevent showing wrong conversation's messages
   // in case of race conditions with async API calls
   const filteredMessages = messages.filter(m => m.conversationId === conversationId)
+
+  // OPTIMIZATION: Removed useDeferredValue to prevent double-render and perceived delay
+  // The messages are now loaded with startTransition in useMessages hook, so they're already non-blocking
+  // Using deferredMessages was causing: initial empty render -> spinner -> then actual messages
+  // Now we render messages immediately when they arrive from the API
 
   // Filter typing users for this conversation
   const conversationTypingUsers = typingUsers.filter(t => t.conversationId === conversationId && t.isTyping)
@@ -137,22 +142,11 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
   }, [conversationId])
 
-  // Recurring timestamp update - triggers re-render every minute
-  const [, setTimestampUpdate] = useState(0)
-
-  useEffect(() => {
-    // Set up interval to update timestamps every minute
-    const intervalId = setInterval(() => {
-      setTimestampUpdate(prev => prev + 1)
-    }, 60000)
-
-    return () => {
-      clearInterval(intervalId)
-    }
-  }, [])
+  // NOTE: Timestamp updates are now handled individually by each MessageItem
+  // to avoid re-rendering the entire list every minute
 
   // Handle scroll to top for loading more messages
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!messagesContainerRef.current || !onLoadMore || isLoading || !hasMore) {
       return
     }
@@ -180,11 +174,10 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
 
     lastScrollTopRef.current = currentTop
-  }
+  }, [onLoadMore, isLoading, hasMore])
 
-  // Show loading when:
-  // 1. First load for a new conversation (isFirstLoad)
-  // 2. OR when loading with no messages (switching conversations)
+  // Show loading only when actually loading and we have no messages yet
+  // OPTIMIZATION: Simplified loading logic - no more checking for deferred render delay
   const showLoading = isLoading && filteredMessages.length === 0
 
   return (
@@ -243,6 +236,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                 participants={participants}
                 onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
                 onSendMessage={onSendMessage}
+                t={t}
               />
             ))}
 
