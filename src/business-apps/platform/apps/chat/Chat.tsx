@@ -1087,33 +1087,32 @@ export const Chat: React.FC<ChatProps> = memo(
       }
     }, [refreshConversations])
 
-    // TODO V2: Restore handleReplyToAI when implementing @Every AI mentions
     // Handle reply to AI - prepopulate draft with @Every and register it as a mention
-    // const handleReplyToAI = useCallback(() => {
-    //   setDraftMessage(prev => {
-    //     if (prev.startsWith('@Every ')) {
-    //       return prev
-    //     }
-    //     const newText = `@Every ${prev}`
-    //     // Register @Every as a mention entity if registerMentionEntity is available
-    //     if (registerMentionEntityRef.current) {
-    //       const EVERY_AI_ENTITY = {
-    //         id: 'every-ai-assistant',
-    //         type: 'ai_assistant' as const,
-    //         name: 'Every',
-    //         subtitle: 'AI Assistant • Ask me anything'
-    //       }
-    //       registerMentionEntityRef.current(EVERY_AI_ENTITY, newText, 0)
-    //     }
-    //     // Restore focus after a brief delay to ensure DOM is updated
-    //     setTimeout(() => {
-    //       if (focusInputRef.current) {
-    //         focusInputRef.current()
-    //       }
-    //     }, 0)
-    //     return newText
-    //   })
-    // }, [])
+    const handleReplyToAI = useCallback(() => {
+      setDraftMessage(prev => {
+        if (prev.startsWith('@Every ')) {
+          return prev
+        }
+        const newText = `@Every ${prev}`
+        // Register @Every as a mention entity if registerMentionEntity is available
+        if (registerMentionEntityRef.current) {
+          const EVERY_AI_ENTITY = {
+            id: 'every-ai-assistant',
+            type: 'ai_assistant' as const,
+            name: 'Every',
+            subtitle: 'AI Assistant • Ask me anything'
+          }
+          registerMentionEntityRef.current(EVERY_AI_ENTITY, newText, 0)
+        }
+        // Restore focus after a brief delay to ensure DOM is updated
+        setTimeout(() => {
+          if (focusInputRef.current) {
+            focusInputRef.current()
+          }
+        }, 0)
+        return newText
+      })
+    }, [])
 
     // Keep ref in sync with activeConversationId for stable callbacks
     useEffect(() => {
@@ -1537,6 +1536,7 @@ export const Chat: React.FC<ChatProps> = memo(
                     onLoadMore={loadMoreMessages}
                     conversationId={stableActiveConversation.id}
                     typingUsers={Object.values(typingUsers || {}).flat()}
+                    onReplyToAI={handleReplyToAI}
                   />
 
                   {/* V1 - Old implementation (commented for testing)

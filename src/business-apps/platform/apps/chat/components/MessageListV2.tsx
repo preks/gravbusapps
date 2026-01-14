@@ -14,6 +14,7 @@ interface MessageListV2Props {
   onLoadMore?: () => void
   conversationId: string
   typingUsers?: TypingIndicator[]
+  onReplyToAI?: () => void
 }
 
 /**
@@ -37,7 +38,8 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     hasMore = false,
     onLoadMore,
     conversationId,
-    typingUsers = []
+    typingUsers = [],
+    onReplyToAI
   }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -133,7 +135,15 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
         return
       }
 
-      const shouldScroll = isInitialLoad || (hasNewMessages && isNearBottom) || (typingChanged && isNearBottom)
+      // Check if the latest message is from the current user or is an AI response
+      // In these cases, we should auto-scroll even if user was scrolled up
+      const latestMessage = messages[messages.length - 1]
+      const isOwnMessage = latestMessage?.senderId === currentUserId
+      const isAIResponse = latestMessage?.metadata?.isAIResponse === true
+      const shouldForceScroll = hasNewMessages && (isOwnMessage || isAIResponse)
+
+      const shouldScroll =
+        isInitialLoad || (hasNewMessages && isNearBottom) || (typingChanged && isNearBottom) || shouldForceScroll
 
       // FEATURE: Track unseen messages when user is scrolled up (Slack/Teams pattern)
       // CRITICAL: Only count real new messages, not pagination (load-more)
@@ -151,14 +161,18 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
             isRealNewMessage,
             isNearBottom,
             isInitialLoad,
-            willCount: isRealNewMessage && !isNearBottom && !isInitialLoad,
+            isOwnMessage,
+            isAIResponse,
+            shouldForceScroll,
+            willCount: isRealNewMessage && !isNearBottom && !isInitialLoad && !shouldForceScroll,
             currentUnseenCount: unseenCount,
             hasUnseenMessages
           })
         }
       })
 
-      if (isRealNewMessage && !isNearBottom && !isInitialLoad) {
+      // Don't count unseen messages if we're force-scrolling (own messages or AI responses)
+      if (isRealNewMessage && !isNearBottom && !isInitialLoad && !shouldForceScroll) {
         const newMessageCount = currentCount - prevCount
         setUnseenCount(prev => prev + newMessageCount)
         setHasUnseenMessages(true)
@@ -510,6 +524,7 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
                   currentUserId={currentUserId}
                   isGroupChat={isGroupChat}
                   showSender={showSender}
+                  onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
                 />
               )
             })}
@@ -534,6 +549,7 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     if (prevProps.hasMore !== nextProps.hasMore) return false
     if (prevProps.onLoadMore !== nextProps.onLoadMore) return false
     if (prevProps.conversationId !== nextProps.conversationId) return false
+    if (prevProps.onReplyToAI !== nextProps.onReplyToAI) return false
 
     // Check typing users
     const prevTypingCount = prevProps.typingUsers?.length || 0

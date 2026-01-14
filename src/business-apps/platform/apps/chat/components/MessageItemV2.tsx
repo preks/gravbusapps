@@ -1,6 +1,16 @@
 import React from 'react'
 import type { Message } from '../types'
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider
+} from '@newwork/nw-design-system'
+import { ArrowBendUpLeft } from '@phosphor-icons/react'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 
 interface MessageItemV2Props {
@@ -8,6 +18,7 @@ interface MessageItemV2Props {
   currentUserId: string | null
   isGroupChat: boolean
   showSender?: boolean
+  onReplyToAI?: () => void
 }
 
 /**
@@ -50,12 +61,13 @@ const formatTime = (date: Date | string): string => {
 }
 
 export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
-  ({ message, currentUserId, isGroupChat, showSender = true }) => {
+  ({ message, currentUserId, isGroupChat, showSender = true, onReplyToAI }) => {
     // OPTIMIZATION: Removed per-message render logging - too verbose for 100+ messages
     // Enable only for debugging: devPerf(() => console.log('[V2 Item] Rendering:', message.id))
 
     const isOwnMessage = message.senderId === currentUserId
     const sender = message.sender
+    const isAIResponse = message.metadata?.isAIResponse === true
 
     return (
       <div
@@ -78,11 +90,43 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
 
         {/* Message content */}
         <div className={`gba:flex gba:flex-col gba:max-w-[70%] ${isOwnMessage ? 'gba:items-end' : 'gba:items-start'}`}>
-          {/* Sender name (for group chats, other users only) */}
-          {!isOwnMessage && isGroupChat && showSender && sender && (
+          {/* Sender name (for group chats, other users only) or AI header with reply button */}
+          {!isOwnMessage && isGroupChat && showSender && sender && !isAIResponse && (
             <span className="gba:text-xs gba:text-muted-foreground gba:mb-1">
               {sender.displayName || sender.username || 'Unknown User'}
             </span>
+          )}
+
+          {/* AI Response header with reply button */}
+          {isAIResponse && onReplyToAI && (
+            <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:mb-1">
+              <span className="gba:text-xs gba:font-semibold gba:text-primary gba:flex gba:items-center gba:gap-1">
+                <span>✨</span>
+                Every AI
+              </span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onReplyToAI()
+                      }}
+                      className="gba:h-5 gba:w-5 gba:text-primary/70 hover:gba:text-primary hover:gba:bg-primary/10"
+                      data-testid={`reply-to-ai-${message.id}`}
+                    >
+                      <ArrowBendUpLeft className="gba:w-3.5 gba:h-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="gba:text-xs">Reply to AI</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           )}
 
           {/* Message bubble */}
@@ -123,7 +167,8 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
       prevProps.currentUserId === nextProps.currentUserId &&
       prevProps.isGroupChat === nextProps.isGroupChat &&
       prevProps.showSender === nextProps.showSender &&
-      prevProps.message.senderId === nextProps.message.senderId
+      prevProps.message.senderId === nextProps.message.senderId &&
+      prevProps.onReplyToAI === nextProps.onReplyToAI
     )
   }
 )
