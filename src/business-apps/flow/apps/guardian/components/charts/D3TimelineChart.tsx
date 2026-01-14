@@ -244,11 +244,8 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
       .map(e => ({ ...e, date: e.date instanceof Date ? e.date : new Date(e.timestamp) }))
       .sort((a, b) => a.date.getTime() - b.date.getTime())
 
-    // Choose a lane strategy:
-    // - If there are few flows, group by flow (best mental model)
-    // - Otherwise, group by action (keeps lanes readable while still showing ALL events)
-    const flowCount = new Set(allEvents.map(e => String(e.flowId || 'unknown'))).size
-    const laneMode: 'flow' | 'action' = flowCount <= 12 ? 'flow' : 'action'
+    // Always group by action type (FLOW STARTED, TASK CLAIMED, etc.) for consistent UX
+    const laneMode: 'flow' | 'action' = 'action'
 
     // Reduce unused space on the left by using smaller margins + truncated labels
     const margin = {
@@ -545,13 +542,21 @@ export const D3TimelineChart: React.FC<D3TimelineChartProps> = ({
   }, [])
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        background: 'var(--guardian-card)',
+        borderRadius: 8
+      }}
+    >
       <svg
         ref={svgRef}
         width="100%"
         height="100%"
         preserveAspectRatio="xMidYMid meet"
-        className="gba:bg-card/30 gba:block"
+        style={{ display: 'block', background: 'transparent' }}
         data-testid={`${prefixDataTestId}-timeline-svg`}
       />
     </div>
