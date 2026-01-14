@@ -54,7 +54,7 @@ export const useNumericInput = (
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      const validation = validateKeyPress(e, { allowNegative: options.allowNegative })
+      const validation = validateKeyPress(e)
 
       if (!validation.isAllowed && validation.shouldPreventDefault) {
         e.preventDefault()
@@ -69,7 +69,7 @@ export const useNumericInput = (
 
       clearError()
     },
-    [displayValue, options.allowNegative, clearError]
+    [displayValue, clearError]
   )
 
   const handleChange = useCallback(
@@ -97,12 +97,7 @@ export const useNumericInput = (
       e.preventDefault()
 
       const pastedText = e.clipboardData.getData('text')
-      const validation = validatePastedContent(pastedText, displayValue, {
-        maxDecimals: options.maxDecimals,
-        allowNegative: options.allowNegative,
-        maxValue: options.maxValue,
-        minValue: options.minValue
-      })
+      const validation = validatePastedContent(pastedText, displayValue, options)
 
       if (!validation.isValid) {
         reportError(validation.error || 'Invalid paste content')

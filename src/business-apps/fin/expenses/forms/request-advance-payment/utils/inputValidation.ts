@@ -18,42 +18,31 @@ export interface KeyValidationResult {
  * Validates if a key press should be allowed
  * Follows Single Responsibility Principle
  */
-export const validateKeyPress = (
-  e: React.KeyboardEvent<HTMLInputElement>,
-  options: { allowNegative?: boolean } = {}
-): KeyValidationResult => {
-  const { allowNegative = false } = options
-
+export const validateKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): KeyValidationResult => {
   // Control keys (always allowed)
-  const controlKeys = ['Backspace', 'Tab', 'Escape', 'Enter', 'Delete']
-  if (controlKeys.includes(e.key)) {
+  const controlKeys = [8, 9, 27, 13, 46] // backspace, tab, escape, enter, delete
+  if (controlKeys.includes(e.keyCode)) {
     return { isAllowed: true, shouldPreventDefault: false }
   }
 
   // Keyboard shortcuts (always allowed)
-  if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
+  if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88, 90].includes(e.keyCode)) {
     return { isAllowed: true, shouldPreventDefault: false }
   }
 
   // Navigation keys (always allowed)
-  const navigationKeys = ['Home', 'End', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']
-  if (navigationKeys.includes(e.key)) {
+  if (e.keyCode >= 35 && e.keyCode <= 40) {
     return { isAllowed: true, shouldPreventDefault: false }
   }
 
   // Numbers (0-9) from main keyboard and numpad
-  if (/^\d$/.test(e.key)) {
+  if ((e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105)) {
     return { isAllowed: true, shouldPreventDefault: false }
   }
 
   // Decimal point (conditional)
   if (e.key === '.') {
     return { isAllowed: true, shouldPreventDefault: false } // Let change handler decide
-  }
-
-  // Minus sign (conditional - let change handler enforce validity)
-  if (e.key === '-' && allowNegative) {
-    return { isAllowed: true, shouldPreventDefault: false }
   }
 
   // Block everything else
@@ -147,12 +136,8 @@ export const validatePastedContent = (
   options: {
     maxDecimals?: number
     allowNegative?: boolean
-    maxValue?: number
-    minValue?: number
   } = {}
 ): ValidationResult => {
-  const { maxValue, minValue } = options
-
   // Clean the pasted content first
   const pattern = options.allowNegative ? /[^\d.-]/g : /[^\d.]/g
   const cleanPasteData = pastedText.replace(pattern, '')
@@ -173,25 +158,6 @@ export const validatePastedContent = (
 
   if (currentHasDecimal && pasteHasDecimal) {
     finalPasteData = cleanPasteData.replace(/\./g, '')
-  }
-
-  // Validate range for the pasted content
-  const numericValue = parseFloat(finalPasteData)
-  if (!isNaN(numericValue)) {
-    if (maxValue !== undefined && numericValue > maxValue) {
-      return {
-        isValid: false,
-        cleanedValue: finalPasteData,
-        error: `Value cannot exceed ${maxValue}`
-      }
-    }
-    if (minValue !== undefined && numericValue < minValue) {
-      return {
-        isValid: false,
-        cleanedValue: finalPasteData,
-        error: `Value cannot be less than ${minValue}`
-      }
-    }
   }
 
   return {
