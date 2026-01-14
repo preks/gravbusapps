@@ -176,7 +176,7 @@ export const useIncrementTypeDetailRows = ({
   const handleAddRow = useCallback(() => {
     const newValues = getDefaultIncrementTypeDetailValues()
     // Set displayOrder to the next available position
-    newValues.displayOrder = details.length
+    newValues.displayOrder = details.length + 1
     setEditingRows(prev => ({
       ...prev,
       [NEW_ROW_KEY]: newValues
