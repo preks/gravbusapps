@@ -49,7 +49,6 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  ChevronLeft,
   ChevronRight,
   Layers,
   RefreshCw,
@@ -59,12 +58,10 @@ import {
   Columns,
   Eye,
   EyeOff,
-  Workflow,
   X,
   Save,
   Activity,
   User,
-  Users,
   Sparkles,
   Zap,
   Signal,
@@ -76,7 +73,7 @@ import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicForm
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
 import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn, ViewType, SheetView, ColumnType } from './types'
 import { evaluateFormula, isFormula, type FormulaContext } from './utils/formulaEvaluator'
-import { getIconByName, DEFAULT_APP_ICON } from './utils/appIcons'
+import { getIconByName } from './utils/appIcons'
 import { useEntityDataSource } from './hooks/useEntityDataSource'
 import { AutomationsHub, AutomationWizard } from './components/automations'
 import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
@@ -185,17 +182,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null)
   const [editingColumnId, setEditingColumnIdState] = useState<string | null>(null)
   const [editingColumnLabel, setEditingColumnLabelState] = useState('')
-  
+
   // Refs to track latest editing state for stable closures in memoized columns
   const editingColumnIdRef = useRef<string | null>(null)
   const editingColumnLabelRef = useRef('')
-  
+
   // Stable setters that update both state and refs
   const setEditingColumnId = useCallback((id: string | null) => {
     editingColumnIdRef.current = id
     setEditingColumnIdState(id)
   }, [])
-  
+
   const setEditingColumnLabel = useCallback((label: string) => {
     editingColumnLabelRef.current = label
     setEditingColumnLabelState(label)
@@ -234,11 +231,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     rowIndex: number
     colIndex: number
   } | null>(null)
-  
+
   // Ref to track latest selectedCell for stable closures in memoized columns
   const selectedCellRef = useRef(selectedCell)
   selectedCellRef.current = selectedCell
-  
+
   // Stable setSelectedCell that also updates the ref immediately
   const setSelectedCell = useCallback((cell: typeof selectedCell) => {
     selectedCellRef.current = cell
@@ -391,18 +388,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const onOperationReceivedCallback = useCallback((operation: any) => {
     // Handle incoming operations from other users
     console.log('[SpreadsheetAppViewer] Received operation:', operation)
-    
-    // #region agent log
-    const isOwnOperation = operation.userId === currentUserIdRef.current
-    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:onOperationReceived',message:'Operation received in viewer',data:{operationType:operation.operation.type,fromUserId:operation.userId,currentUserId:currentUserIdRef.current,isOwnOperation},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
-    
+
     // Skip if this is our own operation (we already applied it optimistically)
+    const isOwnOperation = operation.userId === currentUserIdRef.current
     if (isOwnOperation) {
       console.log('[SpreadsheetAppViewer] Skipping own operation')
       return
     }
-    
+
     // Apply the operation to local state
     // Operations can be for ANY sheet, not just the active one
     const { sheetId } = operation.operation.data as { sheetId: string }
@@ -415,7 +408,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         column: string
         value: unknown
       }
-      
+
       if (isActiveSheet) {
         // Update local state for active sheet
         setLocalSheetData(prevData => prevData.map(row => (row._id === rowId ? { ...row, [column]: value } : row)))
@@ -437,7 +430,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         sheetId: string
         rowData: Record<string, unknown>
       }
-      
+
       if (isActiveSheet) {
         setLocalSheetData(prevData => {
           const exists = prevData.some(row => row._id === rowData._id)
@@ -462,7 +455,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         sheetId: string
         rowId: string
       }
-      
+
       if (isActiveSheet) {
         setLocalSheetData(prevData => prevData.filter(row => row._id !== rowId))
       } else if (onAppUpdateRef.current) {
@@ -480,7 +473,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         sheetId: string
         column: SpreadsheetColumn
       }
-      
+
       if (onAppUpdateRef.current) {
         const targetSheet = app.sheets.find(s => s.id === sheetId)
         if (targetSheet) {
@@ -503,23 +496,21 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         columnId?: string
         columnPatch?: Partial<SpreadsheetColumn>
       }
-      
+
       if (onAppUpdateRef.current) {
         const targetSheet = app.sheets.find(s => s.id === sheetId)
         if (targetSheet) {
           let updatedColumns: SpreadsheetColumn[]
-          
+
           // Support patch-based updates (prevents race conditions)
           if (columnId && columnPatch) {
-            updatedColumns = targetSheet.columns.map(col =>
-              col.id === columnId ? { ...col, ...columnPatch } : col
-            )
+            updatedColumns = targetSheet.columns.map(col => (col.id === columnId ? { ...col, ...columnPatch } : col))
           } else if (columns) {
             updatedColumns = columns
           } else {
             return
           }
-          
+
           const updatedSheets = app.sheets.map(sheet =>
             sheet.id === sheetId
               ? {
@@ -537,7 +528,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         sheetId: string
         columnId: string
       }
-      
+
       if (onAppUpdateRef.current) {
         const targetSheet = app.sheets.find(s => s.id === sheetId)
         if (targetSheet) {
@@ -605,7 +596,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             }
           }
         `
-        const result = await graphqlClient.request<{ Employee: Array<{ userId: string; pictureThumbnail: string | null }> }>(query, { userIds })
+        const result = await graphqlClient.request<{
+          Employee: Array<{ userId: string; pictureThumbnail: string | null }>
+        }>(query, { userIds })
 
         const avatarMap = new Map<string, string>()
         result?.Employee?.forEach(emp => {
@@ -634,15 +627,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   // Stable callback to emit cursor immediately (used by EditableCell on click)
   // This is the primary way cursor is emitted for faster collaboration feedback
-  const emitCursorImmediate = useCallback((rowId: string, colId: string, rowIndex: number, colIndex: number) => {
-    if (isCollaborationConnected) {
-      emitCursor({
-        path: [activeSheetId, rowId, colId],
-        line: rowIndex,
-        column: colIndex
-      })
-    }
-  }, [activeSheetId, isCollaborationConnected, emitCursor])
+  const emitCursorImmediate = useCallback(
+    (rowId: string, colId: string, rowIndex: number, colIndex: number) => {
+      if (isCollaborationConnected) {
+        emitCursor({
+          path: [activeSheetId, rowId, colId],
+          line: rowIndex,
+          column: colIndex
+        })
+      }
+    },
+    [activeSheetId, isCollaborationConnected, emitCursor]
+  )
 
   // Track previous sheet ID to detect actual sheet changes
   const prevSheetIdRef = React.useRef(activeSheetId)
@@ -1988,9 +1984,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // Emit collaboration operation for real-time sync (WebSocket saves to DB)
       // Only emit if row has a valid UUID (not a temporary row_ ID)
       const isTemporaryRow = typeof rowId === 'string' && rowId.startsWith('row_')
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:handleCellChange:route',message:'Routing cell change',data:{sheetId:activeSheet.id,rowId,columnName,valueType:typeof value,isConnected:isCollaborationConnected,isTemporaryRow,route:(isCollaborationConnected&&!isTemporaryRow)?'ws':'rest'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'R5'})}).catch(()=>{});
-      // #endregion
       if (isCollaborationConnected && !isTemporaryRow) {
         emitOperation({
           type: 'cell_update',
@@ -2250,10 +2243,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const tableColumns: ColumnDef<Record<string, unknown>>[] = useMemo(() => {
     if (!activeSheet) return []
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:tableColumns:recompute',message:'Recomputing tableColumns',data:{sheetId:activeSheet.id,selectedCell:selectedCell?{rowId:selectedCell.rowId,colId:selectedCell.colId}:null,participantsCount:participants.length,participantsWithCursor:participants.filter(p=>p.cursor?.path?.length).length,isCollaborationConnected},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'R4'})}).catch(()=>{});
-    // #endregion
-
     const cols: ColumnDef<Record<string, unknown>>[] = []
 
     // Add row number column (show row numbers)
@@ -2371,7 +2360,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               setEditingColumnLabel(col.label)
             }}
             onLabelChange={setEditingColumnLabel}
-            onFinishEditing={(save) => {
+            onFinishEditing={save => {
               if (!save) {
                 setEditingColumnId(null)
                 setEditingColumnLabel('')
@@ -2567,9 +2556,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                   <span className="gba:hidden sm:gba:inline">Spreadsheets</span>
                 </Button>
               )}
-              {onBack && (
-                <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground/50 gba:flex-shrink-0" />
-              )}
+              {onBack && <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground/50 gba:flex-shrink-0" />}
               <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
                 <div className="gba:relative gba:flex-shrink-0">
                   <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-primary/70 gba:flex gba:items-center gba:justify-center gba:shadow-sm">
@@ -2586,7 +2573,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                 <div className="gba:min-w-0 gba:flex-1">
                   <h1 className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate">{app.name}</h1>
                   {app.description && (
-                    <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[300px]">{app.description}</p>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[300px]">
+                      {app.description}
+                    </p>
                   )}
                 </div>
               </div>
@@ -2601,10 +2590,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                   <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-success/10 gba:border gba:border-success/20">
                     <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
                     <PresenceIndicator participants={participants} maxVisible={3} size="sm" showLabel={false} />
-                    <span className="gba:text-xs gba:font-medium gba:text-success-foreground">{participants.length} active</span>
+                    <span className="gba:text-xs gba:font-medium gba:text-success-foreground">
+                      {participants.length} active
+                    </span>
                   </div>
                 )}
-                
+
                 {/* Connection status indicator - shows when connected but alone */}
                 {participants.length === 0 && isCollaborationConnected && (
                   <TooltipProvider>
@@ -2678,7 +2669,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                
+
                 {onEdit && (
                   <TooltipProvider>
                     <Tooltip>
@@ -2725,9 +2716,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                       <p className="gba:text-xs gba:text-muted-foreground">Automate workflows and actions</p>
                     </div>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setIsAutomationsOpen(false)}
                     className="gba:h-8 gba:w-8 gba:p-0 gba:rounded-full gba:hover:bg-muted"
                   >
@@ -2819,16 +2810,22 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                     onClick={() => setActiveSheetId(sheet.id)}
                   >
                     {hasEntitySource ? (
-                      <Database className={`gba:w-3.5 gba:h-3.5 gba:flex-shrink-0 ${isActive ? 'gba:text-info' : 'gba:text-muted-foreground gba:group-hover:text-info'}`} />
+                      <Database
+                        className={`gba:w-3.5 gba:h-3.5 gba:flex-shrink-0 ${isActive ? 'gba:text-info' : 'gba:text-muted-foreground gba:group-hover:text-info'}`}
+                      />
                     ) : (
-                      <Layers className={`gba:w-3.5 gba:h-3.5 gba:flex-shrink-0 ${isActive ? 'gba:text-primary' : 'gba:text-muted-foreground gba:group-hover:text-primary'}`} />
+                      <Layers
+                        className={`gba:w-3.5 gba:h-3.5 gba:flex-shrink-0 ${isActive ? 'gba:text-primary' : 'gba:text-muted-foreground gba:group-hover:text-primary'}`}
+                      />
                     )}
                     <span className="gba:truncate gba:max-w-[120px]">{sheet.name}</span>
-                    <span className={`gba:text-xs gba:px-1.5 gba:py-0.5 gba:rounded-full gba:tabular-nums ${
-                      isActive 
-                        ? 'gba:bg-primary/10 gba:text-primary' 
-                        : 'gba:bg-muted gba:text-muted-foreground gba:group-hover:bg-muted/70'
-                    }`}>
+                    <span
+                      className={`gba:text-xs gba:px-1.5 gba:py-0.5 gba:rounded-full gba:tabular-nums ${
+                        isActive
+                          ? 'gba:bg-primary/10 gba:text-primary'
+                          : 'gba:bg-muted gba:text-muted-foreground gba:group-hover:bg-muted/70'
+                      }`}
+                    >
                       {dataCount}
                     </span>
                     {/* Active indicator line */}
@@ -2844,14 +2841,19 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       </div>
 
       {/* Formula Bar - Modern Excel-like display */}
-      <div className="gba:px-4 gba:py-2 gba:border-b gba:border-border/50 gba:bg-background gba:w-full gba:overflow-hidden gba:flex-shrink-0" data-testid="spreadsheet-viewer-formula-bar">
+      <div
+        className="gba:px-4 gba:py-2 gba:border-b gba:border-border/50 gba:bg-background gba:w-full gba:overflow-hidden gba:flex-shrink-0"
+        data-testid="spreadsheet-viewer-formula-bar"
+      >
         <div className="gba:flex gba:items-center gba:gap-2 gba:w-full gba:min-w-0">
           {/* Cell reference indicator - Modern pill style */}
-          <div className={`gba:flex gba:items-center gba:gap-1.5 gba:min-w-[70px] gba:px-2.5 gba:py-1.5 gba:rounded-lg gba:text-sm gba:font-mono gba:transition-colors ${
-            selectedCell 
-              ? 'gba:bg-primary/10 gba:text-primary gba:border gba:border-primary/20' 
-              : 'gba:bg-muted/50 gba:text-muted-foreground gba:border gba:border-border/50'
-          }`}>
+          <div
+            className={`gba:flex gba:items-center gba:gap-1.5 gba:min-w-[70px] gba:px-2.5 gba:py-1.5 gba:rounded-lg gba:text-sm gba:font-mono gba:transition-colors ${
+              selectedCell
+                ? 'gba:bg-primary/10 gba:text-primary gba:border gba:border-primary/20'
+                : 'gba:bg-muted/50 gba:text-muted-foreground gba:border gba:border-border/50'
+            }`}
+          >
             <Table2 className="gba:w-3.5 gba:h-3.5 gba:flex-shrink-0" />
             {selectedCell ? (
               <span className="gba:font-semibold">
@@ -2864,11 +2866,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           </div>
 
           {/* Formula/Value input - Modern glass style */}
-          <div className={`gba:flex gba:items-center gba:gap-2.5 gba:flex-1 gba:min-w-0 gba:border gba:rounded-lg gba:px-3 gba:min-h-[38px] gba:transition-all ${
-            selectedCell
-              ? 'gba:bg-background gba:border-border gba:shadow-sm'
-              : 'gba:bg-muted/30 gba:border-border/50'
-          }`}>
+          <div
+            className={`gba:flex gba:items-center gba:gap-2.5 gba:flex-1 gba:min-w-0 gba:border gba:rounded-lg gba:px-3 gba:min-h-[38px] gba:transition-all ${
+              selectedCell
+                ? 'gba:bg-background gba:border-border gba:shadow-sm'
+                : 'gba:bg-muted/30 gba:border-border/50'
+            }`}
+          >
             <div className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded gba:bg-muted/50 gba:flex-shrink-0">
               <span className="gba:font-mono gba:text-xs gba:font-bold gba:text-muted-foreground">fx</span>
             </div>
@@ -3139,12 +3143,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handleAddColumn}
-                        className="gba:h-8 gba:gap-1.5"
-                      >
+                      <Button variant="ghost" size="sm" onClick={handleAddColumn} className="gba:h-8 gba:gap-1.5">
                         <Columns className="gba:w-4 gba:h-4" />
                         <span className="gba:hidden md:gba:inline">Column</span>
                       </Button>
@@ -3158,8 +3157,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         onClick={handleAddRow}
                         className="gba:h-8 gba:gap-1.5 gba:bg-primary gba:hover:bg-primary/90"
                       >
@@ -3248,7 +3247,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                 </div>
                 <span className="gba:text-xs gba:text-muted-foreground">
                   <span className="gba:font-semibold gba:text-foreground">{entityData.length}</span> records from{' '}
-                  <span className="gba:font-medium gba:text-foreground">{activeSheet.entityDataSource.entityDisplayName}</span>
+                  <span className="gba:font-medium gba:text-foreground">
+                    {activeSheet.entityDataSource.entityDisplayName}
+                  </span>
                 </span>
               </div>
               <TooltipProvider>
@@ -3276,11 +3277,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               </div>
               <span className="gba:text-xs gba:text-muted-foreground">No records found matching your filters</span>
               {onEdit && (
-                <button
-                  type="button"
-                  onClick={onEdit}
-                  className="gba:text-xs gba:text-primary gba:hover:underline"
-                >
+                <button type="button" onClick={onEdit} className="gba:text-xs gba:text-primary gba:hover:underline">
                   Edit filters
                 </button>
               )}
@@ -3290,16 +3287,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       )}
 
       {/* Content */}
-      <div 
+      <div
         className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0"
         style={{ minWidth: 0, minHeight: 0, overflow: 'hidden', position: 'relative' }}
       >
         {activeView?.type === 'table' ? (
-          <div 
+          <div
             className="gba:flex-1 gba:min-w-0 gba:p-6"
-            style={{ 
-              minWidth: 0, 
-              minHeight: 0, 
+            style={{
+              minWidth: 0,
+              minHeight: 0,
               overflow: 'auto',
               position: 'absolute',
               top: 0,
@@ -3601,11 +3598,11 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = ({
   // Keep track of the latest label value to avoid stale closures
   const latestLabelRef = useRef(editingLabel)
   latestLabelRef.current = editingLabel
-  
+
   // Drag and drop state
   const [isDragging, setIsDragging] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
-  
+
   // Focus input when editing starts
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -3630,7 +3627,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = ({
       return () => clearTimeout(timeoutId)
     }
   }, [isEditing])
-  
+
   const handleSave = useCallback(() => {
     if (isCommittingRef.current) {
       return
@@ -3645,33 +3642,36 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = ({
       onFinishEditing(false)
     }
   }, [col.id, onRenameColumn, onFinishEditing])
-  
+
   const handleCancel = useCallback(() => {
     if (isCommittingRef.current) return
     isCommittingRef.current = true
     intentionalBlurRef.current = true
     onFinishEditing(false)
   }, [onFinishEditing])
-  
-  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
-    // Only handle blur if it's not from an intentional action and we're not in the middle of committing
-    if (isCommittingRef.current || intentionalBlurRef.current) return
-    
-    // Check if focus is moving to another element inside the header (like the dropdown)
-    const relatedTarget = e.relatedTarget as HTMLElement
-    if (relatedTarget && e.currentTarget.closest('.gba\\:group')?.contains(relatedTarget)) {
-      return
-    }
-    
-    // Delay the blur handling slightly to allow for re-focus during re-renders
-    setTimeout(() => {
-      // If we're still editing and the input still exists, this was likely an accidental blur from re-render
-      if (inputRef.current && document.activeElement !== inputRef.current && !isCommittingRef.current) {
-        handleSave()
+
+  const handleBlur = useCallback(
+    (e: React.FocusEvent<HTMLInputElement>) => {
+      // Only handle blur if it's not from an intentional action and we're not in the middle of committing
+      if (isCommittingRef.current || intentionalBlurRef.current) return
+
+      // Check if focus is moving to another element inside the header (like the dropdown)
+      const relatedTarget = e.relatedTarget as HTMLElement
+      if (relatedTarget && e.currentTarget.closest('.gba\\:group')?.contains(relatedTarget)) {
+        return
       }
-    }, 100)
-  }, [handleSave])
-  
+
+      // Delay the blur handling slightly to allow for re-focus during re-renders
+      setTimeout(() => {
+        // If we're still editing and the input still exists, this was likely an accidental blur from re-render
+        if (inputRef.current && document.activeElement !== inputRef.current && !isCommittingRef.current) {
+          handleSave()
+        }
+      }, 100)
+    },
+    [handleSave]
+  )
+
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent) => {
     if (isTrackingCol || !canEdit || !onReorderColumn) return
@@ -3709,9 +3709,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = ({
   return (
     <div
       className={`gba:flex gba:items-center gba:justify-between gba:w-full gba:group gba:px-2 gba:py-2 gba:transition-all gba:duration-150 ${
-        isTrackingCol
-          ? 'gba:bg-gradient-to-r gba:from-info/15 gba:to-transparent'
-          : ''
+        isTrackingCol ? 'gba:bg-gradient-to-r gba:from-info/15 gba:to-transparent' : ''
       } ${isDragging ? 'gba:opacity-50' : ''} ${isDragOver ? 'gba:bg-primary/10 gba:border-l-2 gba:border-primary' : ''} ${
         canEdit && !isTrackingCol && !isEditing ? 'gba:cursor-grab active:gba:cursor-grabbing' : ''
       }`}
@@ -3765,11 +3763,12 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = ({
         ) : (
           <span
             className={`gba:truncate gba:text-[13px] gba:transition-all gba:duration-150 ${
-              isTrackingCol 
-                ? 'gba:text-info gba:font-semibold gba:text-[11px] gba:uppercase gba:tracking-widest' 
+              isTrackingCol
+                ? 'gba:text-info gba:font-semibold gba:text-[11px] gba:uppercase gba:tracking-widest'
                 : 'gba:font-medium gba:text-foreground/80'
-            } ${canEdit && !isTrackingCol 
-                ? 'gba:cursor-text hover:gba:text-foreground gba:rounded-md gba:px-1.5 gba:py-0.5 gba:-mx-1.5 hover:gba:bg-accent/50' 
+            } ${
+              canEdit && !isTrackingCol
+                ? 'gba:cursor-text hover:gba:text-foreground gba:rounded-md gba:px-1.5 gba:py-0.5 gba:-mx-1.5 hover:gba:bg-accent/50'
                 : ''
             }`}
             onClick={e => {
@@ -4248,11 +4247,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
       const matches = cursorRowId === rowId && cursorColId === column.id
       return matches
     })
-    
-    // #region agent log
-    if (found) fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditableCell:collaboratorMatch',message:'Found collaborator on this cell',data:{userId:found.userId,userName:found.userName,rowId,colId:column.id,cursorPath:found.cursor?.path,participantsCount:participants.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
-    // #endregion
-    
+
     return found
   }, [participants, rowId, column.id])
 
@@ -4264,9 +4259,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleCellKeyDown}
       className={`gba:relative gba:py-1 gba:px-2 gba:min-h-[28px] gba:outline-none ${
-        isSelected && !isEditing 
-          ? 'gba:ring-2 gba:ring-primary gba:ring-inset' 
-          : ''
+        isSelected && !isEditing ? 'gba:ring-2 gba:ring-primary gba:ring-inset' : ''
       } ${canEdit && !isEditing && !isSelected ? 'gba:cursor-cell hover:gba:bg-muted/20' : ''} ${
         isInFormulaMode && isEditing ? 'gba:ring-2 gba:ring-primary gba:ring-inset gba:bg-primary/5' : ''
       } ${isSelectedInFormula ? 'gba:ring-2 gba:ring-info gba:ring-inset gba:bg-info/5' : ''}`}
@@ -4337,7 +4330,7 @@ const TableView: React.FC<TableViewProps> = ({ data, columns, testId, onAddRow, 
   const dataWithIds = useMemo(() => {
     const seen = new Set<string>()
     const deduped: Record<string, unknown>[] = []
-    
+
     for (const row of data) {
       const rowId = (row.id ?? row._id ?? `row_${deduped.length}`) as string
       if (!seen.has(rowId)) {
@@ -4349,18 +4342,17 @@ const TableView: React.FC<TableViewProps> = ({ data, columns, testId, onAddRow, 
       }
       // Silently skip duplicates - deduplication handles the issue
     }
-    
+
     return deduped
   }, [data])
 
   return (
-    <div
-      className="gba:flex gba:flex-col gba:h-full"
-      style={{ width: '100%', minWidth: 0 }}
-      data-testid={testId}
-    >
+    <div className="gba:flex gba:flex-col gba:h-full" style={{ width: '100%', minWidth: 0 }} data-testid={testId}>
       <div className="gba:flex-1 gba:w-full gba:overflow-auto" style={{ minWidth: 0 }}>
-        <Card className="spreadsheet-modern-table gba:overflow-hidden gba:border-0 gba:shadow-sm" style={{ minWidth: 'fit-content' }}>
+        <Card
+          className="spreadsheet-modern-table gba:overflow-hidden gba:border-0 gba:shadow-sm"
+          style={{ minWidth: 'fit-content' }}
+        >
           <style>{`
             .spreadsheet-modern-table table {
               border-collapse: separate;
@@ -4412,12 +4404,7 @@ const TableView: React.FC<TableViewProps> = ({ data, columns, testId, onAddRow, 
               border-bottom: 1px solid hsl(var(--border) / 0.3) !important;
             }
           `}</style>
-          <DataTable
-            columns={columns}
-            data={dataWithIds}
-            enableResizing={true}
-            enableColumnPinning={false}
-          />
+          <DataTable columns={columns} data={dataWithIds} enableResizing={true} enableColumnPinning={false} />
         </Card>
       </div>
       {/* Add Row button */}

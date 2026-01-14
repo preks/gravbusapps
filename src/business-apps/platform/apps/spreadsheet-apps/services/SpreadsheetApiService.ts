@@ -64,20 +64,6 @@ const getAuthToken = (): string | null => {
   try {
     // First check the IDE's storage key (Business App IDE)
     const ideToken = localStorage.getItem('business-app-ide-access-token')
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'SpreadsheetApiService.ts:getAuthToken',
-        message: 'Getting auth token',
-        data: { hasIdeToken: !!ideToken, ideTokenLength: ideToken?.length, ideTokenPrefix: ideToken?.substring(0, 20) },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        hypothesisId: 'D'
-      })
-    }).catch(() => {})
-    // #endregion
     if (ideToken) return ideToken
 
     // Check keycloak token format
@@ -110,21 +96,6 @@ const getAuthToken = (): string | null => {
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken()
 
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'SpreadsheetApiService.ts:apiRequest',
-      message: 'Making API request',
-      data: { endpoint, hasToken: !!token, tokenLength: token?.length, method: options.method || 'GET' },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      hypothesisId: 'F'
-    })
-  }).catch(() => {})
-  // #endregion
-
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -135,21 +106,6 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     ...options,
     headers
   })
-
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'SpreadsheetApiService.ts:apiRequest:response',
-      message: 'API response received',
-      data: { endpoint, status: response.status, ok: response.ok },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      hypothesisId: 'F'
-    })
-  }).catch(() => {})
-  // #endregion
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }))

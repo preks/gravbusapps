@@ -201,24 +201,6 @@ export class CollaborationClient {
     console.log('[CollaborationClient] Joining document:', { entityType, entityId })
     this.socket?.emit('join_document', { entityType, entityId }, (response: any) => {
       console.log('[CollaborationClient] Join document response:', response)
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'CollaborationClient.ts:joinDocument:callback',
-          message: 'Join document callback received',
-          data: {
-            success: response?.success,
-            participantsCount: response?.participants?.length,
-            participants: response?.participants
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          hypothesisId: 'B'
-        })
-      }).catch(() => {})
-      // #endregion
 
       // Call callback with participants list
       if (response?.success && response?.participants) {
@@ -249,20 +231,6 @@ export class CollaborationClient {
     }
 
     console.log('[CollaborationClient] Sending operation:', { entityType, entityId, operation })
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'CollaborationClient.ts:sendDocumentOperation',
-        message: 'Emitting operation',
-        data: { entityType, entityId, operationType: operation.type },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        hypothesisId: 'C'
-      })
-    }).catch(() => {})
-    // #endregion
     this.socket.emit(
       'document_operation',
       {
@@ -272,20 +240,6 @@ export class CollaborationClient {
       },
       (response: any) => {
         console.log('[CollaborationClient] Operation response:', response)
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'CollaborationClient.ts:sendDocumentOperation:callback',
-            message: 'Operation callback received',
-            data: { success: response?.success, version: response?.version },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            hypothesisId: 'D'
-          })
-        }).catch(() => {})
-        // #endregion
       }
     )
   }
@@ -303,33 +257,19 @@ export class CollaborationClient {
       path?: string[]
     }
   ) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'CollaborationClient.ts:sendCursorMove',
-        message: 'Emitting cursor_move',
-        data: {
-          entityType,
-          entityId,
-          connected: this.socket?.connected,
-          socketId: this.socket?.id,
-          hasPath: !!position?.path,
-          path: (position?.path || []).slice(0, 3),
-          line: position?.line,
-          column: position?.column
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        hypothesisId: 'R3'
-      })
-    }).catch(() => {})
-    // #endregion
-    this.socket?.emit('cursor_move', {
+    if (!this.socket?.connected) {
+      return
+    }
+
+    this.socket.emit('cursor_move', {
       entityType,
       entityId,
-      position
+      position: {
+        line: position?.line,
+        column: position?.column,
+        offset: position?.offset,
+        path: position?.path
+      }
     })
   }
 
