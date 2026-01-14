@@ -20,3 +20,6 @@ export * from './useEveryExperts'
 export * from './useConversationExperts'
 export * from './useExpertRouting'
 export * from './useChatExperts'
+
+// V2 - Simplified/Performance-focused implementations
+export * from './useMessagesV2'

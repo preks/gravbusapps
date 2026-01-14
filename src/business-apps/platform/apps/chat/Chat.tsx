@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo, startTransition } from 'react'
+// TODO V2: Restore 'memo' import when needed for optimization
 import { Alert, AlertDescription, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
@@ -11,7 +12,9 @@ import { ConversationList } from './components/ConversationList'
 import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
 import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
 import { ConversationHeader, type ActiveCallInfo } from './components/ConversationHeader'
-import { MessageList } from './components/MessageList'
+// import { MessageList } from './components/MessageList' // V1 - OLD
+import { MessageListV2 } from './components/MessageListV2' // V2 - TESTING
+import { PerformanceMonitor } from './components/PerformanceMonitor' // V2 - Performance monitoring
 import { MessageInput } from './components/MessageInput'
 import { CreateGroupModal } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
@@ -53,6 +56,15 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
   const lastNudgeTimeRef = useRef<number>(0)
   const NUDGE_COOLDOWN_MS = 30000 // 30 seconds
+
+  // V2 startup log
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎯 Chat V2 Active - Performance logging enabled')
+      console.log('   Look for [V2] prefixed logs in console')
+      console.log('   Measuring: load times, re-renders, memory usage')
+    }
+  }, [])
 
   // Inject nudge animation styles on mount
   useEffect(() => {
@@ -134,7 +146,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     messages,
     messagesLoading,
     hasMoreMessages,
-    typingUsers,
+    // typingUsers, // TODO V2: Restore when implementing typing indicators
     getUserPresence,
     updatePresenceFromUser,
     sendMessage,
@@ -168,6 +180,37 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       lastActiveConversationRef.current = activeConversation
     }
   }, [activeConversation])
+
+  // V2 render tracking (after stableActiveConversation is defined)
+  const renderCountRef = useRef(0)
+  const prevRenderDataRef = useRef({ conversationId: '', messageCount: 0, isLoading: false })
+  renderCountRef.current++
+
+  if (process.env.NODE_ENV === 'development') {
+    const currentData = {
+      conversationId: stableActiveConversation?.id || '',
+      messageCount: messages.length,
+      isLoading: messagesLoading
+    }
+
+    const prevData = prevRenderDataRef.current
+    const changes: string[] = []
+
+    if (prevData.conversationId !== currentData.conversationId) changes.push('conversationId')
+    if (prevData.messageCount !== currentData.messageCount)
+      changes.push(`messages(${prevData.messageCount}→${currentData.messageCount})`)
+    if (prevData.isLoading !== currentData.isLoading) changes.push(`loading(${currentData.isLoading})`)
+    if (changes.length === 0) changes.push('no state change - likely parent/context re-render')
+
+    console.log(`[V2 Chat] Render #${renderCountRef.current} - Changed: ${changes.join(', ')}`, {
+      hasConversation: !!stableActiveConversation,
+      conversationId: stableActiveConversation?.id,
+      messageCount: messages.length,
+      isLoading: messagesLoading
+    })
+
+    prevRenderDataRef.current = currentData
+  }
 
   // Track active conversation changes
   useEffect(() => {
@@ -774,98 +817,99 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     ]
   )
 
+  // TODO V2: Restore handleAISendMessage when implementing EveryAI form interactions
   // Handler for sending messages from inline EveryAI forms and interactions
-  const handleAISendMessage = useCallback(
-    async (content: string, metadata?: Record<string, any>) => {
-      if (!activeConversationId) return
-
-      try {
-        // Check if this is a form submission to EveryAI
-        if (metadata?.isFormSubmission) {
-          // Send the form submission to EveryAI and process the response
-          const conversationContext = {
-            conversationId: activeConversationId,
-            conversationName: activeConversation?.name,
-            participants: activeConversation?.participants
-              ?.filter(p => p.user)
-              .map(p => {
-                const user = p.user!
-                const name =
-                  user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || ''
-                return {
-                  id: p.userId || user.id,
-                  odId: p.userId || user.id,
-                  name,
-                  email: user.email,
-                  employeeId: user.employeeId
-                }
-              })
-              .filter(p => p.name),
-            existingSessionId: messages
-              .filter(m => m.metadata?.isAIResponse && m.metadata?.everyAiSessionId)
-              .map(m => m.metadata?.everyAiSessionId as string)
-              .pop(),
-            currentUserId: currentUser?.id,
-            currentUserName: currentUser
-              ? currentUser.displayName ||
-                `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
-                currentUser.username ||
-                ''
-              : ''
-          }
-
-          // Process through EveryAI (no file attachments for form submissions)
-          const aiResponse = await processEveryAIMessage(content, [], conversationContext, [])
-
-          if (aiResponse && !aiResponse.error) {
-            // Check if we have any content to display (text OR outputs)
-            const responseText = aiResponse.text?.trim() || ''
-            const hasOutputs = aiResponse.outputs && aiResponse.outputs.length > 0
-
-            if (responseText || hasOutputs) {
-              await new Promise(resolve => setTimeout(resolve, 100))
-
-              const aiMetadata: Record<string, any> = {
-                isAIResponse: true,
-                aiAssistant: 'Every',
-                originalQuestion: content,
-                everyAiSessionId: aiResponse.sessionId,
-                isFormResult: true // Mark this as a result from form submission
-              }
-
-              if (aiResponse.scheduledMeeting) {
-                aiMetadata.scheduledMeeting = aiResponse.scheduledMeeting
-              }
-
-              if (hasOutputs) {
-                aiMetadata.outputs = aiResponse.outputs
-              }
-
-              // If we have outputs but no text, use a default message
-              const messageText = responseText || 'Processing your request...'
-
-              await sendMessage(activeConversationId, messageText, aiMetadata)
-              clearStreamingText()
-            }
-          }
-        } else {
-          // Regular message send
-          await sendMessage(activeConversationId, content, metadata)
-        }
-      } catch {
-        // Error sending AI message
-      }
-    },
-    [
-      activeConversationId,
-      activeConversation,
-      messages,
-      currentUser,
-      processEveryAIMessage,
-      sendMessage,
-      clearStreamingText
-    ]
-  )
+  // const handleAISendMessage = useCallback(
+  //   async (content: string, metadata?: Record<string, any>) => {
+  //     if (!activeConversationId) return
+  //
+  //     try {
+  //       // Check if this is a form submission to EveryAI
+  //       if (metadata?.isFormSubmission) {
+  //         // Send the form submission to EveryAI and process the response
+  //         const conversationContext = {
+  //           conversationId: activeConversationId,
+  //           conversationName: activeConversation?.name,
+  //           participants: activeConversation?.participants
+  //             ?.filter(p => p.user)
+  //             .map(p => {
+  //               const user = p.user!
+  //               const name =
+  //                 user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || ''
+  //               return {
+  //                 id: p.userId || user.id,
+  //                 odId: p.userId || user.id,
+  //                 name,
+  //                 email: user.email,
+  //                 employeeId: user.employeeId
+  //               }
+  //             })
+  //             .filter(p => p.name),
+  //           existingSessionId: messages
+  //             .filter(m => m.metadata?.isAIResponse && m.metadata?.everyAiSessionId)
+  //             .map(m => m.metadata?.everyAiSessionId as string)
+  //             .pop(),
+  //           currentUserId: currentUser?.id,
+  //           currentUserName: currentUser
+  //             ? currentUser.displayName ||
+  //               `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
+  //               currentUser.username ||
+  //               ''
+  //             : ''
+  //         }
+  //
+  //         // Process through EveryAI (no file attachments for form submissions)
+  //         const aiResponse = await processEveryAIMessage(content, [], conversationContext, [])
+  //
+  //         if (aiResponse && !aiResponse.error) {
+  //           // Check if we have any content to display (text OR outputs)
+  //           const responseText = aiResponse.text?.trim() || ''
+  //           const hasOutputs = aiResponse.outputs && aiResponse.outputs.length > 0
+  //
+  //           if (responseText || hasOutputs) {
+  //             await new Promise(resolve => setTimeout(resolve, 100))
+  //
+  //             const aiMetadata: Record<string, any> = {
+  //               isAIResponse: true,
+  //               aiAssistant: 'Every',
+  //               originalQuestion: content,
+  //               everyAiSessionId: aiResponse.sessionId,
+  //               isFormResult: true // Mark this as a result from form submission
+  //             }
+  //
+  //             if (aiResponse.scheduledMeeting) {
+  //               aiMetadata.scheduledMeeting = aiResponse.scheduledMeeting
+  //             }
+  //
+  //             if (hasOutputs) {
+  //               aiMetadata.outputs = aiResponse.outputs
+  //             }
+  //
+  //             // If we have outputs but no text, use a default message
+  //             const messageText = responseText || 'Processing your request...'
+  //
+  //             await sendMessage(activeConversationId, messageText, aiMetadata)
+  //             clearStreamingText()
+  //           }
+  //         }
+  //       } else {
+  //         // Regular message send
+  //         await sendMessage(activeConversationId, content, metadata)
+  //       }
+  //     } catch {
+  //       // Error sending AI message
+  //     }
+  //   },
+  //   [
+  //     activeConversationId,
+  //     activeConversation,
+  //     messages,
+  //     currentUser,
+  //     processEveryAIMessage,
+  //     sendMessage,
+  //     clearStreamingText
+  //   ]
+  // )
 
   const handleCreateConversation = useCallback(
     async (user: User) => {
@@ -1039,32 +1083,33 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     }
   }, [refreshConversations])
 
+  // TODO V2: Restore handleReplyToAI when implementing @Every AI mentions
   // Handle reply to AI - prepopulate draft with @Every and register it as a mention
-  const handleReplyToAI = useCallback(() => {
-    setDraftMessage(prev => {
-      if (prev.startsWith('@Every ')) {
-        return prev
-      }
-      const newText = `@Every ${prev}`
-      // Register @Every as a mention entity if registerMentionEntity is available
-      if (registerMentionEntityRef.current) {
-        const EVERY_AI_ENTITY = {
-          id: 'every-ai-assistant',
-          type: 'ai_assistant' as const,
-          name: 'Every',
-          subtitle: 'AI Assistant • Ask me anything'
-        }
-        registerMentionEntityRef.current(EVERY_AI_ENTITY, newText, 0)
-      }
-      // Restore focus after a brief delay to ensure DOM is updated
-      setTimeout(() => {
-        if (focusInputRef.current) {
-          focusInputRef.current()
-        }
-      }, 0)
-      return newText
-    })
-  }, [])
+  // const handleReplyToAI = useCallback(() => {
+  //   setDraftMessage(prev => {
+  //     if (prev.startsWith('@Every ')) {
+  //       return prev
+  //     }
+  //     const newText = `@Every ${prev}`
+  //     // Register @Every as a mention entity if registerMentionEntity is available
+  //     if (registerMentionEntityRef.current) {
+  //       const EVERY_AI_ENTITY = {
+  //         id: 'every-ai-assistant',
+  //         type: 'ai_assistant' as const,
+  //         name: 'Every',
+  //         subtitle: 'AI Assistant • Ask me anything'
+  //       }
+  //       registerMentionEntityRef.current(EVERY_AI_ENTITY, newText, 0)
+  //     }
+  //     // Restore focus after a brief delay to ensure DOM is updated
+  //     setTimeout(() => {
+  //       if (focusInputRef.current) {
+  //         focusInputRef.current()
+  //       }
+  //     }, 0)
+  //     return newText
+  //   })
+  // }, [])
 
   // Keep ref in sync with activeConversationId for stable callbacks
   useEffect(() => {
@@ -1369,6 +1414,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
       data-testid={prefixDataTestId}
     >
+      {/* V2 Performance Monitor - dev only */}
+      <PerformanceMonitor conversationId={activeConversationId} messageCount={messages.length} />
+
       <OfflineBanner />
 
       {/* Error Message Alert */}
@@ -1475,6 +1523,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   />
                 )}
 
+                {/* V2 - Simplified message list for performance testing */}
+                <MessageListV2
+                  messages={messages}
+                  currentUserId={currentUser?.id || null}
+                  conversationType={stableActiveConversation.type}
+                  isLoading={messagesLoading}
+                  hasMore={hasMoreMessages}
+                  onLoadMore={loadMoreMessages}
+                />
+
+                {/* V1 - Old implementation (commented for testing)
                 <MessageList
                   messages={messages}
                   currentUserId={currentUser?.id || null}
@@ -1489,6 +1548,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   onReplyToAI={handleReplyToAI}
                   onSendMessage={handleAISendMessage}
                 />
+                */}
 
                 {/* AI Processing Indicator */}
                 {isAIProcessing && (

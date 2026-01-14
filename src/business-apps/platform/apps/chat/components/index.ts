@@ -28,3 +28,9 @@ export * from './UserSelector'
 export * from './ExpertSelectorPanel'
 export * from './ActiveExpertsBar'
 export * from './ExpertResponseRenderer'
+
+// V2 - Simplified/Performance-focused implementations
+export * from './MessageListV2'
+export * from './MessageItemV2'
+export * from './ChatMessagesV2'
+export * from './PerformanceMonitor'
