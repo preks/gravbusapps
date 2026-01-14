@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Separator, Button } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
@@ -25,9 +25,10 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   requestTypeLabel,
   ...contextProps
 }) => {
-  if (!selectedItem) return null
-
+  // Call hooks unconditionally before any early returns
   const { printExpenseRequest } = useExpenseRequestFileService(contextProps)
+
+  if (!selectedItem) return null
 
   const formatTypeLabel = (value?: string) => {
     if (value === null || value === undefined) return 'N/A'
@@ -122,14 +123,14 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           value: translateRequestTypeValue(requestTypeLabel ?? getRequestType())
         }
       ]}
-      headerRight={(() => {
+      headerRight={useMemo(() => {
         const statusConfig = getExpenseRequestStatusDisplay(selectedItem.status)
         return (
           <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
             {statusConfig.label}
           </Badge>
         )
-      })()}
+      }, [selectedItem.status])}
       extraContent={
         <TravelOrderAttachmentPreview
           record={selectedItem}

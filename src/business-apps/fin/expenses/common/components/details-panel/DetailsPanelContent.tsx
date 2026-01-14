@@ -72,7 +72,7 @@ export const DetailsPanelContent: React.FC<DetailsPanelContentProps> = ({
       <dl className="gba:space-y-3" data-testid={`${dataTestIdPrefix}-dl`}>
         {fields.map((field, idx) => (
           <div
-            key={idx}
+            key={field.dataTestId || `${dataTestIdPrefix}-field-${idx}-${String(field.label)}`}
             className="gba:flex gba:justify-between gba:gap-4"
             data-testid={field.dataTestId || `${dataTestIdPrefix}-row-${idx}`}
           >

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Separator, Button, Badge } from '@newwork/nw-design-system'
 import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -17,9 +17,10 @@ export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
 }
 
 const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem, ...contextProps }) => {
-  if (!selectedItem) return null
-
+  // Call hooks unconditionally before any early returns
   const { printExpensePlan } = useExpensePlanFileService(contextProps)
+
+  if (!selectedItem) return null
 
   const getPlanType = (): string => {
     // Only get from plan's own requestType - no fallbacks
@@ -79,14 +80,14 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem, .
       }}
       formatAmount={(amount, currencyCode) => formatCurrencyDisplay(amount, currencyCode)}
       additionalFields={additionalFields}
-      headerRight={(() => {
+      headerRight={useMemo(() => {
         const statusConfig = getExpensePlanStatusDisplay(selectedItem.status)
         return (
           <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-badge">
             {statusConfig.label}
           </Badge>
         )
-      })()}
+      }, [selectedItem.status])}
       extraContent={
         <TravelOrderAttachmentPreview
           record={selectedItem as any}

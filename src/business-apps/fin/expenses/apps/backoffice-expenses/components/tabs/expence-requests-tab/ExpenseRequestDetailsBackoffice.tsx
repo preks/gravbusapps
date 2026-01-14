@@ -20,9 +20,10 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
   requestTypeLabel,
   ...contextProps
 }) => {
-  if (!selectedItem) return null
-
+  // Call hooks unconditionally before any early returns
   const { printExpenseRequest } = useCommonExpenseRequestFileService(contextProps)
+
+  if (!selectedItem) return null
 
   // Trip type removed in favor of explicit request/plan type labels passed from parent
   const formatTypeLabel = (value?: string) => {

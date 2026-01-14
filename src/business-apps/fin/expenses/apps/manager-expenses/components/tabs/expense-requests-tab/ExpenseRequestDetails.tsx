@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Separator, Button, Badge } from '@newwork/nw-design-system'
 import { getExpenseRequestStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -22,9 +22,10 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   onReject,
   ...contextProps
 }) => {
-  if (!request) return null
-
+  // Call hooks unconditionally before any early returns
   const { printExpenseRequest } = useExpenseRequestFileService(contextProps)
+
+  if (!request) return null
 
   const canApprove = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED'
   const canReject = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED'
@@ -88,14 +89,14 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
       }}
       formatAmount={(amount, currencyCode) => formatCurrencyDisplay(amount, currencyCode)}
       additionalFields={additionalFields}
-      headerRight={(() => {
+      headerRight={useMemo(() => {
         const statusConfig = getExpenseRequestStatusDisplay(request.status)
         return (
           <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
             {statusConfig.label}
           </Badge>
         )
-      })()}
+      }, [request.status])}
       extraContent={
         <TravelOrderAttachmentPreview
           record={request as any}

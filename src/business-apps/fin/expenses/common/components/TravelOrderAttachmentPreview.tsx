@@ -209,24 +209,32 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
             <DialogTitle>{t('travel-order-preview-title')}</DialogTitle>
           </DialogHeader>
 
-          {pdfLoading ? (
-            <div className="gba:p-4 gba:flex gba:justify-center gba:items-center gba:py-8">
-              <Spinner />
-            </div>
-          ) : pdfError ? (
-            <Alert variant="destructive" data-testid={`${dataTestIdPrefix}-travel-order-preview-error`}>
-              <AlertDescription>{pdfError}</AlertDescription>
-            </Alert>
-          ) : (
-            <div className="gba:mt-4">
-              <iframe
-                src={pdfPreviewUrl}
-                className="gba:w-full gba:h-[calc(90vh-120px)] gba:border-0"
-                title="PDF Preview"
-                data-testid={`${dataTestIdPrefix}-travel-order-preview-iframe`}
-              />
-            </div>
-          )}
+          {(() => {
+            if (pdfLoading) {
+              return (
+                <div className="gba:p-4 gba:flex gba:justify-center gba:items-center gba:py-8">
+                  <Spinner />
+                </div>
+              )
+            }
+            if (pdfError) {
+              return (
+                <Alert variant="destructive" data-testid={`${dataTestIdPrefix}-travel-order-preview-error`}>
+                  <AlertDescription>{pdfError}</AlertDescription>
+                </Alert>
+              )
+            }
+            return (
+              <div className="gba:mt-4">
+                <iframe
+                  src={pdfPreviewUrl}
+                  className="gba:w-full gba:h-[calc(90vh-120px)] gba:border-0"
+                  title="PDF Preview"
+                  data-testid={`${dataTestIdPrefix}-travel-order-preview-iframe`}
+                />
+              </div>
+            )
+          })()}
         </DialogContent>
       </Dialog>
     </>

@@ -168,34 +168,45 @@ export const EmployeeDocumentPdfPreviewTile: React.FC<EmployeeDocumentPdfPreview
             </DialogTitle>
           </DialogHeader>
 
-          {loading ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-              <Spinner />
-            </div>
-          ) : error ? (
-            <Alert variant="destructive" data-testid={`${dataTestIdPrefix}-employee-document-preview-error`}>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : pdfUrl ? (
-            <div className="gba:mt-4 gba:w-full gba:aspect-video">
-              <iframe
-                src={pdfUrl}
-                className="gba:w-full gba:h-full gba:border-0"
-                title={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expenses.employee_document_pdf.preview_iframe_title',
-                  'PDF Preview'
+          {(() => {
+            if (loading) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+                  <Spinner />
+                </div>
+              )
+            }
+            if (error) {
+              return (
+                <Alert variant="destructive" data-testid={`${dataTestIdPrefix}-employee-document-preview-error`}>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )
+            }
+            if (pdfUrl) {
+              return (
+                <div className="gba:mt-4 gba:w-full gba:aspect-video">
+                  <iframe
+                    src={pdfUrl}
+                    className="gba:w-full gba:h-full gba:border-0"
+                    title={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expenses.employee_document_pdf.preview_iframe_title',
+                      'PDF Preview'
+                    )}
+                    data-testid={`${dataTestIdPrefix}-employee-document-preview-iframe`}
+                  />
+                </div>
+              )
+            }
+            return (
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expenses.employee_document_pdf.error.failed_to_load',
+                  'Failed to load PDF'
                 )}
-                data-testid={`${dataTestIdPrefix}-employee-document-preview-iframe`}
-              />
-            </div>
-          ) : (
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expenses.employee_document_pdf.error.failed_to_load',
-                'Failed to load PDF'
-              )}
-            </div>
-          )}
+              </div>
+            )
+          })()}
         </DialogContent>
       </Dialog>
     </>

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Separator, Button } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils'
@@ -24,9 +24,10 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
   planTypeLabel,
   ...contextProps
 }) => {
-  if (!selectedItem) return null
-
+  // Call hooks unconditionally before any early returns
   const { printExpensePlan } = useExpensePlanFileService(contextProps)
+
+  if (!selectedItem) return null
 
   const formatTypeLabel = (value?: string) => {
     if (!value) return 'N/A'
@@ -115,14 +116,14 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
           )
         }
       ]}
-      headerRight={(() => {
+      headerRight={useMemo(() => {
         const statusConfig = getExpensePlanStatusDisplay(selectedItem.status)
         return (
           <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-badge">
             {statusConfig.label}
           </Badge>
         )
-      })()}
+      }, [selectedItem.status])}
       extraContent={
         <TravelOrderAttachmentPreview
           record={selectedItem}
