@@ -25,6 +25,17 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   // Call hooks unconditionally before any early returns
   const { printExpenseRequest } = useExpenseRequestFileService(contextProps)
 
+  // Memoize headerRight before early return to ensure hooks are always called in same order
+  const headerRight = useMemo(() => {
+    if (!request) return null
+    const statusConfig = getExpenseRequestStatusDisplay(request.status)
+    return (
+      <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
+        {statusConfig.label}
+      </Badge>
+    )
+  }, [request?.status])
+
   if (!request) return null
 
   const canApprove = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED'
@@ -89,14 +100,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
       }}
       formatAmount={(amount, currencyCode) => formatCurrencyDisplay(amount, currencyCode)}
       additionalFields={additionalFields}
-      headerRight={useMemo(() => {
-        const statusConfig = getExpenseRequestStatusDisplay(request.status)
-        return (
-          <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
-            {statusConfig.label}
-          </Badge>
-        )
-      }, [request.status])}
+      headerRight={headerRight}
       extraContent={
         <TravelOrderAttachmentPreview
           record={request as any}

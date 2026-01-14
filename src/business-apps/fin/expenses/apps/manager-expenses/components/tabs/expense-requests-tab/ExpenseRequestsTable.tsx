@@ -651,7 +651,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         }
         data-testid="expense-request-details-sheet"
       >
-        <SheetContent side="right" className="gba:!w-[600px] gba:sm:!w-[600px] gba:!max-w-none">
+        <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <ExpenseDetailsShell
             title={
               selectedRequest?.title ||

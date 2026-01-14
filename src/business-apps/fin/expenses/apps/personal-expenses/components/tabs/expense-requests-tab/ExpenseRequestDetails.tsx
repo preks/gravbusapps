@@ -28,6 +28,17 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   // Call hooks unconditionally before any early returns
   const { printExpenseRequest } = useExpenseRequestFileService(contextProps)
 
+  // Memoize headerRight before early return to ensure hooks are always called in same order
+  const headerRight = useMemo(() => {
+    if (!selectedItem) return null
+    const statusConfig = getExpenseRequestStatusDisplay(selectedItem.status)
+    return (
+      <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
+        {statusConfig.label}
+      </Badge>
+    )
+  }, [selectedItem?.status])
+
   if (!selectedItem) return null
 
   const formatTypeLabel = (value?: string) => {
@@ -123,14 +134,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           value: translateRequestTypeValue(requestTypeLabel ?? getRequestType())
         }
       ]}
-      headerRight={useMemo(() => {
-        const statusConfig = getExpenseRequestStatusDisplay(selectedItem.status)
-        return (
-          <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
-            {statusConfig.label}
-          </Badge>
-        )
-      }, [selectedItem.status])}
+      headerRight={headerRight}
       extraContent={
         <TravelOrderAttachmentPreview
           record={selectedItem}

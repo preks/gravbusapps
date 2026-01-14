@@ -519,7 +519,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')
         }
       >
-        <SheetContent side="right" className="gba:!w-[600px] gba:sm:!w-[600px] gba:!max-w-none">
+        <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <ExpenseDetailsShell
             title={
               selectedPayment?.expensePlan?.title ||
