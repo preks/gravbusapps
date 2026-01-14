@@ -115,6 +115,12 @@ interface PaginatedResponse<T> {
 
 // Map API document to frontend Document type
 function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
+  // Map backend permission 'admin' to frontend 'owner'
+  let permission = apiDoc.permission as Document['permission']
+  if (permission === 'admin') {
+    permission = 'owner'
+  }
+  
   return {
     id: apiDoc.id as string,
     title: apiDoc.title as string,
@@ -131,7 +137,11 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     wordCount: (apiDoc.wordCount as number) || 0,
     formatting: apiDoc.formatting as Document['formatting'],
     sharedWith: [],
-    approvalRequest: apiDoc.approvalRequest as DocumentApprovalRequest | undefined
+    approvalRequest: apiDoc.approvalRequest as DocumentApprovalRequest | undefined,
+    // Permission info from backend
+    permission,
+    isShared: apiDoc.isShared as boolean | undefined,
+    sharedBy: apiDoc.sharedBy as string | undefined
   }
 }
 
@@ -169,6 +179,7 @@ export const DocumentApiService = {
     search?: string
     page?: number
     limit?: number
+    includeShared?: boolean
   }): Promise<DocumentSummary[]> {
     const params = new URLSearchParams()
     if (options?.status) params.set('status', options.status)
@@ -177,6 +188,8 @@ export const DocumentApiService = {
     if (options?.search) params.set('search', options.search)
     if (options?.page) params.set('page', options.page.toString())
     if (options?.limit) params.set('limit', options.limit.toString())
+    // Include shared documents by default
+    params.set('includeShared', options?.includeShared !== false ? 'true' : 'false')
 
     const queryString = params.toString()
     const endpoint = `/documents${queryString ? `?${queryString}` : ''}`
@@ -184,6 +197,16 @@ export const DocumentApiService = {
     debugLog('listDocuments', endpoint)
 
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
+    
+    console.log('[DocumentApiService] listDocuments raw response:', response.items.map(d => ({
+      id: d.id,
+      title: d.title,
+      ownerId: d.ownerId,
+      isShared: d.isShared,
+      sharedBy: d.sharedBy,
+      permission: d.permission,
+      rawPermission: d.permission // Log the exact value
+    })))
 
     return response.items.map(doc => ({
       id: doc.id as string,
@@ -202,7 +225,12 @@ export const DocumentApiService = {
           ? 'approved'
           : doc.status === 'rejected'
             ? 'rejected'
-            : undefined) as DocumentSummary['approvalStatus']
+            : undefined) as DocumentSummary['approvalStatus'],
+      // Sharing information from backend
+      isShared: doc.isShared as boolean | undefined,
+      sharedBy: doc.sharedBy as string | undefined,
+      // Map backend 'admin' permission to frontend 'owner'
+      permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission']
     }))
   },
 
@@ -331,17 +359,19 @@ export const DocumentApiService = {
    */
   async shareDocument(documentId: string, shares: Array<{ userId: string; permission: string }>): Promise<boolean> {
     try {
+      const payload = {
+        entityType: 'document',
+        entityId: documentId,
+        recipients: shares.map(s => ({
+          userId: s.userId,
+          permission: s.permission
+        }))
+      }
+      console.log('[DocumentApiService] shareDocument payload:', JSON.stringify(payload, null, 2))
       debugLog('shareDocument', documentId, shares)
       await apiRequest('/sharing', {
         method: 'POST',
-        body: JSON.stringify({
-          entityType: 'document',
-          entityId: documentId,
-          recipients: shares.map(s => ({
-            userId: s.userId,
-            permission: s.permission
-          }))
-        })
+        body: JSON.stringify(payload)
       })
       return true
     } catch (error) {
@@ -353,24 +383,60 @@ export const DocumentApiService = {
   /**
    * Get users a document is shared with
    */
-  async getSharedUsers(documentId: string): Promise<DocumentShare[]> {
+  async getSharedUsers(documentId: string): Promise<Array<DocumentShare & { id: string }>> {
     try {
+      console.log('[DocumentApiService] getSharedUsers called for:', documentId)
       debugLog('getSharedUsers', documentId)
       const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/document/${documentId}`)
-      return shares.map(s => ({
+      console.log('[DocumentApiService] getSharedUsers raw response:', JSON.stringify(shares, null, 2))
+      const mapped = (shares || []).map(s => ({
+        id: s.id as string,
         userId: s.userId as string,
         permission: s.permission as 'view' | 'edit' | 'comment',
         sharedAt: s.createdAt as string,
         sharedBy: s.sharedBy as string
       }))
+      console.log('[DocumentApiService] getSharedUsers mapped:', mapped.map(m => ({ userId: m.userId, permission: m.permission })))
+      return mapped
     } catch (error) {
-      console.error('Failed to get shared users:', error)
+      console.error('[DocumentApiService] Failed to get shared users:', error)
       return []
     }
   },
 
   /**
-   * Revoke access for a user
+   * Update a share's permission
+   */
+  async updateSharePermission(shareId: string, permission: 'view' | 'edit' | 'comment'): Promise<boolean> {
+    try {
+      debugLog('updateSharePermission', shareId, permission)
+      await apiRequest(`/sharing/${shareId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ permission })
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to update share permission:', error)
+      return false
+    }
+  },
+
+  /**
+   * Revoke a share by share ID
+   */
+  async revokeShareById(shareId: string): Promise<boolean> {
+    try {
+      debugLog('revokeShareById', shareId)
+      await apiRequest(`/sharing/${shareId}`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('Failed to revoke share:', error)
+      return false
+    }
+  },
+
+  /**
+   * Revoke access for a user (legacy - finds share first)
    */
   async revokeAccess(documentId: string, userId: string): Promise<boolean> {
     try {

@@ -131,28 +131,29 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useCollaboration.ts:connect:meta',message:'Socket connected meta',data:{entityType,entityId,hasJoined:hasJoinedRef.current,socketId:client.getSocket()?.id,transport:client.getSocket()?.io?.engine?.transport?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'R1'})}).catch(()=>{});
       // #endregion
 
-      // Join document room
-      if (!hasJoinedRef.current) {
-        client.joinDocument(entityType, entityId, (participants) => {
-          // Set initial participants from join callback
-          console.log('[useCollaboration] Setting initial participants from join callback:', participants)
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useCollaboration.ts:join_callback',message:'Processing initial participants',data:{participantsCount:participants.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
-          setParticipants(
-            participants.map((p: any) => ({
-              userId: p.odId || p.userId || p.id,
-              userName: p.userName,
-              userColor: p.userColor,
-              socketId: p.socketId,
-              cursor: p.cursor,
-              selection: p.selection,
-              lastActiveAt: new Date(p.lastActiveAt)
-            }))
-          )
-        })
-        hasJoinedRef.current = true
-      }
+        // Join document room
+        if (!hasJoinedRef.current) {
+          client.joinDocument(entityType, entityId, (participants) => {
+            // Set initial participants from join callback
+            console.log('[useCollaboration] Setting initial participants from join callback:', participants)
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useCollaboration.ts:join_callback',message:'Processing initial participants',data:{participantsCount:participants.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            setParticipants(
+              participants.map((p: any) => ({
+                userId: p.odId || p.userId || p.id,
+                userName: p.userName,
+                userColor: p.userColor,
+                socketId: p.socketId,
+                avatarUrl: p.avatarUrl || p.avatar,
+                cursor: p.cursor,
+                selection: p.selection,
+                lastActiveAt: new Date(p.lastActiveAt)
+              }))
+            )
+          })
+          hasJoinedRef.current = true
+        }
     })
 
     client.getSocket()?.on('disconnect', reason => {
@@ -183,6 +184,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
             userName: data.userName,
             userColor: data.userColor,
             socketId: data.socketId,
+            avatarUrl: data.avatarUrl || data.avatar,
             lastActiveAt: new Date()
           }
         ]

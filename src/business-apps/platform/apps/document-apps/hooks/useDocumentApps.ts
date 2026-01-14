@@ -67,7 +67,18 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
 
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
-      const documents = await DocumentApiService.listDocuments()
+      const rawDocuments = await DocumentApiService.listDocuments()
+
+      // Enhance documents with ownership info (backend may already provide some of this)
+      const documents = rawDocuments.map(doc => {
+        const isOwner = doc.createdBy === userId
+        return {
+          ...doc,
+          // Use backend values if available, otherwise compute
+          isOwner: doc.permission === 'owner' || isOwner,
+          isShared: doc.isShared ?? !isOwner
+        }
+      })
 
       setState(prev => ({
         ...prev,
@@ -83,7 +94,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         error: error instanceof Error ? error.message : 'Failed to load documents'
       }))
     }
-  }, [accessToken])
+  }, [accessToken, userId])
 
   // Load documents on mount
   useEffect(() => {
@@ -100,10 +111,17 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         const document = await DocumentApiService.getDocument(id)
         if (document) {
-          // Determine permission
-          const isOwner = document.createdBy === userId
-          const share = document.sharedWith?.find(s => s.userId === userId)
-          const permission = isOwner ? 'owner' : share?.permission || 'view'
+          // Use permission from backend API response (already computed by backend)
+          // Backend returns 'admin' for owner, which gets mapped to 'owner' in the API service
+          const permission = document.permission || 'view'
+          
+          console.log('[useDocumentApps] loadDocument:', {
+            id: document.id,
+            createdBy: document.createdBy,
+            userId,
+            backendPermission: document.permission,
+            resolvedPermission: permission
+          })
 
           setState(prev => ({
             ...prev,
@@ -242,7 +260,9 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return false
 
       try {
+        console.log('[useDocumentApps] shareDocument called with:', { id, userIds, permission })
         const shares = userIds.map(userId => ({ userId, permission }))
+        console.log('[useDocumentApps] shareDocument shares array:', shares)
         const success = await DocumentApiService.shareDocument(id, shares)
         if (success) {
           toast.success('Document shared successfully')

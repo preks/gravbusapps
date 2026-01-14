@@ -29,6 +29,7 @@ export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   deleteApp: (id: string) => Promise<boolean>
   duplicateApp: (id: string, newName?: string) => Promise<SpreadsheetApp | null>
   updateSheetData: (appId: string, sheetId: string, data: Record<string, unknown>[]) => Promise<SpreadsheetSheet | null>
+  updateSheet: (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>) => Promise<SpreadsheetSheet | null>
   addRow: (appId: string, sheetId: string, row: Record<string, unknown>) => Promise<Record<string, unknown> | null>
   updateRow: (
     appId: string,
@@ -48,14 +49,16 @@ export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   ) => Promise<boolean>
   getSharedUsers: (appId: string) => Promise<
     Array<{
+      id: string
       userId: string
       userName: string
       userEmail: string
       permission: 'view' | 'edit'
       sharedAt: string
+      sharedBy: string
     }>
   >
-  revokeAccess: (appId: string, recipientUserId: string) => Promise<boolean>
+  revokeAccess: (shareId: string) => Promise<boolean>
   clearCurrentApp: () => void
 }
 
@@ -138,16 +141,32 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           sheet.data = rows
         }
 
-        // Determine permission
+        // Use permission from API response (already mapped: admin -> owner)
         const isOwner = app.createdBy === userId
-        const userPermission: 'owner' | 'edit' | 'view' | null = isOwner ? 'owner' : null
+        const backendPermission = app.permission
+        const resolvedPermission: 'owner' | 'edit' | 'view' | null = 
+          isOwner ? 'owner' : 
+          backendPermission === 'owner' ? 'owner' :
+          backendPermission === 'admin' ? 'owner' :
+          backendPermission === 'edit' ? 'edit' : 
+          backendPermission === 'view' ? 'view' : 
+          null
+
+        console.log('[useSpreadsheetApps] loadApp:', {
+          id,
+          createdBy: app.createdBy,
+          userId,
+          isOwner,
+          backendPermission,
+          resolvedPermission
+        })
 
         setState(prev => ({
           ...prev,
           currentApp: app,
           isLoading: false,
           storageMode: 'database',
-          currentAppPermission: userPermission
+          currentAppPermission: resolvedPermission
         }))
         return app
       } catch (error) {
@@ -359,6 +378,42 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         return updatedSheet
       } catch (error) {
         console.error('[useSpreadsheetApps] Failed to update sheet data:', error)
+        return null
+      }
+    },
+    [accessToken, state.currentApp]
+  )
+
+  /**
+   * Update sheet metadata (columns, views, settings, etc.)
+   */
+  const updateSheet = useCallback(
+    async (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet | null> => {
+      if (!accessToken) return null
+
+      try {
+        const updatedSheet = await SpreadsheetApiService.updateSheet(appId, sheetId, updates)
+
+        // Update local state
+        if (state.currentApp?.id === appId) {
+          setState(prev => ({
+            ...prev,
+            currentApp: prev.currentApp
+              ? {
+                  ...prev.currentApp,
+                  sheets: prev.currentApp.sheets.map(s => 
+                    s.id === sheetId 
+                      ? { ...s, ...updatedSheet }
+                      : s
+                  )
+                }
+              : null
+          }))
+        }
+
+        return updatedSheet
+      } catch (error) {
+        console.error('[useSpreadsheetApps] Failed to update sheet:', error)
         return null
       }
     },
@@ -578,11 +633,13 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       appId: string
     ): Promise<
       Array<{
+        id: string
         userId: string
         userName: string
         userEmail: string
         permission: 'view' | 'edit'
         sharedAt: string
+        sharedBy: string
       }>
     > => {
       if (!accessToken) {
@@ -592,11 +649,13 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       try {
         const shares = await SpreadsheetApiService.getSharedUsers(appId)
         return shares.map(s => ({
+          id: s.id,
           userId: s.userId,
-          userName: '', // Backend doesn't return user details
+          userName: '', // Backend doesn't return user details, will be fetched separately
           userEmail: '',
           permission: s.permission as 'view' | 'edit',
-          sharedAt: s.sharedAt
+          sharedAt: s.sharedAt,
+          sharedBy: s.sharedBy
         }))
       } catch (error) {
         console.error('[useSpreadsheetApps] Failed to get shared users:', error)
@@ -607,23 +666,26 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
   )
 
   /**
-   * Revoke a user's access to an app
+   * Revoke a user's access to an app (by share ID)
    */
   const revokeAccess = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async (_appId: string, _recipientUserId: string): Promise<boolean> => {
+    async (shareId: string): Promise<boolean> => {
       if (!accessToken) {
         toast.error('Not authenticated')
         return false
       }
 
       try {
-        // Note: Backend sharing endpoint would need a revoke method
-        // For now, we'll show a message
-        toast.info('Access revocation not yet implemented in backend')
-        return false
+        const success = await SpreadsheetApiService.revokeShare(shareId)
+        if (success) {
+          toast.success('Access revoked')
+        } else {
+          toast.error('Failed to revoke access')
+        }
+        return success
       } catch (error) {
         console.error('[useSpreadsheetApps] Failed to revoke access:', error)
+        toast.error('Failed to revoke access')
         return false
       }
     },
@@ -654,6 +716,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
     deleteApp,
     duplicateApp,
     updateSheetData,
+    updateSheet,
     addRow,
     updateRow,
     deleteRow,

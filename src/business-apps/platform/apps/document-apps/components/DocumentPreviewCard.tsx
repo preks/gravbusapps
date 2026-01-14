@@ -17,7 +17,11 @@ import {
   DropdownMenuTrigger,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@newwork/nw-design-system'
 import {
   FileText,
@@ -34,19 +38,36 @@ import {
   XCircle,
   FileUp,
   AlertCircle,
-  UserCheck
+  UserCheck,
+  Users,
+  Settings
 } from 'lucide-react'
 import type { DocumentSummary, DocumentStatus, DocumentApprovalRequest } from '../types'
+
+/** User info for shared users display */
+export interface SharedUserInfo {
+  userId: string
+  userName?: string
+  userAvatar?: string
+  permission?: 'view' | 'edit' | 'comment'
+}
 
 export interface DocumentPreviewCardProps {
   document: DocumentSummary
   approvalRequest?: DocumentApprovalRequest
+  /** Current user ID to determine ownership */
+  currentUserId?: string
+  /** List of users the document is shared with (for owned documents) */
+  sharedUsers?: SharedUserInfo[]
+  /** Info about the person who shared this document (for shared documents) */
+  sharedByUser?: SharedUserInfo
   onOpen: (id: string) => void
   onEdit?: (id: string) => void
   onDelete?: (id: string) => void
   onDuplicate?: (id: string) => void
   onExport?: (id: string) => void
   onShare?: (id: string) => void
+  onManageShares?: (id: string) => void
   onSendForApproval?: (id: string) => void
   'data-testid'?: string
 }
@@ -145,12 +166,17 @@ function getAvatarUrl(picture?: string): string | undefined {
 export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
   document,
   approvalRequest,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  currentUserId: _currentUserId,
+  sharedUsers = [],
+  sharedByUser,
   onOpen,
   onEdit,
   onDelete,
   onDuplicate,
   onExport,
   onShare,
+  onManageShares,
   onSendForApproval,
   'data-testid': testId = 'document-preview-card'
 }) => {
@@ -160,6 +186,9 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
   const canSendForApproval =
     canEdit && onSendForApproval && !['pending_approval', 'approved', 'rejected'].includes(document.status)
 
+  // Determine if this document was shared with me (not owner)
+  const isSharedWithMe = document.isShared === true || (!document.isOwner && document.permission !== 'owner')
+
   // Debug logging
   React.useEffect(() => {
     console.log('[DocumentPreviewCard]', {
@@ -168,11 +197,16 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
       status: document.status,
       isOwner: document.isOwner,
       permission: document.permission,
+      isSharedWithMe,
+      sharedByName: document.sharedByName,
+      sharedBy: document.sharedBy,
       canEdit,
       hasCallback: !!onSendForApproval,
-      canSendForApproval
+      canSendForApproval,
+      sharedUsers: sharedUsers?.length || 0,
+      sharedByUser: sharedByUser?.userName
     })
-  }, [document, canEdit, onSendForApproval, canSendForApproval])
+  }, [document, canEdit, onSendForApproval, canSendForApproval, isSharedWithMe, sharedUsers, sharedByUser])
   const canDelete = document.isOwner
 
   // Get approval info
@@ -248,6 +282,12 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                 <DropdownMenuItem onClick={() => onShare(document.id)}>
                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
                   Share
+                </DropdownMenuItem>
+              )}
+              {canShare && onManageShares && (sharedUsers.length > 0 || document.sharedWithCount) && (
+                <DropdownMenuItem onClick={() => onManageShares(document.id)}>
+                  <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
+                  Manage Sharing
                 </DropdownMenuItem>
               )}
               {canSendForApproval && (
@@ -387,6 +427,55 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
           </div>
         )}
 
+        {/* Shared with me indicator */}
+        {isSharedWithMe && (
+          <div className="gba:mt-3 gba:p-2 gba:rounded-md gba:bg-primary/5 gba:border gba:border-primary/20">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {/* Show owner's avatar */}
+              {sharedByUser ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Avatar className="gba:w-6 gba:h-6 gba:border-2 gba:border-primary/30">
+                        {sharedByUser.userAvatar && (
+                          <AvatarImage src={sharedByUser.userAvatar} alt={sharedByUser.userName || ''} />
+                        )}
+                        <AvatarFallback className="gba:text-[10px] gba:bg-primary/10 gba:text-primary">
+                          {sharedByUser.userName ? getInitials(sharedByUser.userName) : <User className="gba:w-3 gba:h-3" />}
+                        </AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Owner: {sharedByUser.userName || 'Unknown'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <Users className="gba:w-4 gba:h-4 gba:text-primary" />
+              )}
+              <div className="gba:flex-1 gba:min-w-0">
+                <span className="gba:text-xs gba:font-medium gba:text-primary">Shared with you</span>
+                {sharedByUser?.userName && (
+                  <span className="gba:text-xs gba:text-muted-foreground gba:ml-1">
+                    by {sharedByUser.userName}
+                  </span>
+                )}
+              </div>
+              {/* Always show permission badge for shared documents */}
+              <Badge 
+                variant={document.permission === 'edit' ? 'default' : 'outline'} 
+                className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:shrink-0"
+              >
+                {document.permission === 'edit' 
+                  ? 'Can edit' 
+                  : document.permission === 'comment' 
+                    ? 'Can comment' 
+                    : 'View only'}
+              </Badge>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="gba:flex gba:items-center gba:justify-between gba:mt-4 gba:pt-3 gba:border-t gba:border-border">
           <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
@@ -394,12 +483,71 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
             <span>{formatDate(document.updatedAt)}</span>
           </div>
 
-          {document.sharedCount && document.sharedCount > 0 && (
-            <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-              <User className="gba:w-3 gba:h-3" />
-              <span>Shared with {document.sharedCount}</span>
-            </div>
-          )}
+          <div className="gba:flex gba:items-center gba:gap-3">
+            {/* Owner indicator (for documents I own) */}
+            {document.isOwner && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                <User className="gba:w-3 gba:h-3" />
+                <span>Owner</span>
+              </div>
+            )}
+
+            {/* Shared users avatars (for documents I own) */}
+            {document.isOwner && sharedUsers.length > 0 && (
+              <TooltipProvider>
+                <div 
+                  className="gba:flex gba:items-center gba:-space-x-2 gba:cursor-pointer"
+                  onClick={() => onManageShares?.(document.id)}
+                >
+                  {sharedUsers.slice(0, 4).map(user => (
+                    <Tooltip key={user.userId}>
+                      <TooltipTrigger asChild>
+                        <Avatar 
+                          className="gba:w-6 gba:h-6 gba:border-2 gba:border-background hover:gba:z-10 gba:transition-transform hover:gba:scale-110"
+                        >
+                          {user.userAvatar && <AvatarImage src={user.userAvatar} alt={user.userName || ''} />}
+                          <AvatarFallback className="gba:text-[10px] gba:bg-muted">
+                            {user.userName ? getInitials(user.userName) : '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="gba:font-medium">{user.userName || 'Unknown'}</p>
+                        <p className="gba:text-xs gba:text-muted-foreground">
+                          {user.permission === 'edit' ? 'Can edit' : user.permission === 'comment' ? 'Can comment' : 'Can view'}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                  {sharedUsers.length > 4 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Avatar className="gba:w-6 gba:h-6 gba:border-2 gba:border-background">
+                          <AvatarFallback className="gba:text-[10px] gba:bg-muted gba:text-muted-foreground">
+                            +{sharedUsers.length - 4}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{sharedUsers.length - 4} more people</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              </TooltipProvider>
+            )}
+
+            {/* Shared count fallback (when no avatar data available) */}
+            {document.isOwner && sharedUsers.length === 0 && document.sharedWithCount && document.sharedWithCount > 0 && (
+              <div 
+                className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:cursor-pointer hover:gba:text-foreground"
+                onClick={() => onManageShares?.(document.id)}
+              >
+                <Users className="gba:w-3 gba:h-3" />
+                <span>Shared with {document.sharedWithCount}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Card>

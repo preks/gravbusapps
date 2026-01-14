@@ -263,6 +263,10 @@ export interface SpreadsheetApp {
     permission: 'view' | 'edit'
     sharedAt: string
   }>
+  // Permission info (from backend for shared apps)
+  permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
+  isShared?: boolean
+  sharedBy?: string
 }
 
 /**
@@ -564,6 +568,10 @@ export interface SpreadsheetAppSummary {
   isShared?: boolean
   isOwner?: boolean
   sharedWithCount?: number
+  // Permission info from backend
+  permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
+  sharedBy?: string
+  sharedByName?: string
 }
 
 /**

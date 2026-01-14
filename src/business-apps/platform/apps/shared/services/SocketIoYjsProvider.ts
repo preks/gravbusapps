@@ -11,6 +11,7 @@ type YjsSyncResponse =
 
 type YjsSyncResponseEvent = {
   documentId: string
+  entityType?: 'document' | 'note'
   state: string
   awareness: string | null
 }
@@ -53,6 +54,7 @@ function emitWithAck<TResponse>(
 export interface SocketIoYjsProviderOptions {
   socket: Socket
   documentId: string
+  entityType?: 'document' | 'note'
   ydoc: Y.Doc
   awareness: Awareness
   onSyncedChange?: (isSynced: boolean) => void
@@ -73,6 +75,7 @@ export class SocketIoYjsProvider {
 
   private socket: Socket
   private documentId: string
+  private entityType: 'document' | 'note'
   private ydoc: Y.Doc
 
   private destroyed = false
@@ -88,6 +91,7 @@ export class SocketIoYjsProvider {
   constructor(options: SocketIoYjsProviderOptions) {
     this.socket = options.socket
     this.documentId = options.documentId
+    this.entityType = options.entityType || 'document'
     this.ydoc = options.ydoc
     this.awareness = options.awareness
     this.onSyncedChange = options.onSyncedChange
@@ -151,12 +155,12 @@ export class SocketIoYjsProvider {
     // Avoid spamming syncs when already synced.
     if (this.synced) return
 
-    console.log('[SocketIoYjsProvider] Starting sync for document:', this.documentId)
+    console.log(`[SocketIoYjsProvider] Starting sync for ${this.entityType}:`, this.documentId)
 
     const response = await emitWithAck<YjsSyncResponse>(
       this.socket,
       'yjs_sync_request',
-      { documentId: this.documentId },
+      { documentId: this.documentId, entityType: this.entityType },
       10000
     ).catch((err: Error) => ({ success: false, error: err.message } as const))
 
@@ -206,7 +210,7 @@ export class SocketIoYjsProvider {
       const bootstrapResp = await emitWithAck<{ success: boolean; error?: string }>(
         this.socket,
         'yjs_bootstrap',
-        { documentId: this.documentId, state: fullStateBase64 },
+        { documentId: this.documentId, entityType: this.entityType, state: fullStateBase64 },
         15000
       ).catch((err: Error) => ({ success: false, error: err.message }))
 
@@ -256,6 +260,9 @@ export class SocketIoYjsProvider {
   private handleSyncResponseEvent = (event: YjsSyncResponseEvent) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
+    // Check entityType matches (default to 'document' for backwards compatibility)
+    const eventEntityType = event.entityType || 'document'
+    if (eventEntityType !== this.entityType) return
 
     // Only use this as a bootstrap/waiting escape hatch.
     if (this.synced) return
@@ -267,15 +274,21 @@ export class SocketIoYjsProvider {
     this.setSynced(true)
   }
 
-  private handleRemoteYjsUpdate = (event: { documentId: string; update: string }) => {
+  private handleRemoteYjsUpdate = (event: { documentId: string; entityType?: 'document' | 'note'; update: string }) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
+    // Check entityType matches
+    const eventEntityType = event.entityType || 'document'
+    if (eventEntityType !== this.entityType) return
     this.applyDocState(event.update)
   }
 
-  private handleRemoteAwarenessUpdate = (event: { documentId: string; update: string }) => {
+  private handleRemoteAwarenessUpdate = (event: { documentId: string; entityType?: 'document' | 'note'; update: string }) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
+    // Check entityType matches
+    const eventEntityType = event.entityType || 'document'
+    if (eventEntityType !== this.entityType) return
     this.applyAwarenessState(event.update)
   }
 
@@ -285,7 +298,7 @@ export class SocketIoYjsProvider {
     if (origin === 'remote') return
 
     const updateBase64 = uint8ArrayToBase64(_update)
-    this.socket.emit('yjs_update', { documentId: this.documentId, update: updateBase64 })
+    this.socket.emit('yjs_update', { documentId: this.documentId, entityType: this.entityType, update: updateBase64 })
     this.onLocalDocumentChange?.()
   }
 
@@ -309,7 +322,7 @@ export class SocketIoYjsProvider {
     if (changed.length === 0) return
 
     const update = encodeAwarenessUpdate(this.awareness, changed)
-    this.socket.emit('yjs_awareness_update', { documentId: this.documentId, update: uint8ArrayToBase64(update) })
+    this.socket.emit('yjs_awareness_update', { documentId: this.documentId, entityType: this.entityType, update: uint8ArrayToBase64(update) })
   }
 }
 

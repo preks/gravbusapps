@@ -66,19 +66,66 @@ export function generateEmptyAppSchema(
   userId: string,
   sheetName: string = 'Sheet1'
 ): Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'> {
-  // Create a default empty column
-  const defaultColumn: SpreadsheetColumn = {
-    id: generateId('col'),
-    name: 'name',
-    label: 'Name',
-    type: 'text',
-    width: 150,
-    isVisible: true,
-    isEditable: true,
-    isRequired: false,
-    isUnique: false,
-    order: 0
-  }
+  // Create default columns (A, B, C, D like a typical spreadsheet)
+  const defaultColumns: SpreadsheetColumn[] = [
+    {
+      id: generateId('col'),
+      name: 'column_a',
+      label: 'Column A',
+      type: 'text',
+      width: 150,
+      isVisible: true,
+      isEditable: true,
+      isRequired: false,
+      isUnique: false,
+      order: 0
+    },
+    {
+      id: generateId('col'),
+      name: 'column_b',
+      label: 'Column B',
+      type: 'text',
+      width: 150,
+      isVisible: true,
+      isEditable: true,
+      isRequired: false,
+      isUnique: false,
+      order: 1
+    },
+    {
+      id: generateId('col'),
+      name: 'column_c',
+      label: 'Column C',
+      type: 'text',
+      width: 150,
+      isVisible: true,
+      isEditable: true,
+      isRequired: false,
+      isUnique: false,
+      order: 2
+    },
+    {
+      id: generateId('col'),
+      name: 'column_d',
+      label: 'Column D',
+      type: 'text',
+      width: 150,
+      isVisible: true,
+      isEditable: true,
+      isRequired: false,
+      isUnique: false,
+      order: 3
+    }
+  ]
+
+  // Create default empty rows (5 empty rows to start with)
+  const defaultRows = Array.from({ length: 5 }, () => ({
+    _id: generateId('row'),
+    column_a: '',
+    column_b: '',
+    column_c: '',
+    column_d: ''
+  }))
 
   // Create default table view
   const defaultView: SheetView = {
@@ -88,19 +135,19 @@ export function generateEmptyAppSchema(
     isDefault: true,
     config: {
       type: 'table',
-      columns: [defaultColumn.id]
+      columns: defaultColumns.map(c => c.id)
     }
   }
 
-  // Create empty sheet
+  // Create sheet with default columns and rows
   const sheet: SpreadsheetSheet = {
     id: generateId('sheet'),
     name: sheetName,
     description: '',
     viewType: 'table',
-    columns: [defaultColumn],
+    columns: defaultColumns,
     views: [defaultView],
-    data: [],
+    data: defaultRows,
     settings: {
       allowAdd: true,
       allowEdit: true,

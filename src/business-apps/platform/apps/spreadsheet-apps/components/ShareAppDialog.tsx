@@ -47,6 +47,7 @@ export interface ShareAppDialogProps {
     userId: string
     userName: string
     userEmail: string
+    userAvatar?: string
     permission: SharePermission
     sharedAt: string
   }>
@@ -220,6 +221,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
       userId: string
       userName: string
       userEmail: string
+      userAvatar?: string
       permission: SharePermission
     }>
   >([])
@@ -603,6 +605,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                       data-testid={`shared-user-${user.userId}`}
                     >
                       <Avatar className="gba:h-10 gba:w-10">
+                        {user.userAvatar && <AvatarImage src={user.userAvatar} alt={user.userName} />}
                         <AvatarFallback>{getInitials(user.userName)}</AvatarFallback>
                       </Avatar>
                       <div className="gba:flex-1 gba:min-w-0">

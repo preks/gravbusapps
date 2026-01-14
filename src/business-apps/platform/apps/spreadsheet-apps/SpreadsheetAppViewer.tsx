@@ -28,7 +28,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  DataTable
+  DataTable,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@newwork/nw-design-system'
 import {
   Table2,
@@ -46,6 +50,7 @@ import {
   Pencil,
   Trash2,
   ChevronLeft,
+  ChevronRight,
   Layers,
   RefreshCw,
   Database,
@@ -58,7 +63,14 @@ import {
   X,
   Save,
   Activity,
-  User
+  User,
+  Users,
+  Sparkles,
+  Zap,
+  Signal,
+  Home,
+  FileSpreadsheet,
+  GripVertical
 } from 'lucide-react'
 import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicFormGenerator'
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
@@ -72,6 +84,8 @@ import { isTrackingColumn } from './utils/trackingColumns'
 import { TRACKING_COLUMNS } from './components/automations/TrackingColumnsConfig'
 import { normalizeImageSrc } from './utils/normalizeImageSrc'
 import { useCollaboration } from '../shared/hooks/useCollaboration'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import type { DocumentParticipant } from '../shared/services/CollaborationClient'
 import { PresenceIndicator } from '../shared/components/PresenceIndicator'
 import { CellCollaboratorIndicator } from '../shared/components/CellCollaboratorIndicator'
 
@@ -112,6 +126,11 @@ export interface SpreadsheetAppViewerProps {
     updates: Record<string, unknown>
   ) => Promise<Record<string, unknown> | null>
   onAppUpdate?: (app: SpreadsheetApp) => void
+  onSheetUpdate?: (
+    appId: string,
+    sheetId: string,
+    updates: Partial<SpreadsheetSheet>
+  ) => Promise<SpreadsheetSheet | null>
   onBack?: () => void
   onEdit?: () => void
   isEditing?: boolean
@@ -150,6 +169,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onDataChange,
   onRowAdd,
   onAppUpdate: _onAppUpdate,
+  onSheetUpdate,
   onBack,
   onEdit,
   accessToken = '',
@@ -163,19 +183,67 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [isManageColumnsDialogOpen, setIsManageColumnsDialogOpen] = useState(false)
   const [editingColumns, setEditingColumns] = useState<SpreadsheetColumn[]>([])
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null)
+  const [editingColumnId, setEditingColumnIdState] = useState<string | null>(null)
+  const [editingColumnLabel, setEditingColumnLabelState] = useState('')
+  
+  // Refs to track latest editing state for stable closures in memoized columns
+  const editingColumnIdRef = useRef<string | null>(null)
+  const editingColumnLabelRef = useRef('')
+  
+  // Stable setters that update both state and refs
+  const setEditingColumnId = useCallback((id: string | null) => {
+    editingColumnIdRef.current = id
+    setEditingColumnIdState(id)
+  }, [])
+  
+  const setEditingColumnLabel = useCallback((label: string) => {
+    editingColumnLabelRef.current = label
+    setEditingColumnLabelState(label)
+  }, [])
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
   const [isAutomationWizardOpen, setIsAutomationWizardOpen] = useState(false)
   const [editingAutomation, setEditingAutomation] = useState<import('./types/automation').SpreadsheetAutomation | null>(
     null
   )
 
+  // Prevent the entire page from horizontally overflowing when the table content (or resizer handles)
+  // becomes slightly wider than the viewport. We keep horizontal scrolling inside the table container.
+  //
+  // NOTE: We set *style* properties (not classes) because global CSS may set `overflow: auto` later in the cascade,
+  // which would override `overflow-x` utilities on <html>/<body>.
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+
+    const prevHtmlOverflowX = html.style.overflowX
+    const prevBodyOverflowX = body.style.overflowX
+
+    html.style.overflowX = 'hidden'
+    body.style.overflowX = 'hidden'
+
+    return () => {
+      html.style.overflowX = prevHtmlOverflowX
+      body.style.overflowX = prevBodyOverflowX
+    }
+  }, [])
+
   // Excel-like cell selection state
-  const [selectedCell, setSelectedCell] = useState<{
+  const [selectedCell, setSelectedCellState] = useState<{
     rowId: string
     colId: string
     rowIndex: number
     colIndex: number
   } | null>(null)
+  
+  // Ref to track latest selectedCell for stable closures in memoized columns
+  const selectedCellRef = useRef(selectedCell)
+  selectedCellRef.current = selectedCell
+  
+  // Stable setSelectedCell that also updates the ref immediately
+  const setSelectedCell = useCallback((cell: typeof selectedCell) => {
+    selectedCellRef.current = cell
+    setSelectedCellState(cell)
+  }, [])
 
   // Entity data loading
   const [entityData, setEntityData] = useState<Record<string, unknown>[]>([])
@@ -336,91 +404,152 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
     
     // Apply the operation to local state
+    // Operations can be for ANY sheet, not just the active one
+    const { sheetId } = operation.operation.data as { sheetId: string }
+    const isActiveSheet = sheetId === activeSheetIdRef.current
+
     if (operation.operation.type === 'cell_update') {
-      const { sheetId, rowId, column, value } = operation.operation.data as {
+      const { rowId, column, value } = operation.operation.data as {
         sheetId: string
         rowId: string
         column: string
         value: unknown
       }
-      // Update local data directly - only if this is the active sheet
-      if (sheetId === activeSheetIdRef.current) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:cellUpdate:apply',message:'Applying cell update from other user',data:{rowId,column,value},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
-        // #endregion
+      
+      if (isActiveSheet) {
+        // Update local state for active sheet
         setLocalSheetData(prevData => prevData.map(row => (row._id === rowId ? { ...row, [column]: value } : row)))
+      } else if (onAppUpdateRef.current) {
+        // Update app.sheets for non-active sheet so data is correct when user switches
+        const targetSheet = app.sheets.find(s => s.id === sheetId)
+        if (targetSheet) {
+          const updatedData = (targetSheet.data || []).map((row: Record<string, unknown>) =>
+            row._id === rowId ? { ...row, [column]: value } : row
+          )
+          const updatedSheets = app.sheets.map(sheet =>
+            sheet.id === sheetId ? { ...sheet, data: updatedData } : sheet
+          )
+          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
+        }
       }
     } else if (operation.operation.type === 'row_add') {
-      const { sheetId, rowData } = operation.operation.data as {
+      const { rowData } = operation.operation.data as {
         sheetId: string
         rowData: Record<string, unknown>
       }
-      if (sheetId === activeSheetIdRef.current) {
+      
+      if (isActiveSheet) {
         setLocalSheetData(prevData => {
-          // Check if row already exists (prevent duplicates)
           const exists = prevData.some(row => row._id === rowData._id)
-          if (exists) {
-            console.log('[SpreadsheetAppViewer] Row already exists, skipping duplicate:', rowData._id)
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:rowAdd:duplicate',message:'Duplicate row detected',data:{rowId:rowData._id,currentRowCount:prevData.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
-            // #endregion
-            return prevData
-          }
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:rowAdd:adding',message:'Adding row from collaboration',data:{rowId:rowData._id,currentRowCount:prevData.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
-          // #endregion
+          if (exists) return prevData
           return [...prevData, rowData]
         })
+      } else if (onAppUpdateRef.current) {
+        const targetSheet = app.sheets.find(s => s.id === sheetId)
+        if (targetSheet) {
+          const existingData = targetSheet.data || []
+          const exists = existingData.some((row: Record<string, unknown>) => row._id === rowData._id)
+          if (!exists) {
+            const updatedSheets = app.sheets.map(sheet =>
+              sheet.id === sheetId ? { ...sheet, data: [...existingData, rowData] } : sheet
+            )
+            onAppUpdateRef.current({ ...app, sheets: updatedSheets })
+          }
+        }
       }
     } else if (operation.operation.type === 'row_delete') {
-      const { sheetId, rowId } = operation.operation.data as {
+      const { rowId } = operation.operation.data as {
         sheetId: string
         rowId: string
       }
-      if (sheetId === activeSheetIdRef.current) {
+      
+      if (isActiveSheet) {
         setLocalSheetData(prevData => prevData.filter(row => row._id !== rowId))
+      } else if (onAppUpdateRef.current) {
+        const targetSheet = app.sheets.find(s => s.id === sheetId)
+        if (targetSheet) {
+          const updatedData = (targetSheet.data || []).filter((row: Record<string, unknown>) => row._id !== rowId)
+          const updatedSheets = app.sheets.map(sheet =>
+            sheet.id === sheetId ? { ...sheet, data: updatedData } : sheet
+          )
+          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
+        }
       }
     } else if (operation.operation.type === 'column_add') {
-      const { sheetId, column } = operation.operation.data as {
+      const { column } = operation.operation.data as {
         sheetId: string
         column: SpreadsheetColumn
       }
-      // Trigger parent update with new column
-      if (sheetId === activeSheetIdRef.current && onAppUpdateRef.current) {
-        const currentSheet = app.sheets.find(s => s.id === sheetId)
-        if (currentSheet) {
+      
+      if (onAppUpdateRef.current) {
+        const targetSheet = app.sheets.find(s => s.id === sheetId)
+        if (targetSheet) {
           const updatedSheets = app.sheets.map(sheet =>
             sheet.id === sheetId
-              ? { ...sheet, columns: [...sheet.columns, column], data: localSheetDataRef.current }
+              ? {
+                  ...sheet,
+                  columns: [...sheet.columns, column],
+                  data: isActiveSheet ? localSheetDataRef.current : sheet.data
+                }
               : sheet
           )
           onAppUpdateRef.current({ ...app, sheets: updatedSheets })
         }
       }
     } else if (operation.operation.type === 'column_update') {
-      const { sheetId, columns } = operation.operation.data as {
+      const { columns, columnId, columnPatch } = operation.operation.data as {
         sheetId: string
-        columns: SpreadsheetColumn[]
+        columns?: SpreadsheetColumn[]
+        columnId?: string
+        columnPatch?: Partial<SpreadsheetColumn>
       }
-      // Update columns
-      if (sheetId === activeSheetIdRef.current && onAppUpdateRef.current) {
-        const updatedSheets = app.sheets.map(sheet =>
-          sheet.id === sheetId ? { ...sheet, columns, data: localSheetDataRef.current } : sheet
-        )
-        onAppUpdateRef.current({ ...app, sheets: updatedSheets })
+      
+      if (onAppUpdateRef.current) {
+        const targetSheet = app.sheets.find(s => s.id === sheetId)
+        if (targetSheet) {
+          let updatedColumns: SpreadsheetColumn[]
+          
+          // Support patch-based updates (prevents race conditions)
+          if (columnId && columnPatch) {
+            updatedColumns = targetSheet.columns.map(col =>
+              col.id === columnId ? { ...col, ...columnPatch } : col
+            )
+          } else if (columns) {
+            updatedColumns = columns
+          } else {
+            return
+          }
+          
+          const updatedSheets = app.sheets.map(sheet =>
+            sheet.id === sheetId
+              ? {
+                  ...sheet,
+                  columns: updatedColumns,
+                  data: isActiveSheet ? localSheetDataRef.current : sheet.data
+                }
+              : sheet
+          )
+          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
+        }
       }
     } else if (operation.operation.type === 'column_delete') {
-      const { sheetId, columnId } = operation.operation.data as {
+      const { columnId } = operation.operation.data as {
         sheetId: string
         columnId: string
       }
-      // Remove column
-      if (sheetId === activeSheetIdRef.current && onAppUpdateRef.current) {
-        const currentSheet = app.sheets.find(s => s.id === sheetId)
-        if (currentSheet) {
-          const updatedColumns = currentSheet.columns.filter(col => col.id !== columnId)
+      
+      if (onAppUpdateRef.current) {
+        const targetSheet = app.sheets.find(s => s.id === sheetId)
+        if (targetSheet) {
+          const updatedColumns = targetSheet.columns.filter(col => col.id !== columnId)
           const updatedSheets = app.sheets.map(sheet =>
-            sheet.id === sheetId ? { ...sheet, columns: updatedColumns, data: localSheetDataRef.current } : sheet
+            sheet.id === sheetId
+              ? {
+                  ...sheet,
+                  columns: updatedColumns,
+                  data: isActiveSheet ? localSheetDataRef.current : sheet.data
+                }
+              : sheet
           )
           onAppUpdateRef.current({ ...app, sheets: updatedSheets })
         }
@@ -434,7 +563,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   // Collaboration state (initialized after localSheetData to avoid race conditions)
   const {
-    participants,
+    participants: rawParticipants,
     isConnected: isCollaborationConnected,
     emitOperation,
     emitCursor
@@ -446,22 +575,74 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onError: onErrorCallback
   })
 
-  // Emit cursor position when selected cell changes
+  // Get access token for avatar fetching (use prop or fallback to localStorage)
+  const authToken = accessToken || localStorage.getItem('business-app-ide-access-token') || ''
+  const graphqlClient = useGraphQLClient(authToken)
+
+  // Enriched participants with avatars
+  const [participants, setParticipants] = useState<DocumentParticipant[]>([])
+
+  // Fetch avatars for participants when they change
   useEffect(() => {
-    if (!selectedCell) return
+    async function fetchAvatars() {
+      if (!rawParticipants.length || !authToken) {
+        setParticipants(rawParticipants)
+        return
+      }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/9ea89aac-f844-4512-b6de-713c7440e93e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpreadsheetAppViewer.tsx:cursor_emit_effect',message:'Selected cell changed (cursor emit check)',data:{sheetId:activeSheetId,rowId:selectedCell.rowId,colId:selectedCell.colId,isConnected:isCollaborationConnected,isTemporaryRow:typeof selectedCell.rowId==='string'&&selectedCell.rowId.startsWith('row_')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'R6'})}).catch(()=>{});
-    // #endregion
+      const userIds = rawParticipants.map(p => p.userId).filter(Boolean)
+      if (userIds.length === 0) {
+        setParticipants(rawParticipants)
+        return
+      }
 
+      try {
+        const query = `
+          query GetEmployeeAvatars($userIds: [String!]!) {
+            Employee(where: {userId: {_in: $userIds}}) {
+              userId
+              pictureThumbnail
+            }
+          }
+        `
+        const result = await graphqlClient.request<{ Employee: Array<{ userId: string; pictureThumbnail: string | null }> }>(query, { userIds })
+
+        const avatarMap = new Map<string, string>()
+        result?.Employee?.forEach(emp => {
+          if (emp.pictureThumbnail) {
+            const avatarUrl = emp.pictureThumbnail.startsWith('data:')
+              ? emp.pictureThumbnail
+              : `data:image/png;base64,${emp.pictureThumbnail}`
+            avatarMap.set(emp.userId, avatarUrl)
+          }
+        })
+
+        // Enrich participants with avatar URLs
+        const enrichedParticipants = rawParticipants.map(p => ({
+          ...p,
+          avatarUrl: avatarMap.get(p.userId) || undefined
+        }))
+        setParticipants(enrichedParticipants)
+      } catch (error) {
+        console.error('[SpreadsheetAppViewer] Failed to fetch participant avatars:', error)
+        setParticipants(rawParticipants)
+      }
+    }
+
+    fetchAvatars()
+  }, [rawParticipants, authToken, graphqlClient])
+
+  // Stable callback to emit cursor immediately (used by EditableCell on click)
+  // This is the primary way cursor is emitted for faster collaboration feedback
+  const emitCursorImmediate = useCallback((rowId: string, colId: string, rowIndex: number, colIndex: number) => {
     if (isCollaborationConnected) {
       emitCursor({
-        path: [activeSheetId, selectedCell.rowId, selectedCell.colId],
-        line: selectedCell.rowIndex,
-        column: selectedCell.colIndex
+        path: [activeSheetId, rowId, colId],
+        line: rowIndex,
+        column: colIndex
       })
     }
-  }, [selectedCell, activeSheetId, isCollaborationConnected, emitCursor])
+  }, [activeSheetId, isCollaborationConnected, emitCursor])
 
   // Track previous sheet ID to detect actual sheet changes
   const prevSheetIdRef = React.useRef(activeSheetId)
@@ -1385,22 +1566,28 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       order: activeSheet.columns.length
     }
 
-    // When collaboration is active, use WebSocket for persistence
-    if (isCollaborationConnected) {
-      // Optimistic update - add column locally
+    const updatedColumns = [...activeSheet.columns, newColumn]
+
+    // Use dedicated sheet update endpoint for column changes (preferred)
+    if (onSheetUpdate) {
+      onSheetUpdate(app.id, activeSheet.id, { columns: updatedColumns })
+    } else if (_onAppUpdate) {
+      // Fallback to app update
       const updatedSheets = app.sheets.map(sheet => {
         if (sheet.id === activeSheet.id) {
           return {
             ...sheet,
             data: localSheetDataRef.current,
-            columns: [...sheet.columns, newColumn]
+            columns: updatedColumns
           }
         }
         return sheet
       })
-      _onAppUpdate?.({ ...app, sheets: updatedSheets })
+      _onAppUpdate({ ...app, sheets: updatedSheets })
+    }
 
-      // Emit WebSocket operation to persist and broadcast
+    // Emit WebSocket operation when collaboration is active
+    if (isCollaborationConnected) {
       emitOperation({
         type: 'column_add',
         data: {
@@ -1408,21 +1595,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           column: newColumn
         }
       })
-    } else {
-      // Fallback to REST API when collaboration is not connected
-      const updatedSheets = app.sheets.map(sheet => {
-        if (sheet.id === activeSheet.id) {
-          return {
-            ...sheet,
-            data: localSheetDataRef.current,
-            columns: [...sheet.columns, newColumn]
-          }
-        }
-        return sheet
-      })
-      _onAppUpdate?.({ ...app, sheets: updatedSheets })
     }
-  }, [activeSheet, app, _onAppUpdate, isCollaborationConnected, emitOperation])
+  }, [activeSheet, app, _onAppUpdate, onSheetUpdate, isCollaborationConnected, emitOperation])
 
   /**
    * Handle deleting a column
@@ -1476,6 +1650,121 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     },
     [activeSheet, app, _onAppUpdate, isCollaborationConnected, emitOperation]
   )
+
+  /**
+   * Handle renaming a column
+   */
+  const handleRenameColumn = useCallback(
+    (columnId: string, newLabel: string) => {
+      if (!activeSheet || !newLabel.trim()) {
+        return
+      }
+
+      // Update column label
+      const updatedColumns = activeSheet.columns.map(col => {
+        if (col.id === columnId) {
+          return { ...col, label: newLabel.trim() }
+        }
+        return col
+      })
+
+      // Use dedicated sheet update endpoint for column changes (preferred)
+      if (onSheetUpdate) {
+        onSheetUpdate(app.id, activeSheet.id, { columns: updatedColumns })
+      } else if (_onAppUpdate) {
+        // Fallback to app update if sheet update not available
+        const updatedSheets = app.sheets.map(sheet => {
+          if (sheet.id === activeSheet.id) {
+            return {
+              ...sheet,
+              columns: updatedColumns
+            }
+          }
+          return sheet
+        })
+        _onAppUpdate({ ...app, sheets: updatedSheets })
+      }
+
+      // Emit WebSocket operation when collaboration is active
+      if (isCollaborationConnected) {
+        emitOperation({
+          type: 'column_update',
+          data: {
+            sheetId: activeSheet.id,
+            columnId,
+            label: newLabel.trim()
+          }
+        })
+      }
+
+      // Clear editing state
+      setEditingColumnId(null)
+      setEditingColumnLabel('')
+    },
+    [activeSheet, app, _onAppUpdate, onSheetUpdate, isCollaborationConnected, emitOperation]
+  )
+
+  // Ref to ensure the latest handleRenameColumn is always called from column headers
+  const handleRenameColumnRef = useRef(handleRenameColumn)
+  handleRenameColumnRef.current = handleRenameColumn
+
+  // Ref to ensure the latest handleAddColumn is always called
+  const handleAddColumnRef = useRef(handleAddColumn)
+  handleAddColumnRef.current = handleAddColumn
+
+  /**
+   * Handle reordering columns via drag and drop
+   */
+  const handleReorderColumns = useCallback(
+    (draggedColumnId: string, targetColumnId: string) => {
+      if (!activeSheet || draggedColumnId === targetColumnId) return
+
+      const columns = [...activeSheet.columns]
+      const draggedIndex = columns.findIndex(c => c.id === draggedColumnId)
+      const targetIndex = columns.findIndex(c => c.id === targetColumnId)
+
+      if (draggedIndex === -1 || targetIndex === -1) return
+
+      // Remove dragged column and insert at target position
+      const [draggedColumn] = columns.splice(draggedIndex, 1)
+      columns.splice(targetIndex, 0, draggedColumn)
+
+      // Update order values
+      const reorderedColumns = columns.map((col, idx) => ({
+        ...col,
+        order: idx
+      }))
+
+      // Use dedicated sheet update endpoint
+      if (onSheetUpdate) {
+        onSheetUpdate(app.id, activeSheet.id, { columns: reorderedColumns })
+      } else if (_onAppUpdate) {
+        const updatedSheets = app.sheets.map(sheet => {
+          if (sheet.id === activeSheet.id) {
+            return { ...sheet, columns: reorderedColumns }
+          }
+          return sheet
+        })
+        _onAppUpdate({ ...app, sheets: updatedSheets })
+      }
+
+      // Emit WebSocket operation when collaboration is active
+      if (isCollaborationConnected) {
+        emitOperation({
+          type: 'columns_reorder',
+          data: {
+            sheetId: activeSheet.id,
+            columns: reorderedColumns
+          }
+        })
+      }
+    },
+    [activeSheet, app, _onAppUpdate, onSheetUpdate, isCollaborationConnected, emitOperation]
+  )
+
+  // Ref for column reordering
+  const handleReorderColumnsRef = useRef(handleReorderColumns)
+  handleReorderColumnsRef.current = handleReorderColumns
 
   /**
    * Convert column index to Excel column letter (0=A, 1=B, etc.)
@@ -1798,8 +2087,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // Don't handle if formula selection mode is active
       if (formulaSelectionMode) return
 
-      // Don't handle Delete/Backspace if target is a cell div (cell handler will handle it)
-      if ((e.key === 'Delete' || e.key === 'Backspace') && target.hasAttribute('data-cell-rowid')) {
+      // Don't handle if target is a cell div (cell's own handler will handle it)
+      // This prevents double navigation with arrow keys
+      if (target.hasAttribute('data-cell-rowid')) {
         return
       }
 
@@ -1828,6 +2118,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             break
         }
 
+        // Skip if we're already at the boundary and not moving
+        if (targetRow === rowIndex && targetCol === colIndex) {
+          return
+        }
+
         const targetCell = document.querySelector(
           `[data-cell-row="${targetRow}"][data-cell-col="${targetCol}"]`
         ) as HTMLElement
@@ -1836,6 +2131,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           const targetRowId = targetCell.dataset.cellRowid
           const targetColId = targetCell.dataset.cellColid
           if (targetRowId && targetColId) {
+            // Emit cursor immediately for collaboration
+            emitCursorImmediate(targetRowId, targetColId, targetRow, targetCol)
+            // Update selection
             setSelectedCell({ rowId: targetRowId, colId: targetColId, rowIndex: targetRow, colIndex: targetCol })
           }
         }
@@ -1912,7 +2210,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
     document.addEventListener('keydown', handleGlobalKeyDown)
     return () => document.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [selectedCell, activeSheet, filteredData, formulaSelectionMode, handleCellChange])
+  }, [selectedCell, activeSheet, filteredData, formulaSelectionMode, handleCellChange, emitCursorImmediate])
 
   /**
    * Convert columns to form fields
@@ -1962,17 +2260,22 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     if (activeSheet.settings.showRowNumbers || (activeSheet.settings.allowAdd && _onAppUpdate)) {
       cols.push({
         id: 'row-number',
-        header: () => <div className="gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground gba:text-center">#</div>,
+        header: () => (
+          <div className="gba:px-3 gba:py-2.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground/70 gba:text-center gba:uppercase gba:tracking-wider">
+            #
+          </div>
+        ),
         cell: ({ row }: { row: Row<Record<string, unknown>> }) => (
-          <div className="gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground gba:text-center gba:select-none">
+          <div className="gba:px-3 gba:py-2 gba:text-xs gba:font-mono gba:text-muted-foreground/60 gba:text-center gba:select-none gba:tabular-nums">
             {row.index + 1}
           </div>
         ),
         enableSorting: false,
-        enableResizing: false,
-        size: 50,
-        minSize: 50,
-        maxSize: 50
+        enableResizing: true,
+        enablePinning: false,
+        size: 40,
+        minSize: 30,
+        maxSize: 80
       })
     }
 
@@ -1993,9 +2296,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             return row[mapping.entityField] ?? row[mapping.entityFieldLabel]
           },
           header: () => (
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <Database className="gba:w-3 gba:h-3 gba:text-info" />
-              <span>{mapping.entityFieldLabel || mapping.entityField}</span>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2.5">
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:rounded-md gba:bg-info/15 gba:flex-shrink-0">
+                <Database className="gba:w-3 gba:h-3 gba:text-info" />
+              </div>
+              <span className="gba:text-[13px] gba:font-medium gba:text-foreground/80 gba:truncate">
+                {mapping.entityFieldLabel || mapping.entityField}
+              </span>
             </div>
           ),
           cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
@@ -2003,7 +2310,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
             // For entity data, display values directly (read-only)
             return (
-              <div className="gba:px-2 gba:py-1.5 gba:bg-muted/30">
+              <div className="gba:px-2 gba:py-1 gba:bg-muted/30 gba:text-sm">
                 {value === null || value === undefined ? (
                   <span className="gba:text-muted-foreground">—</span>
                 ) : typeof value === 'boolean' ? (
@@ -2049,47 +2356,34 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       cols.push({
         id: col.id,
         accessorFn: (row: Record<string, unknown>) => row[col.name],
+        size: col.width || 150,
+        minSize: 60,
+        maxSize: 500,
+        enableResizing: true,
         header: () => (
-          <div
-            className={`gba:flex gba:items-center gba:justify-between gba:w-full gba:group gba:px-2 gba:py-1 gba:rounded-sm ${
-              isTrackingCol
-                ? 'gba:bg-gradient-to-r gba:from-info/20 gba:to-info/5 gba:border-b-2 gba:border-info/40'
-                : ''
-            }`}
-          >
-            <div className="gba:flex gba:items-center gba:gap-1.5">
-              {isTrackingCol && <Activity className="gba:w-3.5 gba:h-3.5 gba:text-info" />}
-              {activeSheet.entityDataSource?.enabled && !isTrackingCol && (
-                <Pencil className="gba:w-3 gba:h-3 gba:text-success" />
-              )}
-              <span
-                className={
-                  isTrackingCol ? 'gba:text-info gba:font-semibold gba:text-xs gba:uppercase gba:tracking-wide' : ''
-                }
-              >
-                {col.label}
-              </span>
-            </div>
-            {_onAppUpdate && activeSheet.columns.length > 1 && !isTrackingCol && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gba:h-5 gba:w-5 gba:p-0 gba:opacity-0 group-hover:gba:opacity-100"
-                  >
-                    <MoreVertical className="gba:w-3 gba:h-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleDeleteColumn(col.id)} className="gba:text-destructive">
-                    <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Delete Column
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
+          <ColumnHeader
+            col={col}
+            isTrackingCol={isTrackingCol}
+            isEditing={editingColumnIdRef.current === col.id}
+            editingLabel={editingColumnIdRef.current === col.id ? editingColumnLabelRef.current : col.label}
+            onStartEditing={() => {
+              setEditingColumnId(col.id)
+              setEditingColumnLabel(col.label)
+            }}
+            onLabelChange={setEditingColumnLabel}
+            onFinishEditing={(save) => {
+              if (!save) {
+                setEditingColumnId(null)
+                setEditingColumnLabel('')
+              }
+            }}
+            onRenameColumn={(colId, newLabel) => handleRenameColumnRef.current(colId, newLabel)}
+            canEdit={!!_onAppUpdate}
+            hasEntityDataSource={!!activeSheet.entityDataSource?.enabled}
+            columnsCount={activeSheet.columns.length}
+            onDeleteColumn={handleDeleteColumn}
+            onReorderColumn={(draggedId, targetId) => handleReorderColumnsRef.current(draggedId, targetId)}
+          />
         ),
         cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
           const value = row.original[col.name]
@@ -2154,6 +2448,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                 isEditingRef.current = editing
               }}
               participants={participants}
+              onCursorEmit={emitCursorImmediate}
             />
           )
         }
@@ -2165,57 +2460,55 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       cols.push({
         id: 'add-column',
         header: () => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={e => {
-              e.stopPropagation()
-              handleAddColumn()
-            }}
-            className="gba:h-8 gba:w-8 gba:p-0 gba:hover:bg-muted"
-            title="Add Column"
-            data-testid="add-column-header-button"
-          >
-            <Plus className="gba:w-4 gba:h-4" />
-          </Button>
+          <div className="gba:px-2 gba:py-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={e => {
+                e.stopPropagation()
+                handleAddColumnRef.current()
+              }}
+              className="gba:h-7 gba:w-7 gba:p-0 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:duration-150 gba:border gba:border-dashed gba:border-border/50 hover:gba:border-primary/30"
+              title="Add Column"
+              data-testid="add-column-header-button"
+            >
+              <Plus className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+            </Button>
+          </div>
         ),
         cell: () => null, // Empty cell
         enableSorting: false,
-        enableResizing: false
+        enableResizing: false,
+        enablePinning: false,
+        size: 48,
+        minSize: 48,
+        maxSize: 48
       })
     }
 
-    // Add actions column
-    if (activeSheet.settings.allowEdit || activeSheet.settings.allowDelete) {
+    // Add actions column (minimal - just delete button)
+    if (activeSheet.settings.allowDelete) {
       cols.push({
         id: 'actions',
         header: '',
+        size: 40,
+        minSize: 40,
+        maxSize: 40,
+        enableResizing: false,
+        enablePinning: false,
         cell: ({ row }: { row: Row<Record<string, unknown>> }) => (
-          <div className="gba:flex gba:items-center gba:gap-1">
-            {activeSheet.settings.allowEdit && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={e => {
-                  e.stopPropagation()
-                  setEditingRow(row.original)
-                }}
-              >
-                <Pencil className="gba:w-4 gba:h-4" />
-              </Button>
-            )}
-            {activeSheet.settings.allowDelete && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={e => {
-                  e.stopPropagation()
-                  handleDeleteRow(row.original._id as string)
-                }}
-              >
-                <Trash2 className="gba:w-4 gba:h-4 gba:text-destructive" />
-              </Button>
-            )}
+          <div className="gba:flex gba:items-center gba:justify-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="gba:h-6 gba:w-6 gba:opacity-30 hover:gba:opacity-100"
+              onClick={e => {
+                e.stopPropagation()
+                handleDeleteRow(row.original._id as string)
+              }}
+            >
+              <Trash2 className="gba:w-3.5 gba:h-3.5 gba:text-destructive" />
+            </Button>
           </div>
         )
       })
@@ -2229,8 +2522,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     filteredData,
     handleFormulaCellSelect,
     formulaSelectionMode,
+    // selectedCell is needed to trigger cell re-renders for selection highlighting
     selectedCell,
-    setSelectedCell
+    participants,
+    emitCursorImmediate,
+    // Column editing state - needed to trigger re-renders when editing state changes
+    // Using refs for stable closures inside the header function
+    editingColumnId,
+    editingColumnLabel,
+    handleRenameColumn,
+    handleDeleteColumn,
+    _onAppUpdate
   ])
 
   if (!activeSheet) {
@@ -2242,99 +2544,198 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full" data-testid={testId}>
-      {/* Header */}
-      <div className="gba:border-b gba:bg-card">
-        <div className="gba:px-6 gba:py-4">
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <div className="gba:flex gba:items-center gba:gap-4">
+    <div
+      className="gba:flex gba:flex-col gba:h-full gba:min-w-0"
+      style={{ width: '100%', maxWidth: '100vw', overflow: 'hidden' }}
+      data-testid={testId}
+    >
+      {/* Modern Header */}
+      <div className="gba:flex-shrink-0 gba:min-w-0 gba:w-full gba:overflow-hidden gba:bg-gradient-to-r gba:from-background gba:to-muted/30">
+        {/* Top Navigation Bar */}
+        <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
+          <div className="gba:flex gba:items-center gba:justify-between gba:min-w-0 gba:w-full">
+            {/* Left: Breadcrumb Navigation */}
+            <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0">
               {onBack && (
-                <Button variant="ghost" size="sm" onClick={onBack}>
-                  <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
-                  Back
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onBack}
+                  className="gba:h-8 gba:px-2 gba:gap-1 gba:text-muted-foreground gba:hover:text-foreground"
+                >
+                  <Home className="gba:w-4 gba:h-4" />
+                  <span className="gba:hidden sm:gba:inline">Spreadsheets</span>
                 </Button>
               )}
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                  {(() => {
-                    const IconComponent = app.icon ? getIconByName(app.icon) : null
-                    return IconComponent ? (
-                      <IconComponent className="gba:w-5 gba:h-5 gba:text-primary" />
-                    ) : (
-                      <DEFAULT_APP_ICON className="gba:w-5 gba:h-5 gba:text-primary" />
-                    )
-                  })()}
+              {onBack && (
+                <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground/50 gba:flex-shrink-0" />
+              )}
+              <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                <div className="gba:relative gba:flex-shrink-0">
+                  <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-primary/70 gba:flex gba:items-center gba:justify-center gba:shadow-sm">
+                    {(() => {
+                      const IconComponent = app.icon ? getIconByName(app.icon) : null
+                      return IconComponent ? (
+                        <IconComponent className="gba:w-4 gba:h-4 gba:text-primary-foreground" />
+                      ) : (
+                        <FileSpreadsheet className="gba:w-4 gba:h-4 gba:text-primary-foreground" />
+                      )
+                    })()}
+                  </div>
                 </div>
-                <div>
-                  <h1 className="gba:text-xl gba:font-semibold gba:text-foreground">{app.name}</h1>
-                  {app.description && <p className="gba:text-sm gba:text-muted-foreground">{app.description}</p>}
+                <div className="gba:min-w-0 gba:flex-1">
+                  <h1 className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate">{app.name}</h1>
+                  {app.description && (
+                    <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[300px]">{app.description}</p>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="gba:flex gba:items-center gba:gap-2">
-              {/* Collaboration presence indicator */}
-              {participants.length > 0 && (
-                <PresenceIndicator participants={participants} maxVisible={3} size="md" showLabel={true} />
-              )}
+            {/* Right: Status & Quick Actions */}
+            <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
+              {/* Live Status Indicators */}
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {/* Collaboration presence indicator - shows active users */}
+                {participants.length > 0 && (
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-success/10 gba:border gba:border-success/20">
+                    <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
+                    <PresenceIndicator participants={participants} maxVisible={3} size="sm" showLabel={false} />
+                    <span className="gba:text-xs gba:font-medium gba:text-success-foreground">{participants.length} active</span>
+                  </div>
+                )}
+                
+                {/* Connection status indicator - shows when connected but alone */}
+                {participants.length === 0 && isCollaborationConnected && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1 gba:rounded-full gba:bg-success/10 gba:border gba:border-success/20 gba:cursor-default">
+                          <Signal className="gba:w-3.5 gba:h-3.5 gba:text-success" />
+                          <span className="gba:text-xs gba:font-medium gba:text-success-foreground">Live</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <span>Real-time collaboration active. Others will appear when they join.</span>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
-              {/* Entity data source indicator */}
-              {activeSheet?.entityDataSource?.enabled && (
-                <>
-                  <Badge variant="info" className="gba:gap-1">
-                    <Database className="gba:w-3 gba:h-3" />
-                    {activeSheet.entityDataSource.entityDisplayName}
-                  </Badge>
-                  <Button variant="outline" size="sm" onClick={handleRefreshEntityData} disabled={isEntityDataLoading}>
-                    {isEntityDataLoading ? (
-                      <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-                    ) : (
-                      <RefreshCw className="gba:w-4 gba:h-4" />
-                    )}
-                  </Button>
-                </>
-              )}
-              <Button
-                variant={isAutomationsOpen ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setIsAutomationsOpen(!isAutomationsOpen)}
-                data-testid={`${testId}-automations-button`}
-              >
-                <Workflow className="gba:w-4 gba:h-4 gba:mr-2" />
-                Automations
-              </Button>
-              {onEdit && (
-                <Button variant="outline" size="sm" onClick={onEdit}>
-                  <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Settings
-                </Button>
-              )}
+                {/* Entity data source indicator */}
+                {activeSheet?.entityDataSource?.enabled && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1 gba:rounded-full gba:bg-info/10 gba:border gba:border-info/20">
+                          <Database className="gba:w-3.5 gba:h-3.5 gba:text-info" />
+                          <span className="gba:text-xs gba:font-medium gba:text-info-foreground gba:max-w-[120px] gba:truncate">
+                            {activeSheet.entityDataSource.entityDisplayName}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleRefreshEntityData}
+                            disabled={isEntityDataLoading}
+                            className="gba:p-0.5 gba:rounded gba:hover:bg-info/20 gba:transition-colors gba:disabled:opacity-50"
+                          >
+                            {isEntityDataLoading ? (
+                              <Loader2 className="gba:w-3 gba:h-3 gba:text-info gba:animate-spin" />
+                            ) : (
+                              <RefreshCw className="gba:w-3 gba:h-3 gba:text-info" />
+                            )}
+                          </button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <span>Connected to {activeSheet.entityDataSource.entityDisplayName} data source</span>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="gba:h-6 gba:w-px gba:bg-border/50" />
+
+              {/* Action Buttons */}
+              <div className="gba:flex gba:items-center gba:gap-1.5">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={isAutomationsOpen ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setIsAutomationsOpen(!isAutomationsOpen)}
+                        data-testid={`${testId}-automations-button`}
+                        className="gba:h-8 gba:gap-1.5"
+                      >
+                        <Zap className="gba:w-4 gba:h-4" />
+                        <span className="gba:hidden md:gba:inline">Automations</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <span>Manage automations and workflows</span>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                
+                {onEdit && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="sm" onClick={onEdit} className="gba:h-8 gba:gap-1.5">
+                          <Settings className="gba:w-4 gba:h-4" />
+                          <span className="gba:hidden md:gba:inline">Settings</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <span>Spreadsheet settings</span>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Automations Panel - Rendered via Portal to appear above platform header */}
+        {/* Automations Panel - Modern slide-over drawer */}
         {isAutomationsOpen &&
           createPortal(
             <div className="gba:fixed gba:inset-0" style={{ zIndex: 999999 }}>
-              {/* Backdrop overlay */}
+              {/* Backdrop overlay with fade */}
               <div
-                className="gba:absolute gba:inset-0 gba:bg-black/20 gba:backdrop-blur-sm"
+                className="gba:absolute gba:inset-0 gba:bg-black/30 gba:backdrop-blur-[2px] gba:transition-opacity"
                 onClick={() => setIsAutomationsOpen(false)}
                 style={{ zIndex: 999999 }}
               />
-              {/* Drawer panel */}
+              {/* Modern drawer panel */}
               <div
-                className="gba:absolute gba:top-0 gba:right-0 gba:bottom-0 gba:w-[540px] gba:bg-background gba:border-l gba:shadow-2xl gba:overflow-hidden gba:flex gba:flex-col"
-                style={{ zIndex: 1000000 }}
+                className="gba:absolute gba:top-0 gba:right-0 gba:bottom-0 gba:w-[560px] gba:max-w-[90vw] gba:bg-background gba:border-l gba:border-border/50 gba:overflow-hidden gba:flex gba:flex-col"
+                style={{ zIndex: 1000000, boxShadow: '-8px 0 32px rgba(0,0,0,0.12)' }}
               >
-                <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:bg-muted/30">
-                  <h2 className="gba:text-lg gba:font-semibold">Automations</h2>
-                  <Button variant="ghost" size="sm" onClick={() => setIsAutomationsOpen(false)}>
+                {/* Modern drawer header */}
+                <div className="gba:flex gba:items-center gba:justify-between gba:px-5 gba:py-3.5 gba:border-b gba:border-border/50 gba:bg-gradient-to-r gba:from-muted/30 gba:to-transparent">
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <div className="gba:w-9 gba:h-9 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary/20 gba:to-primary/5 gba:flex gba:items-center gba:justify-center gba:border gba:border-primary/20">
+                      <Zap className="gba:w-4.5 gba:h-4.5 gba:text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Automations</h2>
+                      <p className="gba:text-xs gba:text-muted-foreground">Automate workflows and actions</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setIsAutomationsOpen(false)}
+                    className="gba:h-8 gba:w-8 gba:p-0 gba:rounded-full gba:hover:bg-muted"
+                  >
                     <X className="gba:w-4 gba:h-4" />
                   </Button>
                 </div>
-                <div className="gba:flex-1 gba:overflow-auto gba:p-6">
+                {/* Content area */}
+                <div className="gba:flex-1 gba:overflow-auto gba:p-5">
                   <AutomationsHub
                     automations={automations}
                     executionHistory={executionHistory}
@@ -2397,10 +2798,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           data-testid={`${testId}-automation-wizard`}
         />
 
-        {/* Sheet tabs */}
+        {/* Sheet tabs - Modern tab bar */}
         {app.sheets.length > 1 && (
-          <div className="gba:px-6 gba:border-t">
-            <div className="gba:flex gba:items-center gba:gap-1 gba:py-2">
+          <div className="gba:px-4 gba:border-t gba:border-border/50 gba:w-full gba:overflow-hidden gba:bg-muted/10">
+            <div className="gba:flex gba:items-center gba:gap-0.5 gba:py-1.5 gba:w-full gba:overflow-x-auto">
               {app.sheets.map(sheet => {
                 const isActive = sheet.id === activeSheetId
                 const hasEntitySource = sheet.entityDataSource?.enabled
@@ -2410,22 +2811,30 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                   <button
                     key={sheet.id}
                     type="button"
-                    className={`gba:px-4 gba:py-2 gba:text-sm gba:rounded-lg gba:transition-colors ${
+                    className={`gba:group gba:relative gba:flex gba:items-center gba:gap-2 gba:px-3.5 gba:py-2 gba:text-sm gba:rounded-t-lg gba:transition-all gba:duration-200 ${
                       isActive
-                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                        : 'gba:text-muted-foreground gba:hover:bg-muted/50'
+                        ? 'gba:bg-background gba:text-foreground gba:font-medium gba:shadow-sm gba:border gba:border-b-0 gba:border-border/50 gba:-mb-px gba:z-10'
+                        : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/30'
                     }`}
                     onClick={() => setActiveSheetId(sheet.id)}
                   >
                     {hasEntitySource ? (
-                      <Database className="gba:w-4 gba:h-4 gba:inline gba:mr-2" />
+                      <Database className={`gba:w-3.5 gba:h-3.5 gba:flex-shrink-0 ${isActive ? 'gba:text-info' : 'gba:text-muted-foreground gba:group-hover:text-info'}`} />
                     ) : (
-                      <Layers className="gba:w-4 gba:h-4 gba:inline gba:mr-2" />
+                      <Layers className={`gba:w-3.5 gba:h-3.5 gba:flex-shrink-0 ${isActive ? 'gba:text-primary' : 'gba:text-muted-foreground gba:group-hover:text-primary'}`} />
                     )}
-                    {sheet.name}
-                    <Badge variant="outline" className="gba:ml-2 gba:text-xs">
+                    <span className="gba:truncate gba:max-w-[120px]">{sheet.name}</span>
+                    <span className={`gba:text-xs gba:px-1.5 gba:py-0.5 gba:rounded-full gba:tabular-nums ${
+                      isActive 
+                        ? 'gba:bg-primary/10 gba:text-primary' 
+                        : 'gba:bg-muted gba:text-muted-foreground gba:group-hover:bg-muted/70'
+                    }`}>
                       {dataCount}
-                    </Badge>
+                    </span>
+                    {/* Active indicator line */}
+                    {isActive && (
+                      <div className="gba:absolute gba:bottom-0 gba:left-2 gba:right-2 gba:h-0.5 gba:bg-primary gba:rounded-full" />
+                    )}
                   </button>
                 )
               })}
@@ -2434,20 +2843,35 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         )}
       </div>
 
-      {/* Formula Bar - Excel-like display */}
-      <div className="gba:px-6 gba:py-2 gba:border-b gba:bg-muted/20" data-testid="spreadsheet-viewer-formula-bar">
-        <div className="gba:flex gba:items-center gba:gap-3">
-          {/* Cell reference indicator */}
-          {selectedCell && (
-            <div className="gba:min-w-[60px] gba:px-2 gba:py-1 gba:bg-background gba:border gba:rounded gba:text-sm gba:font-mono gba:text-center">
-              {columnIndexToLetter(selectedCell.colIndex)}
-              {selectedCell.rowIndex + 1}
-            </div>
-          )}
+      {/* Formula Bar - Modern Excel-like display */}
+      <div className="gba:px-4 gba:py-2 gba:border-b gba:border-border/50 gba:bg-background gba:w-full gba:overflow-hidden gba:flex-shrink-0" data-testid="spreadsheet-viewer-formula-bar">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:w-full gba:min-w-0">
+          {/* Cell reference indicator - Modern pill style */}
+          <div className={`gba:flex gba:items-center gba:gap-1.5 gba:min-w-[70px] gba:px-2.5 gba:py-1.5 gba:rounded-lg gba:text-sm gba:font-mono gba:transition-colors ${
+            selectedCell 
+              ? 'gba:bg-primary/10 gba:text-primary gba:border gba:border-primary/20' 
+              : 'gba:bg-muted/50 gba:text-muted-foreground gba:border gba:border-border/50'
+          }`}>
+            <Table2 className="gba:w-3.5 gba:h-3.5 gba:flex-shrink-0" />
+            {selectedCell ? (
+              <span className="gba:font-semibold">
+                {columnIndexToLetter(selectedCell.colIndex)}
+                {selectedCell.rowIndex + 1}
+              </span>
+            ) : (
+              <span className="gba:text-xs">—</span>
+            )}
+          </div>
 
-          {/* Formula/Value input - editable like Excel */}
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:bg-background gba:border gba:rounded gba:px-3 gba:min-h-[36px]">
-            <span className="gba:font-mono gba:text-sm gba:text-muted-foreground">fx</span>
+          {/* Formula/Value input - Modern glass style */}
+          <div className={`gba:flex gba:items-center gba:gap-2.5 gba:flex-1 gba:min-w-0 gba:border gba:rounded-lg gba:px-3 gba:min-h-[38px] gba:transition-all ${
+            selectedCell
+              ? 'gba:bg-background gba:border-border gba:shadow-sm'
+              : 'gba:bg-muted/30 gba:border-border/50'
+          }`}>
+            <div className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded gba:bg-muted/50 gba:flex-shrink-0">
+              <span className="gba:font-mono gba:text-xs gba:font-bold gba:text-muted-foreground">fx</span>
+            </div>
             {selectedCell ? (
               <input
                 type="text"
@@ -2584,199 +3008,306 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             )}
           </div>
 
-          {/* Formula functions - show when cell is selected and not in formula mode */}
+          {/* Formula functions - Modern quick action pills */}
           {selectedCell && !formulaSelectionMode && (
-            <div className="gba:flex gba:items-center gba:gap-1">
-              {[
-                { name: 'SUM', desc: 'Add values', icon: '∑' },
-                { name: 'AVERAGE', desc: 'Average', icon: 'x̄' },
-                { name: 'COUNT', desc: 'Count', icon: '#' },
-                { name: 'MIN', desc: 'Min', icon: '↓' },
-                { name: 'MAX', desc: 'Max', icon: '↑' }
-              ].map(fn => (
-                <Button
-                  key={fn.name}
-                  variant="outline"
-                  size="sm"
-                  className="gba:h-8 gba:px-2 gba:text-xs gba:font-mono"
-                  title={`${fn.name}: ${fn.desc}`}
-                  onClick={() => {
-                    const formula = `=${fn.name}(`
-
-                    // Start editing directly in the formula bar (no need to focus a cell input).
-                    currentFormulaValueRef.current = formula
-                    setCurrentFormulaDisplay(formula)
-                    setFormulaSelectionMode({
-                      editingCell: { rowId: selectedCell.rowId, colId: selectedCell.colId },
-                      startCell: null,
-                      endCell: null,
-                      isRangeSelection: false
-                    })
-
-                    requestAnimationFrame(() => {
-                      const input = formulaBarInputRef.current
-                      if (!input) return
-                      input.focus()
-                      input.setSelectionRange(formula.length, formula.length)
-                    })
-                  }}
-                >
-                  <span className="gba:mr-1">{fn.icon}</span>
-                  {fn.name}
-                </Button>
-              ))}
+            <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
+              <TooltipProvider>
+                {[
+                  { name: 'SUM', desc: 'Sum of values', icon: '∑' },
+                  { name: 'AVERAGE', desc: 'Average value', icon: 'x̄' },
+                  { name: 'COUNT', desc: 'Count values', icon: '#' },
+                  { name: 'MIN', desc: 'Minimum value', icon: '↓' },
+                  { name: 'MAX', desc: 'Maximum value', icon: '↑' }
+                ].map(fn => (
+                  <Tooltip key={fn.name}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="gba:flex gba:items-center gba:gap-1 gba:h-7 gba:px-2 gba:text-xs gba:font-mono gba:rounded-md gba:border gba:border-border/50 gba:bg-muted/30 gba:text-muted-foreground gba:hover:bg-muted gba:hover:text-foreground gba:hover:border-border gba:transition-all"
+                        onClick={() => {
+                          const formula = `=${fn.name}(`
+                          currentFormulaValueRef.current = formula
+                          setCurrentFormulaDisplay(formula)
+                          setFormulaSelectionMode({
+                            editingCell: { rowId: selectedCell.rowId, colId: selectedCell.colId },
+                            startCell: null,
+                            endCell: null,
+                            isRangeSelection: false
+                          })
+                          requestAnimationFrame(() => {
+                            const input = formulaBarInputRef.current
+                            if (!input) return
+                            input.focus()
+                            input.setSelectionRange(formula.length, formula.length)
+                          })
+                        }}
+                      >
+                        <span className="gba:text-sm">{fn.icon}</span>
+                        <span className="gba:hidden lg:gba:inline">{fn.name}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <span className="gba:font-mono">{fn.name}</span>: {fn.desc}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
             </div>
           )}
         </div>
 
-        {/* Formula mode hint */}
+        {/* Formula mode hint - Modern floating badge */}
         {formulaSelectionMode && (
-          <div className="gba:mt-2 gba:text-xs gba:text-primary gba:flex gba:items-center gba:gap-2">
-            <Badge variant="info" className="gba:text-xs">
-              Formula Mode
-            </Badge>
-            <span>Click cells to add references • Shift+Click for range • Enter to save • Escape to cancel</span>
+          <div className="gba:mt-2 gba:flex gba:items-center gba:gap-3">
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1 gba:rounded-full gba:bg-primary/10 gba:border gba:border-primary/20">
+              <Sparkles className="gba:w-3.5 gba:h-3.5 gba:text-primary" />
+              <span className="gba:text-xs gba:font-medium gba:text-primary">Formula Mode</span>
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+              <span className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-medium">Click</span>
+              <span>add cell</span>
+              <span className="gba:text-border">•</span>
+              <span className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-medium">Shift+Click</span>
+              <span>range</span>
+              <span className="gba:text-border">•</span>
+              <span className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-medium">Enter</span>
+              <span>save</span>
+              <span className="gba:text-border">•</span>
+              <span className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-medium">Esc</span>
+              <span>cancel</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Toolbar */}
-      <div className="gba:px-6 gba:py-2 gba:border-b gba:bg-muted/30">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          {/* View switcher */}
-          <div className="gba:flex gba:items-center gba:gap-2">
+      {/* Toolbar - Modern action bar */}
+      <div className="gba:px-4 gba:py-2 gba:border-b gba:border-border/50 gba:bg-muted/20 gba:w-full gba:overflow-hidden gba:flex-shrink-0">
+        <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:min-w-0 gba:gap-4">
+          {/* Left: View switcher - Modern segmented control */}
+          <div className="gba:flex gba:items-center gba:gap-0.5 gba:p-1 gba:rounded-lg gba:bg-muted/50 gba:border gba:border-border/50">
             {activeSheet.views.map(view => {
               const ViewIcon = getViewIcon(view.type)
               const isActive = view.id === (activeView?.id || activeSheet.views[0]?.id)
               return (
-                <Button
-                  key={view.id}
-                  variant={isActive ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveViewId(view.id)}
-                >
-                  <ViewIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {view.name}
-                </Button>
+                <TooltipProvider key={view.id}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className={`gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1.5 gba:rounded-md gba:text-sm gba:font-medium gba:transition-all ${
+                          isActive
+                            ? 'gba:bg-background gba:text-foreground gba:shadow-sm gba:border gba:border-border/50'
+                            : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/30'
+                        }`}
+                        onClick={() => setActiveViewId(view.id)}
+                      >
+                        <ViewIcon className="gba:w-4 gba:h-4" />
+                        <span className="gba:hidden sm:gba:inline">{view.name}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <span>{view.name} view</span>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )
             })}
           </div>
 
-          {/* Actions */}
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <div className="gba:relative">
-              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          {/* Right: Actions - Modern grouped actions */}
+          <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:justify-end gba:min-w-0">
+            {/* Search - Modern with keyboard hint */}
+            <div className="gba:relative gba:max-w-[280px] gba:flex-1 gba:min-w-[180px]">
+              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none" />
               <Input
-                placeholder="Search..."
+                placeholder="Search in sheet..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="gba:pl-10 gba:w-64"
+                className="gba:pl-10 gba:pr-12 gba:h-9 gba:bg-background gba:border-border/50"
               />
+              <kbd className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:hidden sm:gba:inline-flex gba:h-5 gba:items-center gba:gap-1 gba:rounded gba:border gba:border-border/50 gba:bg-muted/50 gba:px-1.5 gba:font-mono gba:text-[10px] gba:text-muted-foreground">
+                ⌘K
+              </kbd>
             </div>
 
-            {_onAppUpdate && (
-              <Button variant="outline" onClick={handleAddColumn}>
-                <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                Add Column
-              </Button>
-            )}
+            {/* Divider */}
+            <div className="gba:h-6 gba:w-px gba:bg-border/50 gba:hidden sm:gba:block" />
 
-            {activeSheet.settings.allowAdd && (
-              <Button onClick={handleAddRow}>
-                <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                Add Row
-              </Button>
-            )}
+            {/* Primary actions */}
+            <div className="gba:flex gba:items-center gba:gap-1.5">
+              {_onAppUpdate && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleAddColumn}
+                        className="gba:h-8 gba:gap-1.5"
+                      >
+                        <Columns className="gba:w-4 gba:h-4" />
+                        <span className="gba:hidden md:gba:inline">Column</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Add new column</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <MoreVertical className="gba:w-4 gba:h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {_onAppUpdate && (
-                  <DropdownMenuItem onClick={() => setIsManageColumnsDialogOpen(true)}>
-                    <Columns className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Manage Columns
-                  </DropdownMenuItem>
-                )}
-                {activeSheet.settings.allowExport && (
+              {activeSheet.settings.allowAdd && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        size="sm" 
+                        onClick={handleAddRow}
+                        className="gba:h-8 gba:gap-1.5 gba:bg-primary gba:hover:bg-primary/90"
+                      >
+                        <Plus className="gba:w-4 gba:h-4" />
+                        <span className="gba:hidden md:gba:inline">Add Row</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Add new row</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {/* More actions dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
+                    <MoreVertical className="gba:w-4 gba:h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="gba:w-48">
+                  {_onAppUpdate && (
+                    <DropdownMenuItem onClick={() => setIsManageColumnsDialogOpen(true)}>
+                      <Columns className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Manage Columns
+                    </DropdownMenuItem>
+                  )}
+                  {activeSheet.settings.allowExport && (
+                    <DropdownMenuItem>
+                      <Download className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Export to Excel
+                    </DropdownMenuItem>
+                  )}
+                  {activeSheet.settings.allowImport && (
+                    <DropdownMenuItem>
+                      <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Import Data
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem>
-                    <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export to Excel
+                    <Filter className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Advanced Filters
                   </DropdownMenuItem>
-                )}
-                {activeSheet.settings.allowImport && (
-                  <DropdownMenuItem>
-                    <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Import Data
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem>
-                  <Filter className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Advanced Filters
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Entity data loading/error/success state */}
+      {/* Entity data status bar - Modern compact design */}
       {activeSheet?.entityDataSource?.enabled && (
-        <div className="gba:px-6 gba:py-2 gba:border-b gba:bg-info/5">
+        <div className="gba:px-4 gba:py-1.5 gba:border-b gba:border-border/30 gba:bg-gradient-to-r gba:from-muted/30 gba:to-transparent gba:w-full gba:overflow-hidden gba:flex-shrink-0">
           {isEntityDataLoading && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-              Loading data from {activeSheet.entityDataSource.entityDisplayName}...
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-2 gba:py-1 gba:rounded-full gba:bg-muted/50 gba:border gba:border-border/50">
+                <Loader2 className="gba:w-3.5 gba:h-3.5 gba:animate-spin gba:text-muted-foreground" />
+                <span className="gba:text-xs gba:text-muted-foreground">Syncing...</span>
+              </div>
+              <span className="gba:text-xs gba:text-muted-foreground">
+                Loading from {activeSheet.entityDataSource.entityDisplayName}
+              </span>
             </div>
           )}
           {entityDataError && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-destructive">
-              <AlertCircle className="gba:w-4 gba:h-4" />
-              {entityDataError}
-              <Button variant="link" size="sm" onClick={handleRefreshEntityData} className="gba:p-0 gba:h-auto">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-2 gba:py-1 gba:rounded-full gba:bg-destructive/10 gba:border gba:border-destructive/20">
+                <AlertCircle className="gba:w-3.5 gba:h-3.5 gba:text-destructive" />
+                <span className="gba:text-xs gba:font-medium gba:text-destructive">Sync failed</span>
+              </div>
+              <span className="gba:text-xs gba:text-muted-foreground">{entityDataError}</span>
+              <button
+                type="button"
+                onClick={handleRefreshEntityData}
+                className="gba:text-xs gba:text-primary gba:hover:underline"
+              >
                 Retry
-              </Button>
+              </button>
             </div>
           )}
           {!isEntityDataLoading && !entityDataError && entityData.length > 0 && (
             <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                <Database className="gba:w-4 gba:h-4 gba:text-info" />
-                <span className="gba:text-foreground">
-                  <strong>{entityData.length}</strong> records loaded from{' '}
-                  <strong>{activeSheet.entityDataSource.entityDisplayName}</strong>
-                </span>
-                <Badge variant="info" className="gba:text-xs">
-                  Live Data
-                </Badge>
-              </div>
               <div className="gba:flex gba:items-center gba:gap-2">
-                <Button variant="outline" size="sm" onClick={handleRefreshEntityData}>
-                  <RefreshCw className="gba:w-3 gba:h-3 gba:mr-1" />
-                  Refresh
-                </Button>
+                <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-2 gba:py-1 gba:rounded-full gba:bg-success/10 gba:border gba:border-success/20">
+                  <div className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success gba:animate-pulse" />
+                  <span className="gba:text-xs gba:font-medium gba:text-success-foreground">Synced</span>
+                </div>
+                <span className="gba:text-xs gba:text-muted-foreground">
+                  <span className="gba:font-semibold gba:text-foreground">{entityData.length}</span> records from{' '}
+                  <span className="gba:font-medium gba:text-foreground">{activeSheet.entityDataSource.entityDisplayName}</span>
+                </span>
               </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={handleRefreshEntityData}
+                      className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/50 gba:transition-colors"
+                    >
+                      <RefreshCw className="gba:w-3 gba:h-3" />
+                      <span className="gba:hidden sm:gba:inline">Refresh</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Refresh data from source</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
           {!isEntityDataLoading && !entityDataError && entityData.length === 0 && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-              <AlertCircle className="gba:w-4 gba:h-4" />
-              No records found matching your filters
-              <Button variant="link" size="sm" onClick={onEdit} className="gba:p-0 gba:h-auto">
-                Edit filters
-              </Button>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning/10 gba:border gba:border-warning/20">
+                <AlertCircle className="gba:w-3.5 gba:h-3.5 gba:text-warning" />
+                <span className="gba:text-xs gba:font-medium gba:text-warning-foreground">No data</span>
+              </div>
+              <span className="gba:text-xs gba:text-muted-foreground">No records found matching your filters</span>
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="gba:text-xs gba:text-primary gba:hover:underline"
+                >
+                  Edit filters
+                </button>
+              )}
             </div>
           )}
         </div>
       )}
 
       {/* Content */}
-      <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden">
+      <div 
+        className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0"
+        style={{ minWidth: 0, minHeight: 0, overflow: 'hidden', position: 'relative' }}
+      >
         {activeView?.type === 'table' ? (
-          <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden gba:p-6">
+          <div 
+            className="gba:flex-1 gba:min-w-0 gba:p-6"
+            style={{ 
+              minWidth: 0, 
+              minHeight: 0, 
+              overflow: 'auto',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0
+            }}
+          >
             <TableView
               data={filteredData}
               columns={tableColumns}
@@ -3027,6 +3558,261 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   )
 }
 
+/**
+ * ColumnHeader Component - Handles inline column name editing and drag-drop reordering
+ * Extracted to prevent full column re-creation when editing state changes
+ */
+interface ColumnHeaderProps {
+  col: SpreadsheetColumn
+  isTrackingCol: boolean
+  isEditing: boolean
+  editingLabel: string
+  onStartEditing: () => void
+  onLabelChange: (label: string) => void
+  onFinishEditing: (save: boolean) => void
+  onRenameColumn: (columnId: string, newLabel: string) => void
+  canEdit: boolean
+  hasEntityDataSource: boolean
+  columnsCount: number
+  onDeleteColumn: (columnId: string) => void
+  onReorderColumn?: (draggedId: string, targetId: string) => void
+}
+
+const ColumnHeader: React.FC<ColumnHeaderProps> = ({
+  col,
+  isTrackingCol,
+  isEditing,
+  editingLabel,
+  onStartEditing,
+  onLabelChange,
+  onFinishEditing,
+  onRenameColumn,
+  canEdit,
+  hasEntityDataSource,
+  columnsCount,
+  onDeleteColumn,
+  onReorderColumn
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null)
+  // Track if we're in the middle of committing to prevent double-actions
+  const isCommittingRef = useRef(false)
+  // Track if this is an intentional blur (from save/cancel) vs accidental (from re-render)
+  const intentionalBlurRef = useRef(false)
+  // Keep track of the latest label value to avoid stale closures
+  const latestLabelRef = useRef(editingLabel)
+  latestLabelRef.current = editingLabel
+  
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
+  
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      // Reset flags when editing starts
+      isCommittingRef.current = false
+      intentionalBlurRef.current = false
+      // Use multiple frames to ensure DOM is fully ready after potential re-renders
+      const focusInput = () => {
+        if (inputRef.current && document.activeElement !== inputRef.current) {
+          inputRef.current.focus()
+          // Place cursor at the end of the text instead of selecting all
+          const len = inputRef.current.value.length
+          inputRef.current.setSelectionRange(len, len)
+        }
+      }
+      // Try immediately
+      focusInput()
+      // Then retry after a frame
+      requestAnimationFrame(focusInput)
+      // And once more after a short delay for extra reliability
+      const timeoutId = setTimeout(focusInput, 50)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [isEditing])
+  
+  const handleSave = useCallback(() => {
+    if (isCommittingRef.current) {
+      return
+    }
+    isCommittingRef.current = true
+    intentionalBlurRef.current = true
+    // Get the CURRENT value from the input element directly to avoid stale closures
+    const currentValue = inputRef.current?.value ?? latestLabelRef.current
+    if (currentValue.trim()) {
+      onRenameColumn(col.id, currentValue.trim())
+    } else {
+      onFinishEditing(false)
+    }
+  }, [col.id, onRenameColumn, onFinishEditing])
+  
+  const handleCancel = useCallback(() => {
+    if (isCommittingRef.current) return
+    isCommittingRef.current = true
+    intentionalBlurRef.current = true
+    onFinishEditing(false)
+  }, [onFinishEditing])
+  
+  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    // Only handle blur if it's not from an intentional action and we're not in the middle of committing
+    if (isCommittingRef.current || intentionalBlurRef.current) return
+    
+    // Check if focus is moving to another element inside the header (like the dropdown)
+    const relatedTarget = e.relatedTarget as HTMLElement
+    if (relatedTarget && e.currentTarget.closest('.gba\\:group')?.contains(relatedTarget)) {
+      return
+    }
+    
+    // Delay the blur handling slightly to allow for re-focus during re-renders
+    setTimeout(() => {
+      // If we're still editing and the input still exists, this was likely an accidental blur from re-render
+      if (inputRef.current && document.activeElement !== inputRef.current && !isCommittingRef.current) {
+        handleSave()
+      }
+    }, 100)
+  }, [handleSave])
+  
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    if (isTrackingCol || !canEdit || !onReorderColumn) return
+    e.dataTransfer.setData('text/plain', col.id)
+    e.dataTransfer.effectAllowed = 'move'
+    setIsDragging(true)
+  }
+
+  const handleDragEnd = () => {
+    setIsDragging(false)
+    setIsDragOver(false)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (isTrackingCol || !canEdit || !onReorderColumn) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    if (isTrackingCol || !canEdit || !onReorderColumn) return
+    e.preventDefault()
+    const draggedId = e.dataTransfer.getData('text/plain')
+    if (draggedId && draggedId !== col.id) {
+      onReorderColumn(draggedId, col.id)
+    }
+    setIsDragOver(false)
+  }
+
+  return (
+    <div
+      className={`gba:flex gba:items-center gba:justify-between gba:w-full gba:group gba:px-2 gba:py-2 gba:transition-all gba:duration-150 ${
+        isTrackingCol
+          ? 'gba:bg-gradient-to-r gba:from-info/15 gba:to-transparent'
+          : ''
+      } ${isDragging ? 'gba:opacity-50' : ''} ${isDragOver ? 'gba:bg-primary/10 gba:border-l-2 gba:border-primary' : ''} ${
+        canEdit && !isTrackingCol && !isEditing ? 'gba:cursor-grab active:gba:cursor-grabbing' : ''
+      }`}
+      draggable={canEdit && !isTrackingCol && !isEditing}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <div className="gba:flex gba:items-center gba:gap-1 gba:flex-1 gba:min-w-0">
+        {/* Drag handle indicator - only shows on hover, very compact */}
+        {canEdit && !isTrackingCol && !isEditing && (
+          <div className="gba:w-0 gba:overflow-hidden group-hover:gba:w-4 gba:transition-all gba:duration-150 gba:flex-shrink-0">
+            <GripVertical className="gba:w-3 gba:h-3 gba:text-muted-foreground/50" />
+          </div>
+        )}
+        {isTrackingCol && (
+          <div className="gba:flex gba:items-center gba:justify-center gba:w-4 gba:h-4 gba:rounded gba:bg-info/20 gba:flex-shrink-0">
+            <Activity className="gba:w-2.5 gba:h-2.5 gba:text-info" />
+          </div>
+        )}
+        {hasEntityDataSource && !isTrackingCol && (
+          <div className="gba:flex gba:items-center gba:justify-center gba:w-4 gba:h-4 gba:rounded gba:bg-success/15 gba:flex-shrink-0">
+            <Database className="gba:w-2.5 gba:h-2.5 gba:text-success" />
+          </div>
+        )}
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editingLabel}
+            onChange={e => onLabelChange(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                e.stopPropagation()
+                handleSave()
+              } else if (e.key === 'Escape') {
+                e.preventDefault()
+                e.stopPropagation()
+                handleCancel()
+              }
+            }}
+            onClick={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            onFocus={e => e.stopPropagation()}
+            className="gba:h-7 gba:px-2 gba:py-0 gba:text-[13px] gba:font-medium gba:min-w-[80px] gba:w-full gba:border gba:border-primary/40 gba:rounded-md gba:bg-background gba:outline-none gba:ring-2 gba:ring-primary/20 gba:shadow-sm"
+          />
+        ) : (
+          <span
+            className={`gba:truncate gba:text-[13px] gba:transition-all gba:duration-150 ${
+              isTrackingCol 
+                ? 'gba:text-info gba:font-semibold gba:text-[11px] gba:uppercase gba:tracking-widest' 
+                : 'gba:font-medium gba:text-foreground/80'
+            } ${canEdit && !isTrackingCol 
+                ? 'gba:cursor-text hover:gba:text-foreground gba:rounded-md gba:px-1.5 gba:py-0.5 gba:-mx-1.5 hover:gba:bg-accent/50' 
+                : ''
+            }`}
+            onClick={e => {
+              if (canEdit && !isTrackingCol) {
+                e.stopPropagation()
+                e.preventDefault()
+                onStartEditing()
+              }
+            }}
+            onMouseDown={e => {
+              if (canEdit && !isTrackingCol) {
+                e.stopPropagation()
+              }
+            }}
+            title={canEdit && !isTrackingCol ? 'Click to rename' : undefined}
+          >
+            {col.label}
+          </span>
+        )}
+      </div>
+      {canEdit && columnsCount > 1 && !isTrackingCol && !isEditing && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gba:h-5 gba:w-5 gba:p-0 gba:rounded gba:opacity-0 group-hover:gba:opacity-100 gba:flex-shrink-0 gba:transition-opacity gba:duration-150 hover:gba:bg-accent gba:ml-1"
+            >
+              <MoreVertical className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="gba:min-w-[140px]">
+            <DropdownMenuItem onClick={() => onDeleteColumn(col.id)} className="gba:text-destructive gba:gap-2">
+              <Trash2 className="gba:w-4 gba:h-4" />
+              Delete Column
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  )
+}
+
 type ActiveEditCell = { rowId: string; colId: string } | null
 type FormulaSelectionMode = {
   editingCell: { rowId: string; colId: string }
@@ -3064,6 +3850,8 @@ interface EditableCellProps {
   formulaSelectedCells: Array<{ rowIndex: number; colIndex: number }>
   onEditingStateChange?: (isEditing: boolean) => void
   participants?: import('../shared/services/CollaborationClient').DocumentParticipant[]
+  /** Emit cursor position immediately on cell selection (for faster collaboration) */
+  onCursorEmit?: (rowId: string, colId: string, rowIndex: number, colIndex: number) => void
 }
 
 const EditableCell: React.FC<EditableCellProps> = ({
@@ -3083,7 +3871,8 @@ const EditableCell: React.FC<EditableCellProps> = ({
   onFormulaValueChange,
   formulaSelectedCells,
   onEditingStateChange,
-  participants = []
+  participants = [],
+  onCursorEmit
 }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [originalValue, setOriginalValue] = useState<string>('')
@@ -3150,6 +3939,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
   // Handle selection click (single click)
   const handleSelect = (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
 
     // If in formula selection mode, handle that instead
     if (formulaSelectionMode && !isInFormulaMode) {
@@ -3158,6 +3948,9 @@ const EditableCell: React.FC<EditableCellProps> = ({
       }
       return
     }
+
+    // Emit cursor immediately for faster collaboration feedback
+    onCursorEmit?.(rowId, column.id, rowIndex, colIndex)
 
     // Select this cell
     setSelectedCell({ rowId, colId: column.id, rowIndex, colIndex })
@@ -3256,6 +4049,11 @@ const EditableCell: React.FC<EditableCellProps> = ({
         break
     }
 
+    // Skip if we're already at the boundary and not moving
+    if (targetRow === rowIndex && targetCol === colIndex) {
+      return
+    }
+
     const targetCell = document.querySelector(
       `[data-cell-row="${targetRow}"][data-cell-col="${targetCol}"]`
     ) as HTMLElement
@@ -3264,6 +4062,9 @@ const EditableCell: React.FC<EditableCellProps> = ({
       const targetRowId = targetCell.dataset.cellRowid
       const targetColId = targetCell.dataset.cellColid
       if (targetRowId && targetColId) {
+        // Emit cursor immediately for collaboration
+        onCursorEmit?.(targetRowId, targetColId, targetRow, targetCol)
+        // Update selection
         setSelectedCell({ rowId: targetRowId, colId: targetColId, rowIndex: targetRow, colIndex: targetCol })
         targetCell.focus()
       }
@@ -3462,11 +4263,13 @@ const EditableCell: React.FC<EditableCellProps> = ({
       onClick={handleSelect}
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleCellKeyDown}
-      className={`gba:relative gba:py-1 gba:px-1 gba:min-h-[28px] gba:rounded gba:outline-none gba:transition-all ${
-        isSelected && !isEditing ? 'gba:ring-2 gba:ring-primary gba:bg-primary/5' : ''
-      } ${canEdit && !isEditing && !isSelected ? 'gba:cursor-cell hover:gba:bg-accent/30' : ''} ${
-        isInFormulaMode && isEditing ? 'gba:bg-primary/30 gba:ring-2 gba:ring-primary' : ''
-      } ${isSelectedInFormula ? 'gba:bg-info-secondary/30 gba:ring-2 gba:ring-info' : ''}`}
+      className={`gba:relative gba:py-1 gba:px-2 gba:min-h-[28px] gba:outline-none ${
+        isSelected && !isEditing 
+          ? 'gba:ring-2 gba:ring-primary gba:ring-inset' 
+          : ''
+      } ${canEdit && !isEditing && !isSelected ? 'gba:cursor-cell hover:gba:bg-muted/20' : ''} ${
+        isInFormulaMode && isEditing ? 'gba:ring-2 gba:ring-primary gba:ring-inset gba:bg-primary/5' : ''
+      } ${isSelectedInFormula ? 'gba:ring-2 gba:ring-info gba:ring-inset gba:bg-info/5' : ''}`}
       data-testid={`cell-${rowId}-${column.id}`}
       data-cell-row={rowIndex}
       data-cell-col={colIndex}
@@ -3478,8 +4281,9 @@ const EditableCell: React.FC<EditableCellProps> = ({
         <CellCollaboratorIndicator
           userName={collaboratorEditingCell.userName}
           userColor={collaboratorEditingCell.userColor}
+          avatarUrl={collaboratorEditingCell.avatarUrl}
           isActive={true}
-          showLabel={true}
+          showLabel={false}
         />
       )}
       {isEditing ? (
@@ -3491,19 +4295,19 @@ const EditableCell: React.FC<EditableCellProps> = ({
             onChange={handleInputChange}
             onKeyDown={handleInputKeyDown}
             onBlur={handleBlur}
-            className="gba:h-7 gba:py-0 gba:px-1 gba:text-sm gba:min-w-[60px] gba:font-mono gba:border-primary"
+            className="gba:h-[26px] gba:py-0 gba:px-1 gba:text-sm gba:min-w-[40px] gba:border-primary gba:rounded-none"
             data-testid={`cell-input-${rowId}-${column.id}`}
           />
           {editValue.trim().startsWith('=') && (
-            <span className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:text-xs gba:text-muted-foreground">
+            <span className="gba:absolute gba:right-1 gba:top-1/2 gba:-translate-y-1/2 gba:text-[10px] gba:text-muted-foreground">
               fx
             </span>
           )}
         </div>
       ) : (
-        <div className="gba:flex gba:items-center gba:gap-1 gba:select-none">
+        <div className="gba:flex gba:items-center gba:gap-1 gba:select-none gba:text-sm">
           {hasFormula && (
-            <span className="gba:text-xs gba:text-muted-foreground gba:font-mono" title={storedFormula}>
+            <span className="gba:text-[10px] gba:text-muted-foreground" title={storedFormula}>
               =
             </span>
           )}
@@ -3529,24 +4333,96 @@ interface TableViewProps {
 
 const TableView: React.FC<TableViewProps> = ({ data, columns, testId, onAddRow, showAddRow }) => {
   // Ensure all rows have a unique 'id' property for DataTable (not '_id')
+  // Also deduplicate rows to prevent React key warnings
   const dataWithIds = useMemo(() => {
-    return data.map((row, index) => ({
-      ...row,
-      // DataTable requires 'id' property, not '_id'
-      id: row.id ?? row._id ?? `row_${index}`
-    }))
+    const seen = new Set<string>()
+    const deduped: Record<string, unknown>[] = []
+    
+    for (const row of data) {
+      const rowId = (row.id ?? row._id ?? `row_${deduped.length}`) as string
+      if (!seen.has(rowId)) {
+        seen.add(rowId)
+        deduped.push({
+          ...row,
+          id: rowId
+        })
+      }
+      // Silently skip duplicates - deduplication handles the issue
+    }
+    
+    return deduped
   }, [data])
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full" data-testid={testId}>
-      <div className="gba:flex-1 gba:overflow-auto">
-        <Card className="gba:overflow-hidden">
-          <DataTable columns={columns} data={dataWithIds} />
+    <div
+      className="gba:flex gba:flex-col gba:h-full"
+      style={{ width: '100%', minWidth: 0 }}
+      data-testid={testId}
+    >
+      <div className="gba:flex-1 gba:w-full gba:overflow-auto" style={{ minWidth: 0 }}>
+        <Card className="spreadsheet-modern-table gba:overflow-hidden gba:border-0 gba:shadow-sm" style={{ minWidth: 'fit-content' }}>
+          <style>{`
+            .spreadsheet-modern-table table {
+              border-collapse: separate;
+              border-spacing: 0;
+            }
+            .spreadsheet-modern-table table td,
+            .spreadsheet-modern-table table th {
+              padding: 0 !important;
+              vertical-align: middle;
+            }
+            .spreadsheet-modern-table table tr {
+              height: auto !important;
+            }
+            .spreadsheet-modern-table table thead {
+              position: sticky;
+              top: 0;
+              z-index: 10;
+            }
+            .spreadsheet-modern-table table thead tr {
+              background: linear-gradient(180deg, hsl(var(--muted) / 0.6) 0%, hsl(var(--muted) / 0.3) 100%);
+              backdrop-filter: blur(8px);
+              -webkit-backdrop-filter: blur(8px);
+            }
+            .spreadsheet-modern-table table thead th {
+              border-bottom: 1px solid hsl(var(--border) / 0.5) !important;
+              font-weight: 500 !important;
+              font-size: 0.8125rem !important;
+              letter-spacing: -0.01em;
+              color: hsl(var(--foreground) / 0.8);
+              transition: background 0.15s ease, color 0.15s ease;
+            }
+            .spreadsheet-modern-table table thead th:hover {
+              background: hsl(var(--muted) / 0.5);
+              color: hsl(var(--foreground));
+            }
+            .spreadsheet-modern-table table thead th:first-child {
+              border-top-left-radius: 0.5rem;
+            }
+            .spreadsheet-modern-table table thead th:last-child {
+              border-top-right-radius: 0.5rem;
+            }
+            .spreadsheet-modern-table table tbody tr {
+              transition: background 0.1s ease;
+            }
+            .spreadsheet-modern-table table tbody tr:hover {
+              background: hsl(var(--muted) / 0.15);
+            }
+            .spreadsheet-modern-table table tbody td {
+              border-bottom: 1px solid hsl(var(--border) / 0.3) !important;
+            }
+          `}</style>
+          <DataTable
+            columns={columns}
+            data={dataWithIds}
+            enableResizing={true}
+            enableColumnPinning={false}
+          />
         </Card>
       </div>
-      {/* Add Row button - sticky at bottom */}
+      {/* Add Row button */}
       {showAddRow && onAddRow && (
-        <div className="gba:sticky gba:bottom-0 gba:z-10 gba:bg-background gba:pt-2 gba:pb-2 gba:border-t gba:flex gba:justify-start">
+        <div className="gba:pt-3 gba:pb-4 gba:flex gba:justify-start">
           <Button variant="outline" size="sm" onClick={onAddRow} className="gba:gap-2">
             <Plus className="gba:w-4 gba:h-4" />
             Add Row

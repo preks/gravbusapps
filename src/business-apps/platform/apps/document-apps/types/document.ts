@@ -95,6 +95,10 @@ export interface Document {
   templateId?: string // If created from a template
   version?: number
   versionHistory?: DocumentVersion[]
+  // Permission info (from backend for shared documents)
+  permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
+  isShared?: boolean
+  sharedBy?: string
 }
 
 /**
@@ -130,7 +134,8 @@ export interface DocumentSummary {
   approvalStatus?: 'pending' | 'approved' | 'rejected'
   approvalRequest?: DocumentApprovalRequest // Full approval details
   isShared?: boolean // Whether this doc was shared with current user
-  sharedByName?: string // Name of person who shared (if shared)
+  sharedBy?: string // User ID of person who shared (if shared)
+  sharedByName?: string // Display name of person who shared (if shared)
 }
 
 /**

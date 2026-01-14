@@ -146,6 +146,13 @@ interface PaginatedResponse<T> {
   totalPages: number
 }
 
+// Map backend permission to frontend permission
+function mapPermission(backendPermission: string | undefined): SpreadsheetApp['permission'] {
+  if (!backendPermission) return undefined
+  if (backendPermission === 'admin') return 'owner'
+  return backendPermission as SpreadsheetApp['permission']
+}
+
 // Map API response to frontend types
 function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): SpreadsheetApp {
   const sheets = (apiApp.sheets as Array<Record<string, unknown>>) || []
@@ -184,7 +191,11 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
         workflowLinks: []
       }
     }),
-    sharedWith: []
+    sharedWith: [],
+    // Permission info from backend
+    permission: mapPermission(apiApp.permission as string | undefined),
+    isShared: apiApp.isShared as boolean | undefined,
+    sharedBy: apiApp.sharedBy as string | undefined
   }
 }
 
@@ -232,7 +243,12 @@ export const SpreadsheetApiService = {
         updatedAt: app.updatedAt as string,
         createdBy: app.ownerId as string,
         sheetCount,
-        rowCount
+        rowCount,
+        // Permission info from backend
+        permission: mapPermission(app.permission as string | undefined),
+        isShared: app.isShared as boolean | undefined,
+        isOwner: !app.isShared,
+        sharedBy: app.sharedBy as string | undefined
       }
     })
   },
@@ -287,12 +303,29 @@ export const SpreadsheetApiService = {
   async updateApp(id: string, updates: Partial<SpreadsheetApp>): Promise<SpreadsheetApp> {
     debugLog('updateApp', id, updates)
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: updates.name,
       description: updates.description,
       icon: updates.icon,
       status: updates.status,
       settings: updates.settings
+    }
+
+    // Include sheets if provided (for column renames, view updates, etc.)
+    if (updates.sheets) {
+      payload.sheets = updates.sheets.map(sheet => ({
+        id: sheet.id,
+        name: sheet.name,
+        description: sheet.description,
+        columns: sheet.columns,
+        views: sheet.views,
+        settings: sheet.settings,
+        entityDataSource: sheet.entityDataSource,
+        chartConfigs: sheet.chartConfigs,
+        data: sheet.data,
+        automations: sheet.automations,
+        workflowLinks: sheet.workflowLinks
+      }))
     }
 
     // Remove undefined
@@ -674,22 +707,57 @@ export const SpreadsheetApiService = {
    */
   async getSharedUsers(appId: string): Promise<
     Array<{
+      id: string
       userId: string
       permission: string
       sharedAt: string
+      sharedBy: string
     }>
   > {
     try {
       debugLog('getSharedUsers', appId)
       const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/spreadsheet_app/${appId}`)
       return shares.map(s => ({
+        id: s.id as string,
         userId: s.userId as string,
         permission: s.permission as string,
-        sharedAt: s.createdAt as string
+        sharedAt: s.createdAt as string,
+        sharedBy: s.sharedBy as string
       }))
     } catch (error) {
       console.error('Failed to get shared users:', error)
       return []
+    }
+  },
+
+  /**
+   * Update share permission
+   */
+  async updateSharePermission(shareId: string, permission: string): Promise<boolean> {
+    try {
+      debugLog('updateSharePermission', shareId, permission)
+      await apiRequest(`/sharing/${shareId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ permission })
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to update share permission:', error)
+      return false
+    }
+  },
+
+  /**
+   * Revoke a share
+   */
+  async revokeShare(shareId: string): Promise<boolean> {
+    try {
+      debugLog('revokeShare', shareId)
+      await apiRequest(`/sharing/${shareId}`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('Failed to revoke share:', error)
+      return false
     }
   }
 }
