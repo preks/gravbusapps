@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react'
-import { Button, Input, useTranslation } from '@newwork/nw-design-system'
+import { Button, Input } from '@newwork/nw-design-system'
 import { PaperPlaneTilt, Paperclip, At, X, File } from '@phosphor-icons/react'
 import { useEntityMentions } from '../hooks/useEntityMentions'
 import { EntityMentionPopover } from './EntityMentionPopover'
 import type { EntityReference, MessageEntityReference } from '../types'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
-import translations from '../_i18n'
 
 // Persist focus state across unmounts caused by parent re-renders
 let lastHadFocus = false
@@ -35,6 +34,7 @@ interface MessageInputProps {
   onFocusReady?: (focusFn: () => void) => void
   // Every Experts active in conversation
   activeExperts?: ActiveExpert[]
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 export const MessageInput: React.FC<MessageInputProps> = memo(
@@ -50,9 +50,9 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     onChange,
     onRegisterMentionReady,
     onFocusReady,
-    activeExperts = []
+    activeExperts = [],
+    t
   }) => {
-    const { t } = useTranslation(translations)
     const placeholderText = placeholder || t('chat-input-placeholder')
     const [uncontrolledValue, setUncontrolledValue] = useState('')
     const value = controlledValue !== undefined ? controlledValue : uncontrolledValue

@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import type { EmployeeAvatarInfo } from './useEmployeeAvatarsCache'
 
 interface EmployeeAvatarData {
   id: string // employeeId for navigation
@@ -9,11 +10,6 @@ interface EmployeeAvatarData {
 
 interface EmployeeAvatarResponse {
   Employee: EmployeeAvatarData[]
-}
-
-export interface EmployeeAvatarInfo {
-  avatarUrl?: string
-  employeeId?: string
 }
 
 const GET_EMPLOYEE_AVATARS = `

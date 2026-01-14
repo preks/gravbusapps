@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useMemo, startTransition } from 'react'
 import { Alert, AlertDescription, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
@@ -894,13 +894,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       // Mark as processed to prevent URL restoration effect from re-triggering
       conversationIdFromUrlProcessed.current = true
 
-      setActiveConversation(conversation)
-      setShowConversationList(false)
+      // CRITICAL FIX: Use startTransition to make this entire operation non-blocking
+      // This prevents the 9-second click handler violation
+      startTransition(() => {
+        setActiveConversation(conversation)
+        setShowConversationList(false)
 
-      // Persist conversation ID in URL for panel reopen persistence
-      const url = new URL(window.location.href)
-      url.searchParams.set('conversationId', conversation.id)
-      window.history.replaceState({}, '', url.toString())
+        // Persist conversation ID in URL for panel reopen persistence
+        const url = new URL(window.location.href)
+        url.searchParams.set('conversationId', conversation.id)
+        window.history.replaceState({}, '', url.toString())
+      })
     },
     [setActiveConversation]
   )
@@ -1457,6 +1461,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   isCallEnabled={isConnected}
                   isInCall={isInAnyCall}
                   activeCall={activeCallInfo}
+                  t={t}
                 />
 
                 {/* Active Experts Bar */}
@@ -1569,6 +1574,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   focusInputRef.current = focusFn
                 }}
                 activeExperts={activeExperts}
+                t={t}
               />
             )}
           </div>

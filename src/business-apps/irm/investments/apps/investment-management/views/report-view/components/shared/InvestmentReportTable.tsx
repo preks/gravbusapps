@@ -1,29 +1,33 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, Alert } from '@newwork/nw-design-system'
-import { BuildingsIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { RealEstateReportFilters } from '../types'
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { createInvestmentReportColumns } from '@/business-apps/irm/investments/records/investment-record/components/shared/columnDefinitions'
-import { useGetInvestmentReports } from '@/common/data/investment-report/hooks/useInvestmentReports'
-import { type InvestmentReportQueryVariables } from '@/common/data/investment-report/queries/investmentReportQueries'
-import { ReportTableSkeleton } from '../../ReportTableSkeleton'
+// Shared Investment Report Table Component
+// Unified table for Equity, Real Estate, and Liquid Fund investment reports
 
-interface RealEstateAnalyticsTableProps extends BusinessAppContextProps {
+import React, { useCallback, useMemo } from 'react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, Alert } from '@newwork/nw-design-system'
+import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { ReportTableSkeleton } from '../../tabs/ReportTableSkeleton'
+import { useInvestmentReportData } from './useInvestmentReportData'
+import { InvestmentReportTableConfig } from './types'
+
+interface InvestmentReportTableProps extends BusinessAppContextProps {
   'data-testid'?: string
-  filters: RealEstateReportFilters
+  config: InvestmentReportTableConfig
+  filters: Record<string, any>
   investmentType: string
-  investmentTypeValue: string // User-friendly name for display
-  catalogData: any // Required for dynamic columns
-  isTransposed?: boolean // Toggle for transposed table view
-  visibleColumns?: string[] // Column visibility control
-  onCurrenciesChange?: (currencies: string[]) => void // Callback to report available currencies
-  onTotalCountChange?: (count: number, isLoading: boolean) => void // Callback to report total count
-  isInitialLoad?: boolean // Whether this is the initial load
+  investmentTypeValue: string
+  catalogData: any
+  isTransposed?: boolean
+  visibleColumns?: string[]
+  onCurrenciesChange?: (currencies: string[]) => void
+  onTotalCountChange?: (count: number, isLoading: boolean) => void
+  isInitialLoad?: boolean
+  dataTransformer?: (reports: any[]) => any[] // For Liquid Funds
+  columnsOverride?: any[] // For Liquid Funds with custom column generation
 }
 
 // Helper: Render empty state
-const renderEmptyState = (colSpan: number, investmentTypeValue: string) => (
+const renderEmptyState = (colSpan: number, investmentTypeValue: string, config: InvestmentReportTableConfig) => (
   <TableRow>
     <TableCell
       colSpan={colSpan}
@@ -35,12 +39,9 @@ const renderEmptyState = (colSpan: number, investmentTypeValue: string) => (
     >
       <div className="gba:flex gba:flex-col gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
         <p style={{ fontSize: 'var(--nw-text-lg)', fontWeight: 'var(--nw-font-weight-medium)' }}>
-          No {investmentTypeValue} Data Found
+          {config.emptyStateMessage.title(investmentTypeValue)}
         </p>
-        <p style={{ fontSize: 'var(--nw-text-sm)' }}>
-          No real estate investment reports are available for {investmentTypeValue.toLowerCase()} in the selected time
-          period.
-        </p>
+        <p style={{ fontSize: 'var(--nw-text-sm)' }}>{config.emptyStateMessage.description(investmentTypeValue)}</p>
       </div>
     </TableCell>
   </TableRow>
@@ -50,12 +51,14 @@ const renderEmptyState = (colSpan: number, investmentTypeValue: string) => (
 interface TableBodyOptions {
   isInitialLoading: boolean
   initialLoadDone: boolean
-  reports: any[]
+  data: any[]
   skeletonColumnCount: number
   visibleColumnsArray: any[]
   investmentTypeValue: string
   handleRowClick: (id: string) => void
   dataTestId?: string
+  config: InvestmentReportTableConfig
+  accessToken?: string
 }
 
 // Helper: Get normal table body content
@@ -63,33 +66,42 @@ const getNormalTableBodyContent = (options: TableBodyOptions): React.ReactNode =
   const {
     isInitialLoading,
     initialLoadDone,
-    reports,
+    data,
     skeletonColumnCount,
     visibleColumnsArray,
     investmentTypeValue,
     handleRowClick,
-    dataTestId = ''
+    dataTestId = '',
+    config,
+    accessToken
   } = options
+
   if (isInitialLoading) {
     return <ReportTableSkeleton rowCount={10} columnCount={skeletonColumnCount} />
   }
 
-  if (reports.length === 0) {
+  if (data.length === 0) {
     if (initialLoadDone) {
-      return renderEmptyState(visibleColumnsArray.length, investmentTypeValue)
+      // Account for actions column if present
+      const colSpan =
+        config.actionsRenderer && accessToken ? visibleColumnsArray.length + 1 : visibleColumnsArray.length
+      return renderEmptyState(colSpan, investmentTypeValue, config)
     }
     return null
   }
 
-  return reports.map(report => (
+  return data.map((row, index) => (
     <TableRow
-      key={report.id}
+      key={row.id || `row-${index}`}
       className="gba:cursor-pointer"
       style={{ borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)' }}
       onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-secondary)')}
       onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-      onClick={() => report.investment?.id && handleRowClick(report.investment.id)}
-      data-testid={`${dataTestId}-row-${report.id}`}
+      onClick={() => {
+        const investmentId = config.getInvestmentId(row)
+        if (investmentId) handleRowClick(investmentId)
+      }}
+      data-testid={row.id ? `${dataTestId}-row-${row.id}` : `${dataTestId}-row-${index + 1}`}
     >
       {visibleColumnsArray.map(column => (
         <TableCell
@@ -105,9 +117,23 @@ const getNormalTableBodyContent = (options: TableBodyOptions): React.ReactNode =
             })
           }}
         >
-          {column.render(report)}
+          {column.render(row)}
         </TableCell>
       ))}
+      {config.actionsRenderer && accessToken && config.getReportId && config.getReportId(row) && (
+        <TableCell
+          style={{
+            padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
+            position: 'sticky',
+            right: 0,
+            backgroundColor: 'var(--nw-color-background)',
+            zIndex: 5
+          }}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          {config.actionsRenderer(row, accessToken)}
+        </TableCell>
+      )}
     </TableRow>
   ))
 }
@@ -117,19 +143,21 @@ const getTransposedTableBodyContent = (options: Omit<TableBodyOptions, 'dataTest
   const {
     isInitialLoading,
     initialLoadDone,
-    reports,
+    data,
     skeletonColumnCount,
     visibleColumnsArray,
     investmentTypeValue,
-    handleRowClick
+    handleRowClick,
+    config
   } = options
+
   if (isInitialLoading) {
     return <ReportTableSkeleton rowCount={10} columnCount={skeletonColumnCount} />
   }
 
-  if (reports.length === 0) {
+  if (data.length === 0) {
     if (initialLoadDone) {
-      return renderEmptyState(reports.length + 1, investmentTypeValue)
+      return renderEmptyState(data.length + 1, investmentTypeValue, config)
     }
     return null
   }
@@ -150,28 +178,32 @@ const getTransposedTableBodyContent = (options: Omit<TableBodyOptions, 'dataTest
       >
         {column.title}
       </TableCell>
-      {reports.map((report, index) => (
+      {data.map((row, index) => (
         <TableCell
-          key={report.id || index}
+          key={row.id || index}
           style={{
             padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
             cursor: 'pointer'
           }}
-          onClick={() => report.investment?.id && handleRowClick(report.investment.id)}
+          onClick={() => {
+            const investmentId = config.getInvestmentId(row)
+            if (investmentId) handleRowClick(investmentId)
+          }}
           onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-secondary)')}
           onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
         >
-          {column.render(report)}
+          {column.render(row)}
         </TableCell>
       ))}
     </TableRow>
   ))
 }
 
-export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> = ({
+export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   accessToken,
   userInfo,
-  'data-testid': dataTestId = 'real-estate-analytics-table',
+  'data-testid': dataTestId = 'investment-report-table',
+  config,
   filters,
   investmentType,
   investmentTypeValue,
@@ -180,175 +212,35 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
   visibleColumns = ['investment', 'date'],
   onCurrenciesChange,
   onTotalCountChange,
-  isInitialLoad = true
+  isInitialLoad = true,
+  dataTransformer,
+  columnsOverride
 }) => {
-  // State management
-  const [reports, setReports] = useState<any[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const initialLoadDone = React.useRef(false)
-
-  // Track initial load completion
-  React.useEffect(() => {
-    if (!isLoading && !initialLoadDone.current) {
-      initialLoadDone.current = true
-    }
-  }, [isLoading])
-
-  // Report loading state to parent (only report loading state during initial load)
-  React.useEffect(() => {
-    if (onTotalCountChange) {
-      const shouldReportLoading = isInitialLoad && !initialLoadDone.current && isLoading
-      onTotalCountChange(totalCount || 0, shouldReportLoading)
-    }
-  }, [totalCount, isLoading, isInitialLoad])
-
-  // Use common data layer
-  const { fetchInvestmentReports } = useGetInvestmentReports({ accessToken, userInfo })
-
-  // Fetch data function
-  const loadReports = useCallback(async () => {
-    if (!accessToken) {
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const variables: InvestmentReportQueryVariables = {
-        investmentGroupIds: ['InvestmentGroup:v1:REAL_ESTATE'],
-        limit: 1000,
-        offset: 0,
-        orderBy: [{ field: 'date', direction: 'DESC' }]
-      }
-
-      if (filters.startDate) {
-        variables.reportDateFrom = filters.startDate
-      }
-      if (filters.endDate) {
-        variables.reportDateTo = filters.endDate
-      }
-      if (filters.currencyIds && filters.currencyIds.length > 0) {
-        variables.currencyIds = filters.currencyIds
-      }
-      if (filters.search?.trim()) {
-        variables.search = filters.search.trim()
-      }
-      if (investmentType && investmentType !== 'all') {
-        variables.investmentTypeIds = [`InvestmentType:v1:${investmentType}`]
-      }
-
-      const { reports: fetchedReports, total } = await fetchInvestmentReports(variables)
-
-      // Get latest report per investment
-      const latestReportsByInvestment = new Map<string, any>()
-      fetchedReports.forEach((report: any) => {
-        const investmentId = report.investment?.id
-        if (!investmentId) return
-
-        const existingReport = latestReportsByInvestment.get(investmentId)
-        if (!existingReport || new Date(report.date) > new Date(existingReport.date)) {
-          latestReportsByInvestment.set(investmentId, report)
-        }
-      })
-
-      const latestReports = Array.from(latestReportsByInvestment.values())
-      setReports(latestReports)
-
-      // Extract unique currency IDs from reports and notify parent
-      if (onCurrenciesChange) {
-        const currencyIds = Array.from(
-          new Set(
-            latestReports
-              .map(
-                report =>
-                  report.currencyRef || // InvestmentReport.currencyRef (primary)
-                  report.investment?.currencyRef // Investment.currencyRef (fallback)
-              )
-              .filter(Boolean)
-          )
-        )
-        onCurrenciesChange(currencyIds)
-      }
-
-      // Derive totalCount from actual visible data
-      const finalCount = latestReports.length || total
-      setTotalCount(finalCount)
-
-      // Report total count to parent
-      if (onTotalCountChange) {
-        onTotalCountChange(finalCount, false)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to load reports'))
-      console.error('Error loading real estate reports:', err)
-      if (onTotalCountChange) {
-        onTotalCountChange(0, false)
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }, [
+  // Use shared hook for data fetching
+  const { data, isLoading, error, initialLoadDone, refetch } = useInvestmentReportData({
+    investmentGroup: config.investmentGroup,
+    filters,
+    investmentType,
     accessToken,
     userInfo,
-    filters.startDate,
-    filters.endDate,
-    filters.currencyIds,
-    filters.search,
-    investmentType,
-    fetchInvestmentReports
-  ])
+    onCurrenciesChange,
+    onTotalCountChange,
+    isInitialLoad,
+    dataTransformer
+  })
 
-  // Load data on mount and when filters change
-  useEffect(() => {
-    loadReports()
-  }, [loadReports])
-
-  const refetch = loadReports
-
-  // Create dynamic columns
+  // Generate columns using config or use override (for liquid funds)
   const columns = useMemo(() => {
-    const staticColumns = [
-      {
-        key: 'investment',
-        title: 'Investment',
-        width: '200px',
-        render: (record: any) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--nw-spacing-2)' }}>
-            <BuildingsIcon
-              style={{
-                width: 'var(--nw-spacing-4)',
-                height: 'var(--nw-spacing-4)',
-                color: 'var(--nw-muted-foreground)'
-              }}
-            />
-            <span className="gba:font-medium">{record.investment?.name || 'N/A'}</span>
-          </div>
-        )
-      }
-    ]
-
-    if (!catalogData) {
-      return staticColumns
+    if (columnsOverride) {
+      return columnsOverride
     }
-
-    const mockInvestmentForContext = {
-      investmentGroup: { code: 'REAL_ESTATE' }
-    }
-
-    const dynamicColumns = createInvestmentReportColumns(
+    return config.columnGenerator({
       investmentType,
-      undefined,
       catalogData,
-      undefined,
-      mockInvestmentForContext
-    )
-
-    return [...staticColumns, ...dynamicColumns]
-  }, [investmentType, catalogData, accessToken])
+      accessToken,
+      reports: data
+    })
+  }, [columnsOverride, config, investmentType, catalogData, accessToken, data])
 
   // Filter columns based on visibility settings
   const visibleColumnsArray = useMemo(() => {
@@ -361,23 +253,28 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
     if (isTransposed) {
       return 4
     }
-    return visibleColumnsArray.length || 4
-  }, [isTransposed, visibleColumnsArray.length])
+    // Add 1 if actions column is present
+    const baseCount = visibleColumnsArray.length || 4
+    return config.actionsRenderer && accessToken ? baseCount + 1 : baseCount
+  }, [isTransposed, visibleColumnsArray.length, config.actionsRenderer, accessToken])
 
   // Handle row click navigation
-  const handleRowClick = useCallback((investmentId: string) => {
-    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', {
-      investmentId,
-      fromView: 'reports',
-      fromSubView: 'real-estate'
-    })
-    navigateTo(detailsUrl)
-  }, [])
+  const handleRowClick = useCallback(
+    (investmentId: string) => {
+      const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', {
+        investmentId,
+        fromView: 'reports',
+        fromSubView: config.fromSubView
+      })
+      navigateTo(detailsUrl)
+    },
+    [config.fromSubView]
+  )
 
   // Only show error during initial load
   const hasError = error
 
-  if (hasError && isInitialLoad && !initialLoadDone.current) {
+  if (hasError && isInitialLoad && !initialLoadDone) {
     return (
       <div
         className="gba:flex gba:justify-center gba:items-center"
@@ -410,7 +307,7 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
   }
 
   // Show loading state during initial load
-  const isInitialLoading = isInitialLoad && !initialLoadDone.current && isLoading
+  const isInitialLoading = isInitialLoad && !initialLoadDone && isLoading
 
   // Render transposed view
   if (isTransposed) {
@@ -435,9 +332,9 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
               >
                 Field
               </TableHead>
-              {reports.map((report, index) => (
+              {data.map((row, index) => (
                 <TableHead
-                  key={report.id || index}
+                  key={row.id || index}
                   style={{
                     fontWeight: 'var(--nw-font-weight-semibold)',
                     textAlign: 'left',
@@ -445,9 +342,12 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
                     color: 'var(--nw-color-text-primary)',
                     cursor: 'pointer'
                   }}
-                  onClick={() => report.investment?.id && handleRowClick(report.investment.id)}
+                  onClick={() => {
+                    const investmentId = config.getInvestmentId(row)
+                    if (investmentId) handleRowClick(investmentId)
+                  }}
                 >
-                  {report.investment?.name || `Investment ${index + 1}`}
+                  {config.getInvestmentName(row) || `Investment ${index + 1}`}
                 </TableHead>
               ))}
             </TableRow>
@@ -455,12 +355,13 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
           <TableBody>
             {getTransposedTableBodyContent({
               isInitialLoading,
-              initialLoadDone: initialLoadDone.current,
-              reports,
+              initialLoadDone,
+              data,
               skeletonColumnCount,
               visibleColumnsArray,
               investmentTypeValue,
-              handleRowClick
+              handleRowClick,
+              config
             })}
           </TableBody>
         </Table>
@@ -483,12 +384,11 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
               <TableHead
                 key={column.key}
                 style={{
-                  textAlign: 'left',
-                  width: column.width,
                   fontWeight: 'var(--nw-font-weight-semibold)',
-                  fontFamily: 'var(--nw-font-family-base)',
-                  color: 'var(--nw-color-text-primary)',
+                  textAlign: 'left',
                   padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
+                  width: column.width,
+                  color: 'var(--nw-color-text-primary)',
                   // Add sticky positioning for actions column
                   ...(column.key === 'actions' && {
                     position: 'sticky',
@@ -501,18 +401,37 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
                 {column.title}
               </TableHead>
             ))}
+            {config.actionsRenderer && accessToken && (
+              <TableHead
+                style={{
+                  fontWeight: 'var(--nw-font-weight-semibold)',
+                  fontFamily: 'var(--nw-font-family-base)',
+                  color: 'var(--nw-color-text-primary)',
+                  padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
+                  width: '60px',
+                  position: 'sticky',
+                  right: 0,
+                  backgroundColor: 'var(--nw-color-surface-secondary)',
+                  zIndex: 10
+                }}
+              >
+                {/* Empty title */}
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {getNormalTableBodyContent({
             isInitialLoading,
-            initialLoadDone: initialLoadDone.current,
-            reports,
+            initialLoadDone,
+            data,
             skeletonColumnCount,
             visibleColumnsArray,
             investmentTypeValue,
             handleRowClick,
-            dataTestId
+            dataTestId,
+            config,
+            accessToken
           })}
         </TableBody>
       </Table>
