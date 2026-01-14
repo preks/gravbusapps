@@ -14,6 +14,8 @@ export interface AuditLogEntry {
   taskId: string
   taskName: string
   taskType: string
+  // Some backends send a dedicated step/task subtype for display (e.g. APPROVAL vs TASK)
+  stepType?: string
   action: string
   assignmentChange?: {
     from: string
@@ -207,7 +209,7 @@ export const exportAuditLogs = async (
   try {
     console.log('Exporting audit logs:', { filters, format })
 
-      const API_BASE = getFlowEngineApiBaseUrl()
+    const API_BASE = getFlowEngineApiBaseUrl()
 
     // Build query string
     const queryParams = new URLSearchParams()

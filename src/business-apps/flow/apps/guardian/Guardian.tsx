@@ -39,6 +39,26 @@ const formatDurationFromMinutes = (minutes: number) => {
   return `${hours}h${mins ? ` ${mins}m` : ''}`
 }
 
+// Guardian-specific dark theme colors (hardcoded to ensure dark appearance)
+const guardianStyles = {
+  container: {
+    '--guardian-bg': '#030712',
+    '--guardian-bg-secondary': '#111827',
+    '--guardian-text': '#f9fafb',
+    '--guardian-text-muted': '#9ca3af',
+    '--guardian-border': 'rgba(156, 163, 175, 0.2)',
+    '--guardian-card': 'rgba(17, 24, 39, 0.6)'
+  } as React.CSSProperties
+}
+
+// Hardcoded accent colors for KPI cards and charts (CSS vars don't resolve in light theme)
+const guardianAccentColors = {
+  primary: '#3b82f6', // blue
+  warning: '#f59e0b', // amber/yellow
+  purple: '#a855f7', // purple
+  success: '#22c55e' // green
+}
+
 const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTestId = 'guardian' }) => {
   // Temporarily disable the network graph in the UI (implementation stays so we can re-enable later).
   const isNetworkGraphEnabled = false
@@ -207,13 +227,19 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
       return (
         <div
           data-testid={`${prefixDataTestId}-velocity-tooltip`}
-          className="gba:min-w-56 gba:rounded-lg gba:border gba:border-border gba:bg-card gba:px-3 gba:py-2 gba:text-card-foreground"
+          style={{
+            background: 'var(--guardian-card)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid var(--guardian-border)',
+            color: 'var(--guardian-text)'
+          }}
+          className="gba:min-w-56 gba:rounded-lg gba:px-3 gba:py-2"
         >
           <div className="gba:font-semibold gba:mb-2">{formatVelocityTooltipLabel(label)}</div>
           <div className="gba:grid gba:gap-1">
             {rows.map((r: any) => (
               <div key={r.name} className="gba:flex gba:justify-between gba:gap-3">
-                <span className="gba:text-muted-foreground">{r.name}</span>
+                <span style={{ color: 'var(--guardian-text-muted)' }}>{r.name}</span>
                 <span>{String(r.value)}</span>
               </div>
             ))}
@@ -241,22 +267,35 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
 
   if (error) {
     return (
-      <div data-testid={`${prefixDataTestId}-error-container`} className="gba:relative gba:min-h-screen gba:p-6">
-        {/* Fixed background so it never “runs out” when the platform scroll container is taller than the viewport */}
+      <div
+        data-testid={`${prefixDataTestId}-error-container`}
+        className="gba:relative gba:min-h-screen gba:p-6"
+        style={{
+          ...guardianStyles.container,
+          background: 'var(--guardian-bg)',
+          color: 'var(--guardian-text)'
+        }}
+      >
         <div
           aria-hidden="true"
-          className="gba:fixed gba:inset-0 gba:z-0 gba:pointer-events-none"
+          className="gba:absolute gba:inset-0 gba:z-0 gba:pointer-events-none"
           style={{
-            backgroundImage: 'linear-gradient(135deg, rgba(11,15,25,0.92) 0%, rgba(17,24,39,0.96) 100%)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
+            background: 'linear-gradient(to bottom right, var(--guardian-bg), var(--guardian-bg-secondary))'
           }}
         />
 
         <div className="gba:relative gba:z-10">
-          <div className="gba:rounded-xl gba:border gba:border-border gba:bg-card/60 gba:backdrop-blur-md gba:p-6 gba:text-center">
+          <div
+            className="gba:rounded-xl gba:p-6 gba:text-center gba:backdrop-blur-md"
+            style={{
+              background: 'var(--guardian-card)',
+              border: '1px solid var(--guardian-border)'
+            }}
+          >
             <h3 className="gba:text-destructive gba:font-semibold gba:mb-4">Error Loading Guardian Data</h3>
-            <p className="gba:text-muted-foreground gba:mb-4">{error}</p>
+            <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:mb-4">
+              {error}
+            </p>
             <Button onClick={refetch} data-testid={`${prefixDataTestId}-retry-button`}>
               Retry
             </Button>
@@ -271,32 +310,17 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
       data-testid={`${prefixDataTestId}-container`}
       className="gba:relative gba:min-h-screen gba:p-6"
       style={{
-        // Scoped DS token overrides (dark glass theme)
-        // Surfaces
-        ['--color-surface-primary' as any]: 'rgba(15,23,42,0.65)',
-        ['--color-surface-secondary' as any]: 'rgba(30,41,59,0.55)',
-        // Text
-        ['--color-text-primary' as any]: '#e5e7eb',
-        ['--color-text-secondary' as any]: '#9ca3af',
-        // Accents (used by charts + KPI cards without hardcoding in JSX)
-        ['--guardian-accent-blue' as any]: '#60a5fa',
-        ['--guardian-accent-amber' as any]: '#f59e0b',
-        ['--guardian-accent-purple' as any]: '#a78bfa',
-        ['--guardian-accent-green' as any]: '#10b981',
-        // Borders & shadows
-        ['--color-border-default' as any]: 'rgba(148,163,184,0.12)',
-        ['--shadow-md' as any]: '0 8px 24px rgba(0,0,0,0.35)',
-        ['--shadow-lg' as any]: '0 12px 32px rgba(0,0,0,0.45)'
+        ...guardianStyles.container,
+        background: 'var(--guardian-bg)',
+        color: 'var(--guardian-text)'
       }}
     >
-      {/* Fixed background so it never “runs out” when the platform scroll container is taller than the viewport */}
+      {/* Dark gradient background */}
       <div
         aria-hidden="true"
-        className="gba:fixed gba:inset-0 gba:z-0 gba:pointer-events-none"
+        className="gba:absolute gba:inset-0 gba:z-0 gba:pointer-events-none"
         style={{
-          backgroundImage: 'linear-gradient(135deg, rgba(11,15,25,0.92) 0%, rgba(17,24,39,0.96) 100%)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          background: 'linear-gradient(to bottom right, var(--guardian-bg), var(--guardian-bg-secondary))'
         }}
       />
 
@@ -322,13 +346,19 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
         {/* Header with Title */}
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
           <div>
-            <h1 className="gba:text-3xl gba:font-bold gba:text-foreground gba:mb-2">Guardian</h1>
-            <p className="gba:text-muted-foreground">Visualize flows and organizational dependencies</p>
+            <h1 className="gba:text-3xl gba:font-bold gba:mb-2" style={{ color: 'var(--guardian-text)' }}>
+              Guardian
+            </h1>
+            <p style={{ color: 'var(--guardian-text-muted)' }}>
+              Monitor workflow performance, SLA compliance, and bottlenecks
+            </p>
           </div>
 
           <div className="gba:flex gba:items-center gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:text-muted-foreground">Time Range:</span>
+              <span style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
+                Time Range:
+              </span>
               <Select
                 value={filters.timeRange}
                 onValueChange={value => handleFilterChange({ timeRange: value as any })}
@@ -355,7 +385,7 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
               title="Throughput/day"
               value={velocityInsights ? velocityInsights.overview.kpis.throughputPerDay : '—'}
               description="Completed workflows per day"
-              color="var(--guardian-accent-blue)"
+              color={guardianAccentColors.primary}
               trend="neutral"
               isLoading={isLoading && !velocityInsights}
               data-testid={`${prefixDataTestId}-kpi-throughput`}
@@ -364,7 +394,7 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
               title="WIP (active)"
               value={velocityInsights ? velocityInsights.overview.kpis.wipActive : '—'}
               description="Workflows currently active"
-              color="var(--guardian-accent-amber)"
+              color={guardianAccentColors.warning}
               trend="neutral"
               isLoading={isLoading && !velocityInsights}
               data-testid={`${prefixDataTestId}-kpi-wip`}
@@ -373,7 +403,7 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
               title="Median cycle"
               value={velocityInsights ? `${Math.round(velocityInsights.overview.kpis.cycleTimeMedianMinutes)}m` : '—'}
               description="Median end-to-end cycle time"
-              color="var(--guardian-accent-purple)"
+              color={guardianAccentColors.purple}
               trend="neutral"
               isLoading={isLoading && !velocityInsights}
               data-testid={`${prefixDataTestId}-kpi-cycle`}
@@ -386,7 +416,7 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
                   ? `${velocityInsights.overview.kpis.slaBreaches} breaches in window`
                   : 'SLA breaches in selected window'
               }
-              color="var(--guardian-accent-green)"
+              color={guardianAccentColors.success}
               trend="neutral"
               isLoading={isLoading && !velocityInsights}
               data-testid={`${prefixDataTestId}-kpi-sla`}
@@ -394,10 +424,23 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
           </div>
 
           {/* Velocity trends */}
-          <div className="gba:relative gba:rounded-lg gba:border gba:border-border gba:overflow-hidden gba:mb-6">
-            <div className="gba:p-4 gba:border-b gba:border-border gba:bg-card/30">
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">Velocity trends</h3>
-              <p className="gba:text-sm gba:text-muted-foreground">Flows started vs completed and WIP over time</p>
+          <div
+            className="gba:relative gba:rounded-lg gba:overflow-hidden gba:mb-6"
+            style={{ border: '1px solid var(--guardian-border)' }}
+          >
+            <div
+              className="gba:p-4"
+              style={{
+                borderBottom: '1px solid var(--guardian-border)',
+                background: 'var(--guardian-card)'
+              }}
+            >
+              <h3 className="gba:text-lg gba:font-semibold gba:mb-1" style={{ color: 'var(--guardian-text)' }}>
+                Velocity trends
+              </h3>
+              <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
+                Flows started vs completed and WIP over time
+              </p>
             </div>
             <div className="gba:h-80 gba:p-3">
               {velocityInsights?.timeseries?.length ? (
@@ -405,45 +448,58 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
                   <LineChart data={velocityChartData as any}>
                     <XAxis
                       dataKey="bucketStart"
-                      tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }}
+                      tick={{ fill: 'var(--guardian-text-muted)', fontSize: 11 }}
                       tickFormatter={v => new Date(v).toLocaleDateString()}
                     />
-                    <YAxis tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }} />
+                    <YAxis tick={{ fill: 'var(--guardian-text-muted)', fontSize: 11 }} />
                     <Tooltip content={velocityTooltipContent} />
                     <Line
                       type="monotone"
                       dataKey="flowsStarted"
-                      stroke="var(--guardian-accent-purple)"
+                      stroke={guardianAccentColors.purple}
                       dot={false}
                       name="Started"
                     />
                     <Line
                       type="monotone"
                       dataKey="flowsCompleted"
-                      stroke="var(--guardian-accent-green)"
+                      stroke={guardianAccentColors.success}
                       dot={false}
                       name="Completed"
                     />
                     <Line
                       type="monotone"
                       dataKey="wipActive"
-                      stroke="var(--guardian-accent-amber)"
+                      stroke={guardianAccentColors.warning}
                       dot={false}
                       name="WIP"
                     />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="gba:text-muted-foreground gba:p-3">No velocity timeseries data available.</div>
+                <div style={{ color: 'var(--guardian-text-muted)' }} className="gba:p-3">
+                  No velocity timeseries data available.
+                </div>
               )}
             </div>
           </div>
 
           {/* Timeline (full width); Network graph temporarily hidden */}
-          <div className="gba:relative gba:rounded-lg gba:border gba:border-border gba:overflow-hidden gba:mb-6">
-            <div className="gba:p-4 gba:border-b gba:border-border gba:bg-card/30">
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">Timeline</h3>
-              <p className="gba:text-sm gba:text-muted-foreground">
+          <div
+            className="gba:relative gba:rounded-lg gba:overflow-hidden gba:mb-6"
+            style={{ border: '1px solid var(--guardian-border)' }}
+          >
+            <div
+              className="gba:p-4"
+              style={{
+                borderBottom: '1px solid var(--guardian-border)',
+                background: 'var(--guardian-card)'
+              }}
+            >
+              <h3 className="gba:text-lg gba:font-semibold gba:mb-1" style={{ color: 'var(--guardian-text)' }}>
+                Timeline
+              </h3>
+              <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
                 Audit events over time, grouped by action/state, colored by outcome
                 (started/in-progress/completed/failed)
               </p>
@@ -464,10 +520,21 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
           </div>
 
           {isNetworkGraphEnabled && (
-            <div className="gba:relative gba:rounded-lg gba:border gba:border-border gba:overflow-hidden gba:mb-6">
-              <div className="gba:p-4 gba:border-b gba:border-border gba:bg-card/30">
-                <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">Network</h3>
-                <p className="gba:text-sm gba:text-muted-foreground">
+            <div
+              className="gba:relative gba:rounded-lg gba:overflow-hidden gba:mb-6"
+              style={{ border: '1px solid var(--guardian-border)' }}
+            >
+              <div
+                className="gba:p-4"
+                style={{
+                  borderBottom: '1px solid var(--guardian-border)',
+                  background: 'var(--guardian-card)'
+                }}
+              >
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-1" style={{ color: 'var(--guardian-text)' }}>
+                  Network
+                </h3>
+                <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
                   People + teams graph, sized by activity; edges show department/reporting relationships
                 </p>
               </div>
@@ -487,34 +554,53 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
           )}
 
           {/* Bottlenecks */}
-          <div className="gba:relative gba:rounded-lg gba:border gba:border-border gba:overflow-hidden gba:mb-6">
-            <div className="gba:p-4 gba:border-b gba:border-border gba:bg-card/30">
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">Bottlenecks</h3>
-              <p className="gba:text-sm gba:text-muted-foreground">Current steps with the highest time-in-step</p>
+          <div
+            className="gba:relative gba:rounded-lg gba:overflow-hidden gba:mb-6"
+            style={{ border: '1px solid var(--guardian-border)' }}
+          >
+            <div
+              className="gba:p-4"
+              style={{
+                borderBottom: '1px solid var(--guardian-border)',
+                background: 'var(--guardian-card)'
+              }}
+            >
+              <h3 className="gba:text-lg gba:font-semibold gba:mb-1" style={{ color: 'var(--guardian-text)' }}>
+                Bottlenecks
+              </h3>
+              <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
+                Current steps with the highest time-in-step
+              </p>
             </div>
-            <div className="gba:p-3 gba:text-foreground">
+            <div className="gba:p-3" style={{ color: 'var(--guardian-text)' }}>
               {velocityInsights?.bottlenecks?.length ? (
                 <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-2">
                   {velocityInsights.bottlenecks.slice(0, 10).map(b => (
                     <div
                       key={b.key}
-                      className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:p-3 gba:rounded-lg gba:border gba:border-border gba:bg-card/30"
+                      className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:p-3 gba:rounded-lg"
+                      style={{
+                        background: 'var(--guardian-card)',
+                        border: '1px solid var(--guardian-border)'
+                      }}
                     >
                       <div className="gba:min-w-0">
                         <div className="gba:font-medium gba:truncate">{b.stepName}</div>
-                        <div className="gba:text-xs gba:text-gray-400 gba:truncate">
+                        <div className="gba:text-xs gba:truncate" style={{ color: 'var(--guardian-text-muted)' }}>
                           {b.templateName || b.templateId} • {b.affectedCount} tasks
                         </div>
                       </div>
                       <div className="gba:text-right gba:shrink-0">
                         <div className="gba:font-semibold">{formatDurationFromMinutes(b.avgTimeInStepMinutes)}</div>
-                        <div className="gba:text-xs gba:text-gray-400">avg</div>
+                        <div className="gba:text-xs" style={{ color: 'var(--guardian-text-muted)' }}>
+                          avg
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="gba:text-muted-foreground">No bottleneck data available.</div>
+                <div style={{ color: 'var(--guardian-text-muted)' }}>No bottleneck data available.</div>
               )}
             </div>
           </div>
@@ -522,16 +608,33 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
           {/* SLA section (dedicated at bottom) */}
           <div className="gba:mt-2">
             <div className="gba:mb-3">
-              <h3 className="gba:text-lg gba:font-bold gba:text-foreground">SLA</h3>
-              <p className="gba:text-sm gba:text-muted-foreground">Risk queue + violations</p>
+              <h3 className="gba:text-lg gba:font-bold" style={{ color: 'var(--guardian-text)' }}>
+                SLA
+              </h3>
+              <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
+                Risk queue + violations
+              </p>
             </div>
 
             <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
               {/* SLA violations - flow */}
-              <div className="gba:relative gba:rounded-lg gba:border gba:border-border gba:overflow-hidden">
-                <div className="gba:p-4 gba:border-b gba:border-border gba:bg-card/30">
-                  <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">Violations (Flows)</h3>
-                  <p className="gba:text-sm gba:text-muted-foreground">Worst offending flows</p>
+              <div
+                className="gba:relative gba:rounded-lg gba:overflow-hidden"
+                style={{ border: '1px solid var(--guardian-border)' }}
+              >
+                <div
+                  className="gba:p-4"
+                  style={{
+                    borderBottom: '1px solid var(--guardian-border)',
+                    background: 'var(--guardian-card)'
+                  }}
+                >
+                  <h3 className="gba:text-lg gba:font-semibold gba:mb-1" style={{ color: 'var(--guardian-text)' }}>
+                    Violations (Flows)
+                  </h3>
+                  <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
+                    Worst offending flows
+                  </p>
                 </div>
                 <div className="gba:p-3">
                   <D3SLAViolationList
@@ -546,10 +649,23 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
               </div>
 
               {/* SLA violations - task */}
-              <div className="gba:relative gba:rounded-lg gba:border gba:border-border gba:overflow-hidden">
-                <div className="gba:p-4 gba:border-b gba:border-border gba:bg-card/30">
-                  <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">Violations (Tasks)</h3>
-                  <p className="gba:text-sm gba:text-muted-foreground">Steps with the highest risk</p>
+              <div
+                className="gba:relative gba:rounded-lg gba:overflow-hidden"
+                style={{ border: '1px solid var(--guardian-border)' }}
+              >
+                <div
+                  className="gba:p-4"
+                  style={{
+                    borderBottom: '1px solid var(--guardian-border)',
+                    background: 'var(--guardian-card)'
+                  }}
+                >
+                  <h3 className="gba:text-lg gba:font-semibold gba:mb-1" style={{ color: 'var(--guardian-text)' }}>
+                    Violations (Tasks)
+                  </h3>
+                  <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
+                    Steps with the highest risk
+                  </p>
                 </div>
                 <div className="gba:p-3">
                   <D3SLAViolationList
@@ -564,12 +680,25 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
               </div>
 
               {/* SLA risk (beneath violations) */}
-              <div className="gba:lg:col-span-2 gba:relative gba:rounded-lg gba:border gba:border-border gba:overflow-hidden">
-                <div className="gba:p-4 gba:border-b gba:border-border gba:bg-card/30">
-                  <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">SLA risk</h3>
-                  <p className="gba:text-sm gba:text-muted-foreground">Due soon / overdue</p>
+              <div
+                className="gba:lg:col-span-2 gba:relative gba:rounded-lg gba:overflow-hidden"
+                style={{ border: '1px solid var(--guardian-border)' }}
+              >
+                <div
+                  className="gba:p-4"
+                  style={{
+                    borderBottom: '1px solid var(--guardian-border)',
+                    background: 'var(--guardian-card)'
+                  }}
+                >
+                  <h3 className="gba:text-lg gba:font-semibold gba:mb-1" style={{ color: 'var(--guardian-text)' }}>
+                    SLA risk
+                  </h3>
+                  <p style={{ color: 'var(--guardian-text-muted)' }} className="gba:text-sm">
+                    Due soon / overdue
+                  </p>
                 </div>
-                <div className="gba:p-3 gba:text-foreground">
+                <div className="gba:p-3" style={{ color: 'var(--guardian-text)' }}>
                   {(() => {
                     const all = velocityInsights?.slaRisk || []
                     const pageSize = 5
@@ -578,7 +707,7 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
                     const pageItems = all.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize)
 
                     if (!all.length) {
-                      return <div className="gba:text-muted-foreground">No at-risk flows found.</div>
+                      return <div style={{ color: 'var(--guardian-text-muted)' }}>No at-risk flows found.</div>
                     }
 
                     return (
@@ -587,7 +716,11 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
                           {pageItems.map(item => (
                             <div
                               key={item.flowId}
-                              className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:p-3 gba:rounded-lg gba:border gba:border-border gba:bg-card/30"
+                              className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:p-3 gba:rounded-lg"
+                              style={{
+                                background: 'var(--guardian-card)',
+                                border: '1px solid var(--guardian-border)'
+                              }}
                             >
                               <div className="gba:min-w-0">
                                 <Button
@@ -599,44 +732,77 @@ const Guardian: React.FC<GuardianProps> = ({ accessToken, userInfo, prefixDataTe
                                 >
                                   {item.templateName || item.templateId || 'Flow'} • {item.flowId.slice(-8)}
                                 </Button>
-                                <div className="gba:text-xs gba:text-gray-400 gba:truncate">
+                                <div
+                                  className="gba:text-xs gba:truncate"
+                                  style={{ color: 'var(--guardian-text-muted)' }}
+                                >
                                   {item.stepName || '—'} • {item.reasons?.[0]?.message || '—'}
                                 </div>
                               </div>
                               <div className="gba:text-right gba:shrink-0">
                                 <div className="gba:font-semibold">{Math.round(item.riskScore)}</div>
-                                <div className="gba:text-xs gba:text-gray-400">risk</div>
+                                <div className="gba:text-xs" style={{ color: 'var(--guardian-text-muted)' }}>
+                                  risk
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
 
                         {all.length > pageSize ? (
-                          <div className="gba:flex gba:items-center gba:justify-between gba:mt-3">
-                            <div className="gba:text-xs gba:text-muted-foreground">
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              marginTop: 12
+                            }}
+                          >
+                            <div style={{ color: 'var(--guardian-text-muted)', fontSize: 12 }}>
                               Page {pageIndex + 1}/{totalPages} • {all.length} total
                             </div>
-                            <div className="gba:flex gba:gap-2">
-                              <Button
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
                                 type="button"
-                                variant="outline"
-                                size="sm"
                                 onClick={() => setSlaRiskPage(p => Math.max(0, p - 1))}
                                 disabled={pageIndex === 0}
                                 data-testid={`${prefixDataTestId}-sla-risk-prev-page`}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: 12,
+                                  fontWeight: 500,
+                                  borderRadius: 6,
+                                  border: '1px solid var(--guardian-border)',
+                                  background: 'var(--guardian-bg-secondary)',
+                                  color: pageIndex === 0 ? 'var(--guardian-text-muted)' : 'var(--guardian-text)',
+                                  cursor: pageIndex === 0 ? 'not-allowed' : 'pointer',
+                                  opacity: pageIndex === 0 ? 0.5 : 1,
+                                  transition: 'all 0.2s'
+                                }}
                               >
                                 Prev
-                              </Button>
-                              <Button
+                              </button>
+                              <button
                                 type="button"
-                                variant="outline"
-                                size="sm"
                                 onClick={() => setSlaRiskPage(p => Math.min(totalPages - 1, p + 1))}
                                 disabled={pageIndex >= totalPages - 1}
                                 data-testid={`${prefixDataTestId}-sla-risk-next-page`}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: 12,
+                                  fontWeight: 500,
+                                  borderRadius: 6,
+                                  border: '1px solid var(--guardian-border)',
+                                  background: 'var(--guardian-bg-secondary)',
+                                  color:
+                                    pageIndex >= totalPages - 1 ? 'var(--guardian-text-muted)' : 'var(--guardian-text)',
+                                  cursor: pageIndex >= totalPages - 1 ? 'not-allowed' : 'pointer',
+                                  opacity: pageIndex >= totalPages - 1 ? 0.5 : 1,
+                                  transition: 'all 0.2s'
+                                }}
                               >
                                 Next
-                              </Button>
+                              </button>
                             </div>
                           </div>
                         ) : null}

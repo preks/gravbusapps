@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Badge, Button } from '@newwork/nw-design-system'
 import { GuardianFilter } from '../../types/guardianTypes'
 
 interface SLAViolation {
@@ -97,51 +96,112 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
     setPage(0)
   }, [items.length])
 
+  // Filter out items with 0% violation rate - they're not actual violations
+  const filteredItems = items.filter(it => it.violationRate > 0)
+
   const safePageSize = Math.max(1, Math.floor(pageSize))
-  const totalPages = Math.max(1, Math.ceil(items.length / safePageSize))
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / safePageSize))
   const pageIndex = Math.min(Math.max(0, page), totalPages - 1)
-  const pagedItems = items.slice(pageIndex * safePageSize, pageIndex * safePageSize + safePageSize)
+  const pagedItems = filteredItems.slice(pageIndex * safePageSize, pageIndex * safePageSize + safePageSize)
+
+  if (filteredItems.length === 0) {
+    return (
+      <div
+        data-testid={`${prefixDataTestId}-container`}
+        style={{
+          width: '100%',
+          padding: 16,
+          color: 'var(--guardian-text-muted)',
+          textAlign: 'center'
+        }}
+      >
+        No violations found.
+      </div>
+    )
+  }
 
   return (
     <div
       data-testid={`${prefixDataTestId}-container`}
-      className="gba:w-full gba:h-auto gba:p-4 gba:bg-card/30 gba:overflow-hidden gba:rounded-lg"
+      style={{
+        width: '100%',
+        height: 'auto',
+        padding: 16,
+        background: 'transparent',
+        overflow: 'hidden',
+        borderRadius: 8
+      }}
     >
-      <div className="gba:flex gba:flex-col gba:gap-3">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {pagedItems.map(it => {
           return (
             <div
               key={it.id}
               data-testid={`${prefixDataTestId}-row-${it.id}`}
-              className="gba:flex gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-card/30 gba:p-3"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                borderRadius: 8,
+                border: '1px solid var(--guardian-border)',
+                background: 'var(--guardian-card)',
+                padding: 12
+              }}
             >
-              <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-lg gba:bg-muted gba:text-foreground gba:font-bold">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 48,
+                  height: 48,
+                  borderRadius: 8,
+                  background:
+                    it.violationRate === 0
+                      ? 'rgba(16, 185, 129, 0.2)'
+                      : it.violationRate < 50
+                        ? 'rgba(245, 158, 11, 0.2)'
+                        : 'rgba(239, 68, 68, 0.2)',
+                  color:
+                    it.violationRate === 0
+                      ? 'var(--color-success-500, #10b981)'
+                      : it.violationRate < 50
+                        ? 'var(--color-warning-500, #f59e0b)'
+                        : 'var(--color-destructive-500, #ef4444)',
+                  fontWeight: 700,
+                  fontSize: 14
+                }}
+              >
                 {Math.round(it.violationRate)}%
               </div>
 
-              <div className="gba:flex-1">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:text-foreground gba:font-semibold">
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: 'var(--guardian-text)', fontWeight: 600 }}>
                     {grouping === 'task' ? it.stepName : it.flowName}
                   </span>
-                  <Badge variant="outline" className="gba:max-w-64 gba:overflow-hidden">
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        maxWidth: '100%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        verticalAlign: 'bottom'
-                      }}
-                      title={grouping === 'task' ? it.flowName : it.stepName}
-                    >
-                      {grouping === 'task' ? it.flowName : it.stepName}
-                    </span>
-                  </Badge>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      maxWidth: 180,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      border: '1px solid var(--guardian-border)',
+                      background: 'var(--guardian-card)',
+                      color: 'var(--guardian-text-muted)',
+                      fontSize: 12
+                    }}
+                    title={grouping === 'task' ? it.flowName : it.stepName}
+                  >
+                    {grouping === 'task' ? it.flowName : it.stepName}
+                  </span>
                 </div>
-                <div className="gba:text-muted-foreground gba:text-xs gba:mt-0.5">
-                  {it.department} • {it.totalTasks} tasks
+                <div style={{ color: 'var(--guardian-text-muted)', fontSize: 12, marginTop: 2 }}>
+                  {it.department && it.department !== '—' ? `${it.department} • ` : ''}
+                  {it.totalTasks} tasks
                 </div>
               </div>
             </div>
@@ -149,32 +209,59 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
         })}
       </div>
 
-      {items.length > safePageSize ? (
-        <div className="gba:flex gba:items-center gba:justify-between gba:mt-3">
-          <div className="gba:text-muted-foreground gba:text-xs">
-            Page {pageIndex + 1}/{totalPages} • {items.length} total
+      {filteredItems.length > safePageSize ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 12
+          }}
+        >
+          <div style={{ color: 'var(--guardian-text-muted)', fontSize: 12 }}>
+            Page {pageIndex + 1}/{totalPages} • {filteredItems.length} total
           </div>
-          <div className="gba:flex gba:gap-2">
-            <Button
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={pageIndex === 0}
               data-testid={`${prefixDataTestId}-prev-page`}
+              style={{
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 500,
+                borderRadius: 6,
+                border: '1px solid var(--guardian-border)',
+                background: 'var(--guardian-bg-secondary)',
+                color: pageIndex === 0 ? 'var(--guardian-text-muted)' : 'var(--guardian-text)',
+                cursor: pageIndex === 0 ? 'not-allowed' : 'pointer',
+                opacity: pageIndex === 0 ? 0.5 : 1,
+                transition: 'all 0.2s'
+              }}
             >
               Prev
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={pageIndex >= totalPages - 1}
               data-testid={`${prefixDataTestId}-next-page`}
+              style={{
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 500,
+                borderRadius: 6,
+                border: '1px solid var(--guardian-border)',
+                background: 'var(--guardian-bg-secondary)',
+                color: pageIndex >= totalPages - 1 ? 'var(--guardian-text-muted)' : 'var(--guardian-text)',
+                cursor: pageIndex >= totalPages - 1 ? 'not-allowed' : 'pointer',
+                opacity: pageIndex >= totalPages - 1 ? 0.5 : 1,
+                transition: 'all 0.2s'
+              }}
             >
               Next
-            </Button>
+            </button>
           </div>
         </div>
       ) : null}
