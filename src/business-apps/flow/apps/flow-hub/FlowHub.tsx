@@ -544,13 +544,13 @@ const FlowHub: React.FC<FlowHubProps> = context => {
           console.log('Navigating to admin flows')
           break
         case 'navigate-value-pack-compliance':
-          navigateTo('/platform/apps/flow/apps/value-packs/compliance')
+          navigateTo('/platform/apps/flow/apps/solutions/compliance')
           break
         case 'navigate-solution-employee-lifecycle':
-          navigateTo('/platform/apps/flow/apps/value-packs/employee-lifecycle')
+          navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle')
           break
         case 'navigate-solution-survey':
-          navigateTo('/platform/apps/flow/apps/value-packs/survey')
+          navigateTo('/platform/apps/flow/apps/solutions/survey')
           break
         case 'navigate-personal-analytics':
         case 'navigate-team-analytics':
@@ -604,13 +604,13 @@ const FlowHub: React.FC<FlowHubProps> = context => {
 
       // Flow Value Packs
       case 'value-pack-compliance':
-        navigateTo('/platform/apps/flow/apps/value-packs/compliance')
+        navigateTo('/platform/apps/flow/apps/solutions/compliance')
         return
       case 'solution-employee-lifecycle':
-        navigateTo('/platform/apps/flow/apps/value-packs/employee-lifecycle')
+        navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle')
         return
       case 'value-pack-survey':
-        navigateTo('/platform/apps/flow/apps/value-packs/survey')
+        navigateTo('/platform/apps/flow/apps/solutions/survey')
         return
 
       // Flow Templates / Creator
