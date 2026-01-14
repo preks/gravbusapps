@@ -114,6 +114,12 @@ export interface TypingIndicator {
   isTyping: boolean
 }
 
+export interface PresenceUpdate {
+  userId: string
+  state: 'online' | 'away' | 'offline'
+  timestamp: Date | string
+}
+
 // Backend sends this format for user_status_change event
 export interface PresenceStatus {
   userId: string

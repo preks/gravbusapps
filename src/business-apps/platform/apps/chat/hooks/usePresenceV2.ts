@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useWebSocketV2 } from './useWebSocketV2'
+import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { PresenceUpdate } from '../types'
 
 interface UsePresenceV2Options {
-  accessToken: string
-  wsUrl: string
-  wsSocketPath?: string
+  wsClient: ChatWebSocketClient | null
   currentUserId: string | null
 }
 
@@ -24,17 +22,10 @@ const presenceCache = new Map<string, PresenceState>()
  * - Show presence in conversation list and headers
  */
 export function usePresenceV2(options: UsePresenceV2Options) {
-  const { accessToken, wsUrl, wsSocketPath, currentUserId } = options
+  const { wsClient, currentUserId } = options
 
   const [, forceUpdate] = useState({})
   const isMountedRef = useRef(true)
-
-  // Initialize WebSocket
-  const ws = useWebSocketV2({
-    accessToken,
-    wsUrl,
-    wsSocketPath
-  })
 
   /**
    * Get user presence from cache
@@ -47,6 +38,7 @@ export function usePresenceV2(options: UsePresenceV2Options) {
    * Update user presence
    */
   const updatePresence = useCallback((userId: string, state: PresenceState) => {
+    const oldState = presenceCache.get(userId)
     presenceCache.set(userId, state)
 
     if (isMountedRef.current) {
@@ -54,12 +46,12 @@ export function usePresenceV2(options: UsePresenceV2Options) {
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Presence V2] Updated presence:', { userId, state })
+      console.log('[Presence V2] 🟢 Updated presence:', { userId, oldState, newState: state })
     }
   }, [])
 
   /**
-   * Batch update presence for multiple users
+   * Batch update multiple users
    */
   const batchUpdatePresence = useCallback((updates: Array<{ userId: string; state: PresenceState }>) => {
     updates.forEach(({ userId, state }) => {
@@ -71,17 +63,17 @@ export function usePresenceV2(options: UsePresenceV2Options) {
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Presence V2] Batch updated presence:', updates.length, 'users')
+      console.log('[Presence V2] Batch updated', updates.length, 'users')
     }
   }, [])
 
   /**
-   * Get presence for multiple users
+   * Get presence for multiple users (optimized)
    */
   const getBatchPresence = useCallback((userIds: string[]): Map<string, PresenceState> => {
     const result = new Map<string, PresenceState>()
-    userIds.forEach(userId => {
-      result.set(userId, presenceCache.get(userId) || 'offline')
+    userIds.forEach(id => {
+      result.set(id, presenceCache.get(id) || 'offline')
     })
     return result
   }, [])
@@ -93,7 +85,14 @@ export function usePresenceV2(options: UsePresenceV2Options) {
     (update: PresenceUpdate) => {
       // Ignore own presence updates (handled separately)
       if (update.userId === currentUserId) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Presence V2] Ignoring own presence update')
+        }
         return
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Presence V2] 📡 Received presence update:', { userId: update.userId, state: update.state })
       }
 
       updatePresence(update.userId, update.state as PresenceState)
@@ -103,21 +102,42 @@ export function usePresenceV2(options: UsePresenceV2Options) {
 
   /**
    * Subscribe to presence updates
+   * Backend sends: { userId, isOnline, timestamp }
+   * We convert to: { userId, state, timestamp }
    */
   useEffect(() => {
-    if (!ws.client) return
+    if (!wsClient) return
 
-    ws.on('presence:update', handlePresenceUpdate)
+    // Bridge backend format to V2 format
+    const handleBackendPresence = (data: any) => {
+      const update: PresenceUpdate = {
+        userId: data.userId,
+        state: data.isOnline ? 'online' : 'offline',
+        timestamp: data.timestamp || new Date().toISOString()
+      }
+      handlePresenceUpdate(update)
+    }
+
+    wsClient.onPresence(handleBackendPresence)
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Presence V2] Subscribed to presence updates')
+    }
 
     return () => {
-      ws.off('presence:update', handlePresenceUpdate)
+      // Cleanup: remove the listener
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Presence V2] Unsubscribed from presence updates')
+      }
     }
-  }, [ws, handlePresenceUpdate])
+  }, [wsClient, handlePresenceUpdate])
 
   /**
    * Cleanup on unmount
    */
   useEffect(() => {
+    isMountedRef.current = true
+
     return () => {
       isMountedRef.current = false
     }
@@ -127,27 +147,21 @@ export function usePresenceV2(options: UsePresenceV2Options) {
     getUserPresence,
     updatePresence,
     batchUpdatePresence,
-    getBatchPresence,
-    isConnected: ws.isConnected
+    getBatchPresence
   }
 }
 
 /**
- * Get presence cache stats (for debugging)
+ * Get presence from cache without subscribing
+ * Useful for non-reactive reads
  */
-export function getPresenceCacheStats() {
-  const entries = Array.from(presenceCache.entries())
-  return {
-    total: entries.length,
-    online: entries.filter(([, state]) => state === 'online').length,
-    away: entries.filter(([, state]) => state === 'away').length,
-    offline: entries.filter(([, state]) => state === 'offline').length
-  }
+export function getPresenceFromCache(userId: string): PresenceState {
+  return presenceCache.get(userId) || 'offline'
 }
 
 /**
- * Clear presence cache (for testing)
+ * Clear all presence cache (useful for logout)
  */
-export function clearPresenceCache() {
+export function clearPresenceCache(): void {
   presenceCache.clear()
 }

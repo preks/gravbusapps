@@ -563,13 +563,15 @@ export const useCall = ({
   // Handle incoming call signals
   // Using refs to avoid recreating handlers on every state change
   useEffect(() => {
-    console.log('[useCall] 🎧 Setting up call event listeners', {
-      hasWsClient: !!wsClient,
-      hasCurrentUser: !!currentUser,
-      currentUserId: currentUser?.id
-    })
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[useCall] 🎧 Setting up call event listeners', {
+        hasWsClient: !!wsClient,
+        hasCurrentUser: !!currentUser,
+        currentUserId: currentUser?.id
+      })
+    }
     if (!wsClient || !currentUser) {
-      console.warn('[useCall] ⚠️ Cannot set up listeners - missing wsClient or currentUser')
+      // Skip setup until both are available (expected during initialization)
       return
     }
 

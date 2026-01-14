@@ -6,7 +6,7 @@ import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
-import { usePresence } from './usePresence'
+import { usePresenceV2, type PresenceState } from './usePresenceV2'
 
 // Shared WebSocket client to prevent duplicate connections
 // Multiple Chat instances (e.g., forceMount tabs) will share ONE WebSocket
@@ -153,12 +153,47 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
   })
 
-  // Presence tracking hook
-  const presenceHook = usePresence({
+  // Presence tracking hook V2 (with global cache)
+  // IMPORTANT: Reuses the existing WebSocket connection from useChatClient
+  const presenceV2 = usePresenceV2({
     wsClient: wsClientRef.current,
-    apiClient: apiClientRef.current,
-    isConnected
+    currentUserId: currentUser?.id || null
   })
+
+  // Adapter layer to maintain V1 API compatibility
+  const presenceHook = {
+    // V2 methods (direct pass-through)
+    getUserPresence: useCallback(
+      (userId: string): { status: 'online' | 'offline'; lastSeen?: string } => {
+        const state = presenceV2.getUserPresence(userId)
+        return { status: state === 'online' ? 'online' : 'offline' }
+      },
+      [presenceV2]
+    ),
+    isUserOnline: useCallback(
+      (userId: string): boolean => {
+        return presenceV2.getUserPresence(userId) === 'online'
+      },
+      [presenceV2]
+    ),
+    updatePresence: useCallback(
+      (userId: string, presence: { status: 'online' | 'offline' }) => {
+        presenceV2.updatePresence(userId, presence.status === 'online' ? 'online' : 'offline')
+      },
+      [presenceV2]
+    ),
+    // V1 compatibility method
+    updatePresenceFromUser: useCallback(
+      (userId: string, _lastSeen?: Date | string, isOnline?: boolean) => {
+        const state: PresenceState = isOnline ? 'online' : 'offline'
+        presenceV2.updatePresence(userId, state)
+      },
+      [presenceV2]
+    ),
+    // Legacy fields (not used in V2, but kept for compatibility)
+    presenceMap: new Map(),
+    clearPresence: () => {}
+  }
 
   // Keep hook refs up to date
   useEffect(() => {

@@ -24,6 +24,4 @@ export * from './useChatExperts'
 // V2 - Simplified/Performance-focused implementations
 export * from './useMessagesV2'
 export * from './useCacheV2'
-export * from './useWebSocketV2'
-export * from './useMessageSubscriptionV2'
-export * from './useTypingV2'
+export * from './usePresenceV2'
