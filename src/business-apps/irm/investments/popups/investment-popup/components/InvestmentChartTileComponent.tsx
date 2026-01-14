@@ -16,7 +16,7 @@ import {
   RadioGroupItem,
   Label
 } from '@newwork/nw-design-system'
-import { Plus, Trash2, PieChart, BarChart3, LineChart } from 'lucide-react'
+import { PlusIcon, TrashIcon, ChartPieIcon, ChartBarIcon, ChartLineIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -27,9 +27,9 @@ import { INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
 import {
   TileData,
   ChartType,
-  PieChartData,
+  ChartPieIconData,
   BarChartData,
-  LineChartData,
+  ChartLineIconData,
   findTileById
 } from '@/common/components/investment/tiles'
 
@@ -97,10 +97,10 @@ const lineChartSchema = z.object({
   })
 })
 
-type PieChartFormData = z.infer<typeof pieChartSchema>
+type ChartPieIconFormData = z.infer<typeof pieChartSchema>
 type BarChartFormData = z.infer<typeof barChartSchema>
-type LineChartFormData = z.infer<typeof lineChartSchema>
-type ChartTileFormData = PieChartFormData | BarChartFormData | LineChartFormData
+type ChartLineIconFormData = z.infer<typeof lineChartSchema>
+type ChartTileFormData = ChartPieIconFormData | BarChartFormData | ChartLineIconFormData
 
 export interface InvestmentChartTileComponentProps extends BusinessAppContextProps {
   onClose: () => void
@@ -241,7 +241,7 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
     const chartData: any = { chartType: formData.chartType }
 
     if (formData.chartType === 'pie' && 'pieData' in formData) {
-      const pieData: PieChartData[] = formData.pieData.map(item => ({
+      const pieData: ChartPieIconData[] = formData.pieData.map(item => ({
         id: item.id,
         name: item.name,
         percentage: Number.parseFloat(item.percentage)
@@ -264,7 +264,7 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
       }
       chartData.barData = barData
     } else if (formData.chartType === 'line' && 'lineData' in formData) {
-      const lineData: LineChartData = {
+      const lineData: ChartLineIconData = {
         xAxisName: formData.lineData.xAxisName,
         yAxisName: formData.lineData.yAxisName,
         xAxis: formData.lineData.xAxis.map(item => ({
@@ -360,21 +360,21 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <RadioGroupItem value="pie" id="chart-type-pie" />
                     <Label htmlFor="chart-type-pie" className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                      <PieChart className="gba:h-4 gba:w-4" />
+                      <ChartPieIcon className="gba:h-4 gba:w-4" />
                       {getTranslationFromI18nKeyAndLabel('investment.tiles.pieChart', 'Pie Chart')}
                     </Label>
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <RadioGroupItem value="bar" id="chart-type-bar" />
                     <Label htmlFor="chart-type-bar" className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                      <BarChart3 className="gba:h-4 gba:w-4" />
+                      <ChartBarIcon className="gba:h-4 gba:w-4" />
                       {getTranslationFromI18nKeyAndLabel('investment.tiles.barChart', 'Bar Chart')}
                     </Label>
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <RadioGroupItem value="line" id="chart-type-line" />
                     <Label htmlFor="chart-type-line" className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                      <LineChart className="gba:h-4 gba:w-4" />
+                      <ChartLineIcon className="gba:h-4 gba:w-4" />
                       {getTranslationFromI18nKeyAndLabel('investment.tiles.lineChart', 'Line Chart')}
                     </Label>
                   </div>
@@ -386,16 +386,16 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
         />
 
         {/* Conditional Form Based on Chart Type */}
-        {chartType === 'pie' && <PieChartForm form={form} prefixDataTestId={prefixDataTestId} />}
+        {chartType === 'pie' && <ChartPieIconForm form={form} prefixDataTestId={prefixDataTestId} />}
         {chartType === 'bar' && <BarChartForm form={form} prefixDataTestId={prefixDataTestId} />}
-        {chartType === 'line' && <LineChartForm form={form} prefixDataTestId={prefixDataTestId} />}
+        {chartType === 'line' && <ChartLineIconForm form={form} prefixDataTestId={prefixDataTestId} />}
       </div>
     </InvestmentPopupFormWrapper>
   )
 }
 
 // Pie Chart Form Component
-const PieChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form, prefixDataTestId }) => {
+const ChartPieIconForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form, prefixDataTestId }) => {
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'pieData'
@@ -479,7 +479,7 @@ const PieChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
               disabled={fields.length === 1}
               data-testid={formatDataTestId(prefixDataTestId, `remove-pie-item-${index}`)}
             >
-              <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
+              <TrashIcon className="gba:h-4 gba:w-4 gba:text-destructive" />
             </Button>
           </div>
         ))}
@@ -493,7 +493,7 @@ const PieChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
         className="gba:w-full"
         data-testid={formatDataTestId(prefixDataTestId, 'add-pie-item')}
       >
-        <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+        <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
         {getTranslationFromI18nKeyAndLabel('investment.tiles.addItem', 'Add Item')}
       </Button>
     </div>
@@ -624,7 +624,7 @@ const BarChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
                 disabled={xAxisFields.fields.length === 1}
                 data-testid={formatDataTestId(prefixDataTestId, `remove-data-point-${index}`)}
               >
-                <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
+                <TrashIcon className="gba:h-4 gba:w-4 gba:text-destructive" />
               </Button>
             </div>
           ))}
@@ -637,7 +637,7 @@ const BarChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
           className="gba:w-full"
           data-testid={formatDataTestId(prefixDataTestId, 'add-data-point')}
         >
-          <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+          <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel('investment.tiles.addDataPoint', 'Add Data Point')}
         </Button>
       </div>
@@ -646,7 +646,7 @@ const BarChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
 }
 
 // Line Chart Form Component (same as Bar Chart)
-const LineChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form, prefixDataTestId }) => {
+const ChartLineIconForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form, prefixDataTestId }) => {
   const xAxisFields = useFieldArray({
     control: form.control,
     name: 'lineData.xAxis'
@@ -731,7 +731,7 @@ const LineChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form
                 disabled={xAxisFields.fields.length === 1}
                 data-testid={formatDataTestId(prefixDataTestId, `remove-x-axis-${index}`)}
               >
-                <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
+                <TrashIcon className="gba:h-4 gba:w-4 gba:text-destructive" />
               </Button>
             </div>
           ))}
@@ -744,7 +744,7 @@ const LineChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form
           className="gba:w-full"
           data-testid={formatDataTestId(prefixDataTestId, 'add-x-axis-item')}
         >
-          <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+          <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel('investment.tiles.addXAxisPoint', 'Add X-Axis Point')}
         </Button>
       </div>
@@ -821,7 +821,7 @@ const LineChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form
                 disabled={yAxisFields.fields.length === 1}
                 data-testid={formatDataTestId(prefixDataTestId, `remove-y-axis-${index}`)}
               >
-                <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
+                <TrashIcon className="gba:h-4 gba:w-4 gba:text-destructive" />
               </Button>
             </div>
           ))}
@@ -834,7 +834,7 @@ const LineChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form
           className="gba:w-full"
           data-testid={formatDataTestId(prefixDataTestId, 'add-y-axis-item')}
         >
-          <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+          <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel('investment.tiles.addYAxisPoint', 'Add Y-Axis Point')}
         </Button>
       </div>

@@ -9,6 +9,7 @@ import { AcceptAnswerButton } from '@/common/components/content/AcceptAnswerButt
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import { ContentHtmlRenderer } from './ContentHtmlRenderer'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import CommentForm from './interactions/CommentForm'
@@ -373,15 +374,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
               )}
 
               {/* Content */}
-              {displayContent && (
-                <div
-                  className="gba:text-base gba:leading-7 gba:mb-4 gba:text-foreground 
-                             [&>h1]:gba:text-2xl [&>h1]:gba:font-bold 
-                             [&>h2]:gba:text-xl [&>h2]:gba:font-bold 
-                             [&>h3]:gba:text-lg [&>h3]:gba:font-bold"
-                  dangerouslySetInnerHTML={{ __html: displayContent }}
-                />
-              )}
+              <ContentHtmlRenderer content={displayContent || ''} variant="default" className="gba:mb-4" />
 
               {/* Content Info Section without reactions */}
               <div className="gba:flex gba:flex-row gba:justify-between gba:p-5 gba:mt-4 gba:bg-muted gba:rounded-lg">

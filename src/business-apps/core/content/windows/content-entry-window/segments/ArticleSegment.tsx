@@ -23,12 +23,6 @@ import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { ContentAiTextGenerator } from '../components/ContentAiTextGenerator'
 import translations from '../_i18n'
 
-// Check if running in local development environment
-const isLocalEnvironment = (): boolean => {
-  if (typeof window === 'undefined') return false
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-}
-
 interface ArticleSegmentProps {
   control: Control<ContentEntryFormValues>
   image: string | null
@@ -40,6 +34,9 @@ interface ArticleSegmentProps {
   watchPreviewText: string
   watchContent: string
   watchSchedulePublication: boolean
+  watchContentTypeRef?: string
+  watchCategories?: string[]
+  watchTags?: string[]
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
   extractedContentGroupRef?: string
@@ -47,6 +44,11 @@ interface ArticleSegmentProps {
   onCreateTag?: (label: string) => Promise<string>
   onCategoriesChange?: (categories: string[]) => void
   onTagsChange?: (tags: string[]) => void
+  onContentTypeRefChange?: (value: string | undefined) => void
+  onContentCategoryRefsChange?: (value: string[]) => void
+  onContentCategoryNamesChange?: (value: string[]) => void
+  onContentTagRefsChange?: (value: string[]) => void
+  onContentTagNamesChange?: (value: string[]) => void
 }
 
 const MAX_IMAGE_SIZE_MB = 5
@@ -66,13 +68,21 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
   watchPreviewText,
   watchContent,
   watchSchedulePublication,
+  watchContentTypeRef,
+  watchCategories,
+  watchTags,
   setValue,
   context,
   extractedContentGroupRef,
   onCreateCategory,
   onCreateTag,
   onCategoriesChange,
-  onTagsChange
+  onTagsChange,
+  onContentTypeRefChange,
+  onContentCategoryRefsChange,
+  onContentCategoryNamesChange,
+  onContentTagRefsChange,
+  onContentTagNamesChange
 }) => {
   const { t } = useTranslation(translations)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -155,30 +165,43 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
     setDragActive(false)
   }, [])
 
+  // Helper function to fetch image from URL and process it
+  const handlePictureUrl = useCallback(
+    async (pictureUrl: string) => {
+      try {
+        const response = await fetch(pictureUrl, { mode: 'cors' })
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+        }
+
+        const blob = await response.blob()
+        if (!blob.type.startsWith('image/')) {
+          throw new Error('URL does not point to an image')
+        }
+
+        // Convert blob to File
+        const fileName = pictureUrl.split('/').pop()?.split('?')[0] || 'image.jpg'
+        const fileExtension = fileName.split('.').pop() || 'jpg'
+        const mimeType = blob.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
+        const file = new File([blob], fileName, { type: mimeType })
+
+        // Process as regular file upload
+        processFile(file)
+      } catch (error) {
+        console.error('Failed to load picture from URL:', error)
+        throw error
+      }
+    },
+    [processFile]
+  )
+
   // URL fetch handler
   const handleUrlFetch = useCallback(async () => {
     if (!urlInput.trim()) return
 
     setIsLoadingUrl(true)
     try {
-      const response = await fetch(urlInput.trim(), { mode: 'cors' })
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
-      }
-
-      const blob = await response.blob()
-      if (!blob.type.startsWith('image/')) {
-        throw new Error('URL does not point to an image')
-      }
-
-      // Convert blob to File
-      const fileName = urlInput.split('/').pop()?.split('?')[0] || 'image.jpg'
-      const fileExtension = fileName.split('.').pop() || 'jpg'
-      const mimeType = blob.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
-      const file = new File([blob], fileName, { type: mimeType })
-
-      // Process as regular file upload
-      processFile(file)
+      await handlePictureUrl(urlInput.trim())
       setUrlInput('')
       setUrlPopoverOpen(false)
       setUploadMenuOpen(false)
@@ -187,7 +210,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
     } finally {
       setIsLoadingUrl(false)
     }
-  }, [urlInput, processFile])
+  }, [urlInput, handlePictureUrl])
 
   const handleImageRemove = useCallback(() => {
     setImage(null)
@@ -337,21 +360,55 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
 
       {/* RIGHT SIDE: Editor Area (Full Width) */}
       <div className="gba:flex-1 gba:flex gba:flex-col gba:space-y-4">
-        {/* AI Text Generator Button - Only show in local development */}
-        {isLocalEnvironment() && (
-          <div className="gba:flex gba:justify-end gba:mb-4">
-            <ContentAiTextGenerator
-              title={watchTitle || ''}
-              previewText={watchPreviewText || ''}
-              content={watchContent || ''}
-              onTitleChange={value => setValue('title', value)}
-              onPreviewTextChange={value => setValue('previewText', value)}
-              onContentChange={value => setValue('content', value)}
-              accessToken={context.accessToken || ''}
-              context={context}
-            />
-          </div>
-        )}
+        {/* AI Text Generator Button */}
+        <div className="gba:flex gba:justify-end gba:mb-4">
+          <ContentAiTextGenerator
+            title={watchTitle || ''}
+            previewText={watchPreviewText || ''}
+            content={watchContent || ''}
+            onTitleChange={value => setValue('title', value)}
+            onPreviewTextChange={value => setValue('previewText', value)}
+            onContentChange={value => setValue('content', value)}
+            onPictureChange={handlePictureUrl}
+            accessToken={context.accessToken || ''}
+            context={context}
+            contentGroupRef={extractedContentGroupRef}
+            contentTypeRef={watchContentTypeRef}
+            contentCategoryRefs={
+              watchCategories?.filter(cat => {
+                // Catalog Entry IDs have format: <identifier>:<version>:<code> (at least 2 colons)
+                const parts = cat.split(':')
+                return parts.length >= 2
+              }) || []
+            }
+            contentCategoryNames={
+              watchCategories?.filter(cat => {
+                // Names are strings that don't have the catalog entry ID format
+                const parts = cat.split(':')
+                return parts.length < 2
+              }) || []
+            }
+            contentTagRefs={
+              watchTags?.filter(tag => {
+                // Catalog Entry IDs have format: <identifier>:<version>:<code> (at least 2 colons)
+                const parts = tag.split(':')
+                return parts.length >= 2
+              }) || []
+            }
+            contentTagNames={
+              watchTags?.filter(tag => {
+                // Names are strings that don't have the catalog entry ID format
+                const parts = tag.split(':')
+                return parts.length < 2
+              }) || []
+            }
+            onContentTypeRefChange={onContentTypeRefChange}
+            onContentCategoryRefsChange={onContentCategoryRefsChange}
+            onContentCategoryNamesChange={onContentCategoryNamesChange}
+            onContentTagRefsChange={onContentTagRefsChange}
+            onContentTagNamesChange={onContentTagNamesChange}
+          />
+        </div>
 
         {/* Content Group and Content Type - Above Image Upload */}
         <FormFieldGroup>
@@ -683,3 +740,5 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
     </div>
   )
 }
+
+export default ArticleSegment

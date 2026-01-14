@@ -1,4 +1,5 @@
 import { FlowTemplate } from './FlowTemplateClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 /**
  * AI API response interface (raw from API)
@@ -44,21 +45,18 @@ interface RawAIStepInput {
  * Client for AI-powered flow template generation
  */
 export class FlowAIClient {
-  private readonly baseUrl: string
-
-  constructor() {
-    this.baseUrl = 'https://newwork-dev.newwork.com/flowbot'
-  }
-
   /**
    * Generate a flow template using AI based on user prompt
    */
   async generateFlowTemplate(prompt: string, accessToken: string): Promise<FlowTemplate> {
     try {
+      // Use resolveFlowbotBaseUrl to automatically route to localhost:8000 when running locally
+      const baseUrl = resolveFlowbotBaseUrl()
+
       const formData = new URLSearchParams()
       formData.append('input_data', prompt)
 
-      const response = await fetch(`${this.baseUrl}/cflow/create_flow_template`, {
+      const response = await fetch(`${baseUrl}/flowbot/cflow/create_flow_template`, {
         method: 'POST',
         headers: {
           accept: 'application/json',

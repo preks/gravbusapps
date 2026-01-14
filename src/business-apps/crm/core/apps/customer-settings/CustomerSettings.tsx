@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { PiUsers, PiFlowArrow, PiAddressBook, PiListChecks, PiCalendar } from 'react-icons/pi'
+import { UsersIcon, FlowArrowIcon, AddressBookIcon, ListChecksIcon, CalendarIcon } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 // inline pipeline card rendering moved to PipelineDataPage
 import LeadDataPage from './pages/lead-data/LeadDataPage'
@@ -25,7 +25,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
     {
       title: t('crm.opportunity_pipelines', 'Opportunity Pipelines'),
       description: t('crm.opportunity_pipelines_description', 'Manage opportunity pipelines and sales processes'),
-      icon: PiFlowArrow,
+      icon: FlowArrowIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -37,7 +37,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
     {
       title: t('crm.templates', 'Templates'),
       description: t('crm.templates_description', 'Manage document and task templates for customers'),
-      icon: PiCalendar,
+      icon: CalendarIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -57,7 +57,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
     {
       title: t('crm.lead_data', 'Lead Data'),
       description: t('crm.lead_data_description', 'Manage lead ratings, statuses, and sources'),
-      icon: PiAddressBook,
+      icon: AddressBookIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -77,7 +77,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
     {
       title: t('crm.engagement_data', 'Engagement Data'),
       description: t('crm.engagement_description', 'Manage activity types, task types, priorities, and statuses'),
-      icon: PiListChecks,
+      icon: ListChecksIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -155,7 +155,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
   return (
     <SettingsLayout
       headerPhosphorIcon={{
-        icon: PiUsers,
+        icon: UsersIcon,
         variant: 'info',
         size: 'lg',
         label: 'Customer Settings'

@@ -5,9 +5,11 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Button, Input, Card, CardContent, Spinner } from '@newwork/nw-design-system'
+import { Button, Input, Card, CardContent, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { X, Search, Sparkles, BookOpen, Plus, Check } from 'lucide-react'
 import type { AvailableExpert } from '../hooks/useEveryExperts'
+import { getExpertColorStyles } from '../utils/expertColorUtils'
+import translations from '../_i18n'
 
 interface ExpertSelectorPanelProps {
   isOpen: boolean
@@ -28,6 +30,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
   onAddExpert,
   'data-testid': testId = 'expert-selector-panel'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
 
   const filteredExperts = useMemo(() => {
@@ -63,7 +66,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between gba:p-4 gba:border-b gba:border-border">
           <div className="gba:flex gba:items-center gba:gap-2">
             <Sparkles className="gba:w-5 gba:h-5 gba:text-primary" />
-            <h2 className="gba:text-lg gba:font-semibold">Add Expert</h2>
+            <h2 className="gba:text-lg gba:font-semibold">{t('chat-addExpert')}</h2>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} data-testid={`${testId}-close-button`}>
             <X className="gba:w-5 gba:h-5" />
@@ -75,7 +78,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
           <div className="gba:relative">
             <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
             <Input
-              placeholder="Search experts..."
+              placeholder={t('chat-searchExperts')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="gba:pl-10"
@@ -93,8 +96,8 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
           ) : filteredExperts.length === 0 ? (
             <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
               <Sparkles className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-3 gba:opacity-50" />
-              <p className="gba:text-sm">No experts found</p>
-              <p className="gba:text-xs gba:mt-1">Create experts in Task Expert Studio</p>
+              <p className="gba:text-sm">{t('chat-noExpertsFound')}</p>
+              <p className="gba:text-xs gba:mt-1">{t('chat-createExpertsHint')}</p>
             </div>
           ) : (
             <div className="gba:space-y-3">
@@ -116,9 +119,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
                         {/* Avatar */}
                         <div
                           className="gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:font-bold gba:text-sm gba:text-primary-foreground"
-                          style={{
-                            backgroundColor: expert.color || '#1890ff'
-                          }}
+                          style={getExpertColorStyles(expert.color).avatar}
                         >
                           {expert.avatar || expert.name.charAt(0).toUpperCase()}
                         </div>
@@ -137,7 +138,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
                             {isActive ? (
                               <div className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-success-secondary/60 gba:text-success-secondary-foreground gba:flex-shrink-0">
                                 <Check className="gba:w-3 gba:h-3" />
-                                Active
+                                {t('chat-expertActive')}
                               </div>
                             ) : (
                               <Button
@@ -147,7 +148,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
                                 data-testid={`${testId}-add-expert-button-${expert.id}`}
                               >
                                 <Plus className="gba:w-3 gba:h-3 gba:mr-1" />
-                                Add
+                                {t('chat-add')}
                               </Button>
                             )}
                           </div>
@@ -163,10 +164,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
                           {expert.knowledgeSourceCount > 0 && (
                             <div className="gba:flex gba:items-center gba:gap-1 gba:mt-2 gba:text-xs gba:text-primary">
                               <BookOpen className="gba:w-3 gba:h-3" />
-                              <span>
-                                {expert.knowledgeSourceCount} knowledge source
-                                {expert.knowledgeSourceCount !== 1 ? 's' : ''}
-                              </span>
+                              <span>{t('chat-knowledgeSourceCount', { count: expert.knowledgeSourceCount })}</span>
                             </div>
                           )}
 
@@ -196,8 +194,7 @@ export const ExpertSelectorPanel: React.FC<ExpertSelectorPanelProps> = ({
         {/* Footer Help */}
         <div className="gba:p-4 gba:border-t gba:border-border gba:bg-muted/30">
           <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-            Experts have specialized knowledge and can be mentioned using{' '}
-            <span className="gba:font-mono">@ExpertName</span>
+            {t('chat-expertsHelpText')} <span className="gba:font-mono">@ExpertName</span>
           </p>
         </div>
       </div>

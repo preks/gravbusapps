@@ -34,9 +34,11 @@ export const BENEFIT_TYPE_CATALOG_QUERY = `query fetchBenefitTypeCatalog($benefi
     code
     value
     displayOrder
+    objectValue
     translations {
       localeCode
       value
+      objectValue
     }
     catalog {
       identifier

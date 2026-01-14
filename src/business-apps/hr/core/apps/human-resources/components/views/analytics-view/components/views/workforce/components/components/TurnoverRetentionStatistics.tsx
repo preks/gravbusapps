@@ -18,12 +18,18 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
   const { t } = useTranslation(hrTranslations)
   const kpiCards: KpiCardData[] = [
     {
-      id: 'voluntary-turnover',
-      title: t('hr-analytics-voluntary-turnover-rate'),
+      id: 'turnover-rate',
+      title: t('hr-analytics-turnover-rate'),
       value: statistics.currentTurnoverRate
         ? `${statistics.currentTurnoverRate.toFixed(1)}%`
         : t('hr-analytics-not-available'),
       icon: <Icon icon={CalendarIcon} size="sm" decorative />,
+      iconColor: statistics.turnoverChange < 0 ? 'var(--nw-success)' : 'var(--nw-warning)',
+      trend: {
+        value: `${statistics.turnoverChange > 0 ? '+' : ''}${statistics.turnoverChange.toFixed(1)}%`,
+        positive: statistics.turnoverChange > 0 ? true : false,
+        description: t('hr-analytics-vs-last-month')
+      },
       footer: t('hr-analytics-current-month-rate')
     },
     {

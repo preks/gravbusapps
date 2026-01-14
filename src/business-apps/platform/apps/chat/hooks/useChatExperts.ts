@@ -13,7 +13,7 @@
 import { useState, useCallback } from 'react'
 import { useEveryExperts } from './useEveryExperts'
 import { useConversationExperts } from './useConversationExperts'
-import { useExpertRouting } from './useExpertRouting'
+import { useExpertRouting, type ExpertAttachment } from './useExpertRouting'
 import { detectExpertMention } from '../utils/expertMentionUtils'
 import type { MessageEntityReference } from '../types'
 import type { ChatApiClient } from '../services/chatApiClient'
@@ -107,11 +107,15 @@ export const useChatExperts = ({ accessToken, conversationId, currentUserId, api
   /**
    * Process message to detect expert mentions and route accordingly
    * Returns the expert's response if routed, null otherwise
+   * @param content - The message content
+   * @param entityReferences - Entity references (mentions) in the message
+   * @param attachments - Optional attachments from the message to pass to the expert
    */
   const processExpertMention = useCallback(
     async (
       content: string,
-      entityReferences?: MessageEntityReference[]
+      entityReferences?: MessageEntityReference[],
+      attachments?: ExpertAttachment[]
     ): Promise<{
       isExpertMention: boolean
       expertResponse?: {
@@ -137,8 +141,8 @@ export const useChatExperts = ({ accessToken, conversationId, currentUserId, api
       }
 
       try {
-        // Route to expert's prompt
-        const response = await sendToExpert(mention.prompt, expert)
+        // Route to expert's prompt with attachments
+        const response = await sendToExpert(mention.prompt, expert, attachments)
 
         if (response.error) {
           return { isExpertMention: false }

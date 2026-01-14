@@ -183,6 +183,10 @@ export interface CatalogEntryQueryVariables {
   // Additional precise filters
   entryId?: string // fetch a single entry by id
   typeEquals?: string // filter by exact type equality
+  excludeCodes?: string[] // Exclude entries with codes matching these patterns (case-insensitive substring)
+  includeCodes?: string[] // Include only entries with codes matching these patterns (case-insensitive substring)
+  excludeTypes?: string[] // Exclude entries with types matching these patterns (case-insensitive substring)
+  includeTypes?: string[] // Include only entries with types matching these patterns (case-insensitive substring)
   orderBy?: Array<{
     field: string
     direction: 'ASC' | 'DESC'

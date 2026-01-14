@@ -1845,6 +1845,128 @@ async function main() {
           abortRebaseIfNeeded()
           throw new Error('Failed to push after 3 retries')
         }
+
+        // ---------------------------------------------------------------------
+        // ALSO COMMIT & PUSH THE FINAL (PUBLISH-GENERATED) HASH FILE TO develop
+        // Requirement: always commit the current state from this publish run,
+        // regardless of whatever is currently on develop (overwrite/force file).
+        // ---------------------------------------------------------------------
+        const developBranch = 'develop'
+        try {
+          // Capture the final state (may include conflict-resolution merges)
+          execSync(`git pull origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+          const finalHashFileContent = fs.readFileSync(prodHashFile, 'utf8')
+
+          console.log(`\n   🔁 Also syncing ${hashFileName} back to ${developBranch} (overwrite) ...`)
+
+          // Fetch + checkout develop
+          execSync(`git fetch origin ${developBranch}:${developBranch}`, {
+            cwd: projectRootDirForHashes,
+            stdio: 'pipe'
+          })
+          execSync(`git checkout ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+
+          // Overwrite the file with the publish-generated content (force)
+          fs.writeFileSync(prodHashFile, finalHashFileContent, 'utf8')
+
+          // Commit (if there are changes)
+          execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+          try {
+            execSync(`git commit -m "chore(ci): sync prod component hashes to develop [skip ci]"`, {
+              cwd: projectRootDirForHashes,
+              stdio: 'pipe'
+            })
+          } catch {
+            // No changes to commit is fine
+            console.log(`   ℹ️  No ${hashFileName} changes to commit on ${developBranch}`)
+          }
+
+          // Pull with rebase and push with retry logic.
+          // If there is a conflict, ALWAYS re-apply the publish-generated file content.
+          const resolveHashConflictByOverwriting = () => {
+            console.log(
+              `   ⚠️  Rebase conflict detected on ${developBranch}, overwriting ${hashFileName} with publish version...`
+            )
+            fs.writeFileSync(prodHashFile, finalHashFileContent, 'utf8')
+            execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+            try {
+              execSync('git rebase --continue', {
+                cwd: projectRootDirForHashes,
+                stdio: 'pipe',
+                env: { ...process.env, GIT_EDITOR: 'true' }
+              })
+            } catch {
+              execSync('git -c core.editor=true rebase --continue', { cwd: projectRootDirForHashes, stdio: 'pipe' })
+            }
+          }
+
+          let developPushSuccess = false
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              if (isRebaseInProgress()) {
+                resolveHashConflictByOverwriting()
+              } else {
+                execSync(`git pull --rebase origin ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+              }
+
+              // Ensure the publish-generated file content wins (even without conflicts)
+              fs.writeFileSync(prodHashFile, finalHashFileContent, 'utf8')
+              execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+              try {
+                execSync(`git commit -m "chore(ci): sync prod component hashes to develop [skip ci]"`, {
+                  cwd: projectRootDirForHashes,
+                  stdio: 'pipe'
+                })
+              } catch {
+                // No changes after rebase is fine
+              }
+
+              execSync(`git push origin ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+              developPushSuccess = true
+              console.log(`   ✅ Prod hashes committed and pushed to ${developBranch}`)
+              break
+            } catch (error) {
+              const errorOutput =
+                (error.stdout?.toString() || '') + (error.stderr?.toString() || '') + (error.message || '')
+
+              const isConflict =
+                errorOutput.includes('CONFLICT') ||
+                errorOutput.includes('Merge conflict') ||
+                errorOutput.includes('unmerged files') ||
+                errorOutput.includes('fix conflicts') ||
+                isRebaseInProgress()
+
+              if (isConflict) {
+                try {
+                  resolveHashConflictByOverwriting()
+                  execSync(`git push origin ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+                  developPushSuccess = true
+                  console.log(
+                    `   ✅ Prod hashes committed and pushed to ${developBranch} (after overwrite conflict resolution)`
+                  )
+                  break
+                } catch {
+                  abortRebaseIfNeeded()
+                }
+              } else if (attempt < 3) {
+                abortRebaseIfNeeded()
+                await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
+              } else {
+                abortRebaseIfNeeded()
+                throw error
+              }
+            }
+          }
+
+          if (!developPushSuccess) {
+            abortRebaseIfNeeded()
+            throw new Error('Failed to push develop hashes after 3 retries')
+          }
+        } catch (error) {
+          abortRebaseIfNeeded()
+          console.log(`   ⚠️  Failed to commit/push prod hashes to develop: ${error.message}`)
+          console.log('   ℹ️  Screens were published successfully, develop hash sync is non-critical')
+        }
       } catch (error) {
         abortRebaseIfNeeded()
         console.log(`   ⚠️  Failed to commit/push prod hashes: ${error.message}`)

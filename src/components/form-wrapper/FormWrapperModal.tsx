@@ -10,6 +10,7 @@ import {
   toast
 } from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form'
+import type { ZodType } from 'zod'
 import { cn } from '@/common/utils/cn'
 
 export interface FormMessage {
@@ -38,6 +39,7 @@ interface FormWrapperModalProps {
   // Form handling
   form?: UseFormReturn<FieldValues>
   resolver?: Resolver<FieldValues>
+  schema?: ZodType<any>
   validateForm?: (_formData: FieldValues) => string[] | null
   isSubmitDisabled?: boolean
   preventDuplicateSubmission?: boolean
@@ -61,6 +63,10 @@ interface FormWrapperModalProps {
   // Test IDs
   submitButtonTestId?: string
   cancelButtonTestId?: string
+
+  // Validation behavior
+  /** When false, submit button ignores form validity and validation happens only on submit. Default: true */
+  validateBeforeSubmit?: boolean
 }
 
 const FormWrapperModal = ({
@@ -84,6 +90,7 @@ const FormWrapperModal = ({
   // Form handling
   form: externalForm,
   resolver,
+  schema,
   validateForm,
   isSubmitDisabled = false,
   preventDuplicateSubmission = true,
@@ -106,7 +113,10 @@ const FormWrapperModal = ({
 
   // Test IDs
   submitButtonTestId,
-  cancelButtonTestId
+  cancelButtonTestId,
+
+  // Validation behavior
+  validateBeforeSubmit = true
 }: FormWrapperModalProps) => {
   const [isOpen, setIsOpen] = useState(open)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -254,7 +264,7 @@ const FormWrapperModal = ({
             </Alert>
           )}
 
-          <Form {...(form as UseFormReturn<FieldValues>)}>
+          <Form {...(form as UseFormReturn<FieldValues>)} schema={schema}>
             <form
               onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
               className={cn('gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full', formClassName)}
@@ -279,7 +289,9 @@ const FormWrapperModal = ({
                 )}
                 <Button
                   type="submit"
-                  disabled={loading || isSubmitting || isSubmitDisabled || !isValid || !isFormValid}
+                  disabled={
+                    loading || isSubmitting || isSubmitDisabled || !isValid || (validateBeforeSubmit && !isFormValid)
+                  }
                   variant={submitButtonVariant}
                   data-testid={submitButtonTestId || `${dataTestId}-submit-button`}
                 >

@@ -26,7 +26,7 @@ const GET_ALL_CUSTOMER_LEAD_STATISTICS_WITH_TREND = `
     $thisYearStart: timestamptz!,
     $lastYearStart: timestamptz!,
     $lastYearEnd: timestamptz!,
-    $twoWeeksAgo: timestamptz!
+    $lastQuarter: timestamptz!
   ) {
     recentLeadsCurrent: LeadAggregate(where: {
       createdAt: {_gte: $currentStart},
@@ -79,17 +79,18 @@ const GET_ALL_CUSTOMER_LEAD_STATISTICS_WITH_TREND = `
     }) {
       aggregate { count }
     }
-    mostCommonLeadSource: Lead(
-      where: {
-        createdAt: {_gte: $twoWeeksAgo}, 
-        leadSourceRef: {_isNull: false}
-      }
-    ) {
-      leadSource {
-        value
-        code
-      }
-      leadSourceRef
+    convertedLeadsCurrent: LeadAggregate(where: {
+      isDeleted: {_eq: false},
+      leadStatus: {type: {_eq: "CONVERTED"}}
+    }) {
+      aggregate { count }
+    }
+    convertedLeadsPrevious: LeadAggregate(where: {
+      isDeleted: {_eq: false},
+      leadStatus: {type: {_eq: "CONVERTED"}},
+      createdAt: {_lt: $lastQuarter}
+    }) {
+      aggregate { count }
     }
   }
 `
@@ -112,7 +113,11 @@ export interface UseLeadStatisticsWithTrendReturn {
     changePercent: number
     isPositive: boolean
   }
-  topSource: string
+  convertedLeads: {
+    current: number
+    changePercent: number
+    isPositive: boolean
+  }
   isLoading: boolean
   error: Error | null
   refetch: () => Promise<void>
@@ -169,27 +174,6 @@ const calculateConversionTrend = (
   }
 }
 
-const getMostCommonLeadSource = (leads: Array<{ leadSource: { value: string; code: string } | null }>): string => {
-  const sourceCounts: Record<string, number> = {}
-  leads.forEach(lead => {
-    const source = lead.leadSource?.value
-    if (source) {
-      sourceCounts[source] = (sourceCounts[source] || 0) + 1
-    }
-  })
-
-  let mostCommon = 'N/A'
-  let maxCount = 0
-  Object.entries(sourceCounts).forEach(([source, count]) => {
-    if (count > maxCount) {
-      maxCount = count
-      mostCommon = source
-    }
-  })
-
-  return mostCommon
-}
-
 export const useCustomerLeadStatistics = (context: BusinessAppContextProps): UseLeadStatisticsWithTrendReturn => {
   const [recentLeads, setRecentLeads] = useState({ current: 0, changePercent: 0, isPositive: true })
   const [hotLeads, setHotLeads] = useState({ current: 0, changePercent: 0, isPositive: true })
@@ -200,7 +184,7 @@ export const useCustomerLeadStatistics = (context: BusinessAppContextProps): Use
     changePercent: 0,
     isPositive: true
   })
-  const [topSource, setTopSource] = useState<string>('N/A')
+  const [convertedLeads, setConvertedLeads] = useState({ current: 0, changePercent: 0, isPositive: true })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const graphqlClient = useGraphQLClient(context.accessToken)
@@ -224,7 +208,7 @@ export const useCustomerLeadStatistics = (context: BusinessAppContextProps): Use
       const thisYearStart = new Date(now.getFullYear(), 0, 1)
       const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
       const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
-      const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+      const lastQuarter = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
 
       const result = await graphqlClient.request<{
         recentLeadsCurrent: { aggregate: { count: number } }
@@ -235,10 +219,8 @@ export const useCustomerLeadStatistics = (context: BusinessAppContextProps): Use
         conversionRateCurrentConverted: { aggregate: { count: number } }
         conversionRatePreviousTotal: { aggregate: { count: number } }
         conversionRatePreviousConverted: { aggregate: { count: number } }
-        mostCommonLeadSource: Array<{
-          leadSource: { value: string; code: string } | null
-          leadSourceRef: string | null
-        }>
+        convertedLeadsCurrent: { aggregate: { count: number } }
+        convertedLeadsPrevious: { aggregate: { count: number } }
       }>(GET_ALL_CUSTOMER_LEAD_STATISTICS_WITH_TREND, {
         currentStart: currentStart.toISOString(),
         previousStart: previousStart.toISOString(),
@@ -247,7 +229,7 @@ export const useCustomerLeadStatistics = (context: BusinessAppContextProps): Use
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
         lastYearEnd: lastYearEnd.toISOString(),
-        twoWeeksAgo: twoWeeksAgo.toISOString()
+        lastQuarter: lastQuarter.toISOString()
       })
 
       const recentTrend = calculateTrend(
@@ -282,7 +264,15 @@ export const useCustomerLeadStatistics = (context: BusinessAppContextProps): Use
         isPositive: conversionTrend.isPositive
       })
 
-      setTopSource(getMostCommonLeadSource(result.mostCommonLeadSource))
+      const convertedTrend = calculateTrend(
+        result.convertedLeadsCurrent.aggregate.count,
+        result.convertedLeadsPrevious.aggregate.count
+      )
+      setConvertedLeads({
+        current: convertedTrend.current,
+        changePercent: convertedTrend.changePercent,
+        isPositive: convertedTrend.isPositive
+      })
     } catch (err) {
       console.error('Error fetching lead statistics with trend:', err)
       setError(new Error(err instanceof Error ? err.message : 'Unknown error fetching statistics with trend'))
@@ -301,7 +291,7 @@ export const useCustomerLeadStatistics = (context: BusinessAppContextProps): Use
     recentLeads,
     hotLeads,
     conversionRate,
-    topSource,
+    convertedLeads,
     isLoading,
     error,
     refetch

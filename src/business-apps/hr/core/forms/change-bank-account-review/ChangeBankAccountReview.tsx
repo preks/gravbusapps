@@ -245,7 +245,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
   }
 
   const displayName = employeeData
-    ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
+    ? employeeData.displayName || `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
     : 'Employee'
 
   // Wrapper functions for US-specific rendering logic

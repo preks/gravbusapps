@@ -1,5 +1,3 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-
 /**
  * Parse a date string to Date object, ensuring UTC interpretation
  */
@@ -14,7 +12,7 @@ export const parseDate = (date: Date | string): Date => {
 /**
  * Format time as relative string (e.g., "5m ago", "2h ago")
  */
-export const formatTime = (date: Date | string): string => {
+export const formatTime = (date: Date | string, t?: (key: string, params?: any) => string): string => {
   const d = parseDate(date)
   const now = new Date()
   const diffMs = now.getTime() - d.getTime()
@@ -22,24 +20,29 @@ export const formatTime = (date: Date | string): string => {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 1) return getTranslationFromI18nKeyAndLabel('chat.time.justNow', 'Just now')
-  if (diffMins < 60)
-    return getTranslationFromI18nKeyAndLabel('chat.time.minutesAgo', `${diffMins}m ago`).replace(
-      '{minutes}',
-      diffMins.toString()
-    )
-  if (diffHours < 24)
-    return getTranslationFromI18nKeyAndLabel('chat.time.hoursAgo', `${diffHours}h ago`).replace(
-      '{hours}',
-      diffHours.toString()
-    )
-  if (diffDays < 7)
-    return getTranslationFromI18nKeyAndLabel('chat.time.daysAgo', `${diffDays}d ago`).replace(
-      '{days}',
-      diffDays.toString()
-    )
+  if (!t) {
+    // Fallback to English if no translation function provided
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+  }
 
-  return d.toLocaleDateString()
+  if (diffMins < 1) return t('chat-time-justNow')
+  if (diffMins < 60) return t('chat-time-minutesAgo', { minutes: diffMins })
+  if (diffHours < 24) return t('chat-time-hoursAgo', { hours: diffHours })
+  if (diffDays < 7) return t('chat-time-daysAgo', { days: diffDays })
+
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
 }
 
 /**
@@ -49,8 +52,8 @@ export const formatFullTimestamp = (date: Date | string): string => {
   const d = parseDate(date)
   return d.toLocaleString(undefined, {
     year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'

@@ -15,7 +15,6 @@ import {
   Card,
   CardContent,
   Spinner,
-  Button,
   Badge,
   Sheet,
   SheetContent,
@@ -31,6 +30,7 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { useExpensePlanFileService } from '../../../utils/expensePlanFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
+import { TablePagination } from '../../../../../components'
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
 
@@ -74,6 +74,52 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     sortOrder,
     ...contextProps
   } = props
+
+  const dataControllerFilterLabelMap = useMemo(() => {
+    const currencyLabelMap: Record<string, string> = {}
+    ;(props.currencyStats || []).forEach(cs => {
+      currencyLabelMap[`currency:${cs.ref}`] = cs.code
+    })
+
+    // Ensure selected currency filters always have a readable label (e.g. "EUR"),
+    // even when currencyStats is empty or does not include the selected ref.
+    ;(props.selectedFilters || [])
+      .filter(token => token.startsWith('currency:'))
+      .forEach(token => {
+        if (!currencyLabelMap[token]) {
+          const ref = token.substring('currency:'.length)
+          const codeFromRef = (ref.split(':').pop() || '').toUpperCase()
+          currencyLabelMap[token] = codeFromRef || ref
+        }
+      })
+
+    return { ...props.filterLabelMap, ...currencyLabelMap }
+  }, [props.filterLabelMap, props.currencyStats, props.selectedFilters])
+
+  const dataFilterGroups = useMemo(() => {
+    const currencyFilters =
+      props.currencyStats?.map(cs => ({
+        id: `currency:${cs.ref}`,
+        label: cs.code,
+        selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
+      })) || []
+
+    const currencyGroup =
+      currencyFilters.length > 0
+        ? [
+            {
+              id: 'currency',
+              title: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                'Currency'
+              ),
+              filters: currencyFilters
+            }
+          ]
+        : []
+
+    return [...currencyGroup, ...props.filterGroups]
+  }, [props.filterGroups, props.selectedFilters, props.currencyStats])
 
   // Preserve page index across search clear (search is controlled by parent via props)
   const savedPageBeforeSearchRef = useRef<number | null>(null)
@@ -227,18 +273,26 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     [pageSize, handleEnhancedTableChange]
   )
 
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      handlePagination(pagination.current, pagination.pageSize)
+    },
+    [handlePagination]
+  )
+
   // Watch for table refresh trigger from parent
   useEffect(() => {
-    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      // Trigger a table refresh by calling onTableChange with current state
+    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0 && onTableChange) {
+      // Trigger a table refresh by calling onTableChange with current pagination & current sort
       const pagination = {
         current: currentPage,
-        pageSize: pageSize,
-        total: totalCount
+        pageSize
       }
-      onTableChange(pagination, {}, {})
+      const sorter = sortField ? { field: sortField, order: sortOrder } : {}
+      onTableChange(pagination, {}, sorter)
     }
-  }, [props.tableRefreshTrigger, currentPage, pageSize, totalCount, onTableChange])
+  }, [props.tableRefreshTrigger, currentPage, pageSize, sortField, sortOrder, onTableChange])
 
   // Watch search prop transitions to manage page restore when cleared
   useEffect(() => {
@@ -250,8 +304,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       onTableChange(pagination, {}, {})
       savedPageBeforeSearchRef.current = currentPage
     } else if (prev !== '' && next === '') {
-      // clearing search → restore saved page
-      const pagination = { current: savedPageBeforeSearchRef.current || 1, pageSize, total: totalCount }
+      // clearing search → restore saved page, but validate it's not beyond available pages
+      const savedPage = savedPageBeforeSearchRef.current || 1
+      const maxPages = Math.max(1, Math.ceil(totalCount / pageSize))
+      const validPage = savedPage > maxPages ? 1 : savedPage
+      const pagination = { current: validPage, pageSize, total: totalCount }
       onTableChange(pagination, {}, {})
       savedPageBeforeSearchRef.current = null
     }
@@ -674,109 +731,18 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
             </div>
 
             {/* Pagination */}
-            {totalCount > pageSize ? (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-                data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
-              >
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-                    'Expense Plans'
-                  )}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                    </p>
-                    <select
-                      value={pageSize}
-                      onChange={e => handlePagination(1, Number(e.target.value))}
-                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                  <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                    {Math.ceil(totalCount / pageSize)}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePagination(1)}
-                      disabled={currentPage <= 1}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to first page</span>⟪
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePagination(currentPage - 1)}
-                      disabled={currentPage <= 1}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to previous page</span>⟨
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePagination(currentPage + 1)}
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to next page</span>⟩
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePagination(Math.ceil(totalCount / pageSize))}
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to last page</span>
-                      ⟩⟩
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : totalCount > 0 ? (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-                data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
-              >
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}`}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                  </p>
-                  <select
-                    value={pageSize}
-                    onChange={e => handlePagination(1, Number(e.target.value))}
-                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-            ) : null}
+            <TablePagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={totalCount}
+              onPageChange={handleTablePaginationChange}
+              entityNamePlural={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+                'Expense Plans'
+              )}
+              dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+              showBorder={false}
+            />
           </CardContent>
         </Card>
       </div>
@@ -805,26 +771,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           setSearch: props.onSearchChange,
           filter: props.selectedFilters,
           setFilter: props.setFilters,
-          filterLabelMap: useMemo(() => {
-            const currencyLabelMap: Record<string, string> = {}
-            ;(props.currencyStats || []).forEach(cs => {
-              currencyLabelMap[`currency:${cs.ref}`] = cs.code
-            })
-
-            // Ensure selected currency filters always have a readable label (e.g. "EUR"),
-            // even when currencyStats is empty or does not include the selected ref.
-            ;(props.selectedFilters || [])
-              .filter(token => token.startsWith('currency:'))
-              .forEach(token => {
-                if (!currencyLabelMap[token]) {
-                  const ref = token.substring('currency:'.length)
-                  const codeFromRef = (ref.split(':').pop() || '').toUpperCase()
-                  currencyLabelMap[token] = codeFromRef || ref
-                }
-              })
-
-            return { ...props.filterLabelMap, ...currencyLabelMap }
-          }, [props.filterLabelMap, props.currencyStats, props.selectedFilters]),
+          filterLabelMap: dataControllerFilterLabelMap,
           placeholder:
             getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
             '...',
@@ -840,28 +787,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           listAmount: totalCount ? `${totalCount}` : undefined
         }}
         dataFilterProps={{
-          filterGroups: useMemo(() => {
-            const currencyFilters =
-              props.currencyStats?.map(cs => ({
-                id: `currency:${cs.ref}`,
-                label: cs.code,
-                selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
-              })) || []
-            const currencyGroup =
-              currencyFilters.length > 0
-                ? [
-                    {
-                      id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                        'Currency'
-                      ),
-                      filters: currencyFilters
-                    }
-                  ]
-                : []
-            return [...currencyGroup, ...props.filterGroups]
-          }, [props.filterGroups, props.selectedFilters, (props as any).currencyStats]),
+          filterGroups: dataFilterGroups,
           onFilterChange: props.handleFilterChange
         }}
         hideFilter={false}

@@ -179,8 +179,16 @@ label-country = Țară
 label-city = Oraș
 label-currency = Monedă
 
+# Benefit Summary Card Translations
+benefit-provider = Furnizor
+benefit-value-yearly = Valoare anuală
+benefit-details-monthly-value = Valoare lunară
+current-annually = Anual
+current-monthly = Lunar
+modal-request-start-date-label = Dată de început
+
 # Deactivate Employee Benefit Review Form
-deactivate-benefit-review-title = Cerere dezactivare beneficiu pentru { $employeeName }
+deactivate-benefit-review-title = Cerere dezactivare beneficiu
 deactivate-benefit-review-requested-by = Solicitat de { $initiatorName }
 deactivate-benefit-review-loading = Se încarcă cererea de dezactivare beneficiu...
 deactivate-benefit-review-error-title = Imposibil de încărcat datele
@@ -190,6 +198,7 @@ deactivate-benefit-review-deactivation-details = Cerere dezactivare
 deactivate-benefit-review-submit = Dezactivează beneficiu
 deactivate-benefit-review-benefit-type = Tip beneficiu
 deactivate-benefit-review-provider = Furnizor
+deactivate-benefit-review-value = Valoare
 deactivate-benefit-review-yearly-value = Valoare anuală
 deactivate-benefit-review-monthly-value = Valoare lunară
 deactivate-benefit-review-period = Perioadă
@@ -201,14 +210,18 @@ deactivate-benefit-review-end-date = Dată de încheiere solicitată
 deactivate-benefit-review-reason = Motiv dezactivare
 
 # Request Employee Benefit Review Form
-request-benefit-review-title = Revizuire beneficiu pentru { $employeeName }
+request-benefit-review-title = Revizuire cerere beneficiu
 request-benefit-review-initiated-by = Inițiat de { $initiatorName }
 request-benefit-review-benefit-details = Detalii beneficiu
 request-benefit-review-benefit-type = Tipul beneficiului
 request-benefit-review-provider = Furnizor
-request-benefit-review-yearly-value = Valoare anuală
-request-benefit-review-monthly-value = Valoare lunară
+request-benefit-review-value = Valoare
 request-benefit-review-period = Perioadă
+
+# Period translations
+period-monthly = Lunar
+period-yearly = Anual
+period-daily = Zilnic
 request-benefit-review-start-date = Dată de început preferată
 request-benefit-review-employee-yearly-contribution = Contribuție anuală angajat
 request-benefit-review-employee-monthly-contribution = Contribuție lunară angajat
@@ -221,3 +234,66 @@ request-benefit-review-reject = Respinge
 request-benefit-review-loading = Se încarcă datele despre beneficiu...
 request-benefit-review-error-title = Nu se pot încărca datele
 request-benefit-review-error-description = Eroare la încărcarea datelor despre beneficiile angajatului
+
+# Deactivate Employee Benefit Form
+modal-deactivate-title = Dezactivare beneficiu angajat
+modal-deactivate-end-date-label = Dată de încheiere
+modal-deactivate-submit-button = Dezactivează beneficiu
+
+# Deactivate Employee Benefit Form - Validation Messages
+error-end-date-required = Data de încheiere este obligatorie. Vă rugăm să selectați o dată de încheiere.
+error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau ulterior.
+error-end-date-after-start-date = Data de încheiere nu poate fi înaintea datei de început a beneficiului.
+
+# ============================================
+# Pending Submission Status Messages
+# ============================================
+
+# Change Bank Account Form
+change-bank-account-process-title = Modificare cont bancar
+change-bank-account-pending-status = În așteptare
+
+# Change Address Form
+change-address-process-title = Modificare adresă
+change-address-pending-status = În așteptare
+
+# Change Personal Data Form
+change-personal-data-process-title = Modificare date personale
+change-personal-data-pending-status = În așteptare
+
+# Change Communication Form
+change-communication-process-title = Modificare comunicare
+change-communication-pending-status = În așteptare
+
+# Grant Bonus Form
+grant-bonus-process-title = Acordare bonus
+grant-bonus-pending-status = În așteptare
+
+# Adjust Salary Form
+adjust-salary-process-title = Ajustare salariu
+adjust-salary-pending-status = În așteptare
+
+# Update Working Conditions Form
+working-conditions-probation-period = Perioadă de probă
+working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
+working-conditions-unit-day = { $count ->
+    [one] Zi
+   *[other] Zile
+}
+working-conditions-unit-week = { $count ->
+    [one] Săptămână
+   *[other] Săptămâni
+}
+working-conditions-unit-month = { $count ->
+    [one] Lună
+   *[other] Luni
+}
+working-conditions-unit-year = { $count ->
+    [one] An
+   *[other] Ani
+}
+
+# Create Request Correction Form
+complete-notification = Cererea este trimisă către manager pentru aprobare
+notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
+notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR

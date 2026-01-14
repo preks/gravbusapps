@@ -22,3 +22,17 @@ export const GET_COUNTRY_CURRENCY_QUERY = `query GetCountry($id: String!) {
   }
 }
 `
+
+export const GET_EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query GetEmployeeBankAccountCurrency($employeeId: uuid!) {
+  EmployeeBankAccount(
+    where: { 
+      employeeId: { _eq: $employeeId }
+      recordState: { _eq: "ACTIVE" }
+    }
+    orderBy: { createdAt: DESC }
+    limit: 1
+  ) {
+    currencyRef
+  }
+}
+`

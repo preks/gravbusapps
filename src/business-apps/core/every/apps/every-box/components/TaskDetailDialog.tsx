@@ -114,8 +114,40 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         } catch {
           // Error handling is done in onError callback
         }
+      } else if (task?.source === 'cflow' && task?.id && userId) {
+        // For cFlow tasks, complete via flow-engine API
+        try {
+          const flowEngineApi =
+            env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+
+          const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({
+              userId: userId,
+              formData: payload || {}
+            })
+          })
+
+          if (response.ok) {
+            message.success(t('task-dialog-completed-success'))
+            onClose()
+            onTaskUpdated()
+            if (onTaskCompleted && task.id) {
+              onTaskCompleted(task.id)
+            }
+          } else {
+            throw new Error('Failed to complete task')
+          }
+        } catch (error) {
+          console.error('Failed to complete cFlow task:', error)
+          message.error(t('task-dialog-action-failed'))
+        }
       } else {
-        // For non-Kogito tasks or if no endpoint, just close and refresh
+        // For other tasks or if no task ID, just close and refresh
         onClose()
         onTaskUpdated()
         if (onTaskCompleted && task?.id) {
@@ -129,18 +161,95 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     return () => {
       globalThis.removeEventListener('com.newwork.process.continue', handleProcessContinue)
     }
-  }, [task?.id, task?.source, task?.sourceMetadata?.endpoint, continueProcess, onClose, onTaskUpdated, onTaskCompleted])
+  }, [
+    task?.id,
+    task?.source,
+    task?.sourceMetadata?.endpoint,
+    continueProcess,
+    onClose,
+    onTaskUpdated,
+    onTaskCompleted,
+    userId,
+    accessToken,
+    t
+  ])
 
   // Note: processInfo and taskDetails removed - Screen Management API handles all rendering
 
   // Task inputs for passing to remote screen loaders
   const taskInputs = task?.sourceMetadata?.inputs || task?.inputs
 
+  // Memoize additionalData to prevent unnecessary re-renders of RemoteScreenLoader
+  // This prevents infinite GraphQL query loops in child components
+  const nativeScreenAdditionalData = React.useMemo(() => {
+    const data = {
+      // Task-level data for forms like ScheduledTaskResult
+      message: task?.message,
+      title: task?.title || task?.name,
+      tags: task?.tags,
+      scheduledAt: task?.scheduledAt,
+      dueDate: task?.dueDate,
+      // Workflow metadata
+      psi_taskPayload: taskInputs,
+      psi_processMetadata: task?.sourceMetadata,
+      psi_taskStatus: task?.status,
+      psi_availableActions: task?.availableActions,
+      psi_flowStepData: currentStepData,
+      psi_flowOverview: flowOverview,
+      psi_currentStep: currentStep
+    }
+
+    return data
+  }, [
+    task?.message,
+    task?.title,
+    task?.name,
+    task?.tags,
+    task?.scheduledAt,
+    task?.dueDate,
+    taskInputs,
+    task?.sourceMetadata,
+    task?.status,
+    task?.availableActions,
+    currentStepData,
+    flowOverview,
+    currentStep
+  ])
+
+  const lowcoderScreenAdditionalData = React.useMemo(
+    () => ({
+      psi_taskPayload: taskInputs,
+      psi_processMetadata: task?.sourceMetadata,
+      psi_taskStatus: task?.status,
+      psi_availableActions: task?.availableActions,
+      psi_flowStepData: currentStepData,
+      psi_flowOverview: flowOverview,
+      psi_currentStep: currentStep
+    }),
+    [taskInputs, task?.sourceMetadata, task?.status, task?.availableActions, currentStepData, flowOverview, currentStep]
+  )
+
   // Check if this is a blink (quick-task) - MUST be before early return
   const isBlinkTask = task?.source === 'cflow' && task?.tags?.app === 'quick-task'
 
+  // Map of CFlow task app tags to screen keys
+  const CFLOW_APP_SCREEN_KEYS: Record<string, string> = {
+    scheduled_task: 'frm_scheduledTaskResult'
+    // Add more app tag -> screen key mappings here as needed
+  }
+
   // Generate screen key identical to Cockpit inbox approach - MUST be before early return
   const generateScreenKey = React.useCallback((taskParam: UnifiedTask): string | null => {
+    // For CFlow tasks, check if there's a screen key mapping based on tags.app
+    if (taskParam.source === 'cflow' && taskParam.tags?.app) {
+      const appTag = taskParam.tags.app as string
+      const mappedScreenKey = CFLOW_APP_SCREEN_KEYS[appTag]
+      if (mappedScreenKey) {
+        return mappedScreenKey
+      }
+    }
+
+    // For Kogito tasks, generate screen key from endpoint
     if (taskParam.source !== 'kogito' || !taskParam.sourceMetadata?.endpoint) {
       return null
     }
@@ -364,15 +473,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           version={screenMetadata.version}
           accessToken={accessToken}
           userInfo={userInfo}
-          additionalData={{
-            psi_taskPayload: taskInputs,
-            psi_processMetadata: task.sourceMetadata,
-            psi_taskStatus: task.status,
-            psi_availableActions: task.availableActions,
-            psi_flowStepData: currentStepData,
-            psi_flowOverview: flowOverview,
-            psi_currentStep: currentStep
-          }}
+          additionalData={nativeScreenAdditionalData}
           onClose={onClose}
           onTaskCompleted={onTaskCompleted}
           onTaskUpdated={onTaskUpdated}
@@ -389,15 +490,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           appName={screenMetadata.appName || t('task-dialog-lowcoder-screen')}
           accessToken={accessToken}
           userInfo={userInfo}
-          additionalData={{
-            psi_taskPayload: taskInputs,
-            psi_processMetadata: task.sourceMetadata,
-            psi_taskStatus: task.status,
-            psi_availableActions: task.availableActions,
-            psi_flowStepData: currentStepData,
-            psi_flowOverview: flowOverview,
-            psi_currentStep: currentStep
-          }}
+          additionalData={lowcoderScreenAdditionalData}
           onClose={onClose}
           onTaskCompleted={onTaskCompleted}
           onTaskUpdated={onTaskUpdated}
@@ -414,13 +507,15 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
       <CardContent
         className={cn(
           'gba:flex-1 gba:min-h-0',
-          // Remove padding for native screens and universal cFLOW tasks - they handle their own scrolling and padding
-          // Allow overflow so child components can scroll properly
+          // Native screens often don't implement their own scroll container, so we enable scrolling here
+          // while still removing the CardContent default padding.
+          // Universal cFLOW tasks handle their own scrolling and padding.
           // Override default nw:px-6 and nw:py-6 from CardContent component
-          screenMetadata?.builderType === 'NATIVE_SCREEN' ||
-            (task.source === 'cflow' && !screenMetadata && !loadingScreen)
-            ? 'nw:px-0 nw:py-0 gba:px-0 gba:py-0 gba:overflow-y-auto gba:flex gba:flex-col'
-            : 'gba:pt-4 gba:px-4 gba:overflow-y-auto'
+          screenMetadata?.builderType === 'NATIVE_SCREEN'
+            ? 'nw:px-0 nw:py-0 gba:px-0 gba:py-0 gba:overflow-y-auto'
+            : task.source === 'cflow' && !screenMetadata && !loadingScreen
+              ? 'nw:px-0 nw:py-0 gba:px-0 gba:py-0 gba:overflow-hidden gba:flex gba:flex-col'
+              : 'gba:pt-4 gba:px-4 gba:overflow-y-auto'
         )}
       >
         {renderTaskContent()}

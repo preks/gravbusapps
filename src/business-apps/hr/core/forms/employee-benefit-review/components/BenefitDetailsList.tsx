@@ -23,8 +23,7 @@ export const BenefitDetailsList: React.FC<BenefitDetailsListProps> = ({
   const benefitTypeItem = items.find(item => item.key === 'benefitType')
   const providerItem = items.find(item => item.key === 'provider')
   const startDateItem = items.find(item => item.key === 'startDate')
-  const yearlyValueItem = items.find(item => item.key === 'yearlyValue')
-  const monthlyValueItem = items.find(item => item.key === 'monthlyValue')
+  const valueItem = items.find(item => item.key === 'value')
   const periodItem = items.find(item => item.key === 'period')
   const employeeYearlyContItem = items.find(item => item.key === 'employeeYearlyContribution')
   const employeeMonthlyContItem = items.find(item => item.key === 'employeeMonthlyContribution')
@@ -57,29 +56,21 @@ export const BenefitDetailsList: React.FC<BenefitDetailsListProps> = ({
         )}
       </div>
 
-      {/* Financial Details */}
-      {(yearlyValueItem || monthlyValueItem) && (
+      {/* Value and Period */}
+      {(valueItem || periodItem) && (
         <div className="gba:grid gba:grid-cols-2 gba:gap-6" data-testid={`${dataTestIdPrefix}-financial-details`}>
-          {yearlyValueItem && (
-            <div data-testid={`${dataTestIdPrefix}-${yearlyValueItem.key}`}>
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{yearlyValueItem.label}</div>
-              <div className="gba:text-xl gba:font-bold">{yearlyValueItem.value || '-'}</div>
+          {valueItem && (
+            <div data-testid={`${dataTestIdPrefix}-${valueItem.key}`}>
+              <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{valueItem.label}</div>
+              <div className="gba:text-xl gba:font-bold">{valueItem.value || '-'}</div>
             </div>
           )}
-          {monthlyValueItem && (
-            <div data-testid={`${dataTestIdPrefix}-${monthlyValueItem.key}`}>
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{monthlyValueItem.label}</div>
-              <div className="gba:text-xl gba:font-bold">{monthlyValueItem.value || '-'}</div>
+          {periodItem && (
+            <div data-testid={`${dataTestIdPrefix}-${periodItem.key}`}>
+              <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{periodItem.label}</div>
+              <div className="gba:font-medium">{periodItem.value || '-'}</div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Period - if available */}
-      {periodItem && (
-        <div data-testid={`${dataTestIdPrefix}-${periodItem.key}`}>
-          <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{periodItem.label}</div>
-          <div className="gba:font-medium">{periodItem.value || '-'}</div>
         </div>
       )}
 

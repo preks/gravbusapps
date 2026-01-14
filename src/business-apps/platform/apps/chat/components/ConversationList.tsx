@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import {
+  Button,
+  Input,
+  Spinner,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -56,6 +64,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   presenceVersion, // Triggers re-render when presence changes (without passing entire map)
   conversationExpertCounts
 }) => {
+  const { t } = useTranslation(translations)
   // Force re-render when presenceVersion changes
   void presenceVersion
 
@@ -140,7 +149,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         className={`gba:flex gba:items-center gba:justify-between gba:border-b gba:border-border/50 gba:bg-background/50 gba:backdrop-blur-sm gba:sticky gba:top-0 gba:z-10 ${compact ? 'gba:px-3 gba:py-2' : 'gba:p-4'}`}
       >
         <h1 className={`gba:font-semibold gba:text-foreground ${compact ? 'gba:text-base' : 'gba:text-lg'}`}>
-          {getTranslationFromI18nKeyAndLabel('chat.appHeader', 'Chat')}
+          {t('chat-appHeader')}
         </h1>
         <Popover open={showNewChatMenu} onOpenChange={setShowNewChatMenu}>
           <PopoverTrigger asChild>
@@ -160,9 +169,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               <div className="gba:p-1.5 gba:rounded-md gba:bg-primary/10">
                 <User className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
               </div>
-              <span className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')}
-              </span>
+              <span className="gba:text-sm gba:font-medium">{t('chat-directMessage')}</span>
             </button>
 
             {onCreateGroup && (
@@ -177,9 +184,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 <div className="gba:p-1.5 gba:rounded-md gba:bg-muted">
                   <UsersThree className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
                 </div>
-                <span className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('chat.groupChat', 'Group Chat')}
-                </span>
+                <span className="gba:text-sm gba:font-medium">{t('chat-groupChat')}</span>
               </button>
             )}
           </PopoverContent>
@@ -193,7 +198,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <Input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder={getTranslationFromI18nKeyAndLabel('chat.searchConversations', 'Search...')}
+            placeholder={t('chat-searchConversations')}
             className="gba:h-8 gba:text-sm gba:!pl-10 gba:bg-background/50"
             data-testid="conversation-search-input"
           />
@@ -209,9 +214,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         ) : filteredConversations.length === 0 ? (
           <div className="gba:p-6 gba:text-center">
             <p className="gba:text-sm gba:text-muted-foreground">
-              {searchQuery.trim()
-                ? getTranslationFromI18nKeyAndLabel('chat.noConversationsFound', 'No conversations found')
-                : getTranslationFromI18nKeyAndLabel('chat.noConversationsYet', 'No conversations yet')}
+              {searchQuery.trim() ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
             </p>
           </div>
         ) : (
@@ -233,6 +236,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     compact={compact}
                     otherUserPresence={otherUserPresence}
                     activeExpertCount={activeExpertCount}
+                    t={t}
                   />
                 )
               })}

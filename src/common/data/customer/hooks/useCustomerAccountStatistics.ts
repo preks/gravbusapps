@@ -10,15 +10,11 @@ interface TrendData {
   isPositive: boolean
 }
 
-interface AccountStatisticsTrendData {
+export interface UseAccountStatisticsWithTrendReturn {
   recentAccounts: TrendData
   activeAccounts: TrendData
   accountsThisYear: TrendData
   totalAccounts: TrendData
-}
-
-export interface UseAccountStatisticsWithTrendReturn {
-  trendData: AccountStatisticsTrendData | null
   isLoading: boolean
   error: Error | null
   refetch: () => Promise<void>
@@ -53,19 +49,35 @@ const GET_ALL_CUSTOMER_ACCOUNT_STATISTICS_WITH_TREND = `
         count
       }
     }
-    activeAccountsCurrent: AccountAggregate(where: {
-      isDeleted: {_eq: false},
-      liquidationDate: {_isNull: true}
-    }) {
+    # Active accounts = count distinct accounts with OPEN opportunities
+    # Query from Opportunity side due to junction table architecture
+    activeAccountsCurrent: OpportunityAccountAggregate(
+      where: {
+        isDeleted: {_eq: false},
+        opportunity: {
+          isDeleted: {_eq: false},
+          opportunityStatus: {code: {_eq: "OPEN"}}
+        }
+      },
+      distinctOn: [accountId]
+    ) {
       aggregate {
         count
       }
     }
-    activeAccountsPrevious: AccountAggregate(where: {
-      isDeleted: {_eq: false},
-      liquidationDate: {_isNull: true},
-      createdAt: {_lt: $lastMonth}
-    }) {
+    activeAccountsPrevious: OpportunityAccountAggregate(
+      where: {
+        isDeleted: {_eq: false},
+        opportunity: {
+          isDeleted: {_eq: false},
+          opportunityStatus: {code: {_eq: "OPEN"}}
+        },
+        account: {
+          createdAt: {_lt: $lastMonth}
+        }
+      },
+      distinctOn: [accountId]
+    ) {
       aggregate {
         count
       }
@@ -126,7 +138,34 @@ const calculateTrend = (current: number, previous: number): TrendData => {
 }
 
 export const useCustomerAccountStatistics = (context: BusinessAppContextProps): UseAccountStatisticsWithTrendReturn => {
-  const [trendData, setTrendData] = useState<AccountStatisticsTrendData | null>(null)
+  const [recentAccounts, setRecentAccounts] = useState<TrendData>({
+    current: 0,
+    previous: 0,
+    change: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [activeAccounts, setActiveAccounts] = useState<TrendData>({
+    current: 0,
+    previous: 0,
+    change: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [accountsThisYear, setAccountsThisYear] = useState<TrendData>({
+    current: 0,
+    previous: 0,
+    change: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [totalAccounts, setTotalAccounts] = useState<TrendData>({
+    current: 0,
+    previous: 0,
+    change: 0,
+    changePercent: 0,
+    isPositive: true
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const graphqlClient = useGraphQLClient(context.accessToken)
@@ -176,24 +215,18 @@ export const useCustomerAccountStatistics = (context: BusinessAppContextProps): 
         previousTotalEnd: previousTotalEnd.toISOString()
       })
 
-      setTrendData({
-        recentAccounts: calculateTrend(
-          result.recentAccountsCurrent.aggregate.count,
-          result.recentAccountsPrevious.aggregate.count
-        ),
-        activeAccounts: calculateTrend(
-          result.activeAccountsCurrent.aggregate.count,
-          result.activeAccountsPrevious.aggregate.count
-        ),
-        accountsThisYear: calculateTrend(
-          result.accountsThisYearCurrent.aggregate.count,
-          result.accountsThisYearPrevious.aggregate.count
-        ),
-        totalAccounts: calculateTrend(
-          result.totalAccountsCurrent.aggregate.count,
-          result.totalAccountsPrevious.aggregate.count
-        )
-      })
+      setRecentAccounts(
+        calculateTrend(result.recentAccountsCurrent.aggregate.count, result.recentAccountsPrevious.aggregate.count)
+      )
+      setActiveAccounts(
+        calculateTrend(result.activeAccountsCurrent.aggregate.count, result.activeAccountsPrevious.aggregate.count)
+      )
+      setAccountsThisYear(
+        calculateTrend(result.accountsThisYearCurrent.aggregate.count, result.accountsThisYearPrevious.aggregate.count)
+      )
+      setTotalAccounts(
+        calculateTrend(result.totalAccountsCurrent.aggregate.count, result.totalAccountsPrevious.aggregate.count)
+      )
     } catch (err) {
       console.error('Error fetching account statistics with trend:', err)
       setError(err instanceof Error ? err : new Error('Unknown error fetching statistics with trend'))
@@ -210,7 +243,10 @@ export const useCustomerAccountStatistics = (context: BusinessAppContextProps): 
   }, [context.accessToken, refetch])
 
   return {
-    trendData,
+    recentAccounts,
+    activeAccounts,
+    accountsThisYear,
+    totalAccounts,
     isLoading,
     error,
     refetch

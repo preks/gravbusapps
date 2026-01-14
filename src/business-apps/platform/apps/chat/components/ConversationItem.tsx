@@ -15,7 +15,6 @@ import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { UserIcon, UsersIcon, Sparkles } from 'lucide-react'
 import { SignOut } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ConversationItemProps {
   conversation: Conversation
@@ -26,6 +25,7 @@ interface ConversationItemProps {
   compact?: boolean
   otherUserPresence?: UserPresence
   activeExpertCount?: number
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -41,7 +41,11 @@ const getOtherParticipant = (conversation: Conversation, currentUserId?: string 
   return otherParticipants[0] || null
 }
 
-const getConversationName = (conversation: Conversation, currentUserId?: string | null): string => {
+const getConversationName = (
+  conversation: Conversation,
+  currentUserId?: string | null,
+  t?: (key: string) => string
+): string => {
   if (conversation.name) {
     return conversation.name
   }
@@ -49,12 +53,10 @@ const getConversationName = (conversation: Conversation, currentUserId?: string 
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
   if (otherParticipant?.user) {
     const name = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
-    return (
-      name || otherParticipant.user.username || getTranslationFromI18nKeyAndLabel('chat.unknownUser', 'Unknown User')
-    )
+    return name || otherParticipant.user.username || (t ? t('chat-unknownUser') : 'Unknown User')
   }
 
-  return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
+  return t ? t('chat-directMessage') : 'Direct Message'
 }
 
 // Presence status indicator component - only shows for online, not offline
@@ -91,9 +93,10 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   currentUserId = null,
   compact = false,
   otherUserPresence,
-  activeExpertCount = 0
+  activeExpertCount = 0,
+  t
 }) => {
-  const name = getConversationName(conversation, currentUserId)
+  const name = getConversationName(conversation, currentUserId, t)
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
   const avatarUrl = otherParticipant?.user?.avatarUrl
 
@@ -215,9 +218,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               {name}
             </span>
             {hasActiveCall && (
-              <span className="gba:text-[10px] gba:text-success gba:uppercase">
-                {getTranslationFromI18nKeyAndLabel('chat.activeCallShort', 'In Call')}
-              </span>
+              <span className="gba:text-[10px] gba:text-success gba:uppercase">{t('chat-activeCallShort')}</span>
             )}
             {unreadCount > 0 && (
               <Badge
@@ -256,22 +257,13 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
                   if (diffMinutes < 60) {
-                    return getTranslationFromI18nKeyAndLabel(
-                      'chat.lastSeenMinutes',
-                      `Last seen ${diffMinutes}m ago`
-                    ).replace('{minutes}', diffMinutes.toString())
+                    return t('chat-lastSeenMinutes', { minutes: diffMinutes })
                   } else if (diffHours < 24) {
-                    return getTranslationFromI18nKeyAndLabel(
-                      'chat.lastSeenHours',
-                      `Last seen ${diffHours}h ago`
-                    ).replace('{hours}', diffHours.toString())
+                    return t('chat-lastSeenHours', { hours: diffHours })
                   } else if (diffDays < 7) {
-                    return getTranslationFromI18nKeyAndLabel('chat.lastSeenDays', `Last seen ${diffDays}d ago`).replace(
-                      '{days}',
-                      diffDays.toString()
-                    )
+                    return t('chat-lastSeenDays', { days: diffDays })
                   } else {
-                    return getTranslationFromI18nKeyAndLabel('chat.lastSeenLongAgo', 'Last seen a while ago')
+                    return t('chat-lastSeenLongAgo')
                   }
                 } catch (error) {
                   console.error('Error calculating last seen time:', error)
@@ -294,11 +286,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               onClick={handleRemoveClick}
               className="gba:h-7 gba:w-7 gba:opacity-70 gba:hover:opacity-100"
               data-testid={`conversation-item-remove-${conversation.id}`}
-              title={
-                conversation.type === 'group'
-                  ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
-                  : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')
-              }
+              title={conversation.type === 'group' ? t('chat-leaveConversation') : t('chat-removeConversation')}
             >
               <SignOut className="gba:w-3.5 gba:h-3.5" />
             </Button>
@@ -310,20 +298,12 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {conversation.type === 'group'
-                ? getTranslationFromI18nKeyAndLabel('chat.leaveConversationTitle', 'Leave conversation?')
-                : getTranslationFromI18nKeyAndLabel('chat.removeConversationTitle', 'Remove conversation?')}
+              {conversation.type === 'group' ? t('chat-leaveConversationTitle') : t('chat-removeConversationTitle')}
             </DialogTitle>
             <DialogDescription>
               {conversation.type === 'group'
-                ? getTranslationFromI18nKeyAndLabel(
-                    'chat.leaveConversationDescription',
-                    'You will no longer receive messages from this conversation. You can be added back by other participants.'
-                  )
-                : getTranslationFromI18nKeyAndLabel(
-                    'chat.removeConversationDescription',
-                    'This will remove the conversation from your list. You can always start a new conversation.'
-                  )}
+                ? t('chat-leaveConversationDescription')
+                : t('chat-removeConversationDescription')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -332,12 +312,10 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               onClick={() => setShowRemoveDialog(false)}
               data-testid="conversation-item-remove-cancel"
             >
-              {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+              {t('common-cancel')}
             </Button>
             <Button variant="destructive" onClick={handleConfirmRemove} data-testid="conversation-item-remove-confirm">
-              {conversation.type === 'group'
-                ? getTranslationFromI18nKeyAndLabel('chat.leave', 'Leave')
-                : getTranslationFromI18nKeyAndLabel('chat.remove', 'Remove')}
+              {conversation.type === 'group' ? t('chat-leave') : t('chat-remove')}
             </Button>
           </DialogFooter>
         </DialogContent>

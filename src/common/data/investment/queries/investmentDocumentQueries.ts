@@ -27,10 +27,12 @@ import {
   buildContactFragment,
   buildLeadFragment,
   buildOpportunityFragment,
-  buildTaskFragment,
   buildActivityFragment,
   buildNoteFragment
 } from '@/common/data/relations/queries/relationFragments'
+
+// Import IRM-specific task fragment (uses taskAssignees instead of assignedEmployee)
+import { buildInvestmentTaskFragmentForRelations } from './investmentTaskQueries'
 
 // Import Investment Fields
 import { InvestmentAccountFields } from '../types/investmentAccountTypes'
@@ -73,7 +75,7 @@ export const buildInvestmentDocumentByIdQuery = (
     buildContactFragment,
     buildLeadFragment,
     buildOpportunityFragment,
-    buildTaskFragment,
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations, // Use IRM-specific version (taskAssignees)
     buildActivityFragment,
     buildNoteFragment
   }
@@ -141,7 +143,7 @@ export const buildInvestmentDocumentByLeadIdQuery = (): string => {
     buildContactFragment,
     buildLeadFragment,
     buildOpportunityFragment,
-    buildTaskFragment,
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations, // Use IRM-specific version (taskAssignees)
     buildActivityFragment,
     buildNoteFragment
   }
@@ -168,7 +170,7 @@ export const buildInvestmentDocumentByAccountIdQuery = (): string => {
     buildContactFragment,
     buildLeadFragment,
     buildOpportunityFragment,
-    buildTaskFragment,
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations, // Use IRM-specific version (taskAssignees)
     buildActivityFragment,
     buildNoteFragment
   }
@@ -195,7 +197,7 @@ export const buildInvestmentDocumentByContactIdQuery = (): string => {
     buildContactFragment,
     buildLeadFragment,
     buildOpportunityFragment,
-    buildTaskFragment,
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations, // Use IRM-specific version (taskAssignees)
     buildActivityFragment,
     buildNoteFragment
   }
@@ -222,7 +224,7 @@ export const buildInvestmentDocumentByOpportunityIdQuery = (): string => {
     buildContactFragment,
     buildLeadFragment,
     buildOpportunityFragment,
-    buildTaskFragment,
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations, // Use IRM-specific version (taskAssignees)
     buildActivityFragment,
     buildNoteFragment
   }

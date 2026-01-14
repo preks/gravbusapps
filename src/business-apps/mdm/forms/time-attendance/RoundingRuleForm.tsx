@@ -113,6 +113,7 @@ const RoundingRuleForm: React.FC<RoundingRuleFormProps> = ({
       dataTestId={dataTestId}
       resolver={resolver}
       loading={loading}
+      schema={roundingRuleSchema}
     >
       <FormField
         name="code"

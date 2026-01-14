@@ -11,10 +11,15 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Input,
   Button,
-  Badge,
   Alert,
   AlertTitle,
   AlertDescription,
+  TabSwitch,
+  TabSwitchList,
+  TabSwitchTrigger,
+  TabSwitchBadge,
+  ScrollArea,
+  ScrollBar,
   useTranslation,
   useLocale
 } from '@newwork/nw-design-system'
@@ -191,10 +196,21 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
   }, [flows])
 
   // Handler to select a flow and update URL
-  const handleSelectFlow = useCallback((flow: Flow | null) => {
-    setSelectedFlow(flow)
-    updateFlowUrl(flow?.id || null)
-  }, [])
+  // Toggle behavior: clicking on already selected flow will deselect it
+  const handleSelectFlow = useCallback(
+    (flow: Flow | null) => {
+      // If clicking on the currently selected flow, deselect it (close detail panel)
+      if (flow && selectedFlow?.id === flow.id) {
+        setSelectedFlow(null)
+        updateFlowUrl(null)
+      } else {
+        // Otherwise, select the new flow
+        setSelectedFlow(flow)
+        updateFlowUrl(flow?.id || null)
+      }
+    },
+    [selectedFlow]
+  )
 
   // Handler to close flow detail
   const handleCloseFlow = useCallback(() => {
@@ -255,11 +271,13 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
   }
 
   return (
-    <div className="gba:flex gba:gap-4 gba:h-full gba:overflow-hidden" data-testid="outbox-view">
-      {/* Master Panel - Flow List */}
+    <div className="gba:flex gba:h-full gba:overflow-hidden" data-testid="outbox-view">
+      {/* Master Panel - Flow List (hidden on mobile/tablet when flow selected) */}
       <div
-        className={`gba:flex gba:flex-col gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
-          selectedFlow ? 'gba:w-[45%]' : 'gba:w-full'
+        className={`gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
+          selectedFlow
+            ? 'gba:hidden gba:lg:flex gba:lg:flex-col gba:lg:w-[calc(40%-12px)] gba:lg:flex-shrink-0'
+            : 'gba:flex gba:flex-col gba:w-full'
         }`}
       >
         {/* Search and Actions */}
@@ -298,42 +316,37 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         </div>
 
         {/* Flow Type Filters */}
-        <div className="gba:flex gba:gap-2 gba:flex-wrap" data-testid="outbox-filters">
-          <Button
-            variant={filterType === 'all' ? 'default' : 'outline'}
-            onClick={() => setFilterType('all')}
-            data-testid="outbox-filter-all"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            {t('outbox-filter-all')}
-            <Badge variant="secondary" className="gba:ml-1">
-              {flowCounts.all}
-            </Badge>
-          </Button>
-          <Button
-            variant={filterType === 'blinks' ? 'default' : 'outline'}
-            onClick={() => setFilterType('blinks')}
-            data-testid="outbox-filter-blinks"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <Zap className="gba:h-4 gba:w-4" />
-            {t('outbox-filter-blinks')}
-            <Badge variant="secondary" className="gba:ml-1">
-              {flowCounts.blinks}
-            </Badge>
-          </Button>
-          <Button
-            variant={filterType === 'requests' ? 'default' : 'outline'}
-            onClick={() => setFilterType('requests')}
-            data-testid="outbox-filter-requests"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <FileText className="gba:h-4 gba:w-4" />
-            {t('outbox-filter-requests')}
-            <Badge variant="secondary" className="gba:ml-1">
-              {flowCounts.requests}
-            </Badge>
-          </Button>
+        <div className="gba:px-3">
+          <ScrollArea className="gba:-mx-3">
+            <TabSwitch value={filterType} onValueChange={value => setFilterType(value as FlowFilterType)}>
+              <TabSwitchList data-testid="outbox-filters">
+                <TabSwitchTrigger
+                  value="all"
+                  data-testid="outbox-filter-all"
+                  endAdornment={<TabSwitchBadge>{flowCounts.all}</TabSwitchBadge>}
+                >
+                  {t('outbox-filter-all')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="blinks"
+                  data-testid="outbox-filter-blinks"
+                  startIcon={<Zap className="gba:h-4 gba:w-4" />}
+                  endAdornment={<TabSwitchBadge>{flowCounts.blinks}</TabSwitchBadge>}
+                >
+                  {t('outbox-filter-blinks')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="requests"
+                  data-testid="outbox-filter-requests"
+                  startIcon={<FileText className="gba:h-4 gba:w-4" />}
+                  endAdornment={<TabSwitchBadge>{flowCounts.requests}</TabSwitchBadge>}
+                >
+                  {t('outbox-filter-requests')}
+                </TabSwitchTrigger>
+              </TabSwitchList>
+            </TabSwitch>
+            <ScrollBar orientation="horizontal" className="gba:opacity-50" />
+          </ScrollArea>
         </div>
 
         {/* Error Alert */}
@@ -367,12 +380,12 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         </div>
       </div>
 
-      {/* Detail Panel - Flow Details */}
+      {/* Detail Panel - Flow Details (full-width on mobile/tablet, 60% on desktop ≥1024px) */}
       <div
-        className={`gba:flex-1 gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
+        className={`gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
           selectedFlow
-            ? 'gba:translate-x-0 gba:opacity-100 gba:w-[55%]'
-            : 'gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
+            ? 'gba:flex gba:flex-col gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
+            : 'gba:hidden gba:lg:flex gba:lg:flex-col gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
         }`}
       >
         {selectedFlow && <FlowDetailDialog flow={selectedFlow} onClose={handleCloseFlow} accessToken={accessToken} />}

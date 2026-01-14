@@ -17,7 +17,7 @@ export const employeeAttendanceMonthlyQuery = `
         isDeleted: { _eq: false }
         attendanceDate: { _gte: $dateFrom, _lte: $dateTo }
       }
-      orderBy: { startTime: DESC, attendanceDate: DESC }
+      orderBy: { attendanceDate: DESC, startTime: DESC }
       limit: $limit
       offset: $offset
     ) {
@@ -125,6 +125,55 @@ export const employmentRegionHolidaysQuery = `
       catalog {
         defaultLocale
       }
+    }
+  }
+`
+
+/**
+ * Active attendance correction requests for a date range (by employee)
+ */
+export const employeeAttendanceCorrectionsForRangeQuery = `
+  query GetEmployeeAttendanceCorrections(
+    $employeeId: uuid!
+    $dateFrom: date!
+    $dateTo: date!
+  ) {
+    EmployeeAttendanceCorrectionRequest(
+      where: {
+        employeeId: { _eq: $employeeId }
+        recordState: { _eq: "active" }
+        attendanceDate: { _gte: $dateFrom, _lte: $dateTo }
+        status: { _neq: "APPROVED_CORRECTION_REQUEST" }
+      }
+      orderBy: { attendanceDate: ASC }
+    ) {
+      id
+      attendanceDate
+      status
+      recordState
+    }
+  }
+`
+
+/**
+ * Single attendance row by id (for review/diff)
+ */
+export const employeeAttendanceByIdQuery = `
+  query GetEmployeeAttendanceById($id: uuid!) {
+    EmployeeAttendance(where: { id: { _eq: $id }, isDeleted: { _eq: false } }, limit: 1) {
+      id
+      version
+      attendanceDate
+      startTime
+      endTime
+      recordedTime
+      breakTime
+      effectiveTime
+      plannedTime
+      differenceTime
+      manualOverride
+      notes
+      attendanceLocation
     }
   }
 `

@@ -2,6 +2,7 @@ import React from 'react'
 import EmployeeLinkChip from './EmployeeLinkChip'
 import SandboxFileLinkChip from './SandboxFileLinkChip'
 import { BaseEntityLinkChip } from './BaseEntityLinkChip'
+import IrmDocumentLinkChip from './IrmDocumentLinkChip'
 
 export const SUPPORTED_PROTOCOLS = [
   'employee',
@@ -35,7 +36,10 @@ export const SUPPORTED_PROTOCOLS = [
   'employee_attendance',
   'employee_feedback_request',
   'employee_feedback_review',
-  'sandbox'
+  'sandbox',
+  'investment_document',
+  'investment_report',
+  'meetings'
 ]
 
 export function markdownUrlTransform(url: string): string {
@@ -114,7 +118,7 @@ const ENTITY_CHIP_CONFIG: Record<
     icon: () => createIcon('emoji', '💰')
   },
   intranet: {
-    urlTemplate: '/platform/knowledge/{id}',
+    urlTemplate: '/platform/content/intranet/content-record?contentId={id}',
     icon: () =>
       React.createElement(
         'svg',
@@ -178,7 +182,9 @@ const ENTITY_CHIP_CONFIG: Record<
     )
   },
   employee_absence: {
-    urlTemplate: '/platform/hr/absences/manager-absences?absenceId={id}',
+    // For employee_absence deep links (e.g. from Rovo), open the personal Absence Overview page.
+    // The specific absence is associated with the current user, so we don't navigate to a record screen by id.
+    urlTemplate: '/platform/hr/absences/personal-absences',
     icon: createSvgIcon('M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z')
   },
   employee_position: {
@@ -262,7 +268,21 @@ const ENTITY_CHIP_CONFIG: Record<
     icon: createSvgIcon(
       'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z'
     )
+  },
+  meetings: {
+    urlTemplate: '/platform/chat?view=calendar&meetingId={id}',
+    icon: createSvgIcon('M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z')
   }
+}
+
+/**
+ * Build a platform URL for an entity using the same base mapping as the chips.
+ * Returns undefined if the entity is unknown.
+ */
+export function getEntityUrl(entity: string, id: string): string | undefined {
+  const config = ENTITY_CHIP_CONFIG[entity]
+  if (!config) return undefined
+  return config.urlTemplate.replace('{id}', id)
 }
 
 interface EntityLinkProps {
@@ -289,6 +309,15 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
       <SandboxFileLinkChip filePath={url} token={accessToken}>
         {children}
       </SandboxFileLinkChip>
+    )
+  }
+
+  // IRM investment document: resolve to actual file download URL and show it to the user
+  if (protocol === 'investment_document' && url) {
+    return (
+      <IrmDocumentLinkChip documentId={url} token={accessToken} fallbackHref={href}>
+        {children}
+      </IrmDocumentLinkChip>
     )
   }
 

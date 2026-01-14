@@ -358,17 +358,18 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
     },
     {
       id: 'account',
-      accessorFn: row => row.account?.name || '',
+      accessorFn: row => row.opportunityAccounts?.[0]?.account?.name || '',
       header: 'Account',
       size: 200,
       minSize: 180,
       maxSize: 280,
       cell: ({ row }) => {
-        if (!row.original.account) {
+        const account = row.original.opportunityAccounts?.[0]?.account
+
+        if (!account) {
           return <span className="gba:text-sm gba:text-muted-foreground">No account</span>
         }
 
-        const account = row.original.account
         const imageUrl = account.pictureThumbnail
           ? `data:image/gif;base64,${account.pictureThumbnail}`
           : account.pictureThumbnailUrl || undefined

@@ -10,7 +10,7 @@ import {
   ChartLegendContent
 } from '@newwork/nw-design-system'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Area } from 'recharts'
-import { PiChartPie, PiChartBar, PiTrendUp, PiUsers, PiTarget } from 'react-icons/pi'
+import { ChartPieIcon, ChartBarIcon, TrendUpIcon, UsersIcon, TargetIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ActivityTimelineTooltip } from '@/common/components/common-relations/view-layouts/analytics-layout/shared/tooltips/ActivityTimelineTooltip'
 
@@ -246,7 +246,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
     return (
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-empty`}>
         <CardContent className="gba:text-center gba:p-8">
-          <PiChartPie size={48} className="gba:text-gray-400 gba:mx-auto gba:mb-4" />
+          <ChartPieIcon size={48} className="gba:text-gray-400 gba:mx-auto gba:mb-4" />
           <h3 className="gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">No Activity Data</h3>
           <p className="gba:text-sm gba:text-gray-500">
             {loading ? 'Loading analytics...' : 'Analytics will appear here once the team has recorded activities.'}
@@ -260,7 +260,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
     <div className="gba:space-y-6" data-testid={DATA_TEST_ID_PREFIX}>
       {/* Section Header */}
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <PiChartBar className="gba:text-blue-600" size={24} />
+        <ChartBarIcon className="gba:text-blue-600" size={24} />
         <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">Team Activity Analytics</h2>
         <span className="gba:text-gray-500 gba:text-sm">({totalActivities} activities analyzed)</span>
       </div>
@@ -271,7 +271,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-activity-types-chart`}>
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiChartPie className="gba:text-blue-600" size={20} />
+              <ChartPieIcon className="gba:text-blue-600" size={20} />
               Activity Types Distribution
             </CardTitle>
           </CardHeader>
@@ -303,7 +303,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-member-activity-chart`}>
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiUsers className="gba:text-green-600" size={20} />
+              <UsersIcon className="gba:text-green-600" size={20} />
               Top Performers
             </CardTitle>
           </CardHeader>
@@ -335,7 +335,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-timeline-chart`}>
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiTrendUp className="gba:text-orange-600" size={20} />
+              <TrendUpIcon className="gba:text-orange-600" size={20} />
               Activity Timeline (Last 30 Days)
             </CardTitle>
           </CardHeader>
@@ -373,7 +373,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-entity-types-chart`}>
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiTarget className="gba:text-purple-600" size={20} />
+              <TargetIcon className="gba:text-purple-600" size={20} />
               Activities by Entity Type
             </CardTitle>
           </CardHeader>

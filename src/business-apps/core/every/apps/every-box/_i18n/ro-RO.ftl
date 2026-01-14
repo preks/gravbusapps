@@ -100,6 +100,8 @@ task-completion-outcome-acknowledged = Confirmat
 task-footer-reject = Respinge
 task-footer-reassign = Reatribuie
 task-footer-unclaim = Eliberează
+task-details-task-claimed = Sarcina a fost preluată cu succes!
+task-details-task-unclaimed = Sarcina a fost eliberată cu succes!
 
 # FlowDetailDialog Component
 flow-detail-loading = Se încarcă...

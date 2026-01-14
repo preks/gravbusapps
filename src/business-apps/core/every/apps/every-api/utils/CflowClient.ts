@@ -38,7 +38,9 @@ export interface CflowTask {
 export interface CflowTasksResponse {
   status: string
   count: number
+  totalCount?: number // Total count of all matching tasks (for pagination)
   tasks: CflowTask[]
+  hasMore?: boolean
 }
 
 export interface CflowTaskStatsResponse {
@@ -53,14 +55,20 @@ export interface CflowTaskStatsResponse {
   }
 }
 
+export interface CflowTasksWithCount {
+  tasks: CflowTask[]
+  totalCount: number
+}
+
 /**
  * Fetch tasks for a user from custom-flow-engine
+ * Returns tasks array and totalCount for accurate pagination
  */
 export async function fetchCflowUserTasks(
   userId: string,
   accessToken?: string,
   queryParams?: Record<string, string>
-): Promise<CflowTask[]> {
+): Promise<CflowTasksWithCount> {
   const endpoint = getCflowEndpoint()
 
   if (!endpoint) {
@@ -103,10 +111,133 @@ export async function fetchCflowUserTasks(
     }
 
     const data: CflowTasksResponse = await response.json()
-    return data.tasks || []
+    return {
+      tasks: data.tasks || [],
+      totalCount: data.totalCount || data.count || 0
+    }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     throw new Error(`Custom Flow Engine error: ${errorMsg}`)
+  }
+}
+
+/**
+ * Fetch tasks ASSIGNED to the user from custom-flow-engine using dedicated endpoint
+ * This uses the /assigned alias which sets includeAssigned=true and includeClaimable=false.
+ */
+export async function fetchCflowUserAssignedTasks(
+  userId: string,
+  accessToken?: string,
+  queryParams?: Record<string, string>
+): Promise<CflowTasksWithCount> {
+  const endpoint = getCflowEndpoint()
+
+  if (!endpoint) {
+    throw new Error(
+      'Custom Flow Engine endpoint not configured. Set NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL environment variable.'
+    )
+  }
+
+  const cleanParams: Record<string, string> = {}
+  if (queryParams) {
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== 'undefined' && value !== 'null') {
+        cleanParams[key] = value
+      }
+    })
+  }
+
+  const params = new URLSearchParams(cleanParams)
+  const url = `${endpoint}/api/tasks/user/${userId}/assigned${params.toString() ? '?' + params.toString() : ''}`
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json'
+  }
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(30000)
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`HTTP ${response.status}: ${response.statusText}. ${errorText}`)
+    }
+
+    const data: CflowTasksResponse = await response.json()
+    return {
+      tasks: data.tasks || [],
+      totalCount: data.totalCount || data.count || 0
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Custom Flow Engine assigned tasks error: ${errorMsg}`)
+  }
+}
+
+/**
+ * Fetch tasks CLAIMABLE by the user from custom-flow-engine using dedicated endpoint
+ * This uses the /claimable alias which sets includeAssigned=false and includeClaimable=true.
+ */
+export async function fetchCflowUserClaimableTasks(
+  userId: string,
+  accessToken?: string,
+  queryParams?: Record<string, string>
+): Promise<CflowTasksWithCount> {
+  const endpoint = getCflowEndpoint()
+
+  if (!endpoint) {
+    throw new Error(
+      'Custom Flow Engine endpoint not configured. Set NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL environment variable.'
+    )
+  }
+
+  const cleanParams: Record<string, string> = {}
+  if (queryParams) {
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== 'undefined' && value !== 'null') {
+        cleanParams[key] = value
+      }
+    })
+  }
+
+  const params = new URLSearchParams(cleanParams)
+  const url = `${endpoint}/api/tasks/user/${userId}/claimable${params.toString() ? '?' + params.toString() : ''}`
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json'
+  }
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(30000)
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`HTTP ${response.status}: ${response.statusText}. ${errorText}`)
+    }
+
+    const data: CflowTasksResponse = await response.json()
+    return {
+      tasks: data.tasks || [],
+      totalCount: data.totalCount || data.count || 0
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Custom Flow Engine claimable tasks error: ${errorMsg}`)
   }
 }
 
@@ -118,7 +249,7 @@ export async function fetchCflowCompletedTasks(
   userId: string,
   accessToken?: string,
   queryParams?: Record<string, string>
-): Promise<CflowTask[]> {
+): Promise<CflowTasksWithCount> {
   const endpoint = getCflowEndpoint()
 
   if (!endpoint) {
@@ -161,10 +292,91 @@ export async function fetchCflowCompletedTasks(
     }
 
     const data: CflowTasksResponse = await response.json()
-    return data.tasks || []
+    return {
+      tasks: data.tasks || [],
+      totalCount: data.totalCount || data.count || 0
+    }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     throw new Error(`Custom Flow Engine completed tasks error: ${errorMsg}`)
+  }
+}
+
+/**
+ * Response type for blink tasks endpoint (includes totalCount)
+ */
+export interface CflowBlinkTasksResponse extends CflowTasksResponse {
+  totalCount: number
+  hasMore: boolean
+  pagination?: {
+    offset: number
+    limit: number
+  }
+}
+
+/**
+ * Fetch BLINK (quick-task) tasks for a user from custom-flow-engine
+ * Uses tag filtering to get only blink tasks with accurate totalCount
+ * Note: We fetch from the /assigned endpoint so we only get assigned (open) tasks for the user.
+ */
+export async function fetchCflowBlinkTasks(
+  userId: string,
+  accessToken?: string,
+  queryParams?: Record<string, string>
+): Promise<{ tasks: CflowTask[]; totalCount: number; hasMore: boolean }> {
+  const endpoint = getCflowEndpoint()
+
+  if (!endpoint) {
+    throw new Error(
+      'Custom Flow Engine endpoint not configured. Set NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL environment variable.'
+    )
+  }
+
+  // Add tag filter for blink/quick-task
+  const cleanParams: Record<string, string> = {
+    'tags.app': 'quick-task' // Filter for blink tasks
+  }
+
+  if (queryParams) {
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== 'undefined' && value !== 'null') {
+        cleanParams[key] = value
+      }
+    })
+  }
+
+  const params = new URLSearchParams(cleanParams)
+  const url = `${endpoint}/api/tasks/user/${userId}/assigned${params.toString() ? '?' + params.toString() : ''}`
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json'
+  }
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(30000)
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`HTTP ${response.status}: ${response.statusText}. ${errorText}`)
+    }
+
+    const data: CflowBlinkTasksResponse = await response.json()
+    return {
+      tasks: data.tasks || [],
+      totalCount: data.totalCount || data.count || (data.tasks?.length ?? 0),
+      hasMore: data.hasMore ?? false
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Custom Flow Engine blink tasks error: ${errorMsg}`)
   }
 }
 
@@ -223,13 +435,13 @@ export async function fetchCflowTaskStats(
   try {
     // Fetch sample of tasks to calculate accurate statistics
     // 100 tasks is statistically significant for counting
-    const tasks = await fetchCflowUserTasks(userId, accessToken, {
+    const result = await fetchCflowUserTasks(userId, accessToken, {
       limit: '100' // OPTIMIZED: 100 instead of 1000
     })
 
     // Calculate statistics from actual task data
     const statistics: CflowTaskStatsResponse['statistics'] = {
-      total: tasks.length,
+      total: result.totalCount, // Use accurate totalCount from API
       assigned: 0,
       claimable: 0,
       completed: 0,
@@ -237,7 +449,7 @@ export async function fetchCflowTaskStats(
       byPriority: {}
     }
 
-    tasks.forEach(task => {
+    result.tasks.forEach(task => {
       // Count by status
       const status = task.status || 'Unknown'
       statistics.byStatus[status] = (statistics.byStatus[status] || 0) + 1

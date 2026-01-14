@@ -277,31 +277,30 @@ const FlowHub: React.FC<FlowHubProps> = context => {
       areas.push({
         id: 'my-flows',
         title: 'My Flows',
-        description: 'Access your inbox, initiated and participated flows',
+        description: 'Access your inbox and initiated flows',
         icon: Workflow,
         category: 'core',
         links: [
           { label: 'Open Tasks', action: 'inbox-open-tasks' },
-          { label: 'Initiated Flows', action: 'inbox-initiated' },
-          { label: 'Participated Flows', action: 'inbox-participated' }
+          { label: 'Initiated Flows', action: 'inbox-initiated' }
         ],
         buttonLabel: 'Open Inbox',
         buttonAction: 'navigate-inbox'
       })
 
       areas.push({
-        id: 'flow-solutions',
-        title: 'Flow Solutions',
-        description: 'Prebuilt business solutions for flows',
+        id: 'flow-value-packs',
+        title: 'Flow Value Packs',
+        description: 'Prebuilt value packs for flows',
         icon: Gear,
         category: 'core',
         links: [
-          { label: 'Compliance Solution', action: 'solution-compliance' },
+          { label: 'Compliance', action: 'value-pack-compliance' },
           { label: 'Employee Lifecycle', action: 'solution-employee-lifecycle' },
-          { label: 'Survey Solution', action: 'solution-survey' }
+          { label: 'Survey', action: 'value-pack-survey' }
         ],
-        buttonLabel: 'Browse Solutions',
-        buttonAction: 'navigate-solution-compliance'
+        buttonLabel: 'Browse Value Packs',
+        buttonAction: 'navigate-value-pack-compliance'
       })
 
       areas.push({
@@ -310,10 +309,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         description: 'Launch flow templates',
         icon: Play,
         category: 'core',
-        links: [
-          { label: 'Launch Flow', action: 'launcher-launch' },
-          { label: 'Simulate Flow', action: 'launcher-simulate' }
-        ],
+        links: [{ label: 'Launch Flow', action: 'launcher-launch' }],
         buttonLabel: 'Open Flow Launcher',
         buttonAction: 'navigate-flow-launcher'
       })
@@ -339,7 +335,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         icon: ChartLine,
         category: 'analytics',
         links: [
-          { label: 'Flow Analytics', action: 'success-trends' },
+          { label: 'Flow Analytics', action: 'success-flow' },
           { label: 'Task Analytics', action: 'success-task-performance' },
           { label: 'SLA Monitoring', action: 'success-sla' },
           { label: 'Audit Logs', action: 'success-audit' }
@@ -363,27 +359,29 @@ const FlowHub: React.FC<FlowHubProps> = context => {
     // Convert areas to NavigationCardData format
     const cards = areas.map(area => {
       // Get area stats
-      const getAreaStats = (areaId: string, kpiType?: string) => {
+      const getAreaStats = (areaToRender: FlowArea) => {
+        const { id: areaId, kpiType, links } = areaToRender
+
         if ((showManagerView || showAdminView) && kpiType) {
           switch (kpiType) {
             case 'personal':
               return {
-                value: formatNumber(stats.activeTasks || 7),
+                value: isLoading ? '...' : formatNumber(stats.activeTasks),
                 label: 'Active Tasks'
               }
             case 'team':
               return {
-                value: formatNumber(stats.teamActiveTasks || 45),
+                value: isLoading ? '...' : formatNumber(stats.teamActiveTasks),
                 label: 'Team Tasks'
               }
             case 'analytics':
               return {
-                value: formatNumber(stats.completedTasksMonth || 24),
+                value: isLoading ? '...' : formatNumber(stats.completedTasksMonth),
                 label: 'Completed This Month'
               }
             case 'admin':
               return {
-                value: formatNumber(stats.systemActiveWorkflows || 189),
+                value: isLoading ? '...' : formatNumber(stats.systemActiveWorkflows),
                 label: 'System Flows'
               }
             default:
@@ -394,38 +392,38 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         switch (areaId) {
           case 'active-tasks':
             return {
-              value: formatNumber(stats.activeTasks),
+              value: isLoading ? '...' : formatNumber(stats.activeTasks),
               label: 'Active Tasks'
             }
           case 'my-flows':
             return {
-              value: formatNumber(stats.activeTasks),
+              value: isLoading ? '...' : formatNumber(stats.activeTasks),
               label: 'Open Tasks'
             }
-          case 'flow-solutions':
+          case 'flow-value-packs':
             return {
-              value: formatNumber(1),
-              label: 'Enabled Solutions'
+              value: formatNumber(links?.length ?? 0),
+              label: 'Value Packs'
             }
           case 'flow-creator':
           case 'flow-launcher':
             return {
-              value: formatNumber(25), // Mock template count
-              label: 'Available Templates'
+              value: formatNumber(links?.length ?? 0),
+              label: 'Actions'
             }
           case 'completed':
             return {
-              value: formatNumber(stats.totalCompletedTasks),
+              value: isLoading ? '...' : formatNumber(stats.totalCompletedTasks),
               label: 'Total Completed'
             }
           case 'flow-success':
             return {
-              value: formatNumber(stats.completedTasksMonth),
+              value: isLoading ? '...' : formatNumber(stats.completedTasksMonth),
               label: 'Completed This Month'
             }
           case 'flow-guardian':
             return {
-              value: formatNumber(stats.activeFlows),
+              value: isLoading ? '...' : formatNumber(stats.activeFlows),
               label: 'Active Flows'
             }
           default:
@@ -433,7 +431,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         }
       }
 
-      const areaStats = getAreaStats(area.id, area.kpiType)
+      const areaStats = getAreaStats(area)
 
       // Convert links to actions format
       const actions =
@@ -534,7 +532,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
     if (area.buttonAction) {
       switch (area.buttonAction) {
         case 'navigate-inbox':
-          navigateTo('/platform/apps/flow/apps/inbox?tab=open')
+          navigateTo('/platform/task-manager?view=inbox')
           break
         case 'navigate-personal-workflows':
           console.log('Navigating to personal flows')
@@ -545,7 +543,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         case 'navigate-admin-workflows':
           console.log('Navigating to admin flows')
           break
-        case 'navigate-solution-compliance':
+        case 'navigate-value-pack-compliance':
           navigateTo('/platform/apps/flow/apps/solutions/compliance')
           break
         case 'navigate-solution-employee-lifecycle':
@@ -577,8 +575,8 @@ const FlowHub: React.FC<FlowHubProps> = context => {
     } else {
       // Handle employee view card navigation
       const areaToUrlMap: Record<string, string> = {
-        'active-tasks': '/platform/apps/flow/apps/inbox?tab=open',
-        'my-flows': '/platform/apps/flow/apps/inbox?tab=open',
+        'active-tasks': '/platform/task-manager?view=inbox',
+        'my-flows': '/platform/task-manager?view=inbox',
         'flow-creator': '/platform/apps/flow/apps/creator#create',
         'flow-launcher': '/platform/apps/flow/apps/launcher',
         completed: '/platform/apps/flow/apps/success',
@@ -598,23 +596,20 @@ const FlowHub: React.FC<FlowHubProps> = context => {
     switch (linkAction) {
       // My Flows (Inbox) tabs
       case 'inbox-open-tasks':
-        navigateTo('/platform/apps/flow/apps/inbox?tab=open')
+        navigateTo('/platform/task-manager?view=inbox')
         return
       case 'inbox-initiated':
-        navigateTo('/platform/apps/flow/apps/inbox?tab=initiated')
-        return
-      case 'inbox-participated':
-        navigateTo('/platform/apps/flow/apps/inbox?tab=participated')
+        navigateTo('/platform/task-manager?view=outbox')
         return
 
-      // Flow Solutions
-      case 'solution-compliance':
+      // Flow Value Packs
+      case 'value-pack-compliance':
         navigateTo('/platform/apps/flow/apps/solutions/compliance')
         return
       case 'solution-employee-lifecycle':
         navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle')
         return
-      case 'solution-survey':
+      case 'value-pack-survey':
         navigateTo('/platform/apps/flow/apps/solutions/survey')
         return
 
@@ -631,9 +626,6 @@ const FlowHub: React.FC<FlowHubProps> = context => {
 
       // Launcher
       case 'launcher-launch':
-        navigateTo('/platform/apps/flow/apps/launcher')
-        return
-      case 'launcher-simulate':
         navigateTo('/platform/apps/flow/apps/launcher')
         return
 

@@ -9,7 +9,8 @@ import {
   FormItem,
   FormLabel,
   FormControl,
-  FormMessage
+  FormMessage,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import FormHeader from '../components/FormHeader'
@@ -18,6 +19,7 @@ import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import translations from '../_i18n'
 
 // Query to fetch employee header info
 const GET_EMPLOYEE_HEADER_INFO = `
@@ -59,7 +61,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
   // GraphQL client for fetching employee header info
   const graphqlClient = useGraphQLClient(accessToken)
-
+  const { t } = useTranslation(translations)
   // Resolve the actual employee ID from various sources
   const resolvedEmployeeId = useMemo(() => {
     return (
@@ -213,6 +215,75 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return m ? m[1] : ''
   }
 
+  // Parse duration strings like "7h 30m" / "8h" / "30m" into minutes
+  const parseDurationToMinutes = (text?: string): number => {
+    if (!text) return 0
+    let hours = 0
+    let minutes = 0
+    const tokens = String(text).trim().split(/\s+/)
+    for (const token of tokens) {
+      if (/^\d+h$/i.test(token)) {
+        hours = Number.parseInt(token.slice(0, -1), 10) || 0
+      } else if (/^\d+m$/i.test(token)) {
+        minutes = Number.parseInt(token.slice(0, -1), 10) || 0
+      }
+    }
+    return hours * 60 + minutes
+  }
+
+  // Format minutes as "Xh Ym" or "Xh" and keep minus sign for negative values
+  const formatMinutes = (minutes: number): string => {
+    const sign = minutes < 0 ? '-' : ''
+    const abs = Math.abs(minutes)
+    const h = Math.floor(abs / 60)
+    const m = abs % 60
+    if (m === 0) return `${sign}${h}h`
+    return `${sign}${h}h ${m}m`
+  }
+
+  // Render the calendar with a preselected date, constrained behavior, and selection handling
+  const renderCalendar = useCallback(
+    (field: any) => {
+      const preselectedDate: Date | undefined = platformParams.attendanceDateISO
+        ? new Date(platformParams.attendanceDateISO)
+        : field.value
+          ? new Date(field.value)
+          : undefined
+
+      return (
+        <Calendar
+          type="date"
+          mode="single"
+          selected={preselectedDate}
+          {...(preselectedDate && { month: preselectedDate })}
+          {...(!platformParams.attendanceDateISO && {
+            onSelect: (date: Date | undefined) => field.onChange(date ? date.toISOString() : '')
+          })}
+          disabled={(() => {
+            const start = new Date()
+            start.setDate(1)
+            start.setHours(0, 0, 0, 0)
+            const end = new Date(start)
+            end.setMonth(end.getMonth() + 1)
+            end.setDate(0)
+            end.setHours(23, 59, 59, 999)
+
+            if (platformParams.attendanceDateISO) {
+              const d = new Date(platformParams.attendanceDateISO)
+              return [{ before: d }, { after: d }]
+            }
+            return [{ before: start }, { after: end }]
+          })()}
+          {...(platformParams.attendanceDateISO && {
+            fromMonth: new Date(platformParams.attendanceDateISO),
+            toMonth: new Date(platformParams.attendanceDateISO)
+          })}
+        />
+      )
+    },
+    [platformParams]
+  )
+
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
@@ -230,6 +301,16 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
       const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
       const requestEmployeeId = payloadObject?.employeeId
 
+      // Recalculate recorded/effective/difference, keep planned as original value
+      const recordedMinutes = Math.max(
+        0,
+        Math.round((new Date(endTimeISO).getTime() - new Date(startTimeISO).getTime()) / 60000)
+      )
+      const breakMinutes = parseDurationToMinutes(payloadObject?.breakTime || '0h')
+      const effectiveMinutes = Math.max(0, recordedMinutes - breakMinutes)
+      const plannedMinutes = parseDurationToMinutes(payloadObject?.plannedTime || '0h')
+      const differenceMinutes = effectiveMinutes - plannedMinutes
+
       const payload = {
         changeMode: 'INSERT',
         employeeid: requestEmployeeId,
@@ -244,16 +325,20 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           correctionDescription: notes,
           employee: requestEmployeeId,
           employeeAttendance: payloadObject?.timeEntryId,
-          recordedTime: payloadObject?.recordedTime,
+          recordedTime: formatMinutes(recordedMinutes),
           breakTime: payloadObject?.breakTime,
-          effectiveTime: payloadObject?.effectiveTime,
+          effectiveTime: formatMinutes(effectiveMinutes),
           plannedTime: payloadObject?.plannedTime,
-          differenceTime: payloadObject?.differenceTime
+          differenceTime: formatMinutes(differenceMinutes)
         },
         employeeInfo: {
           userId: payloadObject?.userId,
           id: requestEmployeeId,
           employeeUserId: payloadObject?.userId
+        },
+        completeNotification: {
+          type: 'success',
+          message: t('complete-notification')
         }
       }
 
@@ -307,37 +392,9 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
                   </FormLabel>
                   <FormControl>
                     <div data-testid="rcf-date">
-                      <Calendar
-                        type="date"
-                        mode="single"
-                        selected={field.value ? new Date(field.value) : undefined}
-                        // If attendanceDateISO exists, disable changing the date by omitting onSelect
-                        {...(!platformParams.attendanceDateISO && {
-                          onSelect: (date: Date | undefined) => field.onChange(date ? date.toISOString() : '')
-                        })}
-                        // Disable dates outside current month; if attendanceDateISO exists, constrain to that exact day
-                        disabled={(() => {
-                          const start = new Date()
-                          start.setDate(1)
-                          start.setHours(0, 0, 0, 0)
-                          const end = new Date(start)
-                          end.setMonth(end.getMonth() + 1)
-                          end.setDate(0)
-                          end.setHours(23, 59, 59, 999)
-
-                          if (platformParams.attendanceDateISO) {
-                            const d = new Date(platformParams.attendanceDateISO)
-                            // Only the attendance date remains enabled
-                            return [{ before: d }, { after: d }]
-                          }
-                          return [{ before: start }, { after: end }]
-                        })()}
-                        // Prevent navigating away from the month if attendanceDateISO is provided
-                        {...(platformParams.attendanceDateISO && {
-                          fromMonth: new Date(platformParams.attendanceDateISO),
-                          toMonth: new Date(platformParams.attendanceDateISO)
-                        })}
-                      />
+                      {/** Ensure the preselected date from props is visually selected */}
+                      {/** Prefer platform-provided attendance date; fallback to field value */}
+                      {renderCalendar(field)}
                     </div>
                   </FormControl>
                   <FormMessage />

@@ -40,12 +40,21 @@ export const useTopAccountsByRevenue = (accessToken: string, config: TopAccounts
         setError(null)
 
         // Step 1: Get distinct account IDs with won opportunities
+        // When using junction tables, need to navigate through the opportunity relationship
+        const opportunityStatusFilter = config.isJunctionTable
+          ? `${config.opportunityRelation || 'opportunity'}: {
+              opportunity: {
+                opportunityStatus: {code: {_eq: "WON"}}
+              }
+            }`
+          : `${config.opportunityRelation || 'opportunity'}: {opportunityStatus: {code: {_eq: "WON"}}}`
+
         const accountIdsQuery = `
           query GetTopAccountIds {
             accounts: ${config.accountEntity}(
               where: {
                 isDeleted: {_eq: false}
-                ${config.opportunityRelation || 'opportunity'}: {opportunityStatus: {code: {_eq: "WON"}}}
+                ${opportunityStatusFilter}
               }
               distinctOn: [id]
             ) {
@@ -78,11 +87,16 @@ export const useTopAccountsByRevenue = (accessToken: string, config: TopAccounts
 
         const accountAggregates = accounts
           .map((account, index: number) => {
+            // Build correct where condition based on junction table vs direct relationship
+            const whereCondition = config.isJunctionTable
+              ? `opportunityAccounts: { accountId: { _eq: "${account.id}" } }`
+              : `accountId: { _eq: "${account.id}" }`
+
             return `
             acc_${index}_revenue: ${config.opportunityEntity}Aggregate(
               where: {
                 isDeleted: {_eq: false}
-                accountId: {_eq: "${account.id}"}
+                ${whereCondition}
                 opportunityStatus: {code: {_eq: "WON"}}${currencyFilter}
               }
             ) {

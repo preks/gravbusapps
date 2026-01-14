@@ -12,7 +12,10 @@ import { ContentRole } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildFileUrl } from '@/common/utils/fileUtils'
-import { ArticleSegment, QuestionSegment, DocumentSegment, GlossarySegment } from './segments'
+import ArticleSegment from './segments/ArticleSegment'
+import QuestionSegment from './segments/QuestionSegment'
+import DocumentSegment from './segments/DocumentSegment'
+import GlossarySegment from './segments/GlossarySegment'
 import translations from './_i18n'
 
 export interface ContentEntryWindowProps extends BusinessAppContextProps {
@@ -491,6 +494,79 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const watchPreviewText = watch('previewText')
   const watchContent = watch('content')
   const watchSchedulePublication = watch('schedulePublication')
+  const watchContentTypeRef = watch('contentTypeRef')
+  const watchCategories = watch('categories')
+  const watchTags = watch('tags')
+
+  // Handler for AI-generated catalog fields (must be after form initialization)
+  const handleContentTypeRefChange = useCallback(
+    (value: string | undefined) => {
+      if (value !== undefined) {
+        setValue('contentTypeRef', value)
+      }
+    },
+    [setValue]
+  )
+
+  // Store refs and names separately to combine them when both are set
+  const categoryRefsRef = useRef<string[]>([])
+  const categoryNamesRef = useRef<string[]>([])
+  const tagRefsRef = useRef<string[]>([])
+  const tagNamesRef = useRef<string[]>([])
+
+  const handleContentCategoryRefsChange = useCallback(
+    (refs: string[]) => {
+      // AI returns complete list, store refs and combine with names
+      categoryRefsRef.current = refs
+      const combined = [...refs, ...categoryNamesRef.current]
+      setValue('categories', combined)
+    },
+    [setValue]
+  )
+
+  const handleContentCategoryNamesChange = useCallback(
+    (names: string[]) => {
+      // AI returns complete list, so we replace the form value
+      // Extract only new names that aren't already in categoriesToCreate
+      setCategoriesToCreate(prev => {
+        const newNames = names.filter(name => !prev.has(name))
+        return new Set([...prev, ...newNames])
+      })
+      // Store names and combine with refs
+      categoryNamesRef.current = names
+      const combined = [...categoryRefsRef.current, ...names]
+      // Replace form value with combined list (names will be replaced with IDs in pre-submit)
+      setValue('categories', combined)
+    },
+    [setValue]
+  )
+
+  const handleContentTagRefsChange = useCallback(
+    (refs: string[]) => {
+      // AI returns complete list, store refs and combine with names
+      tagRefsRef.current = refs
+      const combined = [...refs, ...tagNamesRef.current]
+      setValue('tags', combined)
+    },
+    [setValue]
+  )
+
+  const handleContentTagNamesChange = useCallback(
+    (names: string[]) => {
+      // AI returns complete list, so we replace the form value
+      // Extract only new names that aren't already in tagsToCreate
+      setTagsToCreate(prev => {
+        const newNames = names.filter(name => !prev.has(name))
+        return new Set([...prev, ...newNames])
+      })
+      // Store names and combine with refs
+      tagNamesRef.current = names
+      const combined = [...tagRefsRef.current, ...names]
+      // Replace form value with combined list (names will be replaced with IDs in pre-submit)
+      setValue('tags', combined)
+    },
+    [setValue]
+  )
 
   // Determine which segment to render based on ContentGroup
   const currentSegment = useMemo(() => {
@@ -813,6 +889,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             watchPreviewText={watchPreviewText}
             watchContent={watchContent}
             watchSchedulePublication={watchSchedulePublication}
+            watchContentTypeRef={watchContentTypeRef}
+            watchCategories={watchCategories}
+            watchTags={watchTags}
             setValue={setValue}
             context={context}
             extractedContentGroupRef={extractedContentGroupRef}
@@ -820,6 +899,11 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             onCreateTag={onCreateTag}
             onCategoriesChange={handleCategoriesChange}
             onTagsChange={handleTagsChange}
+            onContentTypeRefChange={handleContentTypeRefChange}
+            onContentCategoryRefsChange={handleContentCategoryRefsChange}
+            onContentCategoryNamesChange={handleContentCategoryNamesChange}
+            onContentTagRefsChange={handleContentTagRefsChange}
+            onContentTagNamesChange={handleContentTagNamesChange}
           />
         )}
 

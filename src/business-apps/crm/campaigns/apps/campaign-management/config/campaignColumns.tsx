@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
-import { Calendar, Tag } from 'lucide-react'
+import { CalendarIcon, TagIcon } from '@phosphor-icons/react'
 import type { SalesCampaign } from '../components/campaign-list/types/SalesCampaignTypes'
 import dayjs from 'dayjs'
 
@@ -57,7 +57,7 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
         className="gba:flex gba:items-center gba:gap-2 gba:min-w-0"
         data-testid={`campaign-name-cell-${row.original.id}`}
       >
-        <Tag className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+        <TagIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
         <div className="gba:min-w-0 gba:flex-1">
           <div className="gba:font-medium gba:text-sm gba:truncate" title={safeString(row.original.name)}>
             {safeString(row.original.name)}
@@ -116,7 +116,7 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
           className="gba:flex gba:items-center gba:gap-2"
           data-testid={`campaign-start-date-cell-${row.original.id}`}
         >
-          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
           <span className="gba:text-sm">{formattedDate}</span>
         </div>
       )
@@ -141,7 +141,7 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
         : '-'
       return (
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`campaign-end-date-cell-${row.original.id}`}>
-          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
           <span className="gba:text-sm">{formattedDate}</span>
         </div>
       )
@@ -184,7 +184,7 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
         : '-'
       return (
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`campaign-created-cell-${row.original.id}`}>
-          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
           <span className="gba:text-sm">{formattedDate}</span>
         </div>
       )

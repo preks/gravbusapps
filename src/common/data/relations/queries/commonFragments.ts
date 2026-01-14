@@ -41,13 +41,12 @@ export const COMMON_ACCOUNT_FIELDS = `
   timeZoneRef
 `
 
+// DEPRECATED: Use buildTaskFragment() from relationFragments.ts instead
+// This fragment is kept for reference but should not be used in new code
 export const COMMON_TASK_FIELDS = `
   ${AUDIT_FIELDS}
-  assignedEmployee {
-    ${EMPLOYEE_REF}
-  }
-  assignedEmployeeId
-  assignedUserId
+  # DEPRECATED: Multiple assignees now supported via taskAssignees
+  # Use buildTaskFragment() which includes taskAssignees relationship
   code
   # TODO: comments missing
   creatorEmployee {

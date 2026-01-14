@@ -6,11 +6,10 @@ import {
   ReportingChainData,
   ReportingChainSummary,
   SunburstNode,
-  StructuralStatistics,
-  Employee,
-  CostCenter
+  StructuralStatistics
 } from '../types/structuralTypes'
-import { StructuralAnalysisData } from '../../../../queries/StructuralAnalysisQueries'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 // Color schemes for visualizations
 export const chartColors = {
@@ -39,108 +38,14 @@ export const chartColors = {
   }
 }
 
-// Process organizational relationships to build hierarchical structure
-export const processOrganizationalData = (data: StructuralAnalysisData): OrganizationalNode[] => {
-  const { organizationalUnitRelationships, costCenters } = data
+// Toggle reverse ramp for grayscale shading: when true, inner rings are darker and outer rings are lighter
+const REVERSE_GRAY_RAMP = true
 
-  // Create maps for quick lookup
-  const unitMap = new Map<string, OrganizationalNode>()
-  const costCenterMap = new Map<string, CostCenter>(costCenters.map(cc => [cc.id, cc]))
-
-  // Process all organizational units
-  const allUnits = new Set<string>()
-
-  organizationalUnitRelationships.forEach(rel => {
-    if (rel.parent?.id) {
-      allUnits.add(rel.parent.id)
-    }
-    if (rel.child?.id) {
-      allUnits.add(rel.child.id)
-    }
-  })
-
-  // Initialize all units
-  allUnits.forEach(unitId => {
-    const relationship = organizationalUnitRelationships.find(
-      rel => rel.parent?.id === unitId || rel.child?.id === unitId
-    )
-
-    if (!relationship) return
-
-    const unit = relationship.parent?.id === unitId ? relationship.parent : relationship.child
-    if (!unit) return
-
-    const employees: Employee[] = (unit.organizationalUnitEmployee || [])
-      .filter(emp => emp.employee !== null && emp.employee !== undefined)
-      .map(emp => ({
-        id: emp.employee.id,
-        firstName: emp.employee.firstName,
-        lastName: emp.employee.lastName,
-        fullName: `${emp.employee.firstName || ''} ${emp.employee.lastName || ''}`.trim()
-      }))
-
-    const node: OrganizationalNode = {
-      id: unit.id,
-      name: unit.name,
-      description: unit.description,
-      parentId: null, // Will be set below
-      level: 0, // Will be calculated below
-      employees,
-      employeeCount: employees.length,
-      directReports: 0, // Will be calculated below
-      spanOfControl: 0, // Will be calculated below
-      company: unit.company || undefined,
-      costCenter: unit.costCenterId ? costCenterMap.get(unit.costCenterId) : undefined
-    }
-
-    unitMap.set(unitId, node)
-  })
-
-  // Set parent relationships
-  organizationalUnitRelationships.forEach(rel => {
-    if (rel.parent?.id && rel.child?.id) {
-      const childNode = unitMap.get(rel.child.id)
-      if (childNode) {
-        childNode.parentId = rel.parent.id
-      }
-    }
-  })
-
-  // Calculate levels using BFS
-  const nodes = Array.from(unitMap.values())
-  const rootNodes = nodes.filter(node => !node.parentId)
-
-  // Set root level
-  rootNodes.forEach(node => {
-    node.level = 0
-  })
-
-  // Calculate levels for all nodes
-  const queue = [...rootNodes]
-  const visited = new Set<string>()
-
-  while (queue.length > 0) {
-    const currentNode = queue.shift()!
-    if (visited.has(currentNode.id)) continue
-    visited.add(currentNode.id)
-
-    // Find children and set their levels
-    const children = nodes.filter(node => node.parentId === currentNode.id)
-    children.forEach(child => {
-      child.level = currentNode.level + 1
-      queue.push(child)
-    })
-
-    // Calculate direct reports and span of control
-    currentNode.directReports = children.length
-    currentNode.spanOfControl = children.reduce((sum, child) => sum + child.employeeCount, 0)
-  }
-
-  return nodes
-}
+// (processOrganizationalData removed; hierarchy is now built from dataset/edges elsewhere)
 
 // Generate span of control analysis data
 export const generateSpanOfControlAnalysis = (nodes: OrganizationalNode[]): SpanOfControlData[] => {
+  const { t } = useTranslation(hrTranslations)
   return nodes
     .filter(node => node.directReports > 0) // Only managers
     .map(node => {
@@ -152,13 +57,13 @@ export const generateSpanOfControlAnalysis = (nodes: OrganizationalNode[]): Span
 
       if (directReports >= 3 && directReports <= 7) {
         efficiency = 'Optimal'
-        recommendation = 'Current span of control is within optimal range.'
+        recommendation = t('hr-analytics-recommendation-optimal')
       } else if (directReports > 7) {
         efficiency = 'Overloaded'
-        recommendation = 'Consider redistributing some direct reports or adding intermediate management layers.'
+        recommendation = t('hr-analytics-recommendation-overloaded')
       } else {
         efficiency = 'Underutilized'
-        recommendation = 'Consider consolidating roles or expanding responsibilities.'
+        recommendation = t('hr-analytics-recommendation-underutilized')
       }
 
       return {
@@ -359,23 +264,53 @@ const findBottlenecks = (node: OrganizationalNode, allNodes: OrganizationalNode[
 
 // Helper function to generate color shades
 const generateColorShades = (baseColor: string, depth: number): string => {
-  // Convert hex to RGB
+  // If the color is a CSS variable (e.g., var(--nw-chart-1)), we cannot resolve it here.
+  // Fall back to a grayscale that darkens with depth (center lighter, outside darker).
+  if (typeof baseColor === 'string' && baseColor.trim().startsWith('var(')) {
+    const lightness = REVERSE_GRAY_RAMP
+      ? Math.min(90, 0 + depth * 12) // start near black at depth 0, lighten outward
+      : Math.max(18, 78 - depth * 12) // inner lighter, outer darker
+    return `hsl(0, 0%, ${lightness}%)`
+  }
+
+  // Handle hex colors (#RRGGBB or #RGB)
+  const hexMatch = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(baseColor)
+  if (!hexMatch) {
+    // Unknown format - use grayscale fallback
+    const lightness = REVERSE_GRAY_RAMP ? Math.min(90, 0 + depth * 12) : Math.max(18, 78 - depth * 12)
+    return `hsl(0, 0%, ${lightness}%)`
+  }
+
+  // Normalize #RGB to #RRGGBB
   const hex = baseColor.replace('#', '')
-  const r = parseInt(hex.substr(0, 2), 16)
-  const g = parseInt(hex.substr(2, 2), 16)
-  const b = parseInt(hex.substr(4, 2), 16)
+  const fullHex =
+    hex.length === 3
+      ? hex
+          .split('')
+          .map(ch => ch + ch)
+          .join('')
+      : hex
 
-  // Calculate shade factor (lighter for deeper levels)
-  const shadeFactor = 1 - depth * 0.15 // Each level gets 15% lighter
-  const clampedFactor = Math.max(0.3, shadeFactor) // Don't go too light
+  const r = parseInt(fullHex.substring(0, 2), 16)
+  const g = parseInt(fullHex.substring(2, 4), 16)
+  const b = parseInt(fullHex.substring(4, 6), 16)
 
-  // Apply shade
-  const newR = Math.round(r + (255 - r) * (1 - clampedFactor))
-  const newG = Math.round(g + (255 - g) * (1 - clampedFactor))
-  const newB = Math.round(b + (255 - b) * (1 - clampedFactor))
-
-  // Convert back to hex
-  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+  if (REVERSE_GRAY_RAMP) {
+    // Lighten with depth toward white
+    const lightenFactor = Math.min(0.9, depth * 0.12)
+    const newR = Math.round(r + (255 - r) * lightenFactor)
+    const newG = Math.round(g + (255 - g) * lightenFactor)
+    const newB = Math.round(b + (255 - b) * lightenFactor)
+    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+  } else {
+    // Darken with depth toward black
+    const darkenFactor = Math.min(0.9, depth * 0.12)
+    const scale = Math.max(0, 1 - darkenFactor)
+    const newR = Math.round(r * scale)
+    const newG = Math.round(g * scale)
+    const newB = Math.round(b * scale)
+    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+  }
 }
 
 // Generate sunburst chart data
@@ -404,7 +339,11 @@ export const generateSunburstData = (nodes: OrganizationalNode[]): SunburstNode 
         nodeColor = chartColors.depth[level % chartColors.depth.length]
       }
 
-      const children = level < maxLevel ? buildSunburstNode(level + 1, node.id, nodeColor, colorDepth + 1) : []
+      const rawChildren = level < maxLevel ? buildSunburstNode(level + 1, node.id, nodeColor, colorDepth + 1) : []
+      // Hide zero-value branches at the visualization layer without affecting totals:
+      // keep only children whose subtree total (child.value) is > 0. This preserves
+      // ancestors needed for non-zero descendants while removing pure-zero leaves.
+      const children = Array.isArray(rawChildren) ? rawChildren.filter(c => (c?.value ?? 0) > 0) : []
 
       // Calculate total employees in this node's subtree (including all descendants)
       const totalSubtreeEmployees = getTotalEmployeesFromNode(node, nodes)

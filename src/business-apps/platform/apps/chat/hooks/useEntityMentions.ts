@@ -651,7 +651,17 @@ export function useEntityMentions(accessToken: string, activeExperts: ActiveExpe
         type: entityType,
         name: entry.title || 'Untitled Content',
         subtitle,
-        pictureThumbnail: entry.pictureThumbnail || undefined
+        pictureThumbnail: entry.pictureThumbnail || undefined,
+        // Include document content for AI processing
+        contentPreview: entry.preview || undefined,
+        contentData: {
+          title: entry.title,
+          preview: entry.preview,
+          contentGroupRef: entry.contentGroupRef,
+          contentGroup: entry.contentGroup?.value,
+          contentType: entry.contentType?.value,
+          createdAt: entry.createdAt
+        }
       })
     })
 

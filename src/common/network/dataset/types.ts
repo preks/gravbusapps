@@ -61,6 +61,7 @@ export interface DatasetDTO {
 export interface QueryDefinitionListParams {
   queryType?: QueryType
   status?: QueryStatus
+  search?: string
 }
 
 export interface QueryDefinitionPagedParams extends QueryDefinitionListParams {

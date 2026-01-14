@@ -16,7 +16,7 @@ import {
   SelectContent,
   SelectItem
 } from '@newwork/nw-design-system'
-import { PieChart, TrendingUp, BarChart } from 'lucide-react'
+import { ChartPieIcon, TrendUpIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -31,13 +31,13 @@ import { LiquidFundDistributionCharts, LiquidFundTimelineCharts, LiquidFundAnaly
 export interface LiquidFundInvestmentKPIs {
   totalInvestments: number
   averageInvestmentValue: number
-  averageMarketValue: number
-  totalFundValue: number
+  activeInvestments: number
+  totalAmountInvested: number
   // Previous period data for comparison
   previousTotalInvestments?: number
   previousAverageInvestmentValue?: number
-  previousAverageMarketValue?: number
-  previousTotalFundValue?: number
+  previousActiveInvestments?: number
+  previousTotalAmountInvested?: number
 }
 
 interface LiquidFundInvestmentsReportProps extends BusinessAppContextProps {
@@ -73,12 +73,12 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
   const kpis: LiquidFundInvestmentKPIs = {
     totalInvestments: current.totalInvestments,
     averageInvestmentValue: current.averageInvestmentValue,
-    averageMarketValue: current.averageMarketValue,
-    totalFundValue: current.totalMarketValue,
+    activeInvestments: current.activeInvestments,
+    totalAmountInvested: current.totalAmountInvested,
     previousTotalInvestments: previous.totalInvestments,
     previousAverageInvestmentValue: previous.averageInvestmentValue,
-    previousAverageMarketValue: previous.averageMarketValue,
-    previousTotalFundValue: previous.totalMarketValue
+    previousActiveInvestments: previous.activeInvestments,
+    previousTotalAmountInvested: previous.totalAmountInvested
   }
 
   if (error) {
@@ -161,15 +161,15 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
           <TabsTrigger
             value="distribution"
-            startIcon={<PieChart />}
+            startIcon={<ChartPieIcon />}
             data-testid={`${prefixDataTestId}-distribution-tab`}
           >
             Distribution Analysis
           </TabsTrigger>
-          <TabsTrigger value="timeline" startIcon={<TrendingUp />} data-testid={`${prefixDataTestId}-timeline-tab`}>
+          <TabsTrigger value="timeline" startIcon={<TrendUpIcon />} data-testid={`${prefixDataTestId}-timeline-tab`}>
             Timeline Analysis
           </TabsTrigger>
-          <TabsTrigger value="analytics" startIcon={<BarChart />} data-testid={`${prefixDataTestId}-analytics-tab`}>
+          <TabsTrigger value="analytics" startIcon={<ChartBarIcon />} data-testid={`${prefixDataTestId}-analytics-tab`}>
             Performance Analysis
           </TabsTrigger>
         </TabsList>
