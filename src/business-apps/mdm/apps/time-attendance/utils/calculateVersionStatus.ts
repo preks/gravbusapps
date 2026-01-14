@@ -9,22 +9,22 @@ export type VersionStatus = 'active' | 'expired' | 'inactive' | 'planned'
  * @returns Status: 'active' | 'expired' | 'inactive' | 'planned'
  */
 export const calculateVersionStatus = (activeFrom: string | null, activeTo: string | null): VersionStatus => {
-  // If either date is missing, consider it inactive
-  if (!activeFrom || !activeTo) {
+  // If activeFrom is missing, consider it inactive
+  if (!activeFrom) {
     return 'inactive'
   }
 
   const currentDate = new Date()
   const fromDate = new Date(activeFrom)
-  const toDate = new Date(activeTo)
+  const toDate = activeTo ? new Date(activeTo) : null
 
   // If activeFrom is in the future, it's planned
   if (currentDate < fromDate) {
     return 'planned'
   }
 
-  // If current date is within the range, it's active
-  if (currentDate >= fromDate && currentDate <= toDate) {
+  // When toDate is not set, the version runs indefinitely
+  if (currentDate >= fromDate && (!toDate || currentDate <= toDate)) {
     return 'active'
   }
 

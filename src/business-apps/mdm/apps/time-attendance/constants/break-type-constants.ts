@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export const BREAK_TYPE_OPTIONS = [
-  { code: 'UNKNOWN_BREAK_TYPE', displayValue: 'Unknown' },
   { code: 'BREAK_TYPE_FIXED', displayValue: 'Fixed' },
   { code: 'BREAK_TYPE_CLOCKING', displayValue: 'Clocking' },
   { code: 'BREAK_TYPE_ATTENDANCE', displayValue: 'Attendance' },
@@ -10,7 +9,6 @@ export const BREAK_TYPE_OPTIONS = [
 ]
 
 export const PAY_OPTIONS = [
-  { code: 'UNKNOWN_PAY_OPTION', displayValue: 'Unknown' },
   { code: 'PAY_OPTION_PAID', displayValue: 'Paid' },
   { code: 'PAY_OPTION_UNPAID', displayValue: 'Unpaid' },
   { code: 'PAY_OPTION_PAID_NO_INCREMENT', displayValue: 'Paid No Increment' }
