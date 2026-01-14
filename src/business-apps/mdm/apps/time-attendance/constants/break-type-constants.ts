@@ -42,14 +42,14 @@ export const breakTypeDetailRowSchema = z
     if (data.type === 'BREAK_TYPE_FIXED' || data.type === 'BREAK_TYPE_CLOCKING') {
       if (!data.startTime) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: 'Start time is required for Fixed and Clocking break types',
           path: ['startTime']
         })
       }
       if (!data.endTime) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: 'End time is required for Fixed and Clocking break types',
           path: ['endTime']
         })
@@ -57,7 +57,7 @@ export const breakTypeDetailRowSchema = z
       // Start and End cannot be identical
       if (data.startTime && data.endTime && data.startTime === data.endTime) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: 'Start and End times cannot be identical',
           path: ['endTime']
         })
@@ -68,14 +68,14 @@ export const breakTypeDetailRowSchema = z
     if (data.type === 'BREAK_TYPE_ATTENDANCE' || data.type === 'BREAK_TYPE_TARGET_TIME') {
       if (!data.hours) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: 'Hours is required for Attendance and Target Time break types',
           path: ['hours']
         })
       }
       if (!data.length) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: 'Length is required for Attendance and Target Time break types',
           path: ['length']
         })
@@ -86,7 +86,7 @@ export const breakTypeDetailRowSchema = z
     if (data.type === 'BREAK_TYPE_CLOCKING') {
       if (!data.length) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: 'Length is required for Clocking break type',
           path: ['length']
         })
@@ -108,7 +108,7 @@ export const breakTypeDetailRowSchema = z
 
         if (lengthTotalMinutes > spanMinutes) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: 'Length cannot exceed the time span between Start and End',
             path: ['length']
           })

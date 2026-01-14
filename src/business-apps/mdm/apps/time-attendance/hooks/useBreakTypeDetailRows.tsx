@@ -21,7 +21,7 @@ interface UseBreakTypeDetailRowsProps {
   breakTypeVersionDetails: TransformedBreakTypeVersionDetail[]
   accessToken: string
   dataTestId: string
-  refetch: () => void
+  refetch: () => Promise<void>
   onDeleteClick: (detail: TransformedBreakTypeVersionDetail | null) => void
 }
 
