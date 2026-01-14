@@ -47,6 +47,7 @@ export interface ActivityStats {
   byContact: number
   byLead: number
   byOpportunity: number
+  byGeneral: number // General activities without parent entity references
   activeEmployees: number
   rollingTrend: number
   quarterTrend: number

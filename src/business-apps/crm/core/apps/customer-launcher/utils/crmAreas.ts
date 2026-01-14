@@ -6,10 +6,21 @@ import {
   AddressBookIcon,
   FileTextIcon,
   ChartBarIcon,
-  UploadIcon
+  UploadIcon,
+  BriefcaseIcon
 } from '@phosphor-icons/react'
 
 export const crmAreas: CrmArea[] = [
+  // Personal Sales Workspace
+  {
+    id: 'my-sales-manager',
+    title: 'My Sales Manager',
+    description: 'Log activities, track your tasks, and monitor your performance',
+    icon: BriefcaseIcon,
+    category: 'sales',
+    path: '/crm/my-sales-manager'
+  },
+
   // Sales Management
   {
     id: 'leads',

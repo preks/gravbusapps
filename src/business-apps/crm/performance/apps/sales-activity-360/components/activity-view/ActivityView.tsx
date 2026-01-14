@@ -101,6 +101,12 @@ const getViewConfig = (filter: ActivityViewFilter) => {
         icon: HandshakeIcon,
         subtitle: 'Deal-related activities'
       }
+    case 'by-general':
+      return {
+        category: 'GENERAL ACTIVITIES',
+        icon: ListBulletsIcon,
+        subtitle: 'Activities not linked to any specific entity'
+      }
     default:
       return {
         category: 'ACTIVITIES',
