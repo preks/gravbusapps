@@ -135,7 +135,7 @@ export function useMessages({
         const response: PaginatedResponse<Message> = await currentApiClient.getMessages(
           currentConversationId,
           pageNum,
-          25
+          100
         )
 
         // CRITICAL: Check if this response is still relevant

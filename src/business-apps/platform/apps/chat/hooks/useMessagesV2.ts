@@ -179,7 +179,7 @@ export function useMessagesV2({
         const response: PaginatedResponse<Message> = await apiClient.getMessages(
           conversationId,
           page,
-          50 // Load 50 messages per page
+          100 // Load 50 messages per page
         )
 
         // Verify response is still relevant
@@ -296,8 +296,8 @@ export function useMessagesV2({
           const existingPriority = statusPriority[existingStatus as keyof typeof statusPriority] || 0
           const newPriority = statusPriority[processedMessage.status as keyof typeof statusPriority] || 0
 
-          // Ensure final status is valid for Message type (no 'sending')
-          const finalStatus: 'sent' | 'delivered' | 'read' =
+          // Preserve better status when replacing
+          const finalStatus: 'sending' | 'sent' | 'delivered' | 'read' =
             existingPriority > newPriority ? existingStatus : processedMessage.status
 
           updated[existingIndex] = {

@@ -87,7 +87,7 @@ export interface Message {
   sender?: User
   reactions?: MessageReaction[]
   replies?: Message[]
-  status?: 'sent' | 'delivered' | 'read'
+  status?: 'sending' | 'sent' | 'delivered' | 'read'
 }
 
 export interface MessageReaction {

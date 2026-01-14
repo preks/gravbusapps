@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Message } from '../types'
-import { Avatar } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { renderContentWithReferences } from './EntityReferenceBadge'
 
 interface MessageItemV2Props {
   message: Message
@@ -17,6 +18,15 @@ interface MessageItemV2Props {
  * - Minimal re-renders
  * - Simple styling
  */
+
+// Helper to get user initials from name
+const getInitials = (name: string): string => {
+  if (!name) return 'U'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
 // OPTIMIZATION: Memoize the time formatting function outside component
 const formatTime = (date: Date | string): string => {
   const d = new Date(date)
@@ -55,7 +65,14 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
         {/* Avatar (only show for other users in group chats) */}
         {!isOwnMessage && isGroupChat && showSender && (
           <div className="gba:flex-shrink-0">
-            <Avatar src={sender?.avatarUrl} alt={sender?.displayName || sender?.username || 'User'} size="sm" />
+            <Avatar size="sm">
+              {sender?.avatarUrl && (
+                <AvatarImage src={sender.avatarUrl} alt={sender.displayName || sender.username || 'User'} />
+              )}
+              <AvatarFallback className="gba:text-xs">
+                {getInitials(sender?.displayName || sender?.username || 'User')}
+              </AvatarFallback>
+            </Avatar>
           </div>
         )}
 
@@ -74,7 +91,9 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
               isOwnMessage ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted gba:text-foreground'
             }`}
           >
-            <p className="gba:text-sm gba:whitespace-pre-wrap">{message.content}</p>
+            <div className="gba:text-sm gba:whitespace-pre-wrap">
+              {renderContentWithReferences(message.content, message.metadata, isOwnMessage)}
+            </div>
           </div>
 
           {/* Timestamp and Status */}
