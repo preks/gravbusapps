@@ -69,8 +69,7 @@ export const useBreakTypeDetailRows = ({
 
   // Start adding new row
   const startAddingNew = useCallback(() => {
-    const nextOrder =
-      breakTypeVersionDetails.length > 0 ? Math.max(...breakTypeVersionDetails.map(d => d.displayOrder)) + 1 : 1
+    const nextOrder = breakTypeVersionDetails.length + 1
 
     setEditingRows(prev => ({
       ...prev,
