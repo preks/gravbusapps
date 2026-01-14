@@ -136,6 +136,7 @@ export const buildInsertPayload = (params: {
   const type = computeNewAddressType(params.addresses) || ''
   return {
     event: 'pse_submit',
+    employeeId: params.employeeId,
     employeeDocumentObject: buildEmployeeDocumentObject(params.employeeDocument),
     address: {
       employeeId: params.employeeId,
@@ -162,6 +163,7 @@ export const buildUpdatePayload = (params: {
   const sel = params.selected || {}
   return {
     event: 'pse_submit',
+    employeeId: params.employeeId,
     employeeDocumentObject: buildEmployeeDocumentObject(params.employeeDocument),
     address: {
       id: sel?.id,
@@ -203,6 +205,7 @@ export const buildDeletePayload = (params: {
   const sel = params.selected || {}
   return {
     event: 'pse_submit',
+    employeeId: params.employeeId,
     employeeDocumentObject: buildEmployeeDocumentObject(params.employeeDocument),
     address: {
       id: sel?.id,

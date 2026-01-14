@@ -31,8 +31,7 @@ export interface ProbationPeriod {
 const PROBATION_UNIT_OPTIONS = [
   { value: 'day', label: 'Day(s)' },
   { value: 'week', label: 'Week(s)' },
-  { value: 'month', label: 'Month(s)' },
-  { value: '', label: 'None' }
+  { value: 'month', label: 'Month(s)' }
 ] as const
 
 export interface ContractTypeFormProps extends BusinessAppContextProps {
@@ -118,7 +117,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       code: contractType?.code || '',
       description: contractType?.description || '',
       probationValue: existingProbation.value?.toString() || '',
-      probationUnit: existingProbation.unit || ''
+      probationUnit: existingProbation.unit || undefined
     }),
     [contractType, existingProbation]
   )
@@ -218,7 +217,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
             render={({ field }) => (
               <FormItem className="gba:flex-1">
                 <FormControl>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || undefined}>
                     <SelectTrigger data-testid={`${dataTestId}-probation-unit-select`}>
                       <SelectValue placeholder="Select unit" />
                     </SelectTrigger>

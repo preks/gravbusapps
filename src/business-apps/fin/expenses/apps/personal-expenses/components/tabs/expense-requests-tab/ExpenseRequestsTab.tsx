@@ -1,4 +1,5 @@
 import React, { useState, useEffect, ReactNode, useMemo, useCallback, useRef } from 'react'
+import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
 import ExpenseRequestStatistics from './ExpenseRequestStatistics'
@@ -16,7 +17,6 @@ export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
 }
 
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
-  // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
       accessToken: props.accessToken,
@@ -28,12 +28,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [activeWidget, setActiveWidget] = useState<string | null>(null)
-
-  // Server-side sorting state
   const [sortField, setSortField] = useState<string>('requestDate')
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
-
-  // Table refresh trigger state
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
 
   const {
@@ -69,13 +65,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     setFilters
   )
 
-  // Track previous filters to reset pagination when filters change.
   const prevSelectedFiltersRef = useRef<string | null>(null)
 
-  // Helper function to get current month date range
-  // Removed local getCurrentMonthRange; card strategy handles current month range
-
-  // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback(
     (widgetKey: string) => {
       const strategies = getRequestCardStrategies({
@@ -109,9 +100,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     ]
   )
 
-  // Memoize the filters to prevent unnecessary API calls.
-  // When a currency is selected, we match either by exact currencyRef OR by currency.code
-  // so that different ref versions (v1/v2) still produce correct results.
   const memoizedFilters = useMemo(() => {
     const base = getFilters()
     if (explicitSelectedCurrencyRef) {
@@ -127,19 +115,19 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     return base
   }, [getFilters, explicitSelectedCurrencyRef])
 
-  // Only fetch when filters, page, pageSize, or sorting changes
+  const debouncedFilters = useDebounce(memoizedFilters, 200)
+
   useEffect(() => {
-    // Avoid duplicate initial queries: wait until currency preselection flow completes
     if (!currenciesInitialized) return
 
     if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-      fetchItems(memoizedFilters, currentPage, pageSize, sortField, sortOrder)
+      fetchItems(debouncedFilters, currentPage, pageSize, sortField, sortOrder)
     }
   }, [
     fetchItems,
     currentPage,
     pageSize,
-    memoizedFilters,
+    debouncedFilters, // Use debounced filters instead of memoizedFilters
     sortField,
     sortOrder,
     contextProps.accessToken,
@@ -147,7 +135,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     currenciesInitialized
   ])
 
-  // Reset pagination when filters change (e.g., applying a status filter while on a later page).
   useEffect(() => {
     const currentFiltersKey = JSON.stringify(selectedFilters)
     const previousFiltersKey = prevSelectedFiltersRef.current
@@ -159,17 +146,14 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     prevSelectedFiltersRef.current = currentFiltersKey
   }, [selectedFilters])
 
-  // Process completion event listener to refresh data
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-          // Refresh expense requests data after successful process completion
           if (currenciesInitialized && contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-            fetchItems(memoizedFilters, currentPage, pageSize, sortField, sortOrder)
+            fetchItems(debouncedFilters, currentPage, pageSize, sortField, sortOrder, { force: true })
           }
 
-          // Trigger table refresh by updating a state that forces re-render
           setTableRefreshTrigger(prev => prev + 1)
 
           return
@@ -205,14 +189,14 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     fetchItems,
     currentPage,
     pageSize,
-    memoizedFilters,
+    debouncedFilters, // Use debounced filters instead of memoizedFilters
     sortField,
     sortOrder,
     contextProps.accessToken,
-    contextProps.userInfo?.employeeDetails?.employeeId
+    contextProps.userInfo?.employeeDetails?.employeeId,
+    currenciesInitialized
   ])
 
-  // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
     return (
       <ExpenseRequestStatistics
@@ -226,14 +210,9 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     )
   }, [contextProps, handleWidgetClick, activeWidget, selectedCurrencyRef])
 
-  // Memoize the label map to prevent unnecessary re-rendering
-
-  // Update the content header only when it changes
   const onContentHeaderChange = props.onContentHeaderChange
   useEffect(() => {
-    // Only update content header when the callback exists
     if (onContentHeaderChange) {
-      // Use a small timeout to ensure proper React rendering cycle
       const timerId = setTimeout(() => {
         onContentHeaderChange(contentHeader)
       }, 0)
@@ -241,7 +220,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     }
   }, [onContentHeaderChange, contentHeader])
 
-  // Handle adding a new expense request
   const handleAddExpenseRequest = useCallback(() => {
     const employeeId = contextProps.userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
@@ -269,27 +247,21 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     setCurrentPage(pagination.current)
     setPageSize(pagination.pageSize)
 
-    // Handle sorting changes
     if (sorter && sorter.field) {
       setSortField(sorter.field)
       setSortOrder(sorter.order)
     } else {
-      // Reset to default sorting
       setSortField('requestDate')
       setSortOrder('descend')
     }
   }, [])
 
-  // Function for DataController setFilter requirement
   const handleSetFilter = useCallback(
     (filters: string[]) => {
-      // This is called by DataController's "Clear all filters" button or individual filter removal
       if (filters.length === 0) {
-        // Clear all filters
         clearFilters()
         setActiveWidget(null)
       } else {
-        // Handle individual filter removal - find which filters were removed and remove them
         const removedFilters = selectedFilters.filter(f => !filters.includes(f))
         removedFilters.forEach(filterId => removeFilter(filterId))
       }
@@ -298,7 +270,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     [clearFilters, selectedFilters, removeFilter]
   )
 
-  // Adapter function for DataFilter component
   const handleFilterChangeCallback = useCallback(
     (filterId: string, selected: boolean) => {
       if (selected) {
@@ -339,7 +310,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       tableRefreshTrigger={tableRefreshTrigger}
       addFilter={addFilter}
       removeFilter={removeFilter}
-      // pass currencyStats to render group in table
       {...({ currencyStats } as any)}
     />
   )

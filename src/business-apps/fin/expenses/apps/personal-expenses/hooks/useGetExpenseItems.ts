@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+
+// Type aliases for union types
+type SortField = string | null
+type SortOrder = 'ascend' | 'descend' | null
 
 // Define types for the hook
 export interface ExpenseItem {
@@ -49,7 +53,6 @@ export interface ExpenseFilter {
   expenseClass?: { value: string }
   totalAmountMin?: number
   totalAmountMax?: number
-  noReceipt?: boolean
   currencyRef?: string
 }
 
@@ -63,9 +66,11 @@ export interface ExpenseItemsResult {
     page?: number,
     pageSize?: number,
     filter?: ExpenseFilter,
-    sortField?: string | null,
-    sortOrder?: 'ascend' | 'descend' | null
+    sortField?: SortField,
+    sortOrder?: SortOrder,
+    options?: { force?: boolean }
   ) => Promise<void>
+  invalidateCache: () => void
 }
 
 export interface ExpenseItemResult {
@@ -89,6 +94,132 @@ export const useGetExpenseItems = (
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState<number>(0)
+  const abortControllerRef = useRef<AbortController | null>(null) // For request cancellation
+  // Page cache: stores results by cache key (search, filters, page, pageSize, sortField, sortOrder)
+  const pageCacheRef = useRef<Map<string, { items: ExpenseItem[]; totalCount: number }>>(new Map())
+  const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
+
+  // Helper to normalize objects for stable cache keys
+  const normalize = useCallback((val: any): any => {
+    if (Array.isArray(val)) {
+      return val.map(normalize)
+    }
+    if (val && typeof val === 'object') {
+      const sorted: any = {}
+      Object.keys(val)
+        .sort((a, b) => a.localeCompare(b))
+        .forEach(k => {
+          sorted[k] = normalize(val[k])
+        })
+      return sorted
+    }
+    return val
+  }, [])
+
+  // Generate cache key for a specific page (includes all parameters that affect the query)
+  const generateCacheKey = useCallback(
+    (
+      searchTerm: string,
+      page: number,
+      pageSize: number,
+      filter: ExpenseFilter | undefined,
+      sortField: SortField,
+      sortOrder: SortOrder
+    ) => {
+      return `cache:${JSON.stringify(normalize({ searchTerm, page, pageSize, filter, sortField, sortOrder }))}`
+    },
+    [normalize]
+  )
+
+  // Helper function to build base where clause
+  const buildBaseWhereClause = useCallback((employeeId: string, filter?: ExpenseFilter): Record<string, any> => {
+    const where: Record<string, any> = {
+      employeeId: { _eq: employeeId },
+      isDeleted: { _eq: false },
+      // exclude allowance
+      expenseClass: { _not: { code: { _eq: 'ALLOWANCE' } } },
+      // always exclude discarded
+      status: { _nin: ['DISCARDED'] }
+    }
+
+    // Add expenseClass filter to server-side query if provided
+    if (filter?.expenseClass?.value) {
+      where.expenseClass = {
+        _and: [{ value: { _eq: filter.expenseClass.value } }, { _not: { code: { _eq: 'ALLOWANCE' } } }]
+      }
+    }
+
+    return where
+  }, [])
+
+  // Helper function to add search filters to where clause
+  const addSearchFilters = useCallback((where: Record<string, any>, searchTerm: string): void => {
+    const trimmedSearch = (searchTerm || '').trim()
+    // Only add search filter if there's an actual search term (not '%' which means "all items")
+    if (trimmedSearch && trimmedSearch !== '%') {
+      const pattern = `%${trimmedSearch}%`
+      where._or = [
+        { title: { _ilike: pattern } },
+        { code: { _ilike: pattern } },
+        { status: { _ilike: pattern } },
+        { expenseClass: { value: { _ilike: pattern } } },
+        { expenseClass: { translations: { value: { _ilike: pattern } } } },
+        { costCenter: { name: { _ilike: pattern } } }
+      ]
+    }
+  }, [])
+
+  // Helper function to add filter conditions to where clause
+  const addFilterConditions = useCallback((where: Record<string, any>, filter?: ExpenseFilter): void => {
+    if (!filter) return
+
+    if (filter.status) {
+      where.status = { ...(where.status || {}), _in: filter.status }
+    }
+
+    if (filter.expenseDateStart || filter.expenseDateEnd) {
+      where.expenseDate = {
+        ...(filter.expenseDateStart ? { _gte: filter.expenseDateStart } : {}),
+        ...(filter.expenseDateEnd ? { _lte: filter.expenseDateEnd } : {})
+      }
+    }
+
+    if (filter.totalAmountMin !== undefined || filter.totalAmountMax !== undefined) {
+      where.totalAmount = {
+        ...(filter.totalAmountMin !== undefined && filter.totalAmountMin !== null
+          ? { _gte: filter.totalAmountMin }
+          : {}),
+        ...(filter.totalAmountMax !== undefined && filter.totalAmountMax !== null
+          ? { _lte: filter.totalAmountMax }
+          : {})
+      }
+    }
+
+    if (filter.currencyRef) {
+      where.currencyRef = { _eq: filter.currencyRef }
+    }
+  }, [])
+
+  // Helper function to build orderBy clause
+  const buildOrderBy = useCallback((sortField?: SortField, sortOrder?: SortOrder): any[] => {
+    if (sortField && sortOrder) {
+      const fieldMap: Record<string, string> = {
+        title: 'title',
+        expenseDate: 'expenseDate',
+        status: 'status',
+        reimbursableAmount: 'reimbursableAmount',
+        totalAmount: 'totalAmount',
+        createdAt: 'createdAt',
+        updatedAt: 'updatedAt',
+        code: 'code',
+        description: 'description'
+      }
+      const gqlField = fieldMap[sortField] || sortField
+      const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
+      return [{ [gqlField]: direction }]
+    }
+    return [{ expenseDate: 'DESC' }]
+  }, [])
 
   /**
    * Helper function to build GraphQL variables for the query
@@ -100,89 +231,25 @@ export const useGetExpenseItems = (
       page: number,
       pageSize: number,
       filter?: ExpenseFilter,
-      sortField?: string | null,
-      sortOrder?: 'ascend' | 'descend' | null
+      sortField?: SortField,
+      sortOrder?: SortOrder
     ) => {
-      const trimmedSearch = (searchTerm || '').trim()
       const offset = (page - 1) * pageSize
 
-      // Build dynamic where clause to avoid forcing currency when not selected
-      const where: Record<string, any> = {
-        employeeId: { _eq: employeeId },
-        isDeleted: { _eq: false },
-        // exclude allowance
-        expenseClass: { _not: { code: { _eq: 'ALLOWANCE' } } },
-        // always exclude discarded
-        status: { _nin: ['DISCARDED'] }
-      }
-
-      if (trimmedSearch) {
-        const pattern = `%${trimmedSearch}%`
-        where._or = [
-          { title: { _ilike: pattern } },
-          { code: { _ilike: pattern } },
-          { status: { _ilike: pattern } },
-          { expenseClass: { value: { _ilike: pattern } } },
-          { expenseClass: { translations: { value: { _ilike: pattern } } } },
-          { costCenter: { name: { _ilike: pattern } } }
-        ]
-      }
-
-      if (filter?.status) {
-        where.status = { ...(where.status || {}), _in: filter.status }
-      }
-
-      if (filter?.expenseDateStart || filter?.expenseDateEnd) {
-        where.expenseDate = {
-          ...(filter?.expenseDateStart ? { _gte: filter.expenseDateStart } : {}),
-          ...(filter?.expenseDateEnd ? { _lte: filter.expenseDateEnd } : {})
-        }
-      }
-
-      if (filter?.totalAmountMin !== undefined || filter?.totalAmountMax !== undefined) {
-        where.totalAmount = {
-          ...(filter?.totalAmountMin !== undefined && filter.totalAmountMin !== null
-            ? { _gte: filter.totalAmountMin }
-            : {}),
-          ...(filter?.totalAmountMax !== undefined && filter.totalAmountMax !== null
-            ? { _lte: filter.totalAmountMax }
-            : {})
-        }
-      }
-
-      if (filter?.currencyRef) {
-        where.currencyRef = { _eq: filter.currencyRef }
-      }
+      const where = buildBaseWhereClause(employeeId, filter)
+      addSearchFilters(where, searchTerm)
+      addFilterConditions(where, filter)
 
       const variables: Record<string, any> = {
         limit: pageSize,
         offset,
-        where
-      }
-
-      // Add orderBy for server-side sorting
-      if (sortField && sortOrder) {
-        const fieldMap: Record<string, string> = {
-          title: 'title',
-          expenseDate: 'expenseDate',
-          status: 'status',
-          reimbursableAmount: 'reimbursableAmount',
-          totalAmount: 'totalAmount',
-          createdAt: 'createdAt',
-          updatedAt: 'updatedAt',
-          code: 'code',
-          description: 'description'
-        }
-        const gqlField = fieldMap[sortField] || sortField
-        const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
-        variables.orderBy = [{ [gqlField]: direction }]
-      } else {
-        variables.orderBy = [{ expenseDate: 'DESC' }]
+        where,
+        orderBy: buildOrderBy(sortField, sortOrder)
       }
 
       return variables
     },
-    []
+    [buildBaseWhereClause, addSearchFilters, addFilterConditions, buildOrderBy]
   )
 
   /**
@@ -221,8 +288,9 @@ export const useGetExpenseItems = (
       page = 1,
       pageSize = 20,
       filter?: ExpenseFilter,
-      sortField?: string | null,
-      sortOrder?: 'ascend' | 'descend' | null
+      sortField?: SortField,
+      sortOrder?: SortOrder,
+      options?: { force?: boolean }
     ): Promise<void> => {
       const employeeId = context?.userInfo?.employeeDetails?.employeeId
       const accessToken = context?.accessToken
@@ -243,6 +311,53 @@ export const useGetExpenseItems = (
         return
       }
 
+      // Generate cache key
+      const cacheKey = generateCacheKey(searchTerm, page, pageSize, filter, sortField || null, sortOrder || null)
+
+      // Check cache first - if page is cached and not forcing refresh, return immediately
+      const cachedData = pageCacheRef.current.get(cacheKey)
+      if (cachedData && !options?.force) {
+        // Return cached data immediately - no loading state
+        setItems(cachedData.items)
+        setTotalCount(cachedData.totalCount)
+        setIsLoading(false)
+        setError(null)
+        return
+      }
+
+      // Cancel previous request if it exists
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      // Create new AbortController for this request
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
+      // Check for in-flight request - reuse existing request to avoid duplicates
+      const requestKey = `request:${cacheKey}`
+      if (inflightRef.current.has(requestKey)) {
+        try {
+          const result = await inflightRef.current.get(requestKey)
+          const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
+          const mappedItems = mapResponseToItems(result)
+
+          // Total count is now accurate from server since all filtering is server-side
+          const finalCount = count
+
+          // Cache the result
+          pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
+
+          setItems(mappedItems)
+          setTotalCount(finalCount)
+          setIsLoading(false)
+          setError(null)
+          return
+        } catch {
+          // If in-flight request failed, continue with new request
+        }
+      }
+
       setIsLoading(true)
       setError(null)
 
@@ -250,35 +365,36 @@ export const useGetExpenseItems = (
         // Build query variables with helper function
         const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter, sortField, sortOrder)
 
-        const result = await graphqlClient.request<any>(GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, variables)
-        const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
-        setTotalCount(count)
-
-        // Map the items using helper function
-        let mappedItems = mapResponseToItems(result)
-
-        // Apply client-side filtering for expenseClass
-        if (filter?.expenseClass && filter.expenseClass.value) {
-          mappedItems = mappedItems.filter(item => item.expenseClass?.value === filter.expenseClass?.value)
-        }
-
-        // Apply client-side filtering for items with no receipts
-        if (filter?.noReceipt) {
-          // Apply the filter with stronger type checking
-          mappedItems = mappedItems.filter(item => {
-            // More robust check for no attachments
-            const hasNoAttachments = !Array.isArray(item.expenseItemFile) || item.expenseItemFile.length === 0
-            return hasNoAttachments
+        const requestPromise = graphqlClient
+          .request<any>(GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, variables)
+          .finally(() => {
+            inflightRef.current.delete(requestKey)
           })
+
+        inflightRef.current.set(requestKey, requestPromise)
+        const result = await requestPromise
+
+        // If a newer request started, ignore this response.
+        if (abortControllerRef.current !== controller) {
+          return
         }
 
-        // Update total count based on filtered results if any client-side filtering was applied
-        if (filter?.expenseClass || filter?.noReceipt) {
-          setTotalCount(mappedItems.length)
-        }
+        const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
+        const mappedItems = mapResponseToItems(result)
+
+        // Total count is now accurate from server since all filtering is server-side
+        const finalCount = count
+
+        // Cache the result
+        pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
 
         setItems(mappedItems)
+        setTotalCount(finalCount)
       } catch (err) {
+        // We can't abort the underlying fetch without client support; ignore stale results instead.
+        if (abortControllerRef.current !== controller || controller.signal.aborted) {
+          return
+        }
         setError(err instanceof Error ? err : new Error(String(err)))
         setItems([]) // Clear items on error
         setTotalCount(0)
@@ -291,7 +407,8 @@ export const useGetExpenseItems = (
       context?.accessToken,
       buildQueryVariables,
       mapResponseToItems,
-      graphqlClient
+      graphqlClient,
+      generateCacheKey
     ]
   )
 
@@ -302,7 +419,19 @@ export const useGetExpenseItems = (
     }
   }, [fetchItems, options?.autoFetch])
 
-  return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems }
+  // Manual cache invalidation (for manual refresh or mutations)
+  const invalidateAllCache = useCallback(() => {
+    pageCacheRef.current.clear()
+  }, [])
+
+  return {
+    items,
+    isLoading,
+    error: error?.message ?? null,
+    totalCount,
+    fetchItems,
+    invalidateCache: invalidateAllCache // Expose for manual refresh
+  }
 }
 
 /**

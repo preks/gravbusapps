@@ -50,6 +50,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   // Track processed message IDs to prevent duplicate processing
   const processedMessageIdsRef = useRef<Set<string>>(new Set())
 
+  // PERFORMANCE: Track the newest message timestamp from API/cache to filter WebSocket duplicates
+  // When we load messages via API/cache, WebSocket also sends the same historical messages
+  // We can skip WebSocket messages that are older than the newest message we already have
+  const newestMessageTimestampRef = useRef<number>(0)
+
   // Keep refs in sync
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId
@@ -79,7 +84,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           setError(null)
         })
         .catch(err => {
-          console.error('Error getting current user:', err)
           // Detect error type and set appropriate message
           let errorMessage = 'chat.serviceUnavailable'
 
@@ -116,8 +120,21 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     conversationId: activeConversationId,
     currentUserId: currentUser?.id || null,
     conversation: activeConversation,
-    enabled: !!apiClientState && !!activeConversationId
+    enabled: !!apiClientState && !!activeConversationId,
+    onMessagesLoaded: (messageIds: string[]) => {
+      // Mark all loaded message IDs as processed to prevent WebSocket duplicates
+      messageIds.forEach(id => processedMessageIdsRef.current.add(id))
+    }
   })
+
+  // PERFORMANCE: Update newest message timestamp when messages are loaded
+  useEffect(() => {
+    if (messagesHook.messages.length > 0 && activeConversationId) {
+      const newestTimestamp = Math.max(...messagesHook.messages.map((m: Message) => new Date(m.createdAt).getTime()))
+      newestMessageTimestampRef.current = newestTimestamp
+    }
+    // Don't reset to 0 when empty - keep the timestamp from setActiveConversation
+  }, [messagesHook.messages, activeConversationId])
 
   // Load conversations when API client is ready (happens in parallel with getCurrentUser)
   // This improves initial load time by not blocking on user fetch
@@ -162,7 +179,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     if (sharedWsClient) {
       // If the key matches, reuse the existing connection
       if (sharedWsKey === key) {
-        console.debug('[useChatClient] reusing existing websocket', { wsUrl, wsSocketPath, refCount: sharedWsRefCount })
         wsClientRef.current = sharedWsClient
         sharedWsRefCount++ // Increment reference count
 
@@ -174,11 +190,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         // Return cleanup function that decrements ref count
         return () => {
           sharedWsRefCount--
-          console.debug('[useChatClient] component unmounting, decremented refCount', { refCount: sharedWsRefCount })
 
           // Only disconnect when NO components are using it anymore
           if (sharedWsRefCount <= 0) {
-            console.debug('[useChatClient] no more refs, disconnecting shared websocket')
             sharedWsClient?.disconnect()
             sharedWsClient = null
             sharedWsKey = null
@@ -187,7 +201,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         }
       } else {
         // Key changed - disconnect old connection before creating new one
-        console.log('[useChatClient] Token changed - disconnecting old websocket and creating new one')
         sharedWsClient.disconnect()
         sharedWsClient = null
         sharedWsKey = null
@@ -196,7 +209,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     // Create new WebSocket client
-    console.debug('[useChatClient] creating new websocket', { wsUrl, wsSocketPath })
     const client = new ChatWebSocketClient(wsUrl, { path: wsSocketPath })
     sharedWsClient = client
     sharedWsKey = key
@@ -215,7 +227,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       // The backend automatically joins users to their conversations on connect,
       // but we should also join the active conversation if there is one
       if (activeConversationId && wsClientRef.current) {
-        wsClientRef.current.joinConversation(activeConversationId)
+        // PERFORMANCE: Tell backend the newest message we have to avoid sending historical messages
+        const newestTimestamp = newestMessageTimestampRef.current
+        wsClientRef.current.joinConversation(activeConversationId, newestTimestamp)
         currentConversationIdRef.current = activeConversationId
       }
 
@@ -232,8 +246,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       setIsOffline(true)
     }
 
-    const handleError = (err: Error) => {
-      console.error('WebSocket error:', err)
+    const handleError = () => {
       setIsOffline(true)
       // Don't set full error for WebSocket issues, just mark as offline
     }
@@ -249,21 +262,16 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     socket.on('disconnect', handleDisconnect)
     socket.on('error', handleError)
 
-    console.debug('[useChatClient] Registered WebSocket event handlers')
-
     return () => {
       // CRITICAL FIX: Clean up event handlers
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
       socket.off('error', handleError)
-      console.debug('[useChatClient] Cleaned up WebSocket event handlers')
 
       sharedWsRefCount--
-      console.debug('[useChatClient] component unmounting, decremented refCount', { refCount: sharedWsRefCount })
 
       // Only disconnect when NO components are using it anymore
       if (sharedWsRefCount <= 0) {
-        console.debug('[useChatClient] no more refs, disconnecting shared websocket')
         wsClientRef.current?.disconnect()
         sharedWsClient = null
         sharedWsKey = null
@@ -274,193 +282,166 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
   // Setup WebSocket event listeners
   useEffect(() => {
-    console.log(
-      '[Chat] Setting up WebSocket event listeners - connected:',
-      isConnected,
-      'wsClient exists:',
-      !!wsClientRef.current
-    )
-
     if (!wsClientRef.current || !isConnected) {
       // Clear processed messages when disconnected
       processedMessageIdsRef.current.clear()
       setActiveCalls({})
-      console.log('[Chat] Not connected, skipping event listener setup')
       return
     }
 
     const wsClient = wsClientRef.current
 
-    console.log('[Chat] WebSocket connected, registering event listeners')
-
     // Clear processed messages on new connection to allow fresh processing
     processedMessageIdsRef.current.clear()
 
     // Message handlers
-    const handleNewMessage = (message: Message) => {
-      console.log('[Chat] Received new_message event:', {
-        messageId: message.id,
-        conversationId: message.conversationId,
-        senderId: message.senderId,
-        content: message.content?.substring(0, 50)
-      })
+    // OPTIMIZATION: Pre-define status priority outside handler to avoid recreating on every message
+    const STATUS_PRIORITY = { sent: 1, delivered: 2, read: 3 } as const
 
-      // Skip if we've already processed this message ID (prevent duplicate processing)
+    const handleNewMessage = (message: Message) => {
+      // CRITICAL OPTIMIZATION: Immediate duplicate check and early returns
+      // Skip if already processed
       if (processedMessageIdsRef.current.has(message.id)) {
-        console.log('[Chat] Skipping already processed message:', message.id)
         return
       }
-
-      // Mark this message as processed
       processedMessageIdsRef.current.add(message.id)
 
-      // Clean up old message IDs (keep only last 100)
-      if (processedMessageIdsRef.current.size > 100) {
-        const ids = Array.from(processedMessageIdsRef.current)
-        processedMessageIdsRef.current = new Set(ids.slice(-100))
-      }
-
-      // Determine status based on context
-      let messageStatus = message.status || 'sent'
-
-      const currentUser = currentUserRef.current
-      const isOwnMessage = currentUser && message.senderId === currentUser.id
-      const isOtherUserMessage = currentUser && message.senderId !== currentUser.id
-
-      // Use ref to get current active conversation (not stale closure value)
+      // PERFORMANCE: Skip old WebSocket messages that we already loaded from API/cache
       const currentActiveConversationId = activeConversationIdRef.current
+      if (message.conversationId === currentActiveConversationId) {
+        const messageTimestamp = new Date(message.createdAt).getTime()
+        const newestWeHave = newestMessageTimestampRef.current
 
-      console.log(
-        '[Chat] Processing message - active conversation:',
-        currentActiveConversationId,
-        'message conversation:',
-        message.conversationId,
-        'match:',
-        message.conversationId === currentActiveConversationId
-      )
-
-      // Stop typing indicator for this user when they send a message
-      if (isOtherUserMessage) {
-        // Clear typing indicator for the sender
-        typingHookRef.current?.handleUserTyping({
-          userId: message.senderId,
-          conversationId: message.conversationId,
-          isTyping: false,
-          username: message.sender?.username || message.sender?.firstName || 'User'
-        })
-
-        // Receiving someone else's message
-        if (message.conversationId === currentActiveConversationId) {
-          // In active conversation - mark as read and send read receipt
-          messageStatus = 'read'
-
-          // Emit read receipt back to sender via WebSocket
-          if (wsClientRef.current && wsClientRef.current.isConnected()) {
-            wsClientRef.current.getSocket()?.emit('message:read', {
-              messageId: message.id,
-              conversationId: message.conversationId,
-              readBy: currentUser?.id
-            })
-          }
-        } else {
-          // In background conversation - mark as delivered and emit delivery confirmation
-          messageStatus = 'delivered'
-
-          // Emit delivery confirmation back to sender
-          if (wsClientRef.current && wsClientRef.current.isConnected()) {
-            wsClientRef.current.getSocket()?.emit('message:delivered', {
-              messageId: message.id,
-              conversationId: message.conversationId,
-              deliveredTo: currentUser?.id
-            })
-          }
+        if (messageTimestamp <= newestWeHave && newestWeHave > 0) {
+          return // Skip - we already have this message
         }
-      } else if (isOwnMessage) {
-        // Receiving own message broadcast (after sending)
-        // Check if we already have this message to avoid overwriting with worse status
-        const existingMessages = messagesHookRef.current?.messages || []
-        const existingMessage = existingMessages.find((m: any) => {
-          // Match by ID or by temp ID with same content
-          if (m.id === message.id) return true
-          if (
-            m.id.startsWith('temp-') &&
-            m.content === message.content &&
-            m.conversationId === message.conversationId
-          ) {
-            return true
-          }
-          return false
-        })
+      }
 
-        // If message already exists with same real ID and has a status, skip entirely
-        if (existingMessage && existingMessage.id === message.id && existingMessage.status) {
-          // Message already exists with real ID - duplicate event, skip it
-          return
+      // OPTIMIZATION: Queue ALL logic asynchronously - handler returns immediately
+      queueMicrotask(() => {
+        // Clean up old message IDs (keep only last 100)
+        if (processedMessageIdsRef.current.size > 150) {
+          const ids = Array.from(processedMessageIdsRef.current)
+          processedMessageIdsRef.current = new Set(ids.slice(-100))
         }
 
-        // Preserve better status if it exists (delivered > sent, read > delivered)
-        if (existingMessage && existingMessage.status) {
-          const statusPriority = { sent: 1, delivered: 2, read: 3 }
-          const existingPriority = statusPriority[existingMessage.status as keyof typeof statusPriority] || 0
-          const incomingStatus = message.status || 'sent'
-          const incomingPriority = statusPriority[incomingStatus as keyof typeof statusPriority] || 1
+        // Determine status based on context
+        let messageStatus = message.status || 'sent'
 
-          if (existingPriority >= incomingPriority) {
-            // Keep the better or equal existing status
-            messageStatus = existingMessage.status
+        const currentUser = currentUserRef.current
+        const isOwnMessage = currentUser && message.senderId === currentUser.id
+        const isOtherUserMessage = currentUser && message.senderId !== currentUser.id
+
+        // Use ref to get current active conversation (not stale closure value)
+        const currentActiveConversationId = activeConversationIdRef.current
+
+        // Stop typing indicator for this user when they send a message
+        if (isOtherUserMessage) {
+          typingHookRef.current?.handleUserTyping({
+            userId: message.senderId,
+            conversationId: message.conversationId,
+            isTyping: false,
+            username: message.sender?.username || message.sender?.firstName || 'User'
+          })
+
+          // Receiving someone else's message
+          if (message.conversationId === currentActiveConversationId) {
+            // In active conversation - mark as read and send read receipt
+            messageStatus = 'read'
+
+            if (wsClientRef.current && wsClientRef.current.isConnected()) {
+              wsClientRef.current.getSocket()?.emit('message:read', {
+                messageId: message.id,
+                conversationId: message.conversationId,
+                readBy: currentUser?.id
+              })
+            }
           } else {
-            // Use the new status if it's better
-            messageStatus = incomingStatus
+            // In background conversation - mark as delivered and emit delivery confirmation
+            messageStatus = 'delivered'
+
+            if (wsClientRef.current && wsClientRef.current.isConnected()) {
+              wsClientRef.current.getSocket()?.emit('message:delivered', {
+                messageId: message.id,
+                conversationId: message.conversationId,
+                deliveredTo: currentUser?.id
+              })
+            }
           }
-        } else {
-          // No existing message, use incoming status or default to 'sent'
-          messageStatus = message.status || 'sent'
+        } else if (isOwnMessage) {
+          // Receiving own message broadcast (after sending)
+          // OPTIMIZATION: Only search messages if it's for the active conversation
+          if (message.conversationId === currentActiveConversationId) {
+            const existingMessages = messagesHookRef.current?.messages || []
+
+            // OPTIMIZATION: Use reverse for-loop with early break (faster than find())
+            let existingMessage = null
+
+            for (let i = existingMessages.length - 1; i >= 0; i--) {
+              const m = existingMessages[i] as any
+              // Check real ID match first (most common case)
+              if (m.id === message.id) {
+                existingMessage = m
+                break // Found exact match, stop searching
+              }
+              // Only check temp ID if we haven't found a real match
+              if (
+                m.id.startsWith('temp-') &&
+                m.content === message.content &&
+                m.conversationId === message.conversationId
+              ) {
+                existingMessage = m
+                // Don't break here - keep looking for real ID match
+              }
+            }
+
+            // If message already exists with same real ID and has a status, skip entirely
+            if (existingMessage && existingMessage.id === message.id && existingMessage.status) {
+              // Message already exists with real ID - duplicate event, skip it
+              return
+            }
+
+            // Preserve better status if it exists (delivered > sent, read > delivered)
+            if (existingMessage && existingMessage.status) {
+              const existingPriority = STATUS_PRIORITY[existingMessage.status as keyof typeof STATUS_PRIORITY] || 0
+              const incomingPriority = STATUS_PRIORITY[(message.status || 'sent') as keyof typeof STATUS_PRIORITY] || 1
+
+              if (existingPriority >= incomingPriority) {
+                // Keep the better or equal existing status
+                messageStatus = existingMessage.status
+              } else {
+                // Use the new status if it's better
+                messageStatus = message.status || 'sent'
+              }
+            } else {
+              // No existing message, use incoming status or default to 'sent'
+              messageStatus = message.status || 'sent'
+            }
+          } else {
+            // For background conversations, just use the incoming status
+            messageStatus = message.status || 'sent'
+          }
         }
-      }
 
-      // Create updated message with correct status
-      const messageWithStatus = { ...message, status: messageStatus }
+        // Create updated message with correct status
+        const messageWithStatus = { ...message, status: messageStatus }
 
-      // Update conversation list immediately (not in startTransition) for instant UI feedback
-      // Users need to see unread counts and list reordering instantly
-      console.log(
-        '[Chat] Updating conversation list - conversationId:',
-        message.conversationId,
-        'isOtherUser:',
-        isOtherUserMessage,
-        'isActive:',
-        message.conversationId === currentActiveConversationId
-      )
-      conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
+        // OPTIMIZATION: Defer ALL UI updates to not block the message handler
+        // Use startTransition to make conversation list updates non-blocking
+        startTransition(() => {
+          // Update conversation list (now deferred and non-blocking)
+          conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
 
-      // Increment unread count ONLY for messages from OTHER users in background conversations
-      // This MUST be immediate so users see the badge update right away
-      if (isOtherUserMessage && message.conversationId !== currentActiveConversationId) {
-        console.log('[Chat] Incrementing unread count for background conversation:', message.conversationId)
-        conversationsHookRef.current?.incrementUnreadCount(message.conversationId)
-      } else {
-        console.log(
-          '[Chat] NOT incrementing unread:',
-          isOtherUserMessage ? 'conversation is active' : 'message is from current user'
-        )
-      }
+          // Increment unread count ONLY for messages from OTHER users in background conversations
+          if (isOtherUserMessage && message.conversationId !== currentActiveConversationId) {
+            conversationsHookRef.current?.incrementUnreadCount(message.conversationId)
+          }
 
-      // Use startTransition only for adding message to chat view (less critical)
-      // This prevents the message list from blocking other UI updates
-      startTransition(() => {
-        // Always add message if it's for the active conversation
-        if (message.conversationId === currentActiveConversationId) {
-          console.log('[Chat] Adding message to active conversation:', message.id)
-          messagesHookRef.current?.addMessage(messageWithStatus)
-        } else {
-          console.log(
-            '[Chat] NOT adding message - conversation mismatch (message:',
-            message.conversationId,
-            'active:',
-            currentActiveConversationId,
-            ')'
-          )
-        }
+          // Add message to chat view if it's for the active conversation
+          if (message.conversationId === currentActiveConversationId) {
+            messagesHookRef.current?.addMessage(messageWithStatus)
+          }
+        })
       })
     }
 
@@ -584,15 +565,16 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
             conversation.activeCall = currentActiveCall
           }
 
-          // Enrich conversation with real user data before updating
-          if (conversationsHookRef.current.enrichConversations) {
-            const enriched = await conversationsHookRef.current.enrichConversations([conversation])
+          // Fast enrichment - only add avatars (non-blocking, from cache)
+          // getConversationById already returns full user data, so no need for user data fetch
+          if (conversationsHookRef.current.enrichConversationsWithAvatarsOnly) {
+            const enriched = conversationsHookRef.current.enrichConversationsWithAvatarsOnly([conversation])
             conversationsHookRef.current.updateConversation(data.conversationId, enriched[0])
           } else {
             conversationsHookRef.current.updateConversation(data.conversationId, conversation)
           }
-        } catch (err) {
-          console.error('Error refreshing conversation:', err)
+        } catch {
+          // Error refreshing conversation
         }
       }
     }
@@ -608,14 +590,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           } else {
             conversationsHookRef.current.addConversation(data.conversation)
           }
-        } catch (err) {
-          console.error('Error adding new conversation:', err)
+        } catch {
+          // Error adding new conversation
         }
       }
     }
 
     const handleConversationCallStarted = (data: ActiveCall) => {
-      console.debug('Received conversation:call-started:', data)
       setActiveCalls(prev => ({ ...prev, [data.conversationId]: data }))
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
         activeCall: data
@@ -634,11 +615,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationActiveCalls = (calls: ActiveCall[]) => {
-      console.debug('Received active calls:', calls.length, 'calls', calls)
       const map: Record<string, ActiveCall> = {}
       calls.forEach(call => {
         map[call.conversationId] = call
-        console.debug('Updating conversation with activeCall:', call.conversationId, call)
         conversationsHookRef.current?.updateConversation?.(call.conversationId, {
           activeCall: call
         } as Partial<Conversation>)
@@ -647,8 +626,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleNudgeReceived = (data: { conversationId: string; fromUserId: string; fromUserName: string }) => {
-      console.log('[Chat] Received nudge from:', data.fromUserName, 'in conversation:', data.conversationId)
-
       // Trigger nudge notification callback if registered
       if (nudgeCallbackRef.current) {
         nudgeCallbackRef.current(data)
@@ -699,8 +676,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
     // Join new conversation if not already joined
     if (activeConversationId) {
-      console.log('[Chat] Joining conversation room:', activeConversationId)
-      wsClientRef.current.joinConversation(activeConversationId)
+      // PERFORMANCE: Tell backend the newest message we have to avoid sending historical messages
+      const newestTimestamp = newestMessageTimestampRef.current
+      wsClientRef.current.joinConversation(activeConversationId, newestTimestamp)
       currentConversationIdRef.current = activeConversationId
       conversationsHookRef.current?.markConversationAsRead(activeConversationId)
 
@@ -730,21 +708,23 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
                   // Double-check conversation is still active
                   if (conversationIdToMarkRead === currentConversationIdRef.current) {
-                    // Enrich conversation before updating
-                    if (conversationsHookRef.current.enrichConversations) {
-                      const enriched = await conversationsHookRef.current.enrichConversations([fullConversation])
+                    // Fast enrichment - only add avatars (non-blocking)
+                    if (conversationsHookRef.current.enrichConversationsWithAvatarsOnly) {
+                      const enriched = conversationsHookRef.current.enrichConversationsWithAvatarsOnly([
+                        fullConversation
+                      ])
                       conversationsHookRef.current.updateConversation(conversationIdToMarkRead, enriched[0])
                     } else {
                       conversationsHookRef.current.updateConversation(conversationIdToMarkRead, fullConversation)
                     }
                   }
-                } catch (error) {
-                  console.error('Error updating conversation after marking read:', error)
+                } catch {
+                  // Error updating conversation
                 }
               }
             }, 200)
           })
-          .catch(console.error)
+          .catch(() => {})
       }
     } else {
       // We've left the room, backend will send conversation_updated events instead
@@ -754,23 +734,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
   const sendMessage = useCallback(
     async (conversationId: string, content: string, metadata?: Record<string, any>) => {
-      console.log('[useChatClient] sendMessage called', {
-        conversationId,
-        contentLength: content?.length,
-        hasMetadata: !!metadata,
-        hasCurrentUser: !!currentUser,
-        hasWsClient: !!wsClientRef.current,
-        isConnected
-      })
-
       if (!currentUser) {
-        console.error('[useChatClient] sendMessage failed: User not authenticated')
         throw new Error('User not authenticated')
       }
 
       // Prefer WebSocket for real-time delivery, fallback to REST API
       if (wsClientRef.current && isConnected) {
-        console.log('✅ [useChatClient] Using WebSocket to send message (real-time)')
         try {
           // Create optimistic message for immediate UI feedback
           const optimisticMessage: Message = {
@@ -807,29 +776,19 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           })
 
           // Send via WebSocket - the gateway will create the message and broadcast it
-          console.log('[useChatClient] Calling wsClient.sendMessage', {
-            conversationId,
-            senderId: currentUser.id,
-            hasMetadata: !!metadata
-          })
           wsClientRef.current.sendMessage(conversationId, content, currentUser.id, undefined, metadata)
-          console.log('[useChatClient] wsClient.sendMessage called successfully')
 
           // The real message will be received via WebSocket 'new_message' event
           // and will replace the optimistic one
           // Note: Backend should persist the message to database when received via WebSocket
           // If message doesn't appear after refresh, backend persistence may be failing
           return optimisticMessage
-        } catch (err) {
-          console.error('[useChatClient] Error sending message via WebSocket:', err)
+        } catch {
           // Fall through to REST API fallback
         }
       }
 
       // Fallback to REST API if WebSocket is not available
-      console.warn('⚠️ [useChatClient] WebSocket not available, falling back to REST API')
-      console.warn('⚠️ Live features disabled: typing indicators, instant message delivery')
-      console.warn('⚠️ To fix: Ensure chat-service backend is running and WebSocket connection is established')
 
       if (!apiClientRef.current) {
         throw new Error('Chat client not initialized')
@@ -845,10 +804,8 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         )
         messagesHook.addMessage(message)
         typingHook.stopTyping(conversationId)
-        console.log('✅ Message sent via REST API (not real-time)')
         return message
       } catch (err) {
-        console.error('❌ Error sending message via REST API:', err)
         throw err
       }
     },
@@ -877,13 +834,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Reload conversation with full participant data including user objects
         const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-        // Add and enrich conversation - this returns the enriched version
-        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        // Add and enrich conversation (fast - avatars only, non-blocking)
+        // getConversationById already returns full user data
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation, { fastEnrich: true })
         setActiveConversationId(enrichedConversation.id)
 
         return enrichedConversation
       } catch (err) {
-        console.error('Error creating conversation:', err)
         throw err
       }
     },
@@ -907,13 +864,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Reload conversation with full participant data including user objects
         const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-        // Add and enrich conversation - this returns the enriched version
-        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        // Add and enrich conversation (fast - avatars only, non-blocking)
+        // getConversationById already returns full user data
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation, { fastEnrich: true })
         setActiveConversationId(enrichedConversation.id)
 
         return enrichedConversation
       } catch (err) {
-        console.error('Error creating context conversation:', err)
         throw err
       }
     },
@@ -936,13 +893,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Reload conversation with full participant data including user objects
         const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-        // Add and enrich conversation - this returns the enriched version
-        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        // Add and enrich conversation (fast - avatars only, non-blocking)
+        // getConversationById already returns full user data
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation, { fastEnrich: true })
         setActiveConversationId(enrichedConversation.id)
 
         return enrichedConversation
       } catch (err) {
-        console.error('Error creating AI agent conversation:', err)
         throw err
       }
     },
@@ -966,13 +923,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Reload conversation with full participant data including user objects
         const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-        // Add and enrich conversation - this returns the enriched version
-        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        // Add and enrich conversation (fast - avatars only, non-blocking)
+        // getConversationById already returns full user data
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation, { fastEnrich: true })
         setActiveConversationId(enrichedConversation.id)
 
         return enrichedConversation
       } catch (err) {
-        console.error('Error creating group conversation:', err)
         throw err
       }
     },
@@ -983,33 +940,54 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     async (conversation: Conversation | null) => {
       if (!conversation) {
         setActiveConversationId(null)
+        newestMessageTimestampRef.current = 0
         return
       }
 
+      // OPTIMIZATION: Set conversation ID immediately (non-blocking UI update)
+      // This allows the UI to show the conversation view instantly
       setActiveConversationId(conversation.id)
 
-      // Reload conversation with full participant data to ensure we have user objects
-      if (apiClientRef.current && conversation.id) {
-        try {
-          const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-
-          // Preserve activeCall from existing conversation or activeCalls map
-          const existingActiveCall = conversation.activeCall || activeCalls[conversation.id]
-          if (existingActiveCall) {
-            fullConversation.activeCall = existingActiveCall
-          }
-
-          // Enrich conversation before updating
-          if (conversationsHook.enrichConversations) {
-            const enriched = await conversationsHook.enrichConversations([fullConversation])
-            conversationsHook.updateConversation(conversation.id, enriched[0])
-          } else {
-            conversationsHook.updateConversation(conversation.id, fullConversation)
-          }
-        } catch (err) {
-          console.error('Error reloading conversation:', err)
-          // Continue with the conversation we have
+      // Set initial timestamp to filter out historical WebSocket messages
+      if (conversation.lastMessage?.createdAt) {
+        const lastMessageTimestamp = new Date(conversation.lastMessage.createdAt).getTime()
+        newestMessageTimestampRef.current = lastMessageTimestamp
+      } else {
+        // Fallback to already-loaded messages
+        const currentMessages = messagesHookRef.current?.messages || []
+        if (currentMessages.length > 0) {
+          const newestTimestamp = Math.max(...currentMessages.map((m: Message) => new Date(m.createdAt).getTime()))
+          newestMessageTimestampRef.current = newestTimestamp
+        } else {
+          newestMessageTimestampRef.current = 0
         }
+      }
+
+      // OPTIMIZATION: Defer expensive API calls and enrichment
+      // Do this in the background without blocking the click handler
+      if (apiClientRef.current && conversation.id) {
+        // Use setTimeout to defer to next event loop (non-blocking)
+        setTimeout(async () => {
+          try {
+            const fullConversation = await apiClientRef.current!.getConversationById(conversation.id)
+
+            // Preserve activeCall from existing conversation or activeCalls map
+            const existingActiveCall = conversation.activeCall || activeCalls[conversation.id]
+            if (existingActiveCall) {
+              fullConversation.activeCall = existingActiveCall
+            }
+
+            // Enrich conversation before updating (background task)
+            if (conversationsHook.enrichConversations) {
+              const enriched = await conversationsHook.enrichConversations([fullConversation])
+              conversationsHook.updateConversation(conversation.id, enriched[0])
+            } else {
+              conversationsHook.updateConversation(conversation.id, fullConversation)
+            }
+          } catch {
+            // Continue with the conversation we have
+          }
+        }, 0)
       }
     },
     [conversationsHook, activeCalls]
@@ -1036,7 +1014,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         return true
       } catch (err) {
-        console.error('Error removing conversation:', err)
         throw err
       }
     },
@@ -1045,7 +1022,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
   const sendNudge = useCallback((conversationId: string, toUserId: string) => {
     if (!wsClientRef.current || !wsClientRef.current.isConnected()) {
-      console.error('[useChatClient] Cannot send nudge: WebSocket not connected')
       return false
     }
 

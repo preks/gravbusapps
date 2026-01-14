@@ -21,7 +21,7 @@ export interface NewworkMainProps extends BusinessAppContextProps {
  * The apex of the NEWWORK platform, showcasing the three pillars:
  * - CREATE: Build anything - screens, flows, task experts, functions
  * - EVERY: Your productivity - AI assistant, documents, time, inbox
- * - BUSINESS APPS: Run your business - HR, CRM, expenses, services
+ * - BUSINESS DOMAINS: Run your business - HR, CRM, expenses, services
  *
  * All unified by AI at the core of the enterprise platform.
  */
@@ -52,7 +52,7 @@ export const NewworkMain: React.FC<NewworkMainProps> = ({ 'data-testid': testId 
     },
     {
       id: 'business',
-      title: 'BUSINESS APPS',
+      title: 'BUSINESS DOMAINS',
       subtitle: 'Run your business',
       description:
         'Professional business applications for every department. HR, CRM, finance, services, and more — all integrated and AI-enhanced.',

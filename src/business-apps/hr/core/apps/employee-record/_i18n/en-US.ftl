@@ -296,5 +296,3 @@ notification-address-updated-success = Address updates sent to be approved by th
 notification-bank-account-updated-success = Bank account updates sent to be approved by the HR department.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
 notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
-notification-profile-picture-updated-success = Profile picture updates sent to be approved by the HR department.
-notification-relationship-updated-success = Relationship status updates sent to be approved by the HR department.
