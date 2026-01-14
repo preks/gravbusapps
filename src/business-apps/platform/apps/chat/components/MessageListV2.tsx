@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import { MessageItemV2 } from './MessageItemV2'
-import type { Message, ConversationType } from '../types'
+import { TypingIndicatorV2 } from './TypingIndicatorV2'
+import type { Message, ConversationType, TypingIndicator } from '../types'
 import { measureRender, devPerf, startPerformanceTimer } from '../utils/performanceUtils'
 
 interface MessageListV2Props {
@@ -11,6 +12,8 @@ interface MessageListV2Props {
   isLoading?: boolean
   hasMore?: boolean
   onLoadMore?: () => void
+  conversationId: string
+  typingUsers?: TypingIndicator[]
 }
 
 /**
@@ -26,16 +29,43 @@ interface MessageListV2Props {
  * when parent component re-renders but props haven't changed
  */
 export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
-  ({ messages, currentUserId, conversationType, isLoading = false, hasMore = false, onLoadMore }) => {
+  ({
+    messages,
+    currentUserId,
+    conversationType,
+    isLoading = false,
+    hasMore = false,
+    onLoadMore,
+    conversationId,
+    typingUsers = []
+  }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const prevMessagesLengthRef = useRef(0)
+    const prevTypingUsersLengthRef = useRef(0)
     const isUserScrollingRef = useRef(false)
     const scrollTimeoutRef = useRef<NodeJS.Timeout>()
     const renderTimerRef = useRef<ReturnType<typeof startPerformanceTimer> | null>(null)
     const isLoadingMoreRef = useRef(false) // Track if we're already loading to prevent duplicate requests
+    const lastScrollTopRef = useRef<number>(0) // Track last scroll position to detect actual movement
+    const prevScrollHeightRef = useRef<number>(0) // Track scroll height to preserve position after prepending
+    const scrollAdjustmentTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Track scroll adjustment timeout
+    const scrollBeforeLoadRef = useRef<number>(0) // CRITICAL: Store scroll position BEFORE load-more triggers
+    const lastScrollHeightIncreaseRef = useRef<number>(0) // Track scroll height increase for unseen message detection
+
+    // State for "new messages" indicator (Slack/Teams pattern)
+    const [hasUnseenMessages, setHasUnseenMessages] = useState(false)
+    const [unseenCount, setUnseenCount] = useState(0)
 
     const isGroupChat = conversationType === 'group'
+
+    // Reset unseen messages counter when conversation changes
+    useEffect(() => {
+      setHasUnseenMessages(false)
+      setUnseenCount(0)
+      prevMessagesLengthRef.current = 0
+      prevScrollHeightRef.current = 0
+    }, [conversationId])
 
     // Track renders
     devPerf(() => {
@@ -44,12 +74,13 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
         messageCount: messages.length,
         isLoading,
         hasMore,
-        conversationType
+        conversationType,
+        hasUnseenMessages,
+        unseenCount
       })
     })
 
-    // OPTIMIZATION: Auto-scroll to bottom on new messages (if user is near bottom)
-    // Only depend on messages.length to minimize re-renders
+    // OPTIMIZATION: Auto-scroll to bottom on new messages or typing indicator (if user is near bottom)
     useEffect(() => {
       const container = containerRef.current
       if (!container || messages.length === 0) return
@@ -62,12 +93,25 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
         }
       }
 
-      // OPTIMIZATION: Only check and scroll if message count actually changed
+      // Check if message count changed
       const prevCount = prevMessagesLengthRef.current
       const currentCount = messages.length
+      const messagesChanged = prevCount !== currentCount
 
-      if (prevCount === currentCount) {
-        return // No change, skip scroll logic
+      // Check if typing users changed
+      const prevTypingCount = prevTypingUsersLengthRef.current
+      const currentTypingCount = typingUsers.length
+      const typingChanged = prevTypingCount !== currentTypingCount
+
+      // Skip if nothing changed
+      if (!messagesChanged && !typingChanged) {
+        return
+      }
+
+      // CRITICAL: Skip auto-scroll ONLY if we're actively loading (isLoading prop)
+      // Don't skip during cooldown period - new messages should still auto-scroll!
+      if (isLoading) {
+        return
       }
 
       // Check if user is near bottom (within 100px)
@@ -77,19 +121,82 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
 
       const hasNewMessages = currentCount > prevCount
       const isInitialLoad = prevCount === 0
-      const shouldScroll = isInitialLoad || (hasNewMessages && isNearBottom)
+
+      // Detect if this is a PREPEND (load-more) or APPEND (new message)
+      // CRITICAL: Use the scroll height increase stored by useLayoutEffect
+      // (calculating it here gives 0 because useLayoutEffect already updated the ref)
+      const scrollHeightIncrease = lastScrollHeightIncreaseRef.current
+      const isPrepending = scrollHeightIncrease > 1000 // Load-more adds ~1800px, new message adds ~72px
+
+      // Skip auto-scroll if we're prepending messages (let scroll preservation handle it)
+      if (isPrepending && isLoadingMoreRef.current) {
+        return
+      }
+
+      const shouldScroll = isInitialLoad || (hasNewMessages && isNearBottom) || (typingChanged && isNearBottom)
+
+      // FEATURE: Track unseen messages when user is scrolled up (Slack/Teams pattern)
+      // CRITICAL: Only count real new messages, not pagination (load-more)
+      // Detection logic:
+      // - Large scroll increase (>1000px) = pagination loading old messages → skip
+      // - Small scroll increase (>0 and <1000px) = new message arrived → count
+      // - No scroll increase (0px) = re-render without new content → skip
+      const isRealNewMessage = hasNewMessages && scrollHeightIncrease > 0 && scrollHeightIncrease < 1000
+
+      devPerf(() => {
+        if (hasNewMessages) {
+          console.log('[V2 List] 🔍 New message detection:', {
+            hasNewMessages,
+            scrollHeightIncrease,
+            isRealNewMessage,
+            isNearBottom,
+            isInitialLoad,
+            willCount: isRealNewMessage && !isNearBottom && !isInitialLoad,
+            currentUnseenCount: unseenCount,
+            hasUnseenMessages
+          })
+        }
+      })
+
+      if (isRealNewMessage && !isNearBottom && !isInitialLoad) {
+        const newMessageCount = currentCount - prevCount
+        setUnseenCount(prev => prev + newMessageCount)
+        setHasUnseenMessages(true)
+
+        devPerf(() => {
+          console.log('[V2 List] 📨 New messages while scrolled up:', {
+            newMessageCount,
+            totalUnseen: unseenCount + newMessageCount,
+            scrollHeightIncrease
+          })
+        })
+      }
 
       devPerf(() => {
         console.log('[V2 List] Scroll check:', {
           hasNewMessages,
           isInitialLoad,
+          typingChanged,
           shouldScroll,
+          isPrepending,
+          isNearBottom,
+          scrollHeightIncrease,
           prevCount,
-          currentCount
+          currentCount,
+          currentScrollTop: container.scrollTop,
+          scrollHeight: container.scrollHeight,
+          clientHeight: container.clientHeight
         })
       })
 
       if (shouldScroll && messagesEndRef.current) {
+        // Clear unseen messages indicator when auto-scrolling to bottom
+        if (hasUnseenMessages) {
+          setHasUnseenMessages(false)
+          setUnseenCount(0)
+          devPerf(() => console.log('[V2 List] ✅ Cleared unseen indicator (auto-scroll)'))
+        }
+
         // OPTIMIZATION: Use requestAnimationFrame for smooth, non-blocking scroll
         requestAnimationFrame(() => {
           if (messagesEndRef.current) {
@@ -97,6 +204,28 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
               behavior: isInitialLoad ? 'auto' : 'smooth',
               block: 'end'
             })
+
+            // CRITICAL: Update scroll tracking after scrolling to bottom
+            if (containerRef.current) {
+              setTimeout(() => {
+                if (containerRef.current) {
+                  lastScrollTopRef.current = containerRef.current.scrollTop
+                  prevScrollHeightRef.current = containerRef.current.scrollHeight
+                  // FIX: Guard use of containerRef.current and improve logging
+                  devPerf(() => {
+                    const container = containerRef.current
+                    if (!container) {
+                      console.log('[V2 List] Auto-scrolled: containerRef.current is null')
+                      return
+                    }
+                    console.log('[V2 List] Auto-scrolled to bottom:', {
+                      scrollTop: container.scrollTop,
+                      scrollHeight: container.scrollHeight
+                    })
+                  })
+                }
+              }, 100) // Wait for scroll to complete
+            }
           }
         })
 
@@ -108,10 +237,118 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
       }
 
       prevMessagesLengthRef.current = currentCount
-    }, [messages.length]) // OPTIMIZATION: Only re-run when length changes
+      prevTypingUsersLengthRef.current = currentTypingCount
+    }, [messages.length, typingUsers.length]) // Re-run when messages or typing users change
+
+    // CRITICAL: Preserve scroll position after prepending messages (load more)
+    // This runs BEFORE auto-scroll to prevent conflicts
+    useLayoutEffect(() => {
+      const container = containerRef.current
+      if (!container || messages.length === 0) return
+
+      const currentScrollHeight = container.scrollHeight
+      const prevScrollHeight = prevScrollHeightRef.current
+      const currentScrollTop = container.scrollTop
+
+      // CRITICAL: Calculate and store scroll height increase for useEffect to use
+      const scrollHeightDiff = currentScrollHeight - prevScrollHeight
+      lastScrollHeightIncreaseRef.current = prevScrollHeight > 0 ? scrollHeightDiff : 0
+
+      // CRITICAL: Only preserve scroll for LARGE increases (pagination/load-more)
+      // Small increases (<1000px) are new messages - let auto-scroll and unseen logic handle them
+      const isAtBottom = currentScrollTop + container.clientHeight >= currentScrollHeight - 100
+      const scrollHeightIncreased = prevScrollHeight > 0 && currentScrollHeight > prevScrollHeight
+      const isLargeBatchPrepend = scrollHeightDiff > 1000 // Pagination adds ~1800px, new message adds ~72px
+      const messagesWerePrepended = scrollHeightIncreased && !isAtBottom && isLargeBatchPrepend
+
+      if (process.env.NODE_ENV === 'development' && scrollHeightIncreased) {
+        devPerf(() =>
+          console.log('[V2 List] ScrollHeight increased - checking if prepend or append:', {
+            prevHeight: prevScrollHeight,
+            newHeight: currentScrollHeight,
+            diff: scrollHeightDiff,
+            scrollTop: currentScrollTop,
+            clientHeight: container.clientHeight,
+            isAtBottom,
+            isLargeBatchPrepend,
+            messagesWerePrepended
+          })
+        )
+      }
+
+      if (messagesWerePrepended) {
+        // Clear any existing timeout
+        if (scrollAdjustmentTimeoutRef.current) {
+          clearTimeout(scrollAdjustmentTimeoutRef.current)
+        }
+
+        // Block scroll events temporarily while adjusting position
+        isLoadingMoreRef.current = true
+
+        // CRITICAL: Use the saved scroll position from BEFORE load-more triggered
+        // The browser resets scrollTop to ~0 after prepending, so we can't trust container.scrollTop here
+        const savedScrollTop = scrollBeforeLoadRef.current
+        const newScrollTop = savedScrollTop + scrollHeightDiff
+
+        // Adjust scroll to maintain viewport (Slack/Teams behavior)
+        container.scrollTop = newScrollTop
+        lastScrollTopRef.current = newScrollTop
+
+        devPerf(() =>
+          console.log('[V2 List] 🎯 Viewport preserved (load-more):', {
+            prevHeight: prevScrollHeight,
+            newHeight: currentScrollHeight,
+            diff: scrollHeightDiff,
+            savedScrollTop, // Position saved BEFORE load
+            currentScrollTopAfterPrepend: container.scrollTop, // What browser set it to
+            newScrollTop, // Where we're moving it
+            viewportStable: '✅'
+          })
+        )
+
+        // Re-enable scroll detection after DOM is stable (2 seconds)
+        scrollAdjustmentTimeoutRef.current = setTimeout(() => {
+          isLoadingMoreRef.current = false
+          if (containerRef.current) {
+            lastScrollTopRef.current = containerRef.current.scrollTop
+          }
+          devPerf(() => console.log('[V2 List] ✅ Scroll detection re-enabled'))
+        }, 2000) // 2 seconds to ensure DOM is fully settled
+
+        // Reset saved scroll position
+        scrollBeforeLoadRef.current = 0
+      }
+
+      // Always update prevScrollHeightRef for next comparison
+      prevScrollHeightRef.current = currentScrollHeight
+    }, [messages.length])
 
     // Handle scroll - detect if user is manually scrolling
     const handleScroll = () => {
+      const container = containerRef.current
+
+      // CRITICAL: Check isLoading PROP (not ref) - V1 pattern
+      // This prevents infinite loop while messages are being loaded
+      if (!container) {
+        return
+      }
+
+      // FEATURE: Clear unseen messages indicator when user scrolls to bottom manually
+      const threshold = 100
+      const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+      const isAtBottom = scrollBottom < threshold
+
+      if (isAtBottom && hasUnseenMessages) {
+        setHasUnseenMessages(false)
+        setUnseenCount(0)
+        devPerf(() => console.log('[V2 List] ✅ Cleared unseen indicator (manual scroll to bottom)'))
+      }
+
+      // Load more handling
+      if (!onLoadMore || isLoading || !hasMore) {
+        return
+      }
+
       // Mark that user is scrolling
       isUserScrollingRef.current = true
 
@@ -126,19 +363,30 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
       }, 100)
 
       // OPTIMIZATION: Load more when scrolled to top
-      // Add ref check to prevent duplicate requests
-      const container = containerRef.current
-      if (container && onLoadMore && hasMore && !isLoading && !isLoadingMoreRef.current) {
-        if (container.scrollTop < 50) {
-          isLoadingMoreRef.current = true
-          devPerf(() => console.log('[V2 List] Loading more messages (scrolled to top)'))
-          onLoadMore()
+      const scrollTop = container.scrollTop
 
-          // Reset after a delay to allow next load
-          setTimeout(() => {
-            isLoadingMoreRef.current = false
-          }, 500)
-        }
+      // Load more if near top (< 50px)
+      if (scrollTop < 50) {
+        // CRITICAL: Save scroll position BEFORE loading (browser will reset it to 0)
+        scrollBeforeLoadRef.current = scrollTop
+        prevScrollHeightRef.current = container.scrollHeight
+
+        // Mark as loading to prevent duplicate triggers
+        isLoadingMoreRef.current = true
+        lastScrollTopRef.current = scrollTop
+
+        devPerf(() =>
+          console.log('[V2 List] 📌 Saved scroll before load-more:', {
+            scrollTop,
+            scrollHeight: container.scrollHeight,
+            clientHeight: container.clientHeight,
+            messageCount: messages.length
+          })
+        )
+        onLoadMore()
+      } else {
+        // Update last scroll position for tracking
+        lastScrollTopRef.current = scrollTop
       }
     }
 
@@ -155,16 +403,54 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
         if (scrollTimeoutRef.current) {
           clearTimeout(scrollTimeoutRef.current)
         }
+        if (scrollAdjustmentTimeoutRef.current) {
+          clearTimeout(scrollAdjustmentTimeoutRef.current)
+        }
       }
     }, [])
+
+    // Handle click on "new messages" banner
+    const handleScrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        setHasUnseenMessages(false)
+        setUnseenCount(0)
+        devPerf(() => console.log('[V2 List] ✅ Cleared unseen indicator (clicked banner)'))
+      }
+    }
 
     return (
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="gba:flex-1 gba:overflow-y-auto gba:min-h-0"
+        className="gba:flex-1 gba:overflow-y-auto gba:min-h-0 gba:relative"
         data-testid="message-list-v2"
       >
+        {/* "New Messages" indicator (Slack/Teams pattern) */}
+        {hasUnseenMessages && unseenCount > 0 && (
+          <div
+            className="gba:fixed gba:bottom-24 gba:left-1/2 gba:-translate-x-1/2 gba:z-[9999]"
+            data-testid="new-messages-banner-v2"
+            style={{ pointerEvents: 'auto' }}
+          >
+            <button
+              onClick={handleScrollToBottom}
+              className="gba:bg-primary gba:text-primary-foreground gba:px-6 gba:py-3 gba:rounded-full gba:shadow-2xl hover:gba:bg-primary/90 gba:transition-all gba:text-sm gba:font-semibold gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap gba:animate-in gba:fade-in gba:slide-in-from-bottom-4 gba:duration-300"
+              data-testid="new-messages-button-v2"
+              style={{
+                boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+              }}
+            >
+              <svg className="gba:w-4 gba:h-4 gba:flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+              <span>
+                {unseenCount} new message{unseenCount !== 1 ? 's' : ''}
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* Loading indicator at top */}
         {isLoading && messages.length > 0 && (
           <div className="gba:flex gba:justify-center gba:py-2">
@@ -227,6 +513,10 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
                 />
               )
             })}
+
+            {/* Typing Indicator */}
+            {typingUsers.length > 0 && <TypingIndicatorV2 typingUsers={typingUsers} conversationId={conversationId} />}
+
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -243,6 +533,12 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     if (prevProps.isLoading !== nextProps.isLoading) return false
     if (prevProps.hasMore !== nextProps.hasMore) return false
     if (prevProps.onLoadMore !== nextProps.onLoadMore) return false
+    if (prevProps.conversationId !== nextProps.conversationId) return false
+
+    // Check typing users
+    const prevTypingCount = prevProps.typingUsers?.length || 0
+    const nextTypingCount = nextProps.typingUsers?.length || 0
+    if (prevTypingCount !== nextTypingCount) return false
 
     // Check messages array
     // IMPORTANT: Compare length and first/last message IDs for performance

@@ -395,10 +395,14 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
               }
             }
 
-            // If message already exists with same real ID and has a status, skip entirely
-            if (existingMessage && existingMessage.id === message.id && existingMessage.status) {
-              // Message already exists with real ID - duplicate event, skip it
-              return
+            // If message already exists (either real ID or temp ID match), handle carefully
+            if (existingMessage) {
+              // If exact ID match and message already has status, it's a duplicate - skip it
+              if (existingMessage.id === message.id && existingMessage.status) {
+                return
+              }
+              // If it's a temp message being replaced, we'll let addMessage handle it
+              // addMessage has proper logic to replace temp with real message
             }
 
             // Preserve better status if it exists (delivered > sent, read > delivered)
@@ -425,6 +429,14 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Create updated message with correct status
         const messageWithStatus = { ...message, status: messageStatus }
+
+        if (process.env.NODE_ENV === 'development' && isOwnMessage) {
+          console.log('[V1 WS] Processing own message with status:', {
+            messageId: message.id,
+            status: messageStatus,
+            isActiveConversation: message.conversationId === currentActiveConversationId
+          })
+        }
 
         // OPTIMIZATION: Defer ALL UI updates to not block the message handler
         // Use startTransition to make conversation list updates non-blocking
@@ -475,6 +487,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
     const handleMessageDelivered = (data: { messageId: string; conversationId: string; deliveredTo: string }) => {
       // When someone receives your message (delivered), update status to 'delivered' (gray double checkmarks)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[V1 WS] message:delivered event received:', data)
+      }
+
       const currentUser = currentUserRef.current
       if (currentUser && data.deliveredTo !== currentUser.id) {
         const messages = messagesHookRef.current?.messages || []
@@ -490,6 +506,14 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           return false
         })
 
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[V1 WS] Found message for delivery update:', {
+            found: !!message,
+            messageId: message?.id,
+            currentStatus: message?.status
+          })
+        }
+
         if (message && message.senderId === currentUser.id) {
           // Update message status immediately (no startTransition for status updates - they're important!)
           // Use the real message ID from the event data, not the found message's ID (which might be temp)
@@ -501,7 +525,16 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
             id: data.messageId, // Use real ID from event
             status: 'delivered'
           })
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[V1 WS] Updated message status to delivered:', data.messageId)
+          }
         }
+      } else if (process.env.NODE_ENV === 'development') {
+        console.log('[V1 WS] Skipped delivery update (deliveredTo is current user):', {
+          currentUserId: currentUser?.id,
+          deliveredTo: data.deliveredTo
+        })
       }
     }
 
@@ -962,6 +995,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           newestMessageTimestampRef.current = 0
         }
       }
+
+      // NOTE: Backend handles read receipts when conversation is opened
+      // Frontend relies on participant.lastReadAt timestamps for message status calculation
+      // WebSocket events (message:delivered, message:read) update status in real-time
 
       // OPTIMIZATION: Defer expensive API calls and enrichment
       // Do this in the background without blocking the click handler

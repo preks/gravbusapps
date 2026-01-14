@@ -1,38 +1,46 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { Message, PaginatedResponse } from '../types'
+import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
+import type { Message, PaginatedResponse, Conversation } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { startPerformanceTimer, measureRender, devPerf } from '../utils/performanceUtils'
+import { useCacheV2 } from './useCacheV2'
 
 interface UseMessagesV2Options {
   apiClient: ChatApiClient
   conversationId: string | null
   currentUserId?: string | null
+  conversation?: Conversation | null
   enabled?: boolean
+  onMessagesLoaded?: (messageIds: string[]) => void
 }
 
+type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read'
+
 /**
- * Simplified messages hook - focuses on core functionality without complex optimizations
+ * Enhanced V2 messages hook with caching and status tracking
  *
- * Key simplifications:
- * - No message caching (for now)
- * - No complex enrichment
- * - Simple state management
- * - Clear data flow
+ * Features:
+ * - Message caching for instant conversation switching
+ * - Message status tracking (sent/delivered/read)
+ * - Optimistic updates for better UX
+ * - Proper cleanup and memory management
  */
 export function useMessagesV2({
   apiClient,
   conversationId,
-  currentUserId, // Reserved for future use (read receipts, message status)
-  enabled = true
+  currentUserId,
+  conversation,
+  enabled = true,
+  onMessagesLoaded
 }: UseMessagesV2Options) {
   // Performance tracking
   const renderCountRef = useRef(0)
   devPerf(() => {
     renderCountRef.current++
     measureRender('useMessagesV2')
-    // Log currentUserId for debugging (suppresses unused warning)
-    console.log('[V2 Hook] User:', currentUserId || 'unknown')
   })
+
+  // Cache hook
+  const cache = useCacheV2()
   // Core state
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -45,6 +53,67 @@ export function useMessagesV2({
   // Refs for request management
   const abortControllerRef = useRef<AbortController | null>(null)
   const isLoadingRef = useRef(false)
+  const conversationRef = useRef(conversation)
+  const currentUserIdRef = useRef(currentUserId)
+
+  // Keep refs in sync
+  useEffect(() => {
+    conversationRef.current = conversation
+  }, [conversation])
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId
+  }, [currentUserId])
+
+  /**
+   * Calculate message status based on participants' read timestamps
+   */
+  const calculateMessageStatus = useCallback((message: Message): MessageStatus => {
+    if (!currentUserIdRef.current || message.senderId !== currentUserIdRef.current) {
+      return 'read' // Other users' messages are always "read" (from our perspective)
+    }
+
+    const conv = conversationRef.current
+    if (!conv?.participants) return 'sent'
+
+    // Get other participants' most recent read timestamp
+    const otherParticipants = conv.participants.filter(p => p.userId !== currentUserIdRef.current)
+    const mostRecentReadTimestamp = otherParticipants.reduce((latest, p) => {
+      if (!p.lastReadAt) return latest
+      const readTime = new Date(p.lastReadAt).getTime()
+      return !latest || readTime > latest ? readTime : latest
+    }, 0)
+
+    if (mostRecentReadTimestamp > 0) {
+      const messageTime = new Date(message.createdAt).getTime()
+      if (messageTime <= mostRecentReadTimestamp) {
+        return 'read'
+      }
+    }
+
+    return 'sent'
+  }, [])
+
+  /**
+   * Process messages with status calculation
+   */
+  const processMessages = useCallback(
+    (messages: Message[]): Message[] => {
+      // Defensive: Return [] if input is not array
+      if (!Array.isArray(messages)) return []
+      return messages.map(msg => {
+        const status = calculateMessageStatus(msg)
+        // Map 'sending' to 'sent' to match Message interface (sent | delivered | read)
+        const validStatus: 'sent' | 'delivered' | 'read' =
+          status === 'sending' ? 'sent' : (status as 'sent' | 'delivered' | 'read')
+        return {
+          ...msg,
+          status: validStatus
+        }
+      })
+    },
+    [calculateMessageStatus]
+  )
 
   /**
    * Load messages for the current conversation
@@ -53,6 +122,31 @@ export function useMessagesV2({
     async (page: number = 1) => {
       if (!conversationId || !enabled || !apiClient) {
         return
+      }
+
+      // Try cache first for initial load
+      if (page === 1) {
+        const cached = cache.getCachedMessages(conversationId)
+        if (cached) {
+          devPerf(() => console.log('[V2] Loading from cache:', conversationId))
+
+          // Notify parent that messages were loaded (prevent WebSocket duplicates)
+          if (onMessagesLoaded) {
+            onMessagesLoaded(cached.messages.map(m => m.id))
+          }
+
+          // Set from cache with status recalculation
+          startTransition(() => {
+            const processedMessages = processMessages(cached.messages)
+            setMessages(processedMessages)
+            setCurrentPage(cached.page)
+            setHasMore(cached.hasMore)
+            setIsLoading(false)
+            isLoadingRef.current = false
+          })
+
+          return // Skip API call
+        }
       }
 
       // Prevent concurrent requests
@@ -79,7 +173,7 @@ export function useMessagesV2({
         setIsLoading(true)
         setError(null)
 
-        devPerf(() => console.log('[V2] Loading messages:', { conversationId, page }))
+        devPerf(() => console.log('[V2] Loading messages from API:', { conversationId, page }))
 
         // Fetch messages from API
         const response: PaginatedResponse<Message> = await apiClient.getMessages(
@@ -95,31 +189,40 @@ export function useMessagesV2({
         }
 
         const loadedMessages = response.data || []
+        const processedMessages = processMessages(loadedMessages)
 
         devPerf(() =>
-          console.log('[V2] Messages loaded:', {
+          console.log('[V2] Messages loaded from API:', {
             count: loadedMessages.length,
             page: response.page,
             totalPages: response.totalPages
           })
         )
 
-        // OPTIMIZATION: Batch all state updates together to trigger single render
-        // Use functional updates to ensure we have latest state
         const newPage = response.page
         const newHasMore = response.page < response.totalPages
 
+        // Cache initial loads
         if (page === 1) {
-          // Initial load - replace all messages (single state update batch)
-          setMessages(loadedMessages)
-          setCurrentPage(newPage)
-          setHasMore(newHasMore)
-        } else {
-          // Load more - prepend older messages (single state update batch)
-          setMessages(prev => [...loadedMessages, ...prev])
-          setCurrentPage(newPage)
-          setHasMore(newHasMore)
+          cache.setCachedMessages(conversationId, processedMessages, newPage, newHasMore)
+
+          // Notify parent that messages were loaded
+          if (onMessagesLoaded) {
+            onMessagesLoaded(processedMessages.map(m => m.id))
+          }
         }
+
+        // OPTIMIZATION: Batch all state updates together to trigger single render
+        startTransition(() => {
+          if (page === 1) {
+            setMessages(processedMessages)
+          } else {
+            // Load more - prepend older messages
+            setMessages(prev => [...processedMessages, ...prev])
+          }
+          setCurrentPage(newPage)
+          setHasMore(newHasMore)
+        })
 
         // End performance tracking
         if (perfTimer) {
@@ -140,7 +243,7 @@ export function useMessagesV2({
         setIsLoading(false)
       }
     },
-    [apiClient, conversationId, enabled]
+    [apiClient, conversationId, enabled, cache, processMessages, onMessagesLoaded]
   )
 
   /**
@@ -153,38 +256,153 @@ export function useMessagesV2({
   }, [hasMore, isLoading, currentPage, loadMessages])
 
   /**
-   * Add a new message (e.g., from WebSocket)
+   * Add a new message with optimistic update support
    */
-  const addMessage = useCallback((message: Message) => {
-    devPerf(() => console.log('[V2] Adding message:', { id: message.id, conversationId: message.conversationId }))
+  const addMessage = useCallback(
+    (message: Message, isOptimistic: boolean = false) => {
+      devPerf(() => console.log('[V2] Adding message:', { id: message.id, optimistic: isOptimistic }))
 
-    setMessages(prev => {
-      // Check if message already exists
-      const exists = prev.some(m => m.id === message.id)
-      if (exists) {
-        devPerf(() => console.log('[V2] Updating existing message'))
-        // Update existing message
-        return prev.map(m => (m.id === message.id ? message : m))
+      // Calculate status and ensure it matches Message interface (sent | delivered | read)
+      const calculatedStatus = isOptimistic ? 'sending' : calculateMessageStatus(message)
+      const validStatus: 'sent' | 'delivered' | 'read' =
+        calculatedStatus === 'sending' ? 'sent' : (calculatedStatus as 'sent' | 'delivered' | 'read')
+
+      const processedMessage = {
+        ...message,
+        status: validStatus
       }
-      devPerf(() => console.log('[V2] Adding new message'))
-      // Add new message at the end
-      return [...prev, message]
-    })
-  }, [])
+
+      setMessages(prev => {
+        // Check if message already exists
+        const existingIndex = prev.findIndex(m => {
+          if (m.id === message.id) return true
+          // Replace temp message with real one (match by content + timestamp)
+          if (
+            m.id.startsWith('temp-') &&
+            m.content === message.content &&
+            m.conversationId === message.conversationId
+          ) {
+            return true
+          }
+          return false
+        })
+
+        if (existingIndex >= 0) {
+          devPerf(() => console.log('[V2] Updating existing message'))
+          const updated = [...prev]
+          // Preserve better status when replacing
+          const existingStatus = prev[existingIndex].status || 'sent'
+          const statusPriority = { sending: 1, sent: 2, delivered: 3, read: 4 }
+          const existingPriority = statusPriority[existingStatus as keyof typeof statusPriority] || 0
+          const newPriority = statusPriority[processedMessage.status as keyof typeof statusPriority] || 0
+
+          // Ensure final status is valid for Message type (no 'sending')
+          const finalStatus: 'sent' | 'delivered' | 'read' =
+            existingPriority > newPriority ? existingStatus : processedMessage.status
+
+          updated[existingIndex] = {
+            ...processedMessage,
+            status: finalStatus
+          }
+          return updated
+        }
+
+        devPerf(() => console.log('[V2] Adding new message'))
+
+        // Add to cache
+        if (conversationId) {
+          cache.addMessageToCache(conversationId, processedMessage)
+        }
+
+        return [...prev, processedMessage]
+      })
+    },
+    [calculateMessageStatus, conversationId, cache]
+  )
 
   /**
    * Update an existing message
    */
-  const updateMessage = useCallback((messageId: string, updates: Partial<Message>) => {
-    setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, ...updates } : m)))
-  }, [])
+  const updateMessage = useCallback(
+    (messageId: string, updates: Partial<Message>) => {
+      setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, ...updates } : m)))
+
+      // Update cache
+      if (conversationId) {
+        cache.updateCachedMessage(conversationId, messageId, msg => ({ ...msg, ...updates }))
+      }
+    },
+    [conversationId, cache]
+  )
 
   /**
    * Delete a message
    */
-  const deleteMessage = useCallback((messageId: string) => {
-    setMessages(prev => prev.filter(m => m.id !== messageId))
-  }, [])
+  const deleteMessage = useCallback(
+    (messageId: string) => {
+      setMessages(prev => prev.filter(m => m.id !== messageId))
+
+      // Update cache
+      if (conversationId) {
+        cache.removeMessageFromCache(conversationId, messageId)
+      }
+    },
+    [conversationId, cache]
+  )
+
+  /**
+   * Update message status (sent/delivered/read)
+   */
+  const updateMessageStatus = useCallback(
+    (messageId: string, status: MessageStatus) => {
+      // Convert to valid Message status (no 'sending')
+      const validStatus: 'sent' | 'delivered' | 'read' =
+        status === 'sending' ? 'sent' : (status as 'sent' | 'delivered' | 'read')
+
+      setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, status: validStatus } : m)))
+
+      // Update cache
+      if (conversationId) {
+        cache.updateCachedMessage(conversationId, messageId, msg => ({ ...msg, status: validStatus }))
+      }
+    },
+    [conversationId, cache]
+  )
+
+  /**
+   * Bulk update message statuses (e.g., mark all as read)
+   */
+  const bulkUpdateStatus = useCallback(
+    (updates: Array<{ id: string; status: MessageStatus }>) => {
+      const statusMap = new Map(updates.map(u => [u.id, u.status]))
+
+      startTransition(() => {
+        setMessages(prev =>
+          prev.map(m => {
+            if (statusMap.has(m.id)) {
+              // Only allow valid Message.status: 'sent' | 'delivered' | 'read'
+              const status = statusMap.get(m.id)
+              const validStatus: 'sent' | 'delivered' | 'read' =
+                status === 'sending' ? 'sent' : (status as 'sent' | 'delivered' | 'read')
+              return { ...m, status: validStatus }
+            }
+            return m
+          })
+        )
+      })
+
+      // Update cache
+      if (conversationId) {
+        updates.forEach(({ id, status }) => {
+          // Convert to valid Message status before caching
+          const validStatus: 'sent' | 'delivered' | 'read' =
+            status === 'sending' ? 'sent' : (status as 'sent' | 'delivered' | 'read')
+          cache.updateCachedMessage(conversationId, id, msg => ({ ...msg, status: validStatus }))
+        })
+      }
+    },
+    [conversationId, cache]
+  )
 
   /**
    * Reset state when conversation changes
@@ -222,6 +440,8 @@ export function useMessagesV2({
     addMessage,
     updateMessage,
     deleteMessage,
+    updateMessageStatus,
+    bulkUpdateStatus,
     refresh: () => loadMessages(1)
   }
 }

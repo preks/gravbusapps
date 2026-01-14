@@ -82,6 +82,15 @@ export function useMessages({
       if (pageNum === 1 && !append) {
         const cached = getCachedMessages(currentConversationId)
         if (cached) {
+          if (process.env.NODE_ENV === 'development') {
+            const ownMessages = cached.messages.filter(m => m.senderId === currentUserId)
+            console.log('[V1 Cache] Restoring messages from cache:', {
+              total: cached.messages.length,
+              ownMessages: ownMessages.length,
+              ownMessageStatuses: ownMessages.slice(-3).map(m => ({ id: m.id.substring(0, 8), status: m.status }))
+            })
+          }
+
           // CRITICAL: Mark messages as processed FIRST (before WebSocket can fire!)
           if (typeof onMessagesLoaded === 'function') {
             onMessagesLoaded(cached.messages.map(m => m.id))
@@ -153,6 +162,19 @@ export function useMessages({
           return !latest || readAtTime > latest ? readAtTime : latest
         }, 0)
 
+        // Check if backend sent duplicates
+        if (process.env.NODE_ENV === 'development') {
+          const loadedIds = loadedMessages.map(m => m.id)
+          const loadedSet = new Set(loadedIds)
+          if (loadedIds.length !== loadedSet.size) {
+            console.error('[V1 Messages] 🔴 Backend sent duplicate messages!', {
+              loaded: loadedIds.length,
+              unique: loadedSet.size,
+              duplicates: loadedIds.length - loadedSet.size
+            })
+          }
+        }
+
         // OPTIMIZATION: Process message statuses with minimal overhead
         // Use simple array map without intermediate functions for better performance
         const processedMessages = loadedMessages.map(msg => {
@@ -176,7 +198,53 @@ export function useMessages({
         })
 
         // PERFORMANCE: Store in cache for instant future access
-        const finalMessages = append ? [...messages, ...processedMessages] : processedMessages
+        // CRITICAL: Deduplicate when appending to prevent duplicate keys
+        const finalMessages = append
+          ? (() => {
+              if (process.env.NODE_ENV === 'development') {
+                // Check if CURRENT state has duplicates
+                const currentIds = messages.map(m => m.id)
+                const currentSet = new Set(currentIds)
+                if (currentIds.length !== currentSet.size) {
+                  console.error('[V1 Messages] 🔴 CURRENT state already has duplicates before pagination!', {
+                    currentLength: currentIds.length,
+                    uniqueIds: currentSet.size,
+                    duplicates: currentIds.length - currentSet.size
+                  })
+                }
+              }
+
+              // Create a Set of existing message IDs for O(1) lookup
+              const existingIds = new Set(messages.map(m => m.id))
+              // Only add messages that don't already exist
+              const newMessages = processedMessages.filter(m => !existingIds.has(m.id))
+
+              if (process.env.NODE_ENV === 'development') {
+                if (processedMessages.length !== newMessages.length) {
+                  const duplicateIds = processedMessages.filter(m => existingIds.has(m.id)).map(m => m.id)
+                  console.warn('[V1 Messages] ⚠️ Prevented duplicate messages during pagination:', {
+                    loaded: processedMessages.length,
+                    duplicates: processedMessages.length - newMessages.length,
+                    duplicateIds: duplicateIds.map(id => id.substring(0, 8)),
+                    added: newMessages.length
+                  })
+                }
+
+                // Check for duplicates WITHIN the result array
+                const finalMessageIds = [...messages, ...newMessages].map(m => m.id)
+                const finalSet = new Set(finalMessageIds)
+                if (finalMessageIds.length !== finalSet.size) {
+                  console.error('[V1 Messages] 🔴 CRITICAL: Final array still has duplicates!', {
+                    totalMessages: finalMessageIds.length,
+                    uniqueIds: finalSet.size,
+                    duplicateCount: finalMessageIds.length - finalSet.size
+                  })
+                }
+              }
+
+              return [...messages, ...newMessages]
+            })()
+          : processedMessages
         const finalHasMore = response.page < response.totalPages
 
         if (!append) {
@@ -196,7 +264,21 @@ export function useMessages({
           // Update messages
           if (append) {
             // When loading older messages, prepend them (they're older than current messages)
-            setMessages(prev => [...processedMessages, ...prev])
+            // CRITICAL: Deduplicate by filtering out messages that already exist
+            setMessages(prev => {
+              const existingIds = new Set(prev.map(m => m.id))
+              const newMessages = processedMessages.filter(m => !existingIds.has(m.id))
+
+              if (process.env.NODE_ENV === 'development' && processedMessages.length !== newMessages.length) {
+                console.warn('[V1 Messages] ⚠️ Deduplication in setMessages (pagination):', {
+                  loaded: processedMessages.length,
+                  filtered: newMessages.length,
+                  duplicates: processedMessages.length - newMessages.length
+                })
+              }
+
+              return [...newMessages, ...prev]
+            })
           } else {
             // Initial load: messages are already in correct order (oldest first, newest last)
             setMessages(finalMessages)
@@ -241,6 +323,28 @@ export function useMessages({
   const addMessage = useCallback(
     (message: Message) => {
       setMessages(prev => {
+        if (process.env.NODE_ENV === 'development') {
+          // Check if message ID already exists (exact match) BEFORE trying to add
+          const alreadyExists = prev.some(m => m.id === message.id)
+          if (alreadyExists) {
+            console.warn('[V1 Messages] ⚠️ Attempting to add message that already exists:', {
+              messageId: message.id.substring(0, 8),
+              content: message.content.substring(0, 30),
+              currentCount: prev.length
+            })
+          }
+
+          // Check for any duplicates in CURRENT state
+          const currentIds = prev.map(m => m.id)
+          const currentSet = new Set(currentIds)
+          if (currentIds.length !== currentSet.size) {
+            console.error('[V1 Messages] 🔴 State already has duplicates BEFORE addMessage!', {
+              total: currentIds.length,
+              unique: currentSet.size
+            })
+          }
+        }
+
         // Check if message already exists (by ID or by temp ID + content match)
         const existingIndex = prev.findIndex(m => {
           if (m.id === message.id) return true
@@ -258,6 +362,15 @@ export function useMessages({
         if (existingIndex >= 0) {
           const existingMessage = prev[existingIndex]
 
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[V1 Messages] Replacing existing message:', {
+              existingId: existingMessage.id,
+              newId: message.id,
+              existingStatus: existingMessage.status,
+              newStatus: message.status
+            })
+          }
+
           // Preserve better status when replacing message (delivered > sent, read > delivered)
           const statusPriority = { sent: 1, delivered: 2, read: 3 }
           const existingPriority = statusPriority[existingMessage.status as keyof typeof statusPriority] || 0
@@ -274,12 +387,37 @@ export function useMessages({
           return updated
         }
 
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[V1 Messages] Adding new message:', {
+            id: message.id,
+            content: message.content.substring(0, 30),
+            status: message.status,
+            totalMessages: prev.length + 1
+          })
+        }
+
         // PERFORMANCE: Update cache when adding new message
         if (conversationIdRef.current) {
           addMessageToCache(conversationIdRef.current, message)
         }
 
-        return [...prev, message]
+        const result = [...prev, message]
+
+        if (process.env.NODE_ENV === 'development') {
+          // Verify result has no duplicates
+          const resultIds = result.map(m => m.id)
+          const resultSet = new Set(resultIds)
+          if (resultIds.length !== resultSet.size) {
+            console.error('[V1 Messages] 🔴 DUPLICATE created by addMessage!', {
+              messageId: message.id.substring(0, 8),
+              total: resultIds.length,
+              unique: resultSet.size,
+              duplicates: resultIds.length - resultSet.size
+            })
+          }
+        }
+
+        return result
       })
     },
     [addMessageToCache]

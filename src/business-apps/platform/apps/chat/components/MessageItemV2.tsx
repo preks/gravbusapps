@@ -77,8 +77,19 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
             <p className="gba:text-sm gba:whitespace-pre-wrap">{message.content}</p>
           </div>
 
-          {/* Timestamp */}
-          <span className="gba:text-xs gba:text-muted-foreground gba:mt-1">{formatTime(message.createdAt)}</span>
+          {/* Timestamp and Status */}
+          <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
+            <span className="gba:text-xs gba:text-muted-foreground">{formatTime(message.createdAt)}</span>
+            {/* Status icon (only for own messages) */}
+            {isOwnMessage && message.status && (
+              <span className="gba:text-xs" title={message.status}>
+                {message.status === 'sending' && '⏳'}
+                {message.status === 'sent' && '✓'}
+                {message.status === 'delivered' && '✓✓'}
+                {message.status === 'read' && <span className="gba:text-primary">✓✓</span>}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -89,6 +100,7 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
     return (
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.content === nextProps.message.content &&
+      prevProps.message.status === nextProps.message.status &&
       prevProps.currentUserId === nextProps.currentUserId &&
       prevProps.isGroupChat === nextProps.isGroupChat &&
       prevProps.showSender === nextProps.showSender &&
