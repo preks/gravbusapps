@@ -351,9 +351,6 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
    * To refresh statistics, call fetchPayments() instead.
    */
   const fetchAdvancePaymentStatistics = useCallback(async () => {
-    console.warn(
-      '[Advance Payments] DEPRECATED: Statistics are now automatically fetched with fetchPayments(). This function is a no-op.'
-    )
     // Statistics are automatically fetched in fetchPayments() - no action needed
   }, [])
 
@@ -391,8 +388,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         })
 
         return Array.from(reporters).sort()
-      } catch (err: any) {
-        console.error('Error searching reporters:', err)
+      } catch {
         return []
       }
     },
@@ -420,8 +416,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       return Array.from(statuses)
         .filter(status => status !== 'CREATED')
         .sort((a, b) => a.localeCompare(b))
-    } catch (err: any) {
-      console.error('Error searching statuses:', err)
+    } catch {
       return []
     }
   }, [client, accessToken])

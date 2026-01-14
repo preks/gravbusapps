@@ -177,7 +177,7 @@ export const useGetExpenseRequests = ({
   } | null>(null)
 
   /**
-   *
+   * Maps GraphQL response data to ExpenseRequest array
    */
   const mapResponseToRequests = (data: any): ExpenseRequest[] => {
     const fetchedRequests = data?.ExpenseRequest ?? []
@@ -395,7 +395,6 @@ export const useGetExpenseRequests = ({
         const result = await response.json()
 
         if (result.errors) {
-          console.error('GraphQL errors:', result.errors)
           throw new Error(result.errors.map((e: any) => e.message).join(', '))
         }
 
@@ -558,7 +557,6 @@ export const useGetExpenseRequests = ({
 
         setRequestStats(stats)
       } catch (err: any) {
-        console.error(err)
         setRequestStatsError(err.message ?? 'Failed to fetch expense request statistics.')
         setRequestStats(null)
       } finally {

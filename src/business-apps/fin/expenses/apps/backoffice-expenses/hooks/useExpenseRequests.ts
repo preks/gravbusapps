@@ -367,16 +367,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
       setTotalItems(responseData.total.aggregate.count ?? 0)
     } catch (err) {
-      console.error('Error fetching expense requests:', err)
-      console.error('Error details:', {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-        employeeFilter,
-        searchTerm,
-        currentPage,
-        pageSize
-      })
-      setError('Failed to fetch expense requests. Please try again later.')
+      setError(err instanceof Error ? err.message : 'Failed to fetch expense requests. Please try again later.')
+      setExpenses([])
+      setTotalItems(0)
     } finally {
       setLoading(false)
       isLoadingRef.current = false // Reset loading ref
@@ -490,8 +483,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       await client.request(PROCESS_PAYMENT_MUTATION, { id })
       await fetchData() // Refresh data after payment processing
       return true
-    } catch (err) {
-      console.error('Error processing expense payment:', err)
+    } catch {
       setError('Failed to process expense payment.')
       return false
     }
@@ -501,12 +493,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
   const searchEmployees = useCallback(
     async (searchTerm: string): Promise<Array<{ id: string; name: string }>> => {
       if (!accessToken) {
-        console.warn('Access token not found for employee search')
         return []
       }
 
       if (!client) {
-        console.warn('GraphQL client not initialized for employee search')
         return []
       }
 
@@ -565,8 +555,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
         const result = Array.from(employees.values()).sort((a, b) => a.name.localeCompare(b.name))
         return result
-      } catch (err: any) {
-        console.error('Error searching employees:', err)
+      } catch {
         return []
       }
     },
@@ -576,12 +565,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
   // Search statuses method
   const searchStatuses = useCallback(async (): Promise<string[]> => {
     if (!accessToken) {
-      console.warn('Access token not found for status search')
       return []
     }
 
     if (!client) {
-      console.warn('GraphQL client not initialized for status search')
       return []
     }
 
@@ -605,8 +592,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
       const result = Array.from(statuses).sort()
       return result
-    } catch (err: any) {
-      console.error('Error searching statuses:', err)
+    } catch {
       return []
     }
   }, [client, accessToken])

@@ -435,8 +435,7 @@ export const useExpenseReportData = ({
       const processedData = processExpenseItemsData(result)
       setReportData(processedData)
       setTotalCount(result?.ExpenseItemAggregate?.aggregate?.count || 0)
-    } catch (err) {
-      console.error('Error fetching expense items:', err)
+    } catch {
       setError('Failed to load expense items data')
     } finally {
       setIsLoading(false)
@@ -481,7 +480,6 @@ export const useExpenseReportData = ({
           offset += batchLimit
         }
       } catch {
-        console.error(`Error fetching batch for export (${errorContext}):`, error)
         setError(`Partial export: some ${errorContext} could not be fetched`)
       }
 
@@ -564,8 +562,7 @@ export const useExpenseReportData = ({
         default:
           return []
       }
-    } catch (err) {
-      console.error('Error exporting report data:', err)
+    } catch {
       setError('Failed to export report data')
       return []
     }

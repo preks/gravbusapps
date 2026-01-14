@@ -329,7 +329,6 @@ export const useMainViewExpensePlans = ({
         setPlans(plans || [])
         setTotalCount(data.ExpensePlanAggregate?.aggregate?.count || 0)
       } catch (err) {
-        console.error('Error fetching expense plans:', err)
         setError(err instanceof Error ? err : new Error('Failed to fetch expense plans'))
       } finally {
         setLoading(false)
@@ -424,7 +423,6 @@ export const useMainViewExpensePlans = ({
 
         setPlanStats(stats)
       } catch (err) {
-        console.error('Error fetching expense plan statistics:', err)
         setStatsError(err instanceof Error ? err : new Error('Failed to fetch expense plan statistics'))
       } finally {
         setStatsLoading(false)
@@ -486,15 +484,13 @@ export const useMainViewExpensePlans = ({
         const result = await response.json()
 
         if (result.errors) {
-          console.error('GraphQL errors in approve plan:', result.errors)
           throw new Error(result.errors[0].message)
         }
 
         message.success('Expense plan approved successfully')
         fetchPlans(currentStatusFilter, currentCurrencyFilter) // Pass current filters to refresh with same filters
         fetchPlanStatistics(currentCurrencyFilter)
-      } catch (err) {
-        console.error('Error approving expense plan:', err)
+      } catch {
         message.error('Failed to approve expense plan')
       } finally {
         setApproving(false)
@@ -529,15 +525,13 @@ export const useMainViewExpensePlans = ({
         const result = await response.json()
 
         if (result.errors) {
-          console.error('GraphQL errors in reject plan:', result.errors)
           throw new Error(result.errors[0].message)
         }
 
         message.success('Expense plan rejected successfully')
         fetchPlans(currentStatusFilter, currentCurrencyFilter) // Pass current filters to refresh with same filters
         fetchPlanStatistics(currentCurrencyFilter)
-      } catch (err) {
-        console.error('Error rejecting expense plan:', err)
+      } catch {
         message.error('Failed to reject expense plan')
       } finally {
         setRejecting(false)

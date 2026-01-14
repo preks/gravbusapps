@@ -389,7 +389,6 @@ export const useDashboardStats = ({
 
       setStats(processedStats)
     } catch (err) {
-      console.error('Error fetching dashboard stats:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch dashboard stats'))
     } finally {
       setLoading(false)
