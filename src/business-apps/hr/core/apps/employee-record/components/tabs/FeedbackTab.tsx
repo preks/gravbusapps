@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
+import { Button } from '@newwork/nw-design-system'
 import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
@@ -453,9 +454,18 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       return (
                         <Card
                           key={request.id}
-                          className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                          className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1 gba:cursor-pointer"
                           size="small"
                           data-testid={`received-request-item-${request.id}`}
+                          onClick={() => handleRespondClick(request)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              handleRespondClick(request)
+                            }
+                          }}
                         >
                           <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
                             <div className="gba:flex gba:flex-col">
@@ -473,22 +483,19 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                                 )}
                               </div>
                             </div>
-                            <div
-                              className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
-                              onClick={() => handleRespondClick(request)}
-                              data-testid={`received-request-respond-button-${request.id}`}
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault()
-                                  handleRespondClick(request)
-                                }
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={e => {
+                                e.stopPropagation()
+                                handleRespondClick(request)
                               }}
+                              data-testid={`received-request-respond-button-${request.id}`}
+                              className="gba:flex gba:items-center gba:gap-2"
                             >
                               <PiPencilSimple />
                               {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
-                            </div>
+                            </Button>
                           </div>
                         </Card>
                       )
