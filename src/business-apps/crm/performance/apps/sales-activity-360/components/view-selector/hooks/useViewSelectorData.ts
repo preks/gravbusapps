@@ -87,6 +87,7 @@ export const useViewSelectorData = (accessToken: string): UseViewSelectorDataRes
         byContact: result.contactActivities?.aggregate?.count || 0,
         byLead: result.leadActivities?.aggregate?.count || 0,
         byOpportunity: result.opportunityActivities?.aggregate?.count || 0,
+        byGeneral: result.generalActivities?.aggregate?.count || 0,
         activeEmployees: result.activeEmployees?.length || 0,
         rollingTrend: Math.round(rollingTrend),
         quarterTrend: Math.round(quarterTrend)
@@ -106,6 +107,7 @@ export const useViewSelectorData = (accessToken: string): UseViewSelectorDataRes
         byContact: 0,
         byLead: 0,
         byOpportunity: 0,
+        byGeneral: 0,
         activeEmployees: 0,
         rollingTrend: 0,
         quarterTrend: 0

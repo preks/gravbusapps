@@ -1,145 +1,84 @@
-# feat(platform): migrate EveryAI, Chat, and Calendar to nw-design-system
+# Every Page: User Avatar and Subtitle Enhancement
 
-## Summary
+## 🎯 Overview
 
-Complete migration of Platform apps (EveryAI, Chat, Calendar) to ensure 100% compliance with `@newwork/nw-design-system`. All hardcoded colors replaced with design token utilities, making applications fully theme-aware and consistent.
+Enhances the NEWWORK Every page (`/platform/every`) with personalized user avatar display and improved subtitle messaging.
 
-## Changes
+## ✨ Changes
 
-### ✨ New Utilities (3 files)
+### 1. User Avatar in Center Graph
 
-- `src/business-apps/platform/apps/every-ai/utils/voiceColors.ts`
-  - Extracts design tokens for canvas rendering
-  - Maps voice states to semantic colors (success/info/ai)
-  - Provides RGB conversion for canvas API
+- Added current user's profile picture to the center circle of the connections visualization graph
+- Implemented `useCurrentUserPicture` hook to fetch employee avatar via GraphQL
+- Added fallback to user initials (first + last name) when avatar is unavailable
+- Supports multiple image formats with graceful fallback (JPEG → PNG → GIF)
 
-- `src/business-apps/platform/apps/chat/utils/expertColorUtils.ts`
-  - Provides design system fallbacks for expert colors
-  - Preserves custom expert colors from database
-  - Pre-calculated style objects for common use cases
+### 2. Updated Hero Subtitle
 
-- `src/business-apps/platform/apps/chat/calendar/utils/calendarColors.ts`
-  - Design system aligned calendar event colors
-  - Theme-aware color resolution
-  - Contrast, brightness, and opacity utilities
+- Enhanced subtitle to emphasize "intelligent workplace" positioning
+- New text: "Your intelligent workplace. The personal productivity universe with AI assistant, documents, time tracking, and everything you need to work smarter, not harder."
 
-### 🔧 Modified Components (8 files)
+## 🔧 Technical Details
 
-#### EveryAI (1 file)
+### Modified Files
 
-- `src/business-apps/platform/apps/every-ai/components/voice/VoiceOverlay.tsx`
-  - Replaced hardcoded RGB values with design tokens
-  - Canvas animations now use `getVoiceStateColor()`
+- `src/business-apps/platform/apps/newwork-every/NewworkEvery.tsx`
+  - Added `useCurrentUserPicture` hook integration
+  - Extracts `accessToken` and `userInfo` from context
+  - Passes `pictureThumbnail` and `initials` to ConnectionsVisualization
 
-#### Chat (5 files)
+- `src/business-apps/platform/apps/newwork-every/components/HeroSection.tsx`
+  - Updated subtitle text to include "Your intelligent workplace"
 
-- `src/business-apps/platform/apps/chat/components/MessageItem.tsx`
-  - Expert avatar, name, badge now use `getExpertColorStyles()`
-- `src/business-apps/platform/apps/chat/components/ActiveExpertsBar.tsx`
-  - Expert chips use design token fallbacks
-- `src/business-apps/platform/apps/chat/components/ExpertResponseRenderer.tsx`
-  - Citation cards and icons use design tokens
-- `src/business-apps/platform/apps/chat/components/ExpertSelectorPanel.tsx`
-  - Expert avatars use design token fallbacks
-- `src/business-apps/platform/apps/chat/hooks/useEveryExperts.ts`
-  - Expert data transformation uses `getExpertColor()`
+- `src/business-apps/platform/apps/newwork-every/components/ConnectionsVisualization.tsx`
+  - Added `userAvatar` and `userInitials` props
+  - Replaced center "EVERY" text with Avatar component
+  - Implemented image format fallback handling
+  - Added graceful error handling for avatar loading
 
-#### Calendar (2 files)
+- `src/business-apps/platform/apps/every-ai/hooks/useCurrentUserPicture.ts`
+  - Created new hook to fetch employee profile picture
+  - Queries `Employee.pictureThumbnail` via GraphQL
+  - Handles loading states and error cases
 
-- `src/business-apps/platform/apps/chat/calendar/types.ts`
-  - Export calendar colors from utility instead of hardcoded array
-- `src/business-apps/platform/apps/chat/calendar/components/CreateMeetingModal.tsx`
-  - Use `getDefaultCalendarColor()` instead of array index
+### GraphQL Query
 
-## Design Token Mapping
+```graphql
+query GetEmployeePicture($id: uuid) {
+  Employee(where: { id: { _eq: $id } }, limit: 1) {
+    pictureThumbnail
+  }
+}
+```
 
-### EveryAI Voice States
+## 🎨 UI/UX Improvements
 
-| State     | Token          | Color     | Purpose       |
-| --------- | -------------- | --------- | ------------- |
-| Listening | `--nw-success` | 🟢 Green  | User speaking |
-| Speaking  | `--nw-info`    | 🔵 Blue   | AI responding |
-| Idle      | `--nw-ai`      | 🟣 Purple | Ready/waiting |
+- **Personalization**: Users see their own avatar in the center of the productivity orbit
+- **Professional appearance**: Fallback to initials maintains visual consistency
+- **Brand messaging**: Subtitle reinforces "intelligent workplace" positioning
+- **Accessibility**: Avatar includes proper alt text and fallback handling
 
-### Chat Expert Colors
+## ✅ Testing
 
-| Fallback | Token       | Color     | Usage          |
-| -------- | ----------- | --------- | -------------- |
-| default  | `--nw-info` | 🔵 Blue   | Default expert |
-| ai       | `--nw-ai`   | 🟣 Purple | AI experts     |
+- [x] Avatar displays correctly for users with profile pictures
+- [x] Initials fallback works for users without pictures
+- [x] Multiple image format support tested
+- [x] Subtitle text displays correctly on all screen sizes
+- [x] No linter errors
+- [x] Build and deployment successful
 
-### Calendar Event Colors
+## 📸 Visual Changes
 
-Aligned with design system palette while maintaining user-selectability:
+- Center circle now shows user's profile picture or initials
+- Subtitle includes "Your intelligent workplace" messaging
+- Graph maintains all existing functionality (hover states, connections, etc.)
 
-- Blue → `--nw-primary`
-- Green → `--nw-success`
-- Purple → `--nw-ai`
-- Orange → `--nw-warning`
-- Red → `--nw-destructive`
+## 🚀 Deployment
 
-## Benefits
-
-### 🎨 Design System Compliance
-
-- ✅ All colors from design tokens
-- ✅ Theme-aware (ready for light/dark mode)
-- ✅ Consistent professional look
-- ✅ No hardcoded values
-
-### 🛠️ Maintainability
-
-- ✅ Centralized color logic (3 utilities)
-- ✅ Single source of truth
-- ✅ Type-safe implementations
-- ✅ Well-documented patterns
-
-### 🚀 Zero Impact
-
-- ✅ No visual regressions
-- ✅ No performance impact
-- ✅ No breaking changes
-- ✅ Custom colors preserved
-
-## Testing
-
-- [x] No linting errors
-- [x] Type safety verified
-- [x] Visual output identical
-- [x] Theme integration ready
-- [x] Custom expert colors preserved
-- [x] Calendar color picker works
-- [x] Voice animations render correctly
-
-## Breaking Changes
-
-None. This is a pure refactoring that maintains existing functionality while improving code quality.
-
-## Migration Status
-
-| App         | Before  | After    | Status          |
-| ----------- | ------- | -------- | --------------- |
-| EveryAI     | 95%     | 100%     | ✅ Complete     |
-| Chat        | 90%     | 100%     | ✅ Complete     |
-| Calendar    | 95%     | 100%     | ✅ Complete     |
-| **Overall** | **93%** | **100%** | **✅ Complete** |
-
-## Related Issues
-
-Closes #[issue-number] (if applicable)
-
-## Screenshots
-
-N/A - No visual changes, pure refactoring
-
-## Reviewer Notes
-
-- All color utilities follow the same pattern for consistency
-- Design tokens are read from CSS custom properties at runtime
-- Fallback values ensure SSR compatibility
-- Custom colors (from database/user selection) are preserved
-- No visual regression - colors match exactly
+Screen published to: `/platform/every`
+Azure CDN: `screens/platform/apps/newwork-every/index.js`
 
 ---
 
-**Ready for review and merge** 🎉
+**Branch**: `feature/NO-TICKET_every-page-user-avatar-subtitle`  
+**Target**: `develop`
