@@ -3,7 +3,7 @@
  * Main record view for Company entities following the LeadRecord pattern
  */
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import { Spinner, RecordLayout, Button, useTranslation } from '@newwork/nw-design-system'
+import { Spinner, RecordLayout, Button, useTranslation, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { Buildings, FileText, House, Users, TreeStructure } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCompany } from '@/common/data/orgchart/hooks/useCompany'
@@ -183,12 +183,14 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
     <div data-testid="company-record">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={Buildings}
-        headerCategory={t('company-category')}
+        headerAvatar={<IconAvatar icon={Buildings} variant="decorative" size="xl" />}
+        headerOverline={t('company-category')}
         onBack={onBack}
         headerTitle={companyName}
-        headerDetailGroups={headerDetailGroups}
-        subViews={subViewsConfig}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

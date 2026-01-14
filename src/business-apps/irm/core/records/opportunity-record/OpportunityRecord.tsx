@@ -7,7 +7,9 @@ import {
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
-  TooltipContent
+  TooltipContent,
+  IconAvatar,
+  HeaderSlot
 } from '@newwork/nw-design-system'
 import {
   UserIcon,
@@ -1186,16 +1188,18 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     <div className="gba:opportunity-details-container" data-testid="investment-opportunity-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={LightbulbIcon}
-        headerCategory="OPPORTUNITY"
+        headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
+        headerOverline="OPPORTUNITY"
         onBack={handleDealTypeBack}
         headerTitle={opportunityData?.name || ''}
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        headerDetailGroups={headerDetailGroups}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        headerSlotAfter={headerContent}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

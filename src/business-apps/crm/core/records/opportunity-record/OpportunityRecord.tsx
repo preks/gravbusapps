@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
+import { Spinner, Button, RecordLayout, Badge, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon, LightbulbIcon, RobotIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -610,16 +610,18 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     <div className="gba:opportunity-details-container" data-testid="opportunity-record-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={LightbulbIcon}
-        headerCategory="OPPORTUNITY"
+        headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
+        headerOverline="OPPORTUNITY"
         onBack={onBack}
         headerTitle={opportunityData.name || 'Unnamed Opportunity'}
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        headerDetailGroups={headerDetailGroups}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        headerSlotAfter={headerContent}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )
