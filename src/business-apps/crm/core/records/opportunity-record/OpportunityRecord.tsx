@@ -72,7 +72,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
 
   // Use shared hook for fetching pipeline stages and catalog conditions
-  const { opportunityStages, catalogStageConditions, loadingStages, stagesError } = useOpportunityPipelineStages({
+  const { opportunityStages, loadingStages, stagesError } = useOpportunityPipelineStages({
     opportunityData: opportunityData ?? undefined,
     stageConditionCatalog: 'SalesPipelineStageCondition',
     accessToken: props.accessToken,
@@ -80,49 +80,29 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   })
 
   /**
-   * Transforms a catalog condition to a stage condition
+   * Helper function to extract CRM stage conditions
+   * Filters stageConditionStatuses directly by parentEntryId (like ConditionSection does)
    */
-  const transformCatalogConditionToStageCondition = useCallback(
-    (catalogCondition: any, statusRecord: any): StageCondition => {
-      const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
+  const extractCrmStageConditions = useCallback((stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+    // Filter stageConditionStatuses directly by parentEntryId (like ConditionSection does)
+    const stageConditionStatusesForStage = stageConditionStatuses.filter(
+      statusData => statusData.opportunityPipelineStageCondition?.parentEntryId === stage.id
+    )
+
+    return stageConditionStatusesForStage.map(statusData => {
+      const conditionEntry = statusData.opportunityPipelineStageCondition
+      const config = statusData.configSnapshot || conditionEntry?.objectValue || {}
       const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
 
       return {
-        id: catalogCondition.id,
-        title: catalogCondition.value || 'Unknown Condition',
-        isCompleted: statusRecord?.completed || false,
+        id: conditionEntry?.id || statusData.id,
+        title: conditionEntry?.value || 'Unknown Condition',
+        isCompleted: statusData.completed || false,
         checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
-        completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
+        completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
       }
-    },
-    []
-  )
-
-  /**
-   * Helper function to find status record for a catalog condition
-   */
-  const findStatusRecord = (stageConditionStatuses: any[], catalogConditionId: string) => {
-    return stageConditionStatuses.find(
-      statusData => statusData.opportunityPipelineStageConditionRef === catalogConditionId
-    )
-  }
-
-  /**
-   * Helper function to extract CRM stage conditions
-   */
-  const extractCrmStageConditions = useCallback(
-    (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
-      const stageCatalogConditions = catalogStageConditions.filter(
-        catalogCondition => catalogCondition.parentEntryId === stage.id
-      )
-
-      return stageCatalogConditions.map(catalogCondition => {
-        const statusRecord = findStatusRecord(stageConditionStatuses, catalogCondition.id)
-        return transformCatalogConditionToStageCondition(catalogCondition, statusRecord)
-      })
-    },
-    [catalogStageConditions, transformCatalogConditionToStageCondition]
-  )
+    })
+  }, [])
 
   // Extract stageConditionStatuses from opportunityData
   useEffect(() => {
