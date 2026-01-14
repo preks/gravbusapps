@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Button,
@@ -41,6 +41,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import {
   PiPlus,
   PiCalendar,
@@ -61,6 +62,16 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
+import {
+  validateDateRange,
+  applyDateValidationErrors,
+  getValidityDatesFromRule,
+  transformOtherCalcForRestrictedUpdate,
+  transformOtherCalcForSave
+} from '../utils'
+import { useTableSorting, createFieldMappings } from '../hooks'
+import { UsageInfo } from '../../../types'
 
 interface OtherCalculationTabProps {
   ruleId: string
@@ -120,15 +131,6 @@ interface CostCenterOption {
   name: string
 }
 
-// Usage check result
-interface UsageInfo {
-  isUsed: boolean
-  usedIn: {
-    positions?: number
-  }
-  message: string
-}
-
 const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const [otherCalculations, setOtherCalculations] = useState<OtherCalculation[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -143,14 +145,27 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
   const [availableAllowanceCodes, setAvailableAllowanceCodes] = useState<RelatedOption[]>([])
   const [availableCostCenters, setAvailableCostCenters] = useState<CostCenterOption[]>([])
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      source: createFieldMappings.string((a: OtherCalculation) => a.source),
+      linkedItem: createFieldMappings.string((a: OtherCalculation) => a.relatedCode || a.relatedName),
+      costCenter: createFieldMappings.nested((a: OtherCalculation) => a.costCenter),
+      reimbursablePercent: createFieldMappings.number((a: OtherCalculation) => a.reimbursablePercent),
+      activeFrom: createFieldMappings.date((a: OtherCalculation) => a.validFrom)
+    }),
+    []
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<OtherCalculation>({
+    defaultSortField: 'source',
+    defaultSortOrder: 'ASC',
+    data: otherCalculations,
+    fieldMappings
+  })
+
+  // formatDateForInput is imported from shared utils
 
   const form = useForm<OtherCalculationFormData>({
     defaultValues: {
@@ -198,6 +213,20 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       console.error('Failed to load cost centers:', error)
     }
   }, [graphqlClient])
+
+  // Load usage status for all calculations
+  // Note: OtherCalc doesn't have direct references in ExpensePosition,
+  // so we can't track usage. All calculations are treated as not in use.
+  const loadCalcUsageStatus = useCallback(async (calcIds: string[]) => {
+    if (calcIds.length === 0) return
+
+    // Since there's no direct link to track usage, allow all operations
+    const usageMap: Record<string, boolean> = {}
+    calcIds.forEach(id => {
+      usageMap[id] = false
+    })
+    setCalcUsageMap(usageMap)
+  }, [])
 
   // REAL GraphQL data from ExpenseRuleOtherCalc
   const fetchOtherCalculations = useCallback(async () => {
@@ -340,21 +369,10 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     } finally {
       setIsLoading(false)
     }
-  }, [ruleId, graphqlClient])
+  }, [ruleId, graphqlClient, loadCalcUsageStatus])
 
-  // Load usage status for all calculations
-  // Note: OtherCalc doesn't have direct references in ExpensePosition,
-  // so we can't track usage. All calculations are treated as not in use.
-  const loadCalcUsageStatus = useCallback(async (calcIds: string[]) => {
-    if (calcIds.length === 0) return
-
-    // Since there's no direct link to track usage, allow all operations
-    const usageMap: Record<string, boolean> = {}
-    calcIds.forEach(id => {
-      usageMap[id] = false
-    })
-    setCalcUsageMap(usageMap)
-  }, [])
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  const sortedOtherCalculations = sorting.sortedData || otherCalculations
 
   // Check if a calculation is used
   // Note: OtherCalc doesn't have direct references in ExpensePosition
@@ -370,10 +388,6 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       loadCostCenters()
     }
   }, [ruleId, accessToken, fetchOtherCalculations, loadCostCenters])
-
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
 
   const sourceOptions = [
     { value: '', label: 'Not linked' },
@@ -395,17 +409,16 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     setIsRestrictedEdit(false)
     setCurrentUsageInfo(null)
 
-    // ALWAYS inherit validity period from parent Expense Rule
-    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
+    // Get validity dates using shared utility (inherits from parent rule)
+    const { validFrom, validTo } = getValidityDatesFromRule(activeFrom, activeTo)
 
     form.reset({
       source: '',
       relatedId: undefined,
       costCenterId: undefined,
       reimbursablePercent: undefined,
-      validFrom: validFromValue,
-      validTo: validToValue
+      validFrom,
+      validTo
     })
     setIsModalVisible(true)
   }
@@ -464,81 +477,143 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     }
   }
 
+  // Check if source + relatedId combination is unique within the validity period
+  const checkOtherCalcUniqueness = useCallback(
+    async (
+      source: SourceEnum,
+      relatedId: string | undefined,
+      activeFrom: string,
+      activeTo: string | undefined,
+      excludeId?: string
+    ): Promise<boolean> => {
+      try {
+        // If no source or relatedId, skip uniqueness check
+        if (!source || !relatedId) {
+          return false
+        }
+
+        // Build where condition based on source type - fetch all matching and filter in JS
+        const query = `
+          query CheckOtherCalcUniqueness($ruleId: uuid!, $source: String!, $excludeId: uuid) {
+            ExpenseRuleOtherCalc(
+              where: {
+                expenseRuleId: { _eq: $ruleId }
+                source: { _eq: $source }
+                isDeleted: { _eq: false }
+                id: { _neq: $excludeId }
+              }
+            ) {
+              id
+              activeFrom
+              activeTo
+              expenseRuleGeneralExpenseId
+              expenseRuleMileageId
+              expenseRuleAllowanceCodeId
+            }
+          }
+        `
+
+        const variables = {
+          ruleId,
+          source,
+          excludeId: excludeId || null
+        }
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleOtherCalc: {
+            id: string
+            activeFrom: string
+            activeTo?: string
+            expenseRuleGeneralExpenseId?: string
+            expenseRuleMileageId?: string
+            expenseRuleAllowanceCodeId?: string
+          }[]
+        }>(query, variables)
+
+        // Filter by relatedId based on source type
+        const matchingByRelatedId = result.ExpenseRuleOtherCalc.filter(existing => {
+          if (source === 'GENERAL_EXPENSE_RULE') {
+            return existing.expenseRuleGeneralExpenseId === relatedId
+          } else if (source === 'MILEAGE_RULE') {
+            return existing.expenseRuleMileageId === relatedId
+          } else if (source === 'ALLOWANCE_RULE') {
+            return existing.expenseRuleAllowanceCodeId === relatedId
+          }
+          return false
+        })
+
+        // Check for overlapping periods using shared utility
+        const overlappingCalcs = findOverlappingPeriods({ activeFrom, activeTo }, matchingByRelatedId)
+
+        if (overlappingCalcs.length > 0) {
+          return true
+        }
+
+        return false
+      } catch (error) {
+        console.error('[OtherCalculationTab] Error checking calculation uniqueness:', {
+          error,
+          source,
+          relatedId,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        return true // Block save on error
+      }
+    },
+    [ruleId, graphqlClient]
+  )
+
   const handleSave = async () => {
     try {
       setIsSaving(true)
 
       const formValues = form.getValues()
 
-      // Date validation
-      const ruleFrom = dayjs(activeFrom)
-      const ruleTo = activeTo ? dayjs(activeTo) : null
-      const entryFrom = dayjs(formValues.validFrom)
-      const entryTo = formValues.validTo ? dayjs(formValues.validTo) : null
+      // Check calculation uniqueness (source + relatedId combination)
+      const calcExists = await checkOtherCalcUniqueness(
+        formValues.source,
+        formValues.relatedId,
+        formValues.validFrom,
+        formValues.validTo,
+        editingItem?.id
+      )
 
-      // Valid From cannot be before rule's Valid From
-      if (entryFrom.isBefore(ruleFrom, 'day')) {
-        form.setError('validFrom', {
+      if (calcExists) {
+        form.setError('source', {
           type: 'manual',
-          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
+          message:
+            'This source and related item combination already exists with an overlapping validity period. Please use a different combination or adjust the validity dates.'
         })
         setIsSaving(false)
         return
       }
 
-      // Valid From cannot be after rule's Valid To
-      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
-        form.setError('validFrom', {
-          type: 'manual',
-          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
+      // Date validation using shared utility
+      const dateErrors = validateDateRange({
+        entryFrom: formValues.validFrom,
+        entryTo: formValues.validTo,
+        ruleFrom: activeFrom,
+        ruleTo: activeTo
+      })
+
+      if (applyDateValidationErrors(dateErrors, form.setError)) {
         setIsSaving(false)
         return
       }
 
-      // Valid To cannot be after rule's Valid To
-      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
-        setIsSaving(false)
-        return
-      }
+      // Build save payload using transformer utilities
+      const savePayload =
+        isRestrictedEdit && editingItem
+          ? transformOtherCalcForRestrictedUpdate(formValues, editingItem, ruleId)
+          : transformOtherCalcForSave(formValues, ruleId, editingItem)
 
-      // Valid To cannot be before Valid From
-      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be before Valid From`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // IMPORTANT: Always use editingItem for id and version when updating
-      const isUpdate = !!editingItem
-      const payload: any = {
-        ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
-        expenseRuleId: ruleId,
-        // Convert to ISO format for API
-        activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
-      }
-
-      // Only include other fields if not in restricted edit mode
-      if (!isRestrictedEdit) {
-        // Convert to ISO format for API
-        payload.activeFrom = formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null
-        payload.costCenterId = formValues.costCenterId || null
-        payload.source = formValues.source || null
-        payload.reimbursablePercent = formValues.reimbursablePercent || null
-        // Set the related ID based on source (using backend enum values)
-        payload.expenseRuleGeneralExpenseId = formValues.source === 'GENERAL_EXPENSE_RULE' ? formValues.relatedId : null
-        payload.expenseRuleMileageId = formValues.source === 'MILEAGE_RULE' ? formValues.relatedId : null
-        payload.expenseRuleAllowanceCodeId = formValues.source === 'ALLOWANCE_RULE' ? formValues.relatedId : null
-      }
-
-      await expenseSettingsClient.saveExpenseRuleOtherCalc(payload)
+      await expenseSettingsClient.saveExpenseRuleOtherCalc(savePayload)
 
       toast.success(`Other calculation ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
@@ -601,22 +676,61 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
               <TableHeader>
                 <TableRow>
                   <TableHead className="gba:w-[60px]">Actions</TableHead>
-                  <TableHead className="gba:w-[120px]">Source</TableHead>
-                  <TableHead>Linked Item</TableHead>
-                  <TableHead>Cost Center</TableHead>
-                  <TableHead className="gba:w-[120px]">Reimb. %</TableHead>
-                  <TableHead>Validity</TableHead>
+                  <TableHead
+                    className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('source')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Source
+                      {sorting.renderSortIcon('source')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('linkedItem')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Linked Item
+                      {sorting.renderSortIcon('linkedItem')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('costCenter')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Cost Center
+                      {sorting.renderSortIcon('costCenter')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('reimbursablePercent')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Reimb. %{sorting.renderSortIcon('reimbursablePercent')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                    onClick={() => sorting.handleSort('activeFrom')}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Validity
+                      {sorting.renderSortIcon('activeFrom')}
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {otherCalculations.length === 0 ? (
+                {sortedOtherCalculations.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="gba:text-center gba:py-8">
                       <p className="gba:text-muted-foreground">No other calculations found</p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  otherCalculations.map(record => (
+                  sortedOtherCalculations.map(record => (
                     <TableRow key={record.id} data-testid={`other-calculation-row-${record.id}`}>
                       <TableCell className="gba:py-4 gba:px-6">
                         <div className="gba:flex gba:justify-start gba:gap-2">
@@ -972,41 +1086,19 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent data-testid="other-calculation-delete-dialog">
-          <DialogHeader>
-            <DialogTitle>Delete Other Calculation</DialogTitle>
-          </DialogHeader>
-          <div className="gba:py-4">
-            <p className="gba:text-sm gba:text-muted-foreground">
-              Are you sure you want to delete this other calculation? This action cannot be undone.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteDialogOpen(false)
-                setItemToDelete(null)
-              }}
-              disabled={isDeleting}
-              data-testid="other-calculation-delete-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="other-calculation-delete-confirm-button"
-            >
-              {isDeleting ? <Spinner className="gba:w-4 gba:h-4 gba:mr-2" /> : null}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Other Calculation"
+        itemDescription="this other calculation"
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="other-calculation-delete"
+      />
 
       <Toaster />
     </>

@@ -21,8 +21,8 @@ import {
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Custom toast function
-const toast = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`[${type.toUpperCase()}] ${message}`)
+const toast = () => {
+  // Placeholder for toast functionality
 }
 
 export interface TravelRegionSetFormData {
@@ -149,8 +149,6 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
           }
         ]
       }
-
-      console.log(isEditMode ? '✏️  Updating Travel Region Set:' : '🚀 Creating Travel Region Set:', catalogEntry)
 
       if (isEditMode) {
         // Update existing travel region set - use the ID from formData

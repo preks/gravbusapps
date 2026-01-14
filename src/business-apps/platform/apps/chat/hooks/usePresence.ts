@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { ChatApiClient } from '../services/chatApiClient'
-import { debugLog } from '../utils/debugLog'
 
 export type UserPresence = {
   status: 'online' | 'offline'
@@ -45,10 +44,6 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
     const status = data.isOnline ? 'online' : 'offline'
     const timestamp = data.timestamp || new Date().toISOString()
 
-    debugLog(
-      `[usePresence] WebSocket update: userId=${data.userId}, isOnline=${data.isOnline}, status=${status}, timestamp=${timestamp}`
-    )
-
     setPresenceMap(prev => {
       const newMap = new Map(prev)
       newMap.set(data.userId, {
@@ -78,12 +73,9 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
     // Now add our handler
     socket.on('user_status_change', handlePresenceUpdate)
 
-    debugLog('[usePresence] Registered user_status_change handler')
-
     return () => {
       if (socket) {
         socket.off('user_status_change', handlePresenceUpdate)
-        debugLog('[usePresence] Cleaned up user_status_change handler')
       }
     }
   }, [wsClient, isConnected, handlePresenceUpdate])
@@ -134,10 +126,6 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
         }
         // Otherwise offline (default)
       }
-
-      debugLog(
-        `[usePresence] API init: userId=${userId}, status=${status}, isOnline=${isOnline}, lastSeen=${lastSeen}, used isOnline=${typeof isOnline === 'boolean'}`
-      )
       updatePresence(userId, { status, lastSeen })
     },
     [updatePresence]
@@ -146,7 +134,6 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
   // Clear all presence data
   // NOTE: This should rarely be called - presence should persist through brief disconnects
   const clearPresence = useCallback(() => {
-    debugLog('[usePresence] Clearing all presence data')
     setPresenceMap(new Map())
     presenceMapRef.current = new Map()
   }, [])

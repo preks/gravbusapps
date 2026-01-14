@@ -7,7 +7,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { ChatApiClient } from '../services/chatApiClient'
 import type { AvailableExpert } from './useEveryExperts'
-import { debugLog } from '../utils/debugLog'
 
 export interface ActiveExpert {
   expertId: string
@@ -48,7 +47,6 @@ export const useConversationExperts = (
         // Only update state if this conversation is still active
         // This prevents race condition where old API call finishes after new one
         if (!isCurrent) {
-          debugLog('[useConversationExperts] Discarding stale experts response')
           return
         }
 
@@ -72,8 +70,7 @@ export const useConversationExperts = (
 
         setActiveExperts(enriched)
       })
-      .catch(err => {
-        console.error('Failed to load active experts:', err)
+      .catch(() => {
         // Only clear experts if this request is still current
         if (isCurrent) {
           setActiveExperts([])
@@ -115,8 +112,7 @@ export const useConversationExperts = (
 
         setActiveExperts(prev => [...prev, newExpert])
         return true
-      } catch (error) {
-        console.error('Failed to add expert:', error)
+      } catch {
         return false
       }
     },
@@ -137,8 +133,7 @@ export const useConversationExperts = (
         // Optimistically update UI
         setActiveExperts(prev => prev.filter(e => e.expertId !== expertId))
         return true
-      } catch (error) {
-        console.error('Failed to remove expert:', error)
+      } catch {
         return false
       }
     },

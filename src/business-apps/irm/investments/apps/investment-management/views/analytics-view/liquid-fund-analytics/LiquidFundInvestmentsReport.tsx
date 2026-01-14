@@ -31,13 +31,13 @@ import { LiquidFundDistributionCharts, LiquidFundTimelineCharts, LiquidFundAnaly
 export interface LiquidFundInvestmentKPIs {
   totalInvestments: number
   averageInvestmentValue: number
-  averageMarketValue: number
-  totalFundValue: number
+  activeInvestments: number
+  totalAmountInvested: number
   // Previous period data for comparison
   previousTotalInvestments?: number
   previousAverageInvestmentValue?: number
-  previousAverageMarketValue?: number
-  previousTotalFundValue?: number
+  previousActiveInvestments?: number
+  previousTotalAmountInvested?: number
 }
 
 interface LiquidFundInvestmentsReportProps extends BusinessAppContextProps {
@@ -73,12 +73,12 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
   const kpis: LiquidFundInvestmentKPIs = {
     totalInvestments: current.totalInvestments,
     averageInvestmentValue: current.averageInvestmentValue,
-    averageMarketValue: current.averageMarketValue,
-    totalFundValue: current.totalMarketValue,
+    activeInvestments: current.activeInvestments,
+    totalAmountInvested: current.totalAmountInvested,
     previousTotalInvestments: previous.totalInvestments,
     previousAverageInvestmentValue: previous.averageInvestmentValue,
-    previousAverageMarketValue: previous.averageMarketValue,
-    previousTotalFundValue: previous.totalMarketValue
+    previousActiveInvestments: previous.activeInvestments,
+    previousTotalAmountInvested: previous.totalAmountInvested
   }
 
   if (error) {

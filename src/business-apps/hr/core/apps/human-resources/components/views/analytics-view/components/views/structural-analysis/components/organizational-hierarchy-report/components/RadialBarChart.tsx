@@ -31,7 +31,6 @@ import {
   RadialBarChart as RechartsRadialBarChart,
   RadialBar,
   ResponsiveContainer,
-  Legend,
   Tooltip as RechartsTooltip
 } from 'recharts'
 import { SunburstVisualizationProps, HierarchyLevelReportData } from '../types/hierarchyTypes'
@@ -58,6 +57,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
 }) => {
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
   const { t } = useTranslation(hrTranslations)
+  // no manual tooltip management needed here
 
   // Colors are now handled through the colorMap from the data integration hook
 
@@ -206,12 +206,12 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
           <Divider className="gba:my-2" />
           {Object.keys(data)
             .filter(
-              key =>
+              (key: string) =>
                 (key.startsWith('country_') || key.startsWith('company_') || key.startsWith('costcenter_')) &&
                 !key.endsWith('_name') &&
                 !key.endsWith('_color')
             )
-            .map(key => {
+            .map((key: string) => {
               const nameKey = `${key}_name`
               const colorKey = `${key}_color`
               const value = data[key]
@@ -234,6 +234,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
     }
     return null
   }
+
+  // Note: Recharts builtin tooltip is replaced with a custom absolutely-positioned overlay to avoid jump
 
   if (isLoading) {
     return (
@@ -429,9 +431,10 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                       dataKey={segmentKey}
                       stackId="segments"
                       fill={getSegmentColor(segmentKey)}
+                      isAnimationActive={false}
                     />
                   ))}
-                  <Legend iconSize={8} layout="horizontal" verticalAlign="bottom" align="center" />
+                  {/* Legend removed to eliminate dots under the circles */}
                   <RechartsTooltip content={<CustomTooltip />} />
                 </RechartsRadialBarChart>
               </ResponsiveContainer>

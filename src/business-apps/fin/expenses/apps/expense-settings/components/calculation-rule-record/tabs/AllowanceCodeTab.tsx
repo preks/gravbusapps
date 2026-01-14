@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   Button,
   Badge,
@@ -42,6 +43,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
+import { DeleteConfirmationDialog } from '../shared'
 import {
   PiPlus,
   PiPencil,
@@ -63,6 +65,19 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
+import { formatDateForInput, formatDate, checkPeriodUniqueness } from '../../../utils'
+import {
+  validateAmountAndPercentage,
+  validateAllowanceCodeDates,
+  transformAllowanceCodeForUnrestrictedUpdate,
+  transformAllowanceCodeForRestrictedUpdate,
+  transformAllowanceCodeForCreate,
+  transformAllowanceCodeFromAPI,
+  getCodeUniquenessErrorMessage,
+  type AllowanceCodeSaveData
+} from '../utils'
+import { useAllowanceCodeUsageCheck, useTableSorting, createFieldMappings } from '../hooks'
+import { TravelLocation, TravelLocationLabels } from '../../../types/ExpenseEnums'
 
 interface AllowanceCodeTabProps {
   ruleId: string
@@ -89,7 +104,7 @@ interface AllowanceCode {
   code: string
   name: string
   reimbursable: boolean
-  amount: number
+  amount?: number
   calculation?: string
   expenseGroup: {
     id: string
@@ -103,10 +118,15 @@ interface AllowanceCode {
   secondAllowanceRegionRulePercent?: number
   secondAllowanceRegionRule?: AllowanceRegionRule
   firstWageCode?: string
+  secondWageCode?: string
   validFrom: string
   validTo?: string
   version?: number
   isDeleted: boolean
+  businessKey?: string
+  additionalProperties?: Record<string, unknown>
+  codeOrder?: number
+  travelLocation?: string
 }
 
 interface AllowanceCodeFormData {
@@ -114,7 +134,7 @@ interface AllowanceCodeFormData {
   code: string
   name: string
   reimbursable: boolean
-  amount: number
+  amount?: number
   calculation?: string
   expenseGroupRef?: string
   firstAllowanceRegionRuleId?: string
@@ -122,6 +142,7 @@ interface AllowanceCodeFormData {
   secondAllowanceRegionRuleId?: string
   secondAllowanceRegionRulePercent?: number
   firstWageCode?: string
+  travelLocation?: string
   validFrom: string
   validTo?: string
   version?: number
@@ -137,14 +158,13 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   const [isSaving, setIsSaving] = useState(false)
   const [editingItem, setEditingItem] = useState<AllowanceCode | null>(null)
 
-  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return undefined
-    // If already in YYYY-MM-DD format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    // Otherwise extract date portion using dayjs to handle ISO strings correctly
-    return dayjs(dateStr).format('YYYY-MM-DD')
-  }
+  // formatDateForInput is imported from shared utils
+
+  // i18n translations
+  const amountPercentageHelperText = getTranslationFromI18nKeyAndLabel(
+    'expense-settings:amount_percentage_helper',
+    'Use either Amount or Percentage (not both)'
+  )
 
   const form = useForm<AllowanceCodeFormData>({
     defaultValues: {
@@ -159,6 +179,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       secondAllowanceRegionRuleId: '',
       secondAllowanceRegionRulePercent: undefined,
       firstWageCode: '',
+      travelLocation: TravelLocation.BOTH, // Default to BOTH (Home & Abroad)
       validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
       validTo: formatDateForInput(activeTo) || '9999-12-31'
     }
@@ -167,8 +188,11 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   // Filter state for travel region set (not saved, just for filtering region rules)
   const [filterTravelRegionSetId, setFilterTravelRegionSetId] = useState<string>('')
 
-  // Pre-loaded usage status for all allowance codes (id -> isUsed)
-  const [allowanceCodeUsageMap, setAllowanceCodeUsageMap] = useState<Record<string, boolean>>({})
+  // Local state for percentage input to allow typing "-" at the start
+  const [percentageInputValue, setPercentageInputValue] = useState<string>('')
+
+  // Usage check hook
+  const { allowanceCodeUsageMap } = useAllowanceCodeUsageCheck({ accessToken, allowanceCodes })
 
   // Restricted edit state
   const [isRestrictedEdit, setIsRestrictedEdit] = useState(false)
@@ -190,6 +214,32 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
   // Filtered region rules based on selected travel region set
   const [filteredRegionRules, setFilteredRegionRules] = useState<AllowanceRegionRule[]>([])
+
+  // Memoize field mappings to prevent unnecessary recalculations
+  const fieldMappings = useMemo(
+    () => ({
+      code: createFieldMappings.string((a: AllowanceCode) => a.code),
+      name: createFieldMappings.string((a: AllowanceCode) => a.name),
+      reimbursable: createFieldMappings.boolean((a: AllowanceCode) => a.reimbursable),
+      amount: createFieldMappings.number((a: AllowanceCode) => a.amount),
+      activeFrom: createFieldMappings.date((a: AllowanceCode) => a.validFrom),
+      activeTo: createFieldMappings.date((a: AllowanceCode) => a.validTo, '9999-12-31'),
+      travelLocation: createFieldMappings.travelLocation((a: AllowanceCode) => a.travelLocation),
+      regionRule: createFieldMappings.nested((a: AllowanceCode) => a.firstAllowanceRegionRule),
+      percentage: createFieldMappings.number((a: AllowanceCode) => a.firstAllowanceRegionRulePercent),
+      calculation: createFieldMappings.calculation((a: AllowanceCode) => a.calculation, calculationOptions),
+      expenseGroup: createFieldMappings.nested((a: AllowanceCode) => a.expenseGroup)
+    }),
+    [calculationOptions]
+  )
+
+  // Sorting - using shared hook (single source of truth)
+  const sorting = useTableSorting<AllowanceCode>({
+    defaultSortField: 'code',
+    defaultSortOrder: 'ASC',
+    data: allowanceCodes,
+    fieldMappings
+  })
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
@@ -299,6 +349,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
               version
               additionalProperties
               businessKey
+              codeOrder
+              travelLocation
               reimbursable
               firstAllowanceRegionRuleId
               firstAllowanceRegionRulePercent
@@ -315,6 +367,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                 name
               }
               firstWageCode
+              secondWageCode
               expenseGroup {
                 id
                 value
@@ -332,33 +385,9 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       const expenseRule = result.ExpenseRule?.[0]
       const codes = expenseRule?.expenseRuleAllowanceCode || []
 
-      const transformedCodes: AllowanceCode[] = codes.map((code: any) => ({
-        id: code.id,
-        code: code.code || '',
-        name: code.name || '',
-        reimbursable: code.reimbursable || false,
-        amount: code.amount || 0,
-        calculation: code.calculationRef || code.calculation?.id || '',
-        expenseGroup: code.expenseGroup || { id: '', value: '', code: '' },
-        firstAllowanceRegionRuleId: code.firstAllowanceRegionRuleId,
-        firstAllowanceRegionRulePercent: code.firstAllowanceRegionRulePercent,
-        firstAllowanceRegionRule: code.firstAllowanceRegionRule,
-        secondAllowanceRegionRuleId: code.secondAllowanceRegionRuleId,
-        secondAllowanceRegionRulePercent: code.secondAllowanceRegionRulePercent,
-        secondAllowanceRegionRule: code.secondAllowanceRegionRule,
-        firstWageCode: code.firstWageCode,
-        validFrom: code.activeFrom,
-        validTo: code.activeTo,
-        version: code.version,
-        isDeleted: false
-      }))
+      const transformedCodes: AllowanceCode[] = codes.map(transformAllowanceCodeFromAPI)
 
       setAllowanceCodes(transformedCodes)
-
-      // Load usage status for all allowance codes
-      if (transformedCodes.length > 0) {
-        await loadAllowanceCodeUsageStatus(transformedCodes.map(c => c.id))
-      }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to load allowance codes')
     } finally {
@@ -366,56 +395,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     }
   }, [ruleId, graphqlClient])
 
-  // Load usage status for all allowance codes in a single batched query
-  const loadAllowanceCodeUsageStatus = useCallback(
-    async (allowanceCodeIds: string[]) => {
-      if (allowanceCodeIds.length === 0) return
-
-      try {
-        const query = `
-        query CheckAllAllowanceCodeUsage($allowanceCodeIds: [uuid!]!) {
-          planItems: ExpensePlanItem(
-            where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
-          ) { expenseRuleAllowanceCodeId }
-          items: ExpenseItem(
-            where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
-          ) { expenseRuleAllowanceCodeId }
-          positions: ExpensePosition(
-            where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
-          ) { expenseRuleAllowanceCodeId }
-          setups: ExpenseRuleAllowanceSetup(
-            where: { allowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
-          ) { allowanceCodeId }
-        }
-      `
-
-        const result = await graphqlClient.request<{
-          planItems: { expenseRuleAllowanceCodeId: string }[]
-          items: { expenseRuleAllowanceCodeId: string }[]
-          positions: { expenseRuleAllowanceCodeId: string }[]
-          setups: { allowanceCodeId: string }[]
-        }>(query, { allowanceCodeIds })
-
-        // Build a set of used allowance code IDs
-        const usedIds = new Set<string>()
-        result.planItems?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
-        result.items?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
-        result.positions?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
-        result.setups?.forEach(item => usedIds.add(item.allowanceCodeId))
-
-        // Create usage map
-        const usageMap: Record<string, boolean> = {}
-        allowanceCodeIds.forEach(id => {
-          usageMap[id] = usedIds.has(id)
-        })
-
-        setAllowanceCodeUsageMap(usageMap)
-      } catch (error) {
-        console.error('Error loading allowance code usage status:', error)
-      }
-    },
-    [graphqlClient]
-  )
+  // Sorted data is provided by useTableSorting hook (single source of truth)
+  const sortedAllowanceCodes = sorting.sortedData || allowanceCodes
 
   useEffect(() => {
     if (ruleId && accessToken) {
@@ -471,13 +452,10 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   const isEditingOnlyCode = editingItem && allowanceCodes.length === 1
   const isTravelRegionSetLocked = allowanceCodes.length > 0 && !isEditingOnlyCode
 
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
-
   const handleAdd = () => {
     setEditingItem(null)
     setIsRestrictedEdit(false)
+    setPercentageInputValue('') // Reset percentage input state
 
     // ALWAYS inherit validity period from parent Expense Rule
     const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
@@ -487,14 +465,15 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       code: '',
       name: '',
       reimbursable: true,
-      amount: undefined,
+      amount: 0,
       calculation: '',
       expenseGroupRef: 'ExpenseGroup:v1:ALLOWANCE', // Always ALLOWANCE for allowance codes
       firstAllowanceRegionRuleId: '',
-      firstAllowanceRegionRulePercent: undefined,
+      firstAllowanceRegionRulePercent: 0,
       secondAllowanceRegionRuleId: '',
-      secondAllowanceRegionRulePercent: undefined,
+      secondAllowanceRegionRulePercent: 0,
       firstWageCode: '',
+      travelLocation: TravelLocation.BOTH, // Default to BOTH (Home & Abroad)
       validFrom: validFromValue,
       validTo: validToValue
     })
@@ -510,19 +489,24 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       const isUsed = allowanceCodeUsageMap[record.id] || false
       setIsRestrictedEdit(isUsed)
 
+      // Set percentage input value from record
+      const percentValue = record.firstAllowanceRegionRulePercent ?? 0
+      setPercentageInputValue(percentValue === 0 ? '' : String(percentValue))
+
       form.reset({
         id: record.id,
         code: record.code,
         name: record.name,
         reimbursable: record.reimbursable,
-        amount: record.amount,
+        amount: record.amount ?? 0,
         calculation: record.calculation,
         expenseGroupRef: 'ExpenseGroup:v1:ALLOWANCE', // Always ALLOWANCE for allowance codes
         firstAllowanceRegionRuleId: record.firstAllowanceRegionRuleId || '',
-        firstAllowanceRegionRulePercent: record.firstAllowanceRegionRulePercent ?? undefined,
+        firstAllowanceRegionRulePercent: percentValue,
         secondAllowanceRegionRuleId: record.secondAllowanceRegionRuleId || '',
-        secondAllowanceRegionRulePercent: record.secondAllowanceRegionRulePercent ?? undefined,
+        secondAllowanceRegionRulePercent: record.secondAllowanceRegionRulePercent ?? 0,
         firstWageCode: record.firstWageCode || '',
+        travelLocation: (record.travelLocation as TravelLocation) || TravelLocation.BOTH,
         validFrom:
           formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
         validTo: formatDateForInput(record.validTo),
@@ -567,139 +551,144 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     }
   }
 
+  // Check if code is unique within the validity period
+  // Returns { isDuplicate: boolean, existingName?: string } to allow pre-filling the name
+  const checkCodeUniqueness = useCallback(
+    async (
+      code: string,
+      activeFrom: string,
+      activeTo: string | undefined,
+      excludeId?: string
+    ): Promise<{ isDuplicate: boolean; existingName?: string }> => {
+      try {
+        // Fetch all matching codes and check overlap in JavaScript to avoid GraphQL schema limitations
+        const query = `
+          query CheckAllowanceCodeUniqueness($ruleId: uuid!, $code: String!, $excludeId: uuid) {
+            ExpenseRuleAllowanceCode(
+              where: {
+                expenseRuleId: { _eq: $ruleId }
+                code: { _eq: $code }
+                isDeleted: { _eq: false }
+                id: { _neq: $excludeId }
+              }
+            ) {
+              id
+              code
+              name
+              activeFrom
+              activeTo
+            }
+          }
+        `
+
+        const variables = {
+          ruleId,
+          code,
+          excludeId: excludeId || null
+        }
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleAllowanceCode: { id: string; code: string; name: string; activeFrom: string; activeTo?: string }[]
+        }>(query, variables)
+
+        // Check for overlapping periods using shared utility
+        const uniquenessResult = checkPeriodUniqueness({
+          ruleId,
+          excludeId,
+          newPeriod: { activeFrom, activeTo },
+          existingPeriods: result.ExpenseRuleAllowanceCode,
+          componentName: 'AllowanceCodeTab',
+          entityName: 'ExpenseRuleAllowanceCode'
+        })
+
+        return {
+          isDuplicate: uniquenessResult.isDuplicate,
+          existingName: uniquenessResult.existingName
+        }
+      } catch (error) {
+        console.error('[AllowanceCodeTab] Error checking code uniqueness:', {
+          error,
+          code,
+          activeFrom,
+          activeTo,
+          excludeId,
+          ruleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        })
+        // On error, block the save to prevent duplicates from being created
+        // This is safer than allowing saves when we can't verify uniqueness
+        toast.error('Unable to verify code uniqueness. Please try again or contact support if the issue persists.')
+        return { isDuplicate: true, existingName: undefined } // Block save on error
+      }
+    },
+    [ruleId, graphqlClient]
+  )
+
   const handleSave = async () => {
     try {
       setIsSaving(true)
 
       // Clear any previous manual errors
-      form.clearErrors(['validFrom', 'validTo'])
+      form.clearErrors(['validFrom', 'validTo', 'amount', 'firstAllowanceRegionRulePercent', 'code'])
 
       const formValues = form.getValues()
 
+      // Validate mutual exclusivity: Amount and Percentage
+      const amountPercentageError = validateAmountAndPercentage(
+        formValues.amount,
+        formValues.firstAllowanceRegionRulePercent
+      )
+
+      if (amountPercentageError) {
+        form.setError('amount', { type: 'manual', message: amountPercentageError })
+        form.setError('firstAllowanceRegionRulePercent', { type: 'manual', message: amountPercentageError })
+        setIsSaving(false)
+        return
+      }
+
       // Date validation
-      const ruleFrom = dayjs(activeFrom)
-      const ruleTo = activeTo ? dayjs(activeTo) : null
-      const entryFrom = dayjs(formValues.validFrom)
-      const entryTo = formValues.validTo ? dayjs(formValues.validTo) : null
+      const dateErrors = validateAllowanceCodeDates(formValues.validFrom, formValues.validTo, activeFrom, activeTo)
 
-      // Valid From cannot be before rule's Valid From
-      if (entryFrom.isBefore(ruleFrom, 'day')) {
-        form.setError('validFrom', {
-          type: 'manual',
-          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
+      if (dateErrors.length > 0) {
+        dateErrors.forEach(err => {
+          form.setError(err.field, { type: 'manual', message: err.message })
         })
         setIsSaving(false)
         return
       }
 
-      // Valid From cannot be after rule's Valid To
-      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
-        form.setError('validFrom', {
+      // Check code uniqueness within overlapping validity periods
+      const uniquenessCheck = await checkCodeUniqueness(
+        formValues.code,
+        formValues.validFrom,
+        formValues.validTo,
+        editingItem?.id
+      )
+
+      if (uniquenessCheck.isDuplicate) {
+        if (uniquenessCheck.existingName) {
+          form.setValue('name', uniquenessCheck.existingName)
+        }
+        form.setError('code', {
           type: 'manual',
-          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+          message: getCodeUniquenessErrorMessage(uniquenessCheck.existingName)
         })
         setIsSaving(false)
         return
       }
-
-      // Valid To cannot be after rule's Valid To
-      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // Valid To cannot be before Valid From
-      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
-        form.setError('validTo', {
-          type: 'manual',
-          message: `Valid To cannot be before Valid From`
-        })
-        setIsSaving(false)
-        return
-      }
-
-      // Debug logging
-      console.log('[AllowanceCodeTab] formValues:', formValues)
-      console.log('[AllowanceCodeTab] editingItem:', editingItem)
-
-      // IMPORTANT: Always use editingItem for id and version when updating
-      // The form may not reliably track these hidden fields
-      const isUpdate = !!editingItem
-
-      console.log('[AllowanceCodeTab] formValues:', formValues)
-      console.log('[AllowanceCodeTab] editingItem:', editingItem)
-      console.log('[AllowanceCodeTab] isUpdate:', isUpdate)
-      console.log('[AllowanceCodeTab] isRestrictedEdit:', isRestrictedEdit)
 
       // Build saveData based on edit mode
-      let saveData: any
+      const isUpdate = !!editingItem
+      let saveData: AllowanceCodeSaveData
 
       if (isUpdate) {
-        // UPDATE: Start with editingItem (has ALL database fields), override only user-editable fields
-        saveData = {
-          id: editingItem.id,
-          version: editingItem.version,
-          expenseRuleId: ruleId,
-          businessKey: editingItem.businessKey,
-          additionalProperties: editingItem.additionalProperties || {},
-          codeOrder: editingItem.codeOrder,
-          travelLocation: editingItem.travelLocation,
-          secondWageCode: editingItem.secondWageCode || null,
-          // User-editable fields from form (or editingItem if restricted)
-          code: isRestrictedEdit ? editingItem.code : formValues.code,
-          name: isRestrictedEdit ? editingItem.name : formValues.name,
-          reimbursable: isRestrictedEdit ? editingItem.reimbursable : formValues.reimbursable,
-          amount: isRestrictedEdit ? editingItem.amount : (formValues.amount ?? 0),
-          calculationRef: isRestrictedEdit ? editingItem.calculation || null : formValues.calculation || null,
-          expenseGroupRef: 'ExpenseGroup:v1:ALLOWANCE', // Always ALLOWANCE for allowance codes
-          firstAllowanceRegionRuleId: isRestrictedEdit
-            ? editingItem.firstAllowanceRegionRuleId || null
-            : formValues.firstAllowanceRegionRuleId || null,
-          firstAllowanceRegionRulePercent: isRestrictedEdit
-            ? (editingItem.firstAllowanceRegionRulePercent ?? 0)
-            : (formValues.firstAllowanceRegionRulePercent ?? 0),
-          secondAllowanceRegionRuleId: isRestrictedEdit
-            ? editingItem.secondAllowanceRegionRuleId || null
-            : formValues.secondAllowanceRegionRuleId || null,
-          secondAllowanceRegionRulePercent: isRestrictedEdit
-            ? (editingItem.secondAllowanceRegionRulePercent ?? 0)
-            : (formValues.secondAllowanceRegionRulePercent ?? 0),
-          firstWageCode: isRestrictedEdit ? editingItem.firstWageCode || null : formValues.firstWageCode || null,
-          activeFrom: isRestrictedEdit
-            ? editingItem.validFrom
-              ? dayjs(editingItem.validFrom).startOf('day').toISOString()
-              : null
-            : formValues.validFrom
-              ? dayjs(formValues.validFrom).startOf('day').toISOString()
-              : null,
-          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
-        }
+        saveData = isRestrictedEdit
+          ? transformAllowanceCodeForRestrictedUpdate(formValues, editingItem, ruleId)
+          : transformAllowanceCodeForUnrestrictedUpdate(formValues, editingItem, ruleId)
       } else {
-        // CREATE: Use form values with defaults
-        saveData = {
-          expenseRuleId: ruleId,
-          code: formValues.code || '',
-          name: formValues.name || '',
-          reimbursable: formValues.reimbursable ?? true,
-          amount: formValues.amount ?? 0,
-          calculationRef: formValues.calculation || null,
-          expenseGroupRef: 'ExpenseGroup:v1:ALLOWANCE', // Always ALLOWANCE for allowance codes
-          firstAllowanceRegionRuleId: formValues.firstAllowanceRegionRuleId || null,
-          firstAllowanceRegionRulePercent: formValues.firstAllowanceRegionRulePercent ?? 0,
-          secondAllowanceRegionRuleId: formValues.secondAllowanceRegionRuleId || null,
-          secondAllowanceRegionRulePercent: formValues.secondAllowanceRegionRulePercent ?? 0,
-          firstWageCode: formValues.firstWageCode || null,
-          secondWageCode: null,
-          activeFrom: formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null,
-          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
-        }
+        saveData = transformAllowanceCodeForCreate(formValues, ruleId)
       }
-
-      console.log('[AllowanceCodeTab] Final saveData:', saveData)
 
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
       toast.success(`Allowance code ${editingItem ? 'updated' : 'created'} successfully`)
@@ -707,8 +696,15 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       setIsRestrictedEdit(false)
       await fetchAllowanceCodes()
     } catch (error) {
+      const formValues = form.getValues()
+      console.error('[AllowanceCodeTab] handleSave - Save error:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        formValues,
+        editingItemId: editingItem?.id
+      })
       toast.error(`Failed to ${editingItem ? 'update' : 'create'} allowance code`)
-      console.error('Save error:', error)
     } finally {
       setIsSaving(false)
     }
@@ -766,7 +762,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         </CardHeader>
 
         <CardContent data-testid="allowance-code-card-content">
-          {allowanceCodes.length > 0 ? (
+          {sortedAllowanceCodes.length > 0 ? (
             <div className="gba:overflow-x-auto">
               <Table data-testid="allowance-codes-table">
                 <TableHeader data-testid="allowance-codes-table-header">
@@ -774,49 +770,120 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                     <TableHead className="gba:w-[60px]" data-testid="allowance-codes-table-header-actions">
                       ACTIONS
                     </TableHead>
-                    <TableHead className="gba:w-[150px]" data-testid="allowance-codes-table-header-code">
-                      CODE
-                    </TableHead>
-                    <TableHead className="gba:w-[180px]" data-testid="allowance-codes-table-header-name">
-                      NAME
+                    <TableHead
+                      className="gba:w-[150px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('code')}
+                      data-testid="allowance-codes-table-header-code"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        CODE
+                        {sorting.renderSortIcon('code')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[120px] gba:text-center"
+                      className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('name')}
+                      data-testid="allowance-codes-table-header-name"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        NAME
+                        {sorting.renderSortIcon('name')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[120px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('reimbursable')}
                       data-testid="allowance-codes-table-header-reimbursable"
                     >
-                      REIMBURSABLE
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        REIMBURSABLE
+                        {sorting.renderSortIcon('reimbursable')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[100px] gba:text-right"
+                      className="gba:w-[100px] gba:text-right gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('amount')}
                       data-testid="allowance-codes-table-header-amount"
                     >
-                      AMOUNT
-                    </TableHead>
-                    <TableHead className="gba:w-[180px]" data-testid="allowance-codes-table-header-region-rule">
-                      REGION RULE
+                      <div className="gba:flex gba:items-center gba:justify-end">
+                        AMOUNT
+                        {sorting.renderSortIcon('amount')}
+                      </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[100px] gba:text-center"
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('travelLocation')}
+                      data-testid="allowance-codes-table-header-travel-location"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        TRAVEL LOCATION
+                        {sorting.renderSortIcon('travelLocation')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[180px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('regionRule')}
+                      data-testid="allowance-codes-table-header-region-rule"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        REGION RULE
+                        {sorting.renderSortIcon('regionRule')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[100px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('percentage')}
                       data-testid="allowance-codes-table-header-percentage"
                     >
-                      PERCENTAGE
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        PERCENTAGE
+                        {sorting.renderSortIcon('percentage')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[120px]" data-testid="allowance-codes-table-header-calculation">
-                      CALCULATION
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('calculation')}
+                      data-testid="allowance-codes-table-header-calculation"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        CALCULATION
+                        {sorting.renderSortIcon('calculation')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[130px]" data-testid="allowance-codes-table-header-expense-group">
-                      EXPENSE GROUP
+                    <TableHead
+                      className="gba:w-[130px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('expenseGroup')}
+                      data-testid="allowance-codes-table-header-expense-group"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        EXPENSE GROUP
+                        {sorting.renderSortIcon('expenseGroup')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[120px]" data-testid="allowance-codes-table-header-valid-from">
-                      VALID FROM
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('activeFrom')}
+                      data-testid="allowance-codes-table-header-valid-from"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        VALID FROM
+                        {sorting.renderSortIcon('activeFrom')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[120px]" data-testid="allowance-codes-table-header-valid-to">
-                      VALID TO
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
+                      onClick={() => sorting.handleSort('activeTo')}
+                      data-testid="allowance-codes-table-header-valid-to"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        VALID TO
+                        {sorting.renderSortIcon('activeTo')}
+                      </div>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody data-testid="allowance-codes-table-body">
-                  {allowanceCodes.map(record => (
+                  {sortedAllowanceCodes.map(record => (
                     <TableRow key={record.id} data-testid={`allowance-code-row-${record.id}`}>
                       {/* Actions Column */}
                       <TableCell data-testid={`allowance-code-actions-cell-${record.id}`}>
@@ -916,8 +983,24 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           className="gba:font-mono gba:font-medium"
                           data-testid={`allowance-code-amount-text-${record.id}`}
                         >
-                          {record.amount > 0 ? record.amount.toFixed(1) : '-'}
+                          {record.amount && record.amount > 0 ? record.amount.toFixed(1) : '-'}
                         </span>
+                      </TableCell>
+
+                      {/* Travel Location Column */}
+                      <TableCell data-testid={`allowance-code-travel-location-cell-${record.id}`}>
+                        {record.travelLocation ? (
+                          <Badge variant="secondary" data-testid={`allowance-code-travel-location-badge-${record.id}`}>
+                            {TravelLocationLabels[record.travelLocation as TravelLocation] || record.travelLocation}
+                          </Badge>
+                        ) : (
+                          <span
+                            className="gba:text-muted-foreground"
+                            data-testid={`allowance-code-travel-location-empty-${record.id}`}
+                          >
+                            -
+                          </span>
+                        )}
                       </TableCell>
 
                       {/* Region Rule Column */}
@@ -1022,7 +1105,10 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
           }
         }}
       >
-        <DialogContent className="gba:max-w-3xl" data-testid="allowance-code-modal">
+        <DialogContent
+          className="gba:max-w-3xl gba:max-h-[90vh] gba:overflow-y-auto"
+          data-testid="allowance-code-modal"
+        >
           <DialogHeader data-testid="allowance-code-modal-header">
             <DialogTitle data-testid="allowance-code-modal-title">
               {editingItem ? 'Edit' : 'Add'} Allowance Code
@@ -1059,6 +1145,37 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           placeholder="e.g., A-FULL, L-FULL"
                           disabled={isRestrictedEdit}
                           data-testid="allowance-code-code-input"
+                          onBlur={async () => {
+                            field.onBlur()
+                            const codeValue = form.getValues('code')
+                            const validFrom = form.getValues('validFrom')
+                            const validTo = form.getValues('validTo')
+
+                            // Only validate if code is not empty
+                            if (codeValue?.trim()) {
+                              const uniquenessCheck = await checkCodeUniqueness(
+                                codeValue,
+                                validFrom,
+                                validTo,
+                                editingItem?.id
+                              )
+
+                              if (uniquenessCheck.isDuplicate) {
+                                // Pre-fill the name with the existing name if available
+                                if (uniquenessCheck.existingName) {
+                                  form.setValue('name', uniquenessCheck.existingName)
+                                }
+                                form.setError('code', {
+                                  type: 'manual',
+                                  message:
+                                    'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
+                                })
+                              } else {
+                                // Clear error if code is now unique
+                                form.clearErrors('code')
+                              }
+                            }
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1114,30 +1231,15 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         <Input
                           type="text"
                           placeholder="e.g. 57.50"
-                          value={field.value === undefined || field.value === null ? '' : String(field.value)}
+                          value={field.value === 0 ? '' : (field.value ?? '')}
                           onChange={e => {
-                            const value = e.target.value.trim()
+                            const value = e.target.value
                             if (value === '') {
-                              field.onChange(undefined)
-                              return
-                            }
-                            // Allow numbers with optional decimal point
-                            if (/^\d*\.?\d*$/.test(value)) {
-                              const numValue = value === '' ? undefined : Number(value)
-                              field.onChange(numValue)
-                            }
-                          }}
-                          onBlur={e => {
-                            // On blur, clean up the value
-                            const value = e.target.value.trim()
-                            if (value === '') {
-                              field.onChange(undefined)
+                              field.onChange(0)
                             } else {
-                              const numValue = Number(value)
-                              if (!isNaN(numValue) && numValue >= 0) {
+                              const numValue = Number.parseFloat(value)
+                              if (!Number.isNaN(numValue)) {
                                 field.onChange(numValue)
-                              } else {
-                                field.onChange(undefined)
                               }
                             }
                           }}
@@ -1145,6 +1247,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           data-testid="allowance-code-amount-input"
                         />
                       </FormControl>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{amountPercentageHelperText}</div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1226,24 +1329,76 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                 <FormField
                   control={form.control}
                   name="firstAllowanceRegionRulePercent"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-code-percentage-field">
-                      <FormLabel data-testid="allowance-code-percentage-label">Percentage</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="-100"
-                          max="200"
-                          placeholder="e.g. 100"
-                          value={field.value ?? ''}
-                          onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-code-percentage-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    // Sync local state with field value when field changes externally
+                    const displayValue =
+                      percentageInputValue !== '' || field.value === undefined || field.value === 0
+                        ? percentageInputValue
+                        : String(field.value)
+
+                    return (
+                      <FormItem data-testid="allowance-code-percentage-field">
+                        <FormLabel data-testid="allowance-code-percentage-label">Percentage</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            placeholder="e.g. 100"
+                            value={displayValue}
+                            onChange={e => {
+                              const value = e.target.value
+                              // Update local state to allow typing "-" and partial numbers
+                              setPercentageInputValue(value)
+
+                              // Handle empty string
+                              if (value === '') {
+                                field.onChange(0)
+                                return
+                              }
+
+                              // Allow "-" to be typed (user can continue typing negative number)
+                              if (value === '-') {
+                                // Don't update field yet, just keep the "-" in the input
+                                return
+                              }
+
+                              // Parse the number (handles negative numbers like "-20")
+                              const numValue = Number.parseFloat(value)
+                              if (!Number.isNaN(numValue)) {
+                                field.onChange(numValue)
+                              }
+                              // If invalid but starts with "-", allow it temporarily (user is still typing)
+                              // This handles cases like "-" or "-." while user is typing
+                            }}
+                            onBlur={() => {
+                              // When user leaves the field, clear local state if it's invalid
+                              const currentValue = percentageInputValue
+                              if (currentValue === '' || currentValue === '-') {
+                                setPercentageInputValue('')
+                                field.onChange(0)
+                              } else {
+                                const numValue = Number.parseFloat(currentValue)
+                                if (Number.isNaN(numValue)) {
+                                  // Invalid input, reset to field value
+                                  setPercentageInputValue(
+                                    field.value === 0 || field.value === undefined ? '' : String(field.value)
+                                  )
+                                } else {
+                                  // Valid number, clear local state to sync with field
+                                  setPercentageInputValue('')
+                                }
+                              }
+                            }}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-code-percentage-input"
+                          />
+                        </FormControl>
+                        <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                          {amountPercentageHelperText}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
                 />
 
                 {/* First Wage Code */}
@@ -1262,6 +1417,49 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           data-testid="allowance-code-wage-code-input"
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Travel Location */}
+                <FormField
+                  control={form.control}
+                  name="travelLocation"
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-code-travel-location-field">
+                      <FormLabel data-testid="allowance-code-travel-location-label">Travel Location</FormLabel>
+                      <Select
+                        value={field.value || TravelLocation.BOTH}
+                        onValueChange={field.onChange}
+                        disabled={isRestrictedEdit}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="allowance-code-travel-location-select">
+                            <SelectValue placeholder="Select travel location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="allowance-code-travel-location-options">
+                          <SelectItem
+                            value={TravelLocation.HOME}
+                            data-testid="allowance-code-travel-location-option-home"
+                          >
+                            {TravelLocationLabels[TravelLocation.HOME]}
+                          </SelectItem>
+                          <SelectItem
+                            value={TravelLocation.ABROAD}
+                            data-testid="allowance-code-travel-location-option-abroad"
+                          >
+                            {TravelLocationLabels[TravelLocation.ABROAD]}
+                          </SelectItem>
+                          <SelectItem
+                            value={TravelLocation.BOTH}
+                            data-testid="allowance-code-travel-location-option-both"
+                          >
+                            {TravelLocationLabels[TravelLocation.BOTH]}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1405,46 +1603,19 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="gba:max-w-md" data-testid="allowance-code-delete-confirmation-modal">
-          <DialogHeader data-testid="allowance-code-delete-confirmation-modal-header">
-            <DialogTitle data-testid="allowance-code-delete-confirmation-modal-title">
-              Delete Allowance Code
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="gba:py-4" data-testid="allowance-code-delete-confirmation-content">
-            <p className="gba:text-muted-foreground">
-              Are you sure you want to delete the allowance code &quot;{itemToDelete?.code} - {itemToDelete?.name}
-              &quot;?
-            </p>
-            <p className="gba:text-sm gba:text-destructive gba:mt-2">This action cannot be undone.</p>
-          </div>
-
-          <DialogFooter data-testid="allowance-code-delete-confirmation-modal-footer">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteDialogOpen(false)
-                setItemToDelete(null)
-              }}
-              disabled={isDeleting}
-              data-testid="allowance-code-delete-confirmation-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              data-testid="allowance-code-delete-confirmation-confirm-button"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Allowance Code"
+        itemDescription={`the allowance code "${itemToDelete?.code} - ${itemToDelete?.name}"`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        testIdPrefix="allowance-code-delete"
+      />
     </div>
   )
 }

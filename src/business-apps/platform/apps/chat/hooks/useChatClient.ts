@@ -7,7 +7,6 @@ import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
 import { usePresence } from './usePresence'
-import { debugLog } from '../utils/debugLog'
 
 // Shared WebSocket client to prevent duplicate connections
 // Multiple Chat instances (e.g., forceMount tabs) will share ONE WebSocket
@@ -80,7 +79,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           setError(null)
         })
         .catch(err => {
-          console.error('Error getting current user:', err)
           // Detect error type and set appropriate message
           let errorMessage = 'chat.serviceUnavailable'
 
@@ -163,7 +161,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     if (sharedWsClient) {
       // If the key matches, reuse the existing connection
       if (sharedWsKey === key) {
-        debugLog('[useChatClient] reusing existing websocket', { wsUrl, wsSocketPath, refCount: sharedWsRefCount })
         wsClientRef.current = sharedWsClient
         sharedWsRefCount++ // Increment reference count
 
@@ -175,11 +172,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         // Return cleanup function that decrements ref count
         return () => {
           sharedWsRefCount--
-          debugLog('[useChatClient] component unmounting, decremented refCount', { refCount: sharedWsRefCount })
 
           // Only disconnect when NO components are using it anymore
           if (sharedWsRefCount <= 0) {
-            debugLog('[useChatClient] no more refs, disconnecting shared websocket')
             sharedWsClient?.disconnect()
             sharedWsClient = null
             sharedWsKey = null
@@ -188,7 +183,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         }
       } else {
         // Key changed - disconnect old connection before creating new one
-        debugLog('[useChatClient] Token changed - disconnecting old websocket and creating new one')
         sharedWsClient.disconnect()
         sharedWsClient = null
         sharedWsKey = null
@@ -197,7 +191,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     // Create new WebSocket client
-    debugLog('[useChatClient] creating new websocket', { wsUrl, wsSocketPath })
     const client = new ChatWebSocketClient(wsUrl, { path: wsSocketPath })
     sharedWsClient = client
     sharedWsKey = key
@@ -233,8 +226,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       setIsOffline(true)
     }
 
-    const handleError = (err: Error) => {
-      console.error('WebSocket error:', err)
+    const handleError = () => {
       setIsOffline(true)
       // Don't set full error for WebSocket issues, just mark as offline
     }
@@ -250,21 +242,16 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     socket.on('disconnect', handleDisconnect)
     socket.on('error', handleError)
 
-    debugLog('[useChatClient] Registered WebSocket event handlers')
-
     return () => {
       // CRITICAL FIX: Clean up event handlers
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
       socket.off('error', handleError)
-      debugLog('[useChatClient] Cleaned up WebSocket event handlers')
 
       sharedWsRefCount--
-      debugLog('[useChatClient] component unmounting, decremented refCount', { refCount: sharedWsRefCount })
 
       // Only disconnect when NO components are using it anymore
       if (sharedWsRefCount <= 0) {
-        debugLog('[useChatClient] no more refs, disconnecting shared websocket')
         wsClientRef.current?.disconnect()
         sharedWsClient = null
         sharedWsKey = null
@@ -275,40 +262,22 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
   // Setup WebSocket event listeners
   useEffect(() => {
-    debugLog(
-      '[Chat] Setting up WebSocket event listeners - connected:',
-      isConnected,
-      'wsClient exists:',
-      !!wsClientRef.current
-    )
-
     if (!wsClientRef.current || !isConnected) {
       // Clear processed messages when disconnected
       processedMessageIdsRef.current.clear()
       setActiveCalls({})
-      debugLog('[Chat] Not connected, skipping event listener setup')
       return
     }
 
     const wsClient = wsClientRef.current
-
-    debugLog('[Chat] WebSocket connected, registering event listeners')
 
     // Clear processed messages on new connection to allow fresh processing
     processedMessageIdsRef.current.clear()
 
     // Message handlers
     const handleNewMessage = (message: Message) => {
-      debugLog('[Chat] Received new_message event:', {
-        messageId: message.id,
-        conversationId: message.conversationId,
-        senderId: message.senderId,
-        content: message.content?.substring(0, 50)
-      })
-
       // Skip if we've already processed this message ID (prevent duplicate processing)
       if (processedMessageIdsRef.current.has(message.id)) {
-        debugLog('[Chat] Skipping already processed message:', message.id)
         return
       }
 
@@ -330,15 +299,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
       // Use ref to get current active conversation (not stale closure value)
       const currentActiveConversationId = activeConversationIdRef.current
-
-      debugLog(
-        '[Chat] Processing message - active conversation:',
-        currentActiveConversationId,
-        'message conversation:',
-        message.conversationId,
-        'match:',
-        message.conversationId === currentActiveConversationId
-      )
 
       // Stop typing indicator for this user when they send a message
       if (isOtherUserMessage) {
@@ -424,26 +384,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
       // Update conversation list immediately (not in startTransition) for instant UI feedback
       // Users need to see unread counts and list reordering instantly
-      debugLog(
-        '[Chat] Updating conversation list - conversationId:',
-        message.conversationId,
-        'isOtherUser:',
-        isOtherUserMessage,
-        'isActive:',
-        message.conversationId === currentActiveConversationId
-      )
       conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
 
       // Increment unread count ONLY for messages from OTHER users in background conversations
       // This MUST be immediate so users see the badge update right away
       if (isOtherUserMessage && message.conversationId !== currentActiveConversationId) {
-        debugLog('[Chat] Incrementing unread count for background conversation:', message.conversationId)
         conversationsHookRef.current?.incrementUnreadCount(message.conversationId)
-      } else {
-        debugLog(
-          '[Chat] NOT incrementing unread:',
-          isOtherUserMessage ? 'conversation is active' : 'message is from current user'
-        )
       }
 
       // Use startTransition only for adding message to chat view (less critical)
@@ -451,16 +397,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       startTransition(() => {
         // Always add message if it's for the active conversation
         if (message.conversationId === currentActiveConversationId) {
-          debugLog('[Chat] Adding message to active conversation:', message.id)
           messagesHookRef.current?.addMessage(messageWithStatus)
-        } else {
-          debugLog(
-            '[Chat] NOT adding message - conversation mismatch (message:',
-            message.conversationId,
-            'active:',
-            currentActiveConversationId,
-            ')'
-          )
         }
       })
     }
@@ -592,8 +529,8 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           } else {
             conversationsHookRef.current.updateConversation(data.conversationId, conversation)
           }
-        } catch (err) {
-          console.error('Error refreshing conversation:', err)
+        } catch {
+          // Error refreshing conversation
         }
       }
     }
@@ -609,14 +546,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           } else {
             conversationsHookRef.current.addConversation(data.conversation)
           }
-        } catch (err) {
-          console.error('Error adding new conversation:', err)
+        } catch {
+          // Error adding new conversation
         }
       }
     }
 
     const handleConversationCallStarted = (data: ActiveCall) => {
-      debugLog('Received conversation:call-started:', data)
       setActiveCalls(prev => ({ ...prev, [data.conversationId]: data }))
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
         activeCall: data
@@ -635,11 +571,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationActiveCalls = (calls: ActiveCall[]) => {
-      debugLog('Received active calls:', calls.length, 'calls', calls)
       const map: Record<string, ActiveCall> = {}
       calls.forEach(call => {
         map[call.conversationId] = call
-        debugLog('Updating conversation with activeCall:', call.conversationId, call)
         conversationsHookRef.current?.updateConversation?.(call.conversationId, {
           activeCall: call
         } as Partial<Conversation>)
@@ -648,8 +582,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleNudgeReceived = (data: { conversationId: string; fromUserId: string; fromUserName: string }) => {
-      debugLog('[Chat] Received nudge from:', data.fromUserName, 'in conversation:', data.conversationId)
-
       // Trigger nudge notification callback if registered
       if (nudgeCallbackRef.current) {
         nudgeCallbackRef.current(data)
@@ -700,7 +632,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
     // Join new conversation if not already joined
     if (activeConversationId) {
-      debugLog('[Chat] Joining conversation room:', activeConversationId)
       wsClientRef.current.joinConversation(activeConversationId)
       currentConversationIdRef.current = activeConversationId
       conversationsHookRef.current?.markConversationAsRead(activeConversationId)
@@ -739,13 +670,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
                       conversationsHookRef.current.updateConversation(conversationIdToMarkRead, fullConversation)
                     }
                   }
-                } catch (error) {
-                  console.error('Error updating conversation after marking read:', error)
+                } catch {
+                  // Error updating conversation
                 }
               }
             }, 200)
           })
-          .catch(console.error)
+          .catch(() => {})
       }
     } else {
       // We've left the room, backend will send conversation_updated events instead
@@ -755,23 +686,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
   const sendMessage = useCallback(
     async (conversationId: string, content: string, metadata?: Record<string, any>) => {
-      debugLog('[useChatClient] sendMessage called', {
-        conversationId,
-        contentLength: content?.length,
-        hasMetadata: !!metadata,
-        hasCurrentUser: !!currentUser,
-        hasWsClient: !!wsClientRef.current,
-        isConnected
-      })
-
       if (!currentUser) {
-        console.error('[useChatClient] sendMessage failed: User not authenticated')
         throw new Error('User not authenticated')
       }
 
       // Prefer WebSocket for real-time delivery, fallback to REST API
       if (wsClientRef.current && isConnected) {
-        debugLog('✅ [useChatClient] Using WebSocket to send message (real-time)')
         try {
           // Create optimistic message for immediate UI feedback
           const optimisticMessage: Message = {
@@ -808,29 +728,19 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           })
 
           // Send via WebSocket - the gateway will create the message and broadcast it
-          debugLog('[useChatClient] Calling wsClient.sendMessage', {
-            conversationId,
-            senderId: currentUser.id,
-            hasMetadata: !!metadata
-          })
           wsClientRef.current.sendMessage(conversationId, content, currentUser.id, undefined, metadata)
-          debugLog('[useChatClient] wsClient.sendMessage called successfully')
 
           // The real message will be received via WebSocket 'new_message' event
           // and will replace the optimistic one
           // Note: Backend should persist the message to database when received via WebSocket
           // If message doesn't appear after refresh, backend persistence may be failing
           return optimisticMessage
-        } catch (err) {
-          console.error('[useChatClient] Error sending message via WebSocket:', err)
+        } catch {
           // Fall through to REST API fallback
         }
       }
 
       // Fallback to REST API if WebSocket is not available
-      console.warn('⚠️ [useChatClient] WebSocket not available, falling back to REST API')
-      console.warn('⚠️ Live features disabled: typing indicators, instant message delivery')
-      console.warn('⚠️ To fix: Ensure chat-service backend is running and WebSocket connection is established')
 
       if (!apiClientRef.current) {
         throw new Error('Chat client not initialized')
@@ -846,10 +756,8 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         )
         messagesHook.addMessage(message)
         typingHook.stopTyping(conversationId)
-        debugLog('✅ Message sent via REST API (not real-time)')
         return message
       } catch (err) {
-        console.error('❌ Error sending message via REST API:', err)
         throw err
       }
     },
@@ -884,7 +792,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         return enrichedConversation
       } catch (err) {
-        console.error('Error creating conversation:', err)
         throw err
       }
     },
@@ -914,7 +821,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         return enrichedConversation
       } catch (err) {
-        console.error('Error creating context conversation:', err)
         throw err
       }
     },
@@ -943,7 +849,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         return enrichedConversation
       } catch (err) {
-        console.error('Error creating AI agent conversation:', err)
         throw err
       }
     },
@@ -973,7 +878,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         return enrichedConversation
       } catch (err) {
-        console.error('Error creating group conversation:', err)
         throw err
       }
     },
@@ -1007,8 +911,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           } else {
             conversationsHook.updateConversation(conversation.id, fullConversation)
           }
-        } catch (err) {
-          console.error('Error reloading conversation:', err)
+        } catch {
           // Continue with the conversation we have
         }
       }
@@ -1037,7 +940,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         return true
       } catch (err) {
-        console.error('Error removing conversation:', err)
         throw err
       }
     },
@@ -1046,7 +948,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
   const sendNudge = useCallback((conversationId: string, toUserId: string) => {
     if (!wsClientRef.current || !wsClientRef.current.isConnected()) {
-      console.error('[useChatClient] Cannot send nudge: WebSocket not connected')
       return false
     }
 

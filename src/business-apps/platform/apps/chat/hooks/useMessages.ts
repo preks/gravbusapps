@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
 import type { Message, PaginatedResponse, Conversation } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
-import { debugLog } from '../utils/debugLog'
 
 interface UseMessagesOptions {
   apiClient: ChatApiClient
@@ -39,14 +38,12 @@ export function useMessages({
 
       // Check if apiClient is valid (not empty object)
       if (!apiClient || typeof apiClient.getMessages !== 'function') {
-        console.warn('API client not ready, skipping message load')
         return
       }
 
       // Prevent concurrent loads for the SAME conversation
       // (but allow new conversation loads to proceed)
       if (isLoadingMoreRef.current && conversationId === activeConversationIdRef.current) {
-        debugLog('[useMessages] Already loading messages for this conversation, skipping')
         return
       }
 
@@ -72,7 +69,6 @@ export function useMessages({
         // CRITICAL: Check if this response is still relevant
         // If conversation changed while request was in flight, discard the response
         if (abortController.signal.aborted || requestConversationId !== activeConversationIdRef.current) {
-          debugLog('[useMessages] Discarding stale response for conversation:', requestConversationId)
           // Clear loading states for the aborted request
           if (requestConversationId !== activeConversationIdRef.current) {
             setIsLoading(false)
@@ -133,7 +129,6 @@ export function useMessages({
       } catch (err) {
         // Don't set error if request was aborted (expected behavior)
         if (err instanceof Error && err.name === 'AbortError') {
-          debugLog('[useMessages] Request aborted for conversation:', requestConversationId)
           // Clear loading states when aborted
           setIsLoading(false)
           isLoadingMoreRef.current = false
@@ -143,7 +138,6 @@ export function useMessages({
         // Only set error if this is still the active conversation
         if (requestConversationId === activeConversationIdRef.current) {
           setError(err instanceof Error ? err : new Error('Failed to load messages'))
-          console.error('Error loading messages:', err)
         }
       } finally {
         // Always clear loading state in finally block
