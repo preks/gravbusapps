@@ -50,6 +50,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   // Track processed message IDs to prevent duplicate processing
   const processedMessageIdsRef = useRef<Set<string>>(new Set())
 
+  // PERFORMANCE: Track the newest message timestamp from API/cache to filter WebSocket duplicates
+  // When we load messages via API/cache, WebSocket also sends the same historical messages
+  // We can skip WebSocket messages that are older than the newest message we already have
+  const newestMessageTimestampRef = useRef<number>(0)
+
   // Keep refs in sync
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId
@@ -115,8 +120,21 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     conversationId: activeConversationId,
     currentUserId: currentUser?.id || null,
     conversation: activeConversation,
-    enabled: !!apiClientState && !!activeConversationId
+    enabled: !!apiClientState && !!activeConversationId,
+    onMessagesLoaded: (messageIds: string[]) => {
+      // Mark all loaded message IDs as processed to prevent WebSocket duplicates
+      messageIds.forEach(id => processedMessageIdsRef.current.add(id))
+    }
   })
+
+  // PERFORMANCE: Update newest message timestamp when messages are loaded
+  useEffect(() => {
+    if (messagesHook.messages.length > 0 && activeConversationId) {
+      const newestTimestamp = Math.max(...messagesHook.messages.map((m: Message) => new Date(m.createdAt).getTime()))
+      newestMessageTimestampRef.current = newestTimestamp
+    }
+    // Don't reset to 0 when empty - keep the timestamp from setActiveConversation
+  }, [messagesHook.messages, activeConversationId])
 
   // Load conversations when API client is ready (happens in parallel with getCurrentUser)
   // This improves initial load time by not blocking on user fetch
@@ -209,7 +227,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       // The backend automatically joins users to their conversations on connect,
       // but we should also join the active conversation if there is one
       if (activeConversationId && wsClientRef.current) {
-        wsClientRef.current.joinConversation(activeConversationId)
+        // PERFORMANCE: Tell backend the newest message we have to avoid sending historical messages
+        const newestTimestamp = newestMessageTimestampRef.current
+        wsClientRef.current.joinConversation(activeConversationId, newestTimestamp)
         currentConversationIdRef.current = activeConversationId
       }
 
@@ -275,130 +295,153 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     processedMessageIdsRef.current.clear()
 
     // Message handlers
+    // OPTIMIZATION: Pre-define status priority outside handler to avoid recreating on every message
+    const STATUS_PRIORITY = { sent: 1, delivered: 2, read: 3 } as const
+
     const handleNewMessage = (message: Message) => {
-      // Skip if we've already processed this message ID (prevent duplicate processing)
+      // CRITICAL OPTIMIZATION: Immediate duplicate check and early returns
+      // Skip if already processed
       if (processedMessageIdsRef.current.has(message.id)) {
         return
       }
-
-      // Mark this message as processed
       processedMessageIdsRef.current.add(message.id)
 
-      // Clean up old message IDs (keep only last 100)
-      if (processedMessageIdsRef.current.size > 100) {
-        const ids = Array.from(processedMessageIdsRef.current)
-        processedMessageIdsRef.current = new Set(ids.slice(-100))
-      }
-
-      // Determine status based on context
-      let messageStatus = message.status || 'sent'
-
-      const currentUser = currentUserRef.current
-      const isOwnMessage = currentUser && message.senderId === currentUser.id
-      const isOtherUserMessage = currentUser && message.senderId !== currentUser.id
-
-      // Use ref to get current active conversation (not stale closure value)
+      // PERFORMANCE: Skip old WebSocket messages that we already loaded from API/cache
       const currentActiveConversationId = activeConversationIdRef.current
+      if (message.conversationId === currentActiveConversationId) {
+        const messageTimestamp = new Date(message.createdAt).getTime()
+        const newestWeHave = newestMessageTimestampRef.current
 
-      // Stop typing indicator for this user when they send a message
-      if (isOtherUserMessage) {
-        // Clear typing indicator for the sender
-        typingHookRef.current?.handleUserTyping({
-          userId: message.senderId,
-          conversationId: message.conversationId,
-          isTyping: false,
-          username: message.sender?.username || message.sender?.firstName || 'User'
-        })
-
-        // Receiving someone else's message
-        if (message.conversationId === currentActiveConversationId) {
-          // In active conversation - mark as read and send read receipt
-          messageStatus = 'read'
-
-          // Emit read receipt back to sender via WebSocket
-          if (wsClientRef.current && wsClientRef.current.isConnected()) {
-            wsClientRef.current.getSocket()?.emit('message:read', {
-              messageId: message.id,
-              conversationId: message.conversationId,
-              readBy: currentUser?.id
-            })
-          }
-        } else {
-          // In background conversation - mark as delivered and emit delivery confirmation
-          messageStatus = 'delivered'
-
-          // Emit delivery confirmation back to sender
-          if (wsClientRef.current && wsClientRef.current.isConnected()) {
-            wsClientRef.current.getSocket()?.emit('message:delivered', {
-              messageId: message.id,
-              conversationId: message.conversationId,
-              deliveredTo: currentUser?.id
-            })
-          }
+        if (messageTimestamp <= newestWeHave && newestWeHave > 0) {
+          return // Skip - we already have this message
         }
-      } else if (isOwnMessage) {
-        // Receiving own message broadcast (after sending)
-        // Check if we already have this message to avoid overwriting with worse status
-        const existingMessages = messagesHookRef.current?.messages || []
-        const existingMessage = existingMessages.find((m: any) => {
-          // Match by ID or by temp ID with same content
-          if (m.id === message.id) return true
-          if (
-            m.id.startsWith('temp-') &&
-            m.content === message.content &&
-            m.conversationId === message.conversationId
-          ) {
-            return true
-          }
-          return false
-        })
+      }
 
-        // If message already exists with same real ID and has a status, skip entirely
-        if (existingMessage && existingMessage.id === message.id && existingMessage.status) {
-          // Message already exists with real ID - duplicate event, skip it
-          return
+      // OPTIMIZATION: Queue ALL logic asynchronously - handler returns immediately
+      queueMicrotask(() => {
+        // Clean up old message IDs (keep only last 100)
+        if (processedMessageIdsRef.current.size > 150) {
+          const ids = Array.from(processedMessageIdsRef.current)
+          processedMessageIdsRef.current = new Set(ids.slice(-100))
         }
 
-        // Preserve better status if it exists (delivered > sent, read > delivered)
-        if (existingMessage && existingMessage.status) {
-          const statusPriority = { sent: 1, delivered: 2, read: 3 }
-          const existingPriority = statusPriority[existingMessage.status as keyof typeof statusPriority] || 0
-          const incomingStatus = message.status || 'sent'
-          const incomingPriority = statusPriority[incomingStatus as keyof typeof statusPriority] || 1
+        // Determine status based on context
+        let messageStatus = message.status || 'sent'
 
-          if (existingPriority >= incomingPriority) {
-            // Keep the better or equal existing status
-            messageStatus = existingMessage.status
+        const currentUser = currentUserRef.current
+        const isOwnMessage = currentUser && message.senderId === currentUser.id
+        const isOtherUserMessage = currentUser && message.senderId !== currentUser.id
+
+        // Use ref to get current active conversation (not stale closure value)
+        const currentActiveConversationId = activeConversationIdRef.current
+
+        // Stop typing indicator for this user when they send a message
+        if (isOtherUserMessage) {
+          typingHookRef.current?.handleUserTyping({
+            userId: message.senderId,
+            conversationId: message.conversationId,
+            isTyping: false,
+            username: message.sender?.username || message.sender?.firstName || 'User'
+          })
+
+          // Receiving someone else's message
+          if (message.conversationId === currentActiveConversationId) {
+            // In active conversation - mark as read and send read receipt
+            messageStatus = 'read'
+
+            if (wsClientRef.current && wsClientRef.current.isConnected()) {
+              wsClientRef.current.getSocket()?.emit('message:read', {
+                messageId: message.id,
+                conversationId: message.conversationId,
+                readBy: currentUser?.id
+              })
+            }
           } else {
-            // Use the new status if it's better
-            messageStatus = incomingStatus
+            // In background conversation - mark as delivered and emit delivery confirmation
+            messageStatus = 'delivered'
+
+            if (wsClientRef.current && wsClientRef.current.isConnected()) {
+              wsClientRef.current.getSocket()?.emit('message:delivered', {
+                messageId: message.id,
+                conversationId: message.conversationId,
+                deliveredTo: currentUser?.id
+              })
+            }
           }
-        } else {
-          // No existing message, use incoming status or default to 'sent'
-          messageStatus = message.status || 'sent'
+        } else if (isOwnMessage) {
+          // Receiving own message broadcast (after sending)
+          // OPTIMIZATION: Only search messages if it's for the active conversation
+          if (message.conversationId === currentActiveConversationId) {
+            const existingMessages = messagesHookRef.current?.messages || []
+
+            // OPTIMIZATION: Use reverse for-loop with early break (faster than find())
+            let existingMessage = null
+
+            for (let i = existingMessages.length - 1; i >= 0; i--) {
+              const m = existingMessages[i] as any
+              // Check real ID match first (most common case)
+              if (m.id === message.id) {
+                existingMessage = m
+                break // Found exact match, stop searching
+              }
+              // Only check temp ID if we haven't found a real match
+              if (
+                m.id.startsWith('temp-') &&
+                m.content === message.content &&
+                m.conversationId === message.conversationId
+              ) {
+                existingMessage = m
+                // Don't break here - keep looking for real ID match
+              }
+            }
+
+            // If message already exists with same real ID and has a status, skip entirely
+            if (existingMessage && existingMessage.id === message.id && existingMessage.status) {
+              // Message already exists with real ID - duplicate event, skip it
+              return
+            }
+
+            // Preserve better status if it exists (delivered > sent, read > delivered)
+            if (existingMessage && existingMessage.status) {
+              const existingPriority = STATUS_PRIORITY[existingMessage.status as keyof typeof STATUS_PRIORITY] || 0
+              const incomingPriority = STATUS_PRIORITY[(message.status || 'sent') as keyof typeof STATUS_PRIORITY] || 1
+
+              if (existingPriority >= incomingPriority) {
+                // Keep the better or equal existing status
+                messageStatus = existingMessage.status
+              } else {
+                // Use the new status if it's better
+                messageStatus = message.status || 'sent'
+              }
+            } else {
+              // No existing message, use incoming status or default to 'sent'
+              messageStatus = message.status || 'sent'
+            }
+          } else {
+            // For background conversations, just use the incoming status
+            messageStatus = message.status || 'sent'
+          }
         }
-      }
 
-      // Create updated message with correct status
-      const messageWithStatus = { ...message, status: messageStatus }
+        // Create updated message with correct status
+        const messageWithStatus = { ...message, status: messageStatus }
 
-      // Update conversation list immediately (not in startTransition) for instant UI feedback
-      // Users need to see unread counts and list reordering instantly
-      conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
+        // OPTIMIZATION: Defer ALL UI updates to not block the message handler
+        // Use startTransition to make conversation list updates non-blocking
+        startTransition(() => {
+          // Update conversation list (now deferred and non-blocking)
+          conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
 
-      // Increment unread count ONLY for messages from OTHER users in background conversations
-      // This MUST be immediate so users see the badge update right away
-      if (isOtherUserMessage && message.conversationId !== currentActiveConversationId) {
-        conversationsHookRef.current?.incrementUnreadCount(message.conversationId)
-      }
+          // Increment unread count ONLY for messages from OTHER users in background conversations
+          if (isOtherUserMessage && message.conversationId !== currentActiveConversationId) {
+            conversationsHookRef.current?.incrementUnreadCount(message.conversationId)
+          }
 
-      // Use startTransition only for adding message to chat view (less critical)
-      // This prevents the message list from blocking other UI updates
-      startTransition(() => {
-        // Always add message if it's for the active conversation
-        if (message.conversationId === currentActiveConversationId) {
-          messagesHookRef.current?.addMessage(messageWithStatus)
-        }
+          // Add message to chat view if it's for the active conversation
+          if (message.conversationId === currentActiveConversationId) {
+            messagesHookRef.current?.addMessage(messageWithStatus)
+          }
+        })
       })
     }
 
@@ -633,7 +676,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
     // Join new conversation if not already joined
     if (activeConversationId) {
-      wsClientRef.current.joinConversation(activeConversationId)
+      // PERFORMANCE: Tell backend the newest message we have to avoid sending historical messages
+      const newestTimestamp = newestMessageTimestampRef.current
+      wsClientRef.current.joinConversation(activeConversationId, newestTimestamp)
       currentConversationIdRef.current = activeConversationId
       conversationsHookRef.current?.markConversationAsRead(activeConversationId)
 
@@ -895,32 +940,54 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     async (conversation: Conversation | null) => {
       if (!conversation) {
         setActiveConversationId(null)
+        newestMessageTimestampRef.current = 0
         return
       }
 
+      // OPTIMIZATION: Set conversation ID immediately (non-blocking UI update)
+      // This allows the UI to show the conversation view instantly
       setActiveConversationId(conversation.id)
 
-      // Reload conversation with full participant data to ensure we have user objects
-      if (apiClientRef.current && conversation.id) {
-        try {
-          const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
-
-          // Preserve activeCall from existing conversation or activeCalls map
-          const existingActiveCall = conversation.activeCall || activeCalls[conversation.id]
-          if (existingActiveCall) {
-            fullConversation.activeCall = existingActiveCall
-          }
-
-          // Enrich conversation before updating
-          if (conversationsHook.enrichConversations) {
-            const enriched = await conversationsHook.enrichConversations([fullConversation])
-            conversationsHook.updateConversation(conversation.id, enriched[0])
-          } else {
-            conversationsHook.updateConversation(conversation.id, fullConversation)
-          }
-        } catch {
-          // Continue with the conversation we have
+      // Set initial timestamp to filter out historical WebSocket messages
+      if (conversation.lastMessage?.createdAt) {
+        const lastMessageTimestamp = new Date(conversation.lastMessage.createdAt).getTime()
+        newestMessageTimestampRef.current = lastMessageTimestamp
+      } else {
+        // Fallback to already-loaded messages
+        const currentMessages = messagesHookRef.current?.messages || []
+        if (currentMessages.length > 0) {
+          const newestTimestamp = Math.max(...currentMessages.map((m: Message) => new Date(m.createdAt).getTime()))
+          newestMessageTimestampRef.current = newestTimestamp
+        } else {
+          newestMessageTimestampRef.current = 0
         }
+      }
+
+      // OPTIMIZATION: Defer expensive API calls and enrichment
+      // Do this in the background without blocking the click handler
+      if (apiClientRef.current && conversation.id) {
+        // Use setTimeout to defer to next event loop (non-blocking)
+        setTimeout(async () => {
+          try {
+            const fullConversation = await apiClientRef.current!.getConversationById(conversation.id)
+
+            // Preserve activeCall from existing conversation or activeCalls map
+            const existingActiveCall = conversation.activeCall || activeCalls[conversation.id]
+            if (existingActiveCall) {
+              fullConversation.activeCall = existingActiveCall
+            }
+
+            // Enrich conversation before updating (background task)
+            if (conversationsHook.enrichConversations) {
+              const enriched = await conversationsHook.enrichConversations([fullConversation])
+              conversationsHook.updateConversation(conversation.id, enriched[0])
+            } else {
+              conversationsHook.updateConversation(conversation.id, fullConversation)
+            }
+          } catch {
+            // Continue with the conversation we have
+          }
+        }, 0)
       }
     },
     [conversationsHook, activeCalls]

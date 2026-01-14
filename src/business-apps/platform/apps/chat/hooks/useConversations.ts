@@ -273,10 +273,16 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   const updateConversationLastMessage = useCallback(
     async (conversationId: string, message: Message) => {
       setConversations(prev => {
-        // Check if conversation exists
-        const convExists = prev.some(c => c.id === conversationId)
+        // OPTIMIZATION: Find conversation index in single pass (faster than some() + map())
+        let convIndex = -1
+        for (let i = 0; i < prev.length; i++) {
+          if (prev[i].id === conversationId) {
+            convIndex = i
+            break
+          }
+        }
 
-        if (!convExists) {
+        if (convIndex === -1) {
           // Trigger async fetch of the missing conversation
           // This happens when a message arrives for a conversation that's not in the paginated list
           if (apiClient) {
@@ -306,25 +312,28 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           return prev
         }
 
-        // Update the conversation
-        const updated = prev.map(conv =>
-          conv.id === conversationId
-            ? {
-                ...conv,
-                lastMessage: message,
-                updatedAt: new Date().toISOString()
-              }
-            : conv
-        )
+        // OPTIMIZATION: Instead of map() + sort(), manually reorder
+        // If conversation is already at top (index 0), just update it - no sorting needed
+        if (convIndex === 0) {
+          const newArray = [...prev]
+          newArray[0] = {
+            ...prev[0],
+            lastMessage: message,
+            updatedAt: new Date().toISOString()
+          }
+          return newArray
+        }
 
-        // Re-sort by most recent activity (move updated conversation to top)
-        const sorted = updated.sort((a, b) => {
-          const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-          const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-          return new Date(bTime).getTime() - new Date(aTime).getTime()
-        })
+        // Otherwise, move conversation to top (it's the most recent now)
+        const updatedConv = {
+          ...prev[convIndex],
+          lastMessage: message,
+          updatedAt: new Date().toISOString()
+        }
 
-        return sorted
+        // Create new array with updated conversation at top, preserving order of others
+        const newArray = [updatedConv, ...prev.slice(0, convIndex), ...prev.slice(convIndex + 1)]
+        return newArray
       })
     },
     [apiClient, enrichConversations]
@@ -336,19 +345,26 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
   const incrementUnreadCount = useCallback((conversationId: string) => {
     setConversations(prev => {
-      const convExists = prev.some(c => c.id === conversationId)
+      // OPTIMIZATION: Find and update in single pass (no some() + map())
+      let convIndex = -1
+      for (let i = 0; i < prev.length; i++) {
+        if (prev[i].id === conversationId) {
+          convIndex = i
+          break
+        }
+      }
 
-      if (!convExists) {
+      if (convIndex === -1) {
         return prev
       }
 
-      return prev.map(conv => {
-        if (conv.id === conversationId) {
-          const newCount = (conv.unreadCount || 0) + 1
-          return { ...conv, unreadCount: newCount }
-        }
-        return conv
-      })
+      // Update only the found conversation (avoids full array map)
+      const newArray = [...prev]
+      newArray[convIndex] = {
+        ...prev[convIndex],
+        unreadCount: (prev[convIndex].unreadCount || 0) + 1
+      }
+      return newArray
     })
   }, [])
 

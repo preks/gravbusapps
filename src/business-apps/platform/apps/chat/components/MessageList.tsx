@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useDeferredValue } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { MessageItem } from './MessageItem'
 import { TypingIndicatorComponent } from './TypingIndicator'
@@ -58,10 +58,10 @@ export const MessageList: React.FC<MessageListProps> = ({
   // in case of race conditions with async API calls
   const filteredMessages = messages.filter(m => m.conversationId === conversationId)
 
-  // Use deferred value to make message rendering non-blocking
-  // When many messages load, this allows React to prioritize other updates first
-  // The UI stays responsive while messages render progressively in the background
-  const deferredMessages = useDeferredValue(filteredMessages)
+  // OPTIMIZATION: Removed useDeferredValue to prevent double-render and perceived delay
+  // The messages are now loaded with startTransition in useMessages hook, so they're already non-blocking
+  // Using deferredMessages was causing: initial empty render -> spinner -> then actual messages
+  // Now we render messages immediately when they arrive from the API
 
   // Filter typing users for this conversation
   const conversationTypingUsers = typingUsers.filter(t => t.conversationId === conversationId && t.isTyping)
@@ -176,10 +176,9 @@ export const MessageList: React.FC<MessageListProps> = ({
     lastScrollTopRef.current = currentTop
   }, [onLoadMore, isLoading, hasMore])
 
-  // Show loading when:
-  // 1. Currently loading and no deferred messages yet
-  // 2. OR we have filtered messages but deferred rendering hasn't caught up yet
-  const showLoading = isLoading || (filteredMessages.length > 0 && deferredMessages.length === 0)
+  // Show loading only when actually loading and we have no messages yet
+  // OPTIMIZATION: Simplified loading logic - no more checking for deferred render delay
+  const showLoading = isLoading && filteredMessages.length === 0
 
   return (
     <div
@@ -193,7 +192,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center">
             <Spinner size="sm" />
           </div>
-        ) : deferredMessages.length === 0 && !isLoading ? (
+        ) : filteredMessages.length === 0 && !isLoading ? (
           <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:p-4">
             <div className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
               <svg
@@ -212,7 +211,7 @@ export const MessageList: React.FC<MessageListProps> = ({
             </div>
             <p className="gba:text-sm gba:text-muted-foreground">{t('chat-noMessages')}</p>
           </div>
-        ) : deferredMessages.length > 0 ? (
+        ) : filteredMessages.length > 0 ? (
           <div className="gba:mt-auto gba:space-y-0.5">
             {hasMore && (
               <div className="gba:flex gba:items-center gba:justify-center gba:py-2 gba:mb-2">
@@ -227,7 +226,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               </div>
             )}
 
-            {deferredMessages.map(message => (
+            {filteredMessages.map(message => (
               <MessageItem
                 key={message.id}
                 message={message}
