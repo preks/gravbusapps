@@ -1,48 +1,79 @@
-/**
- * Utility functions for Activity Detail Sheet
- */
+import type { Activity } from './types'
 
-import { Activity } from './types'
+type BadgeVariant =
+  | 'default'
+  | 'destructive'
+  | 'outline'
+  | 'secondary'
+  | 'success'
+  | 'warning'
+  | 'info'
+  | 'pending'
+  | 'running'
+  | 'paid'
+  | 'overdue'
+  | 'offline'
+  | 'aiGenerated'
+  | 'aiModified'
+  | 'action'
 
-/**
- * Get entity name from activity
- */
-export const getActivityEntityName = (activity: Activity): string => {
-  if (activity.account?.name) return activity.account.name
-  if (activity.contact?.firstName || activity.contact?.lastName) {
-    return `${activity.contact.firstName || ''} ${activity.contact.lastName || ''}`.trim()
+export const getActivityTypeBadgeVariant = (type: string): BadgeVariant => {
+  if (!type) return 'default'
+
+  switch (type.toLowerCase()) {
+    case 'call':
+      return 'info'
+    case 'email':
+      return 'success'
+    case 'meeting':
+      return 'warning'
+    case 'task':
+      return 'pending'
+    default:
+      return 'default'
   }
-  if (activity.lead?.name) return activity.lead.name
-  if (activity.lead?.contact?.firstName || activity.lead?.contact?.lastName) {
-    return `${activity.lead.contact.firstName || ''} ${activity.lead.contact.lastName || ''}`.trim()
+}
+
+export const getReferenceTypeBadgeVariant = (type: string): BadgeVariant => {
+  if (!type) return 'default'
+
+  switch (type.toLowerCase()) {
+    case 'opportunity':
+      return 'success'
+    case 'account':
+      return 'info'
+    case 'lead':
+      return 'warning'
+    case 'contact':
+      return 'secondary'
+    case 'investment':
+      return 'action'
+    default:
+      return 'default'
+  }
+}
+
+export const getActivityReferenceType = (activity: Activity): string => {
+  if (activity.accountId && activity.account) return 'Account'
+  if (activity.contactId && activity.contact) return 'Contact'
+  if (activity.leadId && activity.lead) return 'Lead'
+  if (activity.opportunityId && activity.opportunity) return 'Opportunity'
+  return 'No Reference'
+}
+
+export const getActivityReferenceName = (activity: Activity): string => {
+  if (activity.account?.name) return activity.account.name
+  if (activity.contact) {
+    const name = `${activity.contact.firstName || ''} ${activity.contact.lastName || ''}`.trim()
+    if (name) return name
+  }
+  if (activity.lead) {
+    return (
+      activity.lead.companyName ||
+      `${activity.lead.firstName || ''} ${activity.lead.lastName || ''}`.trim() ||
+      'Unknown Lead'
+    )
   }
   if (activity.opportunity?.name) return activity.opportunity.name
-  return 'Unknown'
-}
-
-/**
- * Get entity type from activity
- */
-export const getActivityElementType = (activity: Activity): string => {
-  if (activity.accountId) return 'Account'
-  if (activity.contactId) return 'Contact'
-  if (activity.leadId) return 'Lead'
-  if (activity.opportunityId) return 'Opportunity'
-  return 'Unknown'
-}
-
-/**
- * Get activity type color (used for badges and backgrounds)
- */
-export const getActivityTypeColor = (activityType: string): string => {
-  const ACTIVITY_TYPE_COLORS: Record<string, string> = {
-    Call: '#10b981',
-    Email: '#3b82f6',
-    Meeting: '#f59e0b',
-    Task: '#8b5cf6',
-    Note: '#6366f1',
-    Other: '#64748b'
-  }
-  const normalizedType = activityType?.trim() || 'Task'
-  return ACTIVITY_TYPE_COLORS[normalizedType] || ACTIVITY_TYPE_COLORS['Task']
+  return 'General'
 }

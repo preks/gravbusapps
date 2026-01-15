@@ -83,19 +83,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
 
   const config: TaskViewConfig<CustomerTask, CustomerTaskQueryVariables> = useMemo(
     () => ({
-      fetchMyTasks: async (variables: CustomerTaskQueryVariables) => {
-        const employeeId = context.userInfo?.employeeDetails?.employeeId || context.userInfo?.id
-        const result = await fetchCustomerTasks({
-          ...variables,
-          assignedEmployeeIds: employeeId ? [employeeId] : []
-        })
-        return {
-          tasks: result.tasks as any,
-          total: result.total
-        }
-      },
-
-      fetchTeamTasks: async (variables: CustomerTaskQueryVariables) => {
+      fetchTasks: async (variables: CustomerTaskQueryVariables) => {
         const result = await fetchCustomerTasks(variables)
         return {
           tasks: result.tasks as any,
@@ -159,7 +147,12 @@ export const TaskView: React.FC<TaskViewProps> = context => {
         createContext: FlowContextName.customerTaskCreate
       },
 
-      taskStatistics,
+      taskStatistics: {
+        statistics: taskStatistics.teamTasksStatistics,
+        isLoading: taskStatistics.isLoading,
+        error: taskStatistics.error,
+        refetch: taskStatistics.refetch
+      },
 
       rowActionsContextArray: [FlowContextName.customerTaskEntity],
       buildRowActionsExternalContextData: (row: { original: CustomerTask }) => {
