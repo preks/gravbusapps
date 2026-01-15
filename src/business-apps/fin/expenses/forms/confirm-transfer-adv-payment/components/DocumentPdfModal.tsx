@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Spinner, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { DownloadOutlined, PrinterOutlined, FullscreenOutlined, MoreOutlined } from '@ant-design/icons'
-import { useFileClient } from '@/common/network/files/useFileClient'
+import { FileClient } from '@/common/network/files/FileClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface DocumentPdfModalProps {
@@ -77,9 +77,6 @@ const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
   const [documentError, setDocumentError] = useState<string>('')
 
-  // Use FileClient hook for proper authorization
-  const fileClient = useFileClient({ accessToken: accessToken || '' })
-
   // Fetch the document when the modal opens
   useEffect(() => {
     if (isVisible && pdfUrl && accessToken && !pdfLoading) {
@@ -94,6 +91,9 @@ const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
     setDocumentError('')
 
     try {
+      const fileClient = new FileClient()
+      fileClient.setAccessToken(accessToken)
+
       // Use the same logic as the working ExpenseRequestFileService
       // Extract the file ID from the file path (like the working service does)
       const fileId = pdfUrl.includes('/') ? pdfUrl.split('/').pop() : pdfUrl
