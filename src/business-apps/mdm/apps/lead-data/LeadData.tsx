@@ -75,24 +75,26 @@ const LeadData: React.FC<LeadDataProps> = ({ className, prefixDataTestId, ...con
   if (!sourceApp || !['CRM', 'IRM'].includes(sourceApp)) {
     return (
       <div
-        className={`gba:w-full gba:h-full gba:p-6 ${className || ''}`}
+        className={`gba:w-full gba:h-full ${className || ''}`}
         data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Container`}
       >
         <PageHeader
           title={t('mdm.lead_data', 'Lead Data')}
-          description={t('mdm.lead_data.description', 'Manage lead ratings, statuses, and sources')}
-          icon={<Target className="gba:h-5 gba:w-5" />}
+          subtitle={t('mdm.lead_data.description', 'Manage lead ratings, statuses, and sources')}
+          avatar={<Target className="gba:h-5 gba:w-5" />}
           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Header`}
         />
-        <div className="gba:mt-6">
-          <Alert className="gba:border-red-200 gba:bg-red-50">
-            <AlertDescription>
-              {t(
-                'mdm.lead_data.source_app_required',
-                'This application requires a sourceApp parameter (CRM or IRM) to function properly.'
-              )}
-            </AlertDescription>
-          </Alert>
+        <div className="gba:p-6">
+          <div className="gba:mt-6">
+            <Alert className="gba:border-red-200 gba:bg-red-50">
+              <AlertDescription>
+                {t(
+                  'mdm.lead_data.source_app_required',
+                  'This application requires a sourceApp parameter (CRM or IRM) to function properly.'
+                )}
+              </AlertDescription>
+            </Alert>
+          </div>
         </div>
       </div>
     )
@@ -100,52 +102,53 @@ const LeadData: React.FC<LeadDataProps> = ({ className, prefixDataTestId, ...con
 
   return (
     <div
-      className={`gba:w-full gba:h-full gba:p-6 ${className || ''}`}
+      className={`gba:w-full gba:h-full ${className || ''}`}
       data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Container`}
     >
       <PageHeader
         title={t('mdm.lead_data', 'Lead Data')}
-        description={t('mdm.lead_data.description', 'Manage lead ratings, statuses, and sources')}
-        icon={<Target className="gba:h-5 gba:w-5" />}
+        subtitle={t('mdm.lead_data.description', 'Manage lead ratings, statuses, and sources')}
+        avatar={<Target className="gba:h-5 gba:w-5" />}
         data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Header`}
       />
+      <div className="gba:p-6">
+        <div className="gba:mt-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={handleTabChange}
+            data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}
+          >
+            <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
+              <TabsTrigger value={LeadDataTabs.RATINGS}>{t('mdm.lead_ratings', 'Ratings')}</TabsTrigger>
+              <TabsTrigger value={LeadDataTabs.STATUSES}>{t('mdm.lead_statuses', 'Statuses')}</TabsTrigger>
+              <TabsTrigger value={LeadDataTabs.SOURCES}>{t('mdm.lead_sources', 'Sources')}</TabsTrigger>
+            </TabsList>
 
-      <div className="gba:mt-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={handleTabChange}
-          data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}
-        >
-          <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-            <TabsTrigger value={LeadDataTabs.RATINGS}>{t('mdm.lead_ratings', 'Ratings')}</TabsTrigger>
-            <TabsTrigger value={LeadDataTabs.STATUSES}>{t('mdm.lead_statuses', 'Statuses')}</TabsTrigger>
-            <TabsTrigger value={LeadDataTabs.SOURCES}>{t('mdm.lead_sources', 'Sources')}</TabsTrigger>
-          </TabsList>
+            <TabsContent value={LeadDataTabs.RATINGS} className="gba:mt-6">
+              <RatingsTab
+                {...context}
+                sourceApp={sourceApp as 'CRM' | 'IRM'}
+                prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+              />
+            </TabsContent>
 
-          <TabsContent value={LeadDataTabs.RATINGS} className="gba:mt-6">
-            <RatingsTab
-              {...context}
-              sourceApp={sourceApp as 'CRM' | 'IRM'}
-              prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-            />
-          </TabsContent>
+            <TabsContent value={LeadDataTabs.STATUSES} className="gba:mt-6">
+              <StatusesTab
+                {...context}
+                sourceApp={sourceApp as 'CRM' | 'IRM'}
+                prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+              />
+            </TabsContent>
 
-          <TabsContent value={LeadDataTabs.STATUSES} className="gba:mt-6">
-            <StatusesTab
-              {...context}
-              sourceApp={sourceApp as 'CRM' | 'IRM'}
-              prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-            />
-          </TabsContent>
-
-          <TabsContent value={LeadDataTabs.SOURCES} className="gba:mt-6">
-            <SourcesTab
-              {...context}
-              sourceApp={sourceApp as 'CRM' | 'IRM'}
-              prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-            />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value={LeadDataTabs.SOURCES} className="gba:mt-6">
+              <SourcesTab
+                {...context}
+                sourceApp={sourceApp as 'CRM' | 'IRM'}
+                prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </div>
   )
