@@ -225,6 +225,15 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 const otherUserPresence = otherUserId && getUserPresence ? getUserPresence(otherUserId) : undefined
                 const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
 
+                // TRACK: Log presence data being passed to ConversationItem
+                if (otherUserId && conversation.type === 'direct') {
+                  console.log('[ConversationList] 📋 Passing presence to item:', {
+                    conversationId: conversation.id,
+                    otherUserId,
+                    presenceData: otherUserPresence
+                  })
+                }
+
                 return (
                   <ConversationItem
                     key={conversation.id}

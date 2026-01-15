@@ -773,8 +773,8 @@ export const useCall = ({
       wsClient.removeCallListeners()
     }
     // Using refs for most values to avoid effect re-runs during call flow
-    // CRITICAL: Must include currentUser so listeners are registered when user loads
-  }, [wsClient, currentUser, updateCallState, clearRingTimeout, cleanupCall, onCallStarted])
+    // CRITICAL: Only depend on wsClient and currentUser - functions use refs internally
+  }, [wsClient, currentUser])
 
   // Listen for storage changes to detect when user accepts call in another tab
   // This allows us to dismiss the incoming call dialog in other tabs

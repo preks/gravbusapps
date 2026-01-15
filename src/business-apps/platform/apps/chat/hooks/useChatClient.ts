@@ -165,8 +165,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     // V2 methods (direct pass-through)
     getUserPresence: useCallback(
       (userId: string): { status: 'online' | 'offline'; lastSeen?: string } => {
-        const state = presenceV2.getUserPresence(userId)
-        return { status: state === 'online' ? 'online' : 'offline' }
+        const presenceData = presenceV2.getPresenceData(userId)
+        console.log('[useChatClient] 📍 Getting presence for user:', userId, presenceData)
+        return {
+          status: presenceData.state === 'online' ? 'online' : 'offline',
+          lastSeen: presenceData.lastSeen
+        }
       },
       [presenceV2]
     ),

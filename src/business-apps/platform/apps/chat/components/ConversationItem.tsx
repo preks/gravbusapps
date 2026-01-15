@@ -100,6 +100,15 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
   const avatarUrl = otherParticipant?.user?.avatarUrl
 
+  // TRACK: Log presence data for debugging
+  if (conversation.type === 'direct' && otherParticipant?.user?.id) {
+    console.log('[ConversationItem] 👤 User presence:', {
+      conversationName: name,
+      userId: otherParticipant.user.id,
+      presenceData: otherUserPresence
+    })
+  }
+
   // Don't show unread count if:
   // 1. There's no unread count from API
   // 2. The last message was sent by the current user (they already know about it)

@@ -92,12 +92,15 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     }, [conversationId])
 
     // OPTIMIZATION: Single timer for timestamp updates (efficient approach)
-    // Only runs if we have messages less than 1 hour old
+    // Only runs if we have messages less than 24 hours old in current conversation
     useEffect(() => {
-      // Check if we have any recent messages (< 1 hour old)
-      const hasRecentMessages = messages.some(m => {
+      // DEFENSIVE: Filter to current conversation before checking age
+      const conversationMessages = messages.filter(m => m.conversationId === conversationId)
+
+      // Check if we have any recent messages (< 24 hours old)
+      const hasRecentMessages = conversationMessages.some(m => {
         const age = Date.now() - new Date(m.createdAt).getTime()
-        return age < 86400000 // 24 hours (not 1 hour)
+        return age < 86400000 // 24 hours
       })
 
       // Don't start timer if no recent messages
@@ -576,27 +579,33 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
           </div>
         ) : (
           <div className="gba:flex gba:flex-col gba:py-2">
-            {messages.map((message, index) => {
-              // Show sender name for first message or when sender changes
-              const prevMessage = index > 0 ? messages[index - 1] : null
-              const showSender = !prevMessage || prevMessage.senderId !== message.senderId
+            {(() => {
+              // DEFENSIVE: Filter messages to only show those matching current conversation
+              // Prevents race conditions when switching conversations quickly
+              const filteredMessages = messages.filter(m => m.conversationId === conversationId)
 
-              return (
-                <MessageItemV2
-                  key={message.id}
-                  message={message}
-                  currentUserId={currentUserId}
-                  isGroupChat={isGroupChat}
-                  showSender={showSender}
-                  onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
-                  accessToken={accessToken}
-                  onSendMessage={onSendMessage}
-                  participants={participants}
-                  previewLabel={previewLabel}
-                  timestampRefreshKey={timestampRefreshKey}
-                />
-              )
-            })}
+              return filteredMessages.map((message, index) => {
+                // Show sender name for first message or when sender changes
+                const prevMessage = index > 0 ? filteredMessages[index - 1] : null
+                const showSender = !prevMessage || prevMessage.senderId !== message.senderId
+
+                return (
+                  <MessageItemV2
+                    key={message.id}
+                    message={message}
+                    currentUserId={currentUserId}
+                    isGroupChat={isGroupChat}
+                    showSender={showSender}
+                    onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
+                    accessToken={accessToken}
+                    onSendMessage={onSendMessage}
+                    participants={participants}
+                    previewLabel={previewLabel}
+                    timestampRefreshKey={timestampRefreshKey}
+                  />
+                )
+              })
+            })()}
 
             {/* Typing Indicator */}
             {typingUsers.length > 0 && <TypingIndicatorV2 typingUsers={typingUsers} conversationId={conversationId} />}

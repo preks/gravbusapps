@@ -9,8 +9,14 @@ interface UsePresenceV2Options {
 
 export type PresenceState = 'online' | 'away' | 'offline'
 
+export interface PresenceData {
+  state: PresenceState
+  lastSeen?: string // ISO timestamp
+}
+
 // Global presence cache (shared across all components)
-const presenceCache = new Map<string, PresenceState>()
+// Now stores full presence data including lastSeen timestamp
+const presenceCache = new Map<string, PresenceData>()
 
 /**
  * User Presence Hook with Global Cache
@@ -31,47 +37,71 @@ export function usePresenceV2(options: UsePresenceV2Options) {
    * Get user presence from cache
    */
   const getUserPresence = useCallback((userId: string): PresenceState => {
-    return presenceCache.get(userId) || 'offline'
+    return presenceCache.get(userId)?.state || 'offline'
+  }, [])
+
+  /**
+   * Get full presence data (including lastSeen)
+   */
+  const getPresenceData = useCallback((userId: string): PresenceData => {
+    return presenceCache.get(userId) || { state: 'offline' }
   }, [])
 
   /**
    * Update user presence
    */
-  const updatePresence = useCallback((userId: string, state: PresenceState) => {
-    const oldState = presenceCache.get(userId)
+  const updatePresence = useCallback((userId: string, state: PresenceState, lastSeen?: string) => {
+    const oldData = presenceCache.get(userId)
 
     // Skip update if state hasn't changed (optimization to prevent unnecessary re-renders)
-    if (oldState === state) {
+    if (oldData?.state === state && oldData?.lastSeen === lastSeen) {
       return
     }
 
-    presenceCache.set(userId, state)
+    const presenceData: PresenceData = {
+      state,
+      lastSeen: state === 'offline' ? lastSeen : undefined // Only store lastSeen for offline users
+    }
+
+    presenceCache.set(userId, presenceData)
 
     if (isMountedRef.current) {
       forceUpdate({})
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Presence V2] 🟢 Updated presence:', { userId, oldState, newState: state })
+      console.log('[Presence V2] 🟢 Updated presence:', {
+        userId,
+        oldState: oldData?.state,
+        newState: state,
+        lastSeen
+      })
     }
   }, [])
 
   /**
    * Batch update multiple users
    */
-  const batchUpdatePresence = useCallback((updates: Array<{ userId: string; state: PresenceState }>) => {
-    updates.forEach(({ userId, state }) => {
-      presenceCache.set(userId, state)
-    })
+  const batchUpdatePresence = useCallback(
+    (updates: Array<{ userId: string; state: PresenceState; lastSeen?: string }>) => {
+      updates.forEach(({ userId, state, lastSeen }) => {
+        const presenceData: PresenceData = {
+          state,
+          lastSeen: state === 'offline' ? lastSeen : undefined
+        }
+        presenceCache.set(userId, presenceData)
+      })
 
-    if (isMountedRef.current) {
-      forceUpdate({})
-    }
+      if (isMountedRef.current) {
+        forceUpdate({})
+      }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Presence V2] Batch updated', updates.length, 'users')
-    }
-  }, [])
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Presence V2] Batch updated', updates.length, 'users')
+      }
+    },
+    []
+  )
 
   /**
    * Get presence for multiple users (optimized)
@@ -79,7 +109,7 @@ export function usePresenceV2(options: UsePresenceV2Options) {
   const getBatchPresence = useCallback((userIds: string[]): Map<string, PresenceState> => {
     const result = new Map<string, PresenceState>()
     userIds.forEach(id => {
-      result.set(id, presenceCache.get(id) || 'offline')
+      result.set(id, presenceCache.get(id)?.state || 'offline')
     })
     return result
   }, [])
@@ -98,10 +128,14 @@ export function usePresenceV2(options: UsePresenceV2Options) {
       }
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Presence V2] 📡 Received presence update:', { userId: update.userId, state: update.state })
+        console.log('[Presence V2] 📡 Received presence update:', {
+          userId: update.userId,
+          state: update.state,
+          timestamp: update.timestamp
+        })
       }
 
-      updatePresence(update.userId, update.state as PresenceState)
+      updatePresence(update.userId, update.state as PresenceState, update.timestamp)
     },
     [currentUserId, updatePresence]
   )
@@ -116,11 +150,17 @@ export function usePresenceV2(options: UsePresenceV2Options) {
 
     // Bridge backend format to V2 format
     const handleBackendPresence = (data: any) => {
+      // TRACK BACKEND DATA
+      console.log('[Presence V2] 🔍 RAW Backend presence data:', data)
+
       const update: PresenceUpdate = {
         userId: data.userId,
         state: data.isOnline ? 'online' : 'offline',
         timestamp: data.timestamp || new Date().toISOString()
       }
+
+      console.log('[Presence V2] 📦 Converted to PresenceUpdate:', update)
+
       handlePresenceUpdate(update)
     }
 
@@ -154,11 +194,12 @@ export function usePresenceV2(options: UsePresenceV2Options) {
   return useMemo(
     () => ({
       getUserPresence,
+      getPresenceData,
       updatePresence,
       batchUpdatePresence,
       getBatchPresence
     }),
-    [getUserPresence, updatePresence, batchUpdatePresence, getBatchPresence]
+    [getUserPresence, getPresenceData, updatePresence, batchUpdatePresence, getBatchPresence]
   )
 }
 
@@ -167,7 +208,14 @@ export function usePresenceV2(options: UsePresenceV2Options) {
  * Useful for non-reactive reads
  */
 export function getPresenceFromCache(userId: string): PresenceState {
-  return presenceCache.get(userId) || 'offline'
+  return presenceCache.get(userId)?.state || 'offline'
+}
+
+/**
+ * Get full presence data from cache
+ */
+export function getPresenceDataFromCache(userId: string): PresenceData {
+  return presenceCache.get(userId) || { state: 'offline' }
 }
 
 /**
