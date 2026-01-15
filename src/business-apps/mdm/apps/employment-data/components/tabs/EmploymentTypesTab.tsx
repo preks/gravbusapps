@@ -173,7 +173,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         cell: ({ getValue }) => {
           const name = getValue()
           return (
-            <div className="gba:flex gba:items-center gba:w-[800px]">
+            <div className="gba:flex gba:items-center gba:w-[200px] gba:md:w-[350px] gba:lg:w-[500px] gba:xl:w-[650px] gba:2xl:w-[800px]">
               <div className="gba:w-full gba:truncate gba:font-semibold" title={name as string}>
                 {name as string}
               </div>
@@ -188,7 +188,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         cell: ({ getValue }) => {
           const description = getValue()
           return (
-            <div className="gba:flex gba:items-center gba:w-[400px]">
+            <div className="gba:flex gba:items-center gba:w-[120px] gba:md:w-[200px] gba:lg:w-[280px] gba:xl:w-[340px] gba:2xl:w-[400px]">
               <div className="gba:w-full gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>

@@ -177,7 +177,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         cell: ({ getValue }) => {
           const name = getValue()
           return (
-            <div className="gba:flex gba:items-center gba:w-[500px]">
+            <div className="gba:flex gba:items-center gba:w-[150px] gba:md:w-[250px] gba:lg:w-[350px] gba:xl:w-[450px] gba:2xl:w-[500px]">
               <div className="gba:w-full gba:truncate gba:font-semibold">{name as string}</div>
             </div>
           )
@@ -190,7 +190,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         cell: ({ getValue }) => {
           const description = getValue()
           return (
-            <div className="gba:flex gba:items-center gba:w-[300px]">
+            <div className="gba:flex gba:items-center gba:w-[100px] gba:md:w-[150px] gba:lg:w-[200px] gba:xl:w-[260px] gba:2xl:w-[300px]">
               <div className="gba:w-full gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>

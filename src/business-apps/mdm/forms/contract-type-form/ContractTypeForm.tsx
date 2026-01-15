@@ -50,7 +50,7 @@ const contractTypeFormSchema = z.object({
   code: z.string().optional(),
   description: z
     .string()
-    .max(1024, 'Description must be less than 100 characters')
+    .max(100, 'Description must be less than 100 characters')
     .refine(val => !val || noLeadingWhitespace(val), noLeadingWhitespaceMessage)
     .optional(),
   probationValue: z
@@ -253,13 +253,6 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
                     inputMode="numeric"
                     placeholder="Enter value"
                     {...field}
-                    // onChange={e => {
-                    //   const value = e.target.value
-                    //   // Only allow digits, no leading zeros (except empty)
-                    //   if (value === '' || /^[1-9][0-9]*$/.test(value)) {
-                    //     field.onChange(value)
-                    //   }
-                    // }}
                     data-testid={`${dataTestId}-probation-value-input`}
                   />
                 </FormControl>
