@@ -6,12 +6,11 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  IconAvatar,
-  useTranslation
+  IconAvatar
 } from '@newwork/nw-design-system'
 import { Phone, PhoneOff, Video, Users } from 'lucide-react'
 import type { GroupCallInvite } from '../hooks/useGroupCall'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface IncomingGroupCallDialogProps {
   invite: GroupCallInvite
@@ -45,7 +44,7 @@ const PulsingRing: React.FC<{ color?: string }> = ({ color = 'bg-primary' }) => 
 
 export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = memo(
   ({ invite, onAccept, onDecline, prefixDataTestId = 'incoming-group-call-dialog' }) => {
-    const { t } = useTranslation(translations)
+    const t = useChatTranslation()
     const [ringCount, setRingCount] = useState(0)
 
     const callerName = invite.from.odName || 'Unknown'

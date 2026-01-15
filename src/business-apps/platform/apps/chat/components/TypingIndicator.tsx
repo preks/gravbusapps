@@ -1,5 +1,6 @@
 import React from 'react'
 import type { TypingIndicator } from '../types'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface TypingIndicatorProps {
   typingUsers: TypingIndicator[]
@@ -13,6 +14,8 @@ interface TypingIndicatorProps {
  */
 export const TypingIndicator: React.FC<TypingIndicatorProps> = React.memo(
   ({ typingUsers, conversationId }) => {
+    const t = useChatTranslation()
+
     // Filter typing users for this conversation
     const activeTypingUsers = typingUsers.filter(u => u.conversationId === conversationId && u.isTyping)
 
@@ -20,17 +23,17 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = React.memo(
       return null
     }
 
-    // Format typing indicator text
+    // Format typing indicator text using translations
     let typingText: string
     if (activeTypingUsers.length === 1) {
-      const userName = activeTypingUsers[0].username || 'Someone'
-      typingText = `${userName} is typing...`
+      const userName = activeTypingUsers[0].username || t('chat-someone')
+      typingText = t('chat-isTyping', { user: userName })
     } else if (activeTypingUsers.length === 2) {
-      const user1 = activeTypingUsers[0].username || 'Someone'
-      const user2 = activeTypingUsers[1].username || 'Someone'
-      typingText = `${user1} and ${user2} are typing...`
+      const user1 = activeTypingUsers[0].username || t('chat-someone')
+      const user2 = activeTypingUsers[1].username || t('chat-someone')
+      typingText = t('chat-twoAreTyping', { user1, user2 })
     } else {
-      typingText = `${activeTypingUsers.length} people are typing...`
+      typingText = t('chat-multipleAreTyping', { count: activeTypingUsers.length })
     }
 
     return (

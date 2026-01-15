@@ -6,12 +6,11 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  IconAvatar,
-  useTranslation
+  IconAvatar
 } from '@newwork/nw-design-system'
 import { Phone, PhoneOff, Video, UserIcon } from 'lucide-react'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface IncomingCallDialogProps {
   callState: CallState
@@ -50,7 +49,7 @@ const PulsingRing: React.FC<{ color?: string }> = ({ color = 'bg-success' }) => 
 
 export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = memo(
   ({ callState, onAccept, onReject, prefixDataTestId = 'incoming-call-dialog' }) => {
-    const { t } = useTranslation(translations)
+    const t = useChatTranslation()
     const [ringCount, setRingCount] = useState(0)
 
     const isOpen = callState.status === 'ringing' && callState.direction === 'incoming'

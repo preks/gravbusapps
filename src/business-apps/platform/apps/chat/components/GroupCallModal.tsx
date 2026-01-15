@@ -18,8 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuLabel,
-  useTranslation
+  DropdownMenuLabel
 } from '@newwork/nw-design-system'
 import {
   Mic,
@@ -49,7 +48,7 @@ import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
 import { AddParticipantDropdown } from './AddParticipantDropdown'
 import { Phone } from 'lucide-react'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface AvailableParticipant {
   id: string
@@ -332,7 +331,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = memo(
     accessToken,
     currentUserId
   }) => {
-    const { t } = useTranslation(translations)
+    const t = useChatTranslation()
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [expandedStream, setExpandedStream] = useState<{ stream: MediaStream; participantName: string } | null>(null)
     const [showDebugPanel, setShowDebugPanel] = useState(false)

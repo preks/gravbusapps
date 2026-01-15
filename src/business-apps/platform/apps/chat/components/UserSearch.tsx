@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Input, IconAvatar, Spinner, Button, Avatar, useTranslation } from '@newwork/nw-design-system'
+import { Input, IconAvatar, Spinner, Button, Avatar } from '@newwork/nw-design-system'
 import { ArrowLeft, MagnifyingGlass } from '@phosphor-icons/react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import type { User } from '../types'
 import { UserIcon } from 'lucide-react'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface UserSearchProps {
   accessToken: string
@@ -34,7 +34,7 @@ interface EmployeeSearchResult {
 }
 
 export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUserId, onUserSelect, onClose }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)

@@ -1,19 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import {
-  Button,
-  Input,
-  Spinner,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -64,7 +56,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   presenceVersion, // Triggers re-render when presence changes (without passing entire map)
   conversationExpertCounts
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   // Force re-render when presenceVersion changes
   void presenceVersion
 

@@ -1,18 +1,10 @@
 import React, { useEffect, useRef, useState, useMemo, memo } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  IconAvatar,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Dialog, DialogContent, Avatar, AvatarImage, AvatarFallback, IconAvatar } from '@newwork/nw-design-system'
 import { UserIcon, Maximize2, Minimize2, Expand, Shrink, Monitor } from 'lucide-react'
 import { CallControls } from './CallControls'
 import { AddParticipantDropdown } from './AddParticipantDropdown'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface AvailableParticipant {
   id: string
@@ -138,7 +130,7 @@ export const CallModal: React.FC<CallModalProps> = memo(
     accessToken,
     currentUserId
   }) => {
-    const { t } = useTranslation(translations)
+    const t = useChatTranslation()
     const localVideoRef = useRef<HTMLVideoElement>(null)
     const remoteVideoRef = useRef<HTMLVideoElement>(null)
     const expandedVideoRef = useRef<HTMLVideoElement>(null)

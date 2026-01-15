@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react'
-import { Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Spinner } from '@newwork/nw-design-system'
 import { MessageItem } from './MessageItem'
 import { TypingIndicator } from './TypingIndicator'
 import type {
@@ -9,7 +9,7 @@ import type {
   ConversationParticipant
 } from '../types'
 import { measureRender, devPerf, startPerformanceTimer } from '../utils/performanceUtils'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface MessageListProps {
   messages: Message[]
@@ -54,7 +54,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     participants
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
-    const { t } = useTranslation(translations)
+    const t = useChatTranslation()
     const previewLabel = useMemo(() => t('chat-preview-open'), [t])
 
     const messagesEndRef = useRef<HTMLDivElement>(null)

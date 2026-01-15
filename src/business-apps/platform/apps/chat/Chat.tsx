@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo, startTransition, memo } from 'react'
-import { Alert, AlertDescription, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
@@ -26,7 +26,7 @@ import { GroupCallModal } from './components/GroupCallModal'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import { env } from '@/common/env/EnvUtils'
-import translations from './_i18n'
+import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
@@ -34,9 +34,9 @@ interface ChatProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-export const Chat: React.FC<ChatProps> = memo(
+const ChatInner: React.FC<ChatProps> = memo(
   ({ accessToken: accessTokenProp, prefixDataTestId = 'chat' }) => {
-    const { t } = useTranslation(translations)
+    const t = useChatTranslation()
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
     const [showConversationList, setShowConversationList] = useState(true)
@@ -1752,3 +1752,12 @@ export const Chat: React.FC<ChatProps> = memo(
     return prevProps.accessToken === nextProps.accessToken && prevProps.prefixDataTestId === nextProps.prefixDataTestId
   }
 )
+
+// Wrap Chat component with TranslationProvider for performance optimization
+export const Chat: React.FC<ChatProps> = props => {
+  return (
+    <TranslationProvider>
+      <ChatInner {...props} />
+    </TranslationProvider>
+  )
+}

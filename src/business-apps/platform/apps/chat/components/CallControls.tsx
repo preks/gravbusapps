@@ -1,7 +1,7 @@
 import React, { memo } from 'react'
-import { Button, Tooltip, TooltipContent, TooltipTrigger, useTranslation } from '@newwork/nw-design-system'
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { Mic, MicOff, Video, VideoOff, PhoneOff, MonitorUp, MonitorOff } from 'lucide-react'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface CallControlsProps {
   isMuted: boolean
@@ -73,7 +73,7 @@ export const CallControls: React.FC<CallControlsProps> = memo(
     onEndCall,
     prefixDataTestId = 'call-controls'
   }) => {
-    const { t } = useTranslation(translations)
+    const t = useChatTranslation()
     return (
       <div
         className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:py-4 gba:px-6 gba:bg-gradient-to-t gba:from-black/80 gba:to-transparent"
