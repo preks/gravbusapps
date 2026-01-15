@@ -31,3 +31,6 @@ changed-tsx.txt
 wrapped-entries
 temp_build
 temp_build_files
+.npm-cache/
+TEST_AI_SCHEMA_GENERATION_UI.md
+*.plan.md
