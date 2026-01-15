@@ -135,7 +135,10 @@ export function usePresenceV2(options: UsePresenceV2Options) {
         })
       }
 
-      updatePresence(update.userId, update.state as PresenceState, update.timestamp)
+      // Convert timestamp to string if it's a Date object
+      const timestampString = update.timestamp instanceof Date ? update.timestamp.toISOString() : update.timestamp
+
+      updatePresence(update.userId, update.state as PresenceState, timestampString)
     },
     [currentUserId, updatePresence]
   )
