@@ -136,8 +136,8 @@ const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
 
   const documentName = pdfUrl ? pdfUrl.split('/').pop() || 'Document' : 'Document'
   const isLoading = pdfLoading || isLoadingDocument
-  const hasError: string | false = pdfError || documentError || false
-  const canShowDocument = Boolean(documentUrl && !isLoading && !hasError)
+  const hasError = pdfError || documentError
+  const canShowDocument = documentUrl && !isLoading && !hasError
 
   return (
     <Dialog
