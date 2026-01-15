@@ -23,6 +23,7 @@ export interface PositionFormFieldsProps {
   handleCurrencyChange?: (value: string) => void
   form: any
   showCurrencyField?: boolean
+  hasLinkedExpenseRequest?: boolean
 }
 
 export const PositionFormFields: React.FC<PositionFormFieldsProps> = ({
@@ -40,7 +41,8 @@ export const PositionFormFields: React.FC<PositionFormFieldsProps> = ({
   handleExpenseTypeChange,
   handleCurrencyChange,
   form,
-  showCurrencyField = false
+  showCurrencyField = false,
+  hasLinkedExpenseRequest = false
 }) => {
   const updatePosition = (updates: Partial<ExpensePosition>) => {
     const updatedPositions = [...positions]
@@ -85,6 +87,7 @@ export const PositionFormFields: React.FC<PositionFormFieldsProps> = ({
         isProcessingFiles={isProcessingFiles}
         form={form}
         showCurrencyField={showCurrencyField}
+        hasLinkedExpenseRequest={hasLinkedExpenseRequest}
         onAmountChange={value => updatePosition({ amount: value })}
         onCurrencyChange={handleCurrencyChange}
       />
