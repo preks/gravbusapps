@@ -46,19 +46,21 @@ export const useBreakTypeVersionDetailsData = (
   // Transform GraphQL data to final format
   const transformDetails = useCallback(
     (rawData: BreakTypeVersionDetailResponse['BreakTypeVersionDetail']): TransformedBreakTypeVersionDetail[] => {
-      return rawData.map(item => ({
-        id: item.id,
-        version: item.version,
-        displayOrder: item.displayOrder,
-        type: item.type,
-        startTime: item.startTime,
-        endTime: item.endTime,
-        hours: item.hours,
-        length: item.length,
-        mandatory: item.mandatory,
-        payOption: item.payOption,
-        combinedWithBreakTypeVersionDetailId: item.combinedWithBreakTypeVersionDetailId
-      }))
+      return rawData
+        .map(item => ({
+          id: item.id,
+          version: item.version,
+          displayOrder: item.displayOrder,
+          type: item.type,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          hours: item.hours,
+          length: item.length,
+          mandatory: item.mandatory,
+          payOption: item.payOption,
+          combinedWithBreakTypeVersionDetailId: item.combinedWithBreakTypeVersionDetailId
+        }))
+        .sort((a, b) => a.displayOrder - b.displayOrder)
     },
     []
   )

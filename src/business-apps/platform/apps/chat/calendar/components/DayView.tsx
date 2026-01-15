@@ -168,7 +168,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">All Day</div>
           <div className="gba:space-y-1">
             {allDayEvents.map(event => (
-              <CalendarEventItem key={event.id} event={event} compact onClick={() => onEventClick(event)} />
+              <CalendarEventItem key={event.id} event={event} compact onClick={() => onEventClick(event)} t={t} />
             ))}
           </div>
         </div>
@@ -242,6 +242,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
                   compact={position.height < 80}
                   height={position.height}
                   onClick={() => onEventClick(event)}
+                  t={t}
                 />
               </div>
             )

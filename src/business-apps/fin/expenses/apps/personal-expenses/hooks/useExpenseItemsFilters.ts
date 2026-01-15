@@ -8,7 +8,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CurrencyStat } from './useExpenseCurrencies'
 
 // Define these as constants for stable references outside the hook
-const OTHER_OPTIONS = ['noreceiptfilter']
+const OTHER_OPTIONS: string[] = []
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
@@ -347,11 +347,6 @@ export const useExpenseItemsFilters = (
       // Map the lowercase status filters back to their uppercase enum values
       const statuses = statusFilters.map(f => f.toUpperCase())
 
-      const otherFilters = filtersToApply.filter(f => OTHER_OPTIONS.includes(f))
-
-      // Check if no receipt filter is selected
-      const hasNoReceiptFilter = otherFilters.includes('noreceiptfilter')
-
       // Process status filters
       if (statuses.length > 0) {
         // Convert all selected statuses from lowercase UI values to uppercase API values
@@ -371,11 +366,6 @@ export const useExpenseItemsFilters = (
       }
 
       // Expense type filter removed
-
-      // Process the No receipt filter
-      if (hasNoReceiptFilter) {
-        filter.noReceipt = true
-      }
 
       // Process amount range filters
       if (amountRange) {

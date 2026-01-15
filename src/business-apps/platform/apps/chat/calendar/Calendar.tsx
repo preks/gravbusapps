@@ -3,7 +3,7 @@ import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { useCalendar } from './hooks/useCalendar'
-import { useEmployeeAvatars } from '../hooks/useEmployeeAvatars'
+import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
 import { CallModal } from '../components/CallModal'
 import { IncomingCallDialog } from '../components/IncomingCallDialog'
@@ -139,8 +139,8 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
   const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
 
-  // Avatar fetching hook
-  const { fetchAvatarsWithEmployeeIds } = useEmployeeAvatars(accessToken)
+  // Avatar fetching hook with caching
+  const { fetchAvatarsSync, requestAvatars } = useEmployeeAvatarsCache(accessToken)
 
   // Fetch avatars when selected event changes
   useEffect(() => {
@@ -171,7 +171,13 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
       }
 
       try {
-        const employeeInfoMap = await fetchAvatarsWithEmployeeIds(userIds)
+        // Try to get from cache first (non-blocking)
+        let employeeInfoMap = requestAvatars(userIds)
+
+        // If cache doesn't have all users, fetch synchronously
+        if (employeeInfoMap.size < userIds.length) {
+          employeeInfoMap = await fetchAvatarsSync(userIds)
+        }
 
         // Get organizer info
         const organizerInfo = employeeInfoMap.get(selectedEvent.organizer.id)
@@ -202,7 +208,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
     }
 
     enrichEventWithAvatars()
-  }, [selectedEvent, isDetailModalOpen, fetchAvatarsWithEmployeeIds])
+  }, [selectedEvent, isDetailModalOpen, fetchAvatarsSync, requestAvatars])
 
   // Handle URL params to navigate to a specific date/meeting (e.g., from MeetingCard click)
   useEffect(() => {

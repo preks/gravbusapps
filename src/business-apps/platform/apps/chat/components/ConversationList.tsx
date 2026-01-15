@@ -236,6 +236,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     compact={compact}
                     otherUserPresence={otherUserPresence}
                     activeExpertCount={activeExpertCount}
+                    t={t}
                   />
                 )
               })}

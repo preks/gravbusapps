@@ -12,15 +12,13 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-  useTranslation
+  DialogTitle
 } from '@newwork/nw-design-system'
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
 import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import translations from '../_i18n'
 
 export interface ActiveCallInfo {
   roomId: string
@@ -47,6 +45,7 @@ interface ConversationHeaderProps {
   isCallEnabled?: boolean
   isInCall?: boolean
   activeCall?: ActiveCallInfo | null
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -176,9 +175,9 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   otherUserPresence,
   isCallEnabled = true,
   isInCall = false,
-  activeCall = null
+  activeCall = null,
+  t
 }) => {
-  const { t } = useTranslation(translations)
   const name = getConversationName(conversation, currentUserId, t)
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)

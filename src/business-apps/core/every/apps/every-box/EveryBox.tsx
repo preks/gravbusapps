@@ -38,6 +38,7 @@ import { env } from '@/common/env/EnvUtils'
 import { useInboxTasks } from './hooks/useInboxTasks'
 import { useOutboxFlows } from './hooks/useOutboxFlows'
 import { useCompletedTasks } from './hooks/useCompletedTasks'
+import { useBlinkTasks } from './hooks/useBlinkCount'
 import { InboxView } from './components/InboxView'
 import { OutboxView } from './components/OutboxView'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -142,6 +143,16 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     backgroundRefresh: backgroundRefreshCompleted,
     clearNewTasksFlag: clearNewCompletedTasksFlag
   } = useCompletedTasks(context)
+
+  // Fetch blink tasks using tag filtering (response contains totalCount for badge)
+  const {
+    tasks: blinkTasks,
+    totalCount: blinkTotalCount,
+    isLoading: blinkTasksLoading,
+    hasMore: blinkHasMore,
+    refetch: refetchBlinkTasks,
+    loadMore: loadMoreBlinkTasks
+  } = useBlinkTasks(context)
 
   // Initialize URL with view parameter if not present
   useEffect(() => {
@@ -276,7 +287,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
       // Refresh the task lists in the background (don't wait for them)
       // This allows the modal to close immediately
-      Promise.all([refetchTasks(), refetchFlows(), refetchCompleted()]).catch(() => {
+      Promise.all([refetchTasks(), refetchFlows(), refetchCompleted(), refetchBlinkTasks()]).catch(() => {
         // Ignore errors in background refresh
       })
     } catch (error) {
@@ -356,6 +367,13 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                         hasMore={hasMoreTasks}
                         hasNewTasks={hasNewInboxTasks}
                         onLoadNewTasks={clearNewInboxTasksFlag}
+                        blinkCount={blinkTotalCount}
+                        blinkCountLoading={blinkTasksLoading}
+                        blinkTasks={blinkTasks}
+                        blinkTasksLoading={blinkTasksLoading}
+                        blinkHasMore={blinkHasMore}
+                        onBlinkLoadMore={loadMoreBlinkTasks}
+                        onBlinkRefresh={refetchBlinkTasks}
                         completedTasks={completedTasks}
                         completedTotalCount={totalCompletedCount}
                         completedIsLoading={completedLoading}
