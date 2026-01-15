@@ -2,8 +2,8 @@ import React from 'react'
 import { Separator, Button, useTranslation } from '@newwork/nw-design-system'
 import { getAdvancePaymentStatusDisplay } from '../../../../personal-expenses/utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { DetailsPanelContent } from '../../../../../common/components/details-panel/DetailsPanelContent'
 import { PiArrowRight } from 'react-icons/pi'
+import { DetailsPanelContent } from '../../../../../common/components/details-panel/DetailsPanelContent'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../../../utils/currencyUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -30,6 +30,8 @@ const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeP
     getStatusDisplay: getAdvancePaymentStatusDisplay
   })
 
+  const expensePlanId = payment.expensePlan?.id
+
   return (
     <DetailsPanelContent
       dataTestIdPrefix="backoffice-advance-payment-details"
@@ -41,18 +43,15 @@ const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeP
       fields={fields}
       showHeader={false}
       footer={
-        <>
-          <Separator />
-          {payment.expensePlan?.id ? (
+        expensePlanId ? (
+          <>
+            <Separator />
             <div className="gba:flex gba:justify-end gba:mt-4">
               <Button
                 variant="default"
-                onClick={() => {
-                  const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
-                    expensePlanId: payment.expensePlan.id
-                  })
-                  navigateTo(url)
-                }}
+                onClick={() =>
+                  navigateTo(buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { expensePlanId }))
+                }
                 data-testid="view-expense-plan-details-button"
               >
                 <PiArrowRight className="gba:mr-2" />
@@ -62,8 +61,8 @@ const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeP
                 )}
               </Button>
             </div>
-          ) : null}
-        </>
+          </>
+        ) : undefined
       }
     />
   )

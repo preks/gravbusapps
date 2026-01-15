@@ -29,6 +29,8 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
     getStatusDisplay: getAdvancePaymentStatusDisplay
   })
 
+  const expensePlanId = payment.expensePlan?.id
+
   return (
     <DetailsPanelContent
       dataTestIdPrefix="advance-payment-details"
@@ -40,18 +42,15 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
       fields={fields}
       showHeader={false}
       footer={
-        <>
-          <Separator />
-          {payment.expensePlan?.id ? (
+        expensePlanId ? (
+          <>
+            <Separator />
             <div className="gba:flex gba:justify-end gba:mt-4">
               <Button
                 variant="default"
-                onClick={() => {
-                  const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
-                    expensePlanId: payment.expensePlan.id
-                  })
-                  navigateTo(url)
-                }}
+                onClick={() =>
+                  navigateTo(buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { expensePlanId }))
+                }
                 data-testid="view-expense-plan-details-button"
               >
                 <PiArrowRight className="gba:mr-2" />
@@ -61,8 +60,8 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
                 )}
               </Button>
             </div>
-          ) : null}
-        </>
+          </>
+        ) : undefined
       }
     />
   )

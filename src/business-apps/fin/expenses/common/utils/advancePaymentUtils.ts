@@ -68,54 +68,14 @@ export interface DetailsPanelField {
   dataTestId?: string
 }
 
-/**
- * Builds the fields array for advance payment details panel
- * Reduces duplication between manager, personal, and backoffice components
- */
-export const buildAdvancePaymentFields = (
+// Helper to add optional date fields
+const addDateFields = (
+  fields: DetailsPanelField[],
   payment: AdvancePaymentData,
-  config: AdvancePaymentFieldConfig
-): DetailsPanelField[] => {
-  const {
-    showDuration = false,
-    showDecisionDate = false,
-    showTransactionDate = false,
-    showRequester = false,
-    showManager = false,
-    showPlanTotalAmount = false,
-    showDescription = false,
-    formatCurrency,
-    t,
-    getStatusDisplay
-  } = config
+  config: Pick<AdvancePaymentFieldConfig, 'showDuration' | 'showDecisionDate' | 'showTransactionDate'>
+): void => {
+  const { showDuration, showDecisionDate, showTransactionDate } = config
 
-  const statusConfig = getStatusDisplay(payment.status || '') as { label: string; badgeVariant?: string }
-
-  const fields: DetailsPanelField[] = [
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
-      value: React.createElement(Badge, {
-        variant: (statusConfig?.badgeVariant || 'outline') as any,
-        children: statusConfig?.label || 'N/A'
-      })
-    }
-  ]
-
-  // Description (personal expenses only)
-  if (showDescription) {
-    fields.push({
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_overview.expense_history.expense_history_table.description',
-        'Description'
-      ),
-      value:
-        payment.description ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_description', 'No description'),
-      dataTestId: 'advance-payment-description'
-    })
-  }
-
-  // Duration
   if (showDuration && payment.expensePlan?.startDate && payment.expensePlan?.endDate) {
     fields.push({
       label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration'),
@@ -123,7 +83,6 @@ export const buildAdvancePaymentFields = (
     })
   }
 
-  // Decision Date
   if (showDecisionDate && payment.decisionDate) {
     fields.push({
       label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date'),
@@ -131,15 +90,22 @@ export const buildAdvancePaymentFields = (
     })
   }
 
-  // Transaction Date
   if (showTransactionDate && payment.transactionDate) {
     fields.push({
       label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.transaction_date', 'Transaction Date'),
       value: formatDate(payment.transactionDate, 'date.short')
     })
   }
+}
 
-  // Requester
+// Helper to add people fields (requester, manager)
+const addPeopleFields = (
+  fields: DetailsPanelField[],
+  payment: AdvancePaymentData,
+  config: Pick<AdvancePaymentFieldConfig, 'showRequester' | 'showManager'>
+): void => {
+  const { showRequester, showManager } = config
+
   if (showRequester) {
     const requesterName =
       payment.expensePlan?.employee?.fullName ||
@@ -153,15 +119,20 @@ export const buildAdvancePaymentFields = (
     }
   }
 
-  // Manager
   if (showManager && payment.expensePlan?.employee?.employeePosition?.supervisor?.fullName) {
     fields.push({
       label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.manager_title', 'Manager'),
       value: payment.expensePlan.employee.employeePosition.supervisor.fullName
     })
   }
+}
 
-  // Expense Plan Code
+// Helper to add expense plan and location fields
+const addPlanAndLocationFields = (
+  fields: DetailsPanelField[],
+  payment: AdvancePaymentData,
+  t: (key: string) => string
+): void => {
   if (payment.expensePlan?.code) {
     fields.push({
       label: t('expense-plan-code'),
@@ -169,7 +140,6 @@ export const buildAdvancePaymentFields = (
     })
   }
 
-  // Expense Plan Title
   fields.push({
     label: getTranslationFromI18nKeyAndLabel(
       'lowcoder:create_expense_request.initial_expense_plan_select_label',
@@ -178,7 +148,6 @@ export const buildAdvancePaymentFields = (
     value: payment.expensePlan?.title || getExpensePlanDisplay(null)
   })
 
-  // Cost Center
   const costCenterName =
     payment.costCenter?.name ||
     payment.expensePlan?.costCenter?.name ||
@@ -193,7 +162,6 @@ export const buildAdvancePaymentFields = (
     })
   }
 
-  // Project
   const projectName = payment.project?.name || payment.expensePlan?.project?.name
   if (projectName) {
     fields.push({
@@ -201,6 +169,46 @@ export const buildAdvancePaymentFields = (
       value: projectName
     })
   }
+}
+
+/**
+ * Builds the fields array for advance payment details panel
+ * Reduces duplication between manager, personal, and backoffice components
+ */
+export const buildAdvancePaymentFields = (
+  payment: AdvancePaymentData,
+  config: AdvancePaymentFieldConfig
+): DetailsPanelField[] => {
+  const { showDescription = false, showPlanTotalAmount = false, formatCurrency, t, getStatusDisplay } = config
+
+  const statusConfig = getStatusDisplay(payment.status || '')
+
+  const fields: DetailsPanelField[] = [
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
+      value: React.createElement(Badge, {
+        variant: (statusConfig?.badgeVariant || 'outline') as any,
+        children: statusConfig?.label || 'N/A'
+      })
+    }
+  ]
+
+  if (showDescription) {
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_overview.expense_history.expense_history_table.description',
+        'Description'
+      ),
+      value:
+        payment.description ??
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_description', 'No description'),
+      dataTestId: 'advance-payment-description'
+    })
+  }
+
+  addDateFields(fields, payment, config)
+  addPeopleFields(fields, payment, config)
+  addPlanAndLocationFields(fields, payment, t)
 
   // Amount
   const currencyCode = payment.currency?.code || payment.currencyRef?.split(':').pop() || 'EUR'
