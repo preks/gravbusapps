@@ -205,7 +205,7 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
         {/* Avatar (only show for other users in group chats) */}
         {!isOwnMessage && isGroupChat && showSender && (
           <div
-            className={`gba:flex-shrink-0 ${employeeId ? 'gba:cursor-pointer' : ''}`}
+            className={`gba:flex-shrink-0 gba:w-8 gba:h-8 ${employeeId ? 'gba:cursor-pointer' : ''}`}
             onClick={() => {
               if (employeeId) {
                 navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
@@ -213,7 +213,7 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
             }}
             title={employeeId ? 'View profile' : undefined}
           >
-            <Avatar size="sm">
+            <Avatar size="sm" className="gba:w-full gba:h-full">
               {avatarUrl && <AvatarImage src={avatarUrl} alt={sender?.displayName || sender?.username || 'User'} />}
               <AvatarFallback className="gba:text-xs">
                 {getInitials(sender?.displayName || sender?.username || 'User')}
