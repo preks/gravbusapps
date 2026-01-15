@@ -4,13 +4,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import type { EmployeeDetailsData } from '@/business-apps/hr/core/details/employee-details/types'
 
-// Special UUID used only when form is opened without a concrete employeeId.
-// We still need a non-null uuid! for the GraphQL variable, but Employee will
-// simply not be found while documentGroup/documentType lookups still work.
-const FALLBACK_EMPLOYEE_ID_FOR_LOOKUPS = '11111111-1111-1111-1111-111111111111'
-
 export const GET_UPLOAD_DOCUMENT_LOOKUPS = `
-  query MyQuery($id: uuid!, $activeUserLocale: String!) {
+  query MyQuery($id: uuid, $activeUserLocale: String!) {
     Employee(where: {id: {_eq: $id}, isDeleted: {_eq: false}}) {
       id
       firstName
@@ -80,11 +75,9 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
     setError(null)
     try {
       const locale = getCurrentActiveUserLocale() || 'en-US'
-      const effectiveEmployeeId =
-        employeeId && employeeId.trim().length > 0 ? employeeId : FALLBACK_EMPLOYEE_ID_FOR_LOOKUPS
 
       const res = await graphqlClient.request<any>(GET_UPLOAD_DOCUMENT_LOOKUPS, {
-        id: effectiveEmployeeId,
+        id: employeeId && employeeId.trim().length > 0 ? employeeId : null,
         activeUserLocale: locale
       })
 
