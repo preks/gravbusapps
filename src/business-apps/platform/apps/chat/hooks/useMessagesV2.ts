@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
+import { useState, useEffect, useCallback, useRef, startTransition, useMemo } from 'react'
 import type { Message, PaginatedResponse, Conversation } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { startPerformanceTimer, measureRender, devPerf } from '../utils/performanceUtils'
@@ -55,6 +55,23 @@ export function useMessagesV2({
   const isLoadingRef = useRef(false)
   const conversationRef = useRef(conversation)
   const currentUserIdRef = useRef(currentUserId)
+  const cacheRef = useRef(cache) // Stable reference for useEffect without causing infinite loop
+  const displayedConversationIdRef = useRef<string | undefined>(undefined) // Track which conversation's messages are displayed
+  const lastLoadedConversationRef = useRef<string | undefined>(undefined) // Track which conversation we've successfully loaded (prevents duplicate loads)
+  const prevConversationIdRef = useRef<string | undefined>(undefined) // Track previous conversationId to detect changes during render
+
+  // CRITICAL: Clear messages synchronously during render when conversationId changes
+  // This prevents showing old conversation's messages even for 1 frame
+  // Must happen BEFORE any effects run
+  if (prevConversationIdRef.current !== conversationId && prevConversationIdRef.current !== undefined) {
+    // ConversationId changed - clear state immediately
+    devPerf(() => console.log('[V2] ConversationId changed during render, clearing state synchronously'))
+    setMessages([])
+    setCurrentPage(1)
+    setHasMore(false)
+    setError(null)
+  }
+  prevConversationIdRef.current = conversationId ?? undefined
 
   // Keep refs in sync
   useEffect(() => {
@@ -64,6 +81,10 @@ export function useMessagesV2({
   useEffect(() => {
     currentUserIdRef.current = currentUserId
   }, [currentUserId])
+
+  useEffect(() => {
+    cacheRef.current = cache
+  }, [cache])
 
   /**
    * Calculate message status based on participants' read timestamps
@@ -126,9 +147,31 @@ export function useMessagesV2({
 
       // Try cache first for initial load
       if (page === 1) {
+        // CRITICAL: Prevent duplicate loads
+        // If we just loaded this conversation, skip (prevents double cache loads)
+        if (lastLoadedConversationRef.current === conversationId) {
+          devPerf(() => console.log('[V2] Already loaded this conversation, skipping duplicate load'))
+          return
+        }
+
         const cached = cache.getCachedMessages(conversationId)
         if (cached) {
           devPerf(() => console.log('[V2] Loading from cache:', conversationId))
+
+          // Verify conversation hasn't changed (prevents race conditions)
+          if (conversationId !== displayedConversationIdRef.current) {
+            devPerf(() => console.log('[V2] Stale cache ignored - conversation changed'))
+            return
+          }
+
+          // CRITICAL: Prevent concurrent cache loads
+          if (isLoadingRef.current) {
+            devPerf(() => console.log('[V2] Already loading, skipping duplicate cache load'))
+            return
+          }
+
+          // Mark this conversation as loaded
+          lastLoadedConversationRef.current = conversationId
 
           // Notify parent that messages were loaded (prevent WebSocket duplicates)
           if (onMessagesLoaded) {
@@ -182,9 +225,15 @@ export function useMessagesV2({
           100 // Load 50 messages per page
         )
 
-        // Verify response is still relevant
-        if (requestConversationId !== conversationId) {
-          devPerf(() => console.log('[V2] Request aborted - conversation changed'))
+        // CRITICAL: Verify response is still relevant (check against current displayed conversation)
+        // This prevents race conditions when switching conversations rapidly
+        if (requestConversationId !== displayedConversationIdRef.current) {
+          devPerf(() =>
+            console.log('[V2] Stale request ignored - conversation changed:', {
+              requested: requestConversationId,
+              current: displayedConversationIdRef.current
+            })
+          )
           return
         }
 
@@ -212,16 +261,21 @@ export function useMessagesV2({
           }
         }
 
-        // OPTIMIZATION: Batch all state updates together to trigger single render
+        // OPTIMIZATION: Batch ALL state updates together to trigger single render
+        // Include isLoading in the batch to prevent extra render
         startTransition(() => {
           if (page === 1) {
             setMessages(processedMessages)
+            // Mark this conversation as successfully loaded (prevents duplicate loads)
+            lastLoadedConversationRef.current = conversationId
           } else {
             // Load more - prepend older messages
             setMessages(prev => [...processedMessages, ...prev])
           }
           setCurrentPage(newPage)
           setHasMore(newHasMore)
+          setIsLoading(false)
+          isLoadingRef.current = false
         })
 
         // End performance tracking
@@ -237,10 +291,13 @@ export function useMessagesV2({
 
         console.error('[V2] Failed to load messages:', err)
         devPerf(() => console.error('[V2] Error details:', err))
-        setError(err instanceof Error ? err : new Error('Failed to load messages'))
-      } finally {
-        isLoadingRef.current = false
-        setIsLoading(false)
+
+        // Batch error state updates
+        startTransition(() => {
+          setError(err instanceof Error ? err : new Error('Failed to load messages'))
+          setIsLoading(false)
+          isLoadingRef.current = false
+        })
       }
     },
     [apiClient, conversationId, enabled, cache, processMessages, onMessagesLoaded]
@@ -405,20 +462,28 @@ export function useMessagesV2({
   )
 
   /**
-   * Reset state when conversation changes
+   * Load messages when conversation changes
+   * PERFORMANCE: State clearing happens synchronously during render now
    */
   useEffect(() => {
     if (conversationId) {
-      devPerf(() => console.log('[V2] Conversation changed, loading messages:', conversationId))
+      // Check if we're actually switching to a different conversation
+      const isSwitchingConversation = displayedConversationIdRef.current !== conversationId
 
-      // Clear messages immediately
-      setMessages([])
-      setCurrentPage(1)
-      setHasMore(false)
-      setError(null)
+      if (isSwitchingConversation) {
+        devPerf(() => console.log('[V2] Conversation changed, loading messages:', conversationId))
 
-      // Load new conversation's messages
-      loadMessages(1)
+        // Reset the last loaded conversation so loadMessages can proceed
+        lastLoadedConversationRef.current = undefined
+
+        // CRITICAL: Update ref IMMEDIATELY to prevent double-loading
+        // Must be synchronous, BEFORE loadMessages is called
+        displayedConversationIdRef.current = conversationId
+
+        // Load new conversation's messages (will use cache if available)
+        // State is already cleared synchronously during render
+        loadMessages(1)
+      }
     }
 
     // Cleanup on unmount or conversation change
@@ -429,19 +494,36 @@ export function useMessagesV2({
         abortControllerRef.current = null
       }
     }
-  }, [conversationId]) // CRITICAL FIX: Only re-run when conversationId changes, not when loadMessages changes
+  }, [conversationId]) // CRITICAL: Only conversationId, not loadMessages or cache
 
-  return {
-    messages,
-    isLoading,
-    error,
-    hasMore,
-    loadMore,
-    addMessage,
-    updateMessage,
-    deleteMessage,
-    updateMessageStatus,
-    bulkUpdateStatus,
-    refresh: () => loadMessages(1)
-  }
+  // PERFORMANCE: Memoize return object to prevent cascade re-renders
+  // Note: refresh is recreated when loadMessages changes, which is intentional
+  return useMemo(
+    () => ({
+      messages,
+      isLoading,
+      error,
+      hasMore,
+      loadMore,
+      addMessage,
+      updateMessage,
+      deleteMessage,
+      updateMessageStatus,
+      bulkUpdateStatus,
+      refresh: () => loadMessages(1)
+    }),
+    [
+      messages,
+      isLoading,
+      error,
+      hasMore,
+      loadMore,
+      addMessage,
+      updateMessage,
+      deleteMessage,
+      updateMessageStatus,
+      bulkUpdateStatus,
+      loadMessages
+    ]
+  )
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { PresenceUpdate } from '../types'
 
@@ -149,12 +149,17 @@ export function usePresenceV2(options: UsePresenceV2Options) {
     }
   }, [])
 
-  return {
-    getUserPresence,
-    updatePresence,
-    batchUpdatePresence,
-    getBatchPresence
-  }
+  // PERFORMANCE: Memoize return object to prevent cascade re-renders
+  // Callbacks are already stable via useCallback, so object is always the same
+  return useMemo(
+    () => ({
+      getUserPresence,
+      updatePresence,
+      batchUpdatePresence,
+      getBatchPresence
+    }),
+    [getUserPresence, updatePresence, batchUpdatePresence, getBatchPresence]
+  )
 }
 
 /**

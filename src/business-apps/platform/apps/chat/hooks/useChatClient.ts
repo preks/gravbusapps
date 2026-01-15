@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
+import { useState, useEffect, useCallback, useRef, startTransition, useMemo } from 'react'
 import type { ActiveCall, Conversation, Message, User, TypingIndicator } from '../types'
 import { MessageType } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
@@ -1117,51 +1117,102 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     []
   )
 
-  return {
-    // State
-    isConnected,
-    isOffline,
-    currentUser,
-    activeConversation,
-    activeConversationId,
-    error,
-    // Conversations
-    conversations: conversationsHook.conversations,
-    conversationsLoading: conversationsHook.isLoading,
-    conversationsLoadingMore: conversationsHook.isLoadingMore,
-    conversationsHasMore: conversationsHook.hasMore,
-    conversationsError: conversationsHook.error,
-    // Messages
-    messages: messagesHook.messages,
-    messagesLoading: messagesHook.isLoading,
-    messagesError: messagesHook.error,
-    hasMoreMessages: messagesHook.hasMore,
-    // Typing
-    typingUsers: typingHook.typingUsers,
-    // Presence
-    presenceMap: presenceHook.presenceMap,
-    getUserPresence: presenceHook.getUserPresence,
-    isUserOnline: presenceHook.isUserOnline,
-    updatePresenceFromUser: presenceHook.updatePresenceFromUser,
-    // Actions
-    sendMessage,
-    createDirectConversation,
-    createContextConversation,
-    createAiAgentConversation,
-    createGroupConversation,
-    setActiveConversation,
-    closeConversation,
-    loadMoreMessages: messagesHook.loadMore,
-    loadMoreConversations: conversationsHook.loadMoreConversations,
-    refreshConversations: conversationsHook.loadConversations,
-    refreshMessages: messagesHook.refresh,
-    startTyping: typingHook.startTyping,
-    stopTyping: typingHook.stopTyping,
-    sendNudge,
-    registerNudgeCallback,
-    // Clients (for advanced usage)
-    apiClient: apiClientRef.current,
-    wsClient: wsClientRef.current,
-    activeCalls
-  }
+  // PERFORMANCE: Memoize the return object to prevent unnecessary re-renders in Chat component
+  // Only recreate when actual values change, not on every render
+  return useMemo(
+    () => ({
+      // State
+      isConnected,
+      isOffline,
+      currentUser,
+      activeConversation,
+      activeConversationId,
+      error,
+      // Conversations
+      conversations: conversationsHook.conversations,
+      conversationsLoading: conversationsHook.isLoading,
+      conversationsLoadingMore: conversationsHook.isLoadingMore,
+      conversationsHasMore: conversationsHook.hasMore,
+      conversationsError: conversationsHook.error,
+      // Messages
+      messages: messagesHook.messages,
+      messagesLoading: messagesHook.isLoading,
+      messagesError: messagesHook.error,
+      hasMoreMessages: messagesHook.hasMore,
+      // Typing
+      typingUsers: typingHook.typingUsers,
+      // Presence
+      presenceMap: presenceHook.presenceMap,
+      getUserPresence: presenceHook.getUserPresence,
+      isUserOnline: presenceHook.isUserOnline,
+      updatePresenceFromUser: presenceHook.updatePresenceFromUser,
+      // Actions
+      sendMessage,
+      createDirectConversation,
+      createContextConversation,
+      createAiAgentConversation,
+      createGroupConversation,
+      setActiveConversation,
+      closeConversation,
+      loadMoreMessages: messagesHook.loadMore,
+      loadMoreConversations: conversationsHook.loadMoreConversations,
+      refreshConversations: conversationsHook.loadConversations,
+      refreshMessages: messagesHook.refresh,
+      startTyping: typingHook.startTyping,
+      stopTyping: typingHook.stopTyping,
+      sendNudge,
+      registerNudgeCallback,
+      // Clients (for advanced usage)
+      apiClient: apiClientRef.current,
+      wsClient: wsClientRef.current,
+      activeCalls
+    }),
+    [
+      // State dependencies
+      isConnected,
+      isOffline,
+      currentUser,
+      activeConversation,
+      activeConversationId,
+      error,
+      // Conversations
+      conversationsHook.conversations,
+      conversationsHook.isLoading,
+      conversationsHook.isLoadingMore,
+      conversationsHook.hasMore,
+      conversationsHook.error,
+      // Messages
+      messagesHook.messages,
+      messagesHook.isLoading,
+      messagesHook.error,
+      messagesHook.hasMore,
+      // Typing
+      typingHook.typingUsers,
+      // Presence (callbacks are stable from useCallback)
+      presenceHook.presenceMap,
+      presenceHook.getUserPresence,
+      presenceHook.isUserOnline,
+      presenceHook.updatePresenceFromUser,
+      // Actions (all are useCallback and stable)
+      sendMessage,
+      createDirectConversation,
+      createContextConversation,
+      createAiAgentConversation,
+      createGroupConversation,
+      setActiveConversation,
+      closeConversation,
+      messagesHook.loadMore,
+      conversationsHook.loadMoreConversations,
+      conversationsHook.loadConversations,
+      messagesHook.refresh,
+      typingHook.startTyping,
+      typingHook.stopTyping,
+      sendNudge,
+      registerNudgeCallback,
+      // Clients (refs are stable)
+      apiClientRef.current,
+      wsClientRef.current,
+      activeCalls
+    ]
+  )
 }
