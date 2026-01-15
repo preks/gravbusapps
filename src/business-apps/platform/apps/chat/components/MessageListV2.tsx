@@ -15,6 +15,8 @@ interface MessageListV2Props {
   conversationId: string
   typingUsers?: TypingIndicator[]
   onReplyToAI?: () => void
+  accessToken?: string
+  onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
 }
 
 /**
@@ -39,7 +41,9 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     onLoadMore,
     conversationId,
     typingUsers = [],
-    onReplyToAI
+    onReplyToAI,
+    accessToken,
+    onSendMessage
   }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -525,6 +529,8 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
                   isGroupChat={isGroupChat}
                   showSender={showSender}
                   onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
+                  accessToken={accessToken}
+                  onSendMessage={onSendMessage}
                 />
               )
             })}
@@ -550,6 +556,8 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     if (prevProps.onLoadMore !== nextProps.onLoadMore) return false
     if (prevProps.conversationId !== nextProps.conversationId) return false
     if (prevProps.onReplyToAI !== nextProps.onReplyToAI) return false
+    if (prevProps.accessToken !== nextProps.accessToken) return false
+    if (prevProps.onSendMessage !== nextProps.onSendMessage) return false
 
     // Check typing users
     const prevTypingCount = prevProps.typingUsers?.length || 0

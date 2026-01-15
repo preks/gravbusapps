@@ -821,99 +821,98 @@ export const Chat: React.FC<ChatProps> = memo(
       ]
     )
 
-    // TODO V2: Restore handleAISendMessage when implementing EveryAI form interactions
     // Handler for sending messages from inline EveryAI forms and interactions
-    // const handleAISendMessage = useCallback(
-    //   async (content: string, metadata?: Record<string, any>) => {
-    //     if (!activeConversationId) return
-    //
-    //     try {
-    //       // Check if this is a form submission to EveryAI
-    //       if (metadata?.isFormSubmission) {
-    //         // Send the form submission to EveryAI and process the response
-    //         const conversationContext = {
-    //           conversationId: activeConversationId,
-    //           conversationName: activeConversation?.name,
-    //           participants: activeConversation?.participants
-    //             ?.filter(p => p.user)
-    //             .map(p => {
-    //               const user = p.user!
-    //               const name =
-    //                 user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || ''
-    //               return {
-    //                 id: p.userId || user.id,
-    //                 odId: p.userId || user.id,
-    //                 name,
-    //                 email: user.email,
-    //                 employeeId: user.employeeId
-    //               }
-    //             })
-    //             .filter(p => p.name),
-    //           existingSessionId: messages
-    //             .filter(m => m.metadata?.isAIResponse && m.metadata?.everyAiSessionId)
-    //             .map(m => m.metadata?.everyAiSessionId as string)
-    //             .pop(),
-    //           currentUserId: currentUser?.id,
-    //           currentUserName: currentUser
-    //             ? currentUser.displayName ||
-    //               `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
-    //               currentUser.username ||
-    //               ''
-    //             : ''
-    //         }
-    //
-    //         // Process through EveryAI (no file attachments for form submissions)
-    //         const aiResponse = await processEveryAIMessage(content, [], conversationContext, [])
-    //
-    //         if (aiResponse && !aiResponse.error) {
-    //           // Check if we have any content to display (text OR outputs)
-    //           const responseText = aiResponse.text?.trim() || ''
-    //           const hasOutputs = aiResponse.outputs && aiResponse.outputs.length > 0
-    //
-    //           if (responseText || hasOutputs) {
-    //             await new Promise(resolve => setTimeout(resolve, 100))
-    //
-    //             const aiMetadata: Record<string, any> = {
-    //               isAIResponse: true,
-    //               aiAssistant: 'Every',
-    //               originalQuestion: content,
-    //               everyAiSessionId: aiResponse.sessionId,
-    //               isFormResult: true // Mark this as a result from form submission
-    //             }
-    //
-    //             if (aiResponse.scheduledMeeting) {
-    //               aiMetadata.scheduledMeeting = aiResponse.scheduledMeeting
-    //             }
-    //
-    //             if (hasOutputs) {
-    //               aiMetadata.outputs = aiResponse.outputs
-    //             }
-    //
-    //             // If we have outputs but no text, use a default message
-    //             const messageText = responseText || 'Processing your request...'
-    //
-    //             await sendMessage(activeConversationId, messageText, aiMetadata)
-    //             clearStreamingText()
-    //           }
-    //         }
-    //       } else {
-    //         // Regular message send
-    //         await sendMessage(activeConversationId, content, metadata)
-    //       }
-    //     } catch {
-    //       // Error sending AI message
-    //     }
-    //   },
-    //   [
-    //     activeConversationId,
-    //     activeConversation,
-    //     messages,
-    //     currentUser,
-    //     processEveryAIMessage,
-    //     sendMessage,
-    //     clearStreamingText
-    //   ]
-    // )
+    const handleAISendMessage = useCallback(
+      async (content: string, metadata?: Record<string, any>) => {
+        if (!activeConversationId) return
+
+        try {
+          // Check if this is a form submission to EveryAI
+          if (metadata?.isFormSubmission) {
+            // Send the form submission to EveryAI and process the response
+            const conversationContext = {
+              conversationId: activeConversationId,
+              conversationName: activeConversation?.name,
+              participants: activeConversation?.participants
+                ?.filter(p => p.user)
+                .map(p => {
+                  const user = p.user!
+                  const name =
+                    user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || ''
+                  return {
+                    id: p.userId || user.id,
+                    odId: p.userId || user.id,
+                    name,
+                    email: user.email,
+                    employeeId: user.employeeId
+                  }
+                })
+                .filter(p => p.name),
+              existingSessionId: messages
+                .filter(m => m.metadata?.isAIResponse && m.metadata?.everyAiSessionId)
+                .map(m => m.metadata?.everyAiSessionId as string)
+                .pop(),
+              currentUserId: currentUser?.id,
+              currentUserName: currentUser
+                ? currentUser.displayName ||
+                  `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
+                  currentUser.username ||
+                  ''
+                : ''
+            }
+
+            // Process through EveryAI (no file attachments for form submissions)
+            const aiResponse = await processEveryAIMessage(content, [], conversationContext, [])
+
+            if (aiResponse && !aiResponse.error) {
+              // Check if we have any content to display (text OR outputs)
+              const responseText = aiResponse.text?.trim() || ''
+              const hasOutputs = aiResponse.outputs && aiResponse.outputs.length > 0
+
+              if (responseText || hasOutputs) {
+                await new Promise(resolve => setTimeout(resolve, 100))
+
+                const aiMetadata: Record<string, any> = {
+                  isAIResponse: true,
+                  aiAssistant: 'Every',
+                  originalQuestion: content,
+                  everyAiSessionId: aiResponse.sessionId,
+                  isFormResult: true // Mark this as a result from form submission
+                }
+
+                if (aiResponse.scheduledMeeting) {
+                  aiMetadata.scheduledMeeting = aiResponse.scheduledMeeting
+                }
+
+                if (hasOutputs) {
+                  aiMetadata.outputs = aiResponse.outputs
+                }
+
+                // If we have outputs but no text, use a default message
+                const messageText = responseText || 'Processing your request...'
+
+                await sendMessage(activeConversationId, messageText, aiMetadata)
+                clearStreamingText()
+              }
+            }
+          } else {
+            // Regular message send
+            await sendMessage(activeConversationId, content, metadata)
+          }
+        } catch {
+          // Error sending AI message
+        }
+      },
+      [
+        activeConversationId,
+        activeConversation,
+        messages,
+        currentUser,
+        processEveryAIMessage,
+        sendMessage,
+        clearStreamingText
+      ]
+    )
 
     const handleCreateConversation = useCallback(
       async (user: User) => {
@@ -1537,6 +1536,8 @@ export const Chat: React.FC<ChatProps> = memo(
                     conversationId={stableActiveConversation.id}
                     typingUsers={Object.values(typingUsers || {}).flat()}
                     onReplyToAI={handleReplyToAI}
+                    accessToken={accessToken}
+                    onSendMessage={handleAISendMessage}
                   />
 
                   {/* V1 - Old implementation (commented for testing)
