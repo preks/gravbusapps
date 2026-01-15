@@ -170,7 +170,7 @@ export function useMessagesV2({
 
         const cached = cache.getCachedMessages(conversationId)
         if (cached) {
-          devPerf(() => console.log('[V2] Loading from cache:', conversationId))
+          devPerf(() => console.log('[V2] Loading from cache (instant):', conversationId))
 
           // Verify conversation hasn't changed (prevents race conditions)
           if (conversationId !== displayedConversationIdRef.current) {
@@ -184,11 +184,6 @@ export function useMessagesV2({
             return
           }
 
-          // Show loading state even for cache (consistent UX with API loading)
-          // This prevents showing "no messages" placeholder during async cache load
-          setIsLoading(true)
-          isLoadingRef.current = true
-
           // Mark this conversation as loaded
           lastLoadedConversationRef.current = conversationId
 
@@ -197,15 +192,13 @@ export function useMessagesV2({
             onMessagesLoaded(cached.messages.map(m => m.id))
           }
 
-          // Set from cache with status recalculation
-          startTransition(() => {
-            const processedMessages = processMessages(cached.messages)
-            setMessages(processedMessages)
-            setCurrentPage(cached.page)
-            setHasMore(cached.hasMore)
-            setIsLoading(false)
-            isLoadingRef.current = false
-          })
+          // PERFORMANCE FIX: Apply cached data synchronously WITHOUT loading state
+          // Cache should be instant - no spinner, no delays, just immediate display
+          const processedMessages = processMessages(cached.messages)
+          setMessages(processedMessages)
+          setCurrentPage(cached.page)
+          setHasMore(cached.hasMore)
+          // Note: isLoading stays false - cached data appears instantly
 
           return // Skip API call
         }
