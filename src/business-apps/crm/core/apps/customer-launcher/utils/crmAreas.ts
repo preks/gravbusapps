@@ -4,23 +4,11 @@ import {
   TargetIcon,
   BuildingIcon,
   AddressBookIcon,
-  FileTextIcon,
-  ChartBarIcon,
-  UploadIcon,
-  BriefcaseIcon
+  MegaphoneIcon,
+  ChartBarIcon
 } from '@phosphor-icons/react'
 
 export const crmAreas: CrmArea[] = [
-  // Personal Sales Workspace
-  {
-    id: 'my-sales-manager',
-    title: 'My Sales Manager',
-    description: 'Log activities, track your tasks, and monitor your performance',
-    icon: BriefcaseIcon,
-    category: 'sales',
-    path: '/crm/my-sales-manager'
-  },
-
   // Sales Management
   {
     id: 'leads',
@@ -57,15 +45,17 @@ export const crmAreas: CrmArea[] = [
     path: '/crm/contacts'
   },
 
-  // Business Intelligence
+  // Marketing & Campaigns
   {
-    id: 'reports',
-    title: 'Reports',
-    description: 'Generate and view detailed reports on CRM data and activities',
-    icon: FileTextIcon,
-    category: 'intelligence',
-    path: '/crm/reports'
+    id: 'campaigns',
+    title: 'Campaigns',
+    description: 'Create and manage marketing campaigns and track performance',
+    icon: MegaphoneIcon,
+    category: 'marketing',
+    path: '/crm/campaigns'
   },
+
+  // Business Intelligence
   {
     id: 'analytics',
     title: 'Analytics',
@@ -100,24 +90,13 @@ export const quickActions: QuickAction[] = [
     label: 'Add Account',
     icon: BuildingIcon,
     action: 'create-account'
-  },
-  {
-    id: 'import-data',
-    label: 'Import Data',
-    icon: UploadIcon,
-    action: 'import-data'
-  },
-  {
-    id: 'generate-report',
-    label: 'Generate Report',
-    icon: FileTextIcon,
-    action: 'generate-report'
   }
 ]
 
 export const categoryLabels = {
   sales: 'Sales Management',
   customer: 'Customer Management',
+  marketing: 'Marketing & Campaigns',
   intelligence: 'Business Intelligence'
 }
 

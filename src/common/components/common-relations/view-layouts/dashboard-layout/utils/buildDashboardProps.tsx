@@ -1,8 +1,6 @@
 import React from 'react'
 import { LineChart } from 'lucide-react'
-import { ActivityNavigationConfig } from '../overview/widgets/ActivitySummary'
 import { RecordNavigationConfig } from '../overview/widgets/RecordSummary'
-import { TaskNavigationConfig } from '../overview/widgets/TaskSummary'
 
 /**
  * Builds overview props for DashboardLayout component
@@ -13,12 +11,9 @@ export const buildOverviewProps = (
     setSelectedCurrency: (currency: string) => void
     handleDealClick: (dealId: string) => void
     setSelectedDealCurrency: (currency: string) => void
-    onTasksPageChange: (page: number, pageSize: number) => void
   },
   selectedDealCurrency: string,
-  activityNavigationConfig: ActivityNavigationConfig,
-  recordNavigationConfig: RecordNavigationConfig,
-  taskNavigationConfig: TaskNavigationConfig
+  recordNavigationConfig: RecordNavigationConfig
 ) => {
   if (!overviewData) return undefined
 
@@ -31,38 +26,11 @@ export const buildOverviewProps = (
     totalRevenue: overviewData.totalRevenue,
     totalLeadCount: overviewData.totalLeadCount,
     recentRecords: overviewData.recentRecords,
-    activeTasks: overviewData.activeTasks.map((t: any) => ({
-      id: t.id,
-      name: t.name,
-      description: t.description,
-      assignedTo: t.assignedTo,
-      relatedTo: t.relatedTo,
-      dueDate: t.dueDate ?? undefined,
-      isOverdue: t.isOverdue,
-      priority: t.priority,
-      status: t.status,
-      relatedEntity: t.relatedEntity ?? undefined
-    })),
-    todaysActivities: overviewData.todaysActivities.map((a: any) => ({
-      id: a.id,
-      title: a.title,
-      type: a.type,
-      owner: a.owner,
-      relatedTo: a.relatedTo,
-      createdAt: a.createdAt,
-      completedAt: a.completedAt ?? undefined,
-      relatedEntity: a.relatedEntity
-    })),
     keyDeals: overviewData.keyDeals,
     onDealClick: handlers.handleDealClick,
     selectedDealCurrency,
     onDealCurrencyChange: handlers.setSelectedDealCurrency,
-    todaysActivitiesTotal: overviewData.todaysActivitiesTotal,
-    activeTasksTotal: overviewData.activeTasksTotal,
-    onTasksPageChange: handlers.onTasksPageChange,
-    activityNavigationConfig,
-    recordNavigationConfig,
-    taskNavigationConfig
+    recordNavigationConfig
   }
 }
 

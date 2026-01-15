@@ -68,7 +68,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
       title: 'EveryBox',
       description: 'Your unified inbox for tasks and approvals. Manage workflows and stay on top of your work.',
       icon: Inbox,
-      href: '/platform/apps/core/every/apps/every-box',
+      href: '/platform/task-manager',
       badge: 'Essential',
       badgeVariant: 'info',
       accentColor: 'warning'
@@ -171,7 +171,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
       if (scores.everyOne === maxScore) {
         targetUrl = '/platform/chat'
       } else if (scores.everyBox === maxScore) {
-        targetUrl = '/platform/apps/core/every/apps/every-box'
+        targetUrl = '/platform/task-manager'
       } else if (scores.documents === maxScore) {
         targetUrl = '/platform/apps/document-apps'
       } else if (scores.notes === maxScore) {
