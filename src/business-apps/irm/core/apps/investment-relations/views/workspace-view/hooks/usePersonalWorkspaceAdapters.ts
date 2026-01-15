@@ -8,15 +8,15 @@ import type {
   ActivitiesResult,
   TasksResult
 } from '@/common/components/common-relations/view-layouts/personal-workspace/types'
-import { useMyInvestmentKpis } from './useMyInvestmentKpis'
-import { useRecentInvestmentActivities } from './useMyInvestmentActivities'
-import { useMyInvestmentTasks } from './useMyInvestmentTasks'
+import { useInvestmentPersonalWorkspaceKpis } from '@/common/data/investment/hooks/useInvestmentPersonalWorkspaceKpis'
+import { useRecentInvestmentActivities } from '@/common/data/investment/hooks/useInvestmentPersonalWorkspaceActivities'
+import { useInvestmentPersonalWorkspaceTasks } from '@/common/data/investment/hooks/useInvestmentPersonalWorkspaceTasks'
 
 /**
  * Adapter for KPIs hook
  */
 export const useIrmKpisAdapter = (context: BusinessAppContextProps, employeeId: string): KpiResult => {
-  const { kpis, loading, error } = useMyInvestmentKpis({
+  const { kpis, loading, error } = useInvestmentPersonalWorkspaceKpis({
     employeeId,
     accessToken: context.accessToken || ''
   })
@@ -50,7 +50,7 @@ export const useIrmActivitiesAdapter = (context: BusinessAppContextProps, employ
  * Adapter for Tasks hook
  */
 export const useIrmTasksAdapter = (context: BusinessAppContextProps, employeeId: string): TasksResult => {
-  const { tasks, loading, error, refetch } = useMyInvestmentTasks({
+  const { tasks, loading, error, refetch } = useInvestmentPersonalWorkspaceTasks({
     employeeId,
     accessToken: context.accessToken || '',
     statusFilter: ['PENDING', 'IN_PROGRESS'],

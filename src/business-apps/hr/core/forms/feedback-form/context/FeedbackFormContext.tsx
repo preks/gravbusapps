@@ -182,7 +182,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
           feedbackPublic: !!formValues.feedbackPublic // Match API field name
         },
         receiverId: selectedEmployee?.userId, // The user ID of the employee receiving the feedback
-        event: 'submit_feedback'
+        event: 'pse_submit'
       }
 
       // Dispatch the process continue event

@@ -8,15 +8,15 @@ import type {
   ActivitiesResult,
   TasksResult
 } from '@/common/components/common-relations/view-layouts/personal-workspace/types'
-import { useMyPerformanceKpis } from './useMyPerformanceKpis'
-import { useRecentActivities } from './useRecentActivities'
-import { useMyTasks } from './useMyTasks'
+import { useCustomerPersonalWorkspaceKpis } from '@/common/data/customer/hooks/useCustomerPersonalWorkspaceKpis'
+import { useCustomerRecentActivities } from '@/common/data/customer/hooks/useCustomerRecentActivities'
+import { useCustomerPersonalWorkspaceTasks } from '@/common/data/customer/hooks/useCustomerPersonalWorkspaceTasks'
 
 /**
  * Adapter for KPIs hook
  */
 export const useCrmKpisAdapter = (context: BusinessAppContextProps, employeeId: string): KpiResult => {
-  const { kpis, loading, error } = useMyPerformanceKpis({
+  const { kpis, loading, error } = useCustomerPersonalWorkspaceKpis({
     employeeId,
     accessToken: context.accessToken || ''
   })
@@ -32,7 +32,7 @@ export const useCrmKpisAdapter = (context: BusinessAppContextProps, employeeId: 
  * Adapter for Activities hook
  */
 export const useCrmActivitiesAdapter = (context: BusinessAppContextProps, employeeId: string): ActivitiesResult => {
-  const { activities, loading, error, refetch } = useRecentActivities({
+  const { activities, loading, error, refetch } = useCustomerRecentActivities({
     employeeId,
     accessToken: context.accessToken || '',
     limit: 100 // Get more for calendar view
@@ -50,7 +50,7 @@ export const useCrmActivitiesAdapter = (context: BusinessAppContextProps, employ
  * Adapter for Tasks hook
  */
 export const useCrmTasksAdapter = (context: BusinessAppContextProps, employeeId: string): TasksResult => {
-  const { tasks, loading, error, refetch } = useMyTasks({
+  const { tasks, loading, error, refetch } = useCustomerPersonalWorkspaceTasks({
     employeeId,
     accessToken: context.accessToken || '',
     statusFilter: ['PENDING', 'IN_PROGRESS'],

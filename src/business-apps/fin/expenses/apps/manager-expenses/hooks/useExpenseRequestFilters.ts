@@ -37,7 +37,6 @@ export interface UseExpenseRequestFiltersReturn {
 
 const availableFilterStatuses: ExpenseStatus[] = [
   ExpenseStatus.PREPARED,
-  ExpenseStatus.CREATED,
   ExpenseStatus.ASSIGNED,
   ExpenseStatus.PENDING,
   ExpenseStatus.APPROVED,

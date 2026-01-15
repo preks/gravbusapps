@@ -14,14 +14,18 @@ import {
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 // Helper function to process reference type filter
+// Note: referenceTypes filtering is not currently supported by CommonTaskQueryVariables
+// This filter is disabled until backend support is added
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const processReferenceTypeFilter = (selectedFilters: Record<string, any>, vars: CustomerTaskQueryVariables): void => {
-  if (
-    selectedFilters.referenceType &&
-    Array.isArray(selectedFilters.referenceType) &&
-    selectedFilters.referenceType.length > 0
-  ) {
-    vars.referenceTypes = selectedFilters.referenceType
-  }
+  // Commented out - referenceTypes not supported in query variables
+  // if (
+  //   selectedFilters.referenceType &&
+  //   Array.isArray(selectedFilters.referenceType) &&
+  //   selectedFilters.referenceType.length > 0
+  // ) {
+  //   vars.referenceTypes = selectedFilters.referenceType
+  // }
 }
 
 // Helper function to process date range filters

@@ -21,8 +21,6 @@ import {
   CardContent,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Badge
 } from '@newwork/nw-design-system'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
@@ -31,6 +29,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils'
 import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { TablePagination } from '../../../../../components'
@@ -757,25 +756,24 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         }
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {selectedItem?.title ||
-                selectedItem?.description ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:advance_payment_table.advance_payment_details',
-                  'Advance Payment Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedItem && (
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              selectedItem?.description ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:advance_payment_table.advance_payment_details',
+                'Advance Payment Details'
+              )
+            }
+          >
+            {selectedItem ? (
               <AdvancePaymentDetailsBackoffice
                 payment={selectedItem}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </div>

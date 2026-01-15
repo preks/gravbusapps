@@ -159,14 +159,12 @@ export const useFlowExecutionTasks = (
       const { tasks, total } = await runFetch(client)
 
       if (!Array.isArray(tasks)) {
-        if (import.meta.env?.DEV) console.error('Invalid data structure received')
         throw new Error('Invalid data structure received from server')
       }
 
       setTasks(tasks)
       setTotalCount(total)
     } catch (err: any) {
-      if (import.meta.env?.DEV) console.error('Error fetching flow execution tasks:', err)
       const errorMessage = err?.message || 'Failed to fetch flow execution tasks'
       setError(errorMessage)
       setTasks([])

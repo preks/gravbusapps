@@ -184,10 +184,14 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   additionalData
 }) => {
   const [activeTab, setActiveTab] = useState(initialActiveTab)
-  const activeStructureId = getCurrentActiveStructureId()
+  const activeStructureId = getCurrentActiveStructureId() || ''
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
+  const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
+
+  // Handle undefined as true (enabled by default until FeatureHub loads)
+  const compensationFeatureFlag = compensationFeatureFlagRaw !== false
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -414,7 +418,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      ...(devFeatureFlag
+      ...(compensationFeatureFlag
         ? [
             {
               key: TAB_KEYS.compensation,
@@ -436,7 +440,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                   accessToken={accessToken}
                   userInfo={userInfo}
                   isSelfView={isSelfView}
-                  devFeatureFlag={devFeatureFlag as boolean}
+                  compensationFeatureFlag={compensationFeatureFlag as boolean}
                   employeeRecordHrBackoffice={employeeRecordHrBackoffice}
                   additionalData={additionalData}
                 />

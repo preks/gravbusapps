@@ -9,9 +9,11 @@ import {
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
+import { useWatch } from 'react-hook-form'
 import type { Control, Path } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
 import translations from '../../_i18n'
+import { SALARY_FORM_VALIDATION } from '../constants/salaryFormValidation'
 
 interface AssignSalaryFieldsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
@@ -21,6 +23,9 @@ const AssignSalaryFields: React.FC<AssignSalaryFieldsProps> = ({ control }) => {
   const { t } = useTranslation(translations)
   const placeholderSelect = t('action-select-placeholder', { defaultValue: 'Please Select' })
   const placeholderEnter = t('action-enter-placeholder', { defaultValue: 'Please Enter' })
+
+  // Watch notes field for character count
+  const notes = useWatch({ control, name: 'notes' }) || ''
 
   return (
     <>
@@ -70,9 +75,13 @@ const AssignSalaryFields: React.FC<AssignSalaryFieldsProps> = ({ control }) => {
                 value={field.value ?? ''}
                 placeholder={placeholderEnter}
                 rows={4}
+                maxLength={SALARY_FORM_VALIDATION.NOTES_MAX_LENGTH}
                 data-testid="assign-employee-salary-notes-input"
               />
             </FormControl>
+            <div className="gba:text-xs gba:text-muted-foreground gba:text-right">
+              {notes.length} / {SALARY_FORM_VALIDATION.NOTES_MAX_LENGTH} {t('common-characters')}
+            </div>
             <FormMessage />
           </FormItem>
         )}

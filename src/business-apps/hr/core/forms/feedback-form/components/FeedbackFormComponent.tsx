@@ -224,12 +224,16 @@ const FeedbackFormComponent: React.FC = () => {
                   data-testid={formatDataTestId(prefixDataTestId, 'TransformDropdown')}
                 >
                   <span>
-                    {isLoading
-                      ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.transforming', 'Transforming')
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:feedback_give_form.transform.placeholder',
-                          'Text Tool'
-                        )}
+                    {isLoading ? (
+                      <span className="gba:flex gba:items-center gba:gap-2">
+                        <Spinner size="sm" />
+                      </span>
+                    ) : (
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:feedback_give_form.transform.placeholder',
+                        'Text Tool'
+                      )
+                    )}
                   </span>
                   <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
                 </Button>
