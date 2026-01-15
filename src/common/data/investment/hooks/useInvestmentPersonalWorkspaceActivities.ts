@@ -3,11 +3,11 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_MY_INVESTMENT_ACTIVITIES,
   GET_RECENT_INVESTMENT_ACTIVITIES
-} from '../queries/MyInvestmentActivitiesQueries'
-import type { MyInvestmentActivity } from '../types'
+} from '../queries/investmentPersonalWorkspaceQueries'
+import type { MyInvestmentActivity } from '../types/investmentPersonalWorkspaceTypes'
 import dayjs from 'dayjs'
 
-interface UseMyInvestmentActivitiesParams {
+interface UseInvestmentPersonalWorkspaceActivitiesParams {
   employeeId: string
   accessToken: string
   dateFrom?: string
@@ -16,7 +16,7 @@ interface UseMyInvestmentActivitiesParams {
   offset?: number
 }
 
-interface UseMyInvestmentActivitiesReturn {
+interface UseInvestmentPersonalWorkspaceActivitiesReturn {
   activities: MyInvestmentActivity[]
   total: number
   loading: boolean
@@ -24,14 +24,18 @@ interface UseMyInvestmentActivitiesReturn {
   refetch: () => void
 }
 
-export const useMyInvestmentActivities = ({
+/**
+ * Hook for fetching investment personal workspace activities with date range filtering
+ * Returns activities for a specific date range with pagination
+ */
+export const useInvestmentPersonalWorkspaceActivities = ({
   employeeId,
   accessToken,
   dateFrom,
   dateTo,
   limit = 50,
   offset = 0
-}: UseMyInvestmentActivitiesParams): UseMyInvestmentActivitiesReturn => {
+}: UseInvestmentPersonalWorkspaceActivitiesParams): UseInvestmentPersonalWorkspaceActivitiesReturn => {
   const [activities, setActivities] = useState<MyInvestmentActivity[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -67,7 +71,7 @@ export const useMyInvestmentActivities = ({
       setActivities(result.InvestmentActivity || [])
       setTotal(result.InvestmentActivityAggregate?.aggregate?.count || 0)
     } catch (err) {
-      console.error('Error fetching investment activities:', err)
+      console.error('Error fetching investment personal workspace activities:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch investment activities'))
     } finally {
       setLoading(false)
@@ -102,6 +106,10 @@ interface UseRecentInvestmentActivitiesReturn {
   refetch: () => void
 }
 
+/**
+ * Hook for fetching recent investment activities
+ * Used for Overview tab calendar and dashboard displays
+ */
 export const useRecentInvestmentActivities = ({
   employeeId,
   accessToken,
