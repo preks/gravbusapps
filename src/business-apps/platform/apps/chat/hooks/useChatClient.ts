@@ -173,7 +173,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     })
 
     return map
-  }, [presence.presenceVersion, presence])
+  }, [presence.presenceVersion, presence.getPresenceMap])
 
   // Adapter layer - keep functions for backward compatibility, but recommend using presenceMap
   const presenceHook = {
@@ -204,9 +204,21 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     ),
     // Backward compatibility method
     updatePresenceFromUser: useCallback(
-      (userId: string, _lastSeen?: Date | string, isOnline?: boolean) => {
+      (userId: string, lastSeen?: Date | string, isOnline?: boolean) => {
         const state: PresenceState = isOnline ? 'online' : 'offline'
-        presence.updatePresence(userId, state)
+        // Convert Date to ISO string if needed
+        const lastSeenString = lastSeen instanceof Date ? lastSeen.toISOString() : lastSeen
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useChatClient] 📝 Updating presence from user data:', {
+            userId,
+            state,
+            lastSeen: lastSeenString,
+            isOnline
+          })
+        }
+
+        presence.updatePresence(userId, state, lastSeenString)
       },
       [presence]
     ),
