@@ -179,6 +179,9 @@ label-country = Land
 label-city = Stadt
 label-currency = Währung
 
+# Common Text
+common-characters = Zeichen
+
 # Benefit Summary Card Translations
 benefit-provider = Anbieter
 benefit-value-yearly = Jahreswert
@@ -295,3 +298,6 @@ working-conditions-unit-year = { $count ->
 
 # Create Request Correction Form
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
+notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
+notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet

@@ -7,7 +7,9 @@ import {
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
-  TooltipContent
+  TooltipContent,
+  IconAvatar,
+  HeaderSlot
 } from '@newwork/nw-design-system'
 import {
   UserIcon,
@@ -103,13 +105,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
 
   // Use shared hook for fetching pipeline stages and catalog conditions
-  const { opportunityStages, catalogStageConditions, loadingStages, stagesError, fetchOpportunityStages } =
-    useOpportunityPipelineStages({
-      opportunityData: opportunityData ?? undefined,
-      stageConditionCatalog: 'InvestmentOpportunityPipelineStageCondition',
-      accessToken: props.accessToken,
-      contextLabel: 'investment'
-    })
+  const { opportunityStages, loadingStages, stagesError, fetchOpportunityStages } = useOpportunityPipelineStages({
+    opportunityData: opportunityData ?? undefined,
+    stageConditionCatalog: 'InvestmentOpportunityPipelineStageCondition',
+    accessToken: props.accessToken,
+    contextLabel: 'investment'
+  })
 
   // Divestment investment data (fetched separately for DIVESTMENT_DEAL using declarative hook)
   const divestmentId = opportunityData?.dealType === 'DIVESTMENT_DEAL' ? opportunityData?.divestmentId : undefined
@@ -142,31 +143,27 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }, [opportunityData?.dealType])
 
   // Helper function to extract IRM stage conditions (reduces cognitive complexity)
-  const extractIrmStageConditions = useCallback(
-    (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
-      const stageCatalogConditions = catalogStageConditions.filter(
-        catalogCondition => catalogCondition.parentEntryId === stage.id
-      )
+  // Filters stageConditionStatuses directly by parentEntryId (like ConditionSection does)
+  const extractIrmStageConditions = useCallback((stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+    // Filter stageConditionStatuses directly by parentEntryId (like ConditionSection does)
+    const stageConditionStatusesForStage = stageConditionStatuses.filter(
+      statusData => statusData.opportunityPipelineStageCondition?.parentEntryId === stage.id
+    )
 
-      return stageCatalogConditions.map(catalogCondition => {
-        const statusRecord = stageConditionStatuses.find(
-          statusData => statusData.opportunityPipelineStageConditionRef === catalogCondition.id
-        )
+    return stageConditionStatusesForStage.map(statusData => {
+      const conditionEntry = statusData.opportunityPipelineStageCondition
+      const config = statusData.configSnapshot || conditionEntry?.objectValue || {}
+      const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
 
-        const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
-        const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
-
-        return {
-          id: catalogCondition.id,
-          title: catalogCondition.value || 'Unknown Condition',
-          isCompleted: statusRecord?.completed || false,
-          checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
-          completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
-        }
-      })
-    },
-    [catalogStageConditions]
-  )
+      return {
+        id: conditionEntry?.id || statusData.id,
+        title: conditionEntry?.value || 'Unknown Condition',
+        isCompleted: statusData.completed || false,
+        checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+        completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
+      }
+    })
+  }, [])
 
   // IRM-specific configuration for OpportunityStageProgression
   const irmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
@@ -1186,16 +1183,18 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     <div className="gba:opportunity-details-container" data-testid="investment-opportunity-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={LightbulbIcon}
-        headerCategory="OPPORTUNITY"
+        headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
+        headerOverline="OPPORTUNITY"
         onBack={handleDealTypeBack}
         headerTitle={opportunityData?.name || ''}
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        headerDetailGroups={headerDetailGroups}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        headerSlotAfter={headerContent}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

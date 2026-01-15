@@ -7,13 +7,15 @@ import SummaryStatistics from './components/SummaryStatistics'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { PERIOD_TYPE } from '../../../constants/periodTypes'
+import { useDebounce } from '@/common/hooks/useDebounce'
 
 const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
   const [filters, setFilters] = useState<{ currency?: string; period: 'monthly' | 'quarterly' | 'yearly' }>({
     currency: undefined,
     period: 'quarterly'
   })
-  const { stats, isLoading, error, refetch } = useGetExpenseDashboard(props, filters)
+  const debouncedFilters = useDebounce(filters, 300)
+  const { stats, isLoading, error, refetch } = useGetExpenseDashboard(props, debouncedFilters)
   const chartView = useMemo(() => {
     switch (filters.period) {
       case PERIOD_TYPE.YEARLY:

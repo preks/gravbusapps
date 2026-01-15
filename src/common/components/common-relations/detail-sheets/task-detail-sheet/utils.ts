@@ -24,7 +24,9 @@ type BadgeVariant =
   | 'ext8'
 
 export const getTaskStatusBadgeVariant = (status: string): BadgeVariant => {
-  const normalized = status?.toUpperCase()
+  if (!status) return 'default'
+
+  const normalized = status.toUpperCase()
 
   // Handle backend status values with _TASK_STATUS suffix
   if (normalized.includes('COMPLETED') || normalized.includes('APPROVED')) {

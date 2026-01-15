@@ -507,13 +507,15 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
       <CardContent
         className={cn(
           'gba:flex-1 gba:min-h-0',
-          // Remove padding for native screens and universal cFLOW tasks - they handle their own scrolling and padding
-          // Native screens using TaskFormLayout handle their own scrolling via the layout's content area
+          // Native screens often don't implement their own scroll container, so we enable scrolling here
+          // while still removing the CardContent default padding.
+          // Universal cFLOW tasks handle their own scrolling and padding.
           // Override default nw:px-6 and nw:py-6 from CardContent component
-          screenMetadata?.builderType === 'NATIVE_SCREEN' ||
-            (task.source === 'cflow' && !screenMetadata && !loadingScreen)
-            ? 'nw:px-0 nw:py-0 gba:px-0 gba:py-0 gba:overflow-hidden gba:flex gba:flex-col'
-            : 'gba:pt-4 gba:px-4 gba:overflow-y-auto'
+          screenMetadata?.builderType === 'NATIVE_SCREEN'
+            ? 'nw:px-0 nw:py-0 gba:px-0 gba:py-0 gba:overflow-y-auto'
+            : task.source === 'cflow' && !screenMetadata && !loadingScreen
+              ? 'nw:px-0 nw:py-0 gba:px-0 gba:py-0 gba:overflow-hidden gba:flex gba:flex-col'
+              : 'gba:pt-4 gba:px-4 gba:overflow-y-auto'
         )}
       >
         {renderTaskContent()}

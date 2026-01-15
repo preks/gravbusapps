@@ -41,43 +41,47 @@ export const useConversationExperts = (
     // Track if this effect is still relevant (prevent race conditions)
     let isCurrent = true
 
-    apiClient
-      .getActiveExperts(conversationId)
-      .then(expertIds => {
-        // Only update state if this conversation is still active
-        // This prevents race condition where old API call finishes after new one
-        if (!isCurrent) {
-          console.log('[useConversationExperts] Discarding stale experts response')
-          return
-        }
+    // PERFORMANCE FIX: Defer API call to prevent blocking click handler
+    // This allows the UI to respond immediately when clicking a conversation
+    setTimeout(() => {
+      if (!isCurrent) return
 
-        // Enrich IDs with full expert data from available experts
-        const enriched: ActiveExpert[] = expertIds
-          .map(id => {
-            const expert = availableExperts.find(e => e.id === id)
-            if (!expert) return null
+      apiClient
+        .getActiveExperts(conversationId)
+        .then(expertIds => {
+          // Only update state if this conversation is still active
+          // This prevents race condition where old API call finishes after new one
+          if (!isCurrent) {
+            return
+          }
 
-            return {
-              expertId: id,
-              expertName: expert.name,
-              specialty: expert.specialty,
-              avatar: expert.avatar,
-              color: expert.color,
-              addedAt: new Date().toISOString(), // Backend doesn't track this yet
-              addedBy: '' // Backend doesn't track this yet
-            }
-          })
-          .filter((e): e is ActiveExpert => e !== null)
+          // Enrich IDs with full expert data from available experts
+          const enriched: ActiveExpert[] = expertIds
+            .map(id => {
+              const expert = availableExperts.find(e => e.id === id)
+              if (!expert) return null
 
-        setActiveExperts(enriched)
-      })
-      .catch(err => {
-        console.error('Failed to load active experts:', err)
-        // Only clear experts if this request is still current
-        if (isCurrent) {
-          setActiveExperts([])
-        }
-      })
+              return {
+                expertId: id,
+                expertName: expert.name,
+                specialty: expert.specialty,
+                avatar: expert.avatar,
+                color: expert.color,
+                addedAt: new Date().toISOString(), // Backend doesn't track this yet
+                addedBy: '' // Backend doesn't track this yet
+              }
+            })
+            .filter((e): e is ActiveExpert => e !== null)
+
+          setActiveExperts(enriched)
+        })
+        .catch(() => {
+          // Only clear experts if this request is still current
+          if (isCurrent) {
+            setActiveExperts([])
+          }
+        })
+    }, 0)
 
     // Cleanup: mark this effect as stale when conversation changes
     return () => {
@@ -114,8 +118,7 @@ export const useConversationExperts = (
 
         setActiveExperts(prev => [...prev, newExpert])
         return true
-      } catch (error) {
-        console.error('Failed to add expert:', error)
+      } catch {
         return false
       }
     },
@@ -136,8 +139,7 @@ export const useConversationExperts = (
         // Optimistically update UI
         setActiveExperts(prev => prev.filter(e => e.expertId !== expertId))
         return true
-      } catch (error) {
-        console.error('Failed to remove expert:', error)
+      } catch {
         return false
       }
     },

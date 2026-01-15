@@ -763,7 +763,7 @@ export function useFlowBot(accessToken: string) {
 
       // Add timeout to prevent long waits
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
       const baseUrl = resolveFlowbotBaseUrl()
       const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {

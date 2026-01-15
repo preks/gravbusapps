@@ -81,8 +81,8 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
             }
           })
         }
-      } catch (err) {
-        console.error(`Failed to notify for reminder ${reminder.workflowId}:`, err)
+      } catch {
+        // Failed to notify for reminder
       }
     }
   }, [])
@@ -101,7 +101,6 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
       const isLocalPlatform = baseUrl.includes('localhost')
       if (isLocalPlatform) {
         baseUrl = 'https://newwork-dev.newwork.com'
-        console.log('🔄 [RemindersPanel] Local platform detected - connecting to DEV environment:', baseUrl)
       }
 
       // Skip if no user ID
@@ -127,14 +126,12 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
       })
 
       if (!response.ok) {
-        console.warn(`Failed to fetch reminders: ${response.statusText}`)
         setReminders([])
         setIsLoading(false)
         return
       }
 
       const data = await response.json()
-      console.log('[RemindersPanel] API response:', data)
 
       // Handle different response structures
       let workflows: any[] = []
@@ -147,11 +144,8 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
       } else if (data.data && Array.isArray(data.data)) {
         workflows = data.data
       } else {
-        console.warn('[RemindersPanel] Unexpected response structure:', data)
         workflows = []
       }
-
-      console.log('[RemindersPanel] Parsed workflows:', workflows.length)
 
       // Transform workflows to reminders
       const reminderList: Reminder[] = workflows
@@ -212,7 +206,6 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
         }
       })
     } catch (err) {
-      console.error('Failed to load reminders:', err)
       setError(err instanceof Error ? err.message : 'Failed to load reminders')
     } finally {
       setIsLoading(false)
@@ -314,10 +307,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
       // Remove from list (overdue count will be recalculated automatically by useEffect)
       setReminders(prev => prev.filter(r => r.workflowId !== workflowId))
       notifiedReminders.current.delete(workflowId)
-
-      console.log(`[RemindersPanel] Successfully completed reminder ${workflowId}`)
     } catch (err) {
-      console.error('Failed to mark reminder as done:', err)
       alert(`Failed to mark reminder as done: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
   }

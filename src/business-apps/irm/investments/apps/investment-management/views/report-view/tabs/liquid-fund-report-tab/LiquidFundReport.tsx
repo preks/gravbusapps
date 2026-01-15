@@ -3,12 +3,22 @@ import { DataDisplay, Spinner, AiButton } from '@newwork/nw-design-system'
 import { UploadIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AnalyticsFilters } from './types'
-import { AnalyticsTable } from './components/LiquidFundReportTable'
+import { InvestmentReportTable } from '../../components/shared/InvestmentReportTable'
+import { LIQUID_FUND_TABLE_CONFIG } from '../../components/shared/tableConfigs'
+import { transformReportsToAnalyticsData } from './utils/liquidFundDataTransformer'
+import { convertDynamicColumnsToConfig, createLiquidFundStaticColumns } from './utils/liquidFundColumnAdapter'
 import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../hooks'
 import { useInvestmentLiquidFundReportCatalog } from './hooks/useInvestmentLiquidFundReportCatalog'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+// Static mapping of section IDs to liquid fund type codes
+const SECTION_TO_LIQUID_FUND_TYPE: Record<string, string> = {
+  'bank-deposits': 'BANK_DEPOSITE',
+  'fixed-term-deposits': 'FIXED_TERM_DEPOSIT',
+  'multiple-types': 'MONEY_MARKET_FUNDS' // Multiple types section - use Money Market Funds as base
+}
 
 interface LiquidFundReportProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -46,14 +56,23 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   })
 
   // Fetch catalog to get columns for each liquid fund type
-  const { catalogData } = useInvestmentLiquidFundReportCatalog({ accessToken, userInfo })
+  const { catalogData, getDynamicColumnsForType } = useInvestmentLiquidFundReportCatalog({ accessToken, userInfo })
 
-  // Map section IDs to liquid fund type codes
-  const sectionToLiquidFundTypeCode: Record<string, string> = {
-    'bank-deposits': 'BANK_DEPOSITE',
-    'fixed-term-deposits': 'FIXED_TERM_DEPOSIT',
-    'multiple-types': 'MONEY_MARKET_FUNDS' // Multiple types section - use Money Market Funds as base
-  }
+  // Helper to generate columns for a specific section
+  const generateColumnsForSection = useCallback(
+    (sectionId: string) => {
+      const staticColumns = createLiquidFundStaticColumns()
+      const typeCode = SECTION_TO_LIQUID_FUND_TYPE[sectionId]
+
+      if (!typeCode) return staticColumns
+
+      const dynamicCols = getDynamicColumnsForType(typeCode)
+      const convertedDynamicCols = convertDynamicColumnsToConfig(dynamicCols)
+
+      return [...staticColumns, ...convertedDynamicCols]
+    },
+    [getDynamicColumnsForType]
+  )
 
   // Define initial columns dynamically based on the ACTIVE SECTION's liquid fund type
   const initialColumns: ColumnConfig[] = useMemo(() => {
@@ -63,7 +82,7 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
     ]
 
     // Get the liquid fund type for the active section
-    const activeTypeCode = sectionToLiquidFundTypeCode[currentSection]
+    const activeTypeCode = SECTION_TO_LIQUID_FUND_TYPE[currentSection]
 
     // If catalog is loaded, get columns for the active liquid fund type only
     if (catalogData?.investmentLiquidFundTypes && activeTypeCode) {
@@ -143,21 +162,20 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
 
   // Create filters for specific investment types (Overview removed)
   // Use shared filters from parent (reportFilters) for date range and currency
+  // Note: onCurrenciesChange is passed separately to InvestmentReportTable, not in filters
   const bankDepositFilters = useMemo(
     (): AnalyticsFilters => ({
       startDate: reportFilters.computedFilters.startDate,
       endDate: reportFilters.computedFilters.endDate,
       currencyIds: reportFilters.computedFilters.currencyIds,
       investmentType: 'Bank Deposit',
-      search: search || undefined,
-      onCurrenciesChange: onCurrenciesUpdate
+      search: search || undefined
     }),
     [
       reportFilters.computedFilters.startDate,
       reportFilters.computedFilters.endDate,
       reportFilters.computedFilters.currencyIds,
-      search,
-      onCurrenciesUpdate
+      search
     ]
   )
 
@@ -167,15 +185,13 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
       endDate: reportFilters.computedFilters.endDate,
       currencyIds: reportFilters.computedFilters.currencyIds,
       investmentType: 'Fixed-Term Deposit',
-      search: search || undefined,
-      onCurrenciesChange: onCurrenciesUpdate
+      search: search || undefined
     }),
     [
       reportFilters.computedFilters.startDate,
       reportFilters.computedFilters.endDate,
       reportFilters.computedFilters.currencyIds,
-      search,
-      onCurrenciesUpdate
+      search
     ]
   )
 
@@ -185,15 +201,13 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
       endDate: reportFilters.computedFilters.endDate,
       currencyIds: reportFilters.computedFilters.currencyIds,
       investmentType: 'Money Market Funds,Pension Fund,Equity,Bond', // Multiple types separated by comma
-      search: search || undefined,
-      onCurrenciesChange: onCurrenciesUpdate
+      search: search || undefined
     }),
     [
       reportFilters.computedFilters.startDate,
       reportFilters.computedFilters.endDate,
       reportFilters.computedFilters.currencyIds,
-      search,
-      onCurrenciesUpdate
+      search
     ]
   )
 
@@ -218,6 +232,32 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
       })
     },
     [localReportFilters]
+  )
+
+  // Memoize column overrides to prevent infinite loops from unstable references
+  const bankDepositColumns = useMemo(() => generateColumnsForSection('bank-deposits'), [generateColumnsForSection])
+
+  const fixedTermDepositColumns = useMemo(
+    () => generateColumnsForSection('fixed-term-deposits'),
+    [generateColumnsForSection]
+  )
+
+  const multipleTypesColumns = useMemo(() => generateColumnsForSection('multiple-types'), [generateColumnsForSection])
+
+  // Memoize data transformers to prevent infinite loops from unstable references
+  const bankDepositTransformer = useCallback(
+    (reports: any[]) => transformReportsToAnalyticsData(reports, 'Bank Deposit'),
+    []
+  )
+
+  const fixedTermDepositTransformer = useCallback(
+    (reports: any[]) => transformReportsToAnalyticsData(reports, 'Fixed-Term Deposit'),
+    []
+  )
+
+  const multipleTypesTransformer = useCallback(
+    (reports: any[]) => transformReportsToAnalyticsData(reports, 'Money Market Funds,Pension Fund,Equity,Bond'),
+    []
   )
 
   // Primary action for "Add Report" - memoized to prevent reload on tab change
@@ -315,42 +355,60 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
       >
         {/* Render all sections to load data in parallel, but only show active one */}
         <div style={{ display: currentSection === 'bank-deposits' ? 'block' : 'none' }}>
-          <AnalyticsTable
+          <InvestmentReportTable
+            config={LIQUID_FUND_TABLE_CONFIG}
             accessToken={accessToken}
             userInfo={userInfo}
             filters={bankDepositFilters}
-            investmentType="Bank Deposits"
+            investmentType=""
+            investmentTypeValue="Bank Deposits"
+            catalogData={catalogData}
             isTransposed={isTransposed}
             visibleColumns={visibleColumns}
+            onCurrenciesChange={onCurrenciesUpdate}
             onTotalCountChange={(count, isLoading) => handleTotalCountUpdate('bank-deposits', count, isLoading)}
-            data-testid={`${dataTestId}-bank-deposits-table`}
             isInitialLoad={!initialLoadDone['bank-deposits']}
+            dataTransformer={bankDepositTransformer}
+            columnsOverride={bankDepositColumns}
+            data-testid={`${dataTestId}-bank-deposits-table`}
           />
         </div>
         <div style={{ display: currentSection === 'fixed-term-deposits' ? 'block' : 'none' }}>
-          <AnalyticsTable
+          <InvestmentReportTable
+            config={LIQUID_FUND_TABLE_CONFIG}
             accessToken={accessToken}
             userInfo={userInfo}
             filters={fixedTermDepositFilters}
-            investmentType="Fixed-Term Deposits"
+            investmentType=""
+            investmentTypeValue="Fixed-Term Deposits"
+            catalogData={catalogData}
             isTransposed={isTransposed}
             visibleColumns={visibleColumns}
+            onCurrenciesChange={onCurrenciesUpdate}
             onTotalCountChange={(count, isLoading) => handleTotalCountUpdate('fixed-term-deposits', count, isLoading)}
-            data-testid={`${dataTestId}-fixed-term-deposits-table`}
             isInitialLoad={!initialLoadDone['fixed-term-deposits']}
+            dataTransformer={fixedTermDepositTransformer}
+            columnsOverride={fixedTermDepositColumns}
+            data-testid={`${dataTestId}-fixed-term-deposits-table`}
           />
         </div>
         <div style={{ display: currentSection === 'multiple-types' ? 'block' : 'none' }}>
-          <AnalyticsTable
+          <InvestmentReportTable
+            config={LIQUID_FUND_TABLE_CONFIG}
             accessToken={accessToken}
             userInfo={userInfo}
             filters={multipleTypesFilters}
-            investmentType="Multiple Investment Types"
+            investmentType=""
+            investmentTypeValue="Multiple Investment Types"
+            catalogData={catalogData}
             isTransposed={isTransposed}
             visibleColumns={visibleColumns}
+            onCurrenciesChange={onCurrenciesUpdate}
             onTotalCountChange={(count, isLoading) => handleTotalCountUpdate('multiple-types', count, isLoading)}
-            data-testid={`${dataTestId}-multiple-types-table`}
             isInitialLoad={!initialLoadDone['multiple-types']}
+            dataTransformer={multipleTypesTransformer}
+            columnsOverride={multipleTypesColumns}
+            data-testid={`${dataTestId}-multiple-types-table`}
           />
         </div>
       </DataDisplay>

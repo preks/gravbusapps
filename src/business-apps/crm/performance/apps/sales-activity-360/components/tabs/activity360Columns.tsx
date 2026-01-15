@@ -265,22 +265,28 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
       )
     }
   },
-  // 3. Reference Column
+  // 3. Reference/Entity Column with Badge for unlinked activities
   {
     id: 'reference',
-    header: 'Reference',
+    header: 'Entity',
     size: 200,
     enableSorting: false,
     cell: ({ row }) => {
       const activity = row.original
+
+      // Check if unlinked
+      const isUnlinked = !activity.accountId && !activity.contactId && !activity.leadId && !activity.opportunityId
+
+      if (isUnlinked) {
+        return (
+          <Badge variant="secondary" data-testid={`activity360-badge-${activity.id}`}>
+            Unlinked
+          </Badge>
+        )
+      }
+
       const entityName = getEntityName(activity)
       const entityType = getEntityType(activity)
-
-      const hasReference = entityName !== 'No reference' && entityType !== 'No reference'
-
-      if (!hasReference) {
-        return <span className="gba:text-sm gba:text-muted-foreground gba:italic">No reference</span>
-      }
 
       const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation()

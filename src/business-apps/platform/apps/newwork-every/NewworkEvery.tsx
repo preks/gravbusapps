@@ -2,6 +2,7 @@ import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { Bot, FileText, StickyNote, Clock, Globe, Inbox, MessageCircle } from 'lucide-react'
+import { useCurrentUserPicture } from '../every-ai/hooks/useCurrentUserPicture'
 import {
   HeroSection,
   ToolCard,
@@ -26,8 +27,17 @@ export interface NewworkEveryProps extends BusinessAppContextProps {
  * - Time (Time Tracking)
  * - Glue (Intranet)
  */
-export const NewworkEvery: React.FC<NewworkEveryProps> = ({ 'data-testid': testId = 'newwork-every' }) => {
-  // Tool definitions - organized in rows:
+export const NewworkEvery: React.FC<NewworkEveryProps> = ({
+  accessToken,
+  userInfo,
+  'data-testid': testId = 'newwork-every'
+}) => {
+  const employeeId = userInfo?.employeeDetails?.employeeId
+  const { pictureThumbnail } = useCurrentUserPicture(employeeId, accessToken)
+
+  const firstName = userInfo?.employeeDetails?.firstName || ''
+  const lastName = userInfo?.employeeDetails?.lastName || ''
+  const initials = `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase() || 'U' // Tool definitions - organized in rows:
   // Row 1: Every* family (EveryAI, EveryOne, EveryBox)
   // Row 2: Productivity tools (MyDocuments, Time, Glue)
   // Row 3: Coming Soon (Notes - centered)
@@ -58,7 +68,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({ 'data-testid': testI
       title: 'EveryBox',
       description: 'Your unified inbox for tasks and approvals. Manage workflows and stay on top of your work.',
       icon: Inbox,
-      href: '/platform/apps/core/every/apps/every-box',
+      href: '/platform/task-manager',
       badge: 'Essential',
       badgeVariant: 'info',
       accentColor: 'warning'
@@ -161,7 +171,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({ 'data-testid': testI
       if (scores.everyOne === maxScore) {
         targetUrl = '/platform/chat'
       } else if (scores.everyBox === maxScore) {
-        targetUrl = '/platform/apps/core/every/apps/every-box'
+        targetUrl = '/platform/task-manager'
       } else if (scores.documents === maxScore) {
         targetUrl = '/platform/apps/document-apps'
       } else if (scores.notes === maxScore) {
@@ -236,7 +246,11 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({ 'data-testid': testI
         </section>
 
         {/* Connections Visualization Section */}
-        <ConnectionsVisualization data-testid={`${testId}-connections`} />
+        <ConnectionsVisualization
+          userAvatar={pictureThumbnail}
+          userInitials={initials}
+          data-testid={`${testId}-connections`}
+        />
 
         {/* Footer tagline */}
         <section className="gba:py-6 gba:px-6 gba:border-t gba:border-border gba:relative">

@@ -1,4 +1,5 @@
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { useDebounce } from '@/common/hooks/useDebounce'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Table,
@@ -14,8 +15,6 @@ import {
   Checkbox,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Badge
 } from '@newwork/nw-design-system'
 import { TablePagination } from '../../../../../components'
@@ -32,6 +31,7 @@ import { startProcess } from '@/common/utils/start-process'
 import { notification } from 'antd'
 import { formatCurrencyDisplay } from '../../../utils'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
 const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
 
@@ -66,14 +66,16 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   } = props
 
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 200) // 200ms debounce for responsive feel
 
   // Get all selected filters (including date range and amount range) - use props instead of hook
   const allSelectedFilters = selectedFilters
+  const debouncedSelectedFilters = useDebounce(allSelectedFilters, 200) // 200ms debounce
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    return search || allSelectedFilters.length > 0
-  }, [search, allSelectedFilters])
+    return debouncedSearch || allSelectedFilters.length > 0
+  }, [debouncedSearch, allSelectedFilters])
 
   // Server-side sorting state - properly managed for server-side sorting
   const [sortField, setSortField] = useState<string>('expenseDate')
@@ -111,9 +113,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   // currency fetching now handled by useExpenseCurrencies
 
   const buildApiFilters = useCallback(() => {
-    const apiFilters = { ...getFilters(allSelectedFilters) } as ExpenseFilter
+    const apiFilters = { ...getFilters(debouncedSelectedFilters) } as ExpenseFilter
 
-    if (selectedCurrencyRef) {
+    // Only apply currency filter if explicitly selected by user
+    // Check if currency is in selected filters first, then use selectedCurrencyRef
+    const hasCurrencyFilter = allSelectedFilters.some(f => f.startsWith('currency:'))
+    if (hasCurrencyFilter && selectedCurrencyRef) {
       apiFilters.currencyRef = selectedCurrencyRef
     }
 
@@ -135,23 +140,35 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     }
 
     return apiFilters
-  }, [getFilters, allSelectedFilters, selectedCurrencyRef, props.activeWidgetKey])
+  }, [getFilters, debouncedSelectedFilters, selectedCurrencyRef, props.activeWidgetKey, allSelectedFilters])
 
   useEffect(() => {
     if (!initialized) return
+    const searchTerm = debouncedSearch?.trim() || '%'
     const apiFilters = buildApiFilters()
-    fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder)
-  }, [fetchItems, currentPage, pageSize, search, sortField, sortOrder, initialized, buildApiFilters])
+    fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder)
+  }, [fetchItems, currentPage, pageSize, debouncedSearch, sortField, sortOrder, initialized, buildApiFilters])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
+      const searchTerm = debouncedSearch?.trim() || '%'
       const apiFilters = buildApiFilters()
-      fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder)
+      // Force refresh to bypass cache and get fresh data after process completion
+      fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder, { force: true })
       // Clear selection when table is refreshed (process finished)
       setSelectedRowKeys([])
     }
-  }, [props.tableRefreshTrigger, fetchItems, search, currentPage, pageSize, sortField, sortOrder, buildApiFilters])
+  }, [
+    props.tableRefreshTrigger,
+    fetchItems,
+    debouncedSearch,
+    currentPage,
+    pageSize,
+    sortField,
+    sortOrder,
+    buildApiFilters
+  ])
 
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
@@ -419,8 +436,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         <Button
           variant="default"
           onClick={() => {
-            const apiFilters = getFilters(allSelectedFilters)
-            fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder)
+            const searchTerm = debouncedSearch?.trim() || '%'
+            const apiFilters = buildApiFilters()
+            fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder)
           }}
           data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
         >
@@ -787,21 +805,24 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         }
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.title || 'Expense Item Details'}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedItem && (
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.expense_item_details',
+                'Expense Item Details'
+              )
+            }
+          >
+            {selectedItem ? (
               <ExpenseItemDetails
                 selectedItem={selectedItem}
                 onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </>

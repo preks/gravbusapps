@@ -22,6 +22,8 @@ import {
 } from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes'
 import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
 import { ContractTypeTable } from '../../apps/employment-data/components/tabs/ContractTypesTab'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 
 export interface ProbationPeriod {
   value: number | null
@@ -31,9 +33,41 @@ export interface ProbationPeriod {
 const PROBATION_UNIT_OPTIONS = [
   { value: 'day', label: 'Day(s)' },
   { value: 'week', label: 'Week(s)' },
-  { value: 'month', label: 'Month(s)' },
-  { value: '', label: 'None' }
+  { value: 'month', label: 'Month(s)' }
 ] as const
+
+// Helper to validate no leading whitespace (trailing will be trimmed on submit)
+const noLeadingWhitespace = (value: string) => value === value.trimStart()
+const noLeadingWhitespaceMessage = 'Cannot start with whitespace'
+
+// Zod validation schema
+const contractTypeFormSchema = z.object({
+  value: z
+    .string({ message: 'Please enter contract type name' })
+    .min(1, 'Please enter contract type name')
+    .max(64, 'Contract type name must be less than 64 characters')
+    .refine(noLeadingWhitespace, noLeadingWhitespaceMessage),
+  code: z.string().optional(),
+  description: z
+    .string()
+    .max(100, 'Description must be less than 100 characters')
+    .refine(val => !val || noLeadingWhitespace(val), noLeadingWhitespaceMessage)
+    .optional(),
+  probationValue: z
+    .string()
+    .refine(val => !val || /^[1-9][0-9]*$/.test(val), 'Must be a positive number')
+    .optional(),
+  probationUnit: z.enum(['day', 'week', 'month', '']).optional()
+})
+
+// Schema for creating new contract type (code is required)
+const createContractTypeFormSchema = contractTypeFormSchema.extend({
+  code: z
+    .string({ message: 'Please enter contract type code' })
+    .min(1, 'Please enter contract type code')
+    .max(10, 'Contract type code must be less than 10 characters')
+    .refine(noLeadingWhitespace, noLeadingWhitespaceMessage)
+})
 
 export interface ContractTypeFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -61,22 +95,30 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
 
   const handleSubmit = async (data: any) => {
-    if (!validateCode(data.code) && !contractType) {
+    // Trim all string values before processing
+    const trimmedData = {
+      ...data,
+      value: data.value?.trim() || '',
+      code: data.code?.trim() || '',
+      description: data.description?.trim() || ''
+    }
+
+    if (!validateCode(trimmedData.code) && !contractType) {
       return
     }
 
     // Build probation period JSON for additionalValue2
     const probationPeriod: ProbationPeriod = {
-      value: data.probationValue ? Number(data.probationValue) : null,
-      unit: data.probationUnit || ''
+      value: trimmedData.probationValue ? Number(trimmedData.probationValue) : null,
+      unit: trimmedData.probationUnit || ''
     }
     const additionalValue2 = probationPeriod.value && probationPeriod.unit ? JSON.stringify(probationPeriod) : ''
 
     const payload = {
       ...(contractType ? { id: contractType.id } : {}),
-      code: data.code,
-      value: data.value,
-      additionalValue1: data.description,
+      code: trimmedData.code,
+      value: trimmedData.value,
+      additionalValue1: trimmedData.description,
       additionalValue2,
       translations: []
     }
@@ -118,9 +160,15 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       code: contractType?.code || '',
       description: contractType?.description || '',
       probationValue: existingProbation.value?.toString() || '',
-      probationUnit: existingProbation.unit || ''
+      probationUnit: existingProbation.unit || undefined
     }),
     [contractType, existingProbation]
+  )
+
+  // Use different schema for create vs edit (code required only on create)
+  const resolver = useMemo(
+    () => zodResolver(contractType ? contractTypeFormSchema : createContractTypeFormSchema) as any,
+    [contractType]
   )
 
   return (
@@ -136,10 +184,11 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       isDrawerActive={isDrawerActive}
       isValid={!codeError}
       setCodeError={setCodeError}
+      resolver={resolver}
+      schema={contractType ? contractTypeFormSchema : createContractTypeFormSchema}
     >
       <FormField
         name="value"
-        rules={{ required: 'Please enter contract type name' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Name</FormLabel>
@@ -154,7 +203,6 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       {!contractType && (
         <FormField
           name="code"
-          rules={{ required: 'Please enter contract type code' }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Code</FormLabel>
@@ -201,8 +249,8 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
               <FormItem className="gba:flex-1">
                 <FormControl>
                   <Input
-                    type="number"
-                    min={0}
+                    type="text"
+                    inputMode="numeric"
                     placeholder="Enter value"
                     {...field}
                     data-testid={`${dataTestId}-probation-value-input`}
@@ -218,7 +266,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
             render={({ field }) => (
               <FormItem className="gba:flex-1">
                 <FormControl>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || undefined}>
                     <SelectTrigger data-testid={`${dataTestId}-probation-unit-select`}>
                       <SelectValue placeholder="Select unit" />
                     </SelectTrigger>

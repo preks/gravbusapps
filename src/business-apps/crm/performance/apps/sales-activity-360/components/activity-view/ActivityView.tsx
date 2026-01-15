@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
-import { RecordLayout, Avatar, AvatarImage, AvatarFallback, Spinner } from '@newwork/nw-design-system'
+import { RecordLayout, Avatar, AvatarImage, AvatarFallback, Spinner, IconAvatar } from '@newwork/nw-design-system'
 import {
   ListBulletsIcon,
   CalendarIcon,
@@ -100,6 +100,12 @@ const getViewConfig = (filter: ActivityViewFilter) => {
         category: 'OPPORTUNITY ACTIVITIES',
         icon: HandshakeIcon,
         subtitle: 'Deal-related activities'
+      }
+    case 'by-general':
+      return {
+        category: 'GENERAL ACTIVITIES',
+        icon: ListBulletsIcon,
+        subtitle: 'Activities not linked to any specific entity'
       }
     default:
       return {
@@ -423,6 +429,15 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
       ? `data:image/jpeg;base64,${employeeData.pictureThumbnail}`
       : undefined
 
+  const headerAvatar = headerImageSrc ? (
+    <Avatar size="xl">
+      <AvatarImage src={headerImageSrc} alt={headerTitle} />
+      <AvatarFallback>?</AvatarFallback>
+    </Avatar>
+  ) : (
+    <IconAvatar icon={config.icon} variant="decorative" size="xl" />
+  )
+
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`} className="gba:record-layout-no-padding">
       <style>
@@ -436,15 +451,15 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
       </style>
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={config.icon}
-        headerImageSrc={headerImageSrc}
-        headerImageAlt={headerTitle}
-        headerCategory={config.category}
+        headerAvatar={headerAvatar}
+        headerOverline={config.category}
         onBack={onBack}
         headerTitle={headerTitle}
         headerMeta={headerMeta}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
+        headerSlotAfter={headerContent}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

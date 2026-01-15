@@ -23,10 +23,12 @@ const keyframesStyles = `
 `
 
 /**
- * HeroSection - Premium animated hero for NEWWORK BUSINESS APPS
+ * HeroSection - Premium animated hero for NEWWORK BUSINESS DOMAINS
  * Matches the NEWWORK CREATE hero style
  */
-export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'newwork-business-apps-hero' }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({
+  'data-testid': testId = 'newwork-business-domains-hero'
+}) => {
   return (
     <>
       <style>{keyframesStyles}</style>
@@ -57,7 +59,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
 
         {/* Content */}
         <div className="gba:relative gba:max-w-5xl gba:mx-auto gba:text-center">
-          {/* NEWWORK BUSINESS APPS Logo */}
+          {/* NEWWORK BUSINESS DOMAINS Logo */}
           <div className="gba:mb-5" style={{ animation: 'fadeInUp 0.6s ease-out' }} data-testid={`${testId}-logo`}>
             <div className="gba:inline-flex gba:flex-col gba:items-center gba:gap-1">
               <span className="gba:text-sm gba:font-medium gba:tracking-[0.3em] gba:text-muted-foreground gba:uppercase">
@@ -71,7 +73,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
                     animation: 'gradient-shift-business 4s ease infinite'
                   }}
                 >
-                  BUSINESS APPS
+                  BUSINESS DOMAINS
                 </span>
               </h1>
             </div>

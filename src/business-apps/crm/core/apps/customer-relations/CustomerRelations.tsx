@@ -9,19 +9,21 @@ import {
   CurrencyDollarIcon,
   ListIcon,
   MegaphoneIcon,
-  HouseIcon
+  HouseIcon,
+  BriefcaseIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { LeadView } from './views/lead-view'
 import { AccountView } from './views/account-view'
 import { ContactView } from './views/contact-view'
 import { OpportunityView } from './views/opportunity-view'
-import { DashboardView } from './views/dashboard-view'
+import { DashboardView } from './views/dashboard-view/DashboardView'
 import { AnalyticsView } from './views/analytics-view'
 import { useSalesDashboard } from './views/dashboard-view/hooks/useSalesDashboard'
-import { DateRange } from './views/dashboard-view/types/dashboardTypes'
+import { DateRange } from '@/common/components/common-relations/view-layouts/dashboard-layout/types/dashboardTypes'
 import { CampaignManagement } from '@/business-apps/crm/campaigns/apps/campaign-management'
 import { TaskView } from './views/task-view'
+import { WorkspaceView } from './views/workspace-view'
 import { MODULE_COLORS } from '@/common/constants/ui'
 
 export type CustomerRelationsProps = BusinessAppContextProps
@@ -29,6 +31,7 @@ export type CustomerRelationsProps = BusinessAppContextProps
 const moduleColor = MODULE_COLORS.CRM
 const CUSTOMER_VIEW_KEYS = [
   'dashboard',
+  'personal',
   'tasks',
   'leads',
   'accounts',
@@ -57,6 +60,11 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
       key: 'dashboard',
       icon: <HouseIcon />,
       label: 'Dashboard'
+    },
+    {
+      key: 'personal',
+      icon: <BriefcaseIcon />,
+      label: 'My Workspace'
     },
     {
       key: 'tasks',
@@ -261,6 +269,12 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
     switch (activeTab) {
       case 'dashboard':
         return renderDashboardContent()
+      case 'personal':
+        return (
+          <div data-testid="personal-workspace-tab-content">
+            <WorkspaceView {...context} />
+          </div>
+        )
       case 'tasks':
         return (
           <div data-testid="tasks-tab-content">

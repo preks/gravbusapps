@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { Button, Badge, Tabs, TabsContent, TabsList, TabsTrigger, Alert, Separator } from '@newwork/nw-design-system'
+import { Button, Badge, Tabs, TabsContent, TabsList, TabsTrigger, Alert } from '@newwork/nw-design-system'
 import { ArrowLeft, Calendar, Clock, AlertCircle, CheckCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { OverviewTab, WorkflowTab, DataTab, AuditTab } from './tabs'
 
 // Helper function to calculate running time from start time (for incomplete workflows)
@@ -149,11 +149,11 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
     setHistoryError(null)
 
     try {
-      const API_BASE = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+      const API_BASE = getFlowEngineApiBaseUrl()
       // Use audit API instead of history API for comprehensive event data
-      const response = await fetch(`${API_BASE}/api/audit/logs?flowId=${flowId}&limit=100`, {
+      const response = await fetch(`${API_BASE}/audit/logs?flowId=${flowId}&limit=100`, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           'Content-Type': 'application/json'
         }
       })
@@ -322,7 +322,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
 
   // Load history when tab becomes active or flowId changes
   React.useEffect(() => {
-    if (activeTab === 'audit' && flowId && accessToken) {
+    if (activeTab === 'audit' && flowId) {
       loadHistoryData()
     }
   }, [activeTab, flowId, accessToken])
@@ -334,19 +334,19 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
         setIsLoading(true)
         setError(null)
 
-        const API_BASE = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+        const API_BASE = getFlowEngineApiBaseUrl()
 
         // Fetch both progress and steps data in parallel
         const [progressResponse, stepsResponse] = await Promise.all([
-          fetch(`${API_BASE}/api/flows/${flowId}/progress`, {
+          fetch(`${API_BASE}/flows/${flowId}/progress`, {
             headers: {
-              Authorization: `Bearer ${accessToken}`,
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
               'Content-Type': 'application/json'
             }
           }),
-          fetch(`${API_BASE}/api/flows/${flowId}`, {
+          fetch(`${API_BASE}/flows/${flowId}`, {
             headers: {
-              Authorization: `Bearer ${accessToken}`,
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
               'Content-Type': 'application/json'
             }
           })
@@ -538,30 +538,28 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           padding: `var(--spacing-6) ${showBackButton ? 'var(--spacing-6)' : '0'}`
         }}
       >
-        <div className="gba:flex gba:items-center gba:gap-4">
-          {showBackButton && onBack && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBack}
-                className="gba:flex gba:items-center gba:gap-2"
-                style={{ paddingLeft: 0 }}
-              >
-                <ArrowLeft className="gba:h-4 gba:w-4" />
-                Back to Flows
-              </Button>
+        {showBackButton && onBack && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="gba:flex gba:items-center gba:gap-2 gba:mb-4"
+            style={{ paddingLeft: 0 }}
+          >
+            <ArrowLeft className="gba:h-4 gba:w-4" />
+            Back to Flows
+          </Button>
+        )}
 
-              <Separator orientation="vertical" className="gba:h-6" />
-            </>
-          )}
-
-          <div className="gba:flex-1">
-            <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1">
-              <h1 className="gba:text-xl gba:font-semibold gba:text-gray-900">{flowData.flowName}</h1>
+        <div className="gba:flex gba:flex-col gba:gap-3 md:gba:flex-row md:gba:items-start md:gba:justify-between">
+          <div className="gba:min-w-0">
+            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3">
+              <h1 className="gba:text-3xl gba:font-semibold gba:text-gray-900 gba:leading-tight gba:truncate">
+                {flowData.flowName}
+              </h1>
               <Badge
                 variant="outline"
-                className="gba:border-0 gba:text-white"
+                className="gba:border-0 gba:text-white gba:rounded-full gba:px-4 gba:py-1 gba:text-sm gba:font-semibold"
                 style={{
                   backgroundColor:
                     flowData.status === 'COMPLETED'
@@ -579,8 +577,22 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
               </Badge>
             </div>
 
-            <div className="gba:flex gba:items-center gba:gap-6 gba:text-sm gba:text-gray-600">
-              <span className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:mt-2 gba:flex gba:flex-wrap gba:items-center gba:gap-x-8 gba:gap-y-2 gba:text-sm gba:text-gray-600">
+              <span className="gba:flex gba:items-center gba:gap-2">
+                <span className="gba:font-medium gba:text-gray-700">Flow ID:</span>
+                <span className="gba:font-mono gba:px-3 gba:py-1 gba:rounded-full gba:bg-gray-100 gba:text-gray-800 gba:max-w-full gba:truncate">
+                  {flowData.flowId}
+                </span>
+              </span>
+
+              <span className="gba:flex gba:items-center gba:gap-2">
+                <span className="gba:font-medium gba:text-gray-700">Progress:</span>
+                <span>
+                  {flowData.progressPercentage}% • {flowData.stepStatus.completed}/{flowData.stepStatus.total} steps
+                </span>
+              </span>
+
+              <span className="gba:flex gba:items-center gba:gap-2">
                 <Calendar className="gba:h-4 gba:w-4" />
                 Started{' '}
                 {new Date(flowData.startTime).toLocaleString('en-US', {
@@ -592,7 +604,8 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                   hour12: true
                 })}
               </span>
-              <span className="gba:flex gba:items-center gba:gap-1">
+
+              <span className="gba:flex gba:items-center gba:gap-2">
                 <Clock className="gba:h-4 gba:w-4" />
                 {(() => {
                   const minutes =
@@ -601,9 +614,9 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                   return `${label} ${duration}`
                 })()}
               </span>
-              {/* Show end date for completed flows */}
+
               {['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flowData.status) && flowData.endTime && (
-                <span className="gba:flex gba:items-center gba:gap-1 gba:text-gray-600">
+                <span className="gba:flex gba:items-center gba:gap-2 gba:text-gray-600">
                   <CheckCircle className="gba:h-4 gba:w-4" />
                   {flowData.status === 'COMPLETED'
                     ? 'Completed'
@@ -612,20 +625,8 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                       : flowData.status === 'TERMINATED'
                         ? 'Terminated'
                         : 'Failed'}
-                  :{' '}
-                  {new Date(flowData.endTime).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
                 </span>
               )}
-              <span>
-                Progress: {flowData.progressPercentage}% • {flowData.stepStatus.completed}/{flowData.stepStatus.total}{' '}
-                steps
-              </span>
             </div>
           </div>
         </div>
@@ -637,17 +638,15 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           value={activeTab}
           onValueChange={setActiveTab}
           className="gba:h-full gba:flex gba:flex-col"
-          style={{ backgroundColor: 'transparent' }}
+          style={{ backgroundColor: 'var(--color-surface-primary)' }}
         >
           <div
+            className="gba:mt-4 gba:pt-4 gba:pb-4"
             style={{
               backgroundColor: 'var(--color-surface-primary)',
               borderBottom: 'var(--border-width-thin) solid var(--color-border-default)',
-              paddingTop: 'var(--spacing-2)',
-              paddingBottom: 0,
               paddingLeft: showBackButton ? 'var(--spacing-6)' : '0',
-              paddingRight: showBackButton ? 'var(--spacing-6)' : '0',
-              marginTop: 'var(--spacing-2)'
+              paddingRight: showBackButton ? 'var(--spacing-6)' : '0'
             }}
           >
             <TabsList

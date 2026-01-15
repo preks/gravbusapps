@@ -96,9 +96,15 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
     >
       {/* Header */}
       <PageHeader
-        phosphorIcon={headerPhosphorIcon}
+        avatar={
+          <IconAvatar
+            icon={headerPhosphorIcon.icon}
+            variant={headerPhosphorIcon.variant || 'default'}
+            size={headerPhosphorIcon.size || 'lg'}
+          />
+        }
         title={headerLabel}
-        actions={
+        extra={
           <div>
             <Input
               placeholder={searchPlaceholder || t('common.search_placeholder', 'Search settings...')}

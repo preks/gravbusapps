@@ -7,13 +7,12 @@ import {
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-  Button,
-  useTranslation
+  Button
 } from '@newwork/nw-design-system'
 import { ArrowBendUpLeft } from '@phosphor-icons/react'
 import type { Message, ConversationParticipant } from '../types'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { formatTime, formatFullTimestamp, getStatusIcon } from './utils/messageUtils'
+import { getStatusIcon } from './utils/messageUtils'
 import { isPreviewable } from './utils/attachmentUtils'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
@@ -21,7 +20,7 @@ import { ExpertResponseRenderer } from './ExpertResponseRenderer'
 import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
-import translations from '../_i18n'
+import { TimestampDisplay } from './utils/TimestampDisplay'
 
 const getInitials = (name: string): string => {
   if (!name) return '?'
@@ -40,6 +39,7 @@ interface MessageItemProps {
   participants?: ConversationParticipant[]
   onReplyToAI?: () => void
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 const MessageItemComponent: React.FC<MessageItemProps> = ({
@@ -49,9 +49,9 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   accessToken,
   participants,
   onReplyToAI,
-  onSendMessage
+  onSendMessage,
+  t
 }) => {
-  const { t } = useTranslation(translations)
   const isAIResponse = message.metadata?.isAIResponse === true
   const isExpertResponse = message.metadata?.isEveryExpertResponse === true
   // AI/Expert responses should never be styled as "own message" even if sent by current user
@@ -284,16 +284,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                     <div
                       className={`gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1 gba:text-muted-foreground`}
                     >
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="gba:text-[10px]">{formatTime(message.createdAt, t)}</span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="gba:text-xs">{formatFullTimestamp(message.createdAt)}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <TimestampDisplay createdAt={message.createdAt} t={t} className="gba:text-[10px]" />
                     </div>
                   </>
                 }
@@ -373,16 +364,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                 isOwnMessage ? 'gba:opacity-70' : 'gba:text-muted-foreground'
               }`}
             >
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="gba:text-[10px]">{formatTime(message.createdAt, t)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="gba:text-xs">{formatFullTimestamp(message.createdAt)}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <TimestampDisplay createdAt={message.createdAt} t={t} className="gba:text-[10px]" />
               {isOwnMessage && statusText && (
                 <span className={`gba:text-[10px] ${isOwnMessage ? 'gba:opacity-70' : 'gba:text-muted-foreground'}`}>
                   {statusText}
@@ -407,14 +389,26 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
 // Memoize to prevent unnecessary re-renders when parent re-renders
 export const MessageItem = React.memo(MessageItemComponent, (prevProps, nextProps) => {
   // Only re-render if these specific props change
+  // Note: We check metadata properties individually to avoid expensive JSON.stringify
+  const metadataEqual =
+    prevProps.message.metadata === nextProps.message.metadata ||
+    (prevProps.message.metadata?.isAIResponse === nextProps.message.metadata?.isAIResponse &&
+      prevProps.message.metadata?.isEveryExpertResponse === nextProps.message.metadata?.isEveryExpertResponse &&
+      prevProps.message.metadata?.aiAssistant === nextProps.message.metadata?.aiAssistant &&
+      prevProps.message.metadata?.expertName === nextProps.message.metadata?.expertName &&
+      prevProps.message.metadata?.expertColor === nextProps.message.metadata?.expertColor &&
+      prevProps.message.metadata?.expertAvatar === nextProps.message.metadata?.expertAvatar &&
+      prevProps.message.metadata?.attachments?.length === nextProps.message.metadata?.attachments?.length)
+
   return (
     prevProps.message.id === nextProps.message.id &&
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.status === nextProps.message.status &&
     prevProps.message.isDeleted === nextProps.message.isDeleted &&
+    prevProps.message.senderId === nextProps.message.senderId &&
     prevProps.currentUserId === nextProps.currentUserId &&
     prevProps.isGroupChat === nextProps.isGroupChat &&
     prevProps.accessToken === nextProps.accessToken &&
-    JSON.stringify(prevProps.message.metadata) === JSON.stringify(nextProps.message.metadata)
+    metadataEqual
   )
 })

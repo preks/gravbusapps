@@ -14,6 +14,7 @@ import {
 } from '@newwork/nw-design-system'
 import {
   UsersIcon,
+  UsersThree,
   TrendUpIcon,
   CurrencyDollarIcon,
   TargetIcon,
@@ -622,7 +623,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
       </style>
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={UsersIconThree}
+        headerIcon={UsersThree}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.performance.team', 'TEAM OVERVIEW')}
         onBack={onBack}
         headerTitle={teamName}

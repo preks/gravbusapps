@@ -67,6 +67,18 @@ export const D3ForceNetworkChart: React.FC<D3ForceNetworkChartProps> = ({
   const nodesRef = useRef<D3Node[]>([])
   const linksRef = useRef<D3Link[]>([])
 
+  // View transform (pan + zoom) in screen-space pixels (CSS px) and scale factor.
+  const viewTransformRef = useRef<{ x: number; y: number; k: number }>({ x: 0, y: 0, k: 1 })
+  const interactionRef = useRef<{
+    mode: 'none' | 'pan' | 'drag-node'
+    pointerId: number | null
+    startX: number
+    startY: number
+    startTx: number
+    startTy: number
+    nodeId: string | null
+  }>({ mode: 'none', pointerId: null, startX: 0, startY: 0, startTx: 0, startTy: 0, nodeId: null })
+
   // Transform data for D3
   const transformData = useCallback(() => {
     const nodes: D3Node[] = data.nodes.map(node => ({
@@ -145,17 +157,27 @@ export const D3ForceNetworkChart: React.FC<D3ForceNetworkChartProps> = ({
     (links: D3Link[]) => {
       if (!showParticles) return
 
+      const seedFromId = (id: string) => {
+        // small deterministic hash (stable across renders)
+        let h = 0
+        for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+        return h
+      }
+
       particlesRef.current = links
         .filter(link => link.animated)
         .flatMap(link =>
-          Array.from({ length: 3 }, (_, i) => ({
-            id: `${link.id}-particle-${i}`,
-            link,
-            progress: i * 0.33, // Stagger particles
-            speed: 0.5 + Math.random() * 0.5, // Variable speed
-            size: 2 + Math.random() * 2,
-            color: link.color
-          }))
+          Array.from({ length: 3 }, (_, i) => {
+            const seed = seedFromId(`${link.id}:${i}`)
+            return {
+              id: `${link.id}-particle-${i}`,
+              link,
+              progress: i * 0.33, // Stagger particles
+              speed: 0.55 + (seed % 45) / 100, // 0.55..0.99
+              size: 2 + (seed % 20) / 10, // 2..4
+              color: link.color
+            }
+          })
         )
     },
     [showParticles]
@@ -243,6 +265,7 @@ export const D3ForceNetworkChart: React.FC<D3ForceNetworkChartProps> = ({
     const nodes = nodesRef.current
     const links = linksRef.current
     const { width, height } = dimensions
+    const t = viewTransformRef.current
 
     // Set canvas dimensions
     const devicePixelRatio = window.devicePixelRatio || 1
@@ -250,18 +273,24 @@ export const D3ForceNetworkChart: React.FC<D3ForceNetworkChartProps> = ({
     canvas.height = height * devicePixelRatio
     canvas.style.width = `${width}px`
     canvas.style.height = `${height}px`
-    context.scale(devicePixelRatio, devicePixelRatio)
+    // Reset any existing transforms (important when called frequently)
+    context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
 
     // Clear canvas with card background color
     context.fillStyle = 'rgba(15, 23, 42, 0.3)' // Match card background
     context.fillRect(0, 0, width, height)
+
+    // Apply pan + zoom transform for drawing the "world"
+    context.save()
+    context.translate(t.x, t.y)
+    context.scale(t.k, t.k)
 
     // Render links with glow effect (optionally with density trails)
     links.forEach(link => {
       const sourceNode = link.source as D3Node
       const targetNode = link.target as D3Node
 
-      if (!sourceNode.x || !sourceNode.y || !targetNode.x || !targetNode.y) return
+      if (sourceNode.x == null || sourceNode.y == null || targetNode.x == null || targetNode.y == null) return
 
       context.beginPath()
       // Color code by latency bucket when available
@@ -288,8 +317,9 @@ export const D3ForceNetworkChart: React.FC<D3ForceNetworkChartProps> = ({
 
       if (edgeBundling) {
         // Curved links for bundling effect
-        const controlX = (sourceNode.x + targetNode.x) / 2 + (Math.random() - 0.5) * 50
-        const controlY = (sourceNode.y + targetNode.y) / 2 + (Math.random() - 0.5) * 50
+        const linkSeed = parseInt(link.id.slice(-3), 16) || 1
+        const controlX = (sourceNode.x + targetNode.x) / 2 + Math.cos(linkSeed) * 25
+        const controlY = (sourceNode.y + targetNode.y) / 2 + Math.sin(linkSeed) * 25
         context.moveTo(sourceNode.x, sourceNode.y)
         context.quadraticCurveTo(controlX, controlY, targetNode.x, targetNode.y)
       } else {
@@ -329,7 +359,7 @@ export const D3ForceNetworkChart: React.FC<D3ForceNetworkChartProps> = ({
         const sourceNode = particle.link.source as D3Node
         const targetNode = particle.link.target as D3Node
 
-        if (!sourceNode.x || !sourceNode.y || !targetNode.x || !targetNode.y) return
+        if (sourceNode.x == null || sourceNode.y == null || targetNode.x == null || targetNode.y == null) return
 
         const x = sourceNode.x + (targetNode.x - sourceNode.x) * particle.progress
         const y = sourceNode.y + (targetNode.y - sourceNode.y) * particle.progress
@@ -353,7 +383,7 @@ export const D3ForceNetworkChart: React.FC<D3ForceNetworkChartProps> = ({
 
     // Render nodes
     nodes.forEach(node => {
-      if (!node.x || !node.y) return
+      if (node.x == null || node.y == null) return
 
       // Draw halo ring indicating governance/SLA adherence when provided
       if (typeof node.halo === 'number' && node.halo >= 0) {
@@ -414,7 +444,228 @@ export const D3ForceNetworkChart: React.FC<D3ForceNetworkChartProps> = ({
     })
 
     context.globalAlpha = 1
-  }, [transformData, dimensions, showParticles, edgeBundling, heatmapMode, animationSpeed, filters.showLabels])
+    context.restore()
+  }, [dimensions, showParticles, edgeBundling, heatmapMode, animationSpeed, filters.showLabels])
+
+  const getCanvasPoint = (evt: PointerEvent | WheelEvent) => {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    }
+  }
+
+  const invertToWorld = (sx: number, sy: number) => {
+    const t = viewTransformRef.current
+    return { x: (sx - t.x) / t.k, y: (sy - t.y) / t.k }
+  }
+
+  const findClosestNode = (wx: number, wy: number): D3Node | null => {
+    const nodes = nodesRef.current
+    let best: { node: D3Node; dist2: number } | null = null
+    for (const n of nodes) {
+      if (n.x == null || n.y == null) continue
+      const dx = wx - n.x
+      const dy = wy - n.y
+      const dist2 = dx * dx + dy * dy
+      const r = (n.size || 10) + 6
+      if (dist2 <= r * r) {
+        if (!best || dist2 < best.dist2) best = { node: n, dist2 }
+      }
+    }
+    return best?.node || null
+  }
+
+  const zoomAtScreenPoint = useCallback(
+    (sx: number, sy: number, nextK: number) => {
+      const t = viewTransformRef.current
+      const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+      const k = clamp(nextK, 0.2, 6)
+      // Keep world point under cursor stationary
+      const wx = (sx - t.x) / t.k
+      const wy = (sy - t.y) / t.k
+      t.k = k
+      t.x = sx - wx * k
+      t.y = sy - wy * k
+      renderCanvas()
+    },
+    [renderCanvas]
+  )
+
+  const resetView = useCallback(() => {
+    viewTransformRef.current = { x: 0, y: 0, k: 1 }
+    renderCanvas()
+  }, [renderCanvas])
+
+  const fitToView = useCallback(() => {
+    const nodes = nodesRef.current
+    const { width, height } = dimensions
+    const pts = nodes.filter(n => n.x != null && n.y != null) as Array<D3Node & { x: number; y: number }>
+    if (!pts.length) return
+
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity
+    for (const n of pts) {
+      minX = Math.min(minX, n.x - (n.size || 10))
+      minY = Math.min(minY, n.y - (n.size || 10))
+      maxX = Math.max(maxX, n.x + (n.size || 10))
+      maxY = Math.max(maxY, n.y + (n.size || 10))
+    }
+
+    const pad = 24
+    const bw = Math.max(1, maxX - minX)
+    const bh = Math.max(1, maxY - minY)
+    const k = Math.max(0.2, Math.min(6, Math.min((width - pad * 2) / bw, (height - pad * 2) / bh)))
+
+    viewTransformRef.current.k = k
+    viewTransformRef.current.x = width / 2 - ((minX + maxX) / 2) * k
+    viewTransformRef.current.y = height / 2 - ((minY + maxY) / 2) * k
+    renderCanvas()
+  }, [dimensions, renderCanvas])
+
+  // Pointer interactions: drag nodes, pan background, zoom wheel
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    canvas.style.touchAction = 'none'
+
+    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+
+    const onPointerDown = (evt: PointerEvent) => {
+      if (!mountedRef.current) return
+      // Only left button for pan/drag (avoid context menu conflicts)
+      if (evt.button !== 0) return
+
+      const { x: sx, y: sy } = getCanvasPoint(evt)
+      const { x: wx, y: wy } = invertToWorld(sx, sy)
+      const hit = findClosestNode(wx, wy)
+
+      const state = interactionRef.current
+      state.pointerId = evt.pointerId
+      state.startX = sx
+      state.startY = sy
+      state.startTx = viewTransformRef.current.x
+      state.startTy = viewTransformRef.current.y
+
+      if (hit) {
+        state.mode = 'drag-node'
+        state.nodeId = hit.id
+        // Fix node to pointer
+        hit.fx = hit.x
+        hit.fy = hit.y
+        simulationRef.current?.alphaTarget(0.15).restart()
+        canvas.style.cursor = 'grabbing'
+      } else {
+        state.mode = 'pan'
+        state.nodeId = null
+        canvas.style.cursor = 'grabbing'
+      }
+
+      try {
+        canvas.setPointerCapture(evt.pointerId)
+      } catch {
+        // ignore
+      }
+      evt.preventDefault()
+    }
+
+    const onPointerMove = (evt: PointerEvent) => {
+      if (!mountedRef.current) return
+      const { x: sx, y: sy } = getCanvasPoint(evt)
+
+      const state = interactionRef.current
+      if (state.pointerId !== null && evt.pointerId === state.pointerId && state.mode !== 'none') {
+        if (state.mode === 'pan') {
+          viewTransformRef.current.x = state.startTx + (sx - state.startX)
+          viewTransformRef.current.y = state.startTy + (sy - state.startY)
+          renderCanvas()
+        } else if (state.mode === 'drag-node' && state.nodeId) {
+          const { x: wx, y: wy } = invertToWorld(sx, sy)
+          const node = nodesRef.current.find(n => n.id === state.nodeId)
+          if (node) {
+            node.fx = wx
+            node.fy = wy
+            renderCanvas()
+          }
+        }
+        evt.preventDefault()
+        return
+      }
+
+      // Hover cursor (when not actively dragging/panning)
+      const { x: wx, y: wy } = invertToWorld(sx, sy)
+      const hit = findClosestNode(wx, wy)
+      canvas.style.cursor = hit ? 'grab' : 'default'
+    }
+
+    const endInteraction = (evt: PointerEvent) => {
+      const state = interactionRef.current
+      if (state.pointerId !== null && evt.pointerId === state.pointerId) {
+        if (state.mode === 'drag-node' && state.nodeId) {
+          const node = nodesRef.current.find(n => n.id === state.nodeId)
+          if (node) {
+            node.fx = null
+            node.fy = null
+          }
+          simulationRef.current?.alphaTarget(0)
+        }
+        state.mode = 'none'
+        state.pointerId = null
+        state.nodeId = null
+        canvas.style.cursor = 'default'
+      }
+    }
+
+    const onWheel = (evt: WheelEvent) => {
+      if (!mountedRef.current) return
+      // Allow normal page scrolling unless the user explicitly indicates zoom intent.
+      // - Trackpad pinch-to-zoom typically sets ctrlKey on most browsers.
+      // - Users can also hold Ctrl/Cmd to zoom on the canvas.
+      if (!evt.ctrlKey && !evt.metaKey) return
+
+      // Zoom around cursor (trackpad + mouse wheel)
+      const { x: sx, y: sy } = getCanvasPoint(evt)
+      const t = viewTransformRef.current
+      const { x: wx, y: wy } = invertToWorld(sx, sy)
+
+      const delta = evt.deltaY
+      const zoomFactor = Math.exp(-delta * 0.002)
+      const nextK = clamp(t.k * zoomFactor, 0.2, 6)
+
+      // Keep (wx,wy) under the cursor after zoom
+      t.k = nextK
+      t.x = sx - wx * nextK
+      t.y = sy - wy * nextK
+
+      renderCanvas()
+      evt.preventDefault()
+    }
+
+    const onDblClick = () => {
+      resetView()
+    }
+
+    canvas.addEventListener('pointerdown', onPointerDown)
+    canvas.addEventListener('pointermove', onPointerMove)
+    canvas.addEventListener('pointerup', endInteraction)
+    canvas.addEventListener('pointercancel', endInteraction)
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+    canvas.addEventListener('dblclick', onDblClick)
+
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown)
+      canvas.removeEventListener('pointermove', onPointerMove)
+      canvas.removeEventListener('pointerup', endInteraction)
+      canvas.removeEventListener('pointercancel', endInteraction)
+      canvas.removeEventListener('wheel', onWheel as any)
+      canvas.removeEventListener('dblclick', onDblClick)
+    }
+  }, [renderCanvas])
 
   // Animation loop with throttling
   const animate = useCallback(() => {
@@ -498,7 +749,8 @@ export const D3ForceNetworkChart: React.FC<D3ForceNetworkChartProps> = ({
           top: 0,
           left: 0,
           width: '100%',
-          height: '100%'
+          height: '100%',
+          zIndex: 1
         }}
         data-testid={`${prefixDataTestId}-canvas`}
       />

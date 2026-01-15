@@ -704,7 +704,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                   />
                   <SidebarInset>
                     {/* Header inside inset, responsive to collapsed state */}
-                    <header className="gba:flex gba:h-12 gba:shrink-0 gba:items-center gba:gap-2 gba:transition-[width,height] gba:ease-linear">
+                    <header className="gba:flex gba:h-12 gba:shrink-0 gba:items-center gba:gap-2 gba:transition-[width,height] gba:ease-linear gba:bg-white gba:border-b gba:border-gray-200">
                       <div className="gba:flex gba:items-center gba:gap-2 gba:px-4">
                         <SidebarTrigger className="gba:-ml-1" />
                         <Separator orientation="vertical" className="gba:mr-2" />
