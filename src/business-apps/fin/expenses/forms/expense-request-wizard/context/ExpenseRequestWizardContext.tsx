@@ -302,7 +302,9 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
 
   // Function to show expense item component with the necessary parameters
   const showCreateItem = () => {
-    if (!employeeRuleId) return
+    if (!employeeRuleId) {
+      return
+    }
     ;(async () => {
       try {
         const expenseRuleId = employeeRuleId
