@@ -15,8 +15,6 @@ import {
   Alert,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -27,6 +25,7 @@ import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 // Enable localized date formatting
 dayjs.extend(localizedFormat)
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
 import { ExpenseRequest, SortField } from '../../../hooks/useGetExpenseRequests'
@@ -36,7 +35,7 @@ import ExpenseRequestDetails from './ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
-import { useExpensePlanFileService } from '../../../../personal-expenses/utils/expensePlanFileService'
+import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { TablePagination } from '../../../../../components'
 
@@ -177,7 +176,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     [setCurrentPage, sorting, fetchRequests, searchTerm, pageSize, selectedFilters, primaryCurrency]
   )
 
-  const { printExpensePlan, isMounted } = useExpensePlanFileService(contextProps)
+  const { printExpenseRequest, isMounted } = useExpenseRequestFileService(contextProps)
 
   const handlePrintRequest = useCallback(
     async (request: ExpenseRequest) => {
@@ -185,72 +184,22 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       setPrintModalOpen(true)
 
       try {
-        // Map expense request to expense plan format for printing
-        const mappedPlan = {
-          id: request.id,
-          code: request.code || '',
-          title:
-            request.title || getTranslationFromI18nKeyAndLabel('lowcoder:common.untitled_request', 'Untitled Request'),
-          description: request.description || '',
-          status: request.status,
-          startDate: request.startDate || '',
-          endDate: request.endDate || '',
-          planDate: request.requestDate || '',
-          totalAmount: request.totalAmount || 0,
-          currency: { value: request.currency || 'EUR', label: request.currency || 'EUR' } as any,
-          createdAt: request.createdAt || '',
-          updatedAt: request.updatedAt || '',
-          employeeDocument: request.employeeDocument || null,
-          employee: {
-            id: request.employee?.id || '',
-            code: request.employee?.id || '',
-            firstName: request.employee?.displayName?.split(' ')[0] || request.employee?.fullName?.split(' ')[0] || '',
-            lastName:
-              request.employee?.displayName?.split(' ').slice(1).join(' ') ||
-              request.employee?.fullName?.split(' ').slice(1).join(' ') ||
-              '',
-            employeePosition: {
-              organizationalUnit: {
-                id: request.employee?.employeePosition?.organizationalUnit?.id || '',
-                name: request.employee?.employeePosition?.organizationalUnit?.name || ''
-              },
-              siteLocation: {
-                id: request.employee?.employeePosition?.siteLocation?.id || '',
-                name: request.employee?.employeePosition?.siteLocation?.name || ''
-              }
-            }
-          },
-
-          reimbursableAmount: request.totalAmount || 0,
-          decisionDate: null,
-          requestTypeRef: null,
-          employeeDocumentId: request.employeeDocument?.id || null,
-          advancePaymentPaidAmount: 0,
-          advancePaymentInTransitAmount: 0,
-          requestType: null,
-          expensePlanItem: [],
-          advancePayment: null,
-          expenseRequestTrip: null,
-          currencyRef: `Currency:v1:${request.currency || 'EUR'}`,
-          expenseRequest: []
-        }
-
-        const result = await printExpensePlan(mappedPlan)
+        const result = await printExpenseRequest(request as any)
 
         if (result.success && result.pdfUrl && isMounted.current) {
           setPrintPdfUrl(result.pdfUrl)
         } else if (!result.success) {
           console.error('Error printing request:', result.error)
         }
-      } catch {
-        console.error('Error fetching print PDF:', error)
+      } catch (error) {
+        console.error('Error fetching print PDF:', error instanceof Error ? error.message : 'Unknown error')
       } finally {
         if (isMounted.current) {
           setPrintLoading(false)
         }
       }
     },
-    [printExpensePlan, isMounted]
+    [printExpenseRequest, isMounted]
   )
 
   const handleViewRequestDetails = useCallback((request: ExpenseRequest) => {
@@ -692,7 +641,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         data-testid="expense-requests-container"
       />
 
-      {/* Expense Request Details Sheet - title is required by DS Sheet props */}
+      {/* Expense Request Details Sheet */}
       <Sheet
         open={!!selectedRequest}
         onOpenChange={open => !open && setSelectedRequest(null)}
@@ -700,15 +649,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           selectedRequest?.title ||
           getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')
         }
+        data-testid="expense-request-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedRequest?.title ||
-                getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+        <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedRequest?.title ||
+              getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')
+            }
+            onClose={() => setSelectedRequest(null)}
+            dataTestIdPrefix="expense-request-details"
+          >
             {selectedRequest && (
               <ExpenseRequestDetails
                 request={selectedRequest}
@@ -717,7 +668,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 {...contextProps}
               />
             )}
-          </div>
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 

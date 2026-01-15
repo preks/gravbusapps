@@ -30,6 +30,7 @@ export interface ExpenseRequest {
   }
   employeeDocument?: {
     file: string
+    name?: string
   }
   expensePlan?: {
     advancePaymentAggregate?: {

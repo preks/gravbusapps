@@ -112,9 +112,6 @@ export const useAdvancePaymentCurrencies = ({
       setLocalInitialized(true)
       setInitialized(true)
     } catch (err) {
-      if (import.meta.env?.DEV) {
-        console.error('Error fetching advance payment currencies:', err)
-      }
       setError(err instanceof Error ? err : new Error('Failed to fetch advance payment currencies'))
 
       // On error, set empty currencies (no hardcoded fallback)
