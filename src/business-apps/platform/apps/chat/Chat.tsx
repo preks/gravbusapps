@@ -1526,7 +1526,7 @@ export const Chat: React.FC<ChatProps> = memo(
                     />
                   )}
 
-                  {/* V2 - Simplified message list for performance testing */}
+                  {/* V2 - Message list */}
                   <MessageListV2
                     messages={messages}
                     currentUserId={currentUser?.id || null}
