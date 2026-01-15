@@ -86,7 +86,6 @@ export const useGetApprovals = (context?: BusinessAppContextProps): UseGetApprov
 
       // Check if data exists and has the expected structure
       if (!data || !data.PendingApprovals) {
-        console.error('Invalid data structure received:', data)
         throw new Error('Invalid data structure received from server')
       }
 
@@ -113,7 +112,6 @@ export const useGetApprovals = (context?: BusinessAppContextProps): UseGetApprov
       setApprovalRequests(mappedRequests)
       setTotalCount(total)
     } catch (err: any) {
-      console.error('Error fetching approvals:', err)
       let errorMessage = 'Failed to fetch approval requests'
 
       // Extract GraphQL error message if available

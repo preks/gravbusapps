@@ -153,20 +153,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              // Transform CRM field names to IRM field names for ConditionSection compatibility
-              opportunity: opportunityData
-                ? {
-                    ...opportunityData,
-                    // Map salesPipelineStage to opportunityPipelineStage (ConditionSection expects this)
-                    opportunityPipelineStage: opportunityData.opportunityPipelineStage
-                  }
-                : undefined,
-              // Transform stage condition statuses to use IRM field names
-              stageConditionStatuses: (stageConditionStatuses || []).map((status: any) => ({
-                ...status,
-                // Map salesPipelineStageCondition to opportunityPipelineStageCondition
-                opportunityPipelineStageCondition: status.salesPipelineStageCondition
-              })),
+              // Data is already mapped by toCustomerOpportunity
+              opportunity: opportunityData,
+              stageConditionStatuses: stageConditionStatuses || [],
               stageConditionActionProps: {
                 ...stageConditionActionProps,
                 emptyStateBehavior: 'enable'

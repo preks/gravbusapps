@@ -32,8 +32,8 @@ import {
   getScoreBadgeVariant
 } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ActivityBadge } from '@/business-apps/crm/personal/apps/my-sales-manager/components/my-activities/ActivityBadge'
-import type { MySalesActivity } from '@/business-apps/crm/personal/apps/my-sales-manager/types'
+import { ActivityBadge } from '@/common/components/common-relations/view-layouts/personal-workspace/components/activities/ActivityBadge'
+import type { MySalesActivity } from '@/business-apps/crm/core/apps/customer-relations/views/workspace-view/types'
 
 // Format date with time
 const formatDateTime = (date: string | Date) => {

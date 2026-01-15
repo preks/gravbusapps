@@ -166,6 +166,9 @@ export const useMainViewAdvancePayments = ({
           status: { _in: currentStatusFilter }
         })
       }
+    } else {
+      // Exclude CREATED status by default when no specific filter is provided
+      conditions.push({ status: { _neq: 'CREATED' } })
     }
 
     // Add currency filter if provided
@@ -332,7 +335,6 @@ export const useMainViewAdvancePayments = ({
       setPayments(filteredPayments || [])
       setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count || 0)
     } catch (err) {
-      console.error('Error fetching advance payments:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch advance payments'))
     } finally {
       setLoading(false)
@@ -412,7 +414,6 @@ export const useMainViewAdvancePayments = ({
         pendingAmount: data.pendingPaymentsStats?.aggregate.sum?.amount || null
       })
     } catch (err) {
-      console.error('Error fetching advance payment statistics:', err)
       setStatsError(err instanceof Error ? err : new Error('Failed to fetch advance payment statistics'))
     } finally {
       setStatsLoading(false)
@@ -474,8 +475,7 @@ export const useMainViewAdvancePayments = ({
       message.success('Advance payment approved successfully')
       fetchPayments()
       fetchPaymentStatistics()
-    } catch (err) {
-      console.error('Error approving advance payment:', err)
+    } catch {
       message.error('Failed to approve advance payment')
     } finally {
       setApproving(false)
@@ -492,8 +492,7 @@ export const useMainViewAdvancePayments = ({
       message.success('Advance payment rejected successfully')
       fetchPayments()
       fetchPaymentStatistics()
-    } catch (err) {
-      console.error('Error rejecting advance payment:', err)
+    } catch {
       message.error('Failed to reject advance payment')
     } finally {
       setRejecting(false)

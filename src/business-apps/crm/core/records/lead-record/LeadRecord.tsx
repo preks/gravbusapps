@@ -7,7 +7,9 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  IconAvatar,
+  HeaderSlot
 } from '@newwork/nw-design-system'
 import { UserIcon, FileTextIcon, FlagIcon, RobotIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -502,15 +504,17 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     <div data-testid="lead-opportunity-investment-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={UserIcon}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.lead', 'LEAD')}
+        headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.lead', 'LEAD')}
         onBack={onBack}
         headerTitle={headerTitle}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
+        headerSlotAfter={headerContent}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

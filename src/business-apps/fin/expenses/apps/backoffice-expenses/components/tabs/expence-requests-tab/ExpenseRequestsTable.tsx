@@ -29,7 +29,9 @@ import {
   Badge,
   Card,
   CardContent,
-  toast
+  toast,
+  Sheet,
+  SheetContent
 } from '@newwork/nw-design-system'
 import { PiArrowUp, PiArrowDown, PiDownload, PiFileXls } from 'react-icons/pi'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
@@ -43,6 +45,10 @@ import { useFilterData, type OrganizationalUnit, type Currency } from '../../../
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils/utils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { downloadCsv, downloadExcel, buildFilename } from '../../../utils/exportUtils'
+import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
+import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
+import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
 import {
   ExpenseRequestPdfModal,
@@ -208,6 +214,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     amountMaxFilter
   })
 
+  const { printExpenseRequest } = useCommonExpenseRequestFileService(props)
+
   // Selected filter chips to display above the table (DataContainer)
   const [departmentId, setDepartmentId] = useState<string>('')
   const [currencyRef, setCurrencyRef] = useState<string>('')
@@ -261,7 +269,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   useEffect(() => {
     // Mirror personal expenses: use a fixed enum list for statuses
-    setAvailableStatuses(Object.values(ExpenseStatus))
+    // Exclude CREATED (draft) status from filter options
+    const allStatuses = Object.values(ExpenseStatus)
+    const filteredStatuses = allStatuses.filter(status => status !== ExpenseStatus.CREATED)
+    setAvailableStatuses(filteredStatuses)
   }, [])
 
   useEffect(() => {
@@ -1534,147 +1545,56 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           }
         }}
         dataBody={renderDataBody()}
-        dataDetails={
-          selectedExpense
-            ? {
-                title:
-                  selectedExpense.title ||
-                  getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details'),
-                content: (
-                  <div className="gba:p-4 gba:relative gba:mb-6">
-                    {/* Header: Title, Code, Status Pill */}
-                    <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-                      <div>
-                        <h3 className="gba:text-lg gba:font-semibold gba:mb-1">{selectedExpense.title || 'N/A'}</h3>
-                        <p className="gba:text-sm gba:text-muted-foreground">{selectedExpense.code || 'N/A'}</p>
-                      </div>
-                      <Badge
-                        variant={getExpenseRequestStatusDisplay(selectedExpense.status).badgeVariant || 'outline'}
-                        data-testid="expense-request-status-badge"
-                      >
-                        {getExpenseRequestStatusDisplay(selectedExpense.status).label}
-                      </Badge>
-                    </div>
+      />
 
-                    {/* Details Section */}
-                    <dl className="gba:space-y-3">
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:hr_absences.create_absence.employee',
-                            'Employee'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.employee || 'N/A'}</dd>
-                      </div>
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_request_table.employee_code',
-                            'Employee Code'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.employeeCode || 'N/A'}</dd>
-                      </div>
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
-                            'SAP Number'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.sapNumber || 'N/A'}</dd>
-                      </div>
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-                            'Request Number'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.code || 'N/A'}</dd>
-                      </div>
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_request_list.expense_plan_table.title',
-                            'Title'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.title || 'N/A'}</dd>
-                      </div>
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_plan_list.expense_plan_table.start_date',
-                            'Start Date'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.startDate || 'N/A'}</dd>
-                      </div>
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_plan_list.expense_plan_table.end_date',
-                            'End Date'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.endDate || 'N/A'}</dd>
-                      </div>
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:manager_expense_request_list.expense_table.creation_date',
-                            'Creation Date'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.creationDate || 'N/A'}</dd>
-                      </div>
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:approve_expense_plan.remaining',
-                            'Remaining Amount'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:font-bold gba:text-foreground">
-                          {(() => {
-                            const remainingAmount = Number(selectedExpense.totalRemainingAmount) || 0
-                            const currencyCode = selectedExpense.currency?.code || 'EUR'
-                            return remainingAmount > 0 ? formatCurrency(remainingAmount, currencyCode) : '-'
-                          })()}
-                        </dd>
-                      </div>
-                      <div className="gba:flex gba:justify-between">
-                        <dt className="gba:font-medium gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                            'Total Amount'
-                          )}
-                          :
-                        </dt>
-                        <dd className="gba:text-sm gba:font-bold gba:text-foreground">
-                          {formatCurrency(selectedExpense.totalAmount || 0, selectedExpense.currency?.code || 'EUR')}
-                        </dd>
-                      </div>
-                    </dl>
-
+      <Sheet
+        open={!!selectedExpense}
+        onOpenChange={open => {
+          if (!open) {
+            handleCloseDetails()
+          }
+        }}
+        title={
+          selectedExpense?.title ||
+          getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details')
+        }
+        data-testid="backoffice-expense-request-details-sheet"
+      >
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedExpense?.title ||
+              getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details')
+            }
+          >
+            {selectedExpense ? (
+              <ExpenseDetailsPanelContent
+                dataTestIdPrefix="backoffice-expense-request-details"
+                record={selectedExpense as any}
+                formatAmount={(amount, currencyCode) => formatCurrency(amount, currencyCode)}
+                showHeader={false}
+                headerRight={
+                  <Badge
+                    variant={getExpenseRequestStatusDisplay(selectedExpense.status).badgeVariant || 'outline'}
+                    data-testid="expense-request-status-badge"
+                  >
+                    {getExpenseRequestStatusDisplay(selectedExpense.status).label}
+                  </Badge>
+                }
+                extraContent={
+                  <TravelOrderAttachmentPreview
+                    record={selectedExpense as any}
+                    fetchPdf={printExpenseRequest as any}
+                    dataTestIdPrefix="backoffice-expense-request-details"
+                  />
+                }
+                footer={
+                  <>
                     <Separator />
-
                     <div className="gba:flex gba:justify-end gba:mt-4">
                       <Button
                         variant="default"
                         onClick={() => {
-                          // Navigate to the expense request record page
                           const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
                             expenseRequestId: selectedExpense.id ? String(selectedExpense.id) : '',
                             referrer: '/platform/fin/expenses/backoffice-expenses?tab=expense-requests'
@@ -1689,14 +1609,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                         )}
                       </Button>
                     </div>
-                  </div>
-                ),
-                onClose: handleCloseDetails
-              }
-            : undefined
-        }
-        floatingDetails={true}
-      />
+                  </>
+                }
+              />
+            ) : null}
+          </ExpenseDetailsShell>
+        </SheetContent>
+      </Sheet>
 
       {/* PDF Modal */}
       <ExpenseRequestPdfModal
