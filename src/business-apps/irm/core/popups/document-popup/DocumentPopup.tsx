@@ -124,7 +124,8 @@ const DocumentPopup: React.FC<DocumentPopupProps> = props => {
       entityIdFieldName={entityIdFieldName}
       folderEntityName={folderEntityName}
       entityAssociations={entityAssociations}
-      enableAIClassification={false}
+      enableAIClassification={true}
+      aiClassificationEndpoint="/flowbot/document-autoclassify/classify"
     />
   )
 }
