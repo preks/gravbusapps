@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { Spinner, RecordLayout, Button, useTranslation, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
-import { Buildings, FileText, House, Users, TreeStructure } from '@phosphor-icons/react'
+import { BuildingsIcon, FileTextIcon, HouseIcon, UsersIcon, TreeStructureIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCompany } from '@/common/data/orgchart/hooks/useCompany'
 import { HomeView } from './views/home-view/HomeView'
@@ -100,7 +100,7 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
           {
             label: t('company-code'),
             value: company?.code || t('not-available'),
-            icon: Buildings
+            icon: BuildingsIcon
           }
         ]
       }
@@ -120,13 +120,13 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
         {
           value: 'overview',
           label: t('overview'),
-          icon: <House className="gba:mr-2" />,
+          icon: <HouseIcon className="gba:mr-2" />,
           content: <HomeView companyId={companyId} company={company} {...props} />
         },
         {
           value: 'employees',
           label: t('employees'),
-          icon: <Users className="gba:mr-2" />,
+          icon: <UsersIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <EmployeeView companyId={companyId} {...props} />
@@ -136,7 +136,7 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
         {
           value: 'organization',
           label: t('organization'),
-          icon: <TreeStructure className="gba:mr-2" />,
+          icon: <TreeStructureIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OrganizationalUnitView companyId={companyId} {...props} />
@@ -146,7 +146,7 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
         {
           value: 'documents',
           label: t('documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView companyId={companyId} {...props} />
@@ -183,7 +183,7 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
     <div data-testid="company-record">
       <RecordLayout
         headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={Buildings} variant="decorative" size="xl" />}
+        headerAvatar={<IconAvatar icon={BuildingsIcon} variant="decorative" size="xl" />}
         headerOverline={t('company-category')}
         onBack={onBack}
         headerTitle={companyName}
