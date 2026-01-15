@@ -433,90 +433,101 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                   )}
                 </h4>
               </div>
-              {receivedLoading ? (
-                <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-                  <Spin size="default" />
-                </div>
-              ) : receivedError ? (
-                <div className="gba:text-red-500">{receivedError}</div>
-              ) : feedbackRequests.length === 0 ? (
-                <Empty
-                  description={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:feedback_tab.no_feedback_requests',
-                    'No feedback requests'
-                  )}
-                />
-              ) : (
-                <>
-                  <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                    {feedbackRequests.map((request: FeedbackRequest) => {
-                      const dateLabel = request.requestedOn ? (formatDate(request.requestedOn, 'date.short') ?? '') : ''
-                      return (
-                        <Card
-                          key={request.id}
-                          className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1 gba:cursor-pointer"
-                          size="small"
-                          data-testid={`received-request-item-${request.id}`}
-                          onClick={() => handleRespondClick(request)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              handleRespondClick(request)
-                            }
-                          }}
-                        >
-                          <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
-                            <div className="gba:flex gba:flex-col">
-                              <div className="gba:font-medium" data-testid={`received-request-line-${request.id}`}>
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:feedback_tab.from_on_text',
-                                  `From ${request.creatorName || ''} on ${dateLabel}`,
-                                  {
-                                    employee: request.creatorName || '',
-                                    date: dateLabel,
-                                    interpolation: {
-                                      escapeValue: false
-                                    }
-                                  }
-                                )}
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={e => {
-                                e.stopPropagation()
-                                handleRespondClick(request)
-                              }}
-                              data-testid={`received-request-respond-button-${request.id}`}
-                              className="gba:flex gba:items-center gba:gap-2"
-                            >
-                              <PiPencilSimple />
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
-                            </Button>
-                          </div>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                  <div className="gba:mt-4 gba:flex gba:justify-end">
-                    <Pagination
-                      current={receivedCurrentPage}
-                      pageSize={receivedPageSize}
-                      total={receivedTotalCount || 0}
-                      onChange={(page, pageSize) => {
-                        setReceivedCurrentPage(page)
-                        setReceivedPageSize(pageSize)
-                      }}
-                      data-testid="received-requests-pagination"
-                      showSizeChanger
-                      pageSizeOptions={['3', '10', '20', '50']}
+              {(() => {
+                if (receivedLoading) {
+                  return (
+                    <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+                      <Spin size="default" />
+                    </div>
+                  )
+                }
+                if (receivedError) {
+                  return <div className="gba:text-red-500">{receivedError}</div>
+                }
+                if (feedbackRequests.length === 0) {
+                  return (
+                    <Empty
+                      description={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:feedback_tab.no_feedback_requests',
+                        'No feedback requests'
+                      )}
                     />
-                  </div>
-                </>
-              )}
+                  )
+                }
+                return (
+                  <>
+                    <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
+                      {feedbackRequests.map((request: FeedbackRequest) => {
+                        const dateLabel = request.requestedOn
+                          ? (formatDate(request.requestedOn, 'date.short') ?? '')
+                          : ''
+                        return (
+                          <Card
+                            key={request.id}
+                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1 gba:cursor-pointer"
+                            size="small"
+                            data-testid={`received-request-item-${request.id}`}
+                            onClick={() => handleRespondClick(request)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                handleRespondClick(request)
+                              }
+                            }}
+                          >
+                            <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                              <div className="gba:flex gba:flex-col">
+                                <div className="gba:font-medium" data-testid={`received-request-line-${request.id}`}>
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:feedback_tab.from_on_text',
+                                    `From ${request.creatorName || ''} on ${dateLabel}`,
+                                    {
+                                      employee: request.creatorName || '',
+                                      date: dateLabel,
+                                      interpolation: {
+                                        escapeValue: false
+                                      }
+                                    }
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  handleRespondClick(request)
+                                }}
+                                data-testid={`received-request-respond-button-${request.id}`}
+                                className="gba:flex gba:items-center gba:gap-2"
+                              >
+                                <PiPencilSimple />
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
+                              </Button>
+                            </div>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                    <div className="gba:mt-4 gba:flex gba:justify-end">
+                      <Pagination
+                        current={receivedCurrentPage}
+                        pageSize={receivedPageSize}
+                        total={receivedTotalCount || 0}
+                        onChange={(page, pageSize) => {
+                          setReceivedCurrentPage(page)
+                          setReceivedPageSize(pageSize)
+                        }}
+                        data-testid="received-requests-pagination"
+                        showSizeChanger
+                        pageSizeOptions={['3', '10', '20', '50']}
+                      />
+                    </div>
+                  </>
+                )
+              })()}
             </div>
 
             <div>

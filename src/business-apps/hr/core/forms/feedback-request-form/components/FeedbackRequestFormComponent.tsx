@@ -65,14 +65,22 @@ const FeedbackRequestFormComponent: React.FC = () => {
     return isLoading || !hasSelection
   }, [isLoading, formValues.employeeIds, formValues.employeeId])
 
+  const selectedEmployeesPreview = useMemo(() => {
+    const names = formValues.employeeNames || []
+    if (!names || names.length === 0) return ''
+    const shown = names.slice(0, 2).join(', ')
+    const extraCount = names.length > 2 ? ` +${names.length - 2}` : ''
+    return `${shown}${extraCount}`
+  }, [formValues.employeeNames])
+
   // Build payload and run any side-effects before submit event is dispatched
   const handlePreSubmit = useCallback(async () => {
-    const selectedIds =
-      formValues.employeeIds && formValues.employeeIds.length > 0
-        ? formValues.employeeIds
-        : formValues.employeeId
-          ? [formValues.employeeId]
-          : []
+    let selectedIds: string[] = []
+    if (formValues.employeeIds && formValues.employeeIds.length > 0) {
+      selectedIds = formValues.employeeIds
+    } else if (formValues.employeeId) {
+      selectedIds = [formValues.employeeId]
+    }
 
     const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
 
@@ -172,14 +180,11 @@ const FeedbackRequestFormComponent: React.FC = () => {
                 </Label>
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div className="gba:text-sm gba:text-muted-foreground">
-                    {formValues.employeeNames && formValues.employeeNames.length > 0
-                      ? `${formValues.employeeNames.slice(0, 2).join(', ')}${
-                          formValues.employeeNames.length > 2 ? ` +${formValues.employeeNames.length - 2}` : ''
-                        }`
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:feedback_request_form.selectPlaceholder',
-                          'Select employees'
-                        )}
+                    {selectedEmployeesPreview ||
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:feedback_request_form.selectPlaceholder',
+                        'Select employees'
+                      )}
                   </div>
                   <Button
                     variant="outline"
