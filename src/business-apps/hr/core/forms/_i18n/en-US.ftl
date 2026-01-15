@@ -295,5 +295,6 @@ working-conditions-unit-year = { $count ->
 
 # Create Request Correction Form
 complete-notification = The request is sent to be approved by the manager
-notification-profile-picture-updated-success = Profile picture updates sent to be approved by the HR department.
-notification-relationship-updated-success = Relationship status updates sent to be approved by the HR department.
+notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
+notification-working-hours-updated-success = Working hours updates are sent for HR approval
+notification-feedback-request-sent-success = Your feedback request has been sent
