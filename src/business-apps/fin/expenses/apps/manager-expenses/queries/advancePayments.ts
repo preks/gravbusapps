@@ -52,9 +52,25 @@ export const GET_ADVANCE_PAYMENTS_BY_MANAGER = `
       status
       totalAmount
       currencyRef
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
       employee {
         id
+        code
         fullName
+        displayName
+        additionalProperties
+        employeePosition {
+          organizationalUnit {
+            id
+            name
+          }
+        }
       }
       advancePayment(where: {isDeleted: {_eq: false}}) {
         id
@@ -129,7 +145,28 @@ export const GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER = `
       expensePlan {
         code
         title
-        employee { fullName firstName lastName }
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+        employee { 
+          id
+          code
+          fullName 
+          firstName 
+          lastName
+          displayName
+          additionalProperties
+          employeePosition {
+            organizationalUnit {
+              id
+              name
+            }
+          }
+        }
       }
     }
   }

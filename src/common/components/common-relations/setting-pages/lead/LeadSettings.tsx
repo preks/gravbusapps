@@ -31,7 +31,7 @@ import {
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useForm } from 'react-hook-form'
-import { Star, CircleDot, Share2, ArrowLeft } from 'lucide-react'
+import { Star, CircleDot, Share2 } from 'lucide-react'
 
 export interface CatalogItem {
   id: string
@@ -354,19 +354,12 @@ export const LeadSettings: React.FC<LeadSettingsProps> = ({
 
   return (
     <div className={className} data-testid={`${prefixDataTestId || ''}-LeadSettings-Container`}>
-      {onBack && (
-        <div>
-          <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId || ''}-LeadSettings-Back`}>
-            <ArrowLeft />
-            Back
-          </Button>
-        </div>
-      )}
       <PageHeader
         title={headerTitle}
-        description={headerDescription}
-        icon={<Star />}
+        subtitle={headerDescription}
+        avatar={<Star />}
         data-testid={`${prefixDataTestId || ''}-LeadSettings-Header`}
+        onBack={onBack}
       />
 
       <div>

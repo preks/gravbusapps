@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { RecordLayout, Badge, Spinner } from '@newwork/nw-design-system'
+import { RecordLayout, Badge, Spinner, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { MegaphoneIcon, CalendarIcon, TagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics } from './hooks'
@@ -312,14 +312,16 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
     <div data-testid="campaign-record">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={MegaphoneIcon}
-        headerCategory={getTranslationFromI18nKeyAndLabel('campaigns.header.category', 'CAMPAIGN')}
+        headerAvatar={<IconAvatar icon={MegaphoneIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('campaigns.header.category', 'CAMPAIGN')}
         onBack={handleBackNavigation}
         headerTitle={campaign.name}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        subViews={subViewsConfig}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

@@ -27,8 +27,8 @@ import { useTeamSpendingAnalytics, DateRangeOption } from '../../hooks/useTeamSp
 import { LineChartComponent, PieChartComponent, BarChartComponent } from '../modals/charts'
 import StatusLegend from '../StatusLegend'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-// removed unused formatCurrencyDisplay
 import {
+  formatCurrencyDisplay,
   getExpenseRequestStatusDisplay,
   getAdvancePaymentStatusDisplay,
   getExpensePlanStatusDisplay
@@ -176,19 +176,10 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     setDateRange(value as DateRangeOption)
   }
 
-  // Create widgets for summary statistics (use Intl currency formatting per guidelines)
+  // Create widgets for summary statistics (use formatCurrencyDisplay for locale-aware formatting)
   const kpiCurrencyCode = (currencyFilter || primaryCurrency || 'EUR').split(':').pop() || 'EUR'
   const formatKpiAmount = (amount: number | null | undefined): string => {
-    const safe = typeof amount === 'number' ? amount : 0
-    // Show 2 decimals if they're not .00, otherwise show 0 decimals
-    const hasDecimals = safe % 1 !== 0
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: kpiCurrencyCode,
-      currencyDisplay: 'code', // Display currency code (EUR) instead of symbol (€)
-      minimumFractionDigits: hasDecimals ? 2 : 0,
-      maximumFractionDigits: hasDecimals ? 2 : 0
-    }).format(safe)
+    return formatCurrencyDisplay(amount, kpiCurrencyCode)
   }
 
   // Create widgets for summary statistics
