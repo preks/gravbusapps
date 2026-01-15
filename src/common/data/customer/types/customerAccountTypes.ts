@@ -101,8 +101,8 @@ export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'opportunities',
-    searchPaths: ['opportunity.name'], // CRM uses singular "opportunity"
-    sortPaths: ['opportunity.name'],
+    searchPaths: ['opportunityAccounts.opportunity.name'], // CRM uses singular "opportunity"
+    sortPaths: ['opportunityAccounts.opportunity.name'],
     type: 'text'
   },
 

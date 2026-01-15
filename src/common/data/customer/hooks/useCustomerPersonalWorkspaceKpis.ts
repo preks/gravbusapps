@@ -1,25 +1,29 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_MY_KPIS } from '../queries/MyKpisQueries'
-import type { PersonalKpis } from '../types'
+import { GET_MY_KPIS } from '../queries/customerPersonalWorkspaceQueries'
+import type { PersonalKpis } from '../types/customerPersonalWorkspaceTypes'
 import dayjs from 'dayjs'
 
-interface UseMyPerformanceKpisParams {
+interface UseCustomerPersonalWorkspaceKpisParams {
   employeeId: string
   accessToken: string
 }
 
-interface UseMyPerformanceKpisReturn {
+interface UseCustomerPersonalWorkspaceKpisReturn {
   kpis: PersonalKpis | null
   loading: boolean
   error: Error | null
   refetch: () => void
 }
 
-export const useMyPerformanceKpis = ({
+/**
+ * Hook for fetching customer personal workspace KPIs
+ * Returns performance metrics including leads, opportunities, accounts, activities, and contacts
+ */
+export const useCustomerPersonalWorkspaceKpis = ({
   employeeId,
   accessToken
-}: UseMyPerformanceKpisParams): UseMyPerformanceKpisReturn => {
+}: UseCustomerPersonalWorkspaceKpisParams): UseCustomerPersonalWorkspaceKpisReturn => {
   const [kpis, setKpis] = useState<PersonalKpis | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -121,7 +125,7 @@ export const useMyPerformanceKpis = ({
         }
       })
     } catch (err) {
-      console.error('Error fetching my KPIs:', err)
+      console.error('Error fetching customer personal workspace KPIs:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch KPIs'))
     } finally {
       setLoading(false)

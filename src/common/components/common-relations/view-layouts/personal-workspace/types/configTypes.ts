@@ -2,6 +2,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { MyTasksViewConfig } from '../components/tasks'
 import type { MyActivitiesViewConfig } from '../components/activities'
 
+// Re-export types for external use
+export type { MyTasksViewConfig, MyActivitiesViewConfig }
+
 /**
  * Generic configuration for Personal Workspace component
  * Following the pattern of other view layouts (AccountLayout, LeadLayout, etc.)

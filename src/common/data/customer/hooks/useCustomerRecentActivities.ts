@@ -1,30 +1,31 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_RECENT_ACTIVITIES } from '../queries/MyActivitiesQueries'
-import type { MyActivity } from '../types'
+import { GET_RECENT_ACTIVITIES } from '../queries/customerPersonalWorkspaceQueries'
+import type { MySalesActivity } from '../types/customerPersonalWorkspaceTypes'
 
-interface UseRecentActivitiesParams {
+interface UseCustomerRecentActivitiesParams {
   employeeId: string
   accessToken: string
   limit?: number
 }
 
-interface UseRecentActivitiesReturn {
-  activities: MyActivity[]
+interface UseCustomerRecentActivitiesReturn {
+  activities: MySalesActivity[]
   loading: boolean
   error: Error | null
   refetch: () => void
 }
 
 /**
- * Hook for fetching recent activities for Overview tab calendar
+ * Hook for fetching recent customer activities
+ * Used for Overview tab calendar and dashboard displays
  */
-export const useRecentActivities = ({
+export const useCustomerRecentActivities = ({
   employeeId,
   accessToken,
   limit = 5
-}: UseRecentActivitiesParams): UseRecentActivitiesReturn => {
-  const [activities, setActivities] = useState<MyActivity[]>([])
+}: UseCustomerRecentActivitiesParams): UseCustomerRecentActivitiesReturn => {
+  const [activities, setActivities] = useState<MySalesActivity[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
@@ -38,7 +39,7 @@ export const useRecentActivities = ({
 
     try {
       const result = await graphqlClient.request<{
-        SalesActivity: MyActivity[]
+        SalesActivity: MySalesActivity[]
       }>(GET_RECENT_ACTIVITIES, {
         employeeId,
         limit
@@ -46,7 +47,7 @@ export const useRecentActivities = ({
 
       setActivities(result.SalesActivity || [])
     } catch (err) {
-      console.error('Error fetching recent activities:', err)
+      console.error('Error fetching recent customer activities:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch recent activities'))
     } finally {
       setLoading(false)
