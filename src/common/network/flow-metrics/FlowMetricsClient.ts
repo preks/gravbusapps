@@ -18,6 +18,7 @@ export interface FlowExecutionTask {
   ownerName?: string
   creatorUserId?: string
   creatorName?: string
+  nodeName?: string
   potentialUsers?: string[]
   assigneeNames?: string[]
   endpoint?: string
@@ -62,7 +63,27 @@ export interface FlowExecutionTasksParams {
 
 export class FlowMetricsClient extends RestClient {
   constructor(accessToken?: string) {
-    const baseUrl = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || `${env('NEXT_PUBLIC_BASE_URL') || ''}`
+    // Determine origin for relative URL resolution
+    const origin =
+      typeof globalThis !== 'undefined' && (globalThis as any).location?.origin
+        ? (globalThis as any).location.origin
+        : ''
+
+    // Priority: NEXT_PUBLIC_FLOW_METRICS_ENDPOINT > NEXT_PUBLIC_BASE_URL > origin
+    // Note: FlowMetrics API (/flow-executions/tasks) is at the platform root, no subpath needed
+    let baseUrl = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || origin
+
+    // Ensure relative paths become absolute
+    if (baseUrl && baseUrl.startsWith('/')) {
+      baseUrl = `${origin}${baseUrl}`
+    }
+
+    // If still empty, use origin
+    if (!baseUrl) {
+      baseUrl = origin
+    }
+
+    console.log('[FlowMetricsClient] Initialized with baseUrl:', baseUrl)
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
