@@ -71,6 +71,10 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     const [hasUnseenMessages, setHasUnseenMessages] = useState(false)
     const [unseenCount, setUnseenCount] = useState(0)
 
+    // OPTIMIZATION: Single timer for all timestamp updates (not 100+ individual timers)
+    // Only updates timestamps if we have recent messages (< 1 hour old)
+    const [timestampRefreshKey, setTimestampRefreshKey] = useState(0)
+
     const isGroupChat = conversationType === 'group'
 
     // Reset unseen messages counter when conversation changes
@@ -86,6 +90,35 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
         renderTimerRef.current = null
       }
     }, [conversationId])
+
+    // OPTIMIZATION: Single timer for timestamp updates (efficient approach)
+    // Only runs if we have messages less than 1 hour old
+    useEffect(() => {
+      // Check if we have any recent messages (< 1 hour old)
+      const hasRecentMessages = messages.some(m => {
+        const age = Date.now() - new Date(m.createdAt).getTime()
+        return age < 86400000 // 24 hours (not 1 hour)
+      })
+
+      // Don't start timer if no recent messages
+      if (!hasRecentMessages) {
+        devPerf(() => console.log('[V2 List] No recent messages, skipping timestamp timer'))
+        return
+      }
+
+      devPerf(() => console.log('[V2 List] Starting timestamp refresh timer (1 timer for all messages)'))
+
+      // Single interval for ALL messages (not 100+ individual timers)
+      const interval = setInterval(() => {
+        setTimestampRefreshKey(prev => prev + 1)
+        devPerf(() => console.log('[V2 List] Refreshing all timestamps'))
+      }, 60000) // Every 60 seconds
+
+      return () => {
+        clearInterval(interval)
+        devPerf(() => console.log('[V2 List] Cleaning up timestamp timer'))
+      }
+    }, [messages.length, conversationId]) // Re-evaluate when messages change
 
     // Track renders
     devPerf(() => {
@@ -560,6 +593,7 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
                   onSendMessage={onSendMessage}
                   participants={participants}
                   previewLabel={previewLabel}
+                  timestampRefreshKey={timestampRefreshKey}
                 />
               )
             })}

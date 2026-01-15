@@ -29,6 +29,7 @@ interface MessageItemV2Props {
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
   participants?: ConversationParticipant[]
   previewLabel?: string // Pre-translated label for attachments
+  timestampRefreshKey?: number // Triggers timestamp recalculation when changed
 }
 
 /**
@@ -81,7 +82,8 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
     accessToken,
     onSendMessage,
     participants,
-    previewLabel = 'Open preview'
+    previewLabel = 'Open preview',
+    timestampRefreshKey = 0
   }) => {
     const isAIResponse = message.metadata?.isAIResponse === true
     const isExpertResponse = message.metadata?.isEveryExpertResponse === true
@@ -98,6 +100,10 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
     // Use sender data with participant fallback
     const avatarUrl = sender?.avatarUrl || participantData?.avatarUrl
     const employeeId = sender?.employeeId || participantData?.employeeId
+
+    // OPTIMIZATION: Memoize formatted timestamp - recalculates when timestampRefreshKey changes
+    // This allows a single timer to update all timestamps efficiently
+    const formattedTime = useMemo(() => formatTime(message.createdAt), [message.createdAt, timestampRefreshKey])
 
     // State for tracking if AI message has hidden cards (form outputs not visible to others)
     const [hasHiddenResultCards, setHasHiddenResultCards] = useState(false)
@@ -303,7 +309,7 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
                   }
                   footerContent={
                     <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1 gba:text-muted-foreground">
-                      <span className="gba:text-[10px]">{formatTime(message.createdAt)}</span>
+                      <span className="gba:text-[10px]">{formattedTime}</span>
                     </div>
                   }
                 />
@@ -358,7 +364,7 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
                 <span
                   className={`gba:text-xs ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-70' : 'gba:text-muted-foreground'}`}
                 >
-                  {formatTime(message.createdAt)}
+                  {formattedTime}
                 </span>
                 {/* Status icon (only for own messages) */}
                 {isOwnMessage && message.status && (
