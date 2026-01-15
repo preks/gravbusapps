@@ -29,6 +29,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -37,7 +38,6 @@ import {
 import {
   ArrowLeft,
   Save,
-  MoreVertical,
   Clock,
   CheckCircle,
   Share2,
@@ -59,13 +59,30 @@ import {
   Heading2,
   Heading3,
   Palette,
-  AtSign
+  AtSign,
+  History,
+  MessageSquare,
+  Upload,
+  Lock as LockIcon,
+  Unlock as UnlockIcon
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCollaboration } from '../shared/hooks/useCollaboration'
 import { PresenceIndicator } from '../shared/components/PresenceIndicator'
 import { SocketIoYjsProvider } from '../shared/services/SocketIoYjsProvider'
 import { createYjsCursorExtension } from '../document-apps/components/PagedDocumentEditor/extensions/YjsCursor'
+import { InlineComment as InlineCommentExtension } from '../shared/extensions/InlineCommentExtension'
+import { useVersioning } from '../shared/hooks/useVersioning'
+import { useFileLock } from '../shared/hooks/useFileLock'
+import { useComments } from '../shared/hooks/useComments'
+import { usePublishing } from '../shared/hooks/usePublishing'
+import { VersionHistory } from '../shared/components/VersionHistory'
+import { CheckpointDialog } from '../shared/components/CheckpointDialog'
+import { AutoSaveIndicator } from '../shared/components/AutoSaveIndicator'
+import { StatusBadge } from '../shared/components/StatusBadge'
+import { PublishDialog } from '../shared/components/PublishDialog'
+import { CommentPanel } from '../shared/components/CommentPanel'
+import { InlineCommentPopover } from '../shared/components/InlineCommentPopover'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import { NoteApiService } from './services/NoteApiService'
@@ -73,7 +90,13 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 import Mention from '@tiptap/extension-mention'
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
-import { createMentionSuggestion, getEntityUrl, ENTITY_ICONS, ENTITY_COLORS, type EntityType } from './components/EntityMention'
+import {
+  createMentionSuggestion,
+  getEntityUrl,
+  ENTITY_ICONS,
+  ENTITY_COLORS,
+  type EntityType
+} from './components/EntityMention'
 import { mergeAttributes } from '@tiptap/core'
 import { FileText } from 'lucide-react'
 import type { Note, NoteColor } from './types'
@@ -113,7 +136,7 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
   const Icon = ENTITY_ICONS[entityType] || FileText
   const colors = ENTITY_COLORS[entityType] || ENTITY_COLORS.default
   const [isDragging, setIsDragging] = React.useState(false)
-  
+
   // Show avatar/logo for employees and accounts with pictures
   const hasPicture = pictureThumbnail && (entityType === 'employee' || entityType === 'account')
   const pictureUrl = formatPictureUrl(pictureThumbnail)
@@ -131,12 +154,7 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
   }
 
   return (
-    <NodeViewWrapper 
-      as="span" 
-      className="gba:inline"
-      draggable="true"
-      data-drag-handle
-    >
+    <NodeViewWrapper as="span" className="gba:inline" draggable="true" data-drag-handle>
       <span
         onClick={handleClick}
         onDragStart={() => setIsDragging(true)}
@@ -152,24 +170,26 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
           <span className="gba:w-1 gba:h-1 gba:rounded-full gba:bg-current"></span>
           <span className="gba:w-1 gba:h-1 gba:rounded-full gba:bg-current"></span>
         </span>
-        
+
         {/* Icon/Avatar/Logo */}
-        <span className={`gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-lg gba:overflow-hidden gba:shrink-0 ${hasPicture ? '' : `${colors.bg}`}`}>
+        <span
+          className={`gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-lg gba:overflow-hidden gba:shrink-0 ${hasPicture ? '' : `${colors.bg}`}`}
+        >
           {hasPicture && pictureUrl ? (
             <img
               src={pictureUrl}
               alt={label}
               className="gba:w-8 gba:h-8 gba:rounded-lg gba:object-cover"
-              onError={(e) => {
+              onError={e => {
                 // Hide broken images
-                (e.target as HTMLImageElement).style.display = 'none'
+                ;(e.target as HTMLImageElement).style.display = 'none'
               }}
             />
           ) : (
             <Icon className="gba:w-5 gba:h-5" />
           )}
         </span>
-        
+
         {/* Content */}
         <span className="gba:flex gba:flex-col gba:leading-tight gba:justify-center">
           <span className="gba:font-semibold gba:truncate gba:max-w-[150px]">{label || 'Unknown'}</span>
@@ -177,9 +197,11 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
             <span className="gba:text-[10px] gba:opacity-70 gba:truncate gba:max-w-[150px]">{subtitle}</span>
           )}
         </span>
-        
+
         {/* Type indicator */}
-        <span className={`gba:text-[9px] gba:font-bold gba:px-1.5 gba:py-0.5 gba:rounded gba:uppercase gba:tracking-wider gba:opacity-60 gba:shrink-0`}>
+        <span
+          className={`gba:text-[9px] gba:font-bold gba:px-1.5 gba:py-0.5 gba:rounded gba:uppercase gba:tracking-wider gba:opacity-60 gba:shrink-0`}
+        >
           {entityType.replace(/_/g, ' ').split(' ')[0]}
         </span>
       </span>
@@ -235,6 +257,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null)
   const [isYjsSynced, setIsYjsSynced] = useState(false)
 
+  // Versioning UI state
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
+  const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
+  const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
+
   // Yjs CRDT state
   const ydoc = React.useMemo(() => new Y.Doc(), [note.id])
   const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -274,6 +305,35 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   // Enrich participants with avatars
   const [participants, setParticipants] = useState<typeof rawParticipants>([])
 
+  // Versioning, Comments, Locking, Publishing hooks
+  const versioning = useVersioning({
+    entityId: note.id,
+    entityType: 'note',
+    apiService: NoteApiService,
+    autoSaveEnabled: !!note.id && !isReadOnly,
+    autoSaveInterval: 30000
+  })
+
+  const comments = useComments({
+    entityId: note.id,
+    entityType: 'note',
+    apiService: NoteApiService
+  })
+
+  const fileLock = useFileLock({
+    entityId: note.id,
+    entityType: 'note',
+    currentUserId: currentUserId || undefined,
+    apiService: NoteApiService
+  })
+
+  const publishing = usePublishing({
+    entityId: note.id,
+    entityType: 'note',
+    currentStatus: note.publishMetadata?.status || 'draft',
+    apiService: NoteApiService
+  })
+
   useEffect(() => {
     if (!rawParticipants.length) {
       setParticipants([])
@@ -301,7 +361,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             }
           }
         `
-        const result = await graphqlClient.request<{ Employee: Array<{ userId: string; pictureThumbnail: string | null }> }>(query, { userIds })
+        const result = await graphqlClient.request<{
+          Employee: Array<{ userId: string; pictureThumbnail: string | null }>
+        }>(query, { userIds })
 
         const avatarMap = new Map<string, string>()
         result?.Employee?.forEach(emp => {
@@ -427,7 +489,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           const payload = JSON.parse(atob(token.split('.')[1]))
           const userId = payload.sub || payload.userId || null
           const userName = payload.name || payload.preferred_username || payload.username || null
-          
+
           setCurrentUserId(userId)
           setCurrentUserName(userName)
 
@@ -448,7 +510,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               if (emp?.displayName) {
                 setCurrentUserName(emp.displayName)
               }
-            } catch (err) {
+            } catch {
               // Ignore - avatar is optional
             }
           }
@@ -460,13 +522,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   }, [graphqlClient, accessToken])
 
   // Create mention suggestion with access token
-  const mentionSuggestion = React.useMemo(
-    () => {
-      console.log('[NoteEditor] Creating mention suggestion with token:', accessToken ? 'present' : 'missing')
-      return createMentionSuggestion(accessToken)
-    },
-    [accessToken]
-  )
+  const mentionSuggestion = React.useMemo(() => {
+    console.log('[NoteEditor] Creating mention suggestion with token:', accessToken ? 'present' : 'missing')
+    return createMentionSuggestion(accessToken)
+  }, [accessToken])
 
   // Initialize TipTap editor
   const editor = useEditor(
@@ -499,10 +558,19 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }),
         Typography,
         CharacterCount,
+        InlineCommentExtension.configure({
+          onCommentClick: commentId => {
+            setShowComments(true)
+            setTimeout(() => {
+              const commentElement = document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
+              commentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }, 300)
+          }
+        }),
         Mention.extend({
           // Enable drag and drop for entity cards
           draggable: true,
-          
+
           addAttributes() {
             return {
               id: {
@@ -517,18 +585,20 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               },
               type: {
                 default: 'unknown',
-                parseHTML: element => element.getAttribute('data-entity-type') || element.getAttribute('data-type') || 'unknown',
+                parseHTML: element =>
+                  element.getAttribute('data-entity-type') || element.getAttribute('data-type') || 'unknown',
                 renderHTML: attributes => ({ 'data-entity-type': attributes.type })
               },
               subtitle: {
                 default: null,
                 parseHTML: element => element.getAttribute('data-entity-subtitle'),
-                renderHTML: attributes => attributes.subtitle ? { 'data-entity-subtitle': attributes.subtitle } : {}
+                renderHTML: attributes => (attributes.subtitle ? { 'data-entity-subtitle': attributes.subtitle } : {})
               },
               pictureThumbnail: {
                 default: null,
                 parseHTML: element => element.getAttribute('data-entity-thumbnail'),
-                renderHTML: attributes => attributes.pictureThumbnail ? { 'data-entity-thumbnail': attributes.pictureThumbnail } : {}
+                renderHTML: attributes =>
+                  attributes.pictureThumbnail ? { 'data-entity-thumbnail': attributes.pictureThumbnail } : {}
               }
             }
           },
@@ -553,7 +623,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                   const el = element as HTMLElement
                   return {
                     id: el.getAttribute('data-entity-id') || el.getAttribute('data-id'),
-                    label: el.getAttribute('data-entity-label') || el.getAttribute('data-label') || el.textContent?.replace('@', ''),
+                    label:
+                      el.getAttribute('data-entity-label') ||
+                      el.getAttribute('data-label') ||
+                      el.textContent?.replace('@', ''),
                     type: el.getAttribute('data-entity-type') || el.getAttribute('data-type') || 'unknown',
                     subtitle: el.getAttribute('data-entity-subtitle'),
                     pictureThumbnail: el.getAttribute('data-entity-thumbnail')
@@ -600,6 +673,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         // Just mark as having unsaved changes for UI
         if (!isReadOnly) {
           setHasUnsavedChanges(true)
+          versioning.markAsChanged()
         }
       }
     },
@@ -608,6 +682,25 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   useEffect(() => {
     editorRef.current = editor
+  }, [editor])
+
+  // Handler for inline comment (defined after editor)
+  const handleAddInlineComment = useCallback(() => {
+    if (!editor) return
+
+    const { from, to } = editor.state.selection
+    if (from === to) return // No selection
+
+    const selectedText = editor.state.doc.textBetween(from, to)
+    const { view } = editor
+    const coords = view.coordsAtPos(from)
+
+    setPendingSelection({ from, to, text: selectedText })
+    setInlineCommentPosition({
+      top: coords.top + window.scrollY + 30,
+      left: coords.left + window.scrollX
+    })
+    setShowInlineCommentPopover(true)
   }, [editor])
 
   // Update editable state - allow editing even if Yjs sync fails
@@ -629,50 +722,56 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   }, [])
 
   // Handle title change with auto-save
-  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTitle = e.target.value
-    setTitle(newTitle)
-    setHasUnsavedChanges(true)
-    
-    // Debounced auto-save for title
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current)
-    }
-    
-    autoSaveTimeoutRef.current = setTimeout(async () => {
-      if (isReadOnly) return
-      
-      const html = editor?.getHTML() || note.content || ''
-      
-      if (note.id) {
-        try {
-          await NoteApiService.updateNote(note.id, {
-            title: newTitle,
-            content: html,
-            createVersion: false
-          })
-          setLastSaved(new Date())
-          setHasUnsavedChanges(false)
-          console.log('[NoteEditor] Auto-saved title:', newTitle)
-        } catch (error) {
-          console.error('[NoteEditor] Title auto-save failed:', error)
-        }
+  const handleTitleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newTitle = e.target.value
+      setTitle(newTitle)
+      setHasUnsavedChanges(true)
+
+      // Debounced auto-save for title
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
       }
-    }, 1500)
-  }, [editor, note.id, note.content, isReadOnly])
+
+      autoSaveTimeoutRef.current = setTimeout(async () => {
+        if (isReadOnly) return
+
+        const html = editor?.getHTML() || note.content || ''
+
+        if (note.id) {
+          try {
+            await NoteApiService.updateNote(note.id, {
+              title: newTitle,
+              content: html,
+              createVersion: false
+            })
+            setLastSaved(new Date())
+            setHasUnsavedChanges(false)
+            console.log('[NoteEditor] Auto-saved title:', newTitle)
+          } catch (error) {
+            console.error('[NoteEditor] Title auto-save failed:', error)
+          }
+        }
+      }, 1500)
+    },
+    [editor, note.id, note.content, isReadOnly]
+  )
 
   // Handle title keydown - Enter moves to editor
-  const handleTitleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      if (editor) {
-        editor.commands.focus('start')
-      } else {
-        const editorElement = document.querySelector('.ProseMirror') as HTMLElement
-        editorElement?.focus()
+  const handleTitleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        if (editor) {
+          editor.commands.focus('start')
+        } else {
+          const editorElement = document.querySelector('.ProseMirror') as HTMLElement
+          editorElement?.focus()
+        }
       }
-    }
-  }, [editor])
+    },
+    [editor]
+  )
 
   // Save
   const handleSave = useCallback(async () => {
@@ -694,15 +793,42 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+S - Save
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault()
         handleSave()
+      }
+
+      // Cmd/Ctrl+Shift+M - Add inline comment
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'm') {
+        e.preventDefault()
+        handleAddInlineComment()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleSave])
+  }, [handleSave, handleAddInlineComment])
+
+  // Context menu for inline comments
+  useEffect(() => {
+    if (!editor) return
+
+    const handleContextMenu = (e: Event) => {
+      const mouseEvent = e as unknown as MouseEvent
+      const { from, to } = editor.state.selection
+      if (from === to) return // No selection
+
+      mouseEvent.preventDefault()
+      handleAddInlineComment()
+    }
+
+    const editorElement = document.querySelector('.note-editor-content .ProseMirror')
+    if (editorElement) {
+      editorElement.addEventListener('contextmenu', handleContextMenu)
+      return () => editorElement.removeEventListener('contextmenu', handleContextMenu)
+    }
+  }, [editor, handleAddInlineComment])
 
   // Color change handler
   const handleColorChange = useCallback(
@@ -787,9 +913,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               {participants.length > 0 && (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2 gba:pr-2 gba:border-r">
                   <PresenceIndicator participants={participants} maxVisible={4} size="sm" showLabel={false} />
-                  <span className="gba:text-xs gba:text-muted-foreground">
-                    {participants.length} active
-                  </span>
+                  <span className="gba:text-xs gba:text-muted-foreground">{participants.length} active</span>
                 </div>
               )}
 
@@ -809,7 +933,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                             <button
                               key={color.value}
                               className={`gba:w-6 gba:h-6 gba:rounded-full gba:border-2 gba:transition-transform hover:gba:scale-110 ${
-                                noteColor === color.value ? 'gba:border-primary gba:scale-110' : 'gba:border-transparent'
+                                noteColor === color.value
+                                  ? 'gba:border-primary gba:scale-110'
+                                  : 'gba:border-transparent'
                               } ${color.class}`}
                               onClick={() => handleColorChange(color.value)}
                               title={color.label}
@@ -856,14 +982,82 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 </TooltipProvider>
               )}
 
-              {/* More actions */}
+              {/* Versioning Features - Clean */}
+              <Separator orientation="vertical" className="gba:h-6" />
+
+              {/* Auto-save indicator */}
+              <AutoSaveIndicator
+                isSaving={versioning.isSaving}
+                lastSaveTime={versioning.lastSaveTime}
+                hasUnsavedChanges={versioning.hasUnsavedChanges}
+                onManualSave={() => setShowCheckpointDialog(true)}
+                data-testid="note-auto-save-indicator"
+              />
+
+              {/* Comments button */}
+              <Button
+                variant={showComments ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setShowComments(!showComments)}
+                title="Comments (Right-click on text to add inline comment)"
+                data-testid="note-comments-button"
+                className="gba:h-8"
+              >
+                <MessageSquare className="gba:w-4 gba:h-4" />
+                {comments.unresolvedCount > 0 && (
+                  <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
+                    {comments.unresolvedCount}
+                  </Badge>
+                )}
+              </Button>
+
+              {/* Lock status (compact) */}
+              {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
+                <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
+                  <LockIcon className="gba:h-3 gba:w-3" />
+                  Locked
+                </Badge>
+              )}
+
+              {/* Status badge */}
+              <StatusBadge status={publishing.metadata?.status || 'draft'} />
+
+              <Separator orientation="vertical" className="gba:h-6" />
+
+              {/* Note Actions Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="gba:h-8 gba:w-8">
-                    <MoreVertical className="gba:w-4 gba:h-4" />
+                  <Button variant="outline" size="sm">
+                    <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Note
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
+                    <History className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Version History
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowCheckpointDialog(true)}>
+                    <Save className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Save Checkpoint
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {fileLock.isLockedByMe ? (
+                    <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
+                      <UnlockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Unlock Note
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
+                      <LockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Lock Note
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
+                    <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Publish...
+                  </DropdownMenuItem>
                   {onDuplicate && (
                     <DropdownMenuItem onClick={onDuplicate}>
                       <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -876,7 +1070,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                   </DropdownMenuItem>
                   {onArchive && (
                     <>
-                      <Separator className="gba:my-1" />
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={onArchive}>
                         <Archive className="gba:w-4 gba:h-4 gba:mr-2" />
                         Archive
@@ -891,19 +1085,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* Save button */}
-              {!isReadOnly && (
-                <Button 
-                  onClick={handleSave} 
-                  disabled={isSaving || !hasUnsavedChanges} 
-                  size="sm"
-                  className="gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-600 gba:text-white hover:gba:from-amber-600 hover:gba:to-orange-700"
-                >
-                  <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Save
-                </Button>
-              )}
             </div>
           </div>
         </div>
@@ -1135,14 +1316,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 <TooltipContent>Mention Entity (@)</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-
           </div>
         </div>
       )}
 
       {/* Editor Area */}
       <div className="gba:flex-1 gba:overflow-auto gba:relative">
-
         <div className="gba:max-w-3xl gba:mx-auto gba:px-8 gba:py-8">
           {/* Title */}
           <input
@@ -1167,7 +1346,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               ))}
             </div>
           )}
-
 
           {/* Editor content */}
           <EditorContent editor={editor} className="note-editor-content" />
@@ -1448,6 +1626,176 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           transform: translateY(-4px);
         }
       `}</style>
+
+      {/* Versioning Dialogs */}
+      {showVersionHistory && (
+        <VersionHistory
+          versions={versioning.versions}
+          isLoading={versioning.isLoading}
+          onRestore={async versionNumber => {
+            const versionData = await NoteApiService.getVersion(note.id, versionNumber)
+
+            if (!versionData) return
+
+            const success = await versioning.restoreVersion(versionNumber)
+
+            if (success && editor && versionData.content) {
+              editor.commands.setContent(versionData.content)
+              setTitle(versionData.title || '')
+              setHasUnsavedChanges(false)
+              setLastSaved(new Date())
+
+              await versioning.loadVersions()
+              setShowVersionHistory(false)
+            }
+          }}
+          onClose={() => setShowVersionHistory(false)}
+          currentVersion={versioning.currentVersion?.version}
+          showAutoSaves={false}
+          data-testid="note-version-history"
+        />
+      )}
+
+      {showCheckpointDialog && (
+        <CheckpointDialog
+          isOpen={showCheckpointDialog}
+          onClose={() => setShowCheckpointDialog(false)}
+          onSave={async description => {
+            await versioning.createCheckpoint(description)
+          }}
+          isSaving={versioning.isSaving}
+          data-testid="note-checkpoint-dialog"
+        />
+      )}
+
+      {showPublishDialog && (
+        <PublishDialog
+          isOpen={showPublishDialog}
+          onClose={() => setShowPublishDialog(false)}
+          onPublish={async (publishNotes, createCheckpoint) => {
+            await publishing.publish(publishNotes, createCheckpoint)
+          }}
+          isPublishing={publishing.isPublishing}
+          entityType="note"
+          data-testid="note-publish-dialog"
+        />
+      )}
+
+      {showComments && (
+        <CommentPanel
+          comments={comments.comments}
+          unresolvedCount={comments.unresolvedCount}
+          isLoading={comments.isLoading}
+          onCreateComment={async (content, parentId, userName, userAvatar) => {
+            await comments.createComment({
+              type: parentId ? 'document' : 'document',
+              content,
+              parentId,
+              createdByName: userName,
+              createdByAvatar: userAvatar
+            })
+          }}
+          onUpdateComment={async (commentId, content) => {
+            await comments.updateComment(commentId, { content })
+          }}
+          onResolveComment={async commentId => {
+            await comments.resolveComment(commentId)
+          }}
+          onDeleteComment={async commentId => {
+            await comments.deleteComment(commentId)
+          }}
+          onClose={() => setShowComments(false)}
+          currentUserId={currentUserId || undefined}
+          currentUserName={currentUserName || undefined}
+          currentUserAvatar={currentUserAvatar || undefined}
+          accessToken={accessToken}
+          headerHeight={80}
+          onUnhighlight={commentId => {
+            if (editor) {
+              const { doc } = editor.state
+              let foundPos: { from: number; to: number } | null = null
+
+              doc.descendants((node, pos) => {
+                if (node.marks) {
+                  node.marks.forEach(mark => {
+                    if (mark.type.name === 'inlineComment' && mark.attrs.commentId === commentId) {
+                      foundPos = { from: pos, to: pos + node.nodeSize }
+                    }
+                  })
+                }
+              })
+
+              if (foundPos) {
+                editor.chain().setTextSelection(foundPos).unsetInlineComment().run()
+              }
+            }
+          }}
+          onScrollToHighlight={commentId => {
+            if (editor) {
+              const { doc } = editor.state
+
+              doc.descendants((node, pos) => {
+                if (node.marks) {
+                  node.marks.forEach(mark => {
+                    if (mark.type.name === 'inlineComment' && mark.attrs.commentId === commentId) {
+                      editor
+                        .chain()
+                        .setTextSelection({ from: pos, to: pos + node.nodeSize })
+                        .focus()
+                        .run()
+
+                      setTimeout(() => {
+                        const element = document.querySelector(`[data-comment-id="${commentId}"]`)
+                        element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      }, 100)
+                    }
+                  })
+                }
+              })
+            }
+          }}
+          data-testid="note-comment-panel"
+        />
+      )}
+
+      {/* Inline comment popover (Google Docs style) */}
+      <InlineCommentPopover
+        isOpen={showInlineCommentPopover}
+        position={inlineCommentPosition}
+        onSubmit={async content => {
+          if (!pendingSelection || !editor) return
+
+          const comment = await comments.createComment({
+            type: 'inline',
+            content,
+            selectionStart: pendingSelection.from,
+            selectionEnd: pendingSelection.to,
+            selectedText: pendingSelection.text,
+            createdByName: currentUserName || undefined,
+            createdByAvatar: currentUserAvatar || undefined
+          })
+
+          if (comment) {
+            editor
+              .chain()
+              .focus()
+              .setInlineComment({
+                commentId: comment.id,
+                commentType: 'inline',
+                createdBy: currentUserId || '',
+                createdAt: comment.createdAt
+              })
+              .run()
+          }
+
+          setPendingSelection(null)
+        }}
+        onClose={() => {
+          setShowInlineCommentPopover(false)
+          setPendingSelection(null)
+        }}
+        data-testid="note-inline-comment-popover"
+      />
     </div>
   )
 }

@@ -369,6 +369,75 @@ export class CollaborationClient {
     this.socket?.on('version_created', handler)
   }
 
+  // ============ Comment Events ============
+
+  onCommentCreated(
+    handler: (data: {
+      comment: {
+        id: string
+        type: string
+        content: string
+        createdBy: string
+        createdByName?: string
+        parentId?: string
+      }
+      timestamp: number
+    }) => void
+  ) {
+    this.socket?.on('comment:created', handler)
+  }
+
+  onCommentUpdated(
+    handler: (data: { commentId: string; updates: Record<string, unknown>; timestamp: number }) => void
+  ) {
+    this.socket?.on('comment:updated', handler)
+  }
+
+  onCommentResolved(handler: (data: { commentId: string; resolvedBy: string; timestamp: number }) => void) {
+    this.socket?.on('comment:resolved', handler)
+  }
+
+  onCommentDeleted(handler: (data: { commentId: string; timestamp: number }) => void) {
+    this.socket?.on('comment:deleted', handler)
+  }
+
+  // ============ Lock Events ============
+
+  onLockAcquired(
+    handler: (data: {
+      lock: {
+        lockedBy: string
+        lockedByName?: string
+        lockedAt: string
+        lockExpiry: string
+        lockReason?: string
+      }
+      timestamp: number
+    }) => void
+  ) {
+    this.socket?.on('lock:acquired', handler)
+  }
+
+  onLockReleased(handler: (data: { unlockedBy: string; timestamp: number }) => void) {
+    this.socket?.on('lock:released', handler)
+  }
+
+  // ============ Publishing Events ============
+
+  onPublishStatusChanged(
+    handler: (data: {
+      status: string
+      metadata: {
+        publishedAt?: string
+        publishedBy?: string
+        publishVersion?: number
+      }
+      timestamp: number
+    }) => void
+  ) {
+    this.socket?.on('publish:status_changed', handler)
+  }
+
   // Remove event listeners
   off(event: string, handler?: CollaborationEventHandler) {
     this.socket?.off(event, handler)
@@ -417,21 +486,24 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
   // Remove /api/v1 suffix if present to get base service URL
   // e.g., 'https://newwork-dev.newwork.com/document/api/v1' -> 'https://newwork-dev.newwork.com/document'
   const serviceUrl = apiUrl.replace(/\/api\/v1$/, '')
-  
+
   // Extract the service path (e.g., '/document') for socket.io path
   const urlObj = new URL(serviceUrl)
   const servicePath = urlObj.pathname // e.g., '/document'
-  
+
+  // For localhost, use simple path; for production use service path
+  const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
+
   // Socket.io namespace URL is: origin + namespace (NOT service path)
   // The namespace on the server is '/collaboration'
   const wsUrl = `${urlObj.origin}/collaboration`
-  
-  // Socket.io path should include the service path prefix
-  // This is where the socket.io server is actually listening
-  const socketPath = `${servicePath}/socket.io`
+
+  // Socket.io path: for localhost use default, for production include service path
+  const socketPath = isLocalhost ? '/socket.io' : `${servicePath}/socket.io`
 
   console.log('[CollaborationClient] Creating client:')
   console.log('[CollaborationClient]   Service URL:', serviceUrl)
+  console.log('[CollaborationClient]   Is Localhost:', isLocalhost)
   console.log('[CollaborationClient]   WebSocket URL (namespace):', wsUrl)
   console.log('[CollaborationClient]   Socket.io Path:', socketPath)
 

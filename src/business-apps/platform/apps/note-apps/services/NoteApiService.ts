@@ -18,8 +18,18 @@ import type {
   UpdateNoteInput,
   MoveNoteInput,
   PaginatedNotes,
-  NoteTreeNode
+  NoteTreeNode,
+  Version,
+  Comment,
+  FileLock,
+  PublishMetadata
 } from '../types'
+import type {
+  CreateCommentInput,
+  CommentQueryOptions,
+  LockFileInput,
+  PublishInput
+} from '../../shared/types/versioning'
 import { env } from '@/common/env/EnvUtils'
 
 // Get the API URL from environment or default to dev environment
@@ -627,6 +637,447 @@ export const NoteApiService = {
     } catch (error) {
       console.error('Failed to delete share link:', error)
       return false
+    }
+  },
+
+  // ============ Versions ============
+
+  /**
+   * Create a new version snapshot
+   */
+  async createVersion(
+    noteId: string,
+    options: {
+      content?: string
+      changeDescription?: string
+      isCheckpoint?: boolean
+    }
+  ): Promise<Version | null> {
+    try {
+      debugLog('createVersion', noteId, options)
+
+      // Get the current note if content not provided
+      let contentSnapshot: Record<string, unknown>
+      if (options.content) {
+        contentSnapshot = { content: options.content }
+      } else {
+        const note = await this.getNote(noteId)
+        if (!note) throw new Error('Note not found')
+        contentSnapshot = {
+          title: note.title,
+          content: note.content,
+          tags: note.tags,
+          color: note.color,
+          icon: note.icon
+        }
+      }
+
+      const versionData = await apiRequest<Record<string, unknown>>('/versions', {
+        method: 'POST',
+        body: JSON.stringify({
+          entityType: 'note',
+          entityId: noteId,
+          contentSnapshot,
+          changeSummary: options.changeDescription,
+          isAutoSave: !options.isCheckpoint
+        })
+      })
+
+      return {
+        id: versionData.id as string,
+        version: versionData.versionNumber as number,
+        content: JSON.stringify(versionData.contentSnapshot),
+        createdAt: versionData.createdAt as string,
+        createdBy: versionData.changedBy as string,
+        changeDescription: versionData.changeSummary as string | undefined,
+        isCheckpoint: !versionData.isAutoSave,
+        isAutoSave: versionData.isAutoSave as boolean,
+        fileSize: versionData.fileSize as number
+      }
+    } catch (error) {
+      console.error('Failed to create version:', error)
+      return null
+    }
+  },
+
+  /**
+   * Get version history for a note
+   */
+  async listVersions(noteId: string, page = 1, limit = 20): Promise<Version[]> {
+    try {
+      debugLog('listVersions', noteId)
+      const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(
+        `/versions/note/${noteId}?page=${page}&limit=${limit}`
+      )
+      return response.items.map(v => ({
+        id: v.id as string,
+        version: v.versionNumber as number,
+        content: JSON.stringify(v.contentSnapshot || {}),
+        createdAt: v.createdAt as string,
+        createdBy: v.changedBy as string,
+        changeDescription: v.changeSummary as string | undefined,
+        isCheckpoint: !v.isAutoSave,
+        isAutoSave: v.isAutoSave as boolean,
+        fileSize: (v.fileSize as number) || 0
+      }))
+    } catch (error) {
+      console.error('Failed to list versions:', error)
+      return []
+    }
+  },
+
+  /**
+   * Get a specific version
+   */
+  async getVersion(noteId: string, versionNumber: number): Promise<Note | null> {
+    try {
+      debugLog('getVersion', noteId, versionNumber)
+      const versionData = await apiRequest<Record<string, unknown>>(`/versions/note/${noteId}/${versionNumber}`)
+      const snapshot = versionData.contentSnapshot as Record<string, unknown>
+      if (snapshot) {
+        return mapApiNoteToNote(snapshot)
+      }
+      return null
+    } catch (error) {
+      console.error('Failed to get version:', error)
+      return null
+    }
+  },
+
+  /**
+   * Restore a note to a previous version (creates a new version)
+   */
+  async restoreVersion(noteId: string, versionNumber: number): Promise<boolean> {
+    try {
+      console.log('[NoteApiService] Restoring version:', noteId, versionNumber)
+
+      // Get the version content
+      const versionData = await apiRequest<Record<string, unknown>>(`/versions/note/${noteId}/${versionNumber}`)
+      const snapshot = versionData.contentSnapshot as Record<string, unknown>
+      console.log('[NoteApiService] Content snapshot:', snapshot)
+
+      if (!snapshot) return false
+
+      // Update the note with the old content and clear Yjs state
+      await this.updateNote(noteId, {
+        title: snapshot.title as string | undefined,
+        content: snapshot.content as string | undefined,
+        tags: snapshot.tags as string[] | undefined,
+        color: snapshot.color as string | undefined,
+        icon: snapshot.icon as string | undefined,
+        contentJson: {} as any // Clear Yjs state
+      })
+      console.log('[NoteApiService] Note updated with old content')
+
+      // Create a new version marking it as a restore
+      await this.createVersion(noteId, {
+        changeDescription: `Restored from version ${versionNumber}`,
+        isCheckpoint: true
+      })
+      console.log('[NoteApiService] Restore complete!')
+
+      return true
+    } catch (error) {
+      console.error('[NoteApiService] Failed to restore version:', error)
+      return false
+    }
+  },
+
+  /**
+   * Compare two versions
+   */
+  async compareVersions(
+    noteId: string,
+    versionA: number,
+    versionB: number
+  ): Promise<{
+    versionA: Version
+    versionB: Version
+    diff: Array<{
+      path: string
+      type: 'added' | 'removed' | 'modified'
+      oldValue?: unknown
+      newValue?: unknown
+    }>
+  } | null> {
+    try {
+      debugLog('compareVersions', noteId, versionA, versionB)
+      const response = await apiRequest<Record<string, unknown>>(
+        `/versions/note/${noteId}/compare?versionA=${versionA}&versionB=${versionB}`
+      )
+
+      return {
+        versionA: {
+          id: (response.versionA as Record<string, unknown>).id as string,
+          version: (response.versionA as Record<string, unknown>).versionNumber as number,
+          content: JSON.stringify((response.versionA as Record<string, unknown>).contentSnapshot),
+          createdAt: (response.versionA as Record<string, unknown>).createdAt as string,
+          createdBy: (response.versionA as Record<string, unknown>).changedBy as string,
+          changeDescription: (response.versionA as Record<string, unknown>).changeSummary as string | undefined,
+          isCheckpoint: !(response.versionA as Record<string, unknown>).isAutoSave,
+          isAutoSave: (response.versionA as Record<string, unknown>).isAutoSave as boolean,
+          fileSize: ((response.versionA as Record<string, unknown>).fileSize as number) || 0
+        },
+        versionB: {
+          id: (response.versionB as Record<string, unknown>).id as string,
+          version: (response.versionB as Record<string, unknown>).versionNumber as number,
+          content: JSON.stringify((response.versionB as Record<string, unknown>).contentSnapshot),
+          createdAt: (response.versionB as Record<string, unknown>).createdAt as string,
+          createdBy: (response.versionB as Record<string, unknown>).changedBy as string,
+          changeDescription: (response.versionB as Record<string, unknown>).changeSummary as string | undefined,
+          isCheckpoint: !(response.versionB as Record<string, unknown>).isAutoSave,
+          isAutoSave: (response.versionB as Record<string, unknown>).isAutoSave as boolean,
+          fileSize: ((response.versionB as Record<string, unknown>).fileSize as number) || 0
+        },
+        diff: response.diff as Array<{
+          path: string
+          type: 'added' | 'removed' | 'modified'
+          oldValue?: unknown
+          newValue?: unknown
+        }>
+      }
+    } catch (error) {
+      console.error('Failed to compare versions:', error)
+      return null
+    }
+  },
+
+  /**
+   * Delete a version (admin only, use with caution)
+   */
+  async deleteVersion(noteId: string, versionNumber: number): Promise<boolean> {
+    try {
+      debugLog('deleteVersion', noteId, versionNumber)
+      await apiRequest(`/versions/note/${noteId}/${versionNumber}`, {
+        method: 'DELETE'
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to delete version:', error)
+      return false
+    }
+  },
+
+  // ============ Comments ============
+
+  async createComment(noteId: string, input: CreateCommentInput): Promise<Comment | null> {
+    try {
+      debugLog('createComment', noteId, input)
+      const response = await apiRequest<Record<string, unknown>>(`/comments/note/${noteId}`, {
+        method: 'POST',
+        body: JSON.stringify(input)
+      })
+
+      return {
+        id: response.id as string,
+        entityId: noteId,
+        entityType: 'note',
+        type: response.type as Comment['type'],
+        content: response.content as string,
+        createdBy: response.createdBy as string,
+        createdByName: response.createdByName as string | undefined,
+        createdByAvatar: response.createdByAvatar as string | undefined,
+        createdAt: response.createdAt as string,
+        parentId: response.parentId as string | undefined
+      }
+    } catch (error) {
+      console.error('Failed to create comment:', error)
+      return null
+    }
+  },
+
+  async listComments(noteId: string, options?: CommentQueryOptions): Promise<Comment[]> {
+    try {
+      debugLog('listComments', noteId, options)
+      const params = new URLSearchParams()
+      if (options?.includeResolved) params.set('includeResolved', 'true')
+      if (options?.includeReplies) params.set('includeReplies', 'true')
+      if (options?.type) params.set('type', options.type)
+
+      const queryString = params.toString()
+      const response = await apiRequest<Record<string, unknown>[]>(
+        `/comments/note/${noteId}${queryString ? `?${queryString}` : ''}`
+      )
+
+      return response.map(c => ({
+        id: c.id as string,
+        entityId: noteId,
+        entityType: 'note',
+        type: c.type as Comment['type'],
+        content: c.content as string,
+        createdBy: c.createdBy as string,
+        createdByName: c.createdByName as string | undefined,
+        createdByAvatar: c.createdByAvatar as string | undefined,
+        createdAt: c.createdAt as string,
+        resolvedAt: c.resolvedAt as string | undefined,
+        parentId: c.parentId as string | undefined,
+        replies: (c.replies as Record<string, unknown>[] | undefined)?.map(r => ({
+          id: r.id as string,
+          entityId: noteId,
+          entityType: 'note' as const,
+          type: r.type as Comment['type'],
+          content: r.content as string,
+          createdBy: r.createdBy as string,
+          createdByName: r.createdByName as string | undefined,
+          createdByAvatar: r.createdByAvatar as string | undefined,
+          createdAt: r.createdAt as string,
+          parentId: c.id as string
+        }))
+      }))
+    } catch (error) {
+      console.error('Failed to list comments:', error)
+      return []
+    }
+  },
+
+  async updateComment(commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
+    try {
+      await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ content: updates.content })
+      })
+      return null
+    } catch (error) {
+      console.error('Failed to update comment:', error)
+      return null
+    }
+  },
+
+  async resolveComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}/resolve`, { method: 'PATCH' })
+      return true
+    } catch (error) {
+      console.error('Failed to resolve comment:', error)
+      return false
+    }
+  },
+
+  async deleteComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('Failed to delete comment:', error)
+      return false
+    }
+  },
+
+  async replyToComment(commentId: string, reply: string): Promise<Comment | null> {
+    try {
+      await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ content: reply })
+      })
+      return null
+    } catch (error) {
+      console.error('Failed to reply to comment:', error)
+      return null
+    }
+  },
+
+  // ============ Locks ============
+
+  async lockFile(noteId: string, input?: LockFileInput): Promise<FileLock | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/locks/note/${noteId}`, {
+        method: 'POST',
+        body: JSON.stringify(input || {})
+      })
+
+      return {
+        isLocked: true,
+        lockedBy: response.lockedBy as string,
+        lockedByName: response.lockedByName as string | undefined,
+        lockedAt: response.lockedAt as string,
+        lockExpiry: response.lockExpiry as string | undefined,
+        lockReason: response.lockReason as string | undefined
+      }
+    } catch (error) {
+      console.error('Failed to lock file:', error)
+      return null
+    }
+  },
+
+  async unlockFile(noteId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/locks/note/${noteId}`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('Failed to unlock file:', error)
+      return false
+    }
+  },
+
+  async getLockStatus(noteId: string): Promise<FileLock | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/locks/note/${noteId}`)
+
+      if (!response.isLocked) {
+        return null
+      }
+
+      return response as FileLock
+    } catch (error) {
+      console.error('Failed to get lock status:', error)
+      return null
+    }
+  },
+
+  async forceUnlock(noteId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/locks/note/${noteId}/force`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('Failed to force unlock:', error)
+      return false
+    }
+  },
+
+  // ============ Publishing ============
+
+  async publish(noteId: string, input?: PublishInput): Promise<PublishMetadata | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/notes/${noteId}/publish`, {
+        method: 'POST',
+        body: JSON.stringify(input || {})
+      })
+
+      return {
+        status: 'published',
+        publishedAt: response.publishedAt as string,
+        publishedBy: response.publishedBy as string,
+        publishVersion: response.publishVersion as number
+      }
+    } catch (error) {
+      console.error('Failed to publish note:', error)
+      return null
+    }
+  },
+
+  async unpublish(noteId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/notes/${noteId}/unpublish`, { method: 'POST' })
+      return true
+    } catch (error) {
+      console.error('Failed to unpublish note:', error)
+      return false
+    }
+  },
+
+  async updateStatus(noteId: string, status: string): Promise<PublishMetadata | null> {
+    try {
+      await apiRequest<Record<string, unknown>>(`/notes/${noteId}/publish-status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      })
+
+      return {
+        status: status as PublishMetadata['status']
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error)
+      return null
     }
   }
 }

@@ -23,6 +23,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
   Select,
   SelectContent,
   SelectItem,
@@ -67,7 +68,11 @@ import {
   Signal,
   Home,
   FileSpreadsheet,
-  GripVertical
+  GripVertical,
+  History,
+  MessageSquare,
+  Lock,
+  Unlock
 } from 'lucide-react'
 import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicFormGenerator'
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
@@ -86,6 +91,16 @@ import type { DocumentParticipant } from '../shared/services/CollaborationClient
 import { PresenceIndicator } from '../shared/components/PresenceIndicator'
 import { CellCollaboratorIndicator } from '../shared/components/CellCollaboratorIndicator'
 import { SpreadsheetApiService } from './services/SpreadsheetApiService'
+import { useVersioning } from '../shared/hooks/useVersioning'
+import { useFileLock } from '../shared/hooks/useFileLock'
+import { useComments } from '../shared/hooks/useComments'
+import { usePublishing } from '../shared/hooks/usePublishing'
+import { VersionHistory } from '../shared/components/VersionHistory'
+import { CheckpointDialog } from '../shared/components/CheckpointDialog'
+import { AutoSaveIndicator } from '../shared/components/AutoSaveIndicator'
+import { StatusBadge } from '../shared/components/StatusBadge'
+import { PublishDialog } from '../shared/components/PublishDialog'
+import { CommentPanel } from '../shared/components/CommentPanel'
 
 /**
  * Get a nested value from an object using dot notation path
@@ -206,6 +221,41 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [editingAutomation, setEditingAutomation] = useState<import('./types/automation').SpreadsheetAutomation | null>(
     null
   )
+
+  // Versioning UI state
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+
+  // Versioning, Comments, Locking, Publishing hooks
+  const versioning = useVersioning({
+    entityId: app.id,
+    entityType: 'spreadsheet_app',
+    apiService: SpreadsheetApiService,
+    autoSaveEnabled: true,
+    autoSaveInterval: 30000
+  })
+
+  const comments = useComments({
+    entityId: app.id,
+    entityType: 'spreadsheet_app',
+    apiService: SpreadsheetApiService
+  })
+
+  const fileLock = useFileLock({
+    entityId: app.id,
+    entityType: 'spreadsheet_app',
+    currentUserId: userId,
+    apiService: SpreadsheetApiService
+  })
+
+  const publishing = usePublishing({
+    entityId: app.id,
+    entityType: 'spreadsheet_app',
+    currentStatus: app.publishMetadata?.status || 'draft',
+    apiService: SpreadsheetApiService
+  })
 
   // Prevent the entire page from horizontally overflowing when the table content (or resizer handles)
   // becomes slightly wider than the viewport. We keep horizontal scrolling inside the table container.
@@ -378,17 +428,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onAppUpdateRef.current = _onAppUpdate
   }, [_onAppUpdate])
 
-  // Store current user ID to avoid applying our own operations
+  // Store current user ID and info to avoid applying our own operations
   const currentUserIdRef = useRef<string | undefined>(undefined)
-  useEffect(() => {
-    try {
-      const token = localStorage.getItem('business-app-ide-access-token')
-      if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        currentUserIdRef.current = payload.sub || payload.userId
-      }
-    } catch {}
-  }, [])
+  const [currentUserName, setCurrentUserName] = useState<string>('User')
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined)
 
   // Collaboration callbacks (stable references - no dependencies)
   const onOperationReceivedCallback = useCallback((operation: any) => {
@@ -576,6 +619,47 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // Get access token for avatar fetching (use prop or fallback to localStorage)
   const authToken = accessToken || localStorage.getItem('business-app-ide-access-token') || ''
   const graphqlClient = useGraphQLClient(authToken)
+
+  // Fetch current user info for comments
+  useEffect(() => {
+    const fetchCurrentUserInfo = async () => {
+      try {
+        const token = localStorage.getItem('business-app-ide-access-token')
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          currentUserIdRef.current = payload.sub || payload.userId
+          setCurrentUserName(payload.name || payload.preferred_username || 'User')
+
+          // Fetch avatar
+          if (authToken && payload.sub) {
+            const query = `
+              query GetCurrentUserAvatar($userId: String!) {
+                Employee(where: { userId: { _eq: $userId } }) {
+                  pictureThumbnail
+                }
+              }
+            `
+            const result = await graphqlClient.request<{ Employee: Array<{ pictureThumbnail: string | null }> }>(
+              query,
+              {
+                userId: payload.sub
+              }
+            )
+
+            if (result.Employee?.[0]?.pictureThumbnail) {
+              const thumbnail = result.Employee[0].pictureThumbnail
+              const url = thumbnail.startsWith('data:') ? thumbnail : `data:image/png;base64,${thumbnail}`
+              setCurrentUserAvatar(url)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[SpreadsheetAppViewer] Failed to fetch current user info:', error)
+      }
+    }
+
+    fetchCurrentUserInfo()
+  }, [authToken, graphqlClient])
 
   // Enriched participants for header presence (keep old behavior: resolve by Employee.userId)
   const [headerParticipants, setHeaderParticipants] = useState<DocumentParticipant[]>([])
@@ -1273,7 +1357,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         columnMap.set(col.name, col)
       })
 
-      const newRows = rows.map((rowData, _index) => {
+      const newRows = rows.map(rowData => {
         const newRow: Record<string, unknown> = {
           _id: crypto.randomUUID(),
           _createdAt: new Date().toISOString(),
@@ -2069,12 +2153,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         } else {
           pendingBackingRowCreateRef.current.add(rowId)
 
-        const payload: Record<string, unknown> = { _clientRowId: rowId }
-        for (const [k, v] of Object.entries(localRow)) {
-          if (k === '_id' || k === '_rowUuid' || k === 'id') continue
-          if (k === '_entityType' || k === '_fetchedAt') continue
-          payload[k] = v
-        }
+          const payload: Record<string, unknown> = { _clientRowId: rowId }
+          for (const [k, v] of Object.entries(localRow)) {
+            if (k === '_id' || k === '_rowUuid' || k === 'id') continue
+            if (k === '_entityType' || k === '_fetchedAt') continue
+            payload[k] = v
+          }
 
           SpreadsheetApiService.addRow(app.id, activeSheet.id, payload)
             .then(saved => {
@@ -2107,15 +2191,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
       }
     },
-    [
-      activeSheet,
-      entityData,
-      localSheetData,
-      app.id,
-      recalculateAllFormulas,
-      isCollaborationConnected,
-      emitOperation
-    ]
+    [activeSheet, entityData, localSheetData, app.id, recalculateAllFormulas, isCollaborationConnected, emitOperation]
   )
 
   // Global keyboard handler for formula mode (Enter/Escape to finish/cancel)
@@ -2755,43 +2831,96 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               {/* Divider */}
               <div className="gba:h-6 gba:w-px gba:bg-border/50" />
 
-              {/* Action Buttons */}
+              {/* Versioning Features - Clean */}
               <div className="gba:flex gba:items-center gba:gap-1.5">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={isAutomationsOpen ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setIsAutomationsOpen(!isAutomationsOpen)}
-                        data-testid={`${testId}-automations-button`}
-                        className="gba:h-8 gba:gap-1.5"
-                      >
-                        <Zap className="gba:w-4 gba:h-4" />
-                        <span className="gba:hidden md:gba:inline">Automations</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <span>Manage automations and workflows</span>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                {/* Auto-save indicator */}
+                <AutoSaveIndicator
+                  isSaving={versioning.isSaving}
+                  lastSaveTime={versioning.lastSaveTime}
+                  hasUnsavedChanges={versioning.hasUnsavedChanges}
+                  onManualSave={() => setShowCheckpointDialog(true)}
+                  data-testid="spreadsheet-auto-save-indicator"
+                />
 
-                {onEdit && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={onEdit} className="gba:h-8 gba:gap-1.5">
-                          <Settings className="gba:w-4 gba:h-4" />
-                          <span className="gba:hidden md:gba:inline">Settings</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <span>Spreadsheet settings</span>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                {/* Comments button */}
+                <Button
+                  variant={showComments ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setShowComments(!showComments)}
+                  title="Comments"
+                  data-testid="spreadsheet-comments-button"
+                  className="gba:h-8"
+                >
+                  <MessageSquare className="gba:w-4 gba:h-4" />
+                  {comments.unresolvedCount > 0 && (
+                    <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
+                      {comments.unresolvedCount}
+                    </Badge>
+                  )}
+                </Button>
+
+                {/* Lock status (compact) */}
+                {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
+                  <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
+                    <Lock className="gba:h-3 gba:w-3" />
+                    Locked
+                  </Badge>
                 )}
+
+                {/* Status badge */}
+                <StatusBadge status={publishing.metadata?.status || 'draft'} />
+              </div>
+
+              <div className="gba:h-6 gba:w-px gba:bg-border/50" />
+
+              {/* Spreadsheet Actions Menu */}
+              <div className="gba:flex gba:items-center gba:gap-1.5">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gba:h-8">
+                      <FileSpreadsheet className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Spreadsheet
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
+                      <History className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Version History
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowCheckpointDialog(true)}>
+                      <Save className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Save Checkpoint
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {fileLock.isLockedByMe ? (
+                      <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
+                        <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Unlock Spreadsheet
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
+                        <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Lock Spreadsheet
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
+                      <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Publish...
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setIsAutomationsOpen(true)}>
+                      <Zap className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Automations
+                    </DropdownMenuItem>
+                    {onEdit && (
+                      <DropdownMenuItem onClick={onEdit}>
+                        <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Settings
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
@@ -3658,6 +3787,114 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Versioning Dialogs */}
+      {showVersionHistory && (
+        <VersionHistory
+          versions={versioning.versions}
+          isLoading={versioning.isLoading}
+          onRestore={async versionNumber => {
+            console.log('[SpreadsheetAppViewer] Restoring to version:', versionNumber)
+
+            // Get the version data first
+            const versionData = await SpreadsheetApiService.getVersion(app.id, versionNumber)
+            console.log('[SpreadsheetAppViewer] Version data retrieved:', versionData)
+
+            if (!versionData) {
+              console.error('[SpreadsheetAppViewer] Failed to get version data')
+              return
+            }
+
+            // Now restore on backend
+            const success = await versioning.restoreVersion(versionNumber)
+            console.log('[SpreadsheetAppViewer] Backend restore result:', success)
+
+            if (success) {
+              console.log('[SpreadsheetAppViewer] Restore succeeded!')
+              console.log('[SpreadsheetAppViewer] Reloading app from backend...')
+
+              // Reload the app from backend to get restored data
+              // Reload versions first
+              await versioning.loadVersions()
+
+              // Close dialog
+              setShowVersionHistory(false)
+
+              console.log('[SpreadsheetAppViewer] Restore complete! Reloading page...')
+
+              // Automatically reload page to show restored data
+              setTimeout(() => {
+                window.location.reload()
+              }, 500)
+            } else {
+              console.error('[SpreadsheetAppViewer] Restore failed')
+              alert('Failed to restore version. Check console for details.')
+            }
+          }}
+          onClose={() => setShowVersionHistory(false)}
+          currentVersion={versioning.currentVersion?.version}
+          showAutoSaves={false}
+          data-testid="spreadsheet-version-history"
+        />
+      )}
+
+      {showCheckpointDialog && (
+        <CheckpointDialog
+          isOpen={showCheckpointDialog}
+          onClose={() => setShowCheckpointDialog(false)}
+          onSave={async description => {
+            await versioning.createCheckpoint(description)
+          }}
+          isSaving={versioning.isSaving}
+          data-testid="spreadsheet-checkpoint-dialog"
+        />
+      )}
+
+      {showPublishDialog && (
+        <PublishDialog
+          isOpen={showPublishDialog}
+          onClose={() => setShowPublishDialog(false)}
+          onPublish={async (publishNotes, createCheckpoint) => {
+            await publishing.publish(publishNotes, createCheckpoint)
+          }}
+          isPublishing={publishing.isPublishing}
+          entityType="spreadsheet"
+          data-testid="spreadsheet-publish-dialog"
+        />
+      )}
+
+      {showComments && (
+        <CommentPanel
+          comments={comments.comments}
+          unresolvedCount={comments.unresolvedCount}
+          isLoading={comments.isLoading}
+          onCreateComment={async (content, parentId, userName, userAvatar) => {
+            await comments.createComment({
+              type: parentId ? 'document' : 'cell',
+              content,
+              parentId,
+              createdByName: userName,
+              createdByAvatar: userAvatar
+            })
+          }}
+          onUpdateComment={async (commentId, content) => {
+            await comments.updateComment(commentId, { content })
+          }}
+          onResolveComment={async commentId => {
+            await comments.resolveComment(commentId)
+          }}
+          onDeleteComment={async commentId => {
+            await comments.deleteComment(commentId)
+          }}
+          onClose={() => setShowComments(false)}
+          currentUserId={userId}
+          currentUserName={currentUserName || 'User'}
+          currentUserAvatar={currentUserAvatar || undefined}
+          accessToken={authToken}
+          headerHeight={100}
+          data-testid="spreadsheet-comment-panel"
+        />
+      )}
     </div>
   )
 }

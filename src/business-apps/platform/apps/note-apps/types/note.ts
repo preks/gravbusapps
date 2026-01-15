@@ -5,20 +5,15 @@
  * and collaboration types.
  */
 
+import type { Version, Comment, FileLock, PublishStatus, PublishMetadata } from '../../shared/types/versioning'
+
+// Re-export shared types for convenience
+export type { Version, Comment, FileLock, PublishStatus, PublishMetadata }
+
 /**
  * Note color themes for visual organization
  */
-export type NoteColor =
-  | 'default'
-  | 'red'
-  | 'orange'
-  | 'yellow'
-  | 'green'
-  | 'teal'
-  | 'blue'
-  | 'purple'
-  | 'pink'
-  | 'gray'
+export type NoteColor = 'default' | 'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue' | 'purple' | 'pink' | 'gray'
 
 /**
  * Note sharing permission levels
@@ -79,6 +74,12 @@ export interface Note {
   permission?: NotePermission | 'owner'
   isShared?: boolean
   sharedBy?: string
+
+  // Versioning, locking, and publishing metadata
+  lock?: FileLock
+  publishMetadata?: PublishMetadata
+  commentCount?: number
+  hasUnresolvedComments?: boolean
 }
 
 /**

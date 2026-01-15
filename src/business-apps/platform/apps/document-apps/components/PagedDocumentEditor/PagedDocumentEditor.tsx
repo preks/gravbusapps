@@ -44,7 +44,6 @@ import {
   Save,
   FileText,
   Download,
-  MoreVertical,
   Clock,
   CheckCircle,
   Printer,
@@ -55,7 +54,12 @@ import {
   ZoomOut,
   UserCheck,
   AlertCircle,
-  XCircle
+  XCircle,
+  History,
+  Lock,
+  Unlock,
+  MessageSquare,
+  Upload
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -69,6 +73,18 @@ import { useCollaboration } from '../../../shared/hooks/useCollaboration'
 import type { DocumentParticipant } from '../../../shared/services/CollaborationClient'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
 import { SocketIoYjsProvider } from '../../../shared/services/SocketIoYjsProvider'
+import { useVersioning } from '../../../shared/hooks/useVersioning'
+import { useFileLock } from '../../../shared/hooks/useFileLock'
+import { useComments } from '../../../shared/hooks/useComments'
+import { usePublishing } from '../../../shared/hooks/usePublishing'
+import { VersionHistory } from '../../../shared/components/VersionHistory'
+import { CheckpointDialog } from '../../../shared/components/CheckpointDialog'
+import { AutoSaveIndicator } from '../../../shared/components/AutoSaveIndicator'
+import { StatusBadge } from '../../../shared/components/StatusBadge'
+import { PublishDialog } from '../../../shared/components/PublishDialog'
+import { CommentPanel } from '../../../shared/components/CommentPanel'
+import { InlineCommentPopover } from '../../../shared/components/InlineCommentPopover'
+import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 
@@ -314,6 +330,15 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   const [currentUserName, setCurrentUserName] = useState<string | null>(null)
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null)
 
+  // Versioning UI state
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
+  const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
+  const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
+
   // Yjs CRDT state for true concurrent co-editing
   const [isYjsSynced, setIsYjsSynced] = useState(false)
   const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
@@ -338,12 +363,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   const accessToken = accessTokenProp || localStorage.getItem('business-app-ide-access-token') || ''
 
   // Collaboration state
-  const {
-    participants: rawParticipants,
-    isConnected: _isCollaborationConnected,
-    socket: collaborationSocket,
-    emitOperation: _emitOperation
-  } = useCollaboration({
+  const { participants: rawParticipants, socket: collaborationSocket } = useCollaboration({
     entityType: 'document',
     entityId: document?.id || '',
     enabled: !!document?.id,
@@ -353,6 +373,38 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
 
   // Enriched participants with avatars (populated by useEffect after graphqlClient is initialized)
   const [participants, setParticipants] = useState<DocumentParticipant[]>(rawParticipants)
+
+  // Versioning, Comments, Locking, Publishing hooks
+  const versioning = useVersioning({
+    entityId: document?.id || '',
+    entityType: 'document',
+    apiService: DocumentApiService,
+    autoSaveEnabled: !!document?.id && !isReadOnly,
+    autoSaveInterval: 30000,
+    onVersionCreated: version => {
+      console.log('[PagedDocumentEditor] Version created:', version.version)
+    }
+  })
+
+  const comments = useComments({
+    entityId: document?.id || '',
+    entityType: 'document',
+    apiService: DocumentApiService
+  })
+
+  const fileLock = useFileLock({
+    entityId: document?.id || '',
+    entityType: 'document',
+    currentUserId: currentUserId || undefined,
+    apiService: DocumentApiService
+  })
+
+  const publishing = usePublishing({
+    entityId: document?.id || '',
+    entityType: 'document',
+    currentStatus: document?.publishMetadata?.status || 'draft',
+    apiService: DocumentApiService
+  })
 
   // Drive Yjs sync + awareness over our existing Socket.IO connection.
   useEffect(() => {
@@ -381,18 +433,18 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
         console.log('[PagedDocumentEditor] Bootstrap: setting content:', html?.substring(0, 100))
         console.log('[PagedDocumentEditor] Bootstrap: editor exists:', !!ed)
         console.log('[PagedDocumentEditor] Bootstrap: editor isEditable BEFORE:', ed.isEditable)
-        
+
         // Temporarily make editor editable for setContent to work with Collaboration extension
         const wasEditable = ed.isEditable
         if (!wasEditable) {
           ed.setEditable(true)
         }
-        
+
         ed.commands.setContent(html || '<p></p>', true)
-        
+
         // Give TipTap time to propagate the change to Yjs
         await new Promise(resolve => setTimeout(resolve, 100))
-        
+
         // Debug: check what's in the Y.Doc now (TipTap uses 'default' fragment by default)
         const defaultFragment = ydoc.getXmlFragment('default')
         console.log('[PagedDocumentEditor] Bootstrap: Y.Doc default fragment length:', defaultFragment.length)
@@ -400,7 +452,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
         // Also check the editor's current content
         console.log('[PagedDocumentEditor] Bootstrap: editor HTML after setContent:', ed.getHTML())
         console.log('[PagedDocumentEditor] Bootstrap: editor isEditable AFTER:', ed.isEditable)
-        
+
         // Note: Don't restore editable to false - the bootstrap process will mark sync as complete
         // which will trigger the setEditable effect to set the correct state
       },
@@ -408,7 +460,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
         const ed = editorRef.current
         if (!ed) return
         scheduleSnapshotSaveRef.current(ed)
-      },
+      }
     })
 
     yjsProviderRef.current = provider
@@ -499,7 +551,9 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
             }
           }
         `
-        const result = await graphqlClient.request<{ Employee: Array<{ userId: string; pictureThumbnail: string | null }> }>(query, { userIds })
+        const result = await graphqlClient.request<{
+          Employee: Array<{ userId: string; pictureThumbnail: string | null }>
+        }>(query, { userIds })
 
         const avatarMap = new Map<string, string>()
         result?.Employee?.forEach(emp => {
@@ -559,9 +613,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
         if (result?.Employee?.[0]?.pictureThumbnail) {
           const thumbnail = result.Employee[0].pictureThumbnail
           // Convert to data URL if it's raw base64
-          const avatarUrl = thumbnail.startsWith('data:')
-            ? thumbnail
-            : `data:image/png;base64,${thumbnail}`
+          const avatarUrl = thumbnail.startsWith('data:') ? thumbnail : `data:image/png;base64,${thumbnail}`
           setCurrentUserAvatar(avatarUrl)
         }
       } catch (error) {
@@ -573,79 +625,98 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   }, [currentUserId, accessToken, graphqlClient])
 
   // Initialize TipTap editor
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3, 4, 5, 6]
-        },
-        // Disable history when using Collaboration (Yjs provides its own history)
-        history: document?.id ? false : {}
-      }),
-      Placeholder.configure({
-        placeholder: 'Start writing your document...'
-      }),
-      TextAlign.configure({
-        types: ['heading', 'paragraph']
-      }),
-      Underline,
-      TextStyle,
-      Color,
-      Highlight.configure({
-        multicolor: true
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'editor-link'
-        }
-      }),
-      Image.configure({
-        HTMLAttributes: {
-          class: 'editor-image'
-        }
-      }),
-      Table.configure({
-        resizable: true,
-        HTMLAttributes: {
-          class: 'editor-table'
-        }
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      FontFamily,
-      Subscript,
-      Superscript,
-      Typography,
-      PageBreak,
-      ...(collaborationExtension ? [collaborationExtension] : []),
-      ...(yjsCursorExtension ? [yjsCursorExtension] : [])
-    ],
-    // In CRDT mode, the Yjs doc becomes the single source of truth.
-    content: document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>',
-    editable: !isReadOnly && (!document?.id || isYjsSynced),
-    onUpdate: ({ editor: _currentEditor }) => {
-      updatePageCount()
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({
+          heading: {
+            levels: [1, 2, 3, 4, 5, 6]
+          },
+          // Disable history when using Collaboration (Yjs provides its own history)
+          history: document?.id ? false : {}
+        }),
+        Placeholder.configure({
+          placeholder: 'Start writing your document...'
+        }),
+        TextAlign.configure({
+          types: ['heading', 'paragraph']
+        }),
+        Underline,
+        TextStyle,
+        Color,
+        Highlight.configure({
+          multicolor: true
+        }),
+        Link.configure({
+          openOnClick: false,
+          HTMLAttributes: {
+            class: 'editor-link'
+          }
+        }),
+        Image.configure({
+          HTMLAttributes: {
+            class: 'editor-image'
+          }
+        }),
+        Table.configure({
+          resizable: true,
+          HTMLAttributes: {
+            class: 'editor-table'
+          }
+        }),
+        TableRow,
+        TableHeader,
+        TableCell,
+        FontFamily,
+        Subscript,
+        Superscript,
+        Typography,
+        PageBreak,
+        InlineCommentExtension.configure({
+          onCommentClick: commentId => {
+            // Open comment panel
+            setShowComments(true)
+            // Scroll to the specific comment after panel opens
+            setTimeout(() => {
+              const commentElement = document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
+              commentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }, 300)
+          }
+        }),
+        ...(collaborationExtension ? [collaborationExtension] : []),
+        ...(yjsCursorExtension ? [yjsCursorExtension] : [])
+      ],
+      // In CRDT mode, the Yjs doc becomes the single source of truth.
+      content: document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>',
+      editable: !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
+      onUpdate: () => {
+        updatePageCount()
 
-      // For documents without an ID (not yet persisted), fallback to REST save debounce.
-      if (!document?.id) {
-        setHasUnsavedChanges(true)
-        if (autoSaveTimeoutRef.current) {
-          clearTimeout(autoSaveTimeoutRef.current)
+        // Mark as changed for versioning system
+        if (document?.id) {
+          versioning.markAsChanged()
         }
-        autoSaveTimeoutRef.current = setTimeout(() => {
-          handleSave()
-        }, 3000)
+
+        // For documents without an ID (not yet persisted), fallback to REST save debounce.
+        if (!document?.id) {
+          setHasUnsavedChanges(true)
+          if (autoSaveTimeoutRef.current) {
+            clearTimeout(autoSaveTimeoutRef.current)
+          }
+          autoSaveTimeoutRef.current = setTimeout(() => {
+            handleSave()
+          }, 3000)
+        }
       }
-    }
-  }, [document?.id, ydoc])
+    },
+    [document?.id, ydoc]
+  )
 
   // Inject collaboration cursor styles once on mount
   useEffect(() => {
     // Guard against SSR / non-browser environments
     if (typeof window === 'undefined') return
-    
+
     const styleId = 'collaboration-cursor-styles'
     // Use window.document to avoid shadowing from the 'document' prop
     if (!window.document.getElementById(styleId)) {
@@ -671,14 +742,17 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
     }
   }, [editor])
 
-  // Update editor editable state when Yjs sync status changes
+  // Update editor editable state when Yjs sync status or lock changes
   useEffect(() => {
     if (!editor) return
-    const shouldBeEditable = !isReadOnly && (!document?.id || isYjsSynced)
+    // For new documents (no ID), always editable if not read-only
+    // For existing documents, check Yjs sync and lock status
+    const shouldBeEditable = !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit))
     console.log('[PagedDocumentEditor] Editable state check:', {
       isReadOnly,
       hasDocId: !!document?.id,
       isYjsSynced,
+      canEdit: fileLock.canEdit,
       shouldBeEditable,
       currentIsEditable: editor.isEditable
     })
@@ -686,7 +760,26 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
       console.log('[PagedDocumentEditor] Setting editor editable to:', shouldBeEditable)
       editor.setEditable(shouldBeEditable)
     }
-  }, [editor, isReadOnly, document?.id, isYjsSynced])
+  }, [editor, isReadOnly, document?.id, isYjsSynced, fileLock.canEdit])
+
+  // Handler for inline comment (defined after editor)
+  const handleAddInlineComment = useCallback(() => {
+    if (!editor) return
+
+    const { from, to } = editor.state.selection
+    if (from === to) return // No selection
+
+    const selectedText = editor.state.doc.textBetween(from, to)
+    const { view } = editor
+    const coords = view.coordsAtPos(from)
+
+    setPendingSelection({ from, to, text: selectedText })
+    setInlineCommentPosition({
+      top: coords.top + window.scrollY + 30,
+      left: coords.left + window.scrollX
+    })
+    setShowInlineCommentPopover(true)
+  }, [editor])
 
   // Calculate page count based on content height
   const updatePageCount = useCallback(() => {
@@ -756,15 +849,42 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+S - Save
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault()
         handleSave()
+      }
+
+      // Cmd/Ctrl+Shift+M - Add inline comment
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'm') {
+        e.preventDefault()
+        handleAddInlineComment()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleSave])
+  }, [handleSave, handleAddInlineComment])
+
+  // Context menu for inline comments
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      // Only show if text is selected
+      if (!editor) return
+
+      const { from, to } = editor.state.selection
+      if (from === to) return // No selection
+
+      e.preventDefault()
+      handleAddInlineComment()
+    }
+
+    const editorElement = editorContainerRef.current?.querySelector('.ProseMirror')
+    if (editorElement) {
+      editorElement.addEventListener('contextmenu', handleContextMenu)
+      return () => editorElement.removeEventListener('contextmenu', handleContextMenu)
+    }
+  }, [editor, handleAddInlineComment])
 
   // Export to Word
   const handleExportWord = useCallback(async () => {
@@ -1007,6 +1127,119 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
 
               <Separator orientation="vertical" className="gba:h-6" />
 
+              {/* For new documents, show prominent save button */}
+              {!document?.id && !isReadOnly && (
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  variant="default"
+                  size="sm"
+                  data-testid="save-new-document-button"
+                  className="gba:bg-primary gba:text-primary-foreground"
+                >
+                  <Save className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {isSaving ? 'Saving...' : 'Save Document'}
+                </Button>
+              )}
+
+              {/* Versioning Features - Clean & Compact (for existing documents) */}
+              {document?.id && (
+                <>
+                  {/* Auto-save indicator */}
+                  <AutoSaveIndicator
+                    isSaving={versioning.isSaving}
+                    lastSaveTime={versioning.lastSaveTime}
+                    hasUnsavedChanges={versioning.hasUnsavedChanges}
+                    onManualSave={() => setShowCheckpointDialog(true)}
+                    data-testid="auto-save-indicator"
+                  />
+
+                  {/* Comments button */}
+                  <Button
+                    variant={showComments ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setShowComments(!showComments)}
+                    title="Comments (Right-click on text to add inline comment)"
+                    data-testid="comments-button"
+                    className="gba:h-8"
+                  >
+                    <MessageSquare className="gba:w-4 gba:h-4" />
+                    {comments.unresolvedCount > 0 && (
+                      <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
+                        {comments.unresolvedCount}
+                      </Badge>
+                    )}
+                  </Button>
+
+                  {/* Lock status indicator (compact) */}
+                  {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
+                    <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
+                      <Lock className="gba:h-3 gba:w-3" />
+                      Locked
+                    </Badge>
+                  )}
+
+                  {/* Status badge */}
+                  <StatusBadge status={publishing.metadata?.status || 'draft'} />
+                </>
+              )}
+
+              <Separator orientation="vertical" className="gba:h-6" />
+
+              {/* Document Actions Menu */}
+              {document?.id && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Document
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
+                      <History className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Version History
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowCheckpointDialog(true)}>
+                      <Save className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Save Checkpoint
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {fileLock.isLockedByMe ? (
+                      <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
+                        <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Unlock Document
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
+                        <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Lock Document
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
+                      <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Publish...
+                    </DropdownMenuItem>
+                    {onSaveAsTemplate && (
+                      <DropdownMenuItem onClick={() => editor && onSaveAsTemplate(title, editor.getHTML())}>
+                        <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Save as Template
+                      </DropdownMenuItem>
+                    )}
+                    {onSendForApproval && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={onSendForApproval}>
+                          <Send className="gba:w-4 gba:h-4 gba:mr-2" />
+                          Send for Approval
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
               {/* Export dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1031,37 +1264,6 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* More actions dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <MoreVertical className="gba:w-4 gba:h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {onSaveAsTemplate && (
-                    <DropdownMenuItem onClick={() => editor && onSaveAsTemplate(title, editor.getHTML())}>
-                      <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Save as Template
-                    </DropdownMenuItem>
-                  )}
-                  {onSendForApproval && (
-                    <DropdownMenuItem onClick={onSendForApproval}>
-                      <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Send for Approval
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Save button */}
-              {!isReadOnly && (
-                <Button onClick={() => handleSave()} disabled={isSaving || !hasUnsavedChanges}>
-                  <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {isSaving ? 'Saving...' : 'Save'}
-                </Button>
-              )}
             </div>
           </div>
         </div>
@@ -1302,6 +1504,190 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
           }
         }
       `}</style>
+
+      {/* Versioning Dialogs */}
+      {document?.id && showVersionHistory && (
+        <VersionHistory
+          versions={versioning.versions}
+          isLoading={versioning.isLoading}
+          onRestore={async versionNumber => {
+            console.log('[PagedDocumentEditor] Restoring to version:', versionNumber)
+
+            // Get the version data first
+            const versionData = await DocumentApiService.getVersion(document.id, versionNumber)
+            console.log('[PagedDocumentEditor] Version data retrieved:', versionData)
+
+            if (!versionData) {
+              console.error('[PagedDocumentEditor] Failed to get version data')
+              return
+            }
+
+            // Now restore on backend
+            const success = await versioning.restoreVersion(versionNumber)
+            console.log('[PagedDocumentEditor] Backend restore result:', success)
+
+            if (success && editor && versionData.content) {
+              // Update editor content directly
+              console.log('[PagedDocumentEditor] Updating editor with restored content...')
+              editor.commands.setContent(versionData.content)
+              setTitle(versionData.title)
+              setHasUnsavedChanges(false)
+              setLastSaved(new Date())
+              console.log('[PagedDocumentEditor] Editor content updated!')
+
+              // Reload versions to show the new "Restored" checkpoint
+              await versioning.loadVersions()
+
+              // Close the dialog
+              setShowVersionHistory(false)
+            }
+          }}
+          onClose={() => setShowVersionHistory(false)}
+          currentVersion={versioning.currentVersion?.version}
+          showAutoSaves={false}
+          data-testid="document-version-history"
+        />
+      )}
+
+      {document?.id && showCheckpointDialog && (
+        <CheckpointDialog
+          isOpen={showCheckpointDialog}
+          onClose={() => setShowCheckpointDialog(false)}
+          onSave={versioning.createCheckpoint}
+          isSaving={versioning.isSaving}
+          data-testid="document-checkpoint-dialog"
+        />
+      )}
+
+      {document?.id && showPublishDialog && (
+        <PublishDialog
+          isOpen={showPublishDialog}
+          onClose={() => setShowPublishDialog(false)}
+          onPublish={publishing.publish}
+          isPublishing={publishing.isPublishing}
+          entityType="document"
+          data-testid="document-publish-dialog"
+        />
+      )}
+
+      {document?.id && showComments && (
+        <CommentPanel
+          comments={comments.comments}
+          unresolvedCount={comments.unresolvedCount}
+          isLoading={comments.isLoading}
+          onCreateComment={async (content, parentId) => {
+            await comments.createComment({
+              type: parentId ? 'document' : 'document',
+              content,
+              parentId,
+              // Pass current user info to avoid fetching on every comment
+              createdByName: currentUserName || undefined,
+              createdByAvatar: currentUserAvatar || undefined
+            })
+          }}
+          onUpdateComment={async (commentId, content) => {
+            await comments.updateComment(commentId, { content })
+          }}
+          onResolveComment={comments.resolveComment}
+          onDeleteComment={comments.deleteComment}
+          onClose={() => setShowComments(false)}
+          currentUserId={currentUserId || undefined}
+          currentUserName={currentUserName || undefined}
+          currentUserAvatar={currentUserAvatar || undefined}
+          accessToken={accessToken}
+          headerHeight={120}
+          onUnhighlight={commentId => {
+            // Remove inline comment highlight when resolved/deleted
+            if (editor) {
+              // Find and remove the specific comment highlight
+              const { doc } = editor.state
+              let foundPos: { from: number; to: number } | null = null
+
+              doc.descendants((node, pos) => {
+                if (node.marks) {
+                  node.marks.forEach(mark => {
+                    if (mark.type.name === 'inlineComment' && mark.attrs.commentId === commentId) {
+                      foundPos = { from: pos, to: pos + node.nodeSize }
+                    }
+                  })
+                }
+              })
+
+              if (foundPos) {
+                editor.chain().setTextSelection(foundPos).unsetInlineComment().run()
+              }
+            }
+          }}
+          onScrollToHighlight={commentId => {
+            // Scroll to and highlight the text for this comment
+            if (editor) {
+              const { doc } = editor.state
+
+              doc.descendants((node, pos) => {
+                if (node.marks) {
+                  node.marks.forEach(mark => {
+                    if (mark.type.name === 'inlineComment' && mark.attrs.commentId === commentId) {
+                      // Scroll the element into view
+                      editor
+                        .chain()
+                        .setTextSelection({ from: pos, to: pos + node.nodeSize })
+                        .focus()
+                        .run()
+
+                      // Find the DOM element and scroll to it
+                      setTimeout(() => {
+                        const element = document.querySelector(`[data-comment-id="${commentId}"]`)
+                        element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      }, 100)
+                    }
+                  })
+                }
+              })
+            }
+          }}
+          data-testid="document-comment-panel"
+        />
+      )}
+
+      {/* Inline comment popover (Google Docs style) */}
+      <InlineCommentPopover
+        isOpen={showInlineCommentPopover}
+        position={inlineCommentPosition}
+        onSubmit={async content => {
+          if (!pendingSelection || !editor) return
+
+          const comment = await comments.createComment({
+            type: 'inline',
+            content,
+            selectionStart: pendingSelection.from,
+            selectionEnd: pendingSelection.to,
+            selectedText: pendingSelection.text,
+            createdByName: currentUserName || undefined,
+            createdByAvatar: currentUserAvatar || undefined
+          })
+
+          if (comment) {
+            // Highlight the text with comment marker
+            editor
+              .chain()
+              .focus()
+              .setInlineComment({
+                commentId: comment.id,
+                commentType: 'inline',
+                createdBy: currentUserId || '',
+                createdAt: comment.createdAt
+              })
+              .run()
+          }
+
+          setPendingSelection(null)
+        }}
+        onClose={() => {
+          setShowInlineCommentPopover(false)
+          setPendingSelection(null)
+        }}
+        data-testid="document-inline-comment-popover"
+      />
     </div>
   )
 }

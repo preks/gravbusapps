@@ -5,6 +5,11 @@
  * and approval workflow types.
  */
 
+import type { Version, Comment, FileLock, PublishStatus, PublishMetadata } from '../../shared/types/versioning'
+
+// Re-export shared types for convenience
+export type { Version, Comment, FileLock, PublishStatus, PublishMetadata }
+
 /**
  * Document status lifecycle
  */
@@ -99,6 +104,13 @@ export interface Document {
   permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
   isShared?: boolean
   sharedBy?: string
+
+  // Versioning, locking, and publishing metadata
+  currentVersion?: number
+  lock?: FileLock
+  publishMetadata?: PublishMetadata
+  commentCount?: number
+  hasUnresolvedComments?: boolean
 }
 
 /**

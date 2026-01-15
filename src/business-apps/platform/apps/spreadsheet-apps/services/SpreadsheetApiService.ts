@@ -8,7 +8,22 @@
  *          http://localhost:3002/api/v1 (local, if VITE_DOCUMENT_SERVICE_URL is set)
  */
 
-import type { SpreadsheetApp, SpreadsheetAppSummary, SpreadsheetSheet, AppStatus } from '../types/spreadsheet'
+import type {
+  SpreadsheetApp,
+  SpreadsheetAppSummary,
+  SpreadsheetSheet,
+  AppStatus,
+  Version,
+  Comment,
+  FileLock,
+  PublishMetadata
+} from '../types/spreadsheet'
+import type {
+  CreateCommentInput,
+  CommentQueryOptions,
+  LockFileInput,
+  PublishInput
+} from '../../shared/types/versioning'
 import { env } from '@/common/env/EnvUtils'
 
 // Get the API URL from environment or default to dev environment
@@ -549,7 +564,8 @@ export const SpreadsheetApiService = {
       body: JSON.stringify(data)
     })
 
-    const createdData = (((created as Record<string, unknown>).data as Record<string, unknown>) || {}) as SpreadsheetRowData
+    const createdData = (((created as Record<string, unknown>).data as Record<string, unknown>) ||
+      {}) as SpreadsheetRowData
     const clientRowId = (data as SpreadsheetRowData)._clientRowId
 
     // If we created a row for a client row id (entity-data-source), keep the UI key stable
@@ -588,7 +604,8 @@ export const SpreadsheetApiService = {
       }
     )
 
-    const updatedData = (((updated as Record<string, unknown>).data as Record<string, unknown>) || {}) as SpreadsheetRowData
+    const updatedData = (((updated as Record<string, unknown>).data as Record<string, unknown>) ||
+      {}) as SpreadsheetRowData
     const clientRowId = updatedData._clientRowId
     if (clientRowId) {
       return {
@@ -802,6 +819,443 @@ export const SpreadsheetApiService = {
     } catch (error) {
       console.error('Failed to revoke share:', error)
       return false
+    }
+  },
+
+  // ============ Versions ============
+
+  /**
+   * Create a new version snapshot
+   */
+  async createVersion(
+    appId: string,
+    options: {
+      content?: string
+      changeDescription?: string
+      isCheckpoint?: boolean
+    }
+  ): Promise<Version | null> {
+    try {
+      debugLog('createVersion', appId, options)
+
+      // Get the current app if content not provided
+      let contentSnapshot: Record<string, unknown>
+      if (options.content) {
+        contentSnapshot = { content: options.content }
+      } else {
+        const app = await this.getApp(appId)
+        if (!app) throw new Error('Spreadsheet app not found')
+        contentSnapshot = {
+          name: app.name,
+          description: app.description,
+          sheets: app.sheets,
+          relationships: app.relationships,
+          settings: app.settings
+        }
+      }
+
+      const versionData = await apiRequest<Record<string, unknown>>('/versions', {
+        method: 'POST',
+        body: JSON.stringify({
+          entityType: 'spreadsheet_app',
+          entityId: appId,
+          contentSnapshot,
+          changeSummary: options.changeDescription,
+          isAutoSave: !options.isCheckpoint
+        })
+      })
+
+      return {
+        id: versionData.id as string,
+        version: versionData.versionNumber as number,
+        content: JSON.stringify(versionData.contentSnapshot),
+        createdAt: versionData.createdAt as string,
+        createdBy: versionData.changedBy as string,
+        changeDescription: versionData.changeSummary as string | undefined,
+        isCheckpoint: !versionData.isAutoSave,
+        isAutoSave: versionData.isAutoSave as boolean,
+        fileSize: versionData.fileSize as number
+      }
+    } catch (error) {
+      console.error('Failed to create version:', error)
+      return null
+    }
+  },
+
+  /**
+   * Get version history for a spreadsheet app
+   */
+  async listVersions(appId: string, page = 1, limit = 20): Promise<Version[]> {
+    try {
+      debugLog('listVersions', appId)
+      const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(
+        `/versions/spreadsheet_app/${appId}?page=${page}&limit=${limit}`
+      )
+      return response.items.map(v => ({
+        id: v.id as string,
+        version: v.versionNumber as number,
+        content: JSON.stringify(v.contentSnapshot || {}),
+        createdAt: v.createdAt as string,
+        createdBy: v.changedBy as string,
+        changeDescription: v.changeSummary as string | undefined,
+        isCheckpoint: !v.isAutoSave,
+        isAutoSave: v.isAutoSave as boolean,
+        fileSize: (v.fileSize as number) || 0
+      }))
+    } catch (error) {
+      console.error('Failed to list versions:', error)
+      return []
+    }
+  },
+
+  /**
+   * Get a specific version
+   */
+  async getVersion(appId: string, versionNumber: number): Promise<SpreadsheetApp | null> {
+    try {
+      debugLog('getVersion', appId, versionNumber)
+      const versionData = await apiRequest<Record<string, unknown>>(
+        `/versions/spreadsheet_app/${appId}/${versionNumber}`
+      )
+      const snapshot = versionData.contentSnapshot as Record<string, unknown>
+      if (snapshot) {
+        return mapApiAppToSpreadsheetApp(snapshot)
+      }
+      return null
+    } catch (error) {
+      console.error('Failed to get version:', error)
+      return null
+    }
+  },
+
+  /**
+   * Restore a spreadsheet app to a previous version (creates a new version)
+   */
+  async restoreVersion(appId: string, versionNumber: number): Promise<boolean> {
+    try {
+      console.log('[SpreadsheetApiService] Restoring version:', appId, versionNumber)
+
+      // Call dedicated backend restore endpoint that handles everything (metadata + sheets + rows)
+      const result = await apiRequest<{ success: boolean; message: string; restoredRows: number }>(
+        `/spreadsheets/${appId}/restore/${versionNumber}`,
+        {
+          method: 'POST'
+        }
+      )
+
+      console.log('[SpreadsheetApiService] Restore complete!')
+      console.log('[SpreadsheetApiService] Message:', result.message)
+      console.log('[SpreadsheetApiService] Restored rows:', result.restoredRows)
+
+      return result.success
+    } catch (error) {
+      console.error('[SpreadsheetApiService] Failed to restore version:', error)
+      return false
+    }
+  },
+
+  /**
+   * Compare two versions
+   */
+  async compareVersions(
+    appId: string,
+    versionA: number,
+    versionB: number
+  ): Promise<{
+    versionA: Version
+    versionB: Version
+    diff: Array<{
+      path: string
+      type: 'added' | 'removed' | 'modified'
+      oldValue?: unknown
+      newValue?: unknown
+    }>
+  } | null> {
+    try {
+      debugLog('compareVersions', appId, versionA, versionB)
+      const response = await apiRequest<Record<string, unknown>>(
+        `/versions/spreadsheet_app/${appId}/compare?versionA=${versionA}&versionB=${versionB}`
+      )
+
+      return {
+        versionA: {
+          id: (response.versionA as Record<string, unknown>).id as string,
+          version: (response.versionA as Record<string, unknown>).versionNumber as number,
+          content: JSON.stringify((response.versionA as Record<string, unknown>).contentSnapshot),
+          createdAt: (response.versionA as Record<string, unknown>).createdAt as string,
+          createdBy: (response.versionA as Record<string, unknown>).changedBy as string,
+          changeDescription: (response.versionA as Record<string, unknown>).changeSummary as string | undefined,
+          isCheckpoint: !(response.versionA as Record<string, unknown>).isAutoSave,
+          isAutoSave: (response.versionA as Record<string, unknown>).isAutoSave as boolean,
+          fileSize: ((response.versionA as Record<string, unknown>).fileSize as number) || 0
+        },
+        versionB: {
+          id: (response.versionB as Record<string, unknown>).id as string,
+          version: (response.versionB as Record<string, unknown>).versionNumber as number,
+          content: JSON.stringify((response.versionB as Record<string, unknown>).contentSnapshot),
+          createdAt: (response.versionB as Record<string, unknown>).createdAt as string,
+          createdBy: (response.versionB as Record<string, unknown>).changedBy as string,
+          changeDescription: (response.versionB as Record<string, unknown>).changeSummary as string | undefined,
+          isCheckpoint: !(response.versionB as Record<string, unknown>).isAutoSave,
+          isAutoSave: (response.versionB as Record<string, unknown>).isAutoSave as boolean,
+          fileSize: ((response.versionB as Record<string, unknown>).fileSize as number) || 0
+        },
+        diff: response.diff as Array<{
+          path: string
+          type: 'added' | 'removed' | 'modified'
+          oldValue?: unknown
+          newValue?: unknown
+        }>
+      }
+    } catch (error) {
+      console.error('Failed to compare versions:', error)
+      return null
+    }
+  },
+
+  /**
+   * Delete a version (admin only, use with caution)
+   */
+  async deleteVersion(appId: string, versionNumber: number): Promise<boolean> {
+    try {
+      debugLog('deleteVersion', appId, versionNumber)
+      await apiRequest(`/versions/spreadsheet_app/${appId}/${versionNumber}`, {
+        method: 'DELETE'
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to delete version:', error)
+      return false
+    }
+  },
+
+  // ============ Comments ============
+
+  async createComment(appId: string, input: CreateCommentInput): Promise<Comment | null> {
+    try {
+      debugLog('createComment', appId, input)
+      const response = await apiRequest<Record<string, unknown>>(`/comments/spreadsheet_app/${appId}`, {
+        method: 'POST',
+        body: JSON.stringify(input)
+      })
+
+      return {
+        id: response.id as string,
+        entityId: appId,
+        entityType: 'spreadsheet_app',
+        type: response.type as Comment['type'],
+        content: response.content as string,
+        createdBy: response.createdBy as string,
+        createdByName: response.createdByName as string | undefined,
+        createdByAvatar: response.createdByAvatar as string | undefined,
+        createdAt: response.createdAt as string,
+        cellReference: response.cellReference as string | undefined,
+        sheetId: response.sheetId as string | undefined,
+        parentId: response.parentId as string | undefined
+      }
+    } catch (error) {
+      console.error('Failed to create comment:', error)
+      return null
+    }
+  },
+
+  async listComments(appId: string, options?: CommentQueryOptions): Promise<Comment[]> {
+    try {
+      debugLog('listComments', appId, options)
+      const params = new URLSearchParams()
+      if (options?.includeResolved) params.set('includeResolved', 'true')
+      if (options?.includeReplies) params.set('includeReplies', 'true')
+      if (options?.type) params.set('type', options.type)
+      if (options?.sheetId) params.set('sheetId', options.sheetId)
+
+      const queryString = params.toString()
+      const response = await apiRequest<Record<string, unknown>[]>(
+        `/comments/spreadsheet_app/${appId}${queryString ? `?${queryString}` : ''}`
+      )
+
+      return response.map(c => ({
+        id: c.id as string,
+        entityId: appId,
+        entityType: 'spreadsheet_app',
+        type: c.type as Comment['type'],
+        content: c.content as string,
+        createdBy: c.createdBy as string,
+        createdByName: c.createdByName as string | undefined,
+        createdByAvatar: c.createdByAvatar as string | undefined,
+        createdAt: c.createdAt as string,
+        resolvedAt: c.resolvedAt as string | undefined,
+        cellReference: c.cellReference as string | undefined,
+        sheetId: c.sheetId as string | undefined,
+        parentId: c.parentId as string | undefined,
+        replies: (c.replies as Record<string, unknown>[] | undefined)?.map(r => ({
+          id: r.id as string,
+          entityId: appId,
+          entityType: 'spreadsheet_app' as const,
+          type: r.type as Comment['type'],
+          content: r.content as string,
+          createdBy: r.createdBy as string,
+          createdByName: r.createdByName as string | undefined,
+          createdByAvatar: r.createdByAvatar as string | undefined,
+          createdAt: r.createdAt as string,
+          cellReference: r.cellReference as string | undefined,
+          sheetId: r.sheetId as string | undefined,
+          parentId: c.id as string
+        }))
+      }))
+    } catch (error) {
+      console.error('Failed to list comments:', error)
+      return []
+    }
+  },
+
+  async updateComment(commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
+    try {
+      await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ content: updates.content })
+      })
+      return null
+    } catch (error) {
+      console.error('Failed to update comment:', error)
+      return null
+    }
+  },
+
+  async resolveComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}/resolve`, { method: 'PATCH' })
+      return true
+    } catch (error) {
+      console.error('Failed to resolve comment:', error)
+      return false
+    }
+  },
+
+  async deleteComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('Failed to delete comment:', error)
+      return false
+    }
+  },
+
+  async replyToComment(commentId: string, reply: string): Promise<Comment | null> {
+    try {
+      await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ content: reply })
+      })
+      return null
+    } catch (error) {
+      console.error('Failed to reply to comment:', error)
+      return null
+    }
+  },
+
+  // ============ Locks ============
+
+  async lockFile(appId: string, input?: LockFileInput): Promise<FileLock | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/locks/spreadsheet_app/${appId}`, {
+        method: 'POST',
+        body: JSON.stringify(input || {})
+      })
+
+      return {
+        isLocked: true,
+        lockedBy: response.lockedBy as string,
+        lockedByName: response.lockedByName as string | undefined,
+        lockedAt: response.lockedAt as string,
+        lockExpiry: response.lockExpiry as string | undefined,
+        lockReason: response.lockReason as string | undefined
+      }
+    } catch (error) {
+      console.error('Failed to lock file:', error)
+      return null
+    }
+  },
+
+  async unlockFile(appId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/locks/spreadsheet_app/${appId}`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('Failed to unlock file:', error)
+      return false
+    }
+  },
+
+  async getLockStatus(appId: string): Promise<FileLock | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/locks/spreadsheet_app/${appId}`)
+
+      if (!response.isLocked) {
+        return null
+      }
+
+      return response as FileLock
+    } catch (error) {
+      console.error('Failed to get lock status:', error)
+      return null
+    }
+  },
+
+  async forceUnlock(appId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/locks/spreadsheet_app/${appId}/force`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('Failed to force unlock:', error)
+      return false
+    }
+  },
+
+  // ============ Publishing ============
+
+  async publish(appId: string, input?: PublishInput): Promise<PublishMetadata | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/publish`, {
+        method: 'POST',
+        body: JSON.stringify(input || {})
+      })
+
+      return {
+        status: 'published',
+        publishedAt: response.publishedAt as string,
+        publishedBy: response.publishedBy as string,
+        publishVersion: response.publishVersion as number
+      }
+    } catch (error) {
+      console.error('Failed to publish spreadsheet app:', error)
+      return null
+    }
+  },
+
+  async unpublish(appId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/spreadsheets/${appId}/unpublish`, { method: 'POST' })
+      return true
+    } catch (error) {
+      console.error('Failed to unpublish spreadsheet app:', error)
+      return false
+    }
+  },
+
+  async updateStatus(appId: string, status: string): Promise<PublishMetadata | null> {
+    try {
+      await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/publish-status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      })
+
+      return {
+        status: status as PublishMetadata['status']
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error)
+      return null
     }
   }
 }

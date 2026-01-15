@@ -7,6 +7,10 @@
  */
 
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
+import type { Version, Comment, FileLock, PublishStatus, PublishMetadata } from '../../shared/types/versioning'
+
+// Re-export shared types for convenience
+export type { Version, Comment, FileLock, PublishStatus, PublishMetadata }
 
 // ============================================================================
 // Excel Parsing Types
@@ -267,6 +271,13 @@ export interface SpreadsheetApp {
   permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
   isShared?: boolean
   sharedBy?: string
+
+  // Versioning, locking, and publishing metadata
+  currentVersion?: number
+  lock?: FileLock
+  publishMetadata?: PublishMetadata
+  commentCount?: number
+  hasUnresolvedComments?: boolean
 }
 
 /**
