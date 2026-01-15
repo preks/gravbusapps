@@ -4,7 +4,7 @@ import { MessageType } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { useConversations } from './useConversations'
-import { useMessages } from './useMessages'
+import { useMessagesV2 } from './useMessagesV2'
 import { useTypingIndicator } from './useTypingIndicator'
 import { usePresenceV2, type PresenceState } from './usePresenceV2'
 
@@ -115,7 +115,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   // Compute active conversation from the conversations list
   const activeConversation = conversationsHook.conversations.find(c => c.id === activeConversationId) || null
 
-  const messagesHook = useMessages({
+  const messagesHook = useMessagesV2({
     apiClient: apiClientState || ({} as ChatApiClient),
     conversationId: activeConversationId,
     currentUserId: currentUser?.id || null,
@@ -1151,7 +1151,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     createGroupConversation,
     setActiveConversation,
     closeConversation,
-    loadMoreMessages: messagesHook.loadMoreMessages,
+    loadMoreMessages: messagesHook.loadMore,
     loadMoreConversations: conversationsHook.loadMoreConversations,
     refreshConversations: conversationsHook.loadConversations,
     refreshMessages: messagesHook.refresh,

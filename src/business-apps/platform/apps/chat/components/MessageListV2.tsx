@@ -1,9 +1,10 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { MessageItemV2 } from './MessageItemV2'
 import { TypingIndicatorV2 } from './TypingIndicatorV2'
-import type { Message, ConversationType, TypingIndicator } from '../types'
+import type { Message, ConversationType, TypingIndicator, ConversationParticipant } from '../types'
 import { measureRender, devPerf, startPerformanceTimer } from '../utils/performanceUtils'
+import translations from '../_i18n'
 
 interface MessageListV2Props {
   messages: Message[]
@@ -17,6 +18,7 @@ interface MessageListV2Props {
   onReplyToAI?: () => void
   accessToken?: string
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
+  participants?: ConversationParticipant[]
 }
 
 /**
@@ -43,8 +45,13 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     typingUsers = [],
     onReplyToAI,
     accessToken,
-    onSendMessage
+    onSendMessage,
+    participants
   }) => {
+    // OPTIMIZATION: Call useTranslation once and memoize the result
+    const { t } = useTranslation(translations)
+    const previewLabel = useMemo(() => t('chat-preview-open'), [t])
+
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const prevMessagesLengthRef = useRef(0)
@@ -58,6 +65,7 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     const scrollAdjustmentTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Track scroll adjustment timeout
     const scrollBeforeLoadRef = useRef<number>(0) // CRITICAL: Store scroll position BEFORE load-more triggers
     const lastScrollHeightIncreaseRef = useRef<number>(0) // Track scroll height increase for unseen message detection
+    const lastLoadMoreTimeRef = useRef<number>(0) // Track when load-more was last triggered
 
     // State for "new messages" indicator (Slack/Teams pattern)
     const [hasUnseenMessages, setHasUnseenMessages] = useState(false)
@@ -71,6 +79,12 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
       setUnseenCount(0)
       prevMessagesLengthRef.current = 0
       prevScrollHeightRef.current = 0
+
+      // CRITICAL FIX: Reset performance timer when switching conversations
+      // Without this, timer runs across conversation switches showing inflated times
+      if (renderTimerRef.current) {
+        renderTimerRef.current = null
+      }
     }, [conversationId])
 
     // Track renders
@@ -375,37 +389,49 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
         clearTimeout(scrollTimeoutRef.current)
       }
 
-      // Reset after user stops scrolling (100ms)
+      // OPTIMIZATION: Debounce load-more check to prevent excessive triggers
+      // Wait 150ms after user stops scrolling before checking if we should load more
       scrollTimeoutRef.current = setTimeout(() => {
         isUserScrollingRef.current = false
-      }, 100)
 
-      // OPTIMIZATION: Load more when scrolled to top
-      const scrollTop = container.scrollTop
+        // Check if we should load more after scroll stabilizes
+        if (!container || !onLoadMore || isLoading || !hasMore) {
+          return
+        }
 
-      // Load more if near top (< 50px)
-      if (scrollTop < 50) {
-        // CRITICAL: Save scroll position BEFORE loading (browser will reset it to 0)
-        scrollBeforeLoadRef.current = scrollTop
-        prevScrollHeightRef.current = container.scrollHeight
+        const scrollTop = container.scrollTop
 
-        // Mark as loading to prevent duplicate triggers
-        isLoadingMoreRef.current = true
-        lastScrollTopRef.current = scrollTop
+        // CRITICAL: Prevent load-more cascade after scroll preservation
+        // If we just loaded more (within last 3 seconds), don't trigger again
+        const timeSinceLastLoad = Date.now() - lastLoadMoreTimeRef.current
+        const isRecentlyLoaded = timeSinceLastLoad < 3000
 
-        devPerf(() =>
-          console.log('[V2 List] 📌 Saved scroll before load-more:', {
-            scrollTop,
-            scrollHeight: container.scrollHeight,
-            clientHeight: container.clientHeight,
-            messageCount: messages.length
-          })
-        )
-        onLoadMore()
-      } else {
-        // Update last scroll position for tracking
-        lastScrollTopRef.current = scrollTop
-      }
+        // Load more if near top (< 200px) - Slack/Teams use ~200px threshold
+        // Also check if not already loading and not recently loaded to prevent cascade
+        if (scrollTop < 200 && !isLoadingMoreRef.current && !isRecentlyLoaded) {
+          // CRITICAL: Save scroll position BEFORE loading (browser will reset it to 0)
+          scrollBeforeLoadRef.current = scrollTop
+          prevScrollHeightRef.current = container.scrollHeight
+
+          // Mark as loading to prevent duplicate triggers
+          isLoadingMoreRef.current = true
+          lastScrollTopRef.current = scrollTop
+          lastLoadMoreTimeRef.current = Date.now()
+
+          devPerf(() =>
+            console.log('[V2 List] 📌 Saved scroll before load-more:', {
+              scrollTop,
+              scrollHeight: container.scrollHeight,
+              clientHeight: container.clientHeight,
+              messageCount: messages.length
+            })
+          )
+          onLoadMore()
+        } else {
+          // Update last scroll position for tracking
+          lastScrollTopRef.current = scrollTop
+        }
+      }, 150)
     }
 
     // Cleanup and reset loading ref when loading state changes
@@ -531,6 +557,8 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
                   onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
                   accessToken={accessToken}
                   onSendMessage={onSendMessage}
+                  participants={participants}
+                  previewLabel={previewLabel}
                 />
               )
             })}
@@ -545,31 +573,21 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
     )
   },
   (prevProps, nextProps) => {
-    // OPTIMIZATION: Custom comparison function for React.memo
-    // Only re-render if these specific props actually change
+    // OPTIMIZATION: Efficient comparison for React.memo
+    // Check only the props that frequently change and matter for rendering
 
-    // Check primitive props
-    if (prevProps.currentUserId !== nextProps.currentUserId) return false
-    if (prevProps.conversationType !== nextProps.conversationType) return false
-    if (prevProps.isLoading !== nextProps.isLoading) return false
-    if (prevProps.hasMore !== nextProps.hasMore) return false
-    if (prevProps.onLoadMore !== nextProps.onLoadMore) return false
+    // Conversation changed? Always re-render
     if (prevProps.conversationId !== nextProps.conversationId) return false
-    if (prevProps.onReplyToAI !== nextProps.onReplyToAI) return false
-    if (prevProps.accessToken !== nextProps.accessToken) return false
-    if (prevProps.onSendMessage !== nextProps.onSendMessage) return false
 
-    // Check typing users
-    const prevTypingCount = prevProps.typingUsers?.length || 0
-    const nextTypingCount = nextProps.typingUsers?.length || 0
-    if (prevTypingCount !== nextTypingCount) return false
+    // Loading state changed? Re-render
+    if (prevProps.isLoading !== nextProps.isLoading) return false
 
-    // Check messages array
-    // IMPORTANT: Compare length and first/last message IDs for performance
-    // Full array comparison would be expensive for 100+ messages
+    // OPTIMIZATION: Check messages more efficiently than array reference
+    // Instead of comparing array reference, check length + first/last message IDs
     if (prevProps.messages.length !== nextProps.messages.length) return false
+
+    // Check first and last message IDs (cheaper than comparing entire array)
     if (prevProps.messages.length > 0 && nextProps.messages.length > 0) {
-      // Compare first and last message IDs (catches most changes)
       const prevFirst = prevProps.messages[0]?.id
       const nextFirst = nextProps.messages[0]?.id
       const prevLast = prevProps.messages[prevProps.messages.length - 1]?.id
@@ -578,7 +596,13 @@ export const MessageListV2: React.FC<MessageListV2Props> = React.memo(
       if (prevFirst !== nextFirst || prevLast !== nextLast) return false
     }
 
-    // All props are equal, skip re-render
+    // Typing users changed? Check length instead of array reference
+    if (prevProps.typingUsers?.length !== nextProps.typingUsers?.length) return false
+
+    // Skip checking: currentUserId, conversationType, hasMore, callbacks, etc.
+    // These rarely change and checking them wastes time
+
+    // All important props are equal, skip re-render
     return true
   }
 )

@@ -429,7 +429,7 @@ export function useMessagesV2({
         abortControllerRef.current = null
       }
     }
-  }, [conversationId, loadMessages])
+  }, [conversationId]) // CRITICAL FIX: Only re-run when conversationId changes, not when loadMessages changes
 
   return {
     messages,

@@ -175,6 +175,7 @@ export const Chat: React.FC<ChatProps> = memo(
       (activeConversationId && lastActiveConversationRef.current?.id === activeConversationId
         ? lastActiveConversationRef.current
         : null)
+
     useEffect(() => {
       if (activeConversation) {
         lastActiveConversationRef.current = activeConversation
@@ -1538,6 +1539,7 @@ export const Chat: React.FC<ChatProps> = memo(
                     onReplyToAI={handleReplyToAI}
                     accessToken={accessToken}
                     onSendMessage={handleAISendMessage}
+                    participants={stableActiveConversation.participants}
                   />
 
                   {/* V1 - Old implementation (commented for testing)

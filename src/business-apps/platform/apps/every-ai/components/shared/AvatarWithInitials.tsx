@@ -24,8 +24,8 @@ export const AvatarWithInitials: React.FC<AvatarWithInitialsProps> = ({
     : undefined
 
   return (
-    <div
-      className="gba:rounded-full gba:bg-muted gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:font-medium"
+    <span
+      className="gba:inline-flex gba:rounded-full gba:bg-muted gba:text-muted-foreground gba:items-center gba:justify-center gba:flex-shrink-0 gba:font-medium"
       style={{
         width: `${size}px`,
         height: `${size}px`,
@@ -36,7 +36,7 @@ export const AvatarWithInitials: React.FC<AvatarWithInitialsProps> = ({
       }}
     >
       {!imageUrl && initials}
-    </div>
+    </span>
   )
 }
 

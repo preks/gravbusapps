@@ -39,6 +39,12 @@ export function usePresenceV2(options: UsePresenceV2Options) {
    */
   const updatePresence = useCallback((userId: string, state: PresenceState) => {
     const oldState = presenceCache.get(userId)
+
+    // Skip update if state hasn't changed (optimization to prevent unnecessary re-renders)
+    if (oldState === state) {
+      return
+    }
+
     presenceCache.set(userId, state)
 
     if (isMountedRef.current) {
