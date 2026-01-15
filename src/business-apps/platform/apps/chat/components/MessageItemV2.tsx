@@ -18,6 +18,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 import { isPreviewable } from './utils/attachmentUtils'
+import { getExpertColorStyles } from '../utils/expertColorUtils'
 
 interface MessageItemV2Props {
   message: Message
@@ -330,6 +331,26 @@ export const MessageItemV2: React.FC<MessageItemV2Props> = React.memo(
                   : undefined
               }
             >
+              {/* Expert Message Header */}
+              {isExpertResponse && (
+                <div className="gba:text-[11px] gba:font-semibold gba:mb-1.5 gba:flex gba:items-center gba:gap-2">
+                  {/* Expert Avatar */}
+                  <div
+                    className="gba:w-6 gba:h-6 gba:flex-shrink-0 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-[10px]"
+                    style={getExpertColorStyles(message.metadata?.expertColor).avatar}
+                  >
+                    {message.metadata?.expertAvatar || message.metadata?.expertName?.charAt(0).toUpperCase() || 'E'}
+                  </div>
+                  {/* Expert Name with Emoji */}
+                  <div className="gba:flex gba:items-center gba:gap-1.5">
+                    <span className="gba:text-xs">🎓</span>
+                    <span style={getExpertColorStyles(message.metadata?.expertColor).text}>
+                      {message.metadata?.expertName || 'Expert'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Text content */}
               {message.content && (
                 <div className="gba:text-sm gba:whitespace-pre-wrap">
