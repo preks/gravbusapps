@@ -179,6 +179,9 @@ label-country = Țară
 label-city = Oraș
 label-currency = Monedă
 
+# Common Text
+common-characters = caractere
+
 # Benefit Summary Card Translations
 benefit-provider = Furnizor
 benefit-value-yearly = Valoare anuală
@@ -297,3 +300,4 @@ working-conditions-unit-year = { $count ->
 complete-notification = Cererea este trimisă către manager pentru aprobare
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
+notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă

@@ -32,8 +32,6 @@ import {
   getScoreBadgeVariant
 } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ActivityBadge } from '@/common/components/common-relations/view-layouts/personal-workspace/components/activities/ActivityBadge'
-import type { MySalesActivity } from '@/business-apps/crm/core/apps/customer-relations/views/workspace-view/types'
 
 // Format date with time
 const formatDateTime = (date: string | Date) => {
@@ -276,29 +274,15 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
     cell: ({ row }) => {
       const activity = row.original
 
-      // Convert to MySalesActivity format for ActivityBadge
-      const activityForBadge: MySalesActivity = {
-        id: activity.id,
-        title: activity.title,
-        description: activity.description || '',
-        occurredAt: activity.occurredAt,
-        createdAt: activity.createdAt,
-        activityType: activity.activityType,
-        accountId: activity.accountId,
-        account: activity.account,
-        contactId: activity.contactId,
-        contact: activity.contact,
-        leadId: activity.leadId,
-        lead: activity.lead,
-        opportunityId: activity.opportunityId,
-        opportunity: activity.opportunity
-      }
-
       // Check if unlinked
       const isUnlinked = !activity.accountId && !activity.contactId && !activity.leadId && !activity.opportunityId
 
       if (isUnlinked) {
-        return <ActivityBadge activity={activityForBadge} data-testid={`activity360-badge-${activity.id}`} />
+        return (
+          <Badge variant="secondary" data-testid={`activity360-badge-${activity.id}`}>
+            Unlinked
+          </Badge>
+        )
       }
 
       const entityName = getEntityName(activity)

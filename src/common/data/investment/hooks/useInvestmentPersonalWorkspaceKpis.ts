@@ -1,25 +1,29 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_MY_INVESTMENT_KPIS } from '../queries/MyInvestmentKpisQueries'
-import type { InvestmentKpis } from '../types'
+import { GET_MY_INVESTMENT_KPIS } from '../queries/investmentPersonalWorkspaceQueries'
+import type { InvestmentKpis } from '../types/investmentPersonalWorkspaceTypes'
 import dayjs from 'dayjs'
 
-interface UseMyInvestmentKpisParams {
+interface UseInvestmentPersonalWorkspaceKpisParams {
   employeeId: string
   accessToken: string
 }
 
-interface UseMyInvestmentKpisReturn {
+interface UseInvestmentPersonalWorkspaceKpisReturn {
   kpis: InvestmentKpis | null
   loading: boolean
   error: Error | null
   refetch: () => void
 }
 
-export const useMyInvestmentKpis = ({
+/**
+ * Hook for fetching investment personal workspace KPIs
+ * Returns performance metrics including opportunities, accounts, contacts, and investments
+ */
+export const useInvestmentPersonalWorkspaceKpis = ({
   employeeId,
   accessToken
-}: UseMyInvestmentKpisParams): UseMyInvestmentKpisReturn => {
+}: UseInvestmentPersonalWorkspaceKpisParams): UseInvestmentPersonalWorkspaceKpisReturn => {
   const [kpis, setKpis] = useState<InvestmentKpis | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -98,7 +102,7 @@ export const useMyInvestmentKpis = ({
         }
       })
     } catch (err) {
-      console.error('Error fetching investment KPIs:', err)
+      console.error('Error fetching investment personal workspace KPIs:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch investment KPIs'))
     } finally {
       setLoading(false)

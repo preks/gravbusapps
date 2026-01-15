@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_MY_INVESTMENT_TASKS } from '../queries/MyInvestmentTasksQueries'
-import type { MyInvestmentTask } from '../types'
+import { GET_MY_INVESTMENT_TASKS } from '../queries/investmentPersonalWorkspaceQueries'
+import type { MyInvestmentTask } from '../types/investmentPersonalWorkspaceTypes'
 
-interface UseMyInvestmentTasksParams {
+interface UseInvestmentPersonalWorkspaceTasksParams {
   employeeId: string
   accessToken: string
   statusFilter?: string[]
@@ -11,7 +11,7 @@ interface UseMyInvestmentTasksParams {
   offset?: number
 }
 
-interface UseMyInvestmentTasksReturn {
+interface UseInvestmentPersonalWorkspaceTasksReturn {
   tasks: MyInvestmentTask[]
   total: number
   loading: boolean
@@ -19,13 +19,17 @@ interface UseMyInvestmentTasksReturn {
   refetch: () => void
 }
 
-export const useMyInvestmentTasks = ({
+/**
+ * Hook for fetching investment personal workspace tasks
+ * Returns tasks assigned to the employee with filtering and pagination
+ */
+export const useInvestmentPersonalWorkspaceTasks = ({
   employeeId,
   accessToken,
   statusFilter = ['PENDING', 'IN_PROGRESS'],
   limit = 50,
   offset = 0
-}: UseMyInvestmentTasksParams): UseMyInvestmentTasksReturn => {
+}: UseInvestmentPersonalWorkspaceTasksParams): UseInvestmentPersonalWorkspaceTasksReturn => {
   const [tasks, setTasks] = useState<MyInvestmentTask[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -57,7 +61,7 @@ export const useMyInvestmentTasks = ({
       setTasks(result.InvestmentTask || [])
       setTotal(result.InvestmentTaskAggregate?.aggregate?.count || 0)
     } catch (err) {
-      console.error('Error fetching investment tasks:', err)
+      console.error('Error fetching investment personal workspace tasks:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch investment tasks'))
     } finally {
       setLoading(false)
