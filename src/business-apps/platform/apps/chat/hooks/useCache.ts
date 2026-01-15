@@ -13,7 +13,7 @@ interface MessageCacheEntry {
 }
 
 /**
- * V2 Cache Hook
+ * Cache Hook
  *
  * Features:
  * - Ref-based storage (no re-renders)
@@ -23,7 +23,7 @@ interface MessageCacheEntry {
  * - Cache warming on mount
  * - Performance metrics
  */
-export function useCacheV2() {
+export function useCache() {
   // Initialize caches in refs (never triggers re-renders)
   const messagesCacheRef = useRef(new LRUCache<string, MessageCacheEntry>(DEFAULT_CACHE_CONFIG.messages))
   const conversationsCacheRef = useRef(new LRUCache<string, Conversation>(DEFAULT_CACHE_CONFIG.conversations))
@@ -55,7 +55,7 @@ export function useCacheV2() {
       })
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[V2 Cache] Stored ${messages.length} messages for conversation ${conversationId}`)
+        console.log(`[Cache] Stored ${messages.length} messages for conversation ${conversationId}`)
       }
     },
     []
@@ -72,7 +72,7 @@ export function useCacheV2() {
       }))
 
       if (process.env.NODE_ENV === 'development' && success) {
-        console.log(`[V2 Cache] Updated message ${messageId} in conversation ${conversationId}`)
+        console.log(`[Cache] Updated message ${messageId} in conversation ${conversationId}`)
       }
 
       return success
@@ -96,7 +96,7 @@ export function useCacheV2() {
     })
 
     if (process.env.NODE_ENV === 'development' && success) {
-      console.log(`[V2 Cache] Added message ${message.id} to conversation ${conversationId}`)
+      console.log(`[Cache] Added message ${message.id} to conversation ${conversationId}`)
     }
 
     return success
@@ -112,7 +112,7 @@ export function useCacheV2() {
     }))
 
     if (process.env.NODE_ENV === 'development' && success) {
-      console.log(`[V2 Cache] Removed message ${messageId} from conversation ${conversationId}`)
+      console.log(`[Cache] Removed message ${messageId} from conversation ${conversationId}`)
     }
 
     return success
@@ -126,7 +126,7 @@ export function useCacheV2() {
     conversationsCacheRef.current.delete(conversationId)
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[V2 Cache] Invalidated conversation ${conversationId}`)
+      console.log(`[Cache] Invalidated conversation ${conversationId}`)
     }
   }, [])
 
@@ -146,7 +146,7 @@ export function useCacheV2() {
     conversationsCacheRef.current.set(conversation.id, conversation)
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[V2 Cache] Stored conversation ${conversation.id}`)
+      console.log(`[Cache] Stored conversation ${conversation.id}`)
     }
   }, [])
 
@@ -166,7 +166,7 @@ export function useCacheV2() {
     usersCacheRef.current.set(user.id, user)
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[V2 Cache] Stored user ${user.id}`)
+      console.log(`[Cache] Stored user ${user.id}`)
     }
   }, [])
 
@@ -179,7 +179,7 @@ export function useCacheV2() {
     usersCacheRef.current.clear()
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[V2 Cache] Cleared all caches')
+      console.log('[Cache] Cleared all caches')
     }
   }, [])
 
@@ -212,7 +212,7 @@ export function useCacheV2() {
       }
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[V2 Cache] Cache warmed up', data)
+        console.log('[Cache] Cache warmed up', data)
       }
     },
     [setCachedMessages, setCachedConversation]
@@ -231,7 +231,7 @@ export function useCacheV2() {
       if (process.env.NODE_ENV === 'development') {
         const totalCleanup = messagesCleanup + conversationsCleanup + usersCleanup
         if (totalCleanup > 0) {
-          console.log(`[V2 Cache] Cleaned up ${totalCleanup} expired entries`)
+          console.log(`[Cache] Cleaned up ${totalCleanup} expired entries`)
         }
       }
     }, 60 * 1000)
@@ -251,7 +251,7 @@ export function useCacheV2() {
 
     const statsInterval = setInterval(() => {
       const stats = getCacheStats()
-      console.log('[V2 Cache] Stats:', {
+      console.log('[Cache] Stats:', {
         messages: `${stats.messages.valid}/${stats.messages.total} (hit rate: ${stats.messages.hitRate.toFixed(2)})`,
         conversations: `${stats.conversations.valid}/${stats.conversations.total}`,
         users: `${stats.users.valid}/${stats.users.total}`

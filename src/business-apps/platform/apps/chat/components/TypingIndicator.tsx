@@ -1,41 +1,75 @@
 import React from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
 import type { TypingIndicator } from '../types'
-import translations from '../_i18n'
 
 interface TypingIndicatorProps {
   typingUsers: TypingIndicator[]
-  conversationId: string
+  conversationId: string | null
 }
 
-export const TypingIndicatorComponent: React.FC<TypingIndicatorProps> = ({ typingUsers }) => {
-  const { t } = useTranslation(translations)
+/**
+ * Typing Indicator Component
+ *
+ * Shows who is currently typing in the conversation
+ */
+export const TypingIndicator: React.FC<TypingIndicatorProps> = React.memo(
+  ({ typingUsers, conversationId }) => {
+    // Filter typing users for this conversation
+    const activeTypingUsers = typingUsers.filter(u => u.conversationId === conversationId && u.isTyping)
 
-  if (typingUsers.length === 0) {
-    return null
-  }
-
-  const getTypingText = () => {
-    if (typingUsers.length === 1) {
-      const username = typingUsers[0].username || t('chat-someone')
-      return t('chat-isTyping', { user: username })
-    } else if (typingUsers.length === 2) {
-      const username1 = typingUsers[0].username || t('chat-someone')
-      const username2 = typingUsers[1].username || t('chat-someone')
-      return t('chat-twoAreTyping', { user1: username1, user2: username2 })
-    } else {
-      return t('chat-multipleAreTyping', { count: typingUsers.length.toString() })
+    if (activeTypingUsers.length === 0) {
+      return null
     }
-  }
 
-  return (
-    <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5" data-testid="typing-indicator">
-      <div className="gba:flex gba:items-center gba:gap-0.5 gba:bg-muted/50 gba:px-2.5 gba:py-1.5 gba:rounded-full">
-        <span className="gba:inline-block gba:w-1.5 gba:h-1.5 gba:bg-muted-foreground/70 gba:rounded-full gba:animate-bounce [animation-delay:0ms]"></span>
-        <span className="gba:inline-block gba:w-1.5 gba:h-1.5 gba:bg-muted-foreground/70 gba:rounded-full gba:animate-bounce [animation-delay:150ms]"></span>
-        <span className="gba:inline-block gba:w-1.5 gba:h-1.5 gba:bg-muted-foreground/70 gba:rounded-full gba:animate-bounce [animation-delay:300ms]"></span>
+    // Format typing indicator text
+    let typingText: string
+    if (activeTypingUsers.length === 1) {
+      const userName = activeTypingUsers[0].username || 'Someone'
+      typingText = `${userName} is typing...`
+    } else if (activeTypingUsers.length === 2) {
+      const user1 = activeTypingUsers[0].username || 'Someone'
+      const user2 = activeTypingUsers[1].username || 'Someone'
+      typingText = `${user1} and ${user2} are typing...`
+    } else {
+      typingText = `${activeTypingUsers.length} people are typing...`
+    }
+
+    return (
+      <div className="gba:px-4 gba:py-2 gba:flex gba:items-center gba:gap-2" data-testid="typing-indicator-v2">
+        <div className="gba:flex gba:gap-1">
+          <div
+            className="gba:w-2 gba:h-2 gba:bg-muted-foreground gba:rounded-full gba:animate-pulse"
+            style={{ animationDelay: '0ms' }}
+          />
+          <div
+            className="gba:w-2 gba:h-2 gba:bg-muted-foreground gba:rounded-full gba:animate-pulse"
+            style={{ animationDelay: '150ms' }}
+          />
+          <div
+            className="gba:w-2 gba:h-2 gba:bg-muted-foreground gba:rounded-full gba:animate-pulse"
+            style={{ animationDelay: '300ms' }}
+          />
+        </div>
+        <span className="gba:text-xs gba:text-muted-foreground gba:italic">{typingText}</span>
       </div>
-      <span className="gba:text-xs gba:text-muted-foreground">{getTypingText()}</span>
-    </div>
-  )
-}
+    )
+  },
+  (prev, next) => {
+    // Only re-render if typing users changed
+    if (prev.typingUsers.length !== next.typingUsers.length) return false
+    if (prev.conversationId !== next.conversationId) return false
+
+    // Compare user IDs
+    const prevIds = prev.typingUsers
+      .map(u => u.userId)
+      .sort()
+      .join(',')
+    const nextIds = next.typingUsers
+      .map(u => u.userId)
+      .sort()
+      .join(',')
+
+    return prevIds === nextIds
+  }
+)
+
+TypingIndicator.displayName = 'TypingIndicator'

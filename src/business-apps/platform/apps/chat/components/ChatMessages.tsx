@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react'
-import { MessageListV2 } from './MessageListV2'
-import { useMessagesV2 } from '../hooks/useMessagesV2'
+import { MessageList } from './MessageList'
+import { useMessages } from '../hooks/useMessages'
 import type { ChatApiClient } from '../services/chatApiClient'
 import type { Conversation } from '../types'
 
-interface ChatMessagesV2Props {
+interface ChatMessagesProps {
   conversation: Conversation | null
   apiClient: ChatApiClient
   currentUserId: string | null
@@ -12,17 +12,17 @@ interface ChatMessagesV2Props {
 }
 
 /**
- * Example component showing how to use the simplified V2 message components
+ * Example component showing how to use the simplified message components
  *
  * This demonstrates:
- * - How to integrate useMessagesV2 hook
- * - How to render MessageListV2
+ * - How to integrate useMessages hook
+ * - How to render MessageList
  * - How to handle WebSocket updates (simplified)
  * - Clean separation of concerns
  *
  * Usage in your main Chat component:
  * ```tsx
- * <ChatMessagesV2
+ * <ChatMessages
  *   conversation={selectedConversation}
  *   apiClient={chatApiClient}
  *   currentUserId={currentUser?.id}
@@ -30,9 +30,9 @@ interface ChatMessagesV2Props {
  * />
  * ```
  */
-export const ChatMessagesV2: React.FC<ChatMessagesV2Props> = ({ conversation, apiClient, currentUserId }) => {
+export const ChatMessages: React.FC<ChatMessagesProps> = ({ conversation, apiClient, currentUserId }) => {
   // Use the simplified messages hook
-  const { messages, isLoading, error, hasMore, loadMore, addMessage } = useMessagesV2({
+  const { messages, isLoading, error, hasMore, loadMore, addMessage } = useMessages({
     apiClient,
     conversationId: conversation?.id || null,
     currentUserId,
@@ -116,7 +116,7 @@ export const ChatMessagesV2: React.FC<ChatMessagesV2Props> = ({ conversation, ap
   }
 
   return (
-    <MessageListV2
+    <MessageList
       messages={messages}
       currentUserId={currentUserId}
       conversationType={conversation.type}

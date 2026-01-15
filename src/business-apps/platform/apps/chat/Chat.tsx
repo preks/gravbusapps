@@ -11,9 +11,8 @@ import { ConversationList } from './components/ConversationList'
 import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
 import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
 import { ConversationHeader, type ActiveCallInfo } from './components/ConversationHeader'
-// import { MessageList } from './components/MessageList' // V1 - OLD
-import { MessageListV2 } from './components/MessageListV2' // V2 - TESTING
-import { PerformanceMonitor } from './components/PerformanceMonitor' // V2 - Performance monitoring
+import { MessageList } from './components/MessageList'
+import { PerformanceMonitor } from './components/PerformanceMonitor'
 import { MessageInput } from './components/MessageInput'
 import { CreateGroupModal } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
@@ -57,11 +56,10 @@ export const Chat: React.FC<ChatProps> = memo(
     const lastNudgeTimeRef = useRef<number>(0)
     const NUDGE_COOLDOWN_MS = 30000 // 30 seconds
 
-    // V2 startup log
+    // Performance monitoring startup log
     useEffect(() => {
       if (process.env.NODE_ENV === 'development') {
-        console.log('🎯 Chat V2 Active - Performance logging enabled')
-        console.log('   Look for [V2] prefixed logs in console')
+        console.log('🎯 Chat Active - Performance logging enabled')
         console.log('   Measuring: load times, re-renders, memory usage')
       }
     }, [])
@@ -182,7 +180,7 @@ export const Chat: React.FC<ChatProps> = memo(
       }
     }, [activeConversation])
 
-    // V2 render tracking (after stableActiveConversation is defined)
+    // Render tracking (after stableActiveConversation is defined)
     const renderCountRef = useRef(0)
     const prevRenderDataRef = useRef({ conversationId: '', messageCount: 0, isLoading: false })
     renderCountRef.current++
@@ -203,7 +201,7 @@ export const Chat: React.FC<ChatProps> = memo(
       if (prevData.isLoading !== currentData.isLoading) changes.push(`loading(${currentData.isLoading})`)
       if (changes.length === 0) changes.push('no state change - likely parent/context re-render')
 
-      console.log(`[V2 Chat] Render #${renderCountRef.current} - Changed: ${changes.join(', ')}`, {
+      console.log(`[Chat] Render #${renderCountRef.current} - Changed: ${changes.join(', ')}`, {
         hasConversation: !!stableActiveConversation,
         conversationId: stableActiveConversation?.id,
         messageCount: messages.length,
@@ -1417,7 +1415,7 @@ export const Chat: React.FC<ChatProps> = memo(
         className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
         data-testid={prefixDataTestId}
       >
-        {/* V2 Performance Monitor - dev only */}
+        {/* Performance Monitor - dev only */}
         <PerformanceMonitor conversationId={activeConversationId} messageCount={messages.length} />
 
         <OfflineBanner />
@@ -1526,8 +1524,8 @@ export const Chat: React.FC<ChatProps> = memo(
                     />
                   )}
 
-                  {/* V2 - Message list */}
-                  <MessageListV2
+                  {/* Message list */}
+                  <MessageList
                     messages={messages}
                     currentUserId={currentUser?.id || null}
                     conversationType={stableActiveConversation.type}

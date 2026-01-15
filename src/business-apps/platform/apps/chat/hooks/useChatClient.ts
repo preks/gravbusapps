@@ -4,9 +4,9 @@ import { MessageType } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { useConversations } from './useConversations'
-import { useMessagesV2 } from './useMessagesV2'
+import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
-import { usePresenceV2, type PresenceState } from './usePresenceV2'
+import { usePresence, type PresenceState } from './usePresence'
 
 // Shared WebSocket client to prevent duplicate connections
 // Multiple Chat instances (e.g., forceMount tabs) will share ONE WebSocket
@@ -115,7 +115,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   // Compute active conversation from the conversations list
   const activeConversation = conversationsHook.conversations.find(c => c.id === activeConversationId) || null
 
-  const messagesHook = useMessagesV2({
+  const messagesHook = useMessages({
     apiClient: apiClientState || ({} as ChatApiClient),
     conversationId: activeConversationId,
     currentUserId: currentUser?.id || null,
@@ -153,48 +153,48 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
   })
 
-  // Presence tracking hook V2 (with global cache)
+  // Presence tracking hook (with global cache)
   // IMPORTANT: Reuses the existing WebSocket connection from useChatClient
-  const presenceV2 = usePresenceV2({
+  const presence = usePresence({
     wsClient: wsClientRef.current,
     currentUserId: currentUser?.id || null
   })
 
-  // Adapter layer to maintain V1 API compatibility
+  // Adapter layer to maintain backward compatibility
   const presenceHook = {
-    // V2 methods (direct pass-through)
+    // Methods (direct pass-through)
     getUserPresence: useCallback(
       (userId: string): { status: 'online' | 'offline'; lastSeen?: string } => {
-        const presenceData = presenceV2.getPresenceData(userId)
+        const presenceData = presence.getPresenceData(userId)
         console.log('[useChatClient] 📍 Getting presence for user:', userId, presenceData)
         return {
           status: presenceData.state === 'online' ? 'online' : 'offline',
           lastSeen: presenceData.lastSeen
         }
       },
-      [presenceV2]
+      [presence]
     ),
     isUserOnline: useCallback(
       (userId: string): boolean => {
-        return presenceV2.getUserPresence(userId) === 'online'
+        return presence.getUserPresence(userId) === 'online'
       },
-      [presenceV2]
+      [presence]
     ),
     updatePresence: useCallback(
-      (userId: string, presence: { status: 'online' | 'offline' }) => {
-        presenceV2.updatePresence(userId, presence.status === 'online' ? 'online' : 'offline')
+      (userId: string, presenceStatus: { status: 'online' | 'offline' }) => {
+        presence.updatePresence(userId, presenceStatus.status === 'online' ? 'online' : 'offline')
       },
-      [presenceV2]
+      [presence]
     ),
-    // V1 compatibility method
+    // Backward compatibility method
     updatePresenceFromUser: useCallback(
       (userId: string, _lastSeen?: Date | string, isOnline?: boolean) => {
         const state: PresenceState = isOnline ? 'online' : 'offline'
-        presenceV2.updatePresence(userId, state)
+        presence.updatePresence(userId, state)
       },
-      [presenceV2]
+      [presence]
     ),
-    // Legacy fields (not used in V2, but kept for compatibility)
+    // Legacy fields (kept for compatibility)
     presenceMap: new Map(),
     clearPresence: () => {}
   }
