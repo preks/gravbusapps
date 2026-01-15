@@ -160,29 +160,45 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     currentUserId: currentUser?.id || null
   })
 
-  // Adapter layer to maintain backward compatibility
+  // Build presence map for efficient lookups (memoized by presenceVersion)
+  const presenceMap = useMemo(() => {
+    const map = new Map<string, { status: 'online' | 'offline'; lastSeen?: string }>()
+    const rawMap = presence.getPresenceMap()
+
+    rawMap.forEach((data, userId) => {
+      map.set(userId, {
+        status: data.state === 'online' ? 'online' : 'offline',
+        lastSeen: data.lastSeen
+      })
+    })
+
+    return map
+  }, [presence.presenceVersion, presence])
+
+  // Adapter layer - keep functions for backward compatibility, but recommend using presenceMap
   const presenceHook = {
-    // Methods (direct pass-through)
+    // RECOMMENDED: Use presenceMap directly for best performance
+    presenceMap,
+    presenceVersion: presence.presenceVersion,
+
+    // Legacy methods (kept for backward compatibility, but prefer presenceMap)
     getUserPresence: useCallback(
       (userId: string): { status: 'online' | 'offline'; lastSeen?: string } => {
-        const presenceData = presence.getPresenceData(userId)
-        console.log('[useChatClient] 📍 Getting presence for user:', userId, presenceData)
-        return {
-          status: presenceData.state === 'online' ? 'online' : 'offline',
-          lastSeen: presenceData.lastSeen
-        }
+        // Direct lookup from memoized map
+        return presenceMap.get(userId) || { status: 'offline' }
       },
-      [presence]
+      [presenceMap]
     ),
     isUserOnline: useCallback(
       (userId: string): boolean => {
-        return presence.getUserPresence(userId) === 'online'
+        const data = presenceMap.get(userId)
+        return data?.status === 'online'
       },
-      [presence]
+      [presenceMap]
     ),
     updatePresence: useCallback(
       (userId: string, presenceStatus: { status: 'online' | 'offline' }) => {
-        presence.updatePresence(userId, presenceStatus.status === 'online' ? 'online' : 'offline')
+        presence.updatePresence(userId, presenceStatus.status)
       },
       [presence]
     ),
@@ -194,8 +210,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       },
       [presence]
     ),
-    // Legacy fields (kept for compatibility)
-    presenceMap: new Map(),
+    // Remove legacy empty map
     clearPresence: () => {}
   }
 
@@ -1147,6 +1162,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       typingUsers: typingHook.typingUsers,
       // Presence
       presenceMap: presenceHook.presenceMap,
+      presenceVersion: presenceHook.presenceVersion,
       getUserPresence: presenceHook.getUserPresence,
       isUserOnline: presenceHook.isUserOnline,
       updatePresenceFromUser: presenceHook.updatePresenceFromUser,
@@ -1194,6 +1210,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       typingHook.typingUsers,
       // Presence (callbacks are stable from useCallback)
       presenceHook.presenceMap,
+      presenceHook.presenceVersion,
       presenceHook.getUserPresence,
       presenceHook.isUserOnline,
       presenceHook.updatePresenceFromUser,

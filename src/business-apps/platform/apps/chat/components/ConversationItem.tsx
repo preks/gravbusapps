@@ -100,8 +100,8 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
   const avatarUrl = otherParticipant?.user?.avatarUrl
 
-  // TRACK: Log presence data for debugging
-  if (conversation.type === 'direct' && otherParticipant?.user?.id) {
+  // TRACK: Log presence data for debugging (dev only)
+  if (process.env.NODE_ENV === 'development' && conversation.type === 'direct' && otherParticipant?.user?.id) {
     console.log('[ConversationItem] 👤 User presence:', {
       conversationName: name,
       userId: otherParticipant.user.id,

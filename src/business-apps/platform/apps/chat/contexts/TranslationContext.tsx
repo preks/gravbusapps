@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode } from 'react'
+import React, { createContext, useContext, ReactNode, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 
@@ -11,7 +11,11 @@ export const TranslationProvider: React.FC<{ children: ReactNode }> = ({ childre
   // This prevents the expensive addResource operation from happening in every component
   const { t } = useTranslation(translations)
 
-  return <TranslationContext.Provider value={t}>{children}</TranslationContext.Provider>
+  // Memoize the translation function to prevent unnecessary re-renders
+  // of all components that consume this context
+  const memoizedT = useMemo(() => t, [t])
+
+  return <TranslationContext.Provider value={memoizedT}>{children}</TranslationContext.Provider>
 }
 
 export const useChatTranslation = (): TranslationFunction => {

@@ -54,6 +54,17 @@ export function usePresence(options: UsePresenceOptions) {
   }, [])
 
   /**
+   * Get the entire presence map (for efficient bulk lookups)
+   * Returns a stable Map reference that only changes when presence data updates
+   */
+  const getPresenceMap = useCallback((): ReadonlyMap<string, PresenceData> => {
+    return presenceCache
+  }, [])
+
+  // Track version for change detection (incremented on batch updates)
+  const [presenceVersion, setPresenceVersion] = useState(0)
+
+  /**
    * Update user presence
    */
   const updatePresence = useCallback((userId: string, state: PresenceState, lastSeen?: string) => {
@@ -70,6 +81,7 @@ export function usePresence(options: UsePresenceOptions) {
     }
 
     presenceCache.set(userId, presenceData)
+    setPresenceVersion(v => v + 1)
 
     if (isMountedRef.current) {
       forceUpdate({})
@@ -97,6 +109,8 @@ export function usePresence(options: UsePresenceOptions) {
         }
         presenceCache.set(userId, presenceData)
       })
+
+      setPresenceVersion(v => v + 1)
 
       if (isMountedRef.current) {
         forceUpdate({})
@@ -204,11 +218,21 @@ export function usePresence(options: UsePresenceOptions) {
     () => ({
       getUserPresence,
       getPresenceData,
+      getPresenceMap,
       updatePresence,
       batchUpdatePresence,
-      getBatchPresence
+      getBatchPresence,
+      presenceVersion
     }),
-    [getUserPresence, getPresenceData, updatePresence, batchUpdatePresence, getBatchPresence]
+    [
+      getUserPresence,
+      getPresenceData,
+      getPresenceMap,
+      updatePresence,
+      batchUpdatePresence,
+      getBatchPresence,
+      presenceVersion
+    ]
   )
 }
 

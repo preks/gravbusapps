@@ -145,6 +145,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       messagesLoading,
       hasMoreMessages,
       typingUsers,
+      presenceMap,
+      presenceVersion,
       getUserPresence,
       updatePresenceFromUser,
       sendMessage,
@@ -1476,7 +1478,8 @@ const ChatInner: React.FC<ChatProps> = memo(
                 currentUserId={currentUser?.id || null}
                 accessToken={accessToken}
                 compact={viewMode === 'compact'}
-                getUserPresence={getUserPresence}
+                presenceMap={presenceMap}
+                presenceVersion={presenceVersion}
                 conversationExpertCounts={conversationExpertCounts}
               />
             </div>

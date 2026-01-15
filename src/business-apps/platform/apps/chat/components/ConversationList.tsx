@@ -4,7 +4,6 @@ import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import type { Conversation } from '../types'
-import type { UserPresence } from '../hooks/usePresence'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
@@ -21,9 +20,8 @@ interface ConversationListProps {
   currentUserId?: string | null
   accessToken: string
   compact?: boolean
-  getUserPresence?: (userId: string) => UserPresence
-  presenceVersion?: number // Version number that changes when any presence updates
-  // Map of conversation IDs to active expert counts
+  presenceMap: ReadonlyMap<string, { status: 'online' | 'offline'; lastSeen?: string }>
+  presenceVersion: number
   conversationExpertCounts?: Map<string, number>
 }
 
@@ -52,8 +50,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   currentUserId = null,
   accessToken,
   compact = false,
-  getUserPresence,
-  presenceVersion, // Triggers re-render when presence changes (without passing entire map)
+  presenceMap,
+  presenceVersion,
   conversationExpertCounts
 }) => {
   const t = useChatTranslation()
@@ -214,17 +212,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             <div className="gba:py-1">
               {filteredConversations.map(conversation => {
                 const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
-                const otherUserPresence = otherUserId && getUserPresence ? getUserPresence(otherUserId) : undefined
+                // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
+                const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
                 const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
-
-                // TRACK: Log presence data being passed to ConversationItem
-                if (otherUserId && conversation.type === 'direct') {
-                  console.log('[ConversationList] 📋 Passing presence to item:', {
-                    conversationId: conversation.id,
-                    otherUserId,
-                    presenceData: otherUserPresence
-                  })
-                }
 
                 return (
                   <ConversationItem
