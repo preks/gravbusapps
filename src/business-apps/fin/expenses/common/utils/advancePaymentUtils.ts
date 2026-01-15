@@ -1,4 +1,238 @@
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCatalogValue, formatDate } from '@/common/utils/windowUtils'
+import { Badge } from '@newwork/nw-design-system'
+import React from 'react'
+
+/**
+ * Advance payment data structure for building fields
+ */
+export interface AdvancePaymentData {
+  status?: string
+  code?: string
+  description?: string | null
+  amount?: number
+  currency?: { code?: string } | null
+  currencyRef?: string
+  paymentMethod?: unknown
+  decisionDate?: string | null
+  transactionDate?: string | null
+  costCenter?: { name?: string } | null
+  project?: { name?: string } | null
+  expensePlan?: {
+    id?: string
+    code?: string
+    title?: string
+    startDate?: string
+    endDate?: string
+    totalAmount?: number | null
+    currency?: { code?: string } | null
+    costCenter?: { name?: string } | null
+    project?: { name?: string } | null
+    reporter?: string
+    employee?: {
+      fullName?: string
+      displayName?: string
+      employeePosition?: {
+        costCenter?: { name?: string } | null
+        supervisor?: { fullName?: string } | null
+      } | null
+    } | null
+  } | null
+}
+
+export interface AdvancePaymentFieldConfig {
+  /** Include duration field (start/end dates) */
+  showDuration?: boolean
+  /** Include decision date field */
+  showDecisionDate?: boolean
+  /** Include transaction date field */
+  showTransactionDate?: boolean
+  /** Include requester field */
+  showRequester?: boolean
+  /** Include manager field */
+  showManager?: boolean
+  /** Include plan total amount field */
+  showPlanTotalAmount?: boolean
+  /** Include description field */
+  showDescription?: boolean
+  /** Format currency function */
+  formatCurrency: (amount: number, currencyCode: string) => string
+  /** Translation function for expense-plan-code */
+  t: (key: string) => string
+  /** Status display function */
+  getStatusDisplay: (status: string) => { label: string; badgeVariant?: string }
+}
+
+export interface DetailsPanelField {
+  label: React.ReactNode
+  value: React.ReactNode
+  dataTestId?: string
+}
+
+/**
+ * Builds the fields array for advance payment details panel
+ * Reduces duplication between manager, personal, and backoffice components
+ */
+export const buildAdvancePaymentFields = (
+  payment: AdvancePaymentData,
+  config: AdvancePaymentFieldConfig
+): DetailsPanelField[] => {
+  const {
+    showDuration = false,
+    showDecisionDate = false,
+    showTransactionDate = false,
+    showRequester = false,
+    showManager = false,
+    showPlanTotalAmount = false,
+    showDescription = false,
+    formatCurrency,
+    t,
+    getStatusDisplay
+  } = config
+
+  const statusConfig = getStatusDisplay(payment.status || '') as { label: string; badgeVariant?: string }
+
+  const fields: DetailsPanelField[] = [
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
+      value: React.createElement(Badge, {
+        variant: (statusConfig?.badgeVariant || 'outline') as any,
+        children: statusConfig?.label || 'N/A'
+      })
+    }
+  ]
+
+  // Description (personal expenses only)
+  if (showDescription) {
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_overview.expense_history.expense_history_table.description',
+        'Description'
+      ),
+      value:
+        payment.description ??
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_description', 'No description'),
+      dataTestId: 'advance-payment-description'
+    })
+  }
+
+  // Duration
+  if (showDuration && payment.expensePlan?.startDate && payment.expensePlan?.endDate) {
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration'),
+      value: `${formatDate(payment.expensePlan.startDate, 'date.short')} → ${formatDate(payment.expensePlan.endDate, 'date.short')}`
+    })
+  }
+
+  // Decision Date
+  if (showDecisionDate && payment.decisionDate) {
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date'),
+      value: formatDate(payment.decisionDate, 'date.short')
+    })
+  }
+
+  // Transaction Date
+  if (showTransactionDate && payment.transactionDate) {
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.transaction_date', 'Transaction Date'),
+      value: formatDate(payment.transactionDate, 'date.short')
+    })
+  }
+
+  // Requester
+  if (showRequester) {
+    const requesterName =
+      payment.expensePlan?.employee?.fullName ||
+      payment.expensePlan?.employee?.displayName ||
+      payment.expensePlan?.reporter
+    if (requesterName) {
+      fields.push({
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester'),
+        value: requesterName
+      })
+    }
+  }
+
+  // Manager
+  if (showManager && payment.expensePlan?.employee?.employeePosition?.supervisor?.fullName) {
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.manager_title', 'Manager'),
+      value: payment.expensePlan.employee.employeePosition.supervisor.fullName
+    })
+  }
+
+  // Expense Plan Code
+  if (payment.expensePlan?.code) {
+    fields.push({
+      label: t('expense-plan-code'),
+      value: payment.expensePlan.code
+    })
+  }
+
+  // Expense Plan Title
+  fields.push({
+    label: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:create_expense_request.initial_expense_plan_select_label',
+      'Expense Plan'
+    ),
+    value: payment.expensePlan?.title || getExpensePlanDisplay(null)
+  })
+
+  // Cost Center
+  const costCenterName =
+    payment.costCenter?.name ||
+    payment.expensePlan?.costCenter?.name ||
+    payment.expensePlan?.employee?.employeePosition?.costCenter?.name
+  if (costCenterName) {
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
+        'Cost Center'
+      ),
+      value: costCenterName
+    })
+  }
+
+  // Project
+  const projectName = payment.project?.name || payment.expensePlan?.project?.name
+  if (projectName) {
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project'),
+      value: projectName
+    })
+  }
+
+  // Amount
+  const currencyCode = payment.currency?.code || payment.currencyRef?.split(':').pop() || 'EUR'
+  fields.push({
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.amount', 'Amount'),
+    value: formatCurrency(payment.amount || 0, currencyCode)
+  })
+
+  // Plan Total Amount
+  if (showPlanTotalAmount && payment.expensePlan?.totalAmount != null) {
+    const planCurrencyCode = payment.expensePlan.currency?.code || payment.currency?.code || 'EUR'
+    fields.push({
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_list.expense_plan_table.total_amount',
+        'Plan Total Amount'
+      ),
+      value: formatCurrency(payment.expensePlan.totalAmount || 0, planCurrencyCode)
+    })
+  }
+
+  // Payment Method
+  fields.push({
+    label: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:create_expense_request.add_request_trip_details.payment_method',
+      'Payment Method'
+    ),
+    value: getPaymentMethodDisplay(payment.paymentMethod),
+    dataTestId: 'advance-payment-payment-method'
+  })
+
+  return fields
+}
 
 /**
  * Formats a string value to title case (capitalizes first letter of each word)

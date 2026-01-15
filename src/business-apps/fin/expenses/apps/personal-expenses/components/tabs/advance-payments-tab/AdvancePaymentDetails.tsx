@@ -1,15 +1,11 @@
 import React from 'react'
-import { Badge, Separator, Button, useTranslation } from '@newwork/nw-design-system'
+import { Separator, Button, useTranslation } from '@newwork/nw-design-system'
 import { AdvancePayment } from '../../../hooks/useGetAdvancePayments'
-import { getAdvancePaymentStatusDisplay } from '../../../utils'
+import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay } from '../../../utils'
-import {
-  DetailsPanelContent,
-  type DetailsPanelField
-} from '../../../../../common/components/details-panel/DetailsPanelContent'
-import { getPaymentMethodDisplay, getExpensePlanDisplay } from '../../../../../common/utils/advancePaymentUtils'
+import { DetailsPanelContent } from '../../../../../common/components/details-panel/DetailsPanelContent'
+import { buildAdvancePaymentFields } from '../../../../../common/utils/advancePaymentUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { PiArrowRight } from 'react-icons/pi'
 import translations from '../../../_i18n'
@@ -20,67 +16,13 @@ interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
 
 const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }) => {
   const { t } = useTranslation(translations)
-  const statusConfig = getAdvancePaymentStatusDisplay(payment.status)
-  const statusBadge = (
-    <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-badge">
-      {statusConfig.label}
-    </Badge>
-  )
 
-  const fields: DetailsPanelField[] = [
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
-      value: statusBadge
-    },
-    {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_overview.expense_history.expense_history_table.description',
-        'Description'
-      ),
-      value:
-        payment.description ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_description', 'No description'),
-      dataTestId: 'advance-payment-description'
-    },
-    ...(payment.expensePlan?.code
-      ? [
-          {
-            label: t('expense-plan-code'),
-            value: payment.expensePlan.code
-          } as DetailsPanelField
-        ]
-      : []),
-    {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.initial_expense_plan_select_label',
-        'Expense Plan'
-      ),
-      value: payment.expensePlan?.title || getExpensePlanDisplay(null)
-    },
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.amount', 'Amount'),
-      value: formatCurrencyDisplay(payment.amount || 0, payment.currency?.code)
-    },
-    ...(payment.costCenter
-      ? [
-          {
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-              'Cost Center'
-            ),
-            value: payment.costCenter.name
-          } as DetailsPanelField
-        ]
-      : []),
-    {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-        'Payment Method'
-      ),
-      value: getPaymentMethodDisplay(payment.paymentMethod),
-      dataTestId: 'advance-payment-payment-method'
-    }
-  ]
+  const fields = buildAdvancePaymentFields(payment as any, {
+    showDescription: true,
+    formatCurrency: formatCurrencyDisplay,
+    t,
+    getStatusDisplay: getAdvancePaymentStatusDisplay
+  })
 
   return (
     <DetailsPanelContent
