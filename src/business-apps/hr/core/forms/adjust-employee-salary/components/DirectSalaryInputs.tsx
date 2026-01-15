@@ -10,10 +10,11 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { useWatch } from 'react-hook-form'
-import type { Control, Path } from 'react-hook-form'
+import type { Control, Path, ControllerRenderProps } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import translations from '../../_i18n'
+import { useNumericInput } from '@/common/hooks/forms/useNumericInput'
 
 interface DirectSalaryInputsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
@@ -21,6 +22,47 @@ interface DirectSalaryInputsProps {
   locale: string
   /** Employee's weekly working hours - used to calculate expected monthly wage for hourly workers */
   weeklyHours?: number | null
+}
+
+// Separate component for salary input with hooks
+interface SalaryInputFieldProps {
+  field: ControllerRenderProps<AdjustEmployeeSalaryFormValues, any>
+  maxValue: number
+  label: string
+  placeholder: string
+  testId: string
+}
+
+const SalaryInputField: React.FC<SalaryInputFieldProps> = ({ field, maxValue, label, placeholder, testId }) => {
+  const salaryInput = useNumericInput(field.value, field.onChange, {
+    maxDecimals: 2,
+    allowNegative: false,
+    maxValue,
+    minValue: 0
+  })
+
+  return (
+    <FormItem>
+      <FormLabel data-testid={`${testId}-label`}>
+        {label}
+        <span className="gba:text-destructive"> *</span>
+      </FormLabel>
+      <FormControl>
+        <Input
+          type="text"
+          inputMode="decimal"
+          className="gba:w-full"
+          value={salaryInput.displayValue}
+          onChange={salaryInput.handleChange}
+          onKeyDown={salaryInput.handleKeyDown}
+          onPaste={salaryInput.handlePaste}
+          placeholder={placeholder}
+          data-testid={`${testId}-input`}
+        />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )
 }
 
 const DirectSalaryInputs: React.FC<DirectSalaryInputsProps> = ({
@@ -31,6 +73,10 @@ const DirectSalaryInputs: React.FC<DirectSalaryInputsProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const placeholderEnter = t('action-enter-placeholder', { defaultValue: 'Please Enter' })
+
+  // Validation limits
+  const MONTHLY_SALARY_MAX_VALUE = 10_000_000 // 10 million monthly
+  const HOURLY_SALARY_MAX_VALUE = 100_000 // 100k per hour
 
   const salaryType = useWatch({ control, name: 'salaryType' })
   const monthlySalary = useWatch({ control, name: 'monthlySalary' })
@@ -53,17 +99,6 @@ const DirectSalaryInputs: React.FC<DirectSalaryInputsProps> = ({
     return hourlySalary * weeklyHours * 4
   }, [salaryType, hourlySalary, weeklyHours])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, fieldOnChange: (value: number | null) => void) => {
-    const val = e.target.value
-    if (val === '') {
-      fieldOnChange(null)
-      return
-    }
-    const parsed = Number.parseFloat(val)
-    const newValue = Number.isNaN(parsed) ? null : parsed
-    fieldOnChange(newValue)
-  }
-
   // Monthly salary input
   if (salaryType === 'yearlyMonthly') {
     return (
@@ -81,25 +116,13 @@ const DirectSalaryInputs: React.FC<DirectSalaryInputsProps> = ({
             }
           }}
           render={({ field }) => (
-            <FormItem>
-              <FormLabel data-testid="assign-employee-salary-monthly-label">
-                {t('assign-salary-monthly-salary')}
-                <span className="gba:text-destructive"> *</span>
-              </FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="gba:w-full"
-                  value={field.value ?? ''}
-                  onChange={e => handleInputChange(e, field.onChange)}
-                  placeholder={placeholderEnter}
-                  data-testid="assign-employee-salary-monthly-input"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+            <SalaryInputField
+              field={field}
+              maxValue={MONTHLY_SALARY_MAX_VALUE}
+              label={t('assign-salary-monthly-salary')}
+              placeholder={placeholderEnter}
+              testId="assign-employee-salary-monthly"
+            />
           )}
         />
 
@@ -140,25 +163,13 @@ const DirectSalaryInputs: React.FC<DirectSalaryInputsProps> = ({
             }
           }}
           render={({ field }) => (
-            <FormItem>
-              <FormLabel data-testid="assign-employee-salary-hourly-label">
-                {t('assign-salary-hourly-salary')}
-                <span className="gba:text-destructive"> *</span>
-              </FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="gba:w-full"
-                  value={field.value ?? ''}
-                  onChange={e => handleInputChange(e, field.onChange)}
-                  placeholder={placeholderEnter}
-                  data-testid="assign-employee-salary-hourly-input"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+            <SalaryInputField
+              field={field}
+              maxValue={HOURLY_SALARY_MAX_VALUE}
+              label={t('assign-salary-hourly-salary')}
+              placeholder={placeholderEnter}
+              testId="assign-employee-salary-hourly"
+            />
           )}
         />
 

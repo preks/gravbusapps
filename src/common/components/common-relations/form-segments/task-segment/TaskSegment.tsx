@@ -335,7 +335,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                 <FormControl>
                   <CatalogSelect
                     catalogIdentifier={typeCatalog}
-                    prefetch={false}
+                    prefetch={true}
                     value={field.value || ''}
                     onValueChange={field.onChange}
                     config={catalogSelectConfig}

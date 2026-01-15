@@ -9,13 +9,64 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { useWatch } from 'react-hook-form'
-import type { Control, Path } from 'react-hook-form'
+import type { Control, Path, ControllerRenderProps } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
 import translations from '../../_i18n'
+import { useNumericInput } from '@/common/hooks/forms/useNumericInput'
 
 interface SalaryCalculatorInputsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
   adjustmentFrequency: 'annually' | 'monthly' | 'hourly'
+}
+
+// Separate component to properly use hooks
+interface NumericInputFieldProps {
+  field: ControllerRenderProps<AdjustEmployeeSalaryFormValues, any>
+  maxValue: number
+  disabled: boolean
+  label: string
+  placeholder: string
+  testId: string
+}
+
+const NumericInputField: React.FC<NumericInputFieldProps> = ({
+  field,
+  maxValue,
+  disabled,
+  label,
+  placeholder,
+  testId
+}) => {
+  const numericInput = useNumericInput(field.value, field.onChange, {
+    maxDecimals: 2,
+    allowNegative: false,
+    maxValue,
+    minValue: 0
+  })
+
+  return (
+    <FormItem>
+      <FormLabel data-testid={`${testId}-label`}>
+        {label}
+        <span className="gba:text-destructive"> *</span>
+      </FormLabel>
+      <FormControl>
+        <Input
+          type="text"
+          inputMode="decimal"
+          disabled={disabled}
+          className="gba:w-full"
+          value={numericInput.displayValue}
+          onChange={numericInput.handleChange}
+          onKeyDown={numericInput.handleKeyDown}
+          onPaste={numericInput.handlePaste}
+          placeholder={placeholder}
+          data-testid={`${testId}-input`}
+        />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )
 }
 
 const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control, adjustmentFrequency }) => {
@@ -41,7 +92,11 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
     hourly: t('adjust-salary-frequency-hourly')
   }
 
-  // Shared validation function
+  // Validation limits
+  const AMOUNT_MAX_VALUE = 100_000_000 // 100 million
+  const PERCENTAGE_MAX_VALUE = 100 // 100%
+
+  // Shared validation function for form-level validation
   const validateField = (
     value: string | number | null,
     formValues: AdjustEmployeeSalaryFormValues
@@ -62,18 +117,6 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
     return true
   }
 
-  // Shared onChange handler
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, fieldOnChange: (value: number | null) => void) => {
-    const val = e.target.value
-    if (val === '') {
-      fieldOnChange(null)
-      return
-    }
-    const parsed = Number.parseFloat(val)
-    const newValue = Number.isNaN(parsed) ? null : parsed
-    fieldOnChange(newValue)
-  }
-
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
       {/* Amount Increase Input */}
@@ -82,26 +125,14 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
         name={'amountIncrease' as Path<AdjustEmployeeSalaryFormValues>}
         rules={{ validate: validateField }}
         render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="adjust-employee-salary-amount-label">
-              {t('adjust-salary-increase-amount')} ({frequencyLabels[adjustmentFrequency]})
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                disabled={isAmountDisabled}
-                className="gba:w-full"
-                value={field.value ?? ''}
-                onChange={e => handleInputChange(e, field.onChange)}
-                placeholder={placeholderEnter}
-                data-testid="adjust-employee-salary-amount-input"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+          <NumericInputField
+            field={field}
+            maxValue={AMOUNT_MAX_VALUE}
+            disabled={isAmountDisabled}
+            label={`${t('adjust-salary-increase-amount')} (${frequencyLabels[adjustmentFrequency]})`}
+            placeholder={placeholderEnter}
+            testId="adjust-employee-salary-amount"
+          />
         )}
       />
 
@@ -111,26 +142,14 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
         name={'percentageIncrease' as Path<AdjustEmployeeSalaryFormValues>}
         rules={{ validate: validateField }}
         render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="adjust-employee-salary-percentage-label">
-              {t('adjust-salary-increase-percentage')}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                disabled={isPercentageDisabled}
-                className="gba:w-full"
-                value={field.value ?? ''}
-                onChange={e => handleInputChange(e, field.onChange)}
-                placeholder={placeholderEnter}
-                data-testid="adjust-employee-salary-percentage-input"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+          <NumericInputField
+            field={field}
+            maxValue={PERCENTAGE_MAX_VALUE}
+            disabled={isPercentageDisabled}
+            label={t('adjust-salary-increase-percentage')}
+            placeholder={placeholderEnter}
+            testId="adjust-employee-salary-percentage"
+          />
         )}
       />
     </div>

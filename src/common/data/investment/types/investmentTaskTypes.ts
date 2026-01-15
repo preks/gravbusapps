@@ -126,7 +126,7 @@ export const InvestmentTaskFormFields = {
 /**
  * Investment Task Descriptors
  * Uses createTaskDescriptors with InvestmentTaskFields mapping
- * Adds IRM-specific reference field
+ * Adds IRM-specific reference field and investment descriptor
  * NOTE: assignedEmployeeIds filtering handled separately via taskAssignees relationship
  */
 export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
@@ -146,6 +146,19 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
     ],
     sortPaths: [`${InvestmentTaskFields.source}`],
     type: 'text'
+  },
+  // Add investment descriptor (IRM-specific)
+  {
+    key: 'investment',
+    searchPaths: [`${InvestmentTaskFields.investment}.name`, `${InvestmentTaskFields.investment}.code`],
+    sortPath: `${InvestmentTaskFields.investment}.name`,
+    type: 'text'
+  },
+  // Add investment ID filter
+  {
+    key: 'investmentIds',
+    path: InvestmentTaskFields.investmentId,
+    kind: 'inIds'
   }
 ]
 

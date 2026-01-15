@@ -29,7 +29,7 @@ interface CompensationTabProps extends BusinessAppContextProps {
   employee: Employee
   employeeId: string
   isSelfView: boolean
-  devFeatureFlag: boolean
+  compensationFeatureFlag: boolean
   employeeRecordHrBackoffice: ScopePermissionCheckResult
 }
 
@@ -54,7 +54,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
   accessToken,
   userInfo,
   isSelfView,
-  devFeatureFlag,
+  compensationFeatureFlag,
   additionalData,
   employeeRecordHrBackoffice
 }) => {
@@ -93,14 +93,14 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
       : compensationPermissions.canViewCompensationTab
 
   const shouldShowCompensationTabs =
-    devFeatureFlag &&
+    compensationFeatureFlag &&
     (permissionsLoading ||
       employeeRecordAllHrBackoffice.loading ||
       employeeGrowthPermission.loading ||
       hasCompensationPermission)
 
   const shouldLoadCompensationData =
-    devFeatureFlag &&
+    compensationFeatureFlag &&
     !permissionsLoading &&
     !employeeRecordAllHrBackoffice.loading &&
     hasCompensationPermission &&
@@ -144,7 +144,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
     if (typeof window === 'undefined') return
 
     if (
-      (!devFeatureFlag ||
+      (!compensationFeatureFlag ||
         (!permissionsLoading &&
           !employeeRecordAllHrBackoffice.loading &&
           !employeeGrowthPermission.loading &&
@@ -156,7 +156,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
       updateUrl(newSubView)
     }
   }, [
-    devFeatureFlag,
+    compensationFeatureFlag,
     activeSubView,
     permissionsLoading,
     hasCompensationPermission,

@@ -77,27 +77,26 @@ const EngagementData: React.FC<EngagementDataProps> = ({ className, prefixDataTe
   if (!sourceApp || !['CRM', 'IRM'].includes(sourceApp)) {
     return (
       <div
-        className={`gba:w-full gba:h-full gba:p-6 ${className || ''}`}
+        className={`gba:w-full gba:h-full ${className || ''}`}
         data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Container`}
       >
         <PageHeader
           title={t('mdm.engagement_data', 'Engagement Data')}
-          description={t(
-            'mdm.engagement_data.description',
-            'Manage activity types, task types, priorities, and statuses'
-          )}
-          icon={<Settings className="gba:h-5 gba:w-5" />}
+          subtitle={t('mdm.engagement_data.description', 'Manage activity types, task types, priorities, and statuses')}
+          avatar={<Settings className="gba:h-5 gba:w-5" />}
           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Header`}
         />
-        <div className="gba:mt-6">
-          <Alert className="gba:border-red-200 gba:bg-red-50">
-            <AlertDescription>
-              {t(
-                'mdm.engagement_data.source_app_required',
-                'This application requires a sourceApp parameter (CRM or IRM) to function properly.'
-              )}
-            </AlertDescription>
-          </Alert>
+        <div className="gba:p-6">
+          <div className="gba:mt-6">
+            <Alert className="gba:border-red-200 gba:bg-red-50">
+              <AlertDescription>
+                {t(
+                  'mdm.engagement_data.source_app_required',
+                  'This application requires a sourceApp parameter (CRM or IRM) to function properly.'
+                )}
+              </AlertDescription>
+            </Alert>
+          </div>
         </div>
       </div>
     )
@@ -105,70 +104,68 @@ const EngagementData: React.FC<EngagementDataProps> = ({ className, prefixDataTe
 
   return (
     <div
-      className={`gba:w-full gba:h-full gba:p-6 ${className || ''}`}
+      className={`gba:w-full gba:h-full ${className || ''}`}
       data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Container`}
     >
       <PageHeader
         title={t('mdm.engagement_data', 'Engagement Data')}
-        description={t(
-          'mdm.engagement_data.description',
-          'Manage activity types, task types, priorities, and statuses'
-        )}
-        icon={<Settings className="gba:h-5 gba:w-5" />}
+        subtitle={t('mdm.engagement_data.description', 'Manage activity types, task types, priorities, and statuses')}
+        avatar={<Settings className="gba:h-5 gba:w-5" />}
         data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Header`}
       />
+      <div className="gba:p-6">
+        <div className="gba:mt-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={handleTabChange}
+            data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}
+          >
+            <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
+              <TabsTrigger value={EngagementDataTabs.ACTIVITY_TYPES}>
+                {t('mdm.activity_types', 'Activity Types')}
+              </TabsTrigger>
+              <TabsTrigger value={EngagementDataTabs.TASK_TYPES}>{t('mdm.task_types', 'Task Types')}</TabsTrigger>
+              <TabsTrigger value={EngagementDataTabs.TASK_PRIORITIES}>
+                {t('mdm.task_priorities', 'Task Priorities')}
+              </TabsTrigger>
+              <TabsTrigger value={EngagementDataTabs.TASK_STATUSES}>
+                {t('mdm.task_statuses', 'Task Statuses')}
+              </TabsTrigger>
+            </TabsList>
 
-      <div className="gba:mt-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={handleTabChange}
-          data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}
-        >
-          <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
-            <TabsTrigger value={EngagementDataTabs.ACTIVITY_TYPES}>
-              {t('mdm.activity_types', 'Activity Types')}
-            </TabsTrigger>
-            <TabsTrigger value={EngagementDataTabs.TASK_TYPES}>{t('mdm.task_types', 'Task Types')}</TabsTrigger>
-            <TabsTrigger value={EngagementDataTabs.TASK_PRIORITIES}>
-              {t('mdm.task_priorities', 'Task Priorities')}
-            </TabsTrigger>
-            <TabsTrigger value={EngagementDataTabs.TASK_STATUSES}>
-              {t('mdm.task_statuses', 'Task Statuses')}
-            </TabsTrigger>
-          </TabsList>
+            <TabsContent value={EngagementDataTabs.ACTIVITY_TYPES} className="gba:mt-6">
+              <ActivityTypesTab
+                {...context}
+                sourceApp={sourceApp as 'CRM' | 'IRM'}
+                prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+              />
+            </TabsContent>
 
-          <TabsContent value={EngagementDataTabs.ACTIVITY_TYPES} className="gba:mt-6">
-            <ActivityTypesTab
-              {...context}
-              sourceApp={sourceApp as 'CRM' | 'IRM'}
-              prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-            />
-          </TabsContent>
+            <TabsContent value={EngagementDataTabs.TASK_TYPES} className="gba:mt-6">
+              <TaskTypesTab
+                {...context}
+                sourceApp={sourceApp as 'CRM' | 'IRM'}
+                prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+              />
+            </TabsContent>
 
-          <TabsContent value={EngagementDataTabs.TASK_TYPES} className="gba:mt-6">
-            <TaskTypesTab
-              {...context}
-              sourceApp={sourceApp as 'CRM' | 'IRM'}
-              prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-            />
-          </TabsContent>
+            <TabsContent value={EngagementDataTabs.TASK_PRIORITIES} className="gba:mt-6">
+              <TaskPrioritiesTab
+                {...context}
+                sourceApp={sourceApp as 'CRM' | 'IRM'}
+                prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+              />
+            </TabsContent>
 
-          <TabsContent value={EngagementDataTabs.TASK_PRIORITIES} className="gba:mt-6">
-            <TaskPrioritiesTab
-              {...context}
-              sourceApp={sourceApp as 'CRM' | 'IRM'}
-              prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-            />
-          </TabsContent>
-
-          <TabsContent value={EngagementDataTabs.TASK_STATUSES} className="gba:mt-6">
-            <TaskStatusesTab
-              {...context}
-              sourceApp={sourceApp as 'CRM' | 'IRM'}
-              prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-            />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value={EngagementDataTabs.TASK_STATUSES} className="gba:mt-6">
+              <TaskStatusesTab
+                {...context}
+                sourceApp={sourceApp as 'CRM' | 'IRM'}
+                prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </div>
   )
