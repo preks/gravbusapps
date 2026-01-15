@@ -182,7 +182,7 @@ export class ChatApiClient {
   }
 
   // Message endpoints
-  async getMessages(conversationId: string, page: number = 1, limit: number = 50) {
+  async getMessages(conversationId: string, page: number = 1, limit: number = 100) {
     const response = await this.client.get<
       | PaginatedResponse<Message>
       | { messages: Message[]; total: number; page: number; limit: number; totalPages: number }

@@ -13,7 +13,7 @@ interface MessageListV2Props {
   isLoading?: boolean
   hasMore?: boolean
   onLoadMore?: () => void
-  conversationId: string
+  conversationId: string | null
   typingUsers?: TypingIndicator[]
   onReplyToAI?: () => void
   accessToken?: string

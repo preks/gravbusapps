@@ -3,7 +3,7 @@ import type { TypingIndicator } from '../types'
 
 interface TypingIndicatorV2Props {
   typingUsers: TypingIndicator[]
-  conversationId: string
+  conversationId: string | null
 }
 
 /**

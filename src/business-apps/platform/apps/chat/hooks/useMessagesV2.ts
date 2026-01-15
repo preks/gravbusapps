@@ -63,15 +63,29 @@ export function useMessagesV2({
   // CRITICAL: Clear messages synchronously during render when conversationId changes
   // This prevents showing old conversation's messages even for 1 frame
   // Must happen BEFORE any effects run
-  if (prevConversationIdRef.current !== conversationId && prevConversationIdRef.current !== undefined) {
-    // ConversationId changed - clear state immediately
-    devPerf(() => console.log('[V2] ConversationId changed during render, clearing state synchronously'))
-    setMessages([])
-    setCurrentPage(1)
-    setHasMore(false)
-    setError(null)
+  if (prevConversationIdRef.current !== conversationId) {
+    const prev = prevConversationIdRef.current
+    const current = conversationId ?? undefined
+
+    // Clear messages in two cases:
+    // 1. Switching between two conversations (A → B)
+    // 2. Closing a conversation (A → null)
+    if (prev && (current || prev !== current)) {
+      devPerf(() =>
+        console.log('[V2] ConversationId changed during render, clearing state synchronously', {
+          from: prev,
+          to: current || 'null'
+        })
+      )
+      setMessages([])
+      setCurrentPage(1)
+      setHasMore(false)
+      setError(null)
+    }
+
+    // Update ref AFTER clearing to prevent duplicate clears
+    prevConversationIdRef.current = current
   }
-  prevConversationIdRef.current = conversationId ?? undefined
 
   // Keep refs in sync
   useEffect(() => {
@@ -169,6 +183,11 @@ export function useMessagesV2({
             devPerf(() => console.log('[V2] Already loading, skipping duplicate cache load'))
             return
           }
+
+          // Show loading state even for cache (consistent UX with API loading)
+          // This prevents showing "no messages" placeholder during async cache load
+          setIsLoading(true)
+          isLoadingRef.current = true
 
           // Mark this conversation as loaded
           lastLoadedConversationRef.current = conversationId
@@ -483,6 +502,13 @@ export function useMessagesV2({
         // Load new conversation's messages (will use cache if available)
         // State is already cleared synchronously during render
         loadMessages(1)
+      }
+    } else {
+      // ConversationId is null/undefined - clear the displayed conversation ref
+      // This ensures the next conversation selection is treated as a new conversation
+      if (displayedConversationIdRef.current) {
+        devPerf(() => console.log('[V2] ConversationId cleared, resetting displayed conversation ref'))
+        displayedConversationIdRef.current = undefined
       }
     }
 
