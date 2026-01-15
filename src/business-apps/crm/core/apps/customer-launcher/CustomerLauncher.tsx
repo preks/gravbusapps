@@ -59,7 +59,7 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = context => {
       },
       {
         id: 'pipeline-value',
-        title: 'Pipeline Value',
+        title: 'Open Pipeline Value',
         value: isLoading ? '...' : formatCurrency(stats.pipelineValue),
         color: 'primary'
       }
@@ -103,10 +103,10 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = context => {
               value: formatNumber(stats.totalContacts),
               label: 'Total Contacts'
             }
-          case 'reports':
+          case 'campaigns':
             return {
-              value: formatNumber(12),
-              label: 'Active Reports'
+              value: formatNumber(0),
+              label: 'Active Campaigns'
             }
           case 'analytics':
             return {
@@ -222,19 +222,12 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = context => {
                 }
               }
             ]
-          case 'reports':
+          case 'campaigns':
             return [
               {
-                label: 'Sales Reports',
+                label: 'View All Campaigns',
                 onClick: () => {
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' })
-                  navigateTo(url)
-                }
-              },
-              {
-                label: 'Custom Reports',
-                onClick: () => {
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' })
+                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'campaigns' })
                   navigateTo(url)
                 }
               }
@@ -242,16 +235,19 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = context => {
           case 'analytics':
             return [
               {
-                label: 'Performance Analytics',
+                label: 'Core Analytics',
                 onClick: () => {
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' })
+                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'analytics' })
                   navigateTo(url)
                 }
               },
               {
-                label: 'Predictive Insights',
+                label: 'Campaign Analytics',
                 onClick: () => {
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' })
+                  const url = buildPlatformUrl('/platform/crm/customer-relations', {
+                    view: 'campaigns',
+                    mainTab: 'analytics'
+                  })
                   navigateTo(url)
                 }
               }
@@ -310,14 +306,14 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = context => {
         view: 'contacts'
       })
       navigateTo(url)
-    } else if (area.id === 'reports') {
+    } else if (area.id === 'campaigns') {
       const url = buildPlatformUrl('/platform/crm/customer-relations', {
-        view: 'dashboard'
+        view: 'campaigns'
       })
       navigateTo(url)
     } else if (area.id === 'analytics') {
       const url = buildPlatformUrl('/platform/crm/customer-relations', {
-        view: 'dashboard'
+        view: 'analytics'
       })
       navigateTo(url)
     }
@@ -352,13 +348,6 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = context => {
         builderType: 'NATIVE_SCREEN',
         payload: {}
       })
-    } else if (action.action === 'generate-report') {
-      const url = buildPlatformUrl('/platform/crm/customer-relations', {
-        view: 'dashboard'
-      })
-      navigateTo(url)
-    } else {
-      // TODO: Implement other quick actions when functionality is available
     }
   }
 

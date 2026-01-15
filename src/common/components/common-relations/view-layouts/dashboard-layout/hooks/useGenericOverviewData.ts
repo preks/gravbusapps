@@ -6,6 +6,7 @@ import { useActiveTasksData, type ActiveTasksConfig } from './useActiveTasksData
 import { useTodaysActivitiesData, type TodaysActivitiesConfig } from './useTodaysActivitiesData'
 import { useTopDealsData, type TopDealsConfig } from './useTopDealsData'
 import type { OverviewData, RelatedEntityType } from './types/OverviewDataTypes'
+import dayjs from 'dayjs'
 
 /**
  * Comprehensive configuration for overview dashboard
@@ -292,7 +293,7 @@ export const useGenericOverviewData = (
         value: formatCurrency(deal.estimatedAmount || 0, currencyCode),
         stage: deal.pipelineStage?.value || 'Unknown',
         owner: `${deal.ownerEmployee?.firstName || ''} ${deal.ownerEmployee?.lastName || ''}`.trim() || 'Unknown',
-        closeDate: deal.closeDate || 'Not set'
+        closeDate: deal.closeDate ? dayjs(deal.closeDate).format('MMM D, YYYY') : 'Not set'
       }
     })
   }, [sharedTopDeals, selectedDealCurrency, formatCurrency, extractCurrencyCode])

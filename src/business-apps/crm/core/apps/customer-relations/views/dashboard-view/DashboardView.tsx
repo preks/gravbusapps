@@ -14,9 +14,7 @@ import {
 import { useOverviewData } from './hooks/useOverviewData'
 import { usePipelineData } from './hooks/usePipelineData'
 import { formatCurrency } from '@/common/utils/numberFormatter'
-import { crmActivityNavigationConfig } from './config/activityNavigationConfig'
 import { crmRecordNavigationConfig } from './config/recordNavigationConfig'
-import { crmTaskNavigationConfig } from './config/taskNavigationConfig'
 
 export interface DashboardViewProps extends BusinessAppContextProps {
   pipelines: PipelineInfo[]
@@ -35,17 +33,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
     refetch: refetchOverview,
     setSelectedCurrency,
     selectedDealCurrency,
-    setSelectedDealCurrency,
-    handleTasksPageChange
+    setSelectedDealCurrency
   } = useOverviewData(context, pipelines, dateRange, activeTab === 'overview')
 
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId)
   const [pipelineCurrency, setPipelineCurrency] = useState<string | undefined>(undefined)
-
-  // Fire-and-forget async handlers for pagination
-  const onTasksPageChange = (page: number, pageSize: number) => {
-    handleTasksPageChange(page, pageSize)
-  }
 
   const {
     pipelineData,
@@ -130,13 +122,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
         {
           setSelectedCurrency,
           handleDealClick,
-          setSelectedDealCurrency,
-          onTasksPageChange
+          setSelectedDealCurrency
         },
         selectedDealCurrency,
-        crmActivityNavigationConfig,
-        crmRecordNavigationConfig,
-        crmTaskNavigationConfig
+        crmRecordNavigationConfig
       )}
       pipelineProps={buildPipelineProps({
         selectedPipeline,

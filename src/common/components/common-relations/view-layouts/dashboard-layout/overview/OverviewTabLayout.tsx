@@ -2,15 +2,11 @@ import React from 'react'
 import { PipelineFunnel, AggregatedFunnelStage } from './widgets/PipelineFunnel'
 import { LeadSourceChart, LeadSourceItem } from './widgets/LeadSourceChart'
 import { RecordSummary, RecentRecordItem, RecordNavigationConfig } from './widgets/RecordSummary'
-import { TaskSummary, TaskItem, TaskNavigationConfig } from './widgets/TaskSummary'
-import { ActivitySummary, ActivityItem, ActivityNavigationConfig } from './widgets/ActivitySummary'
 import { DealSummary, DealItem } from './widgets/DealSummary'
 
 export interface OverviewTabLayoutProps {
   moduleColor?: string
-  activityNavigationConfig: ActivityNavigationConfig
   recordNavigationConfig: RecordNavigationConfig
-  taskNavigationConfig: TaskNavigationConfig
 
   // Data props for widgets
   aggregatedFunnel: AggregatedFunnelStage[]
@@ -21,22 +17,15 @@ export interface OverviewTabLayoutProps {
   totalRevenue: number
   totalLeadCount: number
   recentRecords: RecentRecordItem[]
-  activeTasks: TaskItem[]
-  todaysActivities: ActivityItem[]
   keyDeals: DealItem[]
   onDealClick?: (dealId: string) => void
   selectedDealCurrency?: string
   onDealCurrencyChange?: (currency: string) => void
-  todaysActivitiesTotal?: number
-  activeTasksTotal?: number
-  onTasksPageChange?: (page: number, pageSize: number) => void
 }
 
 export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   moduleColor = 'default',
-  activityNavigationConfig,
   recordNavigationConfig,
-  taskNavigationConfig,
   aggregatedFunnel,
   availableCurrencies,
   selectedCurrency,
@@ -44,15 +33,10 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   revenueBySource,
   totalLeadCount,
   recentRecords,
-  activeTasks,
-  todaysActivities,
   keyDeals,
   onDealClick,
   selectedDealCurrency,
-  onDealCurrencyChange,
-  todaysActivitiesTotal = 0,
-  activeTasksTotal = 0,
-  onTasksPageChange
+  onDealCurrencyChange
 }) => {
   return (
     <div className="gba:space-y-6">
@@ -72,27 +56,6 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
         </div>
         <div className="gba:lg:col-span-4 gba:xl:col-span-1">
           <RecordSummary records={recentRecords} moduleColor={moduleColor} navigationConfig={recordNavigationConfig} />
-        </div>
-      </div>
-
-      {/* Bottom Row - Tasks and Activities */}
-      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
-        <div>
-          <TaskSummary
-            tasks={activeTasks}
-            totalCount={activeTasksTotal}
-            moduleColor={moduleColor}
-            navigationConfig={taskNavigationConfig}
-            onPageChange={onTasksPageChange}
-          />
-        </div>
-        <div>
-          <ActivitySummary
-            activities={todaysActivities}
-            totalCount={todaysActivitiesTotal}
-            moduleColor={moduleColor}
-            navigationConfig={activityNavigationConfig}
-          />
         </div>
       </div>
 
