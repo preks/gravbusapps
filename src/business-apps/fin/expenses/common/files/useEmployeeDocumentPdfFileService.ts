@@ -24,8 +24,8 @@ export interface PrintPdfResult {
 const extractFileId = (fileUrl: string): string | null => {
   const cleaned = fileUrl.split('?')[0].trim()
   if (!cleaned) return null
-  const last = cleaned.split('/').filter(Boolean).pop()
-  return last || null
+  const segments = cleaned.split('/').filter(Boolean)
+  return segments[segments.length - 1] || null
 }
 
 export const useEmployeeDocumentPdfFileService = (props: BusinessAppContextProps) => {

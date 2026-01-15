@@ -151,13 +151,14 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
           className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-background gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
           data-testid={`${dataTestIdPrefix}-travel-order-card`}
         >
-          <div
-            className="gba:w-[90px] gba:h-[90px] gba:flex gba:justify-center gba:items-center gba:bg-gray-100 gba:rounded-md gba:shadow gba:cursor-pointer hover:gba:bg-gray-200"
+          <button
+            type="button"
+            className="gba:w-[90px] gba:h-[90px] gba:flex gba:justify-center gba:items-center gba:bg-gray-100 gba:rounded-md gba:shadow gba:cursor-pointer hover:gba:bg-gray-200 gba:border-none"
             onClick={openPdfPreview}
             data-testid={`${dataTestIdPrefix}-travel-order-pdf-thumb`}
           >
             <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 48 }} />
-          </div>
+          </button>
 
           <TooltipProvider>
             <Tooltip>

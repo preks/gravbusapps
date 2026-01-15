@@ -244,8 +244,8 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
       </Card>
 
       <TravelOrderAttachmentPreview
-        record={selectedItem as any}
-        fetchPdf={printExpenseRequest as any}
+        record={selectedItem}
+        fetchPdf={printExpenseRequest}
         dataTestIdPrefix="backoffice-expense-request-details"
       />
 

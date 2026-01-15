@@ -48,7 +48,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
 
   const getPlanType = (): string | undefined => {
     const plan = request.expensePlan
-    return extractRequestTypeValue(plan?.requestType) || extractRequestTypeValue(plan?.type as any)
+    return extractRequestTypeValue(plan?.requestType) || extractRequestTypeValue(plan?.type)
   }
 
   const getDepartment = () => {
@@ -103,8 +103,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
       headerRight={headerRight}
       extraContent={
         <TravelOrderAttachmentPreview
-          record={request as any}
-          fetchPdf={printExpenseRequest as any}
+          record={request}
+          fetchPdf={printExpenseRequest}
           dataTestIdPrefix="manager-expense-request-details"
         />
       }

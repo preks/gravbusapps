@@ -13,7 +13,7 @@ export const toTitleCase = (value?: string): string => {
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 }
 
@@ -28,6 +28,11 @@ export const getPaymentMethodDisplay = (method: unknown): string => {
   // Handle catalog entry object with translations/value
   if (typeof method === 'object' && method !== null && 'value' in (method as any)) {
     return getCatalogValue(method as any) || notSpecified
+  }
+
+  // Return not specified for unhandled object types to avoid [object Object]
+  if (typeof method === 'object') {
+    return notSpecified
   }
 
   const raw = String(method).trim()
