@@ -1,12 +1,8 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  useEmployeeDocumentPdfFileService,
-  type HasEmployeeDocument,
-  type PrintPdfResult
-} from './useEmployeeDocumentPdfFileService'
+import { useEmployeeDocumentPdfFileService, type PrintPdfResult } from './useEmployeeDocumentPdfFileService'
 
 export type PrintPlanResult = PrintPdfResult
-export type { HasEmployeeDocument }
+export type { HasEmployeeDocument } from './useEmployeeDocumentPdfFileService'
 
 export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
   const { printEmployeeDocumentPdf, isMounted } = useEmployeeDocumentPdfFileService(props)

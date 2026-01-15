@@ -658,7 +658,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')
             }
             onClose={() => setSelectedRequest(null)}
-            showCloseButton={true}
             dataTestIdPrefix="expense-request-details"
           >
             {selectedRequest && (

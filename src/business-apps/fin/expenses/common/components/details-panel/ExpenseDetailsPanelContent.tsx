@@ -125,11 +125,11 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
     const totalValue = formatAmount(Number(record.totalAmount ?? 0), currencyCode)
 
     const base: DetailsPanelField[] = [
-      ...(record.employee !== undefined ? [{ label: employeeLabel, value: record.employee || 'N/A' }] : []),
+      ...(record.employee != null ? [{ label: employeeLabel, value: record.employee || 'N/A' }] : []),
       ...(record.employeeCode && record.employeeCode !== 'N/A' && record.employeeCode !== undefined
         ? [{ label: employeeCodeLabel, value: record.employeeCode }]
         : []),
-      ...(record.sapNumber !== undefined ? [{ label: sapLabel, value: record.sapNumber || 'N/A' }] : []),
+      ...(record.sapNumber != null ? [{ label: sapLabel, value: record.sapNumber || 'N/A' }] : []),
       { label: startLabel, value: record.startDate || 'N/A' },
       { label: endLabel, value: record.endDate || 'N/A' },
       { label: creationLabel, value: record.creationDate || 'N/A' },

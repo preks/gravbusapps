@@ -181,7 +181,7 @@ export const useGetExpenseRequests = ({
    * Reduces cognitive complexity by extracting status mapping logic
    */
   const mapStatusValues = useCallback((statusValues: string[]): string[] => {
-    const validStatuses = [
+    const validStatuses = new Set([
       'PENDING',
       'APPROVED',
       'VERIFIED',
@@ -191,10 +191,10 @@ export const useGetExpenseRequests = ({
       'CLOSED',
       'RETURNED',
       'REJECTED'
-    ]
+    ])
 
     return statusValues.map(statusValue => {
-      if (validStatuses.includes(statusValue.toUpperCase())) {
+      if (validStatuses.has(statusValue.toUpperCase())) {
         return statusValue.toUpperCase()
       }
       if (statusValue.toLowerCase() === 'in_approval') {

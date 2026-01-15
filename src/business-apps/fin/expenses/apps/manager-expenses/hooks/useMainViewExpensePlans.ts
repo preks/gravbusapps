@@ -245,9 +245,8 @@ export const useMainViewExpensePlans = ({
 
   const fetchPlans = useCallback(
     async (forceFilter?: string[] | null, forceCurrencyFilter?: string | null, forceSortConfig?: SortConfig) => {
-      const activeFilter = (forceFilter !== undefined ? forceFilter : currentStatusFilter) ?? null
-      const activeCurrencyFilter =
-        (forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter) ?? null
+      const activeFilter = forceFilter ?? currentStatusFilter ?? null
+      const activeCurrencyFilter = forceCurrencyFilter ?? currentCurrencyFilter ?? null
       const activeSortConfig = forceSortConfig || sorting
       const offset = (currentPage - 1) * pageSize
       const searchValue = searchTerm ? `%${searchTerm}%` : '%%'

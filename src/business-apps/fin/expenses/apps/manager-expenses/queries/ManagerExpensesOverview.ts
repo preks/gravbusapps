@@ -412,15 +412,20 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         ]
       }
     ) {
-      id code amount status createdAt paymentMethod currencyRef
+      id code amount status createdAt paymentMethod currencyRef decisionDate transactionDate
       costCenter { id name code }
+      project { id name }
       expensePlan { 
-        id code title startDate endDate 
+        id code title startDate endDate totalAmount currencyRef
+        costCenter { id name code }
+        project { id name }
         employee { 
           id code fullName displayName
           additionalProperties
           employeePosition { 
-            organizationalUnit { id name } 
+            organizationalUnit { id name }
+            costCenter { id name code }
+            supervisor { id fullName }
           }
         }
       }

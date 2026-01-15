@@ -1,5 +1,5 @@
 import React from 'react'
-import { Separator, Button, Badge } from '@newwork/nw-design-system'
+import { Separator, Button, Badge, useTranslation } from '@newwork/nw-design-system'
 import { getAdvancePaymentStatusDisplay } from '../../../../personal-expenses/utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { DetailsPanelField } from '../../../../../common/components/details-panel/DetailsPanelContent'
@@ -9,22 +9,19 @@ import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/wi
 import { formatCurrency } from '../../../utils/currencyUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getPaymentMethodDisplay, getExpensePlanDisplay } from '../../../../../common/utils/advancePaymentUtils'
+import translations from '../../../../personal-expenses/_i18n'
 
 interface AdvancePaymentDetailsBackofficeProps extends BusinessAppContextProps {
   payment: any
 }
 
 const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeProps> = ({ payment }) => {
+  const { t } = useTranslation(translations)
   if (!payment) return null
 
   const statusConfig = getAdvancePaymentStatusDisplay(payment.status) as any
 
   const fields: DetailsPanelField[] = [
-    {
-      label: getTranslationFromI18nKeyAndLabel('common.code', 'Code'),
-      value: payment.code || 'N/A',
-      dataTestId: 'advance-payment-code'
-    },
     {
       label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
       value: (
@@ -84,12 +81,20 @@ const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeP
           } as DetailsPanelField
         ]
       : []),
+    ...(payment.expensePlan?.code
+      ? [
+          {
+            label: t('expense-plan-code'),
+            value: payment.expensePlan.code
+          } as DetailsPanelField
+        ]
+      : []),
     {
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_request.initial_expense_plan_select_label',
         'Expense Plan'
       ),
-      value: getExpensePlanDisplay(payment.expensePlan)
+      value: payment.expensePlan?.title || getExpensePlanDisplay(null)
     },
     ...(payment.costCenter?.name ||
     payment.expensePlan?.costCenter?.name ||

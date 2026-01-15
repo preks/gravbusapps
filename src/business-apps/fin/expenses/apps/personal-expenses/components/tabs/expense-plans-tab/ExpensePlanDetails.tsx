@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
-import { Separator, Button } from '@newwork/nw-design-system'
-import { Badge } from '@newwork/nw-design-system'
+import { Separator, Button, Badge } from '@newwork/nw-design-system'
 import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PiArrowRight } from 'react-icons/pi'
@@ -117,15 +116,25 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
           label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
           value: translatePlanTypeValue(planTypeLabel ?? getPlanType())
         },
-        {
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
-            'Request Type'
-          ),
-          value: translatePlanTypeValue(
-            selectedItem.requestType?.value || (selectedItem.requestType ? String(selectedItem.requestType) : 'N/A')
-          )
-        }
+        // Only show Request Type if there's a linked expense request
+        ...(selectedItem.expenseRequest &&
+        Array.isArray(selectedItem.expenseRequest) &&
+        selectedItem.expenseRequest.length > 0
+          ? [
+              {
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
+                  'Request Type'
+                ),
+                value: translatePlanTypeValue(
+                  selectedItem.expenseRequest[0]?.requestType?.value ||
+                    (selectedItem.expenseRequest[0]?.requestType
+                      ? String(selectedItem.expenseRequest[0].requestType)
+                      : 'N/A')
+                )
+              }
+            ]
+          : [])
       ]}
       headerRight={headerRight}
       extraContent={

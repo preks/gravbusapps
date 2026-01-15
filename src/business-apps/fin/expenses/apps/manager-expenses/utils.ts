@@ -239,7 +239,7 @@ export const formatCurrencyDisplay = (
   }
 
   // Handle empty string or invalid amounts
-  if (amount === '' || isNaN(Number(amount))) {
+  if (amount === '' || Number.isNaN(Number(amount))) {
     return `0 ${currencyCode || 'EUR'}`
   }
 

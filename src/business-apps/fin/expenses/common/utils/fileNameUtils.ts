@@ -36,7 +36,8 @@ const extractFileNameFromUrlParams = (fileUrl: string): string | null => {
  */
 const extractFileNameFromPath = (fileUrl: string): string | null => {
   const clean = fileUrl.split('?')[0]
-  const segment = clean.split('/').filter(Boolean).pop()
+  const segments = clean.split('/').filter(Boolean)
+  const segment = segments.length > 0 ? segments[segments.length - 1] : null
   if (segment) {
     try {
       return decodeURIComponent(segment)

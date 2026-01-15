@@ -526,7 +526,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
               getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')
             }
             onClose={() => setSelectedPayment(null)}
-            showCloseButton={true}
             dataTestIdPrefix="advance-payment-details"
           >
             {selectedPayment && <AdvancePaymentDetails payment={selectedPayment} {...contextProps} />}

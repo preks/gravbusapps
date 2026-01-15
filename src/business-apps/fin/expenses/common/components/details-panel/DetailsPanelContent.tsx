@@ -70,16 +70,19 @@ export const DetailsPanelContent: React.FC<DetailsPanelContentProps> = ({
       ) : null}
 
       <dl className="gba:space-y-3" data-testid={`${dataTestIdPrefix}-dl`}>
-        {fields.map((field, idx) => (
-          <div
-            key={field.dataTestId || `${dataTestIdPrefix}-field-${idx}-${String(field.label)}`}
-            className="gba:flex gba:justify-between gba:gap-4"
-            data-testid={field.dataTestId || `${dataTestIdPrefix}-row-${idx}`}
-          >
-            <dt className="gba:font-medium gba:text-muted-foreground gba:shrink-0">{field.label}:</dt>
-            <dd className="gba:text-sm gba:text-foreground gba:text-right gba:truncate gba:min-w-0">{field.value}</dd>
-          </div>
-        ))}
+        {fields.map((field, idx) => {
+          const labelKey = field.dataTestId || `${dataTestIdPrefix}-field-${idx}`
+          return (
+            <div
+              key={labelKey}
+              className="gba:flex gba:justify-between gba:gap-4"
+              data-testid={field.dataTestId || `${dataTestIdPrefix}-row-${idx}`}
+            >
+              <dt className="gba:font-medium gba:text-muted-foreground gba:shrink-0">{field.label}:</dt>
+              <dd className="gba:text-sm gba:text-foreground gba:text-right gba:truncate gba:min-w-0">{field.value}</dd>
+            </div>
+          )
+        })}
       </dl>
 
       {extraContent ? (

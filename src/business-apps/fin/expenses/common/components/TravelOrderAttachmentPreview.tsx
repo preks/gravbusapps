@@ -11,9 +11,9 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
 import { FilePdfOutlined } from '@ant-design/icons'
 import translations from '../../apps/personal-expenses/_i18n'
 import { getFileNameFromEmployeeDocument } from '../utils/fileNameUtils'

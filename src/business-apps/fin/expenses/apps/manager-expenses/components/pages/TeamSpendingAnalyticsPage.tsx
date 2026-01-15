@@ -27,8 +27,8 @@ import { useTeamSpendingAnalytics, DateRangeOption } from '../../hooks/useTeamSp
 import { LineChartComponent, PieChartComponent, BarChartComponent } from '../modals/charts'
 import StatusLegend from '../StatusLegend'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay } from '../../utils'
 import {
+  formatCurrencyDisplay,
   getExpenseRequestStatusDisplay,
   getAdvancePaymentStatusDisplay,
   getExpensePlanStatusDisplay

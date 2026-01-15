@@ -1,5 +1,5 @@
 import React from 'react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
 import { AdvancePayment } from '../../../hooks/useGetAdvancePayments'
 import { getAdvancePaymentStatusDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -10,12 +10,14 @@ import {
   type DetailsPanelField
 } from '../../../../../common/components/details-panel/DetailsPanelContent'
 import { getPaymentMethodDisplay, getExpensePlanDisplay } from '../../../../../common/utils/advancePaymentUtils'
+import translations from '../../../_i18n'
 
 interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   payment: AdvancePayment
 }
 
 const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }) => {
+  const { t } = useTranslation(translations)
   const statusConfig = getAdvancePaymentStatusDisplay(payment.status)
   const statusBadge = (
     <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-badge">
@@ -24,11 +26,6 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
   )
 
   const fields: DetailsPanelField[] = [
-    {
-      label: getTranslationFromI18nKeyAndLabel('common.code', 'Code'),
-      value: payment.code || 'N/A',
-      dataTestId: 'advance-payment-code'
-    },
     {
       label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
       value: statusBadge
@@ -43,14 +40,20 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_description', 'No description'),
       dataTestId: 'advance-payment-description'
     },
+    ...(payment.expensePlan?.code
+      ? [
+          {
+            label: t('expense-plan-code'),
+            value: payment.expensePlan.code
+          } as DetailsPanelField
+        ]
+      : []),
     {
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_request.initial_expense_plan_select_label',
         'Expense Plan'
       ),
-      value: payment.expensePlan
-        ? `${payment.expensePlan.code} - ${payment.expensePlan.title}`
-        : getExpensePlanDisplay(null)
+      value: payment.expensePlan?.title || getExpensePlanDisplay(null)
     },
     {
       label: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.amount', 'Amount'),

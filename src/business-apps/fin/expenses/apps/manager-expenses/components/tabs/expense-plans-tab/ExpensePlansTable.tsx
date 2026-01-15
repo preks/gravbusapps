@@ -579,7 +579,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
               )
             }
             onClose={handleCloseDetails}
-            showCloseButton={true}
             dataTestIdPrefix="expense-plan-details"
           >
             {selectedItem && (
