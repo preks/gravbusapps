@@ -1,11 +1,20 @@
 import React, { useState } from 'react'
 import { useEmployeeContext } from '../context/EmployeeContext'
-import { Button, Select, Input } from '@newwork/gravity-ui-catalog'
+import {
+  Button,
+  Input,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent
+} from '@newwork/nw-design-system'
+import { PlusIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import Pill from '@/components/pill'
-
-const toStringOrUndefined = (val: any): string | undefined =>
-  typeof val === 'string' && val.length > 0 ? val : undefined
+import CreateJobPositionModal from './CreateJobPositionModal'
 
 const EmployeeForm: React.FC = () => {
   const {
@@ -20,43 +29,34 @@ const EmployeeForm: React.FC = () => {
     error,
     submit,
     isEdit,
+    accessToken,
     structureId,
-    // Organizational unit specific functionality
-    searchOrganizationalUnits,
-    loadMoreOrganizationalUnits,
     organizationalUnitsError,
     organizationalUnitsLoading,
-    // Job position specific functionality
-    searchJobPositions,
-    loadMoreJobPositions,
+    refetchJobPositions,
     jobPositionsError,
     jobPositionsLoading,
-    // Employment type specific functionality
-    searchEmploymentTypes,
-    loadMoreEmploymentTypes,
     employmentTypesError,
     employmentTypesLoading,
-    // Contract type specific functionality
-    searchContractTypes,
-    loadMoreContractTypes,
     contractTypesError,
     contractTypesLoading
   } = useEmployeeContext()
 
-  // State for collapsible additional attributes
   const [showAdditionalAttributes, setShowAdditionalAttributes] = useState(false)
+  const [isCreateJobPositionModalOpen, setIsCreateJobPositionModalOpen] = useState(false)
 
-  // Check if all mandatory fields are filled
+  const selectedOrgUnit = organizationalUnits.find(unit => unit.id === formValues.organizationalUnitId)
+  const selectedOrgUnitName = selectedOrgUnit?.name || ''
+
   const isFormValid =
-    toStringOrUndefined(formValues.firstName) &&
-    toStringOrUndefined(formValues.lastName) &&
-    toStringOrUndefined(formValues.email) &&
-    toStringOrUndefined(formValues.organizationalUnitId) &&
-    toStringOrUndefined(formValues.jobPositionId) &&
-    toStringOrUndefined(formValues.employmentTypeId) &&
-    toStringOrUndefined(formValues.contractTypeId)
+    formValues.firstName?.trim() &&
+    formValues.lastName?.trim() &&
+    formValues.email?.trim() &&
+    formValues.organizationalUnitId &&
+    formValues.jobPositionId &&
+    formValues.employmentTypeId &&
+    formValues.contractTypeId
 
-  // Validate email format
   const isEmailValid = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
@@ -64,96 +64,125 @@ const EmployeeForm: React.FC = () => {
 
   const isEmailFieldValid = !formValues.email || isEmailValid(formValues.email)
 
-  // Create enhanced job positions with organizational unit information in the label
-  const enhancedJobPositions = jobPositions.map(position => {
-    const fullPosition = allJobPositions.find(p => p.id === position.id)
-    if (
-      fullPosition &&
-      fullPosition.organizationalUnitEmployees &&
-      fullPosition.organizationalUnitEmployees.length > 0
-    ) {
-      const orgUnit = fullPosition.organizationalUnitEmployees[0].organizationalUnit
-      return {
-        ...position,
-        // Create a custom label that includes the org unit info
-        label: (
-          <div className="gba:flex gba:flex-col gba:gap-1">
-            <div className="gba:font-medium">{position.name}</div>
-            {orgUnit && (
-              <div className="gba:flex gba:items-center">
-                <Pill label={orgUnit.name} type="waiting" className="gba:text-xs" />
-              </div>
-            )}
-          </div>
-        ),
-        // Keep the original name for search functionality
-        name: position.name
-      }
-    }
-    return position
-  })
+  const handleJobPositionChange = (selectedJobPositionId: string) => {
+    if (selectedJobPositionId) {
+      const selectedJobPosition = allJobPositions.find(jp => jp.id === selectedJobPositionId)
 
-  // Handle search directly from Select components
-  const handleOrganizationalUnitSearch = (searchTerm: string) => {
-    searchOrganizationalUnits(searchTerm || undefined)
+      if (selectedJobPosition) {
+        const updates: any = { jobPositionId: selectedJobPositionId }
+
+        if (selectedJobPosition.employmentType?.id) {
+          updates.employmentTypeId = selectedJobPosition.employmentType.id
+        }
+
+        if (selectedJobPosition.contractType?.id) {
+          updates.contractTypeId = selectedJobPosition.contractType.id
+        }
+
+        setFormValues(updates)
+      } else {
+        setFormValues({ jobPositionId: selectedJobPositionId })
+      }
+    } else {
+      setFormValues({
+        jobPositionId: '',
+        employmentTypeId: '',
+        contractTypeId: ''
+      })
+    }
   }
 
-  const handleJobPositionSearch = (searchTerm: string) => {
-    searchJobPositions(searchTerm || undefined)
+  const handleSubmit = async () => {
+    try {
+      await submit()
+
+      const hireDateToUse = formValues.hireDate || new Date().toISOString().split('T')[0]
+      const hireDateFormatted = `${hireDateToUse}T00:00:00`
+
+      const payload: any = {
+        employee: {
+          firstName: formValues.firstName,
+          lastName: formValues.lastName,
+          preferredName: formValues.preferredName,
+          fullName: `${formValues.firstName} ${formValues.lastName}`,
+          communication: [
+            {
+              purpose: 'INTERNAL',
+              typeRef: 'CommunicationType:v1:1',
+              channelRef: 'CommunicationChannel:v1:e-mail',
+              value: formValues.email,
+              valueExtension: 'string'
+            }
+          ],
+          workingCondition: [
+            {
+              contractStatus: 'ACTIVE',
+              contractTypeRef: formValues.contractTypeId,
+              employmentTypeRef: formValues.employmentTypeId,
+              hireDate: hireDateFormatted
+            }
+          ]
+        },
+        organizationalUnitId: formValues.organizationalUnitId,
+        structureId: structureId,
+        jobPositionId: formValues.jobPositionId,
+        changeMode: 'INSERT',
+        createUser: true
+      }
+
+      if (formValues.preferredName && formValues.preferredName.trim()) {
+        payload.employee.displayName = `${formValues.preferredName} ${formValues.lastName}`
+      } else {
+        payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`
+      }
+
+      dispatchProcessContinueEvent('employee_submit', payload)
+    } catch (err) {
+      console.error('Error submitting employee form:', err)
+    }
   }
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <form className="gba:h-full gba:flex gba:flex-col">
-        {/* Form Fields Container - Takes up available space */}
+      <form className="gba:h-full gba:flex gba:flex-col" onSubmit={e => e.preventDefault()}>
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6">
-          {/* Personal Information Section */}
           <div className="gba:space-y-4">
             <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
               Personal Information
             </h3>
 
-            {/* First Name - Mandatory */}
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                First Name *
+                First Name<span className="gba:text-destructive"> *</span>
               </label>
               <Input
-                name="firstName"
                 value={formValues.firstName}
-                onChange={e => setFormValues({ firstName: String(e.value || '') })}
+                onChange={e => setFormValues({ firstName: e.target.value })}
                 placeholder="Please Enter..."
-                required
               />
             </div>
 
-            {/* Last Name - Mandatory */}
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Last Name *
+                Last Name<span className="gba:text-destructive"> *</span>
               </label>
               <Input
-                name="lastName"
                 value={formValues.lastName}
-                onChange={e => setFormValues({ lastName: String(e.value || '') })}
+                onChange={e => setFormValues({ lastName: e.target.value })}
                 placeholder="Please Enter..."
-                required
               />
             </div>
 
-            {/* Email - Mandatory */}
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Email *
+                Email<span className="gba:text-destructive"> *</span>
               </label>
               <Input
-                name="email"
                 type="email"
                 value={formValues.email}
-                onChange={e => setFormValues({ email: String(e.value || '') })}
+                onChange={e => setFormValues({ email: e.target.value })}
                 placeholder="Please Enter..."
-                required
-                status={!isEmailFieldValid ? 'error' : undefined}
+                className={!isEmailFieldValid ? 'gba:border-destructive' : ''}
               />
               {!isEmailFieldValid && (
                 <div className="gba:text-destructive gba:text-sm gba:mt-1">Please enter a valid email address</div>
@@ -161,276 +190,228 @@ const EmployeeForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Employment Information Section */}
           <div className="gba:space-y-4">
             <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
               Employment Information
             </h3>
 
-            {/* Organizational Unit Selection - Mandatory */}
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Organizational Unit *
+                Organizational Unit<span className="gba:text-destructive"> *</span>
               </label>
               <Select
-                name="organizationalUnitId"
-                value={toStringOrUndefined(formValues.organizationalUnitId)}
-                onChange={e => setFormValues({ organizationalUnitId: String(e.value || '') })}
-                data={organizationalUnits}
-                placeholder="Please Select..."
-                showSearch={true}
-                onSearch={handleOrganizationalUnitSearch}
-                debounce={300}
-                loading={organizationalUnitsLoading}
-                onPopupScrollEnd={loadMoreOrganizationalUnits}
-                allowClear
-                style={{ width: '100%' }}
-              />
+                value={formValues.organizationalUnitId || undefined}
+                onValueChange={value => setFormValues({ organizationalUnitId: value })}
+                disabled={organizationalUnitsLoading}
+              >
+                <SelectTrigger className="gba:w-full">
+                  <SelectValue placeholder={organizationalUnitsLoading ? 'Loading...' : 'Please Select...'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizationalUnits.length === 0 ? (
+                    <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                      {organizationalUnitsLoading ? 'Loading...' : 'No results found'}
+                    </div>
+                  ) : (
+                    organizationalUnits.map(unit => (
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
               {organizationalUnitsError && (
                 <div className="gba:text-destructive gba:text-sm gba:mt-1">{organizationalUnitsError}</div>
               )}
             </div>
 
-            {/* Job Position Selection - Mandatory */}
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Job Position *
+                Job Position<span className="gba:text-destructive"> *</span>
               </label>
-              <Select
-                name="jobPositionId"
-                value={toStringOrUndefined(formValues.jobPositionId)}
-                onChange={e => {
-                  const selectedJobPositionId = String(e.value || '')
-
-                  if (selectedJobPositionId) {
-                    // Find the selected job position from allJobPositions to get complete data
-                    const selectedJobPosition = allJobPositions.find(jp => jp.id === selectedJobPositionId)
-
-                    if (selectedJobPosition) {
-                      // Auto-fill employment type and contract type from job position
-                      const updates: any = { jobPositionId: selectedJobPositionId }
-
-                      if (selectedJobPosition.employmentType?.id) {
-                        updates.employmentTypeId = selectedJobPosition.employmentType.id
-                      }
-
-                      if (selectedJobPosition.contractType?.id) {
-                        updates.contractTypeId = selectedJobPosition.contractType.id
-                      }
-
-                      setFormValues(updates)
-                    } else {
-                      // Just set the job position ID if no matching position found
-                      setFormValues({ jobPositionId: selectedJobPositionId })
-                    }
-                  } else {
-                    // Clear job position and related fields when job position is cleared
-                    setFormValues({
-                      jobPositionId: '',
-                      employmentTypeId: '',
-                      contractTypeId: ''
-                    })
+              <div className="gba:flex gba:gap-2 gba:items-center">
+                <div className="gba:flex-1">
+                  <Select
+                    value={formValues.jobPositionId || undefined}
+                    onValueChange={handleJobPositionChange}
+                    disabled={!formValues.organizationalUnitId || jobPositionsLoading}
+                  >
+                    <SelectTrigger className="gba:w-full">
+                      <SelectValue placeholder={jobPositionsLoading ? 'Loading...' : 'Please Select...'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {jobPositions.length === 0 ? (
+                        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                          {jobPositionsLoading ? 'Loading...' : 'No positions available'}
+                        </div>
+                      ) : (
+                        jobPositions.map(position => (
+                          <SelectItem key={position.id} value={position.id}>
+                            {position.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsCreateJobPositionModalOpen(true)}
+                  disabled={!formValues.organizationalUnitId}
+                  title={
+                    formValues.organizationalUnitId ? 'Create new job position' : 'Select an organizational unit first'
                   }
-                }}
-                data={enhancedJobPositions}
-                placeholder="Please Select..."
-                showSearch={true}
-                onSearch={handleJobPositionSearch}
-                debounce={300}
-                loading={jobPositionsLoading}
-                onPopupScrollEnd={loadMoreJobPositions}
-                allowClear
-                style={{ width: '100%' }}
-                disabled={jobPositions.length === 0 && !jobPositionsLoading}
-              />
+                  data-testid="add-job-position-button"
+                >
+                  <PlusIcon className="gba:w-4 gba:h-4" />
+                </Button>
+              </div>
               {jobPositionsError && (
                 <div className="gba:text-destructive gba:text-sm gba:mt-1">{jobPositionsError}</div>
               )}
-              {jobPositions.length === 0 && !jobPositionsLoading && !jobPositionsError && (
-                <div className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-                  {formValues.organizationalUnitId
-                    ? 'No vacant positions available in the selected organizational unit'
-                    : 'No vacant positions available'}
-                </div>
-              )}
+              {jobPositions.length === 0 &&
+                !jobPositionsLoading &&
+                !jobPositionsError &&
+                formValues.organizationalUnitId && (
+                  <div className="gba:text-muted-foreground gba:text-sm gba:mt-1">
+                    No vacant positions available in the selected organizational unit
+                  </div>
+                )}
             </div>
 
-            {/* Hire Date - Optional */}
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                 Hire Date
               </label>
               <Input
-                name="hireDate"
                 type="date"
                 value={formValues.hireDate}
-                onChange={e => setFormValues({ hireDate: String(e.value || '') })}
-                placeholder="Please Select..."
+                onChange={e => setFormValues({ hireDate: e.target.value })}
               />
             </div>
           </div>
 
-          {/* Additional Attributes - Collapsible Section */}
-          <div className="gba:border gba:border-border gba:rounded-lg">
-            <button
-              type="button"
-              onClick={() => setShowAdditionalAttributes(!showAdditionalAttributes)}
-              className="gba:w-full gba:px-4 gba:py-3 gba:text-left gba:flex gba:items-center gba:justify-between gba:bg-muted gba:hover:bg-muted gba:rounded-lg gba:transition-colors"
-            >
-              <span className="gba:font-medium gba:text-muted-foreground">Additional Attributes</span>
-              <span
-                className={`gba:transform gba:transition-transform ${showAdditionalAttributes ? 'gba:rotate-180' : ''}`}
-              >
-                ▼
-              </span>
-            </button>
+          <Collapsible open={showAdditionalAttributes} onOpenChange={setShowAdditionalAttributes}>
+            <div className="gba:border gba:border-border gba:rounded-lg">
+              <CollapsibleTrigger className="gba:w-full gba:px-3 gba:py-2 gba:text-left gba:flex gba:items-center gba:justify-between gba:bg-muted gba:hover:bg-muted gba:rounded-lg gba:transition-colors">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Additional Attributes</span>
+                <CaretDownIcon
+                  className={`gba:w-4 gba:h-4 gba:transform gba:transition-transform ${showAdditionalAttributes ? 'gba:rotate-180' : ''}`}
+                />
+              </CollapsibleTrigger>
 
-            {showAdditionalAttributes && (
-              <div className="gba:p-4 gba:space-y-6 gba:border-t gba:border-border">
-                {/* Preferred Name */}
-                <div>
-                  <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                    Preferred Name
-                  </label>
-                  <Input
-                    name="preferredName"
-                    value={formValues.preferredName}
-                    onChange={e => setFormValues({ preferredName: String(e.value || '') })}
-                    placeholder="Please Enter..."
-                  />
-                </div>
-
-                {/* Employment Type */}
-                <div className="gba:space-y-3">
+              <CollapsibleContent>
+                <div className="gba:p-4 gba:space-y-6 gba:border-t gba:border-border">
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                      Employment Type *
+                      Preferred Name
+                    </label>
+                    <Input
+                      value={formValues.preferredName}
+                      onChange={e => setFormValues({ preferredName: e.target.value })}
+                      placeholder="Please Enter..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                      Employment Type<span className="gba:text-destructive"> *</span>
                     </label>
                     <Select
-                      name="employmentTypeId"
-                      value={toStringOrUndefined(formValues.employmentTypeId)}
-                      onChange={e => setFormValues({ employmentTypeId: String(e.value || '') })}
-                      data={employmentTypes}
-                      placeholder="Please Select..."
-                      showSearch={true}
-                      onSearch={searchEmploymentTypes}
-                      debounce={300}
-                      loading={employmentTypesLoading}
-                      onPopupScrollEnd={loadMoreEmploymentTypes}
-                      allowClear
-                      style={{ width: '100%' }}
-                      disabled={!toStringOrUndefined(formValues.jobPositionId)}
-                    />
+                      value={formValues.employmentTypeId || undefined}
+                      onValueChange={value => setFormValues({ employmentTypeId: value })}
+                      disabled={!formValues.jobPositionId || employmentTypesLoading}
+                    >
+                      <SelectTrigger className="gba:w-full">
+                        <SelectValue placeholder={employmentTypesLoading ? 'Loading...' : 'Please Select...'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employmentTypes.length === 0 ? (
+                          <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                            {employmentTypesLoading ? 'Loading...' : 'No results found'}
+                          </div>
+                        ) : (
+                          employmentTypes.map(type => (
+                            <SelectItem key={type.id} value={type.id}>
+                              {type.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     {employmentTypesError && (
                       <div className="gba:text-destructive gba:text-sm gba:mt-1">{employmentTypesError}</div>
                     )}
                   </div>
-                </div>
 
-                {/* Contract Type */}
-                <div className="gba:space-y-3">
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                      Contract Type *
+                      Contract Type<span className="gba:text-destructive"> *</span>
                     </label>
                     <Select
-                      name="contractTypeId"
-                      value={toStringOrUndefined(formValues.contractTypeId)}
-                      onChange={e => setFormValues({ contractTypeId: String(e.value || '') })}
-                      data={contractTypes}
-                      placeholder="Please Select..."
-                      showSearch={true}
-                      onSearch={searchContractTypes}
-                      debounce={300}
-                      loading={contractTypesLoading}
-                      onPopupScrollEnd={loadMoreContractTypes}
-                      allowClear
-                      style={{ width: '100%' }}
-                      disabled={!toStringOrUndefined(formValues.jobPositionId)}
-                    />
+                      value={formValues.contractTypeId || undefined}
+                      onValueChange={value => setFormValues({ contractTypeId: value })}
+                      disabled={!formValues.jobPositionId || contractTypesLoading}
+                    >
+                      <SelectTrigger className="gba:w-full">
+                        <SelectValue placeholder={contractTypesLoading ? 'Loading...' : 'Please Select...'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contractTypes.length === 0 ? (
+                          <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                            {contractTypesLoading ? 'Loading...' : 'No results found'}
+                          </div>
+                        ) : (
+                          contractTypes.map(type => (
+                            <SelectItem key={type.id} value={type.id}>
+                              {type.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     {contractTypesError && (
                       <div className="gba:text-destructive gba:text-sm gba:mt-1">{contractTypesError}</div>
                     )}
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
-          {/* Error Display */}
           {error && (
-            <div className="gba:bg-destructive-secondary gba:border gba:border-destructive gba:rounded-md gba:p-4">
+            <div className="gba:bg-destructive/10 gba:border gba:border-destructive gba:rounded-md gba:p-4">
               <div className="gba:text-destructive gba:text-sm">{error}</div>
             </div>
           )}
         </div>
 
-        {/* Submit Button - Fixed at bottom */}
         <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-border">
           <Button
-            variant="primary"
-            loading={loading}
-            disabled={!isFormValid || !isEmailFieldValid}
+            variant="default"
+            disabled={!isFormValid || !isEmailFieldValid || loading}
             className="gba:w-full"
-            size="large"
-            onClick={async () => {
-              try {
-                await submit()
-                // Dispatch process continue event on successful submission
-
-                // Format hire date to include time (2024-01-01T00:00:00)
-                // If no hire date is set, use current date
-                const hireDateToUse = formValues.hireDate || new Date().toISOString().split('T')[0]
-                const hireDateFormatted = `${hireDateToUse}T00:00:00`
-
-                const payload: any = {
-                  employee: {
-                    firstName: formValues.firstName,
-                    lastName: formValues.lastName,
-                    preferredName: formValues.preferredName,
-                    fullName: `${formValues.firstName} ${formValues.lastName}`,
-                    communication: [
-                      {
-                        purpose: 'INTERNAL',
-                        typeRef: 'CommunicationType:v1:1',
-                        channelRef: 'CommunicationChannel:v1:e-mail',
-                        value: formValues.email,
-                        valueExtension: 'string'
-                      }
-                    ],
-                    workingCondition: [
-                      {
-                        contractStatus: 'ACTIVE',
-                        contractTypeRef: formValues.contractTypeId,
-                        employmentTypeRef: formValues.employmentTypeId,
-                        hireDate: hireDateFormatted
-                      }
-                    ]
-                  },
-                  organizationalUnitId: formValues.organizationalUnitId,
-                  structureId: structureId,
-                  jobPositionId: formValues.jobPositionId,
-                  changeMode: 'INSERT',
-                  createUser: true
-                }
-
-                // Add displayName only if preferredName is set
-                if (formValues.preferredName && formValues.preferredName.trim()) {
-                  payload.employee.displayName = `${formValues.preferredName} ${formValues.lastName}`
-                } else {
-                  payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`
-                }
-
-                dispatchProcessContinueEvent('employee_submit', payload)
-              } catch (err) {
-                console.error('Error submitting employee form:', err)
-              }
-            }}
+            onClick={handleSubmit}
           >
-            {isEdit ? 'Update Employee' : 'Create Employee'}
+            {loading ? 'Submitting...' : isEdit ? 'Update Employee' : 'Create Employee'}
           </Button>
         </div>
       </form>
+
+      <CreateJobPositionModal
+        visible={isCreateJobPositionModalOpen}
+        organizationalUnitId={formValues.organizationalUnitId}
+        organizationalUnitName={selectedOrgUnitName}
+        accessToken={accessToken}
+        structureId={structureId}
+        onCancel={() => setIsCreateJobPositionModalOpen(false)}
+        onSuccess={() => {
+          refetchJobPositions()
+        }}
+      />
     </div>
   )
 }
