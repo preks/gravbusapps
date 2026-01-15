@@ -1,8 +1,16 @@
-import { useMemo, useEffect, useRef, useCallback } from 'react'
-import { useForm } from 'react-hook-form'
+import { useMemo, useEffect, useRef, useCallback, type ReactNode } from 'react'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { type WizardStep, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import {
+  type WizardStep,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  useWizard
+} from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -87,6 +95,23 @@ const getContactFromFormData = (
   return undefined
 }
 
+interface StepVisibilityGuardProps {
+  stepIndex: number
+  children: ReactNode | ((isActive: boolean) => ReactNode)
+}
+
+const StepVisibilityGuard = ({ stepIndex, children }: StepVisibilityGuardProps) => {
+  const { currentStep } = useWizard()
+  const isActive = currentStep === stepIndex
+  if (!isActive) {
+    return null
+  }
+  if (typeof children === 'function') {
+    return <>{(children as (active: boolean) => ReactNode)(isActive)}</>
+  }
+  return <>{children}</>
+}
+
 // CRM-specific schema extensions (adds salesCampaignId)
 const customerAccountSchema = accountSchema.extend({
   salesCampaignId: z.string().nullable().optional()
@@ -119,7 +144,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
 
   // Main form for Step 1 (selection)
   const form = useForm<ConvertLeadFormData>({
-    resolver: zodResolver(leadConvertSchema),
+    resolver: zodResolver(leadConvertSchema) as Resolver<ConvertLeadFormData>,
     defaultValues: {
       accountOption: 'create',
       contactOption: 'create',
@@ -137,7 +162,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
 
   // Nested forms for entity creation with CRM-specific schemas
   const accountForm = useForm<z.infer<typeof customerAccountSchema>>({
-    resolver: zodResolver(customerAccountSchema),
+    resolver: zodResolver(customerAccountSchema) as Resolver<z.infer<typeof customerAccountSchema>>,
     defaultValues: {
       ...mapLeadToAccount(leadData),
       salesCampaignId: (leadData as any)?.salesCampaignId || undefined
@@ -146,7 +171,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
   })
 
   const contactForm = useForm<z.infer<typeof customerContactSchema>>({
-    resolver: zodResolver(customerContactSchema),
+    resolver: zodResolver(customerContactSchema) as Resolver<z.infer<typeof customerContactSchema>>,
     defaultValues: {
       ...mapLeadToContact(leadData),
       salesCampaignId: (leadData as any)?.salesCampaignId || undefined
@@ -155,7 +180,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
   })
 
   const opportunityForm = useForm<z.infer<typeof customerOpportunitySchema>>({
-    resolver: zodResolver(customerOpportunitySchema),
+    resolver: zodResolver(customerOpportunitySchema) as Resolver<z.infer<typeof customerOpportunitySchema>>,
     defaultValues: {
       ...mapLeadToOpportunity(leadData),
       salesCampaignId: (leadData as any)?.salesCampaignId || undefined
@@ -375,7 +400,12 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
   const wizardSteps: WizardStep<ConvertLeadFormData>[] = useMemo(() => {
     const steps: WizardStep<ConvertLeadFormData>[] = []
 
+    const wrapWithStepGuard = (index: number, content: ReactNode | ((isActive: boolean) => ReactNode)) => (
+      <StepVisibilityGuard stepIndex={index}>{content}</StepVisibilityGuard>
+    )
+
     // Step 1: Always present - Choice step with all options
+    const choiceStepIndex = steps.length
     steps.push({
       id: 'choices',
       title: 'Convert Lead',
@@ -389,7 +419,8 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
         'selectedContactName',
         'createOpportunity'
       ],
-      content: (
+      content: wrapWithStepGuard(
+        choiceStepIndex,
         <LeadConvertSegment
           form={form}
           accounts={accountOptions}
@@ -405,13 +436,14 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
 
     // Step 2: Account Creation (if user chose to create new account)
     if (accountOption === 'create') {
+      const stepIndex = steps.length
       steps.push({
         id: 'create-account',
         title: 'Create Account',
         description: 'Enter new account details',
         form: accountForm,
         formSchema: accountSchema,
-        content: (
+        content: wrapWithStepGuard(stepIndex, isActive => (
           <CatalogSelect.Provider {...businessAppContext} form={accountForm}>
             <LeadConvertAccountStep
               businessAppContext={businessAppContext}
@@ -428,21 +460,24 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
               loading={loading}
               accountInformationCustomFields={createCampaignSelectField(accountForm.control, 'salesCampaignId')}
               avatarFileRef={accountAvatarFileRef}
+              isActive={isActive}
             />
           </CatalogSelect.Provider>
-        )
+        ))
       })
     }
 
     // Step 3: Contact Creation (if user chose to create new contact)
     if (contactOption === 'create') {
+      const stepIndex = steps.length
       steps.push({
         id: 'create-contact',
         title: 'Create Contact',
         description: 'Enter new contact details',
         form: contactForm,
         formSchema: contactSchema,
-        content: (
+        content: wrapWithStepGuard(
+          stepIndex,
           <CatalogSelect.Provider {...businessAppContext} form={contactForm}>
             <LeadConvertContactStep
               businessAppContext={businessAppContext}
@@ -464,13 +499,15 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
 
     // Step 4: Opportunity Creation (if user chose to create opportunity)
     if (createOpportunity) {
+      const stepIndex = steps.length
       steps.push({
         id: 'create-opportunity',
         title: 'Create Opportunity',
         description: 'Enter new opportunity details',
         form: opportunityForm,
         formSchema: opportunitySchema,
-        content: (
+        content: wrapWithStepGuard(
+          stepIndex,
           <CatalogSelect.Provider {...businessAppContext} form={opportunityForm}>
             <LeadConvertOpportunityStep
               businessAppContext={businessAppContext}
