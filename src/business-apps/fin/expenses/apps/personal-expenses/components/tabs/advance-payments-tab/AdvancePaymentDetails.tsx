@@ -4,9 +4,9 @@ import { AdvancePayment } from '../../../hooks/useGetAdvancePayments'
 import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { DetailsPanelContent } from '../../../../../common/components/details-panel/DetailsPanelContent'
-import { buildAdvancePaymentFields } from '../../../../../common/utils/advancePaymentUtils'
-import { AdvancePaymentDetailsFooter } from '../../../../../common/components/AdvancePaymentDetailsFooter'
+import { DetailsPanelContent } from '@/business-apps/fin/expenses/common/components/details-panel/DetailsPanelContent'
+import { buildAdvancePaymentFields } from '@/business-apps/fin/expenses/common/utils/advancePaymentUtils'
+import { AdvancePaymentDetailsFooter } from '@/business-apps/fin/expenses/common/components/AdvancePaymentDetailsFooter'
 import translations from '../../../_i18n'
 
 interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
