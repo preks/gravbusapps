@@ -13,6 +13,7 @@ interface AmountFieldProps {
   isProcessingFiles: boolean
   form: any
   showCurrencyField?: boolean
+  hasLinkedExpenseRequest?: boolean
   onAmountChange: (value: number) => void
   onCurrencyChange?: (value: string) => void
 }
@@ -25,6 +26,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   isProcessingFiles,
   form,
   showCurrencyField = false,
+  hasLinkedExpenseRequest = false,
   onAmountChange,
   onCurrencyChange
 }) => {
@@ -155,7 +157,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
                   'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
                   'Currency'
                 )}
-                disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency')}
+                disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency') || hasLinkedExpenseRequest}
                 name="currency"
                 data-testid={`currency-select-${index}`}
                 isDataSorted={false}
