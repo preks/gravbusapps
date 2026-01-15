@@ -1306,6 +1306,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       key: 'employeeCode',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee_code', 'Employee Code')
     },
+    {
+      key: 'sapNumber',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
+        'SAP Number'
+      )
+    },
     { key: 'title', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Title') },
     {
       key: 'department',
@@ -1319,6 +1326,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     {
       key: 'requestDate',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.request_date', 'Request Date')
+    },
+    {
+      key: 'totalRemainingAmount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')
     },
     {
       key: 'totalAmount',
@@ -1336,11 +1347,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     code: expense.code || '-',
     employee: expense.employee || '-',
     employeeCode: expense.employeeCode || '-',
+    sapNumber: expense.sapNumber || '-',
     title: expense.title || '-',
     department: expense.department || '-',
     startDate: expense.startDate,
     endDate: expense.endDate,
     requestDate: expense.requestDate,
+    totalRemainingAmount: expense.totalRemainingAmount
+      ? formatNumberFunction(String(expense.totalRemainingAmount))
+      : '0',
     totalAmount: expense.totalAmount ? formatNumberFunction(String(expense.totalAmount)) : '0',
     currency: expense.currency?.code || '-',
     status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus).label,
