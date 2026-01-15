@@ -70,19 +70,22 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
 
+  // Get dueDate from additionalData or initialParameters (for calendar quick actions)
+  const dueDate = additionalData?.dueDate || initialParameters?.dueDate || null
+
   // Extract typeRef from additionalData or initialParameters
   const typeRef = additionalData?.typeRef || initialParameters?.typeRef || null
 
   // Determine if this is an Approval task (for assignee mode control only)
   const isApprovalTask = typeRef?.toUpperCase()?.includes('APPROVAL') ?? false
 
-  // Determine if entity selection should be shown
-  const hasEntityFromContext = accountId || contactId || opportunityId || leadId
-  const shouldShowEntitySelection = !hasEntityFromContext
-
   const form = useForm<z.infer<typeof taskSchema>>({
     resolver: zodResolver(taskSchema) as any,
-    defaultValues: mapToFormValues(task || {}, taskSchema) as any,
+    defaultValues: {
+      ...mapToFormValues(task || {}, taskSchema),
+      // Include dueDate from context if provided (e.g., from calendar quick action)
+      ...(dueDate && !taskId ? { dueDate } : {})
+    } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -95,6 +98,18 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       leadId: task?.leadId || leadId
     }),
     [accountId, contactId, opportunityId, leadId, task]
+  )
+
+  // Calculate if entity selection should be shown (no entity context exists)
+  const shouldShowEntitySelection = useMemo(
+    () =>
+      !(
+        relatedEntityIds.accountId ||
+        relatedEntityIds.contactId ||
+        relatedEntityIds.opportunityId ||
+        relatedEntityIds.leadId
+      ),
+    [relatedEntityIds]
   )
 
   const taskRef = useRef(task)
@@ -340,8 +355,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           }}
           // Assignee mode - multi-select for approvals, single-select for regular tasks
           multiAssigneeMode={isApprovalTask}
-          // Entity search - hide if entity provided from context OR updating existing task
-          showEntitySelection={shouldShowEntitySelection && !taskId}
+          // Entity search - hide if any entity is set
+          showEntitySelection={shouldShowEntitySelection}
           entities={entities}
           entitiesLoading={entitiesLoading}
           entitiesHasMore={entitiesHasMore}

@@ -4,6 +4,7 @@ import {
   getFlowAnalytics,
   getFlowManagementAnalytics,
   getTaskAnalytics,
+  getGuardianVelocityInsights,
   getActiveWorkflows,
   getTaskPerformanceAnalytics,
   getTemplatePerformanceAnalytics,
@@ -25,6 +26,7 @@ interface WorkflowDataResult {
     lastUpdated: string
   }
   analytics?: {
+    velocityInsights?: any
     flowAnalytics: any
     flowManagement: any
     taskAnalytics: any
@@ -32,21 +34,37 @@ interface WorkflowDataResult {
   }
 }
 
-// Helper function to map Guardian time ranges to API timeframes
-function mapTimeRangeToTimeframe(timeRange: string): 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd' | 'custom' {
+const toApiDateTime = (d: Date): string => d.toISOString().slice(0, 19).replace('T', ' ')
+
+// Build explicit time windows so "7d" really means last 7 days (not week-to-date)
+function buildTimeFilter(timeRange: string): GuardianApiFilters {
+  const now = new Date()
+  const endDate = toApiDateTime(now)
+
   switch (timeRange) {
-    case '1h':
-    case '6h':
-    case '24h':
-      return 'last24h'
-    case '7d':
-      return 'wtd'
-    case '30d':
-      return 'mtd'
+    case '1h': {
+      const startDate = toApiDateTime(new Date(now.getTime() - 60 * 60 * 1000))
+      return { timeframe: 'custom', startDate, endDate }
+    }
+    case '6h': {
+      const startDate = toApiDateTime(new Date(now.getTime() - 6 * 60 * 60 * 1000))
+      return { timeframe: 'custom', startDate, endDate }
+    }
+    case '24h': {
+      const startDate = toApiDateTime(new Date(now.getTime() - 24 * 60 * 60 * 1000))
+      return { timeframe: 'custom', startDate, endDate }
+    }
+    case '7d': {
+      const startDate = toApiDateTime(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000))
+      return { timeframe: 'custom', startDate, endDate }
+    }
+    case '30d': {
+      const startDate = toApiDateTime(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000))
+      return { timeframe: 'custom', startDate, endDate }
+    }
     case 'all':
-      return 'ytd'
     default:
-      return 'mtd'
+      return { timeframe: 'ytd' }
   }
 }
 
@@ -55,16 +73,12 @@ export const useGuardianWorkflowData = (accessToken: string, userId?: string) =>
 
   const fetchWorkflowData = useCallback(
     async (params: WorkflowDataParams): Promise<WorkflowDataResult> => {
-      if (!accessToken) {
-        throw new Error('Access token is required')
-      }
-
       setIsLoading(true)
 
       try {
         // Convert Guardian filters to API filters
         const apiFilters: GuardianApiFilters = {
-          timeframe: mapTimeRangeToTimeframe(params.filters.timeRange),
+          ...buildTimeFilter(params.filters.timeRange),
           ...(params.filters.selectedDepartments.length > 0 && { departmentId: params.filters.selectedDepartments[0] }),
           ...(params.filters.selectedWorkflowTemplates.length > 0 && {
             templateId: params.filters.selectedWorkflowTemplates[0]
@@ -74,6 +88,7 @@ export const useGuardianWorkflowData = (accessToken: string, userId?: string) =>
 
         // Fetch real data from multiple endpoints in parallel
         const settled = await Promise.allSettled([
+          getGuardianVelocityInsights(accessToken, apiFilters),
           getFlowAnalytics(accessToken, apiFilters),
           getFlowManagementAnalytics(accessToken, apiFilters),
           getTaskAnalytics(accessToken, apiFilters),
@@ -86,6 +101,7 @@ export const useGuardianWorkflowData = (accessToken: string, userId?: string) =>
         // Log failed requests for debugging
         settled.forEach((result, index) => {
           const names = [
+            'velocityInsights',
             'flowAnalytics',
             'flowManagement',
             'taskAnalytics',
@@ -100,6 +116,7 @@ export const useGuardianWorkflowData = (accessToken: string, userId?: string) =>
         })
 
         const [
+          velocityInsights,
           flowAnalytics,
           flowManagement,
           taskAnalytics,
@@ -109,73 +126,11 @@ export const useGuardianWorkflowData = (accessToken: string, userId?: string) =>
           userTasks
         ] = settled.map(r => (r.status === 'fulfilled' ? r.value : undefined))
 
-        // Create mock workflows if API fails
-        const mockWorkflows = [
-          {
-            id: 'wf-001',
-            templateName: 'Employee Onboarding',
-            templateId: 'employee-onboarding',
-            status: 'RUNNING',
-            currentStep: 2,
-            totalSteps: 5,
-            initiator: 'hr-manager'
-          },
-          {
-            id: 'wf-002',
-            templateName: 'IT Setup',
-            templateId: 'it-setup',
-            status: 'RUNNING',
-            currentStep: 1,
-            totalSteps: 3,
-            initiator: 'it-admin'
-          },
-          {
-            id: 'wf-003',
-            templateName: 'Document Review',
-            templateId: 'document-review',
-            status: 'COMPLETED',
-            currentStep: 3,
-            totalSteps: 3,
-            initiator: 'manager'
-          }
-        ]
-
-        // Create mock tasks
-        const mockTasks = [
-          {
-            id: 'task-001',
-            workflowId: 'wf-001',
-            assignedTo: ['user-001'],
-            assignmentMode: 'ASSIGN',
-            status: 'IN_PROGRESS',
-            startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-            completedAt: null
-          },
-          {
-            id: 'task-002',
-            workflowId: 'wf-002',
-            assignedTo: ['user-003'],
-            assignmentMode: 'CLAIM',
-            status: 'IN_PROGRESS',
-            startedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 min ago
-            completedAt: null
-          },
-          {
-            id: 'task-003',
-            workflowId: 'wf-003',
-            assignedTo: ['user-002'],
-            assignmentMode: 'ASSIGN',
-            status: 'COMPLETED',
-            startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
-            completedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() // 1 hour ago
-          }
-        ]
-
         // Transform real data into our expected format
         // Flows API returns: { status: "success", data: { flows: [] } }
         // Tasks API returns: { tasks: [] }
-        const workflows = activeWorkflows?.data?.flows || mockWorkflows
-        const tasks = userTasks?.tasks || mockTasks
+        const workflows = activeWorkflows?.data?.flows ?? []
+        const tasks = userTasks?.tasks ?? []
 
         // Apply client-side filters
         let filteredWorkflows = workflows
@@ -213,6 +168,7 @@ export const useGuardianWorkflowData = (accessToken: string, userId?: string) =>
           // Include raw analytics data for advanced visualizations
           // Analytics APIs return: { status: "success", data: {...} }
           analytics: {
+            velocityInsights: velocityInsights?.data,
             flowAnalytics: flowAnalytics?.data,
             flowManagement: flowManagement?.data,
             taskAnalytics: taskAnalytics?.data,

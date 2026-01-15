@@ -53,12 +53,8 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
   const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
-  // Determine if entity selection should be shown
-  // For investment context, we hide entity selection since investment + account context is sufficient
-  // Otherwise, show selection if no entity is provided from context
-  const isInvestmentContext = Boolean(investmentId)
-  const hasEntityFromContext = accountId || leadId || contactId || opportunityId
-  const shouldShowEntitySelection = !isInvestmentContext && !hasEntityFromContext
+  // Get occurredAt from additionalData or initialParameters (for calendar quick actions)
+  const occurredAt = additionalData?.occurredAt || initialParameters?.occurredAt || null
 
   const {
     entities,
@@ -73,7 +69,11 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 
   const form = useForm<z.infer<typeof activitySchema>>({
     resolver: zodResolver(activitySchema),
-    defaultValues: mapToFormValues(activity || {}, activitySchema) as any,
+    defaultValues: {
+      ...mapToFormValues(activity || {}, activitySchema),
+      // Include occurredAt from context if provided (e.g., from calendar quick action)
+      ...(occurredAt && !isUpdateMode ? { occurredAt } : {})
+    } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -87,6 +87,19 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       investmentId: activity?.investmentId || investmentId
     }),
     [accountId, contactId, opportunityId, leadId, investmentId, activity]
+  )
+
+  // Calculate if entity selection should be shown (no entity context exists)
+  const shouldShowEntitySelection = useMemo(
+    () =>
+      !(
+        relatedEntityIds.accountId ||
+        relatedEntityIds.contactId ||
+        relatedEntityIds.opportunityId ||
+        relatedEntityIds.leadId ||
+        relatedEntityIds.investmentId
+      ),
+    [relatedEntityIds]
   )
 
   const activityRef = useRef(activity)
@@ -109,6 +122,13 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       }
     }
   }, [activity?.id, activity, form, hydrateEntityById])
+
+  useEffect(() => {
+    if (accessToken && !activityId) {
+      // Only trigger initial search in create mode
+      searchEntities('')
+    }
+  }, [accessToken, activityId, searchEntities])
 
   const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
     try {
@@ -176,12 +196,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     },
     [form]
   )
-
-  useEffect(() => {
-    if (shouldShowEntitySelection) {
-      searchEntities('')
-    }
-  }, [shouldShowEntitySelection, searchEntities])
 
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return

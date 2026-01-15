@@ -25,7 +25,7 @@ import { DashboardTab } from './components/DashboardTab'
 import { AnalyticsTab } from './components/AnalyticsTab'
 import { AuditTab } from './components/AuditTab'
 import { ComplianceFlowService } from './services/ComplianceFlowService'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 
 export interface ComplianceSolutionProps extends BusinessAppContextProps {}
@@ -158,7 +158,7 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = context => 
       console.log('Execution payload:', executionPayload)
 
       // Execute the workflow via template dynamic execution API
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+      const baseUrl = getFlowEngineBaseUrl()
       const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
         method: 'POST',
         headers: {

@@ -32,7 +32,7 @@ import { SurveyDataTab } from './components/SurveyDataTab'
 import { AnalyticsTab } from './components/AnalyticsTab'
 import { AuditTab } from './components/AuditTab'
 import { SurveyFlowService } from './services/SurveyFlowService'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 
 export interface SurveySolutionProps extends BusinessAppContextProps {}
@@ -274,7 +274,7 @@ export const SurveySolution: React.FC<SurveySolutionProps> = context => {
       )
 
       // Execute the workflow via template dynamic execution API
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+      const baseUrl = getFlowEngineBaseUrl()
       const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
         method: 'POST',
         headers: {

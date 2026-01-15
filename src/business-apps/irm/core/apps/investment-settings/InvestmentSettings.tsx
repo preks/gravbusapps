@@ -11,7 +11,7 @@ import {
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import LeadDataPage from './pages/lead-data/LeadDataPage'
-import EngagementDataPage from './pages/engagement-data/EngagementDataPage'
+import ActivityDataPage from './pages/activity-data/ActivityDataPage'
 import PipelineDataPage from './pages/pipeline-data/PipelineDataPage'
 import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
 import TemplateDataPage from './pages/template-data/TemplateDataPage'
@@ -154,26 +154,26 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       ]
     },
     {
-      title: t('crm.engagement_data', 'Engagement Data'),
-      description: t('crm.engagement_description', 'Manage activity types, task types, priorities, and statuses'),
+      title: t('crm.activity_data', 'Activity Data'),
+      description: t('crm.activity_description', 'Manage activity types, task types, priorities, and statuses'),
       icon: ListChecksIcon,
       iconSize: 'md' as const,
       entries: [
         {
           label: t('crm.activity_types', 'Activity Types'),
-          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'activity-types' })
+          onClick: () => handleInlinePageChange({ key: 'activity', tab: 'activity-types' })
         },
         {
           label: t('crm.task_types', 'Task Types'),
-          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-types' })
+          onClick: () => handleInlinePageChange({ key: 'activity', tab: 'task-types' })
         },
         {
           label: t('crm.task_priorities', 'Task Priorities'),
-          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-priorities' })
+          onClick: () => handleInlinePageChange({ key: 'activity', tab: 'task-priorities' })
         },
         {
           label: t('crm.task_statuses', 'Task Statuses'),
-          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-statuses' })
+          onClick: () => handleInlinePageChange({ key: 'activity', tab: 'task-statuses' })
         }
       ]
     }
@@ -222,11 +222,11 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     )
   }
 
-  if (inlinePage?.key === 'engagement') {
+  if (inlinePage?.key === 'activity') {
     return (
-      <EngagementDataPage
+      <ActivityDataPage
         {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentEngagementSettings`}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentActivitySettings`}
         onBack={() => handleInlinePageChange(null)}
       />
     )

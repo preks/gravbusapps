@@ -182,7 +182,9 @@ const ENTITY_CHIP_CONFIG: Record<
     )
   },
   employee_absence: {
-    urlTemplate: '/platform/hr/absences/manager-absences?absenceId={id}',
+    // For employee_absence deep links (e.g. from Rovo), open the personal Absence Overview page.
+    // The specific absence is associated with the current user, so we don't navigate to a record screen by id.
+    urlTemplate: '/platform/hr/absences/personal-absences',
     icon: createSvgIcon('M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z')
   },
   employee_position: {
