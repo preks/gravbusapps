@@ -59,16 +59,16 @@ export interface EmploymentTypeFormProps extends BusinessAppContextProps {
 const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
   prefixDataTestId,
   employmentType,
-  onCancel,
   childAddButton,
+  onCancel,
   refetch,
   accessToken,
-  isDrawerActive,
-  usedCodes = []
+  usedCodes = [],
+  isDrawerActive
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, 'EmploymentTypeForm')
-  const catalogClient = useCatalogManagerClient(accessToken)
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const handleSubmit = async (data: any) => {
     // Trim all string values before processing
@@ -151,7 +151,6 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
 
       {!employmentType && (
         <FormField
-          name="code"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Code</FormLabel>
@@ -159,34 +158,35 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
                 <Input
                   placeholder="Enter code"
                   {...field}
+                  data-testid={`${dataTestId}-code-input`}
                   onChange={e => {
                     field.onChange(e)
                     validateCode(e.target.value)
                   }}
-                  data-testid={`${dataTestId}-code-input`}
                 />
               </FormControl>
               <FormMessage>{codeError}</FormMessage>
             </FormItem>
           )}
+          name="code"
         />
       )}
 
       <FormField
-        name="description"
         render={({ field }) => (
           <FormItem>
             <FormLabel>Description</FormLabel>
             <FormControl>
               <Input
+                data-testid={`${dataTestId}-description-input`}
                 placeholder="Enter description (optional)"
                 {...field}
-                data-testid={`${dataTestId}-description-input`}
               />
             </FormControl>
             <FormMessage />
           </FormItem>
         )}
+        name="description"
       />
     </FormWrapperModal>
   )
