@@ -315,10 +315,9 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
           ruleCurrencyId = ruleResp?.ExpenseRuleByPk?.currency?.id
         }
         const currencyToSet = currentCurrency || expenseRequestData.ExpenseItem?.[0]?.currencyRef || ''
-        const effectiveItemCurrency = useSingleCurrencyValue && ruleCurrencyId ? ruleCurrencyId : currencyToSet || ''
         setExpenseItemParams({
           expenseRequestId: expenseRequestData.ExpenseRequestByPk.id,
-          itemCurrency: effectiveItemCurrency,
+          itemCurrency: useSingleCurrencyValue ? currencyToSet || ruleCurrencyId || '' : currencyToSet,
           useSingleCurrency: !!useSingleCurrencyValue
         })
       } catch {
