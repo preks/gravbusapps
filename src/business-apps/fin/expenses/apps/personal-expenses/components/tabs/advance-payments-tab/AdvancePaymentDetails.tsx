@@ -1,13 +1,12 @@
 import React from 'react'
-import { Separator, Button, useTranslation } from '@newwork/nw-design-system'
+import { useTranslation } from '@newwork/nw-design-system'
 import { AdvancePayment } from '../../../hooks/useGetAdvancePayments'
 import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PiArrowRight } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { DetailsPanelContent } from '../../../../../common/components/details-panel/DetailsPanelContent'
 import { buildAdvancePaymentFields } from '../../../../../common/utils/advancePaymentUtils'
+import { AdvancePaymentDetailsFooter } from '../../../../../common/components/AdvancePaymentDetailsFooter'
 import translations from '../../../_i18n'
 
 interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
@@ -24,8 +23,6 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
     getStatusDisplay: getAdvancePaymentStatusDisplay
   })
 
-  const expensePlanId = payment.expensePlan?.id
-
   return (
     <DetailsPanelContent
       dataTestIdPrefix="advance-payment-details"
@@ -36,28 +33,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
       subtitle={payment.code || undefined}
       fields={fields}
       showHeader={false}
-      footer={
-        expensePlanId ? (
-          <>
-            <Separator />
-            <div className="gba:flex gba:justify-end gba:mt-4">
-              <Button
-                variant="default"
-                onClick={() =>
-                  navigateTo(buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { expensePlanId }))
-                }
-                data-testid="view-expense-plan-details-button"
-              >
-                <PiArrowRight className="gba:mr-2" />
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.plan_details.view_full_details',
-                  'View Full Details'
-                )}
-              </Button>
-            </div>
-          </>
-        ) : undefined
-      }
+      footer={<AdvancePaymentDetailsFooter expensePlanId={payment.expensePlan?.id} />}
     />
   )
 }
