@@ -179,6 +179,9 @@ label-country = Land
 label-city = Stadt
 label-currency = Währung
 
+# Common Text
+common-characters = Zeichen
+
 # Benefit Summary Card Translations
 benefit-provider = Anbieter
 benefit-value-yearly = Jahreswert
