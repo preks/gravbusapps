@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
-import { UsersThreeIcon, BriefcaseIcon, ChartPieIcon } from '@phosphor-icons/react'
-// import { LightbulbIcon } from '@phosphor-icons/react' // Insights tab (hidden)
+import { UsersThreeIcon, BriefcaseIcon, ChartPieIcon, LightbulbIcon } from '@phosphor-icons/react'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeList } from './components/views/employee-view/EmployeeList'
 import { JobPositionList } from './components/views/job-position-view/JobPositionList'
 import { HrAnalyticsView } from './components/views/analytics-view/HrAnalyticsView'
-// import { InsightsView } from './components/views/insights-view/InsightsView' // Insights tab (hidden)
+import { InsightsView } from './components/views/insights-view/InsightsView'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -62,18 +61,17 @@ export const HumanResources: React.FC<BusinessAppContextProps> = context => {
         'lowcoder:human_resources_page.analytics_section.description',
         'Comprehensive workforce insights, analytics, and metrics to drive HR decisions and organizational strategy.'
       )
+    },
+    {
+      key: 'insights',
+      icon: <LightbulbIcon />,
+      label: 'Insights',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.title', 'HR Insights'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:hr_insights.description',
+        'Next 30 days Key employee events and milestones including birthdays, anniversaries, new hires, probation periods, and terminations.'
+      )
     }
-    // ,
-    // {
-    //   key: 'insights',
-    //   icon: <LightbulbIcon />,
-    //   label: 'Insights',
-    //   title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.title', 'HR Insights'),
-    //   description: getTranslationFromI18nKeyAndLabel(
-    //     'lowcoder:hr_insights.description',
-    //     'Next 30 days Key employee events and milestones including birthdays, anniversaries, new hires, probation periods, and terminations.'
-    //   )
-    // }
   ]
 
   // Get initial view from URL or default to first view
@@ -174,12 +172,12 @@ export const HumanResources: React.FC<BusinessAppContextProps> = context => {
             <HrAnalyticsView {...context} />
           </div>
         )
-      // case 'insights':
-      //   return (
-      //     <div data-testid="insights-tab-content">
-      //       <InsightsView {...context} />
-      //     </div>
-      //   )
+      case 'insights':
+        return (
+          <div data-testid="insights-tab-content">
+            <InsightsView {...context} />
+          </div>
+        )
       default:
         return null
     }
