@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { PageHeader, Button, Spinner } from '@newwork/nw-design-system'
-import { ArrowLeft } from 'lucide-react'
+import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TypeTable } from './components/TypeTable'
 import {
@@ -92,30 +91,25 @@ const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, .
   }
 
   return (
-    <div data-testid={prefixDataTestId} className="gba:p-6">
+    <div data-testid={prefixDataTestId}>
       <PageHeader
         title="Content Types"
-        description="Define different types of content entries (articles, announcements, etc.)"
+        subtitle="Define different types of content entries (articles, announcements, etc.)"
         className="gba:mb-6"
-      >
-        {onBack && (
-          <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-back-button`}>
-            <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-            Back
-          </Button>
-        )}
-      </PageHeader>
-
-      <TypeTable
-        types={types}
-        isLoading={isLoading}
-        error={error}
-        onCreate={handleCreate}
-        onUpdate={handleUpdate}
-        onDelete={handleDelete}
-        onRetry={loadTypes}
-        prefixDataTestId={`${prefixDataTestId}-table`}
+        onBack={onBack}
       />
+      <div className="gba:p-6">
+        <TypeTable
+          types={types}
+          isLoading={isLoading}
+          error={error}
+          onCreate={handleCreate}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          onRetry={loadTypes}
+          prefixDataTestId={`${prefixDataTestId}-table`}
+        />
+      </div>
     </div>
   )
 }

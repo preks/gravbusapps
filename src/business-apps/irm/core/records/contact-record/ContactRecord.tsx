@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
+import { Button, Spinner, RecordLayout, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { FileTextIcon, UserIcon, UsersIcon, CurrencyDollarIcon, RobotIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -410,14 +410,16 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     <div data-testid="investment-contact-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={UserIcon}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
+        headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
         onBack={onBack}
         headerTitle={headerTitle}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        subViews={subViewsConfig}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

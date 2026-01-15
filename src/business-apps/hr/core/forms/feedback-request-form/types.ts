@@ -31,4 +31,8 @@ export interface FeedbackRequestPayload {
   requestedFromList?: string[]
   creatorUserId: string // employeeId of the logged in person (creator)
   requestMessage?: string // optional message to include with the request
+  completeNotification?: {
+    type: 'success' | 'error'
+    message: string
+  }
 }

@@ -3,8 +3,22 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { Company, CompanyHierarchyState, OrgchartApiResponse, OrganizationalNode } from '../types'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+
+// GraphQL query to get active structure ID
+const GET_ACTIVE_STRUCTURE = (): string => {
+  return `query getActiveStructure {
+    Structure(where: {isActive: {_eq: true}}, limit: 1) {
+      id
+    }
+  }`
+}
+
+interface ActiveStructureResponse {
+  Structure?: Array<{ id: string }>
+}
 
 export const useCompanies = (context: BusinessAppContextProps) => {
   const [hierarchyState, setHierarchyState] = useState<CompanyHierarchyState>({
@@ -15,9 +29,10 @@ export const useCompanies = (context: BusinessAppContextProps) => {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const structureId = useRef<string>(context.additionalData?.structureId || 'active')
+  const structureId = useRef<string>(context.additionalData?.structureId || '')
 
   const restClient = useRestClient(ORGCHART_BASE_URL)
+  const graphqlClient = useGraphqlClient(context.accessToken)
 
   // Transform orgchart node to Company interface
   const transformCompanyNode = (
@@ -68,6 +83,16 @@ export const useCompanies = (context: BusinessAppContextProps) => {
       parentCompanyName,
       percentage,
       edgeId,
+      // New fields from API
+      directorId: node.data.companyData.directorId,
+      commercialRegistrationNumber: node.data.companyData.commercialRegistrationNumber,
+      taxIdentificationNumber: node.data.companyData.taxIdentificationNumber,
+      taxNumber: node.data.companyData.taxNumber,
+      valueAddedTaxNumber: node.data.companyData.valueAddedTaxNumber,
+      currencyRef: node.data.companyData.currencyRef,
+      additionalProperties: node.data.companyData.additionalProperties,
+      addresses: node.data.companyData.addresses,
+      // Statistics
       numberOfAssignedJobPositions: node.data.numberOfAssignedJobPositions,
       numberOfAssignedEmployees: node.data.numberOfAssignedEmployees,
       numberOfTotalJobPositions: node.data.numberOfTotalJobPositions,
@@ -136,20 +161,15 @@ export const useCompanies = (context: BusinessAppContextProps) => {
   // Fetch companies from orgchart API
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     try {
-      // Get structureId from additionalData or use default
-      const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
-        params: {
-          nodeType: 'cost_center'
-        },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
-        }
-      })
-      structureId.current = getStructureResponse.structure.structureId
+      // Fetch active structure ID using GraphQL
+      const structureQuery = GET_ACTIVE_STRUCTURE()
+      const structureResult = await graphqlClient.request<ActiveStructureResponse>(structureQuery)
 
-      if (!structureId) {
-        throw new Error('Structure ID is required to fetch companies')
+      if (!structureResult.Structure || structureResult.Structure.length === 0) {
+        throw new Error('No active structure found')
       }
+
+      structureId.current = structureResult.Structure[0].id
 
       const response = await restClient.get<OrgchartApiResponse>(`/structures/${structureId.current}`, {
         params: { nodeType: 'company' },

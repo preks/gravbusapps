@@ -91,19 +91,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
 
   const config: TaskViewConfig<InvestmentTask, InvestmentTaskQueryVariables> = useMemo(
     () => ({
-      fetchMyTasks: async (variables: InvestmentTaskQueryVariables) => {
-        const employeeId = context.userInfo?.employeeDetails?.employeeId || context.userInfo?.id
-        const result = await fetchInvestmentTasks({
-          ...variables,
-          assignedEmployeeIds: employeeId ? [employeeId] : []
-        })
-        return {
-          tasks: result.tasks as any,
-          total: result.total || 0
-        }
-      },
-
-      fetchTeamTasks: async (variables: InvestmentTaskQueryVariables) => {
+      fetchTasks: async (variables: InvestmentTaskQueryVariables) => {
         const result = await fetchInvestmentTasks(variables)
         return {
           tasks: result.tasks as any,
@@ -167,7 +155,12 @@ export const TaskView: React.FC<TaskViewProps> = context => {
         createContext: FlowContextName.investmentTaskCreate
       },
 
-      taskStatistics,
+      taskStatistics: {
+        statistics: taskStatistics.teamTasksStatistics,
+        isLoading: taskStatistics.isLoading,
+        error: taskStatistics.error,
+        refetch: taskStatistics.refetch
+      },
 
       rowActionsContextArray: [FlowContextName.investmentTaskEntity],
       buildRowActionsExternalContextData: (row: { original: InvestmentTask }) => {
