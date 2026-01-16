@@ -1296,12 +1296,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     }
   }, [graphqlClient, totalItems, buildQueryConditions, transformExpenseRequest])
 
-  // Export columns ordered to match UI table
+  // Export columns - using SAME translation keys as UI table headers
   const getExportColumns = () => [
-    { key: 'employee', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee', 'Employee') },
+    {
+      key: 'employee',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
+    },
     {
       key: 'employeeCode',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee_code', 'Employee Code')
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.employee_code', 'Employee Code')
     },
     {
       key: 'sapNumber',
@@ -1312,26 +1315,44 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     },
     {
       key: 'code',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.request_number', 'Request Number')
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+        'Request Number'
+      )
     },
-    { key: 'title', title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.title', 'Title') },
+    {
+      key: 'title',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.title', 'Title')
+    },
     {
       key: 'startDate',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.start_date', 'Start Date')
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')
     },
-    { key: 'endDate', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.end_date', 'End Date') },
+    {
+      key: 'endDate',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
+    },
     {
       key: 'creationDate',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.creation_date', 'Creation Date')
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:manager_expense_request_list.expense_table.creation_date',
+        'Creation Date'
+      )
     },
-    { key: 'status', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.status', 'Status') },
+    {
+      key: 'status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+    },
     {
       key: 'totalRemainingAmount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')
     },
     {
       key: 'totalAmount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.total_amount', 'Total Amount')
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_list.expense_plan_table.total_amount',
+        'Total Amount'
+      )
     },
     { key: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.currency', 'Currency') },
     {
