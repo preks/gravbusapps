@@ -47,8 +47,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   // Local paging + sorting state for overview-driven list
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [sorting, setSorting] = useState<{ field: any; order: 'ASC' | 'DESC' | null; lastField?: any }>({
-    field: null,
-    order: null
+    field: 'createdAt',
+    order: 'DESC',
+    lastField: 'createdAt'
   })
 
   const planOrderBy = useMemo(() => {

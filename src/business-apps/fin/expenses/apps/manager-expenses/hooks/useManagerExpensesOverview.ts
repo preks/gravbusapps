@@ -80,7 +80,7 @@ export interface UseManagerExpensesOverviewReturn {
 
 // Default orders to keep current UX parity
 const DEFAULT_REQ_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_PLAN_ORDER: any[] = [{ planDate: 'DESC' }]
+const DEFAULT_PLAN_ORDER: any[] = [{ createdAt: 'DESC' }]
 const DEFAULT_PAY_ORDER: any[] = [{ createdAt: 'DESC' }]
 
 // Global in-flight request cache to deduplicate concurrent identical calls across components

@@ -88,9 +88,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     order: 'ASC' | 'DESC' | null
     lastField: SortField | null
   }>({
-    field: null,
-    order: null,
-    lastField: null
+    field: 'requestDate',
+    order: 'DESC',
+    lastField: 'requestDate'
   })
 
   const {

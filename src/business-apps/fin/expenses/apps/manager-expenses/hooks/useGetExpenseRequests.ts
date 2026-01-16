@@ -100,7 +100,15 @@ export interface ExpenseRequestStatisticsData {
   totalSubmittedAmount: number | null
 }
 
-export type SortField = 'title' | 'requestDate' | 'startDate' | 'endDate' | 'amount' | 'status' | 'employee.fullName'
+export type SortField =
+  | 'title'
+  | 'requestDate'
+  | 'startDate'
+  | 'endDate'
+  | 'amount'
+  | 'status'
+  | 'employee.fullName'
+  | 'createdAt'
 
 export type SortOrder = 'ASC' | 'DESC'
 

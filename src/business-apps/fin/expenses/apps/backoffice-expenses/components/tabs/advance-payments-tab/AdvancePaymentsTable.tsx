@@ -293,58 +293,58 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
               <TableHeader>
                 <TableRow className="gba:border-b gba:bg-muted">
-                  <TableHead className="gba:w-[60px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3">
+                  <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:employee_profile.employee_tabs.flows_button.actions',
                       'Actions'
                     )}
                   </TableHead>
-                  <TableHead className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                  <TableHead className="gba:w-[20%]">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:manager_expense_request_list.expense_table.title',
                       'Title'
                     )}
                   </TableHead>
-                  <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                  <TableHead className="gba:w-[15%]">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:manager_expense_request_list.expense_table.reporter',
                       'Reporter'
                     )}
                   </TableHead>
-                  <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                  <TableHead className="gba:w-[15%]">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
                       'Org Unit'
                     )}
                   </TableHead>
-                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                  <TableHead className="gba:w-[12%]">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:expense_request_overview.side_bar.request_cost_center',
                       'Cost Center'
                     )}
                   </TableHead>
-                  <TableHead className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                  <TableHead className="gba:w-[10%]">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_list_backoffice.plan_id', 'Plan Id')}
                   </TableHead>
-                  <TableHead className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                  <TableHead className="gba:w-[10%]">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:expense_request_list.expense_plan_table.status',
                       'Status'
                     )}
                   </TableHead>
-                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-right">
+                  <TableHead className="gba:w-[12%] gba:text-right">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:expense_request_list.expense_plan_table.amount',
                       'Amount'
                     )}
                   </TableHead>
-                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-right">
+                  <TableHead className="gba:w-[12%] gba:text-right">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:manager_expense_request_list.expense_table.advance',
                       'Advance'
                     )}
                   </TableHead>
-                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                  <TableHead className="gba:w-[12%]">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:create_expense_request.add_request_trip_details.payment_method',
                       'Payment Method'
