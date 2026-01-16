@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, useTranslation } from '@newwork/nw-design-system'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from '@newwork/nw-design-system'
 import { X, Download } from 'lucide-react'
 import type { MessageAttachment } from './MessageAttachments'
 import { isPreviewable } from './utils/attachmentUtils'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface AttachmentPreviewDialogProps {
   open: boolean
@@ -21,7 +21,7 @@ export const AttachmentPreviewDialog: React.FC<AttachmentPreviewDialogProps> = (
   objectUrl,
   onClose
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
 
   if (!attachment) return null

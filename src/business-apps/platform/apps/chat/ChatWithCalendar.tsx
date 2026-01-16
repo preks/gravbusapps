@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Tabs, TabsContent, Button, Badge, useTranslation } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, Button, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell } from 'lucide-react'
 import { ArrowsOut } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -8,7 +8,7 @@ import { Calendar } from './calendar/Calendar'
 import { EveryAI } from '../every-ai/EveryAI'
 import { RemindersPanel } from './components/RemindersPanel'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import translations from './_i18n'
+import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
 
 type TabValue = 'everyai' | 'chat' | 'calendar' | 'reminders'
 
@@ -24,14 +24,14 @@ interface ChatWithCalendarProps extends BusinessAppContextProps {
  * allowing users to seamlessly switch between EveryAI conversations, chat conversations,
  * their meeting calendar, and personal reminders.
  */
-export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
+const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   accessToken,
   userInfo,
   prefixDataTestId = 'chat-calendar',
   defaultTab = 'everyai',
   ...props
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   const [activeTab, setActiveTab] = useState<TabValue>(defaultTab)
   const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
 
@@ -79,7 +79,6 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
     const handleChatSidebarOpened = (event: CustomEvent<{ defaultTab?: TabValue }>) => {
       const tab = event.detail?.defaultTab
       if (tab && (tab === 'everyai' || tab === 'chat' || tab === 'calendar')) {
-        console.log('[ChatWithCalendar] Setting active tab from sidebar event:', tab)
         setActiveTab(tab)
       }
     }
@@ -266,5 +265,16 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+ChatWithCalendarInner.displayName = 'ChatWithCalendarInner'
+
+// Export wrapped version with TranslationProvider
+export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = props => {
+  return (
+    <TranslationProvider>
+      <ChatWithCalendarInner {...props} />
+    </TranslationProvider>
   )
 }
