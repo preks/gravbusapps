@@ -81,10 +81,6 @@ export class ChatWebSocketClient {
     })
 
     this.socket.on('connect', () => {
-      console.log('[WebSocket] ✅ Connected to chat service', {
-        socketId: this.socket?.id,
-        transport: this.socket?.io.engine.transport.name
-      })
       this.reconnectAttempts = 0 // Reset reconnect counter on successful connection
     })
 
@@ -307,14 +303,6 @@ export class ChatWebSocketClient {
     to: CallParticipant
     conversationId?: string
   }) {
-    console.log('[WebSocket] 📡 Emitting call:initiate', {
-      callId: signal.callId,
-      type: signal.callType,
-      from: signal.from.odName,
-      to: signal.to.odName,
-      conversationId: signal.conversationId,
-      socketConnected: this.socket?.connected
-    })
     this.socket?.emit('call:initiate', signal)
   }
 
@@ -386,14 +374,7 @@ export class ChatWebSocketClient {
 
   // Call event listeners
   onCallInitiate(handler: (signal: CallSignal) => void) {
-    console.log('[WebSocket] 👂 Registering call:initiate listener')
     this.socket?.on('call:initiate', (signal: CallSignal) => {
-      console.log('[WebSocket] 📞 Received call:initiate event', {
-        callId: signal.callId,
-        type: signal.callType,
-        from: signal.from.odName,
-        to: signal.to?.odName || 'unknown'
-      })
       handler(signal)
     })
   }

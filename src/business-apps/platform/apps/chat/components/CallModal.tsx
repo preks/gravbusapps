@@ -160,11 +160,6 @@ export const CallModal: React.FC<CallModalProps> = memo(
     // Attach local stream to video element
     useEffect(() => {
       if (localVideoRef.current && localStream) {
-        console.log('[CallModal] 📹 Attaching local stream to video element:', {
-          hasVideo: localStream.getVideoTracks().length > 0,
-          hasAudio: localStream.getAudioTracks().length > 0,
-          videoEnabled: localStream.getVideoTracks()[0]?.enabled
-        })
         localVideoRef.current.srcObject = localStream
       }
     }, [localStream])
@@ -172,11 +167,6 @@ export const CallModal: React.FC<CallModalProps> = memo(
     // Attach remote stream to video element
     useEffect(() => {
       if (remoteVideoRef.current && remoteStream) {
-        console.log('[CallModal] 📺 Attaching remote stream to video element:', {
-          hasVideo: remoteStream.getVideoTracks().length > 0,
-          hasAudio: remoteStream.getAudioTracks().length > 0,
-          videoEnabled: remoteStream.getVideoTracks()[0]?.enabled
-        })
         remoteVideoRef.current.srcObject = remoteStream
       }
     }, [remoteStream])

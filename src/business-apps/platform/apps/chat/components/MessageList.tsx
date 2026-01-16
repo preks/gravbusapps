@@ -8,7 +8,6 @@ import type {
   TypingIndicator as TypingIndicatorType,
   ConversationParticipant
 } from '../types'
-import { measureRender, devPerf, startPerformanceTimer } from '../utils/performanceUtils'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface MessageListProps {
@@ -63,7 +62,6 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     const prevTypingUsersLengthRef = useRef(0)
     const isUserScrollingRef = useRef(false)
     const scrollTimeoutRef = useRef<NodeJS.Timeout>()
-    const renderTimerRef = useRef<ReturnType<typeof startPerformanceTimer> | null>(null)
     const isLoadingMoreRef = useRef(false) // Track if we're already loading to prevent duplicate requests
     const lastScrollTopRef = useRef<number>(0) // Track last scroll position to detect actual movement
     const prevScrollHeightRef = useRef<number>(0) // Track scroll height to preserve position after prepending
@@ -88,12 +86,6 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       setUnseenCount(0)
       prevMessagesLengthRef.current = 0
       prevScrollHeightRef.current = 0
-
-      // CRITICAL FIX: Reset performance timer when switching conversations
-      // Without this, timer runs across conversation switches showing inflated times
-      if (renderTimerRef.current) {
-        renderTimerRef.current = null
-      }
     }, [conversationId])
 
     // OPTIMIZATION: Single timer for timestamp updates (efficient approach)
@@ -110,49 +102,23 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
 
       // Don't start timer if no recent messages
       if (!hasRecentMessages) {
-        devPerf(() => console.log('[V2 List] No recent messages, skipping timestamp timer'))
         return
       }
-
-      devPerf(() => console.log('[V2 List] Starting timestamp refresh timer (1 timer for all messages)'))
 
       // Single interval for ALL messages (not 100+ individual timers)
       const interval = setInterval(() => {
         setTimestampRefreshKey(prev => prev + 1)
-        devPerf(() => console.log('[V2 List] Refreshing all timestamps'))
       }, 60000) // Every 60 seconds
 
       return () => {
         clearInterval(interval)
-        devPerf(() => console.log('[V2 List] Cleaning up timestamp timer'))
       }
     }, [messages.length, conversationId]) // Re-evaluate when messages change
-
-    // Track renders
-    devPerf(() => {
-      measureRender('MessageList')
-      console.log('[MessageList] Render:', {
-        messageCount: messages.length,
-        isLoading,
-        hasMore,
-        conversationType,
-        hasUnseenMessages,
-        unseenCount
-      })
-    })
 
     // OPTIMIZATION: Auto-scroll to bottom on new messages or typing indicator (if user is near bottom)
     useEffect(() => {
       const container = containerRef.current
       if (!container || messages.length === 0) return
-
-      // Start measuring render to display time (only once)
-      if (!renderTimerRef.current && messages.length > 0) {
-        const timer = startPerformanceTimer('messages-render-to-display')
-        if (process.env.NODE_ENV === 'development' && timer) {
-          renderTimerRef.current = timer
-        }
-      }
 
       // Check if message count changed
       const prevCount = prevMessagesLengthRef.current
@@ -213,62 +179,18 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       // - No scroll increase (0px) = re-render without new content → skip
       const isRealNewMessage = hasNewMessages && scrollHeightIncrease > 0 && scrollHeightIncrease < 1000
 
-      devPerf(() => {
-        if (hasNewMessages) {
-          console.log('[V2 List] 🔍 New message detection:', {
-            hasNewMessages,
-            scrollHeightIncrease,
-            isRealNewMessage,
-            isNearBottom,
-            isInitialLoad,
-            isOwnMessage,
-            isAIResponse,
-            shouldForceScroll,
-            willCount: isRealNewMessage && !isNearBottom && !isInitialLoad && !shouldForceScroll,
-            currentUnseenCount: unseenCount,
-            hasUnseenMessages
-          })
-        }
-      })
-
       // Don't count unseen messages if we're force-scrolling (own messages or AI responses)
       if (isRealNewMessage && !isNearBottom && !isInitialLoad && !shouldForceScroll) {
         const newMessageCount = currentCount - prevCount
         setUnseenCount(prev => prev + newMessageCount)
         setHasUnseenMessages(true)
-
-        devPerf(() => {
-          console.log('[V2 List] 📨 New messages while scrolled up:', {
-            newMessageCount,
-            totalUnseen: unseenCount + newMessageCount,
-            scrollHeightIncrease
-          })
-        })
       }
-
-      devPerf(() => {
-        console.log('[V2 List] Scroll check:', {
-          hasNewMessages,
-          isInitialLoad,
-          typingChanged,
-          shouldScroll,
-          isPrepending,
-          isNearBottom,
-          scrollHeightIncrease,
-          prevCount,
-          currentCount,
-          currentScrollTop: container.scrollTop,
-          scrollHeight: container.scrollHeight,
-          clientHeight: container.clientHeight
-        })
-      })
 
       if (shouldScroll && messagesEndRef.current) {
         // Clear unseen messages indicator when auto-scrolling to bottom
         if (hasUnseenMessages) {
           setHasUnseenMessages(false)
           setUnseenCount(0)
-          devPerf(() => console.log('[V2 List] ✅ Cleared unseen indicator (auto-scroll)'))
         }
 
         // OPTIMIZATION: Use requestAnimationFrame for smooth, non-blocking scroll
@@ -285,29 +207,11 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                 if (containerRef.current) {
                   lastScrollTopRef.current = containerRef.current.scrollTop
                   prevScrollHeightRef.current = containerRef.current.scrollHeight
-                  // FIX: Guard use of containerRef.current and improve logging
-                  devPerf(() => {
-                    const container = containerRef.current
-                    if (!container) {
-                      console.log('[V2 List] Auto-scrolled: containerRef.current is null')
-                      return
-                    }
-                    console.log('[V2 List] Auto-scrolled to bottom:', {
-                      scrollTop: container.scrollTop,
-                      scrollHeight: container.scrollHeight
-                    })
-                  })
                 }
               }, 100) // Wait for scroll to complete
             }
           }
         })
-
-        // End performance measurement on initial load
-        if (isInitialLoad && renderTimerRef.current) {
-          renderTimerRef.current.endAndLog()
-          renderTimerRef.current = null
-        }
       }
 
       prevMessagesLengthRef.current = currentCount
@@ -335,21 +239,6 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       const isLargeBatchPrepend = scrollHeightDiff > 1000 // Pagination adds ~1800px, new message adds ~72px
       const messagesWerePrepended = scrollHeightIncreased && !isAtBottom && isLargeBatchPrepend
 
-      if (process.env.NODE_ENV === 'development' && scrollHeightIncreased) {
-        devPerf(() =>
-          console.log('[V2 List] ScrollHeight increased - checking if prepend or append:', {
-            prevHeight: prevScrollHeight,
-            newHeight: currentScrollHeight,
-            diff: scrollHeightDiff,
-            scrollTop: currentScrollTop,
-            clientHeight: container.clientHeight,
-            isAtBottom,
-            isLargeBatchPrepend,
-            messagesWerePrepended
-          })
-        )
-      }
-
       if (messagesWerePrepended) {
         // Clear any existing timeout
         if (scrollAdjustmentTimeoutRef.current) {
@@ -368,25 +257,12 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         container.scrollTop = newScrollTop
         lastScrollTopRef.current = newScrollTop
 
-        devPerf(() =>
-          console.log('[V2 List] 🎯 Viewport preserved (load-more):', {
-            prevHeight: prevScrollHeight,
-            newHeight: currentScrollHeight,
-            diff: scrollHeightDiff,
-            savedScrollTop, // Position saved BEFORE load
-            currentScrollTopAfterPrepend: container.scrollTop, // What browser set it to
-            newScrollTop, // Where we're moving it
-            viewportStable: '✅'
-          })
-        )
-
         // Re-enable scroll detection after DOM is stable (2 seconds)
         scrollAdjustmentTimeoutRef.current = setTimeout(() => {
           isLoadingMoreRef.current = false
           if (containerRef.current) {
             lastScrollTopRef.current = containerRef.current.scrollTop
           }
-          devPerf(() => console.log('[V2 List] ✅ Scroll detection re-enabled'))
         }, 2000) // 2 seconds to ensure DOM is fully settled
 
         // Reset saved scroll position
@@ -415,7 +291,6 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       if (isAtBottom && hasUnseenMessages) {
         setHasUnseenMessages(false)
         setUnseenCount(0)
-        devPerf(() => console.log('[V2 List] ✅ Cleared unseen indicator (manual scroll to bottom)'))
       }
 
       // Load more handling
@@ -460,14 +335,6 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
           lastScrollTopRef.current = scrollTop
           lastLoadMoreTimeRef.current = Date.now()
 
-          devPerf(() =>
-            console.log('[V2 List] 📌 Saved scroll before load-more:', {
-              scrollTop,
-              scrollHeight: container.scrollHeight,
-              clientHeight: container.clientHeight,
-              messageCount: messages.length
-            })
-          )
           onLoadMore()
         } else {
           // Update last scroll position for tracking
@@ -501,7 +368,6 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
         setHasUnseenMessages(false)
         setUnseenCount(0)
-        devPerf(() => console.log('[V2 List] ✅ Cleared unseen indicator (clicked banner)'))
       }
     }
 

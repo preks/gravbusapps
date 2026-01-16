@@ -210,12 +210,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         const lastSeenString = lastSeen instanceof Date ? lastSeen.toISOString() : lastSeen
 
         if (process.env.NODE_ENV === 'development') {
-          console.log('[useChatClient] 📝 Updating presence from user data:', {
-            userId,
-            state,
-            lastSeen: lastSeenString,
-            isOnline
-          })
+          // Updating presence from user data
         }
 
         presence.updatePresence(userId, state, lastSeenString)
@@ -275,23 +270,15 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     // Create new WebSocket client
-    console.log('[useChatClient] 🔌 Creating new WebSocket client', {
-      wsUrl,
-      wsSocketPath,
-      hasAccessToken: !!accessToken
-    })
     const client = new ChatWebSocketClient(wsUrl, { path: wsSocketPath })
     sharedWsClient = client
     sharedWsKey = key
     sharedWsRefCount = 1 // Initialize ref count to 1
     wsClientRef.current = client
-
-    console.log('[useChatClient] 📡 Connecting to WebSocket...')
     const socket = client.connect(accessToken)
 
     // CRITICAL FIX: Define handlers as named functions so we can properly clean them up
     const handleConnect = async () => {
-      console.log('[useChatClient] ✅ WebSocket connected successfully')
       setIsConnected(true)
       setIsOffline(false)
       setError(null)
@@ -506,11 +493,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         const messageWithStatus = { ...message, status: messageStatus }
 
         if (process.env.NODE_ENV === 'development' && isOwnMessage) {
-          console.log('[V1 WS] Processing own message with status:', {
-            messageId: message.id,
-            status: messageStatus,
-            isActiveConversation: message.conversationId === currentActiveConversationId
-          })
+          // Processing own message with status
         }
 
         // OPTIMIZATION: Defer ALL UI updates to not block the message handler
@@ -563,7 +546,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     const handleMessageDelivered = (data: { messageId: string; conversationId: string; deliveredTo: string }) => {
       // When someone receives your message (delivered), update status to 'delivered' (gray double checkmarks)
       if (process.env.NODE_ENV === 'development') {
-        console.log('[V1 WS] message:delivered event received:', data)
+        // message:delivered event received
       }
 
       const currentUser = currentUserRef.current
@@ -582,11 +565,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         })
 
         if (process.env.NODE_ENV === 'development') {
-          console.log('[V1 WS] Found message for delivery update:', {
-            found: !!message,
-            messageId: message?.id,
-            currentStatus: message?.status
-          })
+          // Found message for delivery update
         }
 
         if (message && message.senderId === currentUser.id) {
@@ -602,14 +581,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           })
 
           if (process.env.NODE_ENV === 'development') {
-            console.log('[V1 WS] Updated message status to delivered:', data.messageId)
+            // Updated message status to delivered
           }
         }
-      } else if (process.env.NODE_ENV === 'development') {
-        console.log('[V1 WS] Skipped delivery update (deliveredTo is current user):', {
-          currentUserId: currentUser?.id,
-          deliveredTo: data.deliveredTo
-        })
       }
     }
 

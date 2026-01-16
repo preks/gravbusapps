@@ -103,11 +103,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
   // TRACK: Log presence data for debugging (dev only)
   if (process.env.NODE_ENV === 'development' && conversation.type === 'direct' && otherParticipant?.user?.id) {
-    console.log('[ConversationItem] 👤 User presence:', {
-      conversationName: name,
-      userId: otherParticipant.user.id,
-      presenceData: otherUserPresence
-    })
   }
 
   // Don't show unread count if:

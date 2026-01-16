@@ -116,7 +116,6 @@ export class WebRTCClient {
    */
   async initializeLocalStream(type: CallType): Promise<MediaStream> {
     try {
-      console.log('[WebRTC] 🎥 Initializing local stream:', { callType: type })
       const constraints: MediaStreamConstraints = {
         audio: {
           echoCancellation: true,
@@ -133,18 +132,7 @@ export class WebRTCClient {
             : false
       }
 
-      console.log('[WebRTC] 📋 Media constraints:', JSON.stringify(constraints, null, 2))
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints)
-
-      const videoTracks = this.localStream.getVideoTracks()
-      const audioTracks = this.localStream.getAudioTracks()
-      console.log('[WebRTC] ✅ Got local stream:', {
-        videoTracks: videoTracks.length,
-        audioTracks: audioTracks.length,
-        videoEnabled: videoTracks[0]?.enabled,
-        videoLabel: videoTracks[0]?.label,
-        audioEnabled: audioTracks[0]?.enabled
-      })
 
       this.emit('localStreamReady', this.localStream)
       return this.localStream
@@ -341,7 +329,6 @@ export class WebRTCClient {
    * Toggle local video
    */
   toggleVideo(): boolean {
-    console.log('[WebRTC] 🎬 Toggle video requested')
     if (!this.localStream) {
       console.warn('[WebRTC] ⚠️ No local stream available for toggle')
       return false
@@ -351,7 +338,6 @@ export class WebRTCClient {
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled
       const isVideoOff = !videoTrack.enabled
-      console.log('[WebRTC] 📹 Video toggled:', { isVideoOff, enabled: videoTrack.enabled })
       return isVideoOff // Returns true if video is now off
     }
     console.warn('[WebRTC] ⚠️ No video track found in local stream')

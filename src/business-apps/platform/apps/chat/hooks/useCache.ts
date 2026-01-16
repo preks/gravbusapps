@@ -55,7 +55,6 @@ export function useCache() {
       })
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[Cache] Stored ${messages.length} messages for conversation ${conversationId}`)
       }
     },
     []
@@ -72,7 +71,6 @@ export function useCache() {
       }))
 
       if (process.env.NODE_ENV === 'development' && success) {
-        console.log(`[Cache] Updated message ${messageId} in conversation ${conversationId}`)
       }
 
       return success
@@ -96,7 +94,6 @@ export function useCache() {
     })
 
     if (process.env.NODE_ENV === 'development' && success) {
-      console.log(`[Cache] Added message ${message.id} to conversation ${conversationId}`)
     }
 
     return success
@@ -112,7 +109,6 @@ export function useCache() {
     }))
 
     if (process.env.NODE_ENV === 'development' && success) {
-      console.log(`[Cache] Removed message ${messageId} from conversation ${conversationId}`)
     }
 
     return success
@@ -126,7 +122,6 @@ export function useCache() {
     conversationsCacheRef.current.delete(conversationId)
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[Cache] Invalidated conversation ${conversationId}`)
     }
   }, [])
 
@@ -146,7 +141,6 @@ export function useCache() {
     conversationsCacheRef.current.set(conversation.id, conversation)
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[Cache] Stored conversation ${conversation.id}`)
     }
   }, [])
 
@@ -166,7 +160,6 @@ export function useCache() {
     usersCacheRef.current.set(user.id, user)
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[Cache] Stored user ${user.id}`)
     }
   }, [])
 
@@ -179,7 +172,6 @@ export function useCache() {
     usersCacheRef.current.clear()
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Cache] Cleared all caches')
     }
   }, [])
 
@@ -212,7 +204,6 @@ export function useCache() {
       }
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Cache] Cache warmed up', data)
       }
     },
     [setCachedMessages, setCachedConversation]
@@ -231,7 +222,6 @@ export function useCache() {
       if (process.env.NODE_ENV === 'development') {
         const totalCleanup = messagesCleanup + conversationsCleanup + usersCleanup
         if (totalCleanup > 0) {
-          console.log(`[Cache] Cleaned up ${totalCleanup} expired entries`)
         }
       }
     }, 60 * 1000)
@@ -249,16 +239,7 @@ export function useCache() {
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return
 
-    const statsInterval = setInterval(() => {
-      const stats = getCacheStats()
-      console.log('[Cache] Stats:', {
-        messages: `${stats.messages.valid}/${stats.messages.total} (hit rate: ${stats.messages.hitRate.toFixed(2)})`,
-        conversations: `${stats.conversations.valid}/${stats.conversations.total}`,
-        users: `${stats.users.valid}/${stats.users.total}`
-      })
-    }, 30 * 1000)
-
-    return () => clearInterval(statsInterval)
+    // Cache stats logging disabled
   }, [getCacheStats])
 
   return {

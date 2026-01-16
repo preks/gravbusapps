@@ -199,13 +199,11 @@ export const useCall = ({
   const fetchIceServers = useCallback(async (): Promise<RTCIceServer[]> => {
     // Only use cache if it has TURN servers
     if (iceServersRef.current && hasTurnServers(iceServersRef.current)) {
-      console.log('[useCall] ✅ Using cached ICE servers with TURN')
       return iceServersRef.current
     }
 
     // Clear stale cache without TURN
     if (iceServersRef.current) {
-      console.log('[useCall] 🔄 Cached servers have no TURN, refreshing...')
       iceServersRef.current = null
     }
 
@@ -214,14 +212,12 @@ export const useCall = ({
     // Try to fetch from backend
     if (apiClientRef.current) {
       try {
-        console.log('[useCall] 📡 Fetching ICE servers from backend...')
         const response = await apiClientRef.current.getIceServers()
         backendServers = response.iceServers.map(server => ({
           urls: server.urls,
           username: server.username,
           credential: server.credential
         }))
-        console.log('[useCall] Backend returned:', backendServers.length, 'servers')
       } catch (error) {
         console.warn('[useCall] Failed to fetch ICE servers from backend:', error)
       }
@@ -233,24 +229,12 @@ export const useCall = ({
     // ALWAYS add fallback TURN servers if backend doesn't have any
     let finalServers: RTCIceServer[]
     if (!hasTurnFromBackend) {
-      console.log('[useCall] ⚠️ Backend has NO TURN servers! Adding fallback TURN relay...')
       finalServers = [...backendServers, ...FALLBACK_TURN_SERVERS]
     } else {
-      console.log('[useCall] ✅ Backend provided TURN servers')
       finalServers = backendServers
     }
 
     const hasTurn = hasTurnServers(finalServers)
-    console.log('[useCall] 🌐 Final ICE servers configuration:', {
-      serverCount: finalServers.length,
-      hasTurn,
-      fromBackend: backendServers.length,
-      fallbackAdded: !hasTurnFromBackend,
-      servers: finalServers.map(s => ({
-        urls: s.urls,
-        hasCredentials: !!(s.username && s.credential)
-      }))
-    })
 
     if (!hasTurn) {
       console.error('[useCall] ❌ CRITICAL: No TURN servers! Some users WILL NOT be able to connect!')
@@ -274,32 +258,17 @@ export const useCall = ({
 
     // Handle local stream ready
     webrtc.on('localStreamReady', (stream: MediaStream) => {
-      const videoTracks = stream.getVideoTracks()
-      const audioTracks = stream.getAudioTracks()
-      console.log('[useCall] 📹 Local stream ready:', {
-        audioTracks: audioTracks.length,
-        videoTracks: videoTracks.length,
-        videoEnabled: videoTracks[0]?.enabled,
-        videoLabel: videoTracks[0]?.label,
-        callType: callStateRef.current.type
-      })
       updateCallState({ localStream: stream })
     })
 
     // Handle remote stream ready
     webrtc.on('remoteStreamReady', (stream: MediaStream) => {
-      console.log('[useCall] 📺 Remote stream ready:', {
-        audioTracks: stream.getAudioTracks().length,
-        videoTracks: stream.getVideoTracks().length
-      })
       updateCallState({ remoteStream: stream })
     })
 
     // Handle ICE connection state changes
     webrtc.on('iceConnectionStateChanged', (state: RTCIceConnectionState) => {
-      console.log('[useCall] 🧊 ICE connection state:', state)
       if (state === 'connected' || state === 'completed') {
-        console.log('[useCall] ✅ Call connected!')
         updateCallState({ status: 'connected', startTime: Date.now() })
         // Mark active call in localStorage for multi-tab detection
         if (currentUserRef.current && callStateRef.current.callId) {
@@ -314,8 +283,6 @@ export const useCall = ({
       } else if (state === 'disconnected') {
         // Could be temporary, wait a bit
         console.warn('[useCall] ⚠️ ICE disconnected, waiting for reconnection...')
-      } else if (state === 'checking') {
-        console.log('[useCall] 🔍 ICE checking connectivity...')
       }
     })
 
@@ -348,12 +315,6 @@ export const useCall = ({
   // Initiate a call
   const initiateCall = useCallback(
     async (participant: CallParticipant, type: CallType, conversationId?: string) => {
-      console.log('[useCall] 📞 Initiating call:', {
-        type,
-        to: participant.odName,
-        conversationId
-      })
-
       if (!wsClient || !currentUser) {
         console.error('[useCall] ❌ Cannot initiate call: WebSocket or user not available')
         return
@@ -365,11 +326,9 @@ export const useCall = ({
       }
 
       const callId = generateCallId()
-      console.log('[useCall] 🆔 Generated call ID:', callId)
 
       try {
         // Update state
-        console.log('[useCall] 🔄 Updating state to initiating')
         updateCallState({
           callId,
           status: 'initiating',
@@ -381,22 +340,15 @@ export const useCall = ({
         })
 
         // Initialize WebRTC (fetches ICE servers from backend)
-        console.log('[useCall] 🌐 Initializing WebRTC...')
         const webrtc = await initializeWebRTC()
-        console.log('[useCall] ✅ WebRTC initialized')
 
         // Get local media stream
-        console.log('[useCall] 🎥 Getting local media stream...')
         await webrtc.initializeLocalStream(type)
-        console.log('[useCall] ✅ Local stream ready')
 
         // Create peer connection
-        console.log('[useCall] 🔗 Creating peer connection...')
         webrtc.createPeerConnection()
-        console.log('[useCall] ✅ Peer connection created')
 
         // Send call initiation signal
-        console.log('[useCall] 📡 Sending call initiation signal via WebSocket')
         wsClient.initiateCall({
           callId,
           callType: type,
@@ -406,7 +358,6 @@ export const useCall = ({
         })
 
         // Update status to ringing
-        console.log('[useCall] 🔔 Call ringing...')
         updateCallState({ status: 'ringing' })
 
         // Set ring timeout
@@ -434,42 +385,27 @@ export const useCall = ({
 
   // Accept incoming call
   const acceptCall = useCallback(async () => {
-    console.log('[useCall] ✅ Accepting incoming call')
-
     if (!wsClient || !currentUser || !pendingSignalRef.current) {
       console.error('[useCall] ❌ Cannot accept call: missing requirements')
       return
     }
 
     const signal = pendingSignalRef.current
-    console.log('[useCall] 📞 Call details:', {
-      callId: signal.callId,
-      type: signal.callType,
-      from: signal.from.odName
-    })
     clearRingTimeout()
 
     try {
-      console.log('[useCall] 🔄 Status: connecting')
       updateCallState({ status: 'connecting' })
 
       // Initialize WebRTC (fetches ICE servers from backend)
-      console.log('[useCall] 🌐 Initializing WebRTC...')
       const webrtc = await initializeWebRTC()
-      console.log('[useCall] ✅ WebRTC initialized')
 
       // Get local media stream
-      console.log('[useCall] 🎥 Getting local media stream...')
       await webrtc.initializeLocalStream(signal.callType)
-      console.log('[useCall] ✅ Local stream ready')
 
       // Create peer connection
-      console.log('[useCall] 🔗 Creating peer connection...')
       webrtc.createPeerConnection()
-      console.log('[useCall] ✅ Peer connection created')
 
       // Send accept signal
-      console.log('[useCall] 📡 Sending accept signal via WebSocket')
       wsClient.acceptCall({
         callId: signal.callId,
         callType: signal.callType,
@@ -477,7 +413,6 @@ export const useCall = ({
         to: signal.from
       })
 
-      console.log('[useCall] 🎉 Call accepted successfully')
       onCallStarted?.(signal.callId, signal.from)
     } catch (error) {
       console.error('[useCall] ❌ Failed to accept call:', error)
@@ -568,25 +503,10 @@ export const useCall = ({
       return
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[useCall] 🎧 Setting up call event listeners', {
-        hasWsClient: !!wsClient,
-        hasCurrentUser: !!currentUser,
-        currentUserId: currentUser?.id
-      })
-    }
-
     // Handle incoming call initiation
     const handleCallInitiate = (signal: CallSignal) => {
-      console.log('[useCall] 📞 Incoming call received:', {
-        callId: signal.callId,
-        type: signal.callType,
-        from: signal.from.odName
-      })
-
       // Ignore if already in a call (use ref to get latest status)
       if (callStateRef.current.status !== 'idle') {
-        console.log('[useCall] ⚠️ Already in a call, sending busy signal')
         wsClientRef.current?.sendBusy({
           callId: signal.callId,
           from: currentUserRef.current!,
@@ -597,7 +517,6 @@ export const useCall = ({
 
       // Ignore if user is in a call in another tab
       if (currentUserRef.current && isInCallInAnotherTab(currentUserRef.current.id)) {
-        console.log('[useCall] ⚠️ User is in call in another tab, sending busy signal')
         wsClientRef.current?.sendBusy({
           callId: signal.callId,
           from: currentUserRef.current!,
@@ -610,7 +529,6 @@ export const useCall = ({
       pendingSignalRef.current = signal
 
       // Update state for incoming call
-      console.log('[useCall] 🔔 Showing incoming call dialog')
       updateCallState({
         callId: signal.callId,
         status: 'ringing',
@@ -757,7 +675,6 @@ export const useCall = ({
     }
 
     // Register listeners
-    console.log('[useCall] 📝 Registering all call event listeners...')
     wsClient.onCallInitiate(handleCallInitiate)
     wsClient.onCallAccept(handleCallAccept)
     wsClient.onCallReject(handleCallReject)
@@ -766,10 +683,8 @@ export const useCall = ({
     wsClient.onCallAnswer(handleCallAnswer)
     wsClient.onCallIceCandidate(handleIceCandidate)
     wsClient.onCallBusy(handleCallBusy)
-    console.log('[useCall] ✅ All call event listeners registered')
 
     return () => {
-      console.log('[useCall] 🧹 Cleaning up call event listeners')
       wsClient.removeCallListeners()
     }
     // Using refs for most values to avoid effect re-runs during call flow

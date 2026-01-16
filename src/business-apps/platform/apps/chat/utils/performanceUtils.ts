@@ -36,7 +36,6 @@ export function startPerformanceTimer(name: string): PerformanceTimer {
     },
     endAndLog() {
       const duration = this.end()
-      console.log(`[Performance] ${name}: ${duration.toFixed(2)}ms`)
       return duration
     }
   }
@@ -59,8 +58,6 @@ export function measureRender(componentName: string) {
   const count = (renderCounts.get(key) || 0) + 1
   renderCounts.set(key, count)
 
-  console.log(`[Render] ${componentName} - Render #${count}`)
-
   return count
 }
 
@@ -82,10 +79,7 @@ export function getRenderCount(componentName: string): number {
  * Log all render counts
  */
 export function logRenderCounts() {
-  console.log('[Render Counts]')
-  renderCounts.forEach((count, name) => {
-    console.log(`  ${name}: ${count} renders`)
-  })
+  // Logging disabled for production
 }
 
 /**
@@ -97,16 +91,6 @@ export function measureMemory(): number | null {
     return performance.memory.usedJSHeapSize / 1024 / 1024 // MB
   }
   return null
-}
-
-/**
- * Log memory usage
- */
-export function logMemory(label: string) {
-  const memory = measureMemory()
-  if (memory) {
-    console.log(`[Memory] ${label}: ${memory.toFixed(2)} MB`)
-  }
 }
 
 /**
@@ -132,16 +116,6 @@ export function comparePerformance(v1Time: number, v2Time: number): PerformanceC
     improvement,
     improvementPercent: `${improvementPercent}%`
   }
-}
-
-/**
- * Log performance comparison
- */
-export function logPerformanceComparison(name: string, comparison: PerformanceComparison) {
-  console.log(`[Comparison] ${name}`)
-  console.log(`  V1: ${comparison.v1.toFixed(2)}ms`)
-  console.log(`  V2: ${comparison.v2.toFixed(2)}ms`)
-  console.log(`  Improvement: ${comparison.improvement.toFixed(2)}ms (${comparison.improvementPercent})`)
 }
 
 /**

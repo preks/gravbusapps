@@ -56,14 +56,6 @@ const ChatInner: React.FC<ChatProps> = memo(
     const lastNudgeTimeRef = useRef<number>(0)
     const NUDGE_COOLDOWN_MS = 30000 // 30 seconds
 
-    // Performance monitoring startup log
-    useEffect(() => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🎯 Chat Active - Performance logging enabled')
-        console.log('   Measuring: load times, re-renders, memory usage')
-      }
-    }, [])
-
     // Inject nudge animation styles on mount
     useEffect(() => {
       injectNudgeStyles()
@@ -193,22 +185,6 @@ const ChatInner: React.FC<ChatProps> = memo(
         messageCount: messages.length,
         isLoading: messagesLoading
       }
-
-      const prevData = prevRenderDataRef.current
-      const changes: string[] = []
-
-      if (prevData.conversationId !== currentData.conversationId) changes.push('conversationId')
-      if (prevData.messageCount !== currentData.messageCount)
-        changes.push(`messages(${prevData.messageCount}→${currentData.messageCount})`)
-      if (prevData.isLoading !== currentData.isLoading) changes.push(`loading(${currentData.isLoading})`)
-      if (changes.length === 0) changes.push('no state change - likely parent/context re-render')
-
-      console.log(`[Chat] Render #${renderCountRef.current} - Changed: ${changes.join(', ')}`, {
-        hasConversation: !!stableActiveConversation,
-        conversationId: stableActiveConversation?.id,
-        messageCount: messages.length,
-        isLoading: messagesLoading
-      })
 
       prevRenderDataRef.current = currentData
     }

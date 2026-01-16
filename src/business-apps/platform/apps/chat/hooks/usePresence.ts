@@ -88,12 +88,7 @@ export function usePresence(options: UsePresenceOptions) {
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Presence] 🟢 Updated presence:', {
-        userId,
-        oldState: oldData?.state,
-        newState: state,
-        lastSeen
-      })
+      // Presence updated
     }
   }, [])
 
@@ -117,7 +112,7 @@ export function usePresence(options: UsePresenceOptions) {
       }
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Presence] Batch updated', updates.length, 'users')
+        // Batch presence updated
       }
     },
     []
@@ -142,17 +137,13 @@ export function usePresence(options: UsePresenceOptions) {
       // Ignore own presence updates (handled separately)
       if (update.userId === currentUserId) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('[Presence] Ignoring own presence update')
+          // Ignoring own presence update
         }
         return
       }
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Presence] 📡 Received presence update:', {
-          userId: update.userId,
-          state: update.state,
-          timestamp: update.timestamp
-        })
+        // Received presence update
       }
 
       // Convert timestamp to string if it's a Date object
@@ -174,29 +165,24 @@ export function usePresence(options: UsePresenceOptions) {
     // Bridge backend format to V2 format
     const handleBackendPresence = (data: any) => {
       // TRACK BACKEND DATA
-      console.log('[Presence] 🔍 RAW Backend presence data:', data)
-
       const update: PresenceUpdate = {
         userId: data.userId,
         state: data.isOnline ? 'online' : 'offline',
         timestamp: data.timestamp || new Date().toISOString()
       }
-
-      console.log('[Presence] 📦 Converted to PresenceUpdate:', update)
-
       handlePresenceUpdate(update)
     }
 
     wsClient.onPresence(handleBackendPresence)
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Presence] Subscribed to presence updates')
+      // Subscribed to presence updates
     }
 
     return () => {
       // Cleanup: remove the listener
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Presence] Unsubscribed from presence updates')
+        // Unsubscribed from presence updates
       }
     }
   }, [wsClient, handlePresenceUpdate])

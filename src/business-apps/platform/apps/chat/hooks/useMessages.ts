@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, startTransition, useMemo } from 'react'
 import type { Message, PaginatedResponse, Conversation } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
-import { startPerformanceTimer, measureRender, devPerf } from '../utils/performanceUtils'
+import { devPerf } from '../utils/performanceUtils'
 import { useCache } from './useCache'
 
 interface UseMessagesOptions {
@@ -32,13 +32,6 @@ export function useMessages({
   enabled = true,
   onMessagesLoaded
 }: UseMessagesOptions) {
-  // Performance tracking
-  const renderCountRef = useRef(0)
-  devPerf(() => {
-    renderCountRef.current++
-    measureRender('useMessages')
-  })
-
   // Cache hook
   const cache = useCache()
   // Core state
@@ -71,12 +64,6 @@ export function useMessages({
     // 1. Switching between two conversations (A → B)
     // 2. Closing a conversation (A → null)
     if (prev && (current || prev !== current)) {
-      devPerf(() =>
-        console.log('[V2] ConversationId changed during render, clearing state synchronously', {
-          from: prev,
-          to: current || 'null'
-        })
-      )
       setMessages([])
       setCurrentPage(1)
       setHasMore(false)
@@ -164,23 +151,18 @@ export function useMessages({
         // CRITICAL: Prevent duplicate loads
         // If we just loaded this conversation, skip (prevents double cache loads)
         if (lastLoadedConversationRef.current === conversationId) {
-          devPerf(() => console.log('[V2] Already loaded this conversation, skipping duplicate load'))
           return
         }
 
         const cached = cache.getCachedMessages(conversationId)
         if (cached) {
-          devPerf(() => console.log('[V2] Loading from cache (instant):', conversationId))
-
           // Verify conversation hasn't changed (prevents race conditions)
           if (conversationId !== displayedConversationIdRef.current) {
-            devPerf(() => console.log('[V2] Stale cache ignored - conversation changed'))
             return
           }
 
           // CRITICAL: Prevent concurrent cache loads
           if (isLoadingRef.current) {
-            devPerf(() => console.log('[V2] Already loading, skipping duplicate cache load'))
             return
           }
 
@@ -218,18 +200,11 @@ export function useMessages({
       const requestConversationId = conversationId
 
       // Start performance tracking
-      let perfTimer: ReturnType<typeof startPerformanceTimer> | null = null
-      if (process.env.NODE_ENV === 'development') {
-        perfTimer = startPerformanceTimer(`messages-load-page-${page}`)
-      }
 
       try {
         isLoadingRef.current = true
         setIsLoading(true)
         setError(null)
-
-        devPerf(() => console.log('[V2] Loading messages from API:', { conversationId, page }))
-
         // Fetch messages from API
         const response: PaginatedResponse<Message> = await apiClient.getMessages(
           conversationId,
@@ -240,25 +215,11 @@ export function useMessages({
         // CRITICAL: Verify response is still relevant (check against current displayed conversation)
         // This prevents race conditions when switching conversations rapidly
         if (requestConversationId !== displayedConversationIdRef.current) {
-          devPerf(() =>
-            console.log('[V2] Stale request ignored - conversation changed:', {
-              requested: requestConversationId,
-              current: displayedConversationIdRef.current
-            })
-          )
           return
         }
 
         const loadedMessages = response.data || []
         const processedMessages = processMessages(loadedMessages)
-
-        devPerf(() =>
-          console.log('[V2] Messages loaded from API:', {
-            count: loadedMessages.length,
-            page: response.page,
-            totalPages: response.totalPages
-          })
-        )
 
         const newPage = response.page
         const newHasMore = response.page < response.totalPages
@@ -289,15 +250,9 @@ export function useMessages({
           setIsLoading(false)
           isLoadingRef.current = false
         })
-
-        // End performance tracking
-        if (perfTimer) {
-          perfTimer.endAndLog()
-        }
       } catch (err) {
         // Ignore abort errors
         if (err instanceof Error && err.name === 'AbortError') {
-          devPerf(() => console.log('[V2] Request aborted'))
           return
         }
 
@@ -329,8 +284,6 @@ export function useMessages({
    */
   const addMessage = useCallback(
     (message: Message, isOptimistic: boolean = false) => {
-      devPerf(() => console.log('[V2] Adding message:', { id: message.id, optimistic: isOptimistic }))
-
       // Calculate status and ensure it matches Message interface (sent | delivered | read)
       const calculatedStatus = isOptimistic ? 'sending' : calculateMessageStatus(message)
       const validStatus: 'sent' | 'delivered' | 'read' =
@@ -357,7 +310,6 @@ export function useMessages({
         })
 
         if (existingIndex >= 0) {
-          devPerf(() => console.log('[V2] Updating existing message'))
           const updated = [...prev]
           // Preserve better status when replacing
           const existingStatus = prev[existingIndex].status || 'sent'
@@ -374,11 +326,7 @@ export function useMessages({
             status: finalStatus
           }
           return updated
-        }
-
-        devPerf(() => console.log('[V2] Adding new message'))
-
-        // Add to cache
+        } // Add to cache
         if (conversationId) {
           cache.addMessageToCache(conversationId, processedMessage)
         }
@@ -483,8 +431,6 @@ export function useMessages({
       const isSwitchingConversation = displayedConversationIdRef.current !== conversationId
 
       if (isSwitchingConversation) {
-        devPerf(() => console.log('[V2] Conversation changed, loading messages:', conversationId))
-
         // Reset the last loaded conversation so loadMessages can proceed
         lastLoadedConversationRef.current = undefined
 
@@ -500,7 +446,6 @@ export function useMessages({
       // ConversationId is null/undefined - clear the displayed conversation ref
       // This ensures the next conversation selection is treated as a new conversation
       if (displayedConversationIdRef.current) {
-        devPerf(() => console.log('[V2] ConversationId cleared, resetting displayed conversation ref'))
         displayedConversationIdRef.current = undefined
       }
     }
@@ -508,7 +453,6 @@ export function useMessages({
     // Cleanup on unmount or conversation change
     return () => {
       if (abortControllerRef.current) {
-        devPerf(() => console.log('[V2] Cleaning up conversation:', conversationId))
         abortControllerRef.current.abort()
         abortControllerRef.current = null
       }

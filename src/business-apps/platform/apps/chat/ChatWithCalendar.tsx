@@ -79,7 +79,6 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     const handleChatSidebarOpened = (event: CustomEvent<{ defaultTab?: TabValue }>) => {
       const tab = event.detail?.defaultTab
       if (tab && (tab === 'everyai' || tab === 'chat' || tab === 'calendar')) {
-        console.log('[ChatWithCalendar] Setting active tab from sidebar event:', tab)
         setActiveTab(tab)
       }
     }
