@@ -44,7 +44,9 @@ export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
   )
 
   /**
-   * Process CSV content to remove commas from all cell values
+   * Process CSV content for SAP CKF compatibility:
+   * 1. Remove quotes from all fields
+   * 2. Replace period (.) with comma (,) as decimal separator in numeric values
    */
   const processCsvContent = (csvText: string): string => {
     const lines = csvText.split('\n')
@@ -59,22 +61,36 @@ export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
         const char = line[i]
 
         if (char === '"') {
+          // Skip quotes - don't add them to output
           insideQuotes = !insideQuotes
         } else if (char === ';' && !insideQuotes) {
-          // Semicolon delimiter - remove commas from cell value
-          cells.push(currentCell.replace(/,/g, ''))
+          // Semicolon delimiter - process and add cell
+          cells.push(formatCellValue(currentCell))
           currentCell = ''
         } else {
           currentCell += char
         }
       }
       // Push the last cell
-      cells.push(currentCell.replace(/,/g, ''))
+      cells.push(formatCellValue(currentCell))
 
       return cells.join(';')
     })
 
     return processedLines.join('\n')
+  }
+
+  /**
+   * Format cell value: replace period with comma for decimal numbers
+   * E.g., "57.50" becomes "57,50"
+   */
+  const formatCellValue = (value: string): string => {
+    // Check if value is a decimal number (e.g., 57.50, 123.45, -10.00)
+    const decimalNumberPattern = /^-?\d+\.\d+$/
+    if (decimalNumberPattern.test(value.trim())) {
+      return value.replace('.', ',')
+    }
+    return value
   }
 
   const handleTriggerCSV = useCallback(async (record: ExpenseData) => {
