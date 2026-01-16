@@ -1357,10 +1357,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     { key: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency') },
     {
       key: 'department',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_list.employee_report_filter.department_title',
-        'Department'
-      )
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')
     },
     {
       key: 'requestDate',
