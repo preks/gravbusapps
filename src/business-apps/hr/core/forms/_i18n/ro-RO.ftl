@@ -301,3 +301,49 @@ complete-notification = Cererea este trimisă către manager pentru aprobare
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
 notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă
+
+# ============================================
+# Create Employee Form
+# ============================================
+
+# Section Headers
+employee-form-personal-information = Informații personale
+employee-form-employment-information = Informații despre angajare
+employee-form-additional-attributes = Atribute suplimentare
+
+# Field Labels
+employee-form-first-name = Prenume
+employee-form-last-name = Nume
+employee-form-email = Email
+employee-form-organizational-unit = Unitate organizațională
+employee-form-job-position = Poziție
+employee-form-hire-date = Data angajării
+employee-form-preferred-name = Nume preferat
+employee-form-employment-type = Tip angajare
+employee-form-contract-type = Tip contract
+
+# Validation Messages
+employee-form-email-invalid = Vă rugăm să introduceți o adresă de email validă
+
+# Empty States
+employee-form-no-results = Nu s-au găsit rezultate
+employee-form-no-positions = Nu sunt poziții disponibile
+employee-form-no-vacant-positions = Nu sunt poziții vacante disponibile în unitatea organizațională selectată
+
+# Tooltips
+employee-form-create-job-position-tooltip = Creează poziție nouă
+employee-form-select-org-unit-first = Selectați mai întâi o unitate organizațională
+
+# Buttons
+employee-form-create-employee = Creează angajat
+employee-form-update-employee = Actualizează angajat
+
+# ============================================
+# Create Job Position Modal
+# ============================================
+
+create-job-position-title = Creează poziție
+create-job-position-name = Nume
+create-job-position-total-open = Total poziții deschise
+create-job-position-organizational-unit = Unitate organizațională
+create-job-position-error = Nu s-a putut crea poziția. Vă rugăm să încercați din nou.

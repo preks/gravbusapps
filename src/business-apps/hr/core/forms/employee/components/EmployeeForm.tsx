@@ -3,6 +3,7 @@ import { useEmployeeContext } from '../context/EmployeeContext'
 import {
   Button,
   Input,
+  DateInput,
   Select,
   SelectTrigger,
   SelectValue,
@@ -10,13 +11,16 @@ import {
   SelectItem,
   Collapsible,
   CollapsibleTrigger,
-  CollapsibleContent
+  CollapsibleContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { PlusIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import CreateJobPositionModal from './CreateJobPositionModal'
+import translations from '../../_i18n'
 
 const EmployeeForm: React.FC = () => {
+  const { t } = useTranslation(translations)
   const {
     formValues,
     setFormValues,
@@ -136,7 +140,7 @@ const EmployeeForm: React.FC = () => {
         payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`
       }
 
-      dispatchProcessContinueEvent('employee_submit', payload)
+      dispatchProcessContinueEvent('pse_submit', payload)
     } catch (err) {
       console.error('Error submitting employee form:', err)
     }
@@ -145,59 +149,63 @@ const EmployeeForm: React.FC = () => {
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
       <form className="gba:h-full gba:flex gba:flex-col" onSubmit={e => e.preventDefault()}>
-        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6">
+        <div className="gba:flex-1 gba:overflow-y-auto gba:overflow-x-hidden gba:space-y-6">
           <div className="gba:space-y-4">
             <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
-              Personal Information
+              {t('employee-form-personal-information')}
             </h3>
 
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                First Name<span className="gba:text-destructive"> *</span>
+                {t('employee-form-first-name')}
+                <span className="gba:text-destructive"> *</span>
               </label>
               <Input
                 value={formValues.firstName}
                 onChange={e => setFormValues({ firstName: e.target.value })}
-                placeholder="Please Enter..."
+                placeholder={t('action-enter-placeholder')}
               />
             </div>
 
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Last Name<span className="gba:text-destructive"> *</span>
+                {t('employee-form-last-name')}
+                <span className="gba:text-destructive"> *</span>
               </label>
               <Input
                 value={formValues.lastName}
                 onChange={e => setFormValues({ lastName: e.target.value })}
-                placeholder="Please Enter..."
+                placeholder={t('action-enter-placeholder')}
               />
             </div>
 
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Email<span className="gba:text-destructive"> *</span>
+                {t('employee-form-email')}
+                <span className="gba:text-destructive"> *</span>
               </label>
               <Input
                 type="email"
                 value={formValues.email}
                 onChange={e => setFormValues({ email: e.target.value })}
-                placeholder="Please Enter..."
+                placeholder={t('action-enter-placeholder')}
                 className={!isEmailFieldValid ? 'gba:border-destructive' : ''}
               />
               {!isEmailFieldValid && (
-                <div className="gba:text-destructive gba:text-sm gba:mt-1">Please enter a valid email address</div>
+                <div className="gba:text-destructive gba:text-sm gba:mt-1">{t('employee-form-email-invalid')}</div>
               )}
             </div>
           </div>
 
           <div className="gba:space-y-4">
             <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
-              Employment Information
+              {t('employee-form-employment-information')}
             </h3>
 
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Organizational Unit<span className="gba:text-destructive"> *</span>
+                {t('employee-form-organizational-unit')}
+                <span className="gba:text-destructive"> *</span>
               </label>
               <Select
                 value={formValues.organizationalUnitId || undefined}
@@ -205,12 +213,14 @@ const EmployeeForm: React.FC = () => {
                 disabled={organizationalUnitsLoading}
               >
                 <SelectTrigger className="gba:w-full">
-                  <SelectValue placeholder={organizationalUnitsLoading ? 'Loading...' : 'Please Select...'} />
+                  <SelectValue
+                    placeholder={organizationalUnitsLoading ? t('loading') : t('action-select-placeholder')}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {organizationalUnits.length === 0 ? (
                     <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                      {organizationalUnitsLoading ? 'Loading...' : 'No results found'}
+                      {organizationalUnitsLoading ? t('loading') : t('employee-form-no-results')}
                     </div>
                   ) : (
                     organizationalUnits.map(unit => (
@@ -228,7 +238,8 @@ const EmployeeForm: React.FC = () => {
 
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Job Position<span className="gba:text-destructive"> *</span>
+                {t('employee-form-job-position')}
+                <span className="gba:text-destructive"> *</span>
               </label>
               <div className="gba:flex gba:gap-2 gba:items-center">
                 <div className="gba:flex-1">
@@ -238,12 +249,12 @@ const EmployeeForm: React.FC = () => {
                     disabled={!formValues.organizationalUnitId || jobPositionsLoading}
                   >
                     <SelectTrigger className="gba:w-full">
-                      <SelectValue placeholder={jobPositionsLoading ? 'Loading...' : 'Please Select...'} />
+                      <SelectValue placeholder={jobPositionsLoading ? t('loading') : t('action-select-placeholder')} />
                     </SelectTrigger>
                     <SelectContent>
                       {jobPositions.length === 0 ? (
                         <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                          {jobPositionsLoading ? 'Loading...' : 'No positions available'}
+                          {jobPositionsLoading ? t('loading') : t('employee-form-no-positions')}
                         </div>
                       ) : (
                         jobPositions.map(position => (
@@ -262,7 +273,9 @@ const EmployeeForm: React.FC = () => {
                   onClick={() => setIsCreateJobPositionModalOpen(true)}
                   disabled={!formValues.organizationalUnitId}
                   title={
-                    formValues.organizationalUnitId ? 'Create new job position' : 'Select an organizational unit first'
+                    formValues.organizationalUnitId
+                      ? t('employee-form-create-job-position-tooltip')
+                      : t('employee-form-select-org-unit-first')
                   }
                   data-testid="add-job-position-button"
                 >
@@ -277,27 +290,31 @@ const EmployeeForm: React.FC = () => {
                 !jobPositionsError &&
                 formValues.organizationalUnitId && (
                   <div className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-                    No vacant positions available in the selected organizational unit
+                    {t('employee-form-no-vacant-positions')}
                   </div>
                 )}
             </div>
 
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Hire Date
+                {t('employee-form-hire-date')}
               </label>
-              <Input
+              <DateInput
                 type="date"
-                value={formValues.hireDate}
-                onChange={e => setFormValues({ hireDate: e.target.value })}
+                value={formValues.hireDate || ''}
+                onChange={v => setFormValues({ hireDate: typeof v === 'string' ? v : '' })}
+                className="gba:w-full"
+                captionLayout="dropdown"
               />
             </div>
           </div>
 
           <Collapsible open={showAdditionalAttributes} onOpenChange={setShowAdditionalAttributes}>
-            <div className="gba:border gba:border-border gba:rounded-lg">
+            <div className="gba:border gba:border-border gba:rounded-lg gba:overflow-hidden">
               <CollapsibleTrigger className="gba:w-full gba:px-3 gba:py-2 gba:text-left gba:flex gba:items-center gba:justify-between gba:bg-muted gba:hover:bg-muted gba:rounded-lg gba:transition-colors">
-                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Additional Attributes</span>
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">
+                  {t('employee-form-additional-attributes')}
+                </span>
                 <CaretDownIcon
                   className={`gba:w-4 gba:h-4 gba:transform gba:transition-transform ${showAdditionalAttributes ? 'gba:rotate-180' : ''}`}
                 />
@@ -307,18 +324,19 @@ const EmployeeForm: React.FC = () => {
                 <div className="gba:p-4 gba:space-y-6 gba:border-t gba:border-border">
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                      Preferred Name
+                      {t('employee-form-preferred-name')}
                     </label>
                     <Input
                       value={formValues.preferredName}
                       onChange={e => setFormValues({ preferredName: e.target.value })}
-                      placeholder="Please Enter..."
+                      placeholder={t('action-enter-placeholder')}
                     />
                   </div>
 
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                      Employment Type<span className="gba:text-destructive"> *</span>
+                      {t('employee-form-employment-type')}
+                      <span className="gba:text-destructive"> *</span>
                     </label>
                     <Select
                       value={formValues.employmentTypeId || undefined}
@@ -326,12 +344,14 @@ const EmployeeForm: React.FC = () => {
                       disabled={!formValues.jobPositionId || employmentTypesLoading}
                     >
                       <SelectTrigger className="gba:w-full">
-                        <SelectValue placeholder={employmentTypesLoading ? 'Loading...' : 'Please Select...'} />
+                        <SelectValue
+                          placeholder={employmentTypesLoading ? t('loading') : t('action-select-placeholder')}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {employmentTypes.length === 0 ? (
                           <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                            {employmentTypesLoading ? 'Loading...' : 'No results found'}
+                            {employmentTypesLoading ? t('loading') : t('employee-form-no-results')}
                           </div>
                         ) : (
                           employmentTypes.map(type => (
@@ -349,7 +369,8 @@ const EmployeeForm: React.FC = () => {
 
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                      Contract Type<span className="gba:text-destructive"> *</span>
+                      {t('employee-form-contract-type')}
+                      <span className="gba:text-destructive"> *</span>
                     </label>
                     <Select
                       value={formValues.contractTypeId || undefined}
@@ -357,12 +378,14 @@ const EmployeeForm: React.FC = () => {
                       disabled={!formValues.jobPositionId || contractTypesLoading}
                     >
                       <SelectTrigger className="gba:w-full">
-                        <SelectValue placeholder={contractTypesLoading ? 'Loading...' : 'Please Select...'} />
+                        <SelectValue
+                          placeholder={contractTypesLoading ? t('loading') : t('action-select-placeholder')}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {contractTypes.length === 0 ? (
                           <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                            {contractTypesLoading ? 'Loading...' : 'No results found'}
+                            {contractTypesLoading ? t('loading') : t('employee-form-no-results')}
                           </div>
                         ) : (
                           contractTypes.map(type => (
@@ -396,7 +419,7 @@ const EmployeeForm: React.FC = () => {
             className="gba:w-full"
             onClick={handleSubmit}
           >
-            {loading ? 'Submitting...' : isEdit ? 'Update Employee' : 'Create Employee'}
+            {loading ? t('loading') : isEdit ? t('employee-form-update-employee') : t('employee-form-create-employee')}
           </Button>
         </div>
       </form>
