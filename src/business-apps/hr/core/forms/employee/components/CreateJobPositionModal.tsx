@@ -1,7 +1,16 @@
 import React, { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Input, Button } from '@newwork/nw-design-system'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Button,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import translations from '../../_i18n'
 
 const MAX_NAME_LENGTH = 64
 
@@ -24,6 +33,7 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
   onCancel,
   onSuccess
 }) => {
+  const { t } = useTranslation(translations)
   const [name, setName] = useState('')
   const [count, setCount] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -72,7 +82,7 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
       handleClose()
     } catch (err) {
       console.error('Error creating job position:', err)
-      setError('Failed to create job position. Please try again.')
+      setError(t('create-job-position-error'))
     } finally {
       setLoading(false)
     }
@@ -89,18 +99,19 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
     <Dialog open={visible} onOpenChange={open => !open && handleClose()}>
       <DialogContent data-testid="create-job-position-modal" className="gba:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Job Position</DialogTitle>
+          <DialogTitle>{t('create-job-position-title')}</DialogTitle>
         </DialogHeader>
 
         <div className="gba:space-y-4">
           <div>
             <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-              Name<span className="gba:text-destructive"> *</span>
+              {t('create-job-position-name')}
+              <span className="gba:text-destructive"> *</span>
             </label>
             <Input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Please Enter..."
+              placeholder={t('action-enter-placeholder')}
               maxLength={MAX_NAME_LENGTH}
               data-testid="job-position-name-input"
             />
@@ -108,7 +119,8 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
 
           <div>
             <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-              Total open<span className="gba:text-destructive"> *</span>
+              {t('create-job-position-total-open')}
+              <span className="gba:text-destructive"> *</span>
             </label>
             <Input
               type="number"
@@ -121,7 +133,7 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
 
           <div>
             <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-              Organizational Unit
+              {t('create-job-position-organizational-unit')}
             </label>
             <Input value={organizationalUnitName} disabled className="gba:bg-muted" />
           </div>
@@ -130,7 +142,7 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
 
           <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
             <Button variant="outline" onClick={handleClose} data-testid="create-job-position-cancel">
-              Cancel
+              {t('action-cancel')}
             </Button>
             <Button
               variant="default"
@@ -138,7 +150,7 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
               onClick={handleSubmit}
               data-testid="create-job-position-submit"
             >
-              {loading ? 'Submitting...' : 'Submit'}
+              {loading ? t('loading') : t('action-submit')}
             </Button>
           </div>
         </div>
