@@ -43,7 +43,9 @@ export class RestClient {
   }
 
   private async request<T = any>(method: HttpMethod, path: string, options: RequestOptionsWithBody = {}): Promise<T> {
-    const url = new URL(this.baseUrl + path)
+    // Handle both absolute and relative URLs
+    const fullPath = this.baseUrl + path
+    const url = fullPath.startsWith('http') ? new URL(fullPath) : new URL(fullPath, window.location.origin)
 
     // Add query parameters if provided
     if (options.params) {
@@ -160,7 +162,6 @@ export class RestClient {
         }
       }
     } catch (e: unknown) {
-      console.error('Failed to parse response:', e)
       const errorMessage = e instanceof Error ? e.message : String(e)
       throw new Error(`Failed to parse response: ${errorMessage}`)
     }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, TabsList, TabsTrigger, EmptyState } from '@newwork/nw-design-system'
 import { Home, PieChart as PieChartIcon } from 'lucide-react'
 import { OverviewTabLayout, OverviewTabLayoutProps } from './overview/OverviewTabLayout'
 import { PipelineTabLayout, PipelineTabLayoutProps } from './pipeline/PipelineTabLayout'
@@ -11,6 +11,7 @@ export interface DashboardLayoutProps {
   initialTab?: DashboardTabKey
   dataTestId?: string
   moduleColor?: string
+  onTabChange?: (tabKey: DashboardTabKey) => void
 
   // Tab-specific props
   overviewProps?: OverviewTabLayoutProps
@@ -22,9 +23,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   initialTab,
   dataTestId,
   moduleColor = 'default',
+  onTabChange,
   overviewProps,
   pipelineProps
 }) => {
+  // Compute tabs before any conditional returns
   const tabs = useMemo(() => {
     const items: Array<{
       key: DashboardTabKey
@@ -57,10 +60,28 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     return items
   }, [overviewProps, pipelineProps, moduleColor])
 
-  const [activeTab, setActiveTab] = useState<string>(initialTab || (tabs[0]?.key as string))
+  const [activeTab, setActiveTab] = useState<string>(initialTab || tabs[0]?.key || '')
+
+  // Check if there's no data to display
+  const hasNoData = !overviewProps && !pipelineProps
+
+  if (hasNoData) {
+    return (
+      <div className="gba:p-6" data-testid={dataTestId || 'dashboard-layout'}>
+        {header}
+        <EmptyState
+          type="no-data"
+          title="No Dashboard Data"
+          description="Unable to load dashboard data or no pipelines available"
+          data-testid={`${dataTestId || 'dashboard-layout'}-empty-state`}
+        />
+      </div>
+    )
+  }
 
   const handleTabChange = (key: string) => {
     setActiveTab(key)
+    onTabChange?.(key)
   }
 
   return (

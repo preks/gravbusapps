@@ -13,8 +13,6 @@ import {
   Spinner,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -22,6 +20,7 @@ import {
 } from '@newwork/nw-design-system'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils'
 
@@ -43,9 +42,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { useExpensePlanFileService } from '../../../../personal-expenses/utils/expensePlanFileService'
+import { useExpensePlanFileService } from '../../../../../common/files/useExpensePlanFileService'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { ensureShortDateFormat } from '../../../utils/dateUtils'
+import { TablePagination } from '../../../../../components'
 
 interface ExpensePlansTableProps extends BusinessAppContextProps {
   search?: string
@@ -156,33 +156,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
       setPrintModalOpen(true)
 
       try {
-        // Map manager-expenses ExpensePlan to personal-expenses format
-        const mappedPlan = {
-          ...plan,
-          reimbursableAmount: plan.totalAmount,
-          decisionDate: null,
-          requestTypeRef: null,
-          employeeDocumentId: plan.employeeDocument?.id || null,
-          advancePaymentPaidAmount: 0,
-          advancePaymentInTransitAmount: 0,
-          employeeDocument: plan.employeeDocument,
-          requestType: null,
-          expensePlanItem: [],
-          advancePayment: null,
-          expenseRequestTrip: null,
-          currencyRef: `Currency:v1:${plan.currency}`,
-          expenseRequest: [],
-          currency: { value: plan.currency, label: plan.currency } as any,
-          description: plan.description || '',
-          employee: {
-            ...plan.employee,
-            code: plan.employee.id,
-            firstName: plan.employee.displayName?.split(' ')[0] || '',
-            lastName: plan.employee.displayName?.split(' ').slice(1).join(' ') || ''
-          }
-        }
-
-        const result = await printExpensePlan(mappedPlan)
+        const result = await printExpensePlan(plan as any)
 
         if (result.success && result.pdfUrl && isMounted.current) {
           setPrintPdfUrl(result.pdfUrl)
@@ -190,7 +164,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
           console.error('[Print Error]', result.error)
         }
       } catch (error) {
-        console.error('[Print Exception]', error)
+        console.error('[Print Exception]', error instanceof Error ? error.message : 'Unknown error')
       } finally {
         if (isMounted.current) {
           setPrintLoading(false)
@@ -198,14 +172,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
       }
     },
     [printExpensePlan, isMounted]
-  )
-
-  // Pagination handlers - used directly in the component
-  const handlePageChange = useCallback(
-    (page: number) => {
-      setCurrentPage(page)
-    },
-    [setCurrentPage]
   )
 
   // Sorting handler
@@ -231,14 +197,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
     [sorting]
   )
 
-  // Handle page size changes in the pagination controls
-  const handlePageSizeChange = useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
-      const size = parseInt(event.target.value, 10)
-      setPageSize(size)
-      setCurrentPage(1) // Reset to first page when changing page size
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      setCurrentPage(pagination.current)
+      setPageSize(pagination.pageSize)
     },
-    [setPageSize, setCurrentPage]
+    [setCurrentPage, setPageSize]
   )
 
   // Show error state
@@ -531,117 +496,18 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         </div>
 
         {/* Pagination */}
-        {totalCount > pageSize ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-            data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
-          >
-            <div
-              className="gba:text-sm gba:text-muted-foreground"
-              data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-                'Expense Plans'
-              )}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                </p>
-                <select
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  value={pageSize}
-                  onChange={handlePageSizeChange}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div
-                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                {Math.ceil(totalCount / pageSize)}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                >
-                  <span className="gba:sr-only">Go to first page</span>⟪
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                >
-                  <span className="gba:sr-only">Go to previous page</span>⟨
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                >
-                  <span className="gba:sr-only">Go to next page</span>⟩
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(Math.ceil(totalCount / pageSize))}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                >
-                  <span className="gba:sr-only">Go to last page</span>⟫
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : totalCount > 0 ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-            data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
-          >
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {`${totalCount} ${getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-                'Expense Plans'
-              )}`}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-              </p>
-              <select
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                value={pageSize}
-                onChange={handlePageSizeChange}
-                data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-        ) : null}
+        <TablePagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={totalCount}
+          onPageChange={handleTablePaginationChange}
+          entityNamePlural={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+            'Expense Plans'
+          )}
+          dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+          showBorder={false}
+        />
       </div>
 
       {/* Print Dialog using design system */}
@@ -690,7 +556,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         </DialogContent>
       </Dialog>
 
-      {/* Expense Plan Details Sheet - title is required by DS Sheet props */}
+      {/* Expense Plan Details Sheet */}
       <Sheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
@@ -701,18 +567,20 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
             'Expense Plan Details'
           )
         }
+        data-testid="expense-plan-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.expense_subtitle_details',
-                  'Expense Plan Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+        <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:approve_expense_plan.expense_subtitle_details',
+                'Expense Plan Details'
+              )
+            }
+            onClose={handleCloseDetails}
+            dataTestIdPrefix="expense-plan-details"
+          >
             {selectedItem && (
               <ExpensePlanDetails
                 selectedItem={selectedItem}
@@ -721,7 +589,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                 userInfo={contextProps.userInfo}
               />
             )}
-          </div>
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </div>

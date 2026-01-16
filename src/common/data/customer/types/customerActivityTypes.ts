@@ -38,10 +38,21 @@ export const CustomerActivityFormFields = {
 /**
  * Customer Activity Descriptors
  * Uses createActivityDescriptors with CustomerActivityFields mapping
- * CRM uses correct field names, so we use Common descriptors directly
+ * Note: SalesOpportunity doesn't have a 'description' field, so we override the opportunity descriptor
  */
 export const CUSTOMER_ACTIVITY_DESCRIPTORS: Descriptor[] = [
-  ...createActivityDescriptors(CustomerActivityFields as Record<keyof typeof ActivityFields, string>)
+  ...createActivityDescriptors(CustomerActivityFields as Record<keyof typeof ActivityFields, string>).map(
+    descriptor => {
+      // Override opportunity descriptor to remove description field (CRM doesn't have it either)
+      if (descriptor.key === 'opportunity') {
+        return {
+          ...descriptor,
+          searchPaths: [`${CustomerActivityFields.opportunity}.name`] // Only name, no description
+        }
+      }
+      return descriptor
+    }
+  )
 ]
 
 /**

@@ -38,7 +38,7 @@ export const fetchCountryCurrency = async (
       }
     }
   } catch {
-    // Ignore currency fetch errors
+    // Silently handle currency fetch errors
   }
 
   return { currencyRef: null, currencyCode: '' }

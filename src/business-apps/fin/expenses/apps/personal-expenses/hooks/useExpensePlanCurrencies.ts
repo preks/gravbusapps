@@ -18,16 +18,23 @@ export const useExpensePlanCurrencies = (
   const [currencyStats, setCurrencyStats] = useState<PlanCurrencyStat[]>([])
   const hasPreselectedCurrencyRef = useRef<boolean>(false)
   const [initialized, setInitialized] = useState<boolean>(false)
+  const selectedFiltersRef = useRef<string[]>(selectedFilters)
+  const lastFetchKeyRef = useRef<string | null>(null)
+  const inflightRef = useRef<Promise<PlanCurrencyStat[]> | null>(null)
 
   const selectedCurrencyRef = useMemo(() => {
     const token = selectedFilters.find(f => f.startsWith('currency:'))
     return token ? token.substring('currency:'.length) : undefined
   }, [selectedFilters])
 
+  useEffect(() => {
+    selectedFiltersRef.current = selectedFilters
+  }, [selectedFilters])
+
   const preselectMostUsedOnce = useCallback(
     (stats: PlanCurrencyStat[]) => {
       if (!setFilters || hasPreselectedCurrencyRef.current || stats.length === 0) return
-      const anyCurrencySelected = selectedFilters.some(f => f.startsWith('currency:'))
+      const anyCurrencySelected = selectedFiltersRef.current.some(f => f.startsWith('currency:'))
       if (anyCurrencySelected) return
       // Compute most-used by currency CODE across versions (v1/v2), ignoring fallback/default
       const codeCounts = new Map<string, number>()
@@ -60,11 +67,11 @@ export const useExpensePlanCurrencies = (
       // If no concrete ref exists for the top code, synthesize a v1-style ref so the
       // table filter can still match by code via the OR logic
       const refToUse = candidate ? candidate.ref : `Currency:v1:${topCode}`
-      const nonCurrencyFilters = selectedFilters.filter(f => !f.startsWith('currency:'))
+      const nonCurrencyFilters = selectedFiltersRef.current.filter(f => !f.startsWith('currency:'))
       setFilters([...nonCurrencyFilters, `currency:${refToUse}`])
       hasPreselectedCurrencyRef.current = true
     },
-    [selectedFilters, setFilters]
+    [setFilters]
   )
 
   useEffect(() => {
@@ -74,9 +81,22 @@ export const useExpensePlanCurrencies = (
       return
     }
 
+    const fetchKey = `${employeeId}`
+    // Avoid refetching currencies on every filter change; only refetch when employee changes.
+    // Also dedupe React StrictMode double-invocation by reusing the in-flight promise.
+    if (lastFetchKeyRef.current === fetchKey) {
+      if (initialized) return
+      if (inflightRef.current) {
+        inflightRef.current.finally(() => setInitialized(true))
+        return
+      }
+    }
+
+    lastFetchKeyRef.current = fetchKey
+
     const fetchCurrencies = async () => {
       try {
-        const stats = await fetchEmployeeCurrencyStats({
+        const p = fetchEmployeeCurrencyStats({
           accessToken,
           query: GET_USED_PLAN_CURRENCIES_BY_EMPLOYEE,
           variables: { employeeId, limit: 2000 },
@@ -85,18 +105,22 @@ export const useExpensePlanCurrencies = (
             currencyRef: r.currencyRef || r.expenseRequest?.[0]?.currencyRef || DEFAULT_CURRENCY_REF,
             currency: { code: r.currency?.code || r.expenseRequest?.[0]?.currency?.code || 'EUR' }
           })
-        })
-        setCurrencyStats(stats as PlanCurrencyStat[])
-        preselectMostUsedOnce(stats as PlanCurrencyStat[])
+        }).then(res => res as PlanCurrencyStat[])
+
+        inflightRef.current = p
+        const stats = await p
+        setCurrencyStats(stats)
+        preselectMostUsedOnce(stats)
       } catch {
         // ignore
       } finally {
+        inflightRef.current = null
         setInitialized(true)
       }
     }
 
     fetchCurrencies()
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, preselectMostUsedOnce])
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, preselectMostUsedOnce, initialized])
 
   return {
     currencyStats,

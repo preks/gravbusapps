@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, IconAvatar, Badge } from '@newwork/nw-design-system'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { type LucideIcon } from 'lucide-react'
+import { TrendUpIcon, TrendDownIcon, MinusIcon, type Icon } from '@phosphor-icons/react'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 import { useCurrencySync } from '../../analytics-view/shared/hooks'
@@ -16,7 +15,7 @@ export interface SubType {
 
 export interface InvestmentGroup {
   name: string
-  icon: LucideIcon
+  icon: Icon
   investments: number
   groupInvestments: Investment[]
 }
@@ -131,14 +130,14 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
     if (trend.trend === 'neutral') {
       return (
         <Badge variant="outline" className="gba:flex gba:items-center gba:gap-1">
-          <Minus className="gba:w-3 gba:h-3" />
+          <MinusIcon className="gba:w-3 gba:h-3" />
           <span className="gba:text-xs">No change</span>
         </Badge>
       )
     }
 
     const variant = trend.trend === 'up' ? 'success' : 'destructive'
-    const Icon = trend.trend === 'up' ? TrendingUp : TrendingDown
+    const Icon = trend.trend === 'up' ? TrendUpIcon : TrendDownIcon
     const sign = trend.trend === 'up' ? '+' : '-'
 
     return (

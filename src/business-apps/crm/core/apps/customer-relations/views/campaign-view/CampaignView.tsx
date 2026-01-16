@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { DataDisplay, DataTable, Button } from '@newwork/nw-design-system'
-import { Plus } from 'lucide-react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useSalesCampaignData,
@@ -190,7 +190,7 @@ const CampaignView: React.FC<CampaignViewProps> = props => {
             emptyStateBehavior="hide"
           >
             <Button size="sm" variant="default" data-testid="add-campaign-button" type="button">
-              <Plus size={16} />
+              <PlusIcon size={16} />
               {getTranslationFromI18nKeyAndLabel('crm:campaign.addCampaign', 'Add Campaign')}
             </Button>
           </AppAction>

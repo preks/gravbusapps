@@ -184,10 +184,14 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   additionalData
 }) => {
   const [activeTab, setActiveTab] = useState(initialActiveTab)
-  const activeStructureId = getCurrentActiveStructureId()
+  const activeStructureId = getCurrentActiveStructureId() || ''
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
+  const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
+
+  // Handle undefined as true (enabled by default until FeatureHub loads)
+  const compensationFeatureFlag = compensationFeatureFlagRaw !== false
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -249,7 +253,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       <div className="gba:employee-profile gba:w-full gba:h-full">
         <ScreenBody className="gba:h-full gba:w-full">
           <ProfileLayout
-            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} />}
+            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} isSelfView={isSelfView} />}
             contentHeader={tabNavigation}
             contentContainer={getTabContent()}
             headerPlacement="left"
@@ -323,7 +327,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     isSelfView,
     isManager,
     hasEmployeeGrowthPermission: !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true,
-    hasEmployeeRecordAllHrBackoffice: employeeRecordAllHrBackoffice?.hasPermission === true
+    hasEmployeeRecordAllHrBackoffice:
+      !employeeRecordAllHrBackoffice.loading && employeeRecordAllHrBackoffice?.hasPermission === true
   })
 
   const getTabItems = () => {
@@ -414,7 +419,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      ...(devFeatureFlag
+      ...(compensationFeatureFlag
         ? [
             {
               key: TAB_KEYS.compensation,
@@ -431,14 +436,15 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               ),
               children: (
                 <CompensationTab
-                  employee={employee}
                   employeeId={employeeIdToShow}
                   accessToken={accessToken}
                   userInfo={userInfo}
-                  isSelfView={isSelfView}
-                  devFeatureFlag={devFeatureFlag as boolean}
+                  compensationFeatureFlag={compensationFeatureFlag as boolean}
                   employeeRecordHrBackoffice={employeeRecordHrBackoffice}
                   additionalData={additionalData}
+                  employeeGrowthPermission={employeeGrowthPermission}
+                  employeeRecordAllHrBackoffice={employeeRecordAllHrBackoffice}
+                  compensationPermissions={compensationPermissions}
                 />
               )
             }

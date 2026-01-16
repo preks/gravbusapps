@@ -156,11 +156,6 @@ export const useExpenseItemStatistics = (context: BusinessAppContextProps, curre
       if (!isMounted.current) return
       setStats(s => ({ ...s, pendingItemCountFromApi: count }))
     } catch {
-      console.error('Error refreshing pending item count', {
-        employeeId,
-        currencyRef,
-        error
-      })
       if (!isMounted.current) return
       setStats(s => ({ ...s, pendingItemCountFromApi: 0 }))
     }

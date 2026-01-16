@@ -97,18 +97,26 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
     if (!context.accessToken) return
     try {
       const res = await graphqlClient.request<{
-        Opportunity: Array<{ account?: { id: string; name: string } | null }>
+        Opportunity: Array<{
+          opportunityAccounts: Array<{
+            account: { id: string; name: string }
+          }>
+        }>
       }>(`
         query GetOppAccounts {
           Opportunity(where: { isDeleted: { _eq: false } }, limit: 100) {
-            account { id name }
+            opportunityAccounts {
+              account { id name }
+            }
           }
         }
       `)
       const map = new Map<string, string>()
       for (const r of res?.Opportunity || []) {
-        const a = r.account
-        if (a?.id) map.set(a.id, a.name)
+        for (const oa of r.opportunityAccounts || []) {
+          const a = oa.account
+          if (a?.id) map.set(a.id, a.name)
+        }
       }
       setAccounts(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
     } catch {

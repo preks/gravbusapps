@@ -54,8 +54,10 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
               : undefined
 
             const total = annualLeaveEntitlement?.total || 0
-            const remaining = annualLeaveEntitlement?.available || 0
-            const used = total - remaining
+            const approved = annualLeaveEntitlement?.used || 0 // 'used' property contains approved absences
+            const pending = annualLeaveEntitlement?.pending || 0
+            const totalUsed = approved + pending
+            const remaining = total - totalUsed
 
             const chartColors = ['var(--nw-success)', 'var(--nw-warning)']
 
@@ -67,7 +69,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
               },
               {
                 name: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_days', 'Used Days'),
-                value: used,
+                value: totalUsed,
                 color: chartColors[1]
               }
             ]
@@ -110,8 +112,8 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                   <div className="gba:flex gba:items-center gba:gap-1.5">
                     <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning"></div>
                     <span className="gba:text-sm">
-                      {used} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')} (
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending', 'Pending')} +{' '}
+                      {totalUsed} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')}{' '}
+                      ({getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending', 'Pending')} +{' '}
                       {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.approved', 'Approved')})
                     </span>
                   </div>

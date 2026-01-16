@@ -179,8 +179,19 @@ label-country = Land
 label-city = Stadt
 label-currency = Währung
 
+# Common Text
+common-characters = Zeichen
+
+# Benefit Summary Card Translations
+benefit-provider = Anbieter
+benefit-value-yearly = Jahreswert
+benefit-details-monthly-value = Monatswert
+current-annually = Jährlich
+current-monthly = Monatlich
+modal-request-start-date-label = Startdatum
+
 # Deactivate Employee Benefit Review Form
-deactivate-benefit-review-title = Deaktivierungsanfrage für Zusatzleistung von { $employeeName }
+deactivate-benefit-review-title = Deaktivierungsanfrage für Zusatzleistung
 deactivate-benefit-review-requested-by = Angefordert von { $initiatorName }
 deactivate-benefit-review-loading = Lade Deaktivierungsanfrage für Zusatzleistung...
 deactivate-benefit-review-error-title = Daten können nicht geladen werden
@@ -190,6 +201,7 @@ deactivate-benefit-review-deactivation-details = Deaktivierungsanfrage
 deactivate-benefit-review-submit = Zusatzleistung deaktivieren
 deactivate-benefit-review-benefit-type = Art der Zusatzleistung
 deactivate-benefit-review-provider = Anbieter
+deactivate-benefit-review-value = Wert
 deactivate-benefit-review-yearly-value = Jahreswert
 deactivate-benefit-review-monthly-value = Monatswert
 deactivate-benefit-review-period = Zeitraum
@@ -201,14 +213,18 @@ deactivate-benefit-review-end-date = Angefordertes Enddatum
 deactivate-benefit-review-reason = Grund für Deaktivierung
 
 # Request Employee Benefit Review Form
-request-benefit-review-title = Überprüfung der Zusatzleistung für { $employeeName }
+request-benefit-review-title = Zusatzleistungsanfrage überprüfen
 request-benefit-review-initiated-by = Initiiert von { $initiatorName }
 request-benefit-review-benefit-details = Details zur Zusatzleistung
 request-benefit-review-benefit-type = Art der Zusatzleistung
 request-benefit-review-provider = Anbieter
-request-benefit-review-yearly-value = Jährlicher Wert
-request-benefit-review-monthly-value = Monatlicher Wert
+request-benefit-review-value = Wert
 request-benefit-review-period = Zeitraum
+
+# Period translations
+period-monthly = Monatlich
+period-yearly = Jährlich
+period-daily = Täglich
 request-benefit-review-start-date = Gewünschtes Startdatum
 request-benefit-review-employee-yearly-contribution = Jährlicher Beitrag des Mitarbeiters
 request-benefit-review-employee-monthly-contribution = Monatlicher Beitrag des Mitarbeiters
@@ -221,3 +237,113 @@ request-benefit-review-reject = Ablehnen
 request-benefit-review-loading = Lade Zusatzleistungsdaten...
 request-benefit-review-error-title = Daten können nicht geladen werden
 request-benefit-review-error-description = Fehler beim Laden der Mitarbeiter-Zusatzleistungsdaten
+
+# Deactivate Employee Benefit Form
+modal-deactivate-title = Mitarbeiter-Zusatzleistung deaktivieren
+modal-deactivate-end-date-label = Enddatum
+modal-deactivate-submit-button = Zusatzleistung deaktivieren
+
+# Deactivate Employee Benefit Form - Validation Messages
+error-end-date-required = Enddatum ist erforderlich. Bitte wählen Sie ein Enddatum aus.
+error-end-date-today-or-later = Das Enddatum muss heute oder später sein.
+error-end-date-after-start-date = Das Enddatum kann nicht vor dem Startdatum der Zusatzleistung liegen.
+
+# ============================================
+# Pending Submission Status Messages
+# ============================================
+
+# Change Bank Account Form
+change-bank-account-process-title = Bankkontoänderung
+change-bank-account-pending-status = Ausstehend
+
+# Change Address Form
+change-address-process-title = Adressänderung
+change-address-pending-status = Ausstehend
+
+# Change Personal Data Form
+change-personal-data-process-title = Persönliche Datenänderung
+change-personal-data-pending-status = Ausstehend
+
+# Change Communication Form
+change-communication-process-title = Kommunikationsänderung
+change-communication-pending-status = Ausstehend
+
+# Grant Bonus Form
+grant-bonus-process-title = Bonusgewährung
+grant-bonus-pending-status = Ausstehend
+
+# Adjust Salary Form
+adjust-salary-process-title = Gehaltsanpassung
+adjust-salary-pending-status = Ausstehend
+
+# Update Working Conditions Form
+working-conditions-probation-period = Probezeit
+working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
+working-conditions-unit-day = { $count ->
+    [one] Tag
+   *[other] Tage
+}
+working-conditions-unit-week = { $count ->
+    [one] Woche
+   *[other] Wochen
+}
+working-conditions-unit-month = { $count ->
+    [one] Monat
+   *[other] Monate
+}
+working-conditions-unit-year = { $count ->
+    [one] Jahr
+   *[other] Jahre
+}
+
+# Create Request Correction Form
+complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
+notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
+notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
+
+# ============================================
+# Create Employee Form
+# ============================================
+
+# Section Headers
+employee-form-personal-information = Persönliche Informationen
+employee-form-employment-information = Beschäftigungsinformationen
+employee-form-additional-attributes = Zusätzliche Attribute
+
+# Field Labels
+employee-form-first-name = Vorname
+employee-form-last-name = Nachname
+employee-form-email = E-Mail
+employee-form-organizational-unit = Organisationseinheit
+employee-form-job-position = Stelle
+employee-form-hire-date = Einstellungsdatum
+employee-form-preferred-name = Bevorzugter Name
+employee-form-employment-type = Beschäftigungsart
+employee-form-contract-type = Vertragsart
+
+# Validation Messages
+employee-form-email-invalid = Bitte geben Sie eine gültige E-Mail-Adresse ein
+
+# Empty States
+employee-form-no-results = Keine Ergebnisse gefunden
+employee-form-no-positions = Keine Stellen verfügbar
+employee-form-no-vacant-positions = Keine freien Stellen in der ausgewählten Organisationseinheit verfügbar
+
+# Tooltips
+employee-form-create-job-position-tooltip = Neue Stelle erstellen
+employee-form-select-org-unit-first = Bitte zuerst eine Organisationseinheit auswählen
+
+# Buttons
+employee-form-create-employee = Mitarbeiter erstellen
+employee-form-update-employee = Mitarbeiter aktualisieren
+
+# ============================================
+# Create Job Position Modal
+# ============================================
+
+create-job-position-title = Stelle erstellen
+create-job-position-name = Name
+create-job-position-total-open = Anzahl offener Stellen
+create-job-position-organizational-unit = Organisationseinheit
+create-job-position-error = Stelle konnte nicht erstellt werden. Bitte versuchen Sie es erneut.

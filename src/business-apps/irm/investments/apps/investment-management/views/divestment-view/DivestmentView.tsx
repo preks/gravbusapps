@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
-import { DollarSign, Target, TrendingDown } from 'lucide-react'
+import { CurrencyDollarIcon, TargetIcon, TrendDownIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -14,17 +14,17 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
   const tabOptions = [
     {
       key: 'planned-exits',
-      icon: <TrendingDown />,
+      icon: <TrendDownIcon />,
       label: getTranslationFromI18nKeyAndLabel('planned_exits', 'Planned Exits')
     },
     {
       key: 'exit-opportunities',
-      icon: <Target />,
+      icon: <TargetIcon />,
       label: getTranslationFromI18nKeyAndLabel('exit_opportunities', 'Exit Opportunities')
     },
     {
       key: 'exits',
-      icon: <DollarSign />,
+      icon: <CurrencyDollarIcon />,
       label: getTranslationFromI18nKeyAndLabel('exits', 'Exits')
     }
   ]

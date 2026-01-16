@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { FileText, Upload as UploadIcon, X } from 'lucide-react'
+import { FileTextIcon, UploadIcon, XIcon } from '@phosphor-icons/react'
 import {
   FormField,
   FormItem,
@@ -27,7 +27,7 @@ import { AppActionForm } from '@/components/app-action-form'
 import type { InvestmentReportUploadFormProps, UploadFile } from './types'
 
 const DEFAULT_ALLOWED_FILE_TYPES = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.jpg', '.jpeg', '.png']
-const DEFAULT_MAX_FILES = 1
+const DEFAULT_MAXIcon_FILES = 1
 
 export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & InvestmentReportUploadFormProps> = ({
   // Form behavior props
@@ -41,7 +41,7 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
   // UI customization props
   title,
   description,
-  maxFiles = DEFAULT_MAX_FILES,
+  maxFiles = DEFAULT_MAXIcon_FILES,
   allowedFileTypes = DEFAULT_ALLOWED_FILE_TYPES,
 
   // Business app context props
@@ -563,7 +563,7 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
                   >
                     <div className="gba:flex gba:flex-col gba:gap-1">
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-muted-foreground)' }} />
+                        <FileTextIcon className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-muted-foreground)' }} />
                         <span className="gba:text-sm gba:font-medium" style={{ color: 'var(--nw-color-text-primary)' }}>
                           {file.name}
                         </span>
@@ -589,7 +589,7 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
                       className="gba:h-6 gba:w-6 gba:p-0"
                       data-testid={`remove-file-${file.uid}`}
                     >
-                      <X className="gba:h-4 gba:w-4" />
+                      <XIcon className="gba:h-4 gba:w-4" />
                     </Button>
                   </div>
                 ))}

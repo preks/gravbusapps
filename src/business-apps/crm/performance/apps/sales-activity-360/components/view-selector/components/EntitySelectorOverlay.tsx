@@ -12,7 +12,7 @@ import {
   Spinner,
   ScrollArea
 } from '@newwork/nw-design-system'
-import { PiUser, PiBuilding, PiUserCircle, PiTarget, PiHandshake, PiMagnifyingGlass } from 'react-icons/pi'
+import { UserIcon, BuildingIcon, TargetIcon, HandshakeIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ActivityViewFilter } from '../../../types'
 
@@ -38,7 +38,7 @@ const getEntityConfig = (type: ActivityViewFilter) => {
       return {
         title: 'Select Employee',
         description: 'Choose an employee to view their activities',
-        icon: <PiUser className="gba:w-6 gba:h-6" />,
+        icon: <UserIcon className="gba:w-6 gba:h-6" />,
         placeholder: 'Search employees...',
         color: 'gba:bg-primary/10 gba:text-primary'
       }
@@ -46,7 +46,7 @@ const getEntityConfig = (type: ActivityViewFilter) => {
       return {
         title: 'Select Account',
         description: 'Choose an account to view related activities',
-        icon: <PiBuilding className="gba:w-6 gba:h-6" />,
+        icon: <BuildingIcon className="gba:w-6 gba:h-6" />,
         placeholder: 'Search accounts...',
         color: 'gba:bg-accent/10 gba:text-accent-foreground'
       }
@@ -54,7 +54,7 @@ const getEntityConfig = (type: ActivityViewFilter) => {
       return {
         title: 'Select Contact',
         description: 'Choose a contact to view their touchpoints',
-        icon: <PiUserCircle className="gba:w-6 gba:h-6" />,
+        icon: <UserIconCircle className="gba:w-6 gba:h-6" />,
         placeholder: 'Search contacts...',
         color: 'gba:bg-muted gba:text-muted-foreground'
       }
@@ -62,7 +62,7 @@ const getEntityConfig = (type: ActivityViewFilter) => {
       return {
         title: 'Select Lead',
         description: 'Choose a lead to view engagement activities',
-        icon: <PiTarget className="gba:w-6 gba:h-6" />,
+        icon: <TargetIcon className="gba:w-6 gba:h-6" />,
         placeholder: 'Search leads...',
         color: 'gba:bg-secondary/10 gba:text-secondary-foreground'
       }
@@ -70,7 +70,7 @@ const getEntityConfig = (type: ActivityViewFilter) => {
       return {
         title: 'Select Opportunity',
         description: 'Choose an opportunity to view deal activities',
-        icon: <PiHandshake className="gba:w-6 gba:h-6" />,
+        icon: <HandshakeIcon className="gba:w-6 gba:h-6" />,
         placeholder: 'Search opportunities...',
         color: 'gba:bg-accent/10 gba:text-accent-foreground'
       }
@@ -78,7 +78,7 @@ const getEntityConfig = (type: ActivityViewFilter) => {
       return {
         title: 'Select Entity',
         description: 'Choose an entity',
-        icon: <PiUser className="gba:w-6 gba:h-6" />,
+        icon: <UserIcon className="gba:w-6 gba:h-6" />,
         placeholder: 'Search...',
         color: 'gba:bg-primary/10 gba:text-primary'
       }
@@ -87,6 +87,9 @@ const getEntityConfig = (type: ActivityViewFilter) => {
 
 // GraphQL queries for each entity type - use correct entity names (Account, Contact, Lead, Opportunity)
 const buildQuery = (type: ActivityViewFilter, search?: string) => {
+  // Sales Associate capability name for filtering (consistent with Sales Performance module)
+  const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
   switch (type) {
     case 'by-employee':
       return search?.trim()
@@ -96,6 +99,15 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
             where: {
               _and: [
                 { isDeleted: { _eq: false } }
+                {
+                  employeePosition: {
+                    employeeCapabilities: {
+                      capability: {
+                        name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                      }
+                    }
+                  }
+                }
                 { _or: [
                   { fullName: { _ilike: "%${search}%" } }
                   { firstName: { _ilike: "%${search}%" } }
@@ -122,7 +134,16 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
         : `
         query GetEmployees {
           Employee(
-            where: { isDeleted: { _eq: false } }
+            where: { 
+              isDeleted: { _eq: false }
+              employeePosition: {
+                employeeCapabilities: {
+                  capability: {
+                    name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+                  }
+                }
+              }
+            }
             limit: 50
             orderBy: { fullName: ASC_NULLS_LAST }
           ) {
@@ -417,7 +438,7 @@ export const EntitySelectorOverlay: React.FC<EntitySelectorOverlayProps> = ({
         {/* Search */}
         <div className="gba:p-4 gba:border-b">
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
+            <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
             <Input
               placeholder={config.placeholder}
               value={search}

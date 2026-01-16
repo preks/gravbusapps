@@ -24,6 +24,14 @@ export interface EmployeeRelationship {
   notes?: string | null
 }
 
+export interface EmployeeCommunication {
+  id: string
+  channelRef?: string
+  purpose?: string
+  typeRef?: string
+  value?: string
+}
+
 // GraphQL query to fetch relationship types from CatalogEntry (EmployeeRelationships)
 export const GET_RELATIONSHIP_TYPES = `
  query fetchEmployee($idEmployee: uuid!, $activeUserLocale: String!) {
@@ -45,6 +53,13 @@ export const GET_RELATIONSHIP_TYPES = `
     relationshipDocumentId
     typeRef
     notes
+   }
+   communication {
+    id
+    channelRef
+    purpose
+    typeRef
+    value
    }
  }
  EmployeePosition(where: {employeeId: {_eq: $idEmployee}}) {
@@ -99,10 +114,30 @@ export const GET_RELATIONSHIP_TYPES = `
 }
 `
 
+/**
+ * Extracts the private phone number from employee communications.
+ * Looks for a communication with channelRef containing "Phone" and purpose "Private".
+ */
+const getPrivatePhoneNumber = (communications: EmployeeCommunication[]): string | null => {
+  if (!communications || communications.length === 0) return null
+
+  // Find private phone communication (channelRef contains "Phone", purpose is "Private")
+  const privatePhone = communications.find(comm => {
+    const channelLower = (comm.channelRef || '').toLowerCase()
+    const purposeLower = (comm.purpose || '').toLowerCase()
+    const isPhone = channelLower.includes('phone') || channelLower.includes('mobile')
+    const isPrivate = purposeLower === 'private'
+    return isPhone && isPrivate
+  })
+
+  return privatePhone?.value || null
+}
+
 export const useRelationshipTypes = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [options, setOptions] = useState<SelectOption[]>([])
   const [relationships, setRelationships] = useState<EmployeeRelationship[]>([])
+  const [privatePhoneNumber, setPrivatePhoneNumber] = useState<string | null>(null)
   const [employee, setEmployee] = useState<{
     firstName?: string
     lastName?: string
@@ -122,6 +157,7 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
       if (!employeeId) {
         setOptions([])
         setRelationships([])
+        setPrivatePhoneNumber(null)
         setLoading(false)
         return
       }
@@ -132,6 +168,11 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
       })
       const employeeRelationships = res?.EmployeeByPk?.relationship || []
       setRelationships(employeeRelationships)
+
+      // Extract private phone number from communications
+      const communications = res?.EmployeeByPk?.communication || []
+      setPrivatePhoneNumber(getPrivatePhoneNumber(communications))
+
       const entries = res?.relationships || []
       setOptions(
         entries.map((e: any) => ({
@@ -161,5 +202,5 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
     if (context.accessToken) fetchOptions()
   }, [context.accessToken, fetchOptions])
 
-  return { options, relationships, employee, loading, error, refetch: fetchOptions }
+  return { options, relationships, employee, privatePhoneNumber, loading, error, refetch: fetchOptions }
 }

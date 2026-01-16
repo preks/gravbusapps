@@ -97,7 +97,6 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
       // Mark as initialized in the store
       setInitialized(true)
     } catch (err) {
-      console.error('Error fetching currency data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch currency data')
       setLocalAvailableCurrencies([])
     } finally {

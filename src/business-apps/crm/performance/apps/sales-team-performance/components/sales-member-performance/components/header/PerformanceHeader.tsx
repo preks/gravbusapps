@@ -9,7 +9,7 @@ import {
   Spinner,
   Alert
 } from '@newwork/nw-design-system'
-import { PiArrowLeft, PiEnvelope, PiPhone, PiCalendar, PiFlag, PiDeviceMobile } from 'react-icons/pi'
+import { ArrowLeftIcon, EnvelopeIcon, PhoneIcon, CalendarIcon, FlagIcon, DeviceMobileIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import { EmployeeHeaderData } from '../../queries/EmployeeHeaderQueries'
 
@@ -51,7 +51,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
             className="gba:gap-2"
             data-testid={`${DATA_TEST_ID_PREFIX}-back-button`}
           >
-            <PiArrowLeft className="gba:w-4 gba:h-4" />
+            <ArrowLeftIcon className="gba:w-4 gba:h-4" />
             Back to Team List
           </Button>
         </div>
@@ -76,7 +76,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
             className="gba:gap-2"
             data-testid={`${DATA_TEST_ID_PREFIX}-back-button`}
           >
-            <PiArrowLeft className="gba:w-4 gba:h-4" />
+            <ArrowLeftIcon className="gba:w-4 gba:h-4" />
             Back to Team List
           </Button>
         </div>
@@ -104,7 +104,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
             className="gba:gap-2"
             data-testid={`${DATA_TEST_ID_PREFIX}-back-button`}
           >
-            <PiArrowLeft className="gba:w-4 gba:h-4" />
+            <ArrowLeftIcon className="gba:w-4 gba:h-4" />
             Back to Team List
           </Button>
         </div>
@@ -126,7 +126,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
           className="gba:gap-2"
           data-testid={`${DATA_TEST_ID_PREFIX}-back-button`}
         >
-          <PiArrowLeft className="gba:w-4 gba:h-4" />
+          <ArrowLeftIcon className="gba:w-4 gba:h-4" />
           Back to Team List
         </Button>
       </div>
@@ -170,7 +170,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
                   className="gba:flex gba:items-center gba:gap-2 gba:min-w-0"
                   data-testid={`${DATA_TEST_ID_PREFIX}-email`}
                 >
-                  <PiEnvelope className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
+                  <EnvelopeIcon className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div className="gba:min-w-0">
                     <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Email</div>
                     <div className="gba:text-sm gba:text-gray-900 gba:truncate gba:max-w-[150px]">
@@ -183,7 +183,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
               {/* Phone */}
               {headerData.phone && (
                 <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-phone`}>
-                  <PiPhone className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
+                  <PhoneIcon className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div>
                     <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Phone</div>
                     <div className="gba:text-sm gba:text-gray-900">{headerData.phone}</div>
@@ -194,7 +194,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
               {/* Mobile */}
               {headerData.mobile && (
                 <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-mobile`}>
-                  <PiDeviceMobile className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
+                  <DeviceMobileIcon className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div>
                     <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Mobile</div>
                     <div className="gba:text-sm gba:text-gray-900">{headerData.mobile}</div>
@@ -224,7 +224,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
               {/* Start Date */}
               {headerData.startDate && (
                 <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-start-date`}>
-                  <PiCalendar className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
+                  <CalendarIcon className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div>
                     <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Start Date</div>
                     <div className="gba:text-sm gba:text-gray-900">{headerData.startDate}</div>
@@ -235,7 +235,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
               {/* Country */}
               {headerData.country && (
                 <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-country`}>
-                  <PiFlag className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
+                  <FlagIcon className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div>
                     <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Country</div>
                     <div className="gba:text-sm gba:text-gray-900">{headerData.country}</div>

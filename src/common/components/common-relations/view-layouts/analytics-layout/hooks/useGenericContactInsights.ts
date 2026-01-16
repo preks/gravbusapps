@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 
 export interface ContactInsightAccount {
+  accountId: string
   accountName: string
   contactCount: number
 }
@@ -185,7 +187,7 @@ export const useGenericContactInsights = (accessToken: string, config: ContactIn
 
         const contactsByType = allTypeCounts
           .map(item => ({
-            type: item.type || 'Unassigned',
+            type: getContactTypeLabel(item.type) || 'Unassigned',
             count: item.count,
             percentage: totalContacts > 0 ? Math.round((item.count / totalContacts) * 100) : 0
           }))
@@ -204,11 +206,12 @@ export const useGenericContactInsights = (accessToken: string, config: ContactIn
           .filter((acc: any) => acc.contactCount > 0)
           .sort((a: any, b: any) => b.contactCount - a.contactCount)
           .slice(0, 10)
-          .map(({ accountName, contactCount }: any) => ({ accountName, contactCount }))
+          .map(({ accountId, accountName, contactCount }: any) => ({ accountId, accountName, contactCount }))
 
         // Add "No Account" category
         if (contactsWithoutAccounts > 0) {
           topAccountsByContacts.push({
+            accountId: '',
             accountName: 'No Account',
             contactCount: contactsWithoutAccounts
           })

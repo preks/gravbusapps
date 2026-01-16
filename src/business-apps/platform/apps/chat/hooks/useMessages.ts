@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
+import { useState, useEffect, useCallback, useRef, startTransition, useMemo } from 'react'
 import type { Message, PaginatedResponse, Conversation } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
+import { devPerf } from '../utils/performanceUtils'
+import { useCache } from './useCache'
 
 interface UseMessagesOptions {
   apiClient: ChatApiClient
@@ -8,275 +10,483 @@ interface UseMessagesOptions {
   currentUserId?: string | null
   conversation?: Conversation | null
   enabled?: boolean
+  onMessagesLoaded?: (messageIds: string[]) => void
 }
 
+type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read'
+
+/**
+ * Enhanced V2 messages hook with caching and status tracking
+ *
+ * Features:
+ * - Message caching for instant conversation switching
+ * - Message status tracking (sent/delivered/read)
+ * - Optimistic updates for better UX
+ * - Proper cleanup and memory management
+ */
 export function useMessages({
   apiClient,
   conversationId,
   currentUserId,
   conversation,
-  enabled = true
+  enabled = true,
+  onMessagesLoaded
 }: UseMessagesOptions) {
+  // Cache hook
+  const cache = useCache()
+  // Core state
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
-  const [hasMore, setHasMore] = useState(true)
-  const [page, setPage] = useState(1)
-  const isLoadingMoreRef = useRef(false)
-  const abortControllerRef = useRef<AbortController | null>(null)
-  const activeConversationIdRef = useRef<string | null>(null)
 
-  // Use ref for conversation to avoid triggering loadMessages when conversation metadata changes
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+
+  // Refs for request management
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isLoadingRef = useRef(false)
   const conversationRef = useRef(conversation)
+  const currentUserIdRef = useRef(currentUserId)
+  const cacheRef = useRef(cache) // Stable reference for useEffect without causing infinite loop
+  const displayedConversationIdRef = useRef<string | undefined>(undefined) // Track which conversation's messages are displayed
+  const lastLoadedConversationRef = useRef<string | undefined>(undefined) // Track which conversation we've successfully loaded (prevents duplicate loads)
+  const prevConversationIdRef = useRef<string | undefined>(undefined) // Track previous conversationId to detect changes during render
+
+  // CRITICAL: Clear messages synchronously during render when conversationId changes
+  // This prevents showing old conversation's messages even for 1 frame
+  // Must happen BEFORE any effects run
+  if (prevConversationIdRef.current !== conversationId) {
+    const prev = prevConversationIdRef.current
+    const current = conversationId ?? undefined
+
+    // Clear messages in two cases:
+    // 1. Switching between two conversations (A → B)
+    // 2. Closing a conversation (A → null)
+    if (prev && (current || prev !== current)) {
+      setMessages([])
+      setCurrentPage(1)
+      setHasMore(false)
+      setError(null)
+    }
+
+    // Update ref AFTER clearing to prevent duplicate clears
+    prevConversationIdRef.current = current
+  }
+
+  // Keep refs in sync
   useEffect(() => {
     conversationRef.current = conversation
   }, [conversation])
 
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId
+  }, [currentUserId])
+
+  useEffect(() => {
+    cacheRef.current = cache
+  }, [cache])
+
+  /**
+   * Calculate message status based on participants' read timestamps
+   */
+  const calculateMessageStatus = useCallback((message: Message): MessageStatus => {
+    if (!currentUserIdRef.current || message.senderId !== currentUserIdRef.current) {
+      return 'read' // Other users' messages are always "read" (from our perspective)
+    }
+
+    const conv = conversationRef.current
+    if (!conv?.participants) return 'sent'
+
+    // Get other participants' most recent read timestamp
+    const otherParticipants = conv.participants.filter(p => p.userId !== currentUserIdRef.current)
+    const mostRecentReadTimestamp = otherParticipants.reduce((latest, p) => {
+      if (!p.lastReadAt) return latest
+      const readTime = new Date(p.lastReadAt).getTime()
+      return !latest || readTime > latest ? readTime : latest
+    }, 0)
+
+    if (mostRecentReadTimestamp > 0) {
+      const messageTime = new Date(message.createdAt).getTime()
+      if (messageTime <= mostRecentReadTimestamp) {
+        return 'read'
+      }
+    }
+
+    return 'sent'
+  }, [])
+
+  /**
+   * Process messages with status calculation
+   */
+  const processMessages = useCallback(
+    (messages: Message[]): Message[] => {
+      // Defensive: Return [] if input is not array
+      if (!Array.isArray(messages)) return []
+      return messages.map(msg => {
+        const status = calculateMessageStatus(msg)
+        // Map 'sending' to 'sent' to match Message interface (sent | delivered | read)
+        const validStatus: 'sent' | 'delivered' | 'read' =
+          status === 'sending' ? 'sent' : (status as 'sent' | 'delivered' | 'read')
+        return {
+          ...msg,
+          status: validStatus
+        }
+      })
+    },
+    [calculateMessageStatus]
+  )
+
+  /**
+   * Load messages for the current conversation
+   */
   const loadMessages = useCallback(
-    async (pageNum: number = 1, append: boolean = false) => {
-      if (!conversationId || !enabled) return
-
-      // Check if apiClient is valid (not empty object)
-      if (!apiClient || typeof apiClient.getMessages !== 'function') {
-        console.warn('API client not ready, skipping message load')
+    async (page: number = 1) => {
+      if (!conversationId || !enabled || !apiClient) {
         return
       }
 
-      // Prevent concurrent loads for the SAME conversation
-      // (but allow new conversation loads to proceed)
-      if (isLoadingMoreRef.current && conversationId === activeConversationIdRef.current) {
-        console.log('[useMessages] Already loading messages for this conversation, skipping')
+      // Try cache first for initial load
+      if (page === 1) {
+        // CRITICAL: Prevent duplicate loads
+        // If we just loaded this conversation, skip (prevents double cache loads)
+        if (lastLoadedConversationRef.current === conversationId) {
+          return
+        }
+
+        const cached = cache.getCachedMessages(conversationId)
+        if (cached) {
+          // Verify conversation hasn't changed (prevents race conditions)
+          if (conversationId !== displayedConversationIdRef.current) {
+            return
+          }
+
+          // CRITICAL: Prevent concurrent cache loads
+          if (isLoadingRef.current) {
+            return
+          }
+
+          // Mark this conversation as loaded
+          lastLoadedConversationRef.current = conversationId
+
+          // Notify parent that messages were loaded (prevent WebSocket duplicates)
+          if (onMessagesLoaded) {
+            onMessagesLoaded(cached.messages.map(m => m.id))
+          }
+
+          // PERFORMANCE FIX: Apply cached data synchronously WITHOUT loading state
+          // Cache should be instant - no spinner, no delays, just immediate display
+          const processedMessages = processMessages(cached.messages)
+          setMessages(processedMessages)
+          setCurrentPage(cached.page)
+          setHasMore(cached.hasMore)
+          // Note: isLoading stays false - cached data appears instantly
+
+          return // Skip API call
+        }
+      }
+
+      // Prevent concurrent requests
+      if (isLoadingRef.current) {
         return
       }
 
-      // Cancel any in-flight request for previous conversation
+      // Cancel any pending request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
 
-      // Create new abort controller for this request
-      const abortController = new AbortController()
-      abortControllerRef.current = abortController
-
-      // Capture the conversation ID at the time of the request
+      abortControllerRef.current = new AbortController()
       const requestConversationId = conversationId
 
+      // Start performance tracking
+
       try {
-        isLoadingMoreRef.current = true
+        isLoadingRef.current = true
         setIsLoading(true)
         setError(null)
-
-        const response: PaginatedResponse<Message> = await apiClient.getMessages(conversationId, pageNum, 50)
-
-        // CRITICAL: Check if this response is still relevant
-        // If conversation changed while request was in flight, discard the response
-        if (abortController.signal.aborted || requestConversationId !== activeConversationIdRef.current) {
-          console.log('[useMessages] Discarding stale response for conversation:', requestConversationId)
-          // Clear loading states for the aborted request
-          if (requestConversationId !== activeConversationIdRef.current) {
-            setIsLoading(false)
-            isLoadingMoreRef.current = false
-          }
-          return
-        }
-
-        // Ensure response.data exists and is an array
-        // Backend already returns messages in ascending order (oldest first, newest last)
-        let loadedMessages = response.data && Array.isArray(response.data) ? response.data : []
-
-        // Get OTHER participants' lastReadAt to determine if messages were read
-        const otherParticipants = conversationRef.current?.participants?.filter(p => p.userId !== currentUserId) || []
-
-        // Find the most recent lastReadAt from other participants
-        const mostRecentOtherReadAt = otherParticipants.reduce(
-          (latest, p) => {
-            if (!p.lastReadAt) return latest
-            const readAt = new Date(p.lastReadAt)
-            return !latest || readAt > latest ? readAt : latest
-          },
-          null as Date | null
+        // Fetch messages from API
+        const response: PaginatedResponse<Message> = await apiClient.getMessages(
+          conversationId,
+          page,
+          100 // Load 50 messages per page
         )
 
-        // Set correct status for loaded messages based on current user and context
-        loadedMessages = loadedMessages.map(msg => {
-          // If no currentUserId, keep original status or default to 'sent'
-          if (!currentUserId) {
-            return { ...msg, status: msg.status || 'sent' }
-          }
-
-          // If it's the current user's message
-          if (msg.senderId === currentUserId) {
-            // Check if any other participant read the message
-            if (mostRecentOtherReadAt && new Date(msg.createdAt) <= mostRecentOtherReadAt) {
-              return { ...msg, status: 'read' }
-            }
-            // Otherwise, show as sent (message sent but not yet confirmed read by anyone)
-            return { ...msg, status: 'sent' }
-          } else {
-            // If it's someone else's message in the active conversation
-            // Mark as read since we're viewing the conversation
-            return { ...msg, status: 'read' }
-          }
-        })
-
-        if (append) {
-          // When loading older messages, prepend them (they're older than current messages)
-          setMessages(prev => [...loadedMessages, ...prev])
-        } else {
-          // Initial load: messages are already in correct order (oldest first, newest last)
-          setMessages(loadedMessages)
-        }
-
-        setHasMore(response.page < response.totalPages)
-        setPage(response.page)
-      } catch (err) {
-        // Don't set error if request was aborted (expected behavior)
-        if (err instanceof Error && err.name === 'AbortError') {
-          console.log('[useMessages] Request aborted for conversation:', requestConversationId)
-          // Clear loading states when aborted
-          setIsLoading(false)
-          isLoadingMoreRef.current = false
+        // CRITICAL: Verify response is still relevant (check against current displayed conversation)
+        // This prevents race conditions when switching conversations rapidly
+        if (requestConversationId !== displayedConversationIdRef.current) {
           return
         }
 
-        // Only set error if this is still the active conversation
-        if (requestConversationId === activeConversationIdRef.current) {
-          setError(err instanceof Error ? err : new Error('Failed to load messages'))
-          console.error('Error loading messages:', err)
+        const loadedMessages = response.data || []
+        const processedMessages = processMessages(loadedMessages)
+
+        const newPage = response.page
+        const newHasMore = response.page < response.totalPages
+
+        // Cache initial loads
+        if (page === 1) {
+          cache.setCachedMessages(conversationId, processedMessages, newPage, newHasMore)
+
+          // Notify parent that messages were loaded
+          if (onMessagesLoaded) {
+            onMessagesLoaded(processedMessages.map(m => m.id))
+          }
         }
-      } finally {
-        // Always clear loading state in finally block
-        // This ensures loading state is cleared even if conversation changed
-        setIsLoading(false)
-        isLoadingMoreRef.current = false
+
+        // OPTIMIZATION: Batch ALL state updates together to trigger single render
+        // Include isLoading in the batch to prevent extra render
+        startTransition(() => {
+          if (page === 1) {
+            setMessages(processedMessages)
+            // Mark this conversation as successfully loaded (prevents duplicate loads)
+            lastLoadedConversationRef.current = conversationId
+          } else {
+            // Load more - prepend older messages
+            setMessages(prev => [...processedMessages, ...prev])
+          }
+          setCurrentPage(newPage)
+          setHasMore(newHasMore)
+          setIsLoading(false)
+          isLoadingRef.current = false
+        })
+      } catch (err) {
+        // Ignore abort errors
+        if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
+
+        console.error('[V2] Failed to load messages:', err)
+        devPerf(() => console.error('[V2] Error details:', err))
+
+        // Batch error state updates
+        startTransition(() => {
+          setError(err instanceof Error ? err : new Error('Failed to load messages'))
+          setIsLoading(false)
+          isLoadingRef.current = false
+        })
       }
     },
-    [apiClient, conversationId, currentUserId, enabled] // Removed 'conversation' - using conversationRef instead
+    [apiClient, conversationId, enabled, cache, processMessages, onMessagesLoaded]
   )
 
-  const loadMoreMessages = useCallback(() => {
-    if (hasMore && !isLoading && !isLoadingMoreRef.current) {
-      loadMessages(page + 1, true)
+  /**
+   * Load more (older) messages
+   */
+  const loadMore = useCallback(() => {
+    if (hasMore && !isLoading) {
+      loadMessages(currentPage + 1)
     }
-  }, [hasMore, isLoading, page, loadMessages])
+  }, [hasMore, isLoading, currentPage, loadMessages])
 
-  const addMessage = useCallback((message: Message) => {
-    setMessages(prev => {
-      // Check if message already exists (by ID or by temp ID + content match)
-      const existingIndex = prev.findIndex(m => {
-        if (m.id === message.id) return true
-        // Replace optimistic message (temp ID) with real message if content matches
-        if (m.id.startsWith('temp-') && m.content === message.content && m.conversationId === message.conversationId) {
-          return true
+  /**
+   * Add a new message with optimistic update support
+   */
+  const addMessage = useCallback(
+    (message: Message, isOptimistic: boolean = false) => {
+      // Calculate status and ensure it matches Message interface (sent | delivered | read)
+      const calculatedStatus = isOptimistic ? 'sending' : calculateMessageStatus(message)
+      const validStatus: 'sent' | 'delivered' | 'read' =
+        calculatedStatus === 'sending' ? 'sent' : (calculatedStatus as 'sent' | 'delivered' | 'read')
+
+      const processedMessage = {
+        ...message,
+        status: validStatus
+      }
+
+      setMessages(prev => {
+        // Check if message already exists
+        const existingIndex = prev.findIndex(m => {
+          if (m.id === message.id) return true
+          // Replace temp message with real one (match by content + timestamp)
+          if (
+            m.id.startsWith('temp-') &&
+            m.content === message.content &&
+            m.conversationId === message.conversationId
+          ) {
+            return true
+          }
+          return false
+        })
+
+        if (existingIndex >= 0) {
+          const updated = [...prev]
+          // Preserve better status when replacing
+          const existingStatus = prev[existingIndex].status || 'sent'
+          const statusPriority = { sending: 1, sent: 2, delivered: 3, read: 4 }
+          const existingPriority = statusPriority[existingStatus as keyof typeof statusPriority] || 0
+          const newPriority = statusPriority[processedMessage.status as keyof typeof statusPriority] || 0
+
+          // Preserve better status when replacing
+          const finalStatus: 'sending' | 'sent' | 'delivered' | 'read' =
+            existingPriority > newPriority ? existingStatus : processedMessage.status
+
+          updated[existingIndex] = {
+            ...processedMessage,
+            status: finalStatus
+          }
+          return updated
+        } // Add to cache
+        if (conversationId) {
+          cache.addMessageToCache(conversationId, processedMessage)
         }
-        return false
+
+        return [...prev, processedMessage]
       })
+    },
+    [calculateMessageStatus, conversationId, cache]
+  )
 
-      if (existingIndex >= 0) {
-        const existingMessage = prev[existingIndex]
+  /**
+   * Update an existing message
+   */
+  const updateMessage = useCallback(
+    (messageId: string, updates: Partial<Message>) => {
+      setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, ...updates } : m)))
 
-        // Preserve better status when replacing message (delivered > sent, read > delivered)
-        const statusPriority = { sent: 1, delivered: 2, read: 3 }
-        const existingPriority = statusPriority[existingMessage.status as keyof typeof statusPriority] || 0
-        const newPriority = statusPriority[message.status as keyof typeof statusPriority] || 0
-
-        // Replace existing message, but preserve better status
-        const updated = [...prev]
-        const finalStatus = existingPriority > newPriority ? existingMessage.status : message.status
-        updated[existingIndex] = {
-          ...message,
-          status: finalStatus
-        }
-
-        return updated
+      // Update cache
+      if (conversationId) {
+        cache.updateCachedMessage(conversationId, messageId, msg => ({ ...msg, ...updates }))
       }
+    },
+    [conversationId, cache]
+  )
 
-      return [...prev, message]
-    })
-  }, [])
+  /**
+   * Delete a message
+   */
+  const deleteMessage = useCallback(
+    (messageId: string) => {
+      setMessages(prev => prev.filter(m => m.id !== messageId))
 
-  const updateMessage = useCallback((message: Message) => {
-    setMessages(prev => prev.map(m => (m.id === message.id ? { ...m, ...message } : m)))
-  }, [])
-
-  const deleteMessage = useCallback((messageId: string) => {
-    setMessages(prev => prev.filter(m => m.id !== messageId))
-  }, [])
-
-  const updateMessageStatus = useCallback((messageId: string, status: 'sent' | 'delivered' | 'read') => {
-    // Make this synchronous (no startTransition) to ensure status updates happen immediately
-    // Status updates are important for UX and should not be delayed
-    setMessages(prev => {
-      const newMessages = prev.map(m => (m.id === messageId ? { ...m, status } : m))
-      return newMessages
-    })
-  }, [])
-
-  const bulkUpdateMessagesFromSender = useCallback((senderId: string, status: 'sent' | 'delivered' | 'read') => {
-    // Use startTransition for bulk status updates as they're not urgent for the UI
-    startTransition(() => {
-      setMessages(prev => prev.map(m => (m.senderId === senderId ? { ...m, status } : m)))
-    })
-  }, [])
-
-  // Track previous conversation ID to detect conversation changes
-  const prevConversationIdRef = useRef<string | null>(null)
-
-  // Load messages when conversation changes or API client becomes available
-  useEffect(() => {
-    if (conversationId && enabled && apiClient && typeof apiClient.getMessages === 'function') {
-      // Clear messages immediately when switching to a different conversation
-      // This prevents showing the wrong conversation's messages
-      const isConversationChange =
-        prevConversationIdRef.current !== null && prevConversationIdRef.current !== conversationId
-
-      if (isConversationChange) {
-        // Clear old messages immediately to prevent showing wrong conversation's messages
-        setMessages([])
-
-        // Cancel any in-flight requests from previous conversation
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort()
-          abortControllerRef.current = null
-        }
-
-        // Set loading state immediately for smooth UX (shows spinner while switching)
-        setIsLoading(true)
-        isLoadingMoreRef.current = false
+      // Update cache
+      if (conversationId) {
+        cache.removeMessageFromCache(conversationId, messageId)
       }
+    },
+    [conversationId, cache]
+  )
 
-      // Update active conversation ref BEFORE starting the load
-      activeConversationIdRef.current = conversationId
-      prevConversationIdRef.current = conversationId
+  /**
+   * Update message status (sent/delivered/read)
+   */
+  const updateMessageStatus = useCallback(
+    (messageId: string, status: MessageStatus) => {
+      // Convert to valid Message status (no 'sending')
+      const validStatus: 'sent' | 'delivered' | 'read' =
+        status === 'sending' ? 'sent' : (status as 'sent' | 'delivered' | 'read')
+
+      setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, status: validStatus } : m)))
+
+      // Update cache
+      if (conversationId) {
+        cache.updateCachedMessage(conversationId, messageId, msg => ({ ...msg, status: validStatus }))
+      }
+    },
+    [conversationId, cache]
+  )
+
+  /**
+   * Bulk update message statuses (e.g., mark all as read)
+   */
+  const bulkUpdateStatus = useCallback(
+    (updates: Array<{ id: string; status: MessageStatus }>) => {
+      const statusMap = new Map(updates.map(u => [u.id, u.status]))
 
       startTransition(() => {
-        setPage(1)
-        setHasMore(true)
+        setMessages(prev =>
+          prev.map(m => {
+            if (statusMap.has(m.id)) {
+              // Only allow valid Message.status: 'sent' | 'delivered' | 'read'
+              const status = statusMap.get(m.id)
+              const validStatus: 'sent' | 'delivered' | 'read' =
+                status === 'sending' ? 'sent' : (status as 'sent' | 'delivered' | 'read')
+              return { ...m, status: validStatus }
+            }
+            return m
+          })
+        )
       })
-      // Load new messages
-      loadMessages(1, false)
+
+      // Update cache
+      if (conversationId) {
+        updates.forEach(({ id, status }) => {
+          // Convert to valid Message status before caching
+          const validStatus: 'sent' | 'delivered' | 'read' =
+            status === 'sending' ? 'sent' : (status as 'sent' | 'delivered' | 'read')
+          cache.updateCachedMessage(conversationId, id, msg => ({ ...msg, status: validStatus }))
+        })
+      }
+    },
+    [conversationId, cache]
+  )
+
+  /**
+   * Load messages when conversation changes
+   * PERFORMANCE: State clearing happens synchronously during render now
+   */
+  useEffect(() => {
+    if (conversationId) {
+      // Check if we're actually switching to a different conversation
+      const isSwitchingConversation = displayedConversationIdRef.current !== conversationId
+
+      if (isSwitchingConversation) {
+        // Reset the last loaded conversation so loadMessages can proceed
+        lastLoadedConversationRef.current = undefined
+
+        // CRITICAL: Update ref IMMEDIATELY to prevent double-loading
+        // Must be synchronous, BEFORE loadMessages is called
+        displayedConversationIdRef.current = conversationId
+
+        // Load new conversation's messages (will use cache if available)
+        // State is already cleared synchronously during render
+        loadMessages(1)
+      }
+    } else {
+      // ConversationId is null/undefined - clear the displayed conversation ref
+      // This ensures the next conversation selection is treated as a new conversation
+      if (displayedConversationIdRef.current) {
+        displayedConversationIdRef.current = undefined
+      }
     }
 
-    // Cleanup: abort any in-flight requests when component unmounts or conversation becomes null
+    // Cleanup on unmount or conversation change
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
         abortControllerRef.current = null
       }
     }
-  }, [conversationId, enabled, apiClient, loadMessages]) // Removed 'conversation' to prevent reload on metadata changes
+  }, [conversationId]) // CRITICAL: Only conversationId, not loadMessages or cache
 
-  return {
-    messages,
-    isLoading,
-    error,
-    hasMore,
-    loadMoreMessages,
-    addMessage,
-    updateMessage,
-    deleteMessage,
-    updateMessageStatus,
-    bulkUpdateMessagesFromSender,
-    refresh: () => loadMessages(1, false)
-  }
+  // PERFORMANCE: Memoize return object to prevent cascade re-renders
+  // Note: refresh is recreated when loadMessages changes, which is intentional
+  return useMemo(
+    () => ({
+      messages,
+      isLoading,
+      error,
+      hasMore,
+      loadMore,
+      addMessage,
+      updateMessage,
+      deleteMessage,
+      updateMessageStatus,
+      bulkUpdateStatus,
+      refresh: () => loadMessages(1)
+    }),
+    [
+      messages,
+      isLoading,
+      error,
+      hasMore,
+      loadMore,
+      addMessage,
+      updateMessage,
+      deleteMessage,
+      updateMessageStatus,
+      bulkUpdateStatus,
+      loadMessages
+    ]
+  )
 }

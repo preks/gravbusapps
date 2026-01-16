@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getDefaultEndDate } from '@/business-apps/hr/core/apps/employee-record/utils/utils'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { FETCH_BENEFIT_VERSION_QUERY } from './DeactivateEmployeeBenefitQueries'
+import { getDefaultEndDate } from './utils'
 import type { DeactivateEmployeeBenefitContextData, EmployeeDataResponse } from './types'
 import type { BenefitCatalogItem } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/types/benefitCatalogTypes'
 
@@ -167,12 +167,16 @@ export const useDeactivateEmployeeBenefitForm = ({
     }
 
     // Build and return payload for Kogito process
+    // Format endDate to YYYY-MM-DD (remove time component if present)
+    const formattedEndDate = endDate.includes('T') ? endDate.split('T')[0] : endDate
+
     return {
+      event: 'pse_submit',
       employeeBenefit: {
         id: selectedBenefit.employeeBenefitId,
         employee: employeeId,
         version: benefitVersion,
-        endDate: endDate
+        endDate: formattedEndDate
       }
     }
   }, [employeeId, selectedBenefit, endDate, graphqlClient])

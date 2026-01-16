@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { mockUsers } from '../../data/mockUsers'
-import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import {
   Toaster,
   toast,
@@ -25,8 +25,7 @@ import { TemplateCard, LaunchConfiguration, EmptyState, SimulationWizard } from 
 import { FlowTemplate, LaunchParameters, ExecutionAssignment } from './types'
 
 // API configuration
-const API_BASE =
-  (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+const API_BASE = getFlowEngineApiBaseUrl()
 
 /**
  * Flow Launcher App component for launching published workflow templates

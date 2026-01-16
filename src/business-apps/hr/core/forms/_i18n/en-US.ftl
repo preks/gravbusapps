@@ -179,8 +179,19 @@ label-country = Country
 label-city = City
 label-currency = Currency
 
+# Common Text
+common-characters = characters
+
+# Benefit Summary Card Translations
+benefit-provider = Provider
+benefit-value-yearly = Yearly Value
+benefit-details-monthly-value = Monthly Value
+current-annually = Annually
+current-monthly = Monthly
+modal-request-start-date-label = Start Date
+
 # Deactivate Employee Benefit Review Form
-deactivate-benefit-review-title = Benefit Deactivation Request for { $employeeName }
+deactivate-benefit-review-title = Benefit Deactivation Request
 deactivate-benefit-review-requested-by = Requested by { $initiatorName }
 deactivate-benefit-review-loading = Loading benefit deactivation request...
 deactivate-benefit-review-error-title = Unable to Load Data
@@ -190,6 +201,7 @@ deactivate-benefit-review-deactivation-details = Deactivation Request
 deactivate-benefit-review-submit = Deactivate Benefit
 deactivate-benefit-review-benefit-type = Benefit Type
 deactivate-benefit-review-provider = Provider
+deactivate-benefit-review-value = Value
 deactivate-benefit-review-yearly-value = Yearly Value
 deactivate-benefit-review-monthly-value = Monthly Value
 deactivate-benefit-review-period = Period
@@ -201,14 +213,18 @@ deactivate-benefit-review-end-date = Requested End Date
 deactivate-benefit-review-reason = Reason for Deactivation
 
 # Request Employee Benefit Review Form
-request-benefit-review-title = Employee Benefit Review for { $employeeName }
+request-benefit-review-title = Review Benefit Request
 request-benefit-review-initiated-by = Initiated by { $initiatorName }
 request-benefit-review-benefit-details = Benefit Details
 request-benefit-review-benefit-type = Benefit Type
 request-benefit-review-provider = Provider
-request-benefit-review-yearly-value = Yearly Value
-request-benefit-review-monthly-value = Monthly Value
+request-benefit-review-value = Value
 request-benefit-review-period = Period
+
+# Period translations
+period-monthly = Monthly
+period-yearly = Yearly
+period-daily = Daily
 request-benefit-review-start-date = Preferred Start Date
 request-benefit-review-employee-yearly-contribution = Employee Yearly Contribution
 request-benefit-review-employee-monthly-contribution = Employee Monthly Contribution
@@ -221,3 +237,113 @@ request-benefit-review-reject = Reject
 request-benefit-review-loading = Loading benefit review data...
 request-benefit-review-error-title = Unable to Load Data
 request-benefit-review-error-description = Failed to load employee benefit data
+
+# Deactivate Employee Benefit Form
+modal-deactivate-title = Deactivate Employee Benefit
+modal-deactivate-end-date-label = End Date
+modal-deactivate-submit-button = Deactivate Benefit
+
+# Deactivate Employee Benefit Form - Validation Messages
+error-end-date-required = End date is required. Please select an end date.
+error-end-date-today-or-later = End date must be today or later.
+error-end-date-after-start-date = End date cannot be before the benefit start date.
+
+# ============================================
+# Pending Submission Status Messages
+# ============================================
+
+# Change Bank Account Form
+change-bank-account-process-title = Bank Account Change
+change-bank-account-pending-status = Pending
+
+# Change Address Form
+change-address-process-title = Address Change
+change-address-pending-status = Pending
+
+# Change Personal Data Form
+change-personal-data-process-title = Personal Data Change
+change-personal-data-pending-status = Pending
+
+# Change Communication Form
+change-communication-process-title = Communication Change
+change-communication-pending-status = Pending
+
+# Grant Bonus Form
+grant-bonus-process-title = Bonus Grant
+grant-bonus-pending-status = Pending
+
+# Adjust Salary Form
+adjust-salary-process-title = Salary Adjustment
+adjust-salary-pending-status = Pending
+
+# Update Working Conditions Form
+working-conditions-probation-period = Probation Period
+working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
+working-conditions-unit-day = { $count ->
+    [one] Day
+   *[other] Days
+}
+working-conditions-unit-week = { $count ->
+    [one] Week
+   *[other] Weeks
+}
+working-conditions-unit-month = { $count ->
+    [one] Month
+   *[other] Months
+}
+working-conditions-unit-year = { $count ->
+    [one] Year
+   *[other] Years
+}
+
+# Create Request Correction Form
+complete-notification = The request is sent to be approved by the manager
+notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
+notification-working-hours-updated-success = Working hours updates are sent for HR approval
+notification-feedback-request-sent-success = Your feedback request has been sent
+
+# ============================================
+# Create Employee Form
+# ============================================
+
+# Section Headers
+employee-form-personal-information = Personal Information
+employee-form-employment-information = Employment Information
+employee-form-additional-attributes = Additional Attributes
+
+# Field Labels
+employee-form-first-name = First Name
+employee-form-last-name = Last Name
+employee-form-email = Email
+employee-form-organizational-unit = Organizational Unit
+employee-form-job-position = Job Position
+employee-form-hire-date = Hire Date
+employee-form-preferred-name = Preferred Name
+employee-form-employment-type = Employment Type
+employee-form-contract-type = Contract Type
+
+# Validation Messages
+employee-form-email-invalid = Please enter a valid email address
+
+# Empty States
+employee-form-no-results = No results found
+employee-form-no-positions = No positions available
+employee-form-no-vacant-positions = No vacant positions available in the selected organizational unit
+
+# Tooltips
+employee-form-create-job-position-tooltip = Create new job position
+employee-form-select-org-unit-first = Select an organizational unit first
+
+# Buttons
+employee-form-create-employee = Create Employee
+employee-form-update-employee = Update Employee
+
+# ============================================
+# Create Job Position Modal
+# ============================================
+
+create-job-position-title = Create Job Position
+create-job-position-name = Name
+create-job-position-total-open = Total open
+create-job-position-organizational-unit = Organizational Unit
+create-job-position-error = Failed to create job position. Please try again.

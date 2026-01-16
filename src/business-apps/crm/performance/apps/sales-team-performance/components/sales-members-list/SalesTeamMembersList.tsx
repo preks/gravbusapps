@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react'
 import { DataTable, Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import { User } from 'lucide-react'
+import { UserIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import { OwnerDisplay } from '@/business-apps/irm/core/apps/investment-relations/views/task-view/components/OwnerDisplay'
 import { SalesTeamMember } from './types'
@@ -24,7 +24,7 @@ const MemberNameCell: React.FC<MemberNameCellProps> = ({ member }) => (
     >
       {member.avatar && <AvatarImage src={`data:image/jpeg;base64,${member.avatar}`} alt={member.name} />}
       <AvatarFallback>
-        <User className="gba:h-4 gba:w-4" />
+        <UserIcon className="gba:h-4 gba:w-4" />
       </AvatarFallback>
     </Avatar>
     <span className="gba:text-[color:var(--nw-color-text-primary)] group-hover:gba:text-[color:var(--nw-color-primary-500)]">

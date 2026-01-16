@@ -14,13 +14,13 @@ import {
 } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-import type { CustomerAccount } from './customerAccountTypes'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
 import type { CustomerDocument } from './customerDocumentTypes'
 import type { CustomerNote } from './customerNoteTypes'
 import type { CustomerTask } from './customerTaskTypes'
 import type { CustomerOpportunityContact } from './customerRelationTypes'
+import type { CustomerOpportunityAccount } from './customerAccountAssociationTypes'
 import { toCustomerAccount } from './customerAccountTypes'
 import { toCustomerContact } from './customerContactTypes'
 
@@ -30,13 +30,16 @@ import { toCustomerContact } from './customerContactTypes'
  */
 export interface CustomerOpportunity extends Opportunity {
   // Customer-specific typed relationships
-  account?: CustomerAccount
   addresses?: CustomerAddress[]
   communicationChannels?: CustomerCommunicationChannel[]
   documents?: CustomerDocument[]
   notes?: CustomerNote[]
   opportunityContacts?: CustomerOpportunityContact[]
   tasks?: any[] // CustomerTask
+
+  // Opportunity-Account Junction Table (many-to-many)
+  // GraphQL field name: opportunityAccounts
+  opportunityAccounts?: CustomerOpportunityAccount[]
 
   // CRM-specific fields
   salesCampaign?: any // CRM-specific (SalesCampaign)
@@ -65,7 +68,12 @@ export const CustomerOpportunityFields = {
   opportunityPipelineRef: 'salesPipelineRef',
   opportunityPipelineStage: 'salesPipelineStage',
   opportunityPipelineStageRef: 'salesPipelineStageRef',
-  opportunityStageConditions: 'stageConditionStatuses'
+  opportunityStageConditions: 'stageConditionStatuses',
+  // Junction table relationship - GraphQL field name is 'opportunityAccounts'
+  customerOpportunityAccounts: 'opportunityAccounts',
+  // Remove single account fields (CRM uses junction table only)
+  account: undefined,
+  accountId: undefined
 } as const
 
 /**
@@ -118,7 +126,8 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
 
   // CRM-specific additional fields
   { key: 'salesCampaignIds', path: 'salesCampaignId', kind: 'inIds' },
-  { key: 'contactIds', path: 'contacts.contact.id', kind: 'inIds' } // CRM uses "contacts" not "opportunityContacts"
+  { key: 'contactIds', path: 'contacts.contact.id', kind: 'inIds' }, // CRM uses "contacts" not "opportunityContacts"
+  { key: 'accountIds', path: 'opportunityAccounts.accountId', kind: 'inIds' } // Junction table for many-to-many accounts
 ]
 
 /**
@@ -190,6 +199,7 @@ export const buildCustomerOpportunityContacts = (contactIds: string[] = [], oppo
  * - salesPipelineStage → opportunityPipelineStage
  * - contacts → opportunityContacts
  * - crmDocument / crmNote → documents / notes
+ * - opportunityAccounts → mapped with nested account entities
  */
 export function toCustomerOpportunity(raw: any): CustomerOpportunity {
   // Extract incorrectly named fields to exclude from spread
@@ -204,8 +214,14 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
     ...rest
   } = raw
 
-  // Map nested entities if present
-  const account = raw.account ? toCustomerAccount(raw.account) : raw.account
+  // Map opportunityAccounts: each item has a nested account field
+  const mappedOpportunityAccounts = raw.opportunityAccounts
+    ? raw.opportunityAccounts.map((oa: any) => ({
+        ...oa,
+        account: oa.account ? toCustomerAccount(oa.account) : oa.account
+      }))
+    : raw.opportunityAccounts
+
   // Map opportunityContacts: each item is an OpportunityContact with a nested contact field
   const mappedOpportunityContacts = raw.contacts
     ? raw.contacts.map((oc: any) => ({
@@ -214,15 +230,22 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
       }))
     : raw.opportunityContacts
 
+  // Map opportunityStageConditions: each item needs salesPipelineStageCondition → opportunityPipelineStageCondition
+  const mappedOpportunityStageConditions = raw.opportunityStageConditions
+    ? raw.opportunityStageConditions.map((sc: any) => toCustomerOpportunityStageCondition(sc))
+    : stageConditionStatuses
+      ? stageConditionStatuses.map((sc: any) => toCustomerOpportunityStageCondition(sc))
+      : raw.opportunityStageConditions
+
   return {
     ...rest,
-    account,
+    opportunityAccounts: mappedOpportunityAccounts,
     // Map only if target field doesn't already exist (fallback mapping)
     opportunityPipeline: raw.opportunityPipeline ?? salesPipeline,
     opportunityPipelineRef: raw.opportunityPipelineRef ?? salesPipelineRef,
     opportunityPipelineStage: raw.opportunityPipelineStage ?? salesPipelineStage,
     opportunityPipelineStageRef: raw.opportunityPipelineStageRef ?? salesPipelineStageRef,
-    opportunityStageConditions: raw.opportunityStageConditions ?? stageConditionStatuses,
+    opportunityStageConditions: mappedOpportunityStageConditions,
     opportunityContacts: raw.opportunityContacts ?? mappedOpportunityContacts,
     documents: raw.documents ?? crmDocument,
     notes: raw.notes ?? crmNote

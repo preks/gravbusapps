@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, LineChart, Line, CartesianGrid } from 'recharts'
-import { BarChartOutlined, LineChartOutlined } from '@ant-design/icons'
+import { ChartBarIcon, ChartLineIcon } from '@phosphor-icons/react'
 import { ChartContainer, ChartTooltip, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system'
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -93,8 +93,8 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
       headerActions={
         <ChartTypeSwitcher
           options={[
-            { value: 'bar' as const, label: 'Bar Chart', icon: <BarChartOutlined /> },
-            { value: 'line' as const, label: 'Line Chart', icon: <LineChartOutlined /> }
+            { value: 'bar' as const, label: 'Bar Chart', icon: <ChartBarIcon /> },
+            { value: 'line' as const, label: 'Line Chart', icon: <ChartLineIcon /> }
           ]}
           activeType={chartType}
           onChange={setChartType}

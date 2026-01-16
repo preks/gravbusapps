@@ -2,7 +2,7 @@ import { env } from '@/common/env/EnvUtils'
 import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
 import { RestClient, type RequestOptions, ResponseType } from '../rest/RestClient'
 
-const BASE_PATH = 'api/v1'
+const BASE_PATH = 'processes/investment-relations'
 
 export interface GenerateInvestmentReportRequest {
   reportPath: string
@@ -65,7 +65,7 @@ export class InvestmentReportClient extends RestClient {
       Authorization: setAccessTokenToAuthorizationHeader(accessToken)
     }
 
-    return this.post<GenerateInvestmentReportResponse>('generateInvestmentReport', request, {
+    return this.post<GenerateInvestmentReportResponse>('/generateInvestmentReport', request, {
       ...options,
       headers,
       responseType: ResponseType.JSON
@@ -88,7 +88,7 @@ export class InvestmentReportClient extends RestClient {
       Authorization: setAccessTokenToAuthorizationHeader(accessToken)
     }
 
-    return this.post<Blob>('generateInvestmentReport', request, {
+    return this.post<Blob>('/generateInvestmentReport', request, {
       ...options,
       headers,
       responseType: ResponseType.BLOB

@@ -25,9 +25,9 @@ export const calculateCustomerAccountOpportunityConversionRate = (accounts: any[
     return 0
   }
 
-  // Count accounts that have opportunities
+  // Count accounts that have opportunities (using opportunityAccounts junction table)
   const accountsWithOpportunities = accounts.filter(account =>
-    opportunities.some(opportunity => opportunity.accountId === account.id)
+    opportunities.some(opportunity => opportunity.opportunityAccounts?.some((oa: any) => oa.accountId === account.id))
   )
 
   return Math.round((accountsWithOpportunities.length / accounts.length) * 100)

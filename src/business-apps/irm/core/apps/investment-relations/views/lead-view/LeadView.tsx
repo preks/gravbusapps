@@ -1,10 +1,6 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  LeadLayout,
-  type LeadViewConfig,
-  type LeadStatisticsData
-} from '@/common/components/common-relations/view-layouts/lead-layout'
+import { LeadLayout, type LeadViewConfig } from '@/common/components/common-relations/view-layouts/lead-layout'
 import { type InvestmentLead, INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/types/investmentLeadTypes'
 import {
   commonLeadColumns,
@@ -71,18 +67,8 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const { fetchInvestmentLeads } = useInvestmentLeads(context)
   const leadStatistics = useInvestmentLeadStatistics(context)
 
-  // Statistics - Transform hook data to LeadStatisticsData format
-  const leadStatisticsData: LeadStatisticsData | undefined = useMemo(() => {
-    return {
-      recentLeads: leadStatistics.recentLeads,
-      hotLeads: leadStatistics.hotLeads,
-      conversionRate: leadStatistics.conversionRate,
-      topSource: leadStatistics.topSource,
-      isLoading: leadStatistics.isLoading,
-      error: leadStatistics.error,
-      refetch: leadStatistics.refetch
-    }
-  }, [leadStatistics])
+  // Statistics - Hook already returns the correct format
+  const leadStatisticsData = leadStatistics
 
   // Config
   const config: LeadViewConfig<InvestmentLead, InvestmentLeadQueryVariables> = useMemo(
