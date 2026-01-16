@@ -3,7 +3,6 @@
  */
 
 import { sanitizeFilename } from '@/common/utils/textUtils'
-import * as XLSX from 'xlsx'
 
 /**
  * Escapes a value for use in CSV format
@@ -17,6 +16,22 @@ export const escapeCsv = (value: string): string => {
   const out = value.replace(/"/g, '""')
   return needsQuotes ? `"${out}"` : out
 }
+
+/**
+ * Escapes HTML special characters
+ *
+ * Note: Uses replace(/pattern/g) instead of replaceAll() for ES2020 compatibility
+ * Project target: ES2020, replaceAll() requires ES2021+
+ * NOSONAR: Intentionally using replace() for ES2020 compatibility
+ */
+export const htmlEscape = (value: string): string =>
+  value
+    // NOSONAR - ES2020 compatibility: replaceAll() requires ES2021+
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
 /**
  * Builds a timestamped filename for exports
@@ -99,37 +114,50 @@ export const downloadCsv = (data: any[], columns: Array<{ key: string; title: st
 }
 
 /**
- * Downloads data as a proper Excel (.xlsx) file using the xlsx library
+ * Downloads data as Excel-compatible HTML file
  *
- * This generates a real Excel file that opens without warnings in Excel.
+ * NOTE: This generates a simple HTML table file with Excel-specific MIME type.
+ * Excel will open it directly without warnings when using .xls extension.
+ * Limitations:
+ * - No formulas, pivot tables, or advanced Excel features
+ * - Larger file size compared to binary Excel formats
+ * - Basic styling only
+ *
+ * For true Excel files with advanced features, consider using a library like 'xlsx'.
  */
 export const downloadExcel = (data: any[], columns: Array<{ key: string; title: string }>, filename: string) => {
-  // Prepare header row from column titles
-  const headers = columns.map(c => c.title)
-
-  // Prepare data rows - extract values in column order
-  const rows = data.map(row => columns.map(c => formatCellValue(row[c.key])))
-
-  // Create worksheet data with headers as first row
-  const worksheetData = [headers, ...rows]
-
-  // Create worksheet from array of arrays
-  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
-
-  // Create workbook and add worksheet
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1')
-
-  // Generate Excel file as array buffer
-  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
-
-  // Create blob and trigger download
-  const blob = new Blob([excelBuffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  // Use simple HTML table with BOM for Excel compatibility
+  const headerCells = columns.map(c => {
+    const escapedTitle = htmlEscape(c.title)
+    return `<th>${escapedTitle}</th>`
   })
+  const header = `<tr>${headerCells.join('')}</tr>`
 
-  // Update filename extension to .xlsx if it's .xls
-  const updatedFilename = filename.replace(/\.xls$/, '.xlsx')
+  const bodyRows = data.map(row => {
+    const cells = columns.map(c => {
+      const cellValue = formatCellValue(row[c.key])
+      const escapedValue = htmlEscape(cellValue)
+      return `<td>${escapedValue}</td>`
+    })
+    return `<tr>${cells.join('')}</tr>`
+  })
+  const rows = bodyRows.join('\n')
 
-  triggerDownload(blob, updatedFilename)
+  // Add UTF-8 BOM and meta tag for proper character encoding
+  const html = `\uFEFF<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+</head>
+<body>
+<table border="1">
+<thead>${header}</thead>
+<tbody>${rows}</tbody>
+</table>
+</body>
+</html>`
+
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
+
+  triggerDownload(blob, filename)
 }
