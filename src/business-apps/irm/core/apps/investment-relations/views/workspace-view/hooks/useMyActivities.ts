@@ -17,13 +17,13 @@ import {
   activityAvailableColumns
 } from '@/common/components/common-relations/view-layouts/activity-layout/config'
 import { investmentActivityFilterConfig } from '@/common/components/common-relations/view-layouts/activity-layout/config/investmentActivityFilterConfig'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import type { MyActivitiesViewConfig } from '@/common/components/common-relations/view-layouts/personal-workspace/components/activities'
 import { useActivityKpis } from '../../activity-view/hooks/useActivityKpis'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/activity-layout/utils/filterHelpers'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 // Helper: Build base query variables
 const buildBaseQueryVariables = (
@@ -233,6 +233,14 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     loadActivities()
   }, [loadActivities])
 
+  // Process Completion Handler - refresh data when processes complete
+  const handleProcessComplete = useCallback(() => {
+    loadActivities()
+    kpiRefetch()
+  }, [loadActivities, kpiRefetch])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
+
   // Handle search change
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value)
@@ -243,26 +251,6 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
   const handleFilterChange = useCallback((filters: Record<string, any>) => {
     setSelectedFilters(filters)
     setPagination(prev => ({ ...prev, pageIndex: 0 })) // Reset to first page on filter change
-  }, [])
-
-  // Handle row click - navigate to activity detail
-  const handleRowClick = useCallback((activity: InvestmentActivity) => {
-    // Navigate to related entity if available (prioritize in typical workflow order)
-    if (activity.leadId) {
-      globalThis.location.href = buildPlatformUrl('/platform/irm/lead-record', { leadId: activity.leadId })
-    } else if (activity.accountId) {
-      globalThis.location.href = buildPlatformUrl('/platform/irm/account-record', { accountId: activity.accountId })
-    } else if (activity.contactId) {
-      globalThis.location.href = buildPlatformUrl('/platform/irm/contact-record', { contactId: activity.contactId })
-    } else if (activity.opportunityId) {
-      globalThis.location.href = buildPlatformUrl('/platform/irm/opportunity-record', {
-        opportunityId: activity.opportunityId
-      })
-    } else if (activity.investmentId) {
-      globalThis.location.href = buildPlatformUrl('/platform/irm/investment-record', {
-        investmentId: activity.investmentId
-      })
-    }
   }, [])
 
   // Create columns - hide owner since these are MY activities
@@ -318,7 +306,6 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     onRetry: () => {
       loadActivities()
     },
-    onRowClick: handleRowClick,
     kpiStatistics: kpis,
     kpiLoading,
     kpiError,

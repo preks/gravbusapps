@@ -1,124 +1,248 @@
-import { useState, useCallback, useEffect } from 'react'
+/**
+ * Hook for fetching Personal Workspace KPIs
+ * KPI aggregates are kept as hardcoded queries (no generic KPI builder pattern exists yet)
+ * Returns pure functions - state management handled by consumer
+ */
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_MY_INVESTMENT_KPIS } from '../queries/investmentPersonalWorkspaceQueries'
-import type { InvestmentKpis } from '../types/investmentPersonalWorkspaceTypes'
-import dayjs from 'dayjs'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface UseInvestmentPersonalWorkspaceKpisParams {
+export interface InvestmentPersonalWorkspaceKpisVariables {
   employeeId: string
-  accessToken: string
 }
 
-interface UseInvestmentPersonalWorkspaceKpisReturn {
-  kpis: InvestmentKpis | null
-  loading: boolean
-  error: Error | null
-  refetch: () => void
+export interface PersonalWorkspaceKpis {
+  opportunities: {
+    total: number
+    currentQuarter: number
+    previousQuarter: number
+    trend: number
+  }
+  accounts: {
+    total: number
+    currentQuarter: number
+    previousQuarter: number
+    trend: number
+  }
+  contacts: {
+    total: number
+    currentQuarter: number
+    previousQuarter: number
+    trend: number
+  }
+  investments: {
+    total: number
+    currentQuarter: number
+    previousQuarter: number
+    trend: number
+  }
+}
+
+// KPI Query - Aggregate queries are specific and don't use generic builders
+const GET_PERSONAL_WORKSPACE_KPIS = `
+  query GetPersonalWorkspaceKpis(
+    $employeeId: uuid!
+    $currentQuarterStart: timestamptz!
+    $previousQuarterStart: timestamptz!
+    $previousQuarterEnd: timestamptz!
+  ) {
+    # Current Quarter Data
+    currentQuarterOpportunities: InvestmentOpportunityAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        createdAt: { _gte: $currentQuarterStart }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    currentQuarterAccounts: InvestmentAccountAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        createdAt: { _gte: $currentQuarterStart }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    currentQuarterContacts: InvestmentContactAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        createdAt: { _gte: $currentQuarterStart }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    currentQuarterInvestments: InvestmentAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        createdAt: { _gte: $currentQuarterStart }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    # Previous Quarter Data
+    previousQuarterOpportunities: InvestmentOpportunityAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        createdAt: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    previousQuarterAccounts: InvestmentAccountAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        createdAt: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    previousQuarterContacts: InvestmentContactAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        createdAt: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    previousQuarterInvestments: InvestmentAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        createdAt: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    # Total Counts
+    totalOpportunities: InvestmentOpportunityAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    totalAccounts: InvestmentAccountAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    totalContacts: InvestmentContactAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+    
+    totalInvestments: InvestmentAggregate(
+      where: {
+        ownerEmployeeId: { _eq: $employeeId }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      aggregate { count }
+    }
+  }
+`
+
+// Calculate trend percentage
+const calculateTrend = (current: number, previous: number): number => {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return Math.round(((current - previous) / previous) * 100)
 }
 
 /**
- * Hook for fetching investment personal workspace KPIs
- * Returns performance metrics including opportunities, accounts, contacts, and investments
+ * Hook to fetch KPIs for Personal Workspace
  */
-export const useInvestmentPersonalWorkspaceKpis = ({
-  employeeId,
-  accessToken
-}: UseInvestmentPersonalWorkspaceKpisParams): UseInvestmentPersonalWorkspaceKpisReturn => {
-  const [kpis, setKpis] = useState<InvestmentKpis | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
+export const useInvestmentPersonalWorkspaceKpis = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const graphqlClient = useGraphQLClient(accessToken)
+  const fetchKpis = useCallback(
+    async (variables: InvestmentPersonalWorkspaceKpisVariables): Promise<PersonalWorkspaceKpis> => {
+      const { employeeId } = variables
 
-  const calculateTrend = (current: number, previous: number): number => {
-    if (previous === 0) return current > 0 ? 100 : 0
-    return ((current - previous) / previous) * 100
-  }
+      // Calculate date ranges (IRM uses quarterly comparisons)
+      const now = new Date()
+      const currentQuarter = Math.floor(now.getMonth() / 3)
+      const currentQuarterStart = new Date(now.getFullYear(), currentQuarter * 3, 1).toISOString()
+      const previousQuarterStart = new Date(now.getFullYear(), (currentQuarter - 1) * 3, 1).toISOString()
+      const previousQuarterEnd = new Date(now.getFullYear(), currentQuarter * 3, 0, 23, 59, 59).toISOString()
 
-  const fetchKpis = useCallback(async () => {
-    if (!employeeId || !accessToken) return
+      try {
+        const result = await graphqlClient.request<any>(GET_PERSONAL_WORKSPACE_KPIS, {
+          employeeId,
+          currentQuarterStart,
+          previousQuarterStart,
+          previousQuarterEnd
+        })
 
-    setLoading(true)
-    setError(null)
+        // Map result to KPI structure
+        const currentOpportunities = result.currentQuarterOpportunities?.aggregate?.count || 0
+        const previousOpportunities = result.previousQuarterOpportunities?.aggregate?.count || 0
+        const currentAccounts = result.currentQuarterAccounts?.aggregate?.count || 0
+        const previousAccounts = result.previousQuarterAccounts?.aggregate?.count || 0
+        const currentContacts = result.currentQuarterContacts?.aggregate?.count || 0
+        const previousContacts = result.previousQuarterContacts?.aggregate?.count || 0
+        const currentInvestments = result.currentQuarterInvestments?.aggregate?.count || 0
+        const previousInvestments = result.previousQuarterInvestments?.aggregate?.count || 0
 
-    try {
-      const currentQuarterStart = dayjs().startOf('quarter').toISOString()
-      const previousQuarterStart = dayjs().subtract(1, 'quarter').startOf('quarter').toISOString()
-      const previousQuarterEnd = dayjs().subtract(1, 'quarter').endOf('quarter').toISOString()
-
-      const result = await graphqlClient.request<{
-        currentQuarterOpportunities: { aggregate: { count: number } }
-        currentQuarterAccounts: { aggregate: { count: number } }
-        currentQuarterContacts: { aggregate: { count: number } }
-        currentQuarterInvestments: { aggregate: { count: number } }
-        previousQuarterOpportunities: { aggregate: { count: number } }
-        previousQuarterAccounts: { aggregate: { count: number } }
-        previousQuarterContacts: { aggregate: { count: number } }
-        previousQuarterInvestments: { aggregate: { count: number } }
-        totalOpportunities: { aggregate: { count: number } }
-        totalAccounts: { aggregate: { count: number } }
-        totalContacts: { aggregate: { count: number } }
-        totalInvestments: { aggregate: { count: number } }
-      }>(GET_MY_INVESTMENT_KPIS, {
-        employeeId,
-        currentQuarterStart,
-        previousQuarterStart,
-        previousQuarterEnd
-      })
-
-      // Calculate quarterly trends
-      const currentQuarterOpportunitiesCount = result.currentQuarterOpportunities?.aggregate?.count || 0
-      const previousQuarterOpportunitiesCount = result.previousQuarterOpportunities?.aggregate?.count || 0
-      const opportunitiesTrend = calculateTrend(currentQuarterOpportunitiesCount, previousQuarterOpportunitiesCount)
-
-      const currentQuarterAccountsCount = result.currentQuarterAccounts?.aggregate?.count || 0
-      const previousQuarterAccountsCount = result.previousQuarterAccounts?.aggregate?.count || 0
-      const accountsTrend = calculateTrend(currentQuarterAccountsCount, previousQuarterAccountsCount)
-
-      const currentQuarterContactsCount = result.currentQuarterContacts?.aggregate?.count || 0
-      const previousQuarterContactsCount = result.previousQuarterContacts?.aggregate?.count || 0
-      const contactsTrend = calculateTrend(currentQuarterContactsCount, previousQuarterContactsCount)
-
-      const currentQuarterInvestmentsCount = result.currentQuarterInvestments?.aggregate?.count || 0
-      const previousQuarterInvestmentsCount = result.previousQuarterInvestments?.aggregate?.count || 0
-      const investmentsTrend = calculateTrend(currentQuarterInvestmentsCount, previousQuarterInvestmentsCount)
-
-      setKpis({
-        opportunities: {
-          total: result.totalOpportunities?.aggregate?.count || 0,
-          trend: opportunitiesTrend
-        },
-        accounts: {
-          total: result.totalAccounts?.aggregate?.count || 0,
-          trend: accountsTrend
-        },
-        contacts: {
-          total: result.totalContacts?.aggregate?.count || 0,
-          trend: contactsTrend
-        },
-        investments: {
-          total: result.totalInvestments?.aggregate?.count || 0,
-          trend: investmentsTrend
+        const mappedKpis: PersonalWorkspaceKpis = {
+          opportunities: {
+            total: result.totalOpportunities?.aggregate?.count || 0,
+            currentQuarter: currentOpportunities,
+            previousQuarter: previousOpportunities,
+            trend: calculateTrend(currentOpportunities, previousOpportunities)
+          },
+          accounts: {
+            total: result.totalAccounts?.aggregate?.count || 0,
+            currentQuarter: currentAccounts,
+            previousQuarter: previousAccounts,
+            trend: calculateTrend(currentAccounts, previousAccounts)
+          },
+          contacts: {
+            total: result.totalContacts?.aggregate?.count || 0,
+            currentQuarter: currentContacts,
+            previousQuarter: previousContacts,
+            trend: calculateTrend(currentContacts, previousContacts)
+          },
+          investments: {
+            total: result.totalInvestments?.aggregate?.count || 0,
+            currentQuarter: currentInvestments,
+            previousQuarter: previousInvestments,
+            trend: calculateTrend(currentInvestments, previousInvestments)
+          }
         }
-      })
-    } catch (err) {
-      console.error('Error fetching investment personal workspace KPIs:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch investment KPIs'))
-    } finally {
-      setLoading(false)
-    }
-  }, [employeeId, accessToken, graphqlClient])
 
-  useEffect(() => {
-    fetchKpis()
-  }, [fetchKpis])
+        return mappedKpis
+      } catch (error) {
+        console.error('Error fetching personal workspace KPIs:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  return {
-    kpis,
-    loading,
-    error,
-    refetch: () => {
-      void fetchKpis()
-    }
-  }
+  return { fetchKpis }
 }

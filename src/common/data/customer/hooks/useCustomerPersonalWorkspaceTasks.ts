@@ -1,151 +1,83 @@
-import { useState, useCallback, useEffect } from 'react'
+/**
+ * Hook for fetching personal workspace tasks
+ * Uses centralized query builders instead of hardcoded queries
+ * Returns pure functions - state management handled by consumer
+ */
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_MY_TASKS, GET_UPCOMING_TASKS } from '../queries/customerPersonalWorkspaceQueries'
-import type { MyTask } from '../types/customerPersonalWorkspaceTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  buildCustomerTaskQuery,
+  buildCustomerTaskWhereCondition,
+  buildCustomerTaskOrderBy,
+  type CustomerTaskQueryVariables
+} from '../queries/customerTaskQueries'
+import type { CustomerTask } from '../types/customerTaskTypes'
+import { toCustomerTask } from '../mappers/customerTaskMappers'
 
-interface UseCustomerPersonalWorkspaceTasksParams {
+export interface CustomerPersonalWorkspaceTasksVariables {
   employeeId: string
-  accessToken: string
   statusFilter?: string[]
   limit?: number
-  offset?: number
 }
 
-interface UseCustomerPersonalWorkspaceTasksReturn {
-  tasks: MyTask[]
+export interface CustomerPersonalWorkspaceTasksResult {
+  tasks: CustomerTask[]
   total: number
-  loading: boolean
-  error: Error | null
-  refetch: () => void
 }
 
 /**
- * Hook for fetching customer personal workspace tasks
- * Returns tasks assigned to the employee with filtering and pagination
+ * Hook to fetch tasks assigned to a specific employee
+ * Used in Personal Workspace Overview and Tasks tabs
  */
-export const useCustomerPersonalWorkspaceTasks = ({
-  employeeId,
-  accessToken,
-  statusFilter = ['PENDING', 'IN_PROGRESS'],
-  limit = 50,
-  offset = 0
-}: UseCustomerPersonalWorkspaceTasksParams): UseCustomerPersonalWorkspaceTasksReturn => {
-  const [tasks, setTasks] = useState<MyTask[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
+export const useCustomerPersonalWorkspaceTasks = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const graphqlClient = useGraphQLClient(accessToken)
+  const fetchTasks = useCallback(
+    async (variables: CustomerPersonalWorkspaceTasksVariables): Promise<CustomerPersonalWorkspaceTasksResult> => {
+      const { employeeId, statusFilter = ['PENDING', 'IN_PROGRESS'], limit = 100 } = variables
 
-  const fetchTasks = useCallback(async () => {
-    if (!employeeId || !accessToken) return
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const result = await graphqlClient.request<{
-        SalesTask: MyTask[]
-        SalesTaskAggregate: {
-          aggregate: {
-            count: number
-          }
-        }
-      }>(GET_MY_TASKS, {
-        employeeId,
-        statusFilter,
+      // Build query variables
+      const queryVariables: CustomerTaskQueryVariables = {
+        assigneeEmployeeIds: [employeeId],
+        statusCodes: statusFilter,
         limit,
-        offset
-      })
+        offset: 0,
+        orderBy: [
+          { field: 'dueDate', direction: 'ASC_NULLS_LAST' },
+          { field: 'priority', direction: 'DESC_NULLS_LAST' }
+        ]
+      }
 
-      setTasks(result.SalesTask || [])
-      setTotal(result.SalesTaskAggregate?.aggregate?.count || 0)
-    } catch (err) {
-      console.error('Error fetching customer personal workspace tasks:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch tasks'))
-    } finally {
-      setLoading(false)
-    }
-  }, [employeeId, accessToken, JSON.stringify(statusFilter), limit, offset])
+      // Build query using central builders
+      const query = buildCustomerTaskQuery()
+      const whereCondition = buildCustomerTaskWhereCondition(queryVariables)
+      const orderBy = buildCustomerTaskOrderBy(queryVariables.orderBy || [])
 
-  // Auto-fetch on mount and when dependencies change
-  useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+      const graphQLVariables = {
+        limit: queryVariables.limit,
+        offset: queryVariables.offset,
+        where: whereCondition,
+        orderBy
+      }
 
-  return {
-    tasks,
-    total,
-    loading,
-    error,
-    refetch: () => {
-      void fetchTasks()
-    }
-  }
-}
+      try {
+        const result = await graphqlClient.request<{
+          SalesTask: any[]
+          SalesTaskAggregate: { aggregate: { count: number } }
+        }>(query, graphQLVariables)
 
-interface UseCustomerUpcomingTasksParams {
-  employeeId: string
-  accessToken: string
-  limit?: number
-}
+        const mappedTasks = result.SalesTask.map(toCustomerTask)
+        const total = result.SalesTaskAggregate?.aggregate?.count || 0
 
-interface UseCustomerUpcomingTasksReturn {
-  tasks: MyTask[]
-  loading: boolean
-  error: Error | null
-  refetch: () => void
-}
+        return { tasks: mappedTasks, total }
+      } catch (error) {
+        console.error('Error fetching personal workspace tasks:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-/**
- * Hook for fetching upcoming customer tasks
- * Returns a limited set of upcoming tasks for dashboard/overview displays
- */
-export const useCustomerUpcomingTasks = ({
-  employeeId,
-  accessToken,
-  limit = 5
-}: UseCustomerUpcomingTasksParams): UseCustomerUpcomingTasksReturn => {
-  const [tasks, setTasks] = useState<MyTask[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-
-  const graphqlClient = useGraphQLClient(accessToken)
-
-  const fetchTasks = useCallback(async () => {
-    if (!employeeId || !accessToken) return
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const result = await graphqlClient.request<{
-        SalesTask: MyTask[]
-      }>(GET_UPCOMING_TASKS, {
-        employeeId,
-        limit
-      })
-
-      setTasks(result.SalesTask || [])
-    } catch (err) {
-      console.error('Error fetching upcoming customer tasks:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch upcoming tasks'))
-    } finally {
-      setLoading(false)
-    }
-  }, [employeeId, accessToken, limit])
-
-  // Auto-fetch on mount and when dependencies change
-  useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
-
-  return {
-    tasks,
-    loading,
-    error,
-    refetch: () => {
-      void fetchTasks()
-    }
-  }
+  return { fetchTasks }
 }

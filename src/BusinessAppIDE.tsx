@@ -40,6 +40,14 @@ import { useDynamicScreen } from './common/hooks/useDynamicScreen'
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog'
 import { useRewrapAntDStylesLive } from './common/hooks/useRewrapAntDStylesLive'
 import { BlinkProvider } from './common/providers/BlinkProvider'
+import { useBusinessAuth } from './common/auth/useBusinessAuth'
+import { useUserProfileFromKeycloak } from './common/user-profile/useUserProfileFromKeycloak'
+import {
+  STORAGE_KEY_USER_INFO,
+  STORAGE_KEY_ACCESS_TOKEN,
+  STORAGE_KEY_ADDITIONAL_DATA,
+  STORAGE_KEY_SIDEBAR_COLLAPSED
+} from './common/constants/ideStorageKeys'
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob('./business-apps/**/index.ts', {
@@ -226,11 +234,6 @@ for (const path in examplePatterns) {
     type: componentType
   })
 }
-
-const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info'
-const STORAGE_KEY_ACCESS_TOKEN = 'business-app-ide-access-token'
-const STORAGE_KEY_ADDITIONAL_DATA = 'business-app-ide-additional-data'
-const STORAGE_KEY_SIDEBAR_COLLAPSED = 'business-app-ide-sidebar-collapsed'
 
 export interface CompMeta {
   name: string
@@ -683,6 +686,63 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     return undefined
   }, [additionalData])
 
+  // --- Authentication & user profile (Keycloak-based) ---
+  const { initialized: authInitialized, accessToken: authToken, tokenParsed, logout, refreshToken } = useBusinessAuth()
+  const { userInfo: profileUserInfo, loading: profileLoading } = useUserProfileFromKeycloak(authToken, tokenParsed)
+
+  // When auth/profile become available, synchronize into IDE state and localStorage
+  useEffect(() => {
+    if (!authInitialized || !authToken) return
+
+    setAccessToken(authToken)
+    try {
+      localStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, authToken)
+    } catch {
+      // ignore storage errors
+    }
+  }, [authInitialized, authToken])
+
+  useEffect(() => {
+    if (!profileUserInfo) return
+    try {
+      const serialized = JSON.stringify(profileUserInfo, null, 2)
+      setUserInfo(serialized)
+      validateUserInfo(serialized)
+      localStorage.setItem(STORAGE_KEY_USER_INFO, serialized)
+    } catch {
+      // ignore serialization or storage errors
+    }
+  }, [profileUserInfo])
+
+  const handleLogout = useCallback(async () => {
+    await logout()
+    setAccessToken('')
+    setUserInfo('')
+    setAdditionalData('')
+    setTokenStatus(null)
+    setSettingsModalVisible(false)
+  }, [logout])
+
+  const handleTokenBadgeClick = useCallback(async () => {
+    await refreshToken()
+    setSettingsModalVisible(true)
+  }, [refreshToken])
+
+  // While authentication is initializing, show a minimal loading shell
+  if (!authInitialized || profileLoading) {
+    return (
+      <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
+        <LocalizationProvider locale={locale}>
+          <div className={densityClass}>
+            <div className="gba:h-screen gba:flex gba:items-center gba:justify-center">
+              <div className="gba:text-sm gba:text-muted-foreground">Signing you in to NEWWORK…</div>
+            </div>
+          </div>
+        </LocalizationProvider>
+      </ThemeProvider>
+    )
+  }
+
   return (
     <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
       <LocalizationProvider locale={locale}>
@@ -786,7 +846,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                                 <Badge
                                   variant={tokenStatus.variant}
                                   className="gba:cursor-pointer gba:gap-1.5 gba:px-2.5 gba:py-1"
-                                  onClick={() => setSettingsModalVisible(true)}
+                                  onClick={handleTokenBadgeClick}
                                   data-testid="TokenStatusBadge"
                                 >
                                   {tokenStatus.isExpired ? (
@@ -820,7 +880,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                                 <Badge
                                   variant="secondary"
                                   className="gba:cursor-pointer gba:gap-1.5 gba:px-2.5 gba:py-1"
-                                  onClick={() => setSettingsModalVisible(true)}
+                                  onClick={handleTokenBadgeClick}
                                   data-testid="TokenStatusBadge-Invalid"
                                 >
                                   <Clock size={14} />
@@ -991,11 +1051,16 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                         Additional Data is used to pass context information like employeeId, jobPositionId, etc.
                       </p>
 
-                      <div className="gba:flex gba:justify-end gba:gap-2">
-                        <Button variant="outline" onClick={() => setSettingsModalVisible(false)}>
-                          Cancel
+                      <div className="gba:flex gba:justify-between gba:gap-2">
+                        <Button variant="outline" onClick={handleLogout}>
+                          Logout
                         </Button>
-                        <Button onClick={saveSettings}>Save Settings</Button>
+                        <div className="gba:flex gba:gap-2">
+                          <Button variant="outline" onClick={() => setSettingsModalVisible(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={saveSettings}>Save Settings</Button>
+                        </div>
                       </div>
                     </div>
                   </DialogContent>

@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import type { EmployeeDetailsData } from '@/business-apps/hr/core/details/employee-details/types'
 
 export const GET_UPLOAD_DOCUMENT_LOOKUPS = `
-  query MyQuery($id: uuid!, $activeUserLocale: String!) {
+  query MyQuery($id: uuid, $activeUserLocale: String!) {
     Employee(where: {id: {_eq: $id}, isDeleted: {_eq: false}}) {
       id
       firstName
@@ -54,7 +55,10 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [groups, setGroups] = useState<CatalogOption[]>([])
   const [types, setTypes] = useState<CatalogTypeOption[]>([])
-  const [employee, setEmployee] = useState<EmployeeDetails | null>(null)
+  const [employee, setEmployee] = useState<Pick<
+    EmployeeDetailsData,
+    'id' | 'firstName' | 'lastName' | 'pictureThumbnail' | 'employeePosition'
+  > | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -67,13 +71,13 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
   }, [context.userInfo?.employeeDetails?.employeeId, context.additionalData])
 
   const load = useCallback(async () => {
-    if (!employeeId) return
     setLoading(true)
     setError(null)
     try {
       const locale = getCurrentActiveUserLocale() || 'en-US'
+
       const res = await graphqlClient.request<any>(GET_UPLOAD_DOCUMENT_LOOKUPS, {
-        id: employeeId,
+        id: employeeId && employeeId.trim().length > 0 ? employeeId : null,
         activeUserLocale: locale
       })
 

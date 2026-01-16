@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Button, Alert, Tabs, TabsList, TabsTrigger, TabsContent, toast, Toaster } from '@newwork/nw-design-system'
-import {
-  ArrowClockwiseIcon,
+import {   ArrowClockwiseIcon,
   GearIcon,
-  PlusIcon,
   DatabaseIcon,
   ChartBarIcon,
-  WarningCircleIcon
-} from '@phosphor-icons/react'
+  WarningCircleIcon,
+  UserIcon,
+  MoneyIcon,
+  ClockIcon,
+  UsersThreeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout } from '@/components/layout/pageLayout'
 import {
@@ -143,6 +144,21 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
     }, 300)
   }
 
+  const getServiceIcon = (service: Services) => {
+    switch (service) {
+      case Services.EMPLOYEE:
+        return <UserIcon />
+      case Services.EMPLOYEE_EXPENSE:
+        return <MoneyIcon />
+      case Services.EMPLOYEE_TIME:
+        return <ClockIcon />
+      case Services.CUSTOMER_RELATIONS:
+        return <UsersThreeIcon />
+      default:
+        return <DatabaseIcon />
+    }
+  }
+
   const formatErrorMessage = (error: string) => {
     // Handle common error patterns
     if (error.includes('403')) {
@@ -275,20 +291,10 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
           className="gba:h-full gba:w-full"
         >
           <TabsList className="gba:grid gba:w-full gba:grid-cols-2" data-testid={`query-type-tabs-${service}`}>
-            <TabsTrigger
-              value={QueryType.DATASET}
-              className="gba:flex gba:items-center"
-              style={{ gap: 'var(--nw-spacing-2)' }}
-            >
-              <DatabaseIcon />
+            <TabsTrigger value={QueryType.DATASET} startIcon={<DatabaseIcon />}>
               Dataset Queries
             </TabsTrigger>
-            <TabsTrigger
-              value={QueryType.TIMESERIES}
-              className="gba:flex gba:items-center"
-              style={{ gap: 'var(--nw-spacing-2)' }}
-            >
-              <ChartBarIcon />
+            <TabsTrigger value={QueryType.TIMESERIES} startIcon={<ChartBarIcon />}>
               Timeseries Queries
             </TabsTrigger>
           </TabsList>
@@ -310,17 +316,6 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
         headerLabel="Query Manager"
         pageHeaderRight={
           <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-3)' }}>
-            <Button
-              variant="default"
-              size="default"
-              onClick={handleCreateQuery}
-              data-testid="create-query-button"
-              className="gba:flex gba:items-center gba:whitespace-nowrap"
-              style={{ gap: 'var(--nw-spacing-2)' }}
-            >
-              <PlusIcon size={16} />
-              Create Query
-            </Button>
             <Button
               variant="outline"
               size="default"
@@ -365,13 +360,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
                 style={{ gridTemplateColumns: `repeat(${getAllServices().length}, minmax(0, 1fr))` }}
               >
                 {getAllServices().map(service => (
-                  <TabsTrigger
-                    key={service}
-                    value={service}
-                    className="gba:flex gba:items-center"
-                    style={{ gap: 'var(--nw-spacing-2)' }}
-                  >
-                    <DatabaseIcon />
+                  <TabsTrigger key={service} value={service} startIcon={getServiceIcon(service)}>
                     {getServiceLabel(service)}
                   </TabsTrigger>
                 ))}

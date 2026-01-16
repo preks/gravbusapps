@@ -152,7 +152,7 @@ export interface CatalogQueryVariables {
   catalogIdentifiers?: string[] // For fetching specific catalogs by identifier:version
   orderBy?: Array<{
     field: string
-    direction: 'ASC' | 'DESC'
+    direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | 'ASC_NULLS_FIRST' | 'DESC_NULLS_FIRST'
   }>
 }
 
@@ -189,7 +189,7 @@ export interface CatalogEntryQueryVariables {
   includeTypes?: string[] // Include only entries with types matching these patterns (case-insensitive substring)
   orderBy?: Array<{
     field: string
-    direction: 'ASC' | 'DESC'
+    direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | 'ASC_NULLS_FIRST' | 'DESC_NULLS_FIRST'
   }>
 }
 

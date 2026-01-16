@@ -1,4 +1,3 @@
-import React from 'react'
 import { LineChart } from 'lucide-react'
 import { RecordNavigationConfig } from '../overview/widgets/RecordSummary'
 
@@ -30,7 +29,12 @@ export const buildOverviewProps = (
     onDealClick: handlers.handleDealClick,
     selectedDealCurrency,
     onDealCurrencyChange: handlers.setSelectedDealCurrency,
-    recordNavigationConfig
+    recordNavigationConfig,
+    // Opportunity status data (IRM only)
+    opportunityStatuses: overviewData.opportunityStatuses,
+    totalOpportunityCount: overviewData.totalOpportunityCount,
+    openOpportunitiesComparison: overviewData.openOpportunitiesComparison,
+    useOpportunityStatus: overviewData.useOpportunityStatus
   }
 }
 

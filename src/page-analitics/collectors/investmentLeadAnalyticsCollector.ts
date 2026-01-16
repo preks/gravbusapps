@@ -14,7 +14,6 @@ const GET_INVESTMENT_LEAD_ANALYTICS = `
   query GetInvestmentLeadAnalytics($id: uuid!) {
     InvestmentLead(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
       id
-      name
       version
       firstName
       lastName
@@ -68,19 +67,12 @@ const GET_INVESTMENT_LEAD_ANALYTICS = `
       addresses {
         addressLine
         postalCode
-        city
         country {
           value
         }
         region {
           value
         }
-      }
-      numberOfEmployees {
-        value
-      }
-      annualRevenue {
-        value
       }
       convertedOpportunityId
       sensitive
@@ -203,9 +195,7 @@ function buildInvestmentLeadSummary(lead: LeadRecord): AnalyticsSummary {
           industry: lead.industryClass?.value,
           website: lead.companyWebsite,
           email: normalizeEmail(lead.companyEmail),
-          phone: normalizePhone(lead.companyPhone),
-          numberOfEmployees: lead.numberOfEmployees?.value,
-          annualRevenue: lead.annualRevenue?.value
+          phone: normalizePhone(lead.companyPhone)
         })
       : undefined,
     primaryCommunicationChannel: primaryChannel
@@ -426,7 +416,6 @@ function buildInvestmentLeadRaw(lead: LeadRecord, associates: AnalyticsContact[]
                   compactRecord({
                     addressLine: address.addressLine,
                     postalCode: address.postalCode,
-                    city: address.city,
                     country: address.country?.value,
                     region: address.region?.value
                   })

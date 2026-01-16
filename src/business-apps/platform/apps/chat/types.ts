@@ -87,7 +87,7 @@ export interface Message {
   sender?: User
   reactions?: MessageReaction[]
   replies?: Message[]
-  status?: 'sent' | 'delivered' | 'read'
+  status?: 'sending' | 'sent' | 'delivered' | 'read'
 }
 
 export interface MessageReaction {
@@ -112,6 +112,12 @@ export interface TypingIndicator {
   userId: string
   username: string
   isTyping: boolean
+}
+
+export interface PresenceUpdate {
+  userId: string
+  state: 'online' | 'away' | 'offline'
+  timestamp: Date | string
 }
 
 // Backend sends this format for user_status_change event

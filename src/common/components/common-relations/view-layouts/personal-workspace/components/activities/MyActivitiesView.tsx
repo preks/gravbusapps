@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -10,8 +10,10 @@ import {
   ActivityStatisticsCard,
   type ActivityStatisticsData
 } from '@/common/components/common-relations/view-layouts/activity-layout/components/ActivityStatisticsCard'
+import { ActivityDetailSheet } from '@/common/components/common-relations/detail-sheets/activity-detail-sheet'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
 import type { ColumnDef } from '@tanstack/react-table'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 export interface MyActivitiesViewConfig<TActivity extends Activity = Activity> {
   // Data fetching
@@ -85,6 +87,9 @@ export const MyActivitiesView: React.FC<MyActivitiesViewProps> = ({
   // Local state for columns visibility if not provided
   const [localVisibleColumns, setLocalVisibleColumns] = useState<string[]>([])
 
+  // Detail Sheet State
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null)
+
   // Use provided or local state
   const visibleColumns = config.visibleColumns ?? localVisibleColumns
   const onVisibleColumnsChange = config.onVisibleColumnsChange ?? setLocalVisibleColumns
@@ -95,6 +100,27 @@ export const MyActivitiesView: React.FC<MyActivitiesViewProps> = ({
       setLocalVisibleColumns(config.availableColumns.map(col => col.id))
     }
   }, [config.availableColumns, config.visibleColumns, localVisibleColumns.length])
+
+  // Extract callbacks from config to prevent unnecessary re-renders
+  const { onRetry, onKpiRetry, onRowClick } = config
+
+  // Process Completion Handler - refresh data when processes complete
+  const handleProcessComplete = useCallback(() => {
+    onRetry?.()
+    onKpiRetry?.()
+  }, [onRetry, onKpiRetry])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
+
+  // Activity Click Handler - open detail sheet
+  const handleActivityClick = useCallback(
+    (activity: Activity) => {
+      setSelectedActivity(activity)
+      // Also call custom click handler if provided
+      onRowClick?.(activity)
+    },
+    [onRowClick]
+  )
 
   // Filter columns based on visibility
   const displayColumns = useMemo(
@@ -207,12 +233,22 @@ export const MyActivitiesView: React.FC<MyActivitiesViewProps> = ({
           sorting={config.sorting}
           onPaginationChange={config.onPaginationChange}
           onSortingChange={config.onSortingChange}
-          onRowClick={config.onRowClick}
+          onRowClick={handleActivityClick}
           actions={rowActions}
           onRetry={config.onRetry}
           dataTestId={`${dataTestId}-list`}
         />
       </DataDisplay>
+
+      {/* Activity Detail Sheet */}
+      <ActivityDetailSheet
+        activity={selectedActivity as any}
+        open={!!selectedActivity}
+        onOpenChange={open => {
+          if (!open) setSelectedActivity(null)
+        }}
+        data-testid={`${dataTestId}-detail-sheet`}
+      />
     </div>
   )
 }

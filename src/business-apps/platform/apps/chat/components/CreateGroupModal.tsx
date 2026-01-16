@@ -13,8 +13,7 @@ import {
   TabsTrigger,
   TabsContent,
   Avatar,
-  IconAvatar,
-  useTranslation
+  IconAvatar
 } from '@newwork/nw-design-system'
 import { Users, Buildings } from '@phosphor-icons/react'
 import { UserIcon } from 'lucide-react'
@@ -23,7 +22,7 @@ import { DimensionPicker } from './DimensionPicker'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useOrganizationalDimensions, DimensionType } from '../hooks/useOrganizationalDimensions'
 import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 type CreationMode = 'manual' | 'dimension'
 
@@ -45,7 +44,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   prefixDataTestId = 'create-group-modal',
   accessToken
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   const [creationMode, setCreationMode] = useState<CreationMode>('manual')
   const [groupName, setGroupName] = useState('')
   const [description, setDescription] = useState('')
