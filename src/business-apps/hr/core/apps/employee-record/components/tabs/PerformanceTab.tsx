@@ -198,7 +198,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           contexts={[
             {
               context: FlowContextName.employeePerformanceGoal,
-              contextData: { employeeId: employee?.id, employee: employee as Employee }
+              contextData: { employeeId: employee?.id, employee: employee }
             }
           ]}
           prefixDataTestId="employee-goal-add"

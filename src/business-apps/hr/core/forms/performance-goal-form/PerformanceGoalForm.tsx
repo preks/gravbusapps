@@ -49,14 +49,14 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
   employee
 }) => {
   const { t } = useTranslation()
-  const isEditMode = additionalData?.goalId ? true : false
+  const isEditMode = !!additionalData?.goalId
 
   // Helper function to safely convert date strings to Date objects
   const safeDateConversion = (dateString: string | undefined): Date => {
     if (!dateString) return new Date()
     try {
       const date = new Date(dateString)
-      return isNaN(date.getTime()) ? new Date() : date
+      return Number.isNaN(date.getTime()) ? new Date() : date
     } catch (error) {
       console.warn('Failed to parse date:', dateString, error)
       return new Date()
@@ -109,7 +109,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0)
       return dateOnly.toISOString()
     }
-    return date as string
+    return date
   }
 
   const handleFormSubmit = async (formData: PerformanceGoalFormData) => {

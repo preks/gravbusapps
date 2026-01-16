@@ -102,20 +102,20 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             </FormLabel>
             <FormControl>
               <Input
-                className="gba:w-full"
                 {...field}
                 type="date"
                 disabled={isStartDateDisabled}
+                data-testid="flw_changePersonalData_startDate"
                 placeholder={t(
                   'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
                   'Please Select'
                 )}
-                data-testid="flw_changePersonalData_startDate"
                 value={
                   field.value
                     ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}`
                     : ''
                 }
+                className="gba:w-full"
                 onChange={e => {
                   const dateValue = e.target.value ? new Date(e.target.value + 'T12:00:00') : undefined
                   field.onChange(dateValue)
@@ -237,8 +237,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   if (e.target.value === '') {
                     field.onChange(0)
                   } else {
-                    const value = parseInt(e.target.value, 10)
-                    field.onChange(isNaN(value) ? undefined : value)
+                    const value = Number.parseInt(e.target.value, 10)
+                    field.onChange(Number.isNaN(value) ? undefined : value)
                   }
                 }}
               />
