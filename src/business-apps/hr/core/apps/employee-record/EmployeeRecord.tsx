@@ -327,7 +327,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     isSelfView,
     isManager,
     hasEmployeeGrowthPermission: !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true,
-    hasEmployeeRecordAllHrBackoffice: employeeRecordAllHrBackoffice?.hasPermission === true
+    hasEmployeeRecordAllHrBackoffice:
+      !employeeRecordAllHrBackoffice.loading && employeeRecordAllHrBackoffice?.hasPermission === true
   })
 
   const getTabItems = () => {
@@ -435,14 +436,15 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               ),
               children: (
                 <CompensationTab
-                  employee={employee}
                   employeeId={employeeIdToShow}
                   accessToken={accessToken}
                   userInfo={userInfo}
-                  isSelfView={isSelfView}
                   compensationFeatureFlag={compensationFeatureFlag as boolean}
                   employeeRecordHrBackoffice={employeeRecordHrBackoffice}
                   additionalData={additionalData}
+                  employeeGrowthPermission={employeeGrowthPermission}
+                  employeeRecordAllHrBackoffice={employeeRecordAllHrBackoffice}
+                  compensationPermissions={compensationPermissions}
                 />
               )
             }
