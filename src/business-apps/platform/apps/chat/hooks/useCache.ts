@@ -53,9 +53,6 @@ export function useCache() {
         hasMore,
         totalCount
       })
-
-      if (process.env.NODE_ENV === 'development') {
-      }
     },
     []
   )
@@ -69,9 +66,6 @@ export function useCache() {
         ...entry,
         messages: entry.messages.map(msg => (msg.id === messageId ? updater(msg) : msg))
       }))
-
-      if (process.env.NODE_ENV === 'development' && success) {
-      }
 
       return success
     },
@@ -93,9 +87,6 @@ export function useCache() {
       }
     })
 
-    if (process.env.NODE_ENV === 'development' && success) {
-    }
-
     return success
   }, [])
 
@@ -108,9 +99,6 @@ export function useCache() {
       messages: entry.messages.filter(m => m.id !== messageId)
     }))
 
-    if (process.env.NODE_ENV === 'development' && success) {
-    }
-
     return success
   }, [])
 
@@ -120,9 +108,6 @@ export function useCache() {
   const invalidateConversation = useCallback((conversationId: string) => {
     messagesCacheRef.current.delete(conversationId)
     conversationsCacheRef.current.delete(conversationId)
-
-    if (process.env.NODE_ENV === 'development') {
-    }
   }, [])
 
   /**
@@ -139,9 +124,6 @@ export function useCache() {
   const setCachedConversation = useCallback((conversation: Conversation) => {
     if (!conversation.id) return
     conversationsCacheRef.current.set(conversation.id, conversation)
-
-    if (process.env.NODE_ENV === 'development') {
-    }
   }, [])
 
   /**
@@ -158,9 +140,6 @@ export function useCache() {
   const setCachedUser = useCallback((user: User) => {
     if (!user.id) return
     usersCacheRef.current.set(user.id, user)
-
-    if (process.env.NODE_ENV === 'development') {
-    }
   }, [])
 
   /**
@@ -170,9 +149,6 @@ export function useCache() {
     messagesCacheRef.current.clear()
     conversationsCacheRef.current.clear()
     usersCacheRef.current.clear()
-
-    if (process.env.NODE_ENV === 'development') {
-    }
   }, [])
 
   /**
@@ -202,9 +178,6 @@ export function useCache() {
           setCachedConversation(conv)
         })
       }
-
-      if (process.env.NODE_ENV === 'development') {
-      }
     },
     [setCachedMessages, setCachedConversation]
   )
@@ -215,15 +188,9 @@ export function useCache() {
   useEffect(() => {
     // Clean up expired entries every 60 seconds
     cleanupIntervalRef.current = setInterval(() => {
-      const messagesCleanup = messagesCacheRef.current.cleanup()
-      const conversationsCleanup = conversationsCacheRef.current.cleanup()
-      const usersCleanup = usersCacheRef.current.cleanup()
-
-      if (process.env.NODE_ENV === 'development') {
-        const totalCleanup = messagesCleanup + conversationsCleanup + usersCleanup
-        if (totalCleanup > 0) {
-        }
-      }
+      messagesCacheRef.current.cleanup()
+      conversationsCacheRef.current.cleanup()
+      usersCacheRef.current.cleanup()
     }, 60 * 1000)
 
     return () => {
