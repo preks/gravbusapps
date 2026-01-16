@@ -48,8 +48,8 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   const tableRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation(hrTranslations)
 
-  // Get the current active structure ID (with fallback)
-  const structureId = getCurrentActiveStructureId() ?? '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+  // Get the current active structure ID
+  const structureId = getCurrentActiveStructureId()
 
   // Get employment type distribution data
   const {

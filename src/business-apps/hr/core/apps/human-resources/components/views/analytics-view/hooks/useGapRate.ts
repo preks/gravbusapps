@@ -25,7 +25,7 @@ export function useGapRate(accessToken: string) {
     setError(null)
 
     // Get the current structure ID from windowUtils
-    const structureId = getCurrentActiveStructureId() ?? '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+    const structureId = getCurrentActiveStructureId()
 
     if (!structureId) {
       console.warn('[useGapRate] No active structure ID found')
