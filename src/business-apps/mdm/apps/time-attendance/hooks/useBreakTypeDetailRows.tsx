@@ -15,6 +15,7 @@ import {
   getRequiredFieldsForType
 } from '../constants/break-type-constants'
 import { RequiredIndicator } from '../components/RequiredIndicator'
+import { FieldErrorTooltip } from '../components/FieldErrorTooltip'
 
 const NEW_ROW_KEY = '__new__'
 
@@ -48,6 +49,8 @@ export const useBreakTypeDetailRows = ({
   // Multi-edit state: each row being edited has its own form values
   const [editingRows, setEditingRows] = useState<Record<string, BreakTypeDetailRowFormData>>({})
   const [savingRows, setSavingRows] = useState<Record<string, boolean>>({})
+  // Track which rows have attempted to save (to show errors)
+  const [attemptedSave, setAttemptedSave] = useState<Set<string>>(new Set())
 
   const isAddingNew = useMemo(() => NEW_ROW_KEY in editingRows, [editingRows])
 
@@ -88,6 +91,12 @@ export const useBreakTypeDetailRows = ({
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [rowId]: _, ...rest } = prev
       return rest
+    })
+    // Clear attempted save state
+    setAttemptedSave(prev => {
+      const next = new Set(prev)
+      next.delete(rowId)
+      return next
     })
   }, [])
 
@@ -137,6 +146,27 @@ export const useBreakTypeDetailRows = ({
     [editingRows]
   )
 
+  // Get validation errors for a row
+  const getRowErrors = useCallback(
+    (rowId: string): Record<string, string> => {
+      const values = editingRows[rowId]
+      if (!values) return {}
+
+      const result = breakTypeDetailRowSchema.safeParse(values)
+      if (result.success) return {}
+
+      const errors: Record<string, string> = {}
+      for (const issue of result.error.issues) {
+        const path = issue.path[0] as string
+        if (path && !errors[path]) {
+          errors[path] = issue.message
+        }
+      }
+      return errors
+    },
+    [editingRows]
+  )
+
   // Check if row has changes
   const isRowDirty = useCallback(
     (rowId: string, originalDetail?: TransformedBreakTypeVersionDetail): boolean => {
@@ -167,6 +197,13 @@ export const useBreakTypeDetailRows = ({
     async (rowId: string, originalDetail?: TransformedBreakTypeVersionDetail) => {
       const values = editingRows[rowId]
       if (!values || !breakTypeVersionId) return
+
+      // Mark that save was attempted (to show errors)
+      setAttemptedSave(prev => new Set(prev).add(rowId))
+
+      // Validate - if invalid, return early (errors will now be shown)
+      const result = breakTypeDetailRowSchema.safeParse(values)
+      if (!result.success) return
 
       setSavingRows(prev => ({ ...prev, [rowId]: true }))
 
@@ -238,8 +275,6 @@ export const useBreakTypeDetailRows = ({
       const isEditing = rowId in editingRows
       const values = editingRows[rowId]
       const isSaving = savingRows[rowId] || false
-      const isValid = isRowValid(rowId)
-      const isDirty = isRowDirty(rowId, detail)
 
       // Determine field states based on type
       const currentType = isEditing ? values?.type : detail.type
@@ -251,6 +286,9 @@ export const useBreakTypeDetailRows = ({
       // Get required fields based on current type
       const requiredFields = getRequiredFieldsForType(currentType)
 
+      // Get validation errors for the row (only show after save attempt)
+      const errors = isEditing && attemptedSave.has(rowId) ? getRowErrors(rowId) : {}
+
       const combinedOptions = getCombinedOptions(detail.id)
 
       return (
@@ -261,16 +299,19 @@ export const useBreakTypeDetailRows = ({
           {/* Type / Kind */}
           <TableCell>
             {isEditing ? (
-              <div className="gba:relative">
-                <Combobox
-                  options={BREAK_TYPE_OPTIONS.map(opt => ({ value: opt.code, label: opt.displayValue }))}
-                  value={values?.type || ''}
-                  onValueChange={value => handleFieldChange(rowId, 'type', value)}
-                  placeholder="Select"
-                  className="gba:w-full"
-                  disabled={isSaving}
-                />
-                <RequiredIndicator />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Combobox
+                    options={BREAK_TYPE_OPTIONS.map(opt => ({ value: opt.code, label: opt.displayValue }))}
+                    value={values?.type || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'type', value)}
+                    placeholder="Select"
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  <RequiredIndicator />
+                </div>
+                <FieldErrorTooltip error={errors.type} />
               </div>
             ) : (
               <Badge variant="outline">
@@ -282,15 +323,18 @@ export const useBreakTypeDetailRows = ({
           {/* Start Time */}
           <TableCell>
             {isEditing ? (
-              <div className="gba:relative">
-                <Input
-                  type="time"
-                  value={values?.startTime || ''}
-                  onChange={e => handleFieldChange(rowId, 'startTime', e.target.value || null)}
-                  className="gba:w-full"
-                  disabled={isSaving || !isFixedOrClocking}
-                />
-                {requiredFields.startTime && <RequiredIndicator />}
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.startTime || ''}
+                    onChange={e => handleFieldChange(rowId, 'startTime', e.target.value || null)}
+                    className="gba:w-full"
+                    disabled={isSaving || !isFixedOrClocking}
+                  />
+                  {requiredFields.startTime && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.startTime} />
               </div>
             ) : (
               detail.startTime || '-'
@@ -300,15 +344,18 @@ export const useBreakTypeDetailRows = ({
           {/* End Time */}
           <TableCell>
             {isEditing ? (
-              <div className="gba:relative">
-                <Input
-                  type="time"
-                  value={values?.endTime || ''}
-                  onChange={e => handleFieldChange(rowId, 'endTime', e.target.value || null)}
-                  className="gba:w-full"
-                  disabled={isSaving || !isFixedOrClocking}
-                />
-                {requiredFields.endTime && <RequiredIndicator />}
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.endTime || ''}
+                    onChange={e => handleFieldChange(rowId, 'endTime', e.target.value || null)}
+                    className="gba:w-full"
+                    disabled={isSaving || !isFixedOrClocking}
+                  />
+                  {requiredFields.endTime && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.endTime} />
               </div>
             ) : (
               detail.endTime || '-'
@@ -318,15 +365,18 @@ export const useBreakTypeDetailRows = ({
           {/* Hours */}
           <TableCell>
             {isEditing ? (
-              <div className="gba:relative">
-                <Input
-                  type="time"
-                  value={values?.hours || ''}
-                  onChange={e => handleFieldChange(rowId, 'hours', e.target.value || null)}
-                  className="gba:w-full"
-                  disabled={isSaving || !isAttendanceOrTargetTime}
-                />
-                {requiredFields.hours && <RequiredIndicator />}
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.hours || ''}
+                    onChange={e => handleFieldChange(rowId, 'hours', e.target.value || null)}
+                    className="gba:w-full"
+                    disabled={isSaving || !isAttendanceOrTargetTime}
+                  />
+                  {requiredFields.hours && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.hours} />
               </div>
             ) : (
               detail.hours || '-'
@@ -336,16 +386,19 @@ export const useBreakTypeDetailRows = ({
           {/* Length */}
           <TableCell>
             {isEditing ? (
-              <div className="gba:relative">
-                <Input
-                  type="time"
-                  value={values?.length || ''}
-                  onChange={e => handleFieldChange(rowId, 'length', e.target.value || null)}
-                  className="gba:w-full"
-                  disabled={isSaving || isFixed}
-                  readOnly={isFixed}
-                />
-                {requiredFields.length && <RequiredIndicator />}
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.length || ''}
+                    onChange={e => handleFieldChange(rowId, 'length', e.target.value || null)}
+                    className="gba:w-full"
+                    disabled={isSaving || isFixed}
+                    readOnly={isFixed}
+                  />
+                  {requiredFields.length && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.length} />
               </div>
             ) : (
               detail.length || '-'
@@ -414,7 +467,7 @@ export const useBreakTypeDetailRows = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleSaveRow(rowId, detail)}
-                    disabled={!isValid || isSaving || !isDirty}
+                    disabled={isSaving}
                     data-testid={formatDataTestId(dataTestId, `save-row-button-${rowId}`)}
                   >
                     <CheckIcon className="gba:h-4 gba:w-4" />
@@ -463,6 +516,8 @@ export const useBreakTypeDetailRows = ({
       dataTestId,
       isRowValid,
       isRowDirty,
+      getRowErrors,
+      attemptedSave,
       handleFieldChange,
       handleSaveRow,
       handleCancelRowEdit,
@@ -480,8 +535,6 @@ export const useBreakTypeDetailRows = ({
     const rowId = NEW_ROW_KEY
     const values = editingRows[rowId]
     const isSaving = savingRows[rowId] || false
-    const isValid = isRowValid(rowId)
-    const isDirty = isRowDirty(rowId)
 
     // Determine field states based on type
     const currentType = values?.type || ''
@@ -492,6 +545,9 @@ export const useBreakTypeDetailRows = ({
     // Get required fields based on current type
     const requiredFields = getRequiredFieldsForType(currentType)
 
+    // Get validation errors for the new row (only show after save attempt)
+    const errors = attemptedSave.has(rowId) ? getRowErrors(rowId) : {}
+
     const combinedOptions = getCombinedOptions()
 
     return (
@@ -501,73 +557,88 @@ export const useBreakTypeDetailRows = ({
 
         {/* Type / Kind */}
         <TableCell>
-          <div className="gba:relative">
-            <Combobox
-              options={BREAK_TYPE_OPTIONS.map(opt => ({ value: opt.code, label: opt.displayValue }))}
-              value={values?.type || ''}
-              onValueChange={value => handleFieldChange(rowId, 'type', value)}
-              placeholder="Select"
-              className="gba:w-full"
-              disabled={isSaving}
-            />
-            <RequiredIndicator />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={BREAK_TYPE_OPTIONS.map(opt => ({ value: opt.code, label: opt.displayValue }))}
+                value={values?.type || ''}
+                onValueChange={value => handleFieldChange(rowId, 'type', value)}
+                placeholder="Select"
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              <RequiredIndicator />
+            </div>
+            <FieldErrorTooltip error={errors.type} />
           </div>
         </TableCell>
 
         {/* Start Time */}
         <TableCell>
-          <div className="gba:relative">
-            <Input
-              type="time"
-              value={values?.startTime || ''}
-              onChange={e => handleFieldChange(rowId, 'startTime', e.target.value || null)}
-              className="gba:w-full"
-              disabled={isSaving || !isFixedOrClocking}
-            />
-            {requiredFields.startTime && <RequiredIndicator />}
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.startTime || ''}
+                onChange={e => handleFieldChange(rowId, 'startTime', e.target.value || null)}
+                className="gba:w-full"
+                disabled={isSaving || !isFixedOrClocking}
+              />
+              {requiredFields.startTime && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.startTime} />
           </div>
         </TableCell>
 
         {/* End Time */}
         <TableCell>
-          <div className="gba:relative">
-            <Input
-              type="time"
-              value={values?.endTime || ''}
-              onChange={e => handleFieldChange(rowId, 'endTime', e.target.value || null)}
-              className="gba:w-full"
-              disabled={isSaving || !isFixedOrClocking}
-            />
-            {requiredFields.endTime && <RequiredIndicator />}
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.endTime || ''}
+                onChange={e => handleFieldChange(rowId, 'endTime', e.target.value || null)}
+                className="gba:w-full"
+                disabled={isSaving || !isFixedOrClocking}
+              />
+              {requiredFields.endTime && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.endTime} />
           </div>
         </TableCell>
 
         {/* Hours */}
         <TableCell>
-          <div className="gba:relative">
-            <Input
-              type="time"
-              value={values?.hours || ''}
-              onChange={e => handleFieldChange(rowId, 'hours', e.target.value || null)}
-              className="gba:w-full"
-              disabled={isSaving || !isAttendanceOrTargetTime}
-            />
-            {requiredFields.hours && <RequiredIndicator />}
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.hours || ''}
+                onChange={e => handleFieldChange(rowId, 'hours', e.target.value || null)}
+                className="gba:w-full"
+                disabled={isSaving || !isAttendanceOrTargetTime}
+              />
+              {requiredFields.hours && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.hours} />
           </div>
         </TableCell>
 
         {/* Length */}
         <TableCell>
-          <div className="gba:relative">
-            <Input
-              type="time"
-              value={values?.length || ''}
-              onChange={e => handleFieldChange(rowId, 'length', e.target.value || null)}
-              className="gba:w-full"
-              disabled={isSaving || isFixed}
-              readOnly={isFixed}
-            />
-            {requiredFields.length && <RequiredIndicator />}
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.length || ''}
+                onChange={e => handleFieldChange(rowId, 'length', e.target.value || null)}
+                className="gba:w-full"
+                disabled={isSaving || isFixed}
+                readOnly={isFixed}
+              />
+              {requiredFields.length && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.length} />
           </div>
         </TableCell>
 
@@ -614,7 +685,7 @@ export const useBreakTypeDetailRows = ({
               variant="ghost"
               size="sm"
               onClick={() => handleSaveRow(rowId)}
-              disabled={!isValid || isSaving || !isDirty}
+              disabled={isSaving}
               data-testid={formatDataTestId(dataTestId, 'save-new-row-button')}
             >
               <CheckIcon className="gba:h-4 gba:w-4" />
@@ -639,7 +710,8 @@ export const useBreakTypeDetailRows = ({
     savingRows,
     dataTestId,
     isRowValid,
-    isRowDirty,
+    getRowErrors,
+    attemptedSave,
     handleFieldChange,
     handleSaveRow,
     handleCancelRowEdit,
