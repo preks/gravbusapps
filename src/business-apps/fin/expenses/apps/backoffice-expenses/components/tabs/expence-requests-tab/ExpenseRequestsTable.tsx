@@ -1296,11 +1296,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     }
   }, [graphqlClient, totalItems, buildQueryConditions, transformExpenseRequest])
 
+  // Export columns ordered to match UI table
   const getExportColumns = () => [
-    {
-      key: 'code',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.request_number', 'Request Number')
-    },
     { key: 'employee', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee', 'Employee') },
     {
       key: 'employeeCode',
@@ -1313,20 +1310,21 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         'SAP Number'
       )
     },
-    { key: 'title', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Title') },
     {
-      key: 'department',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.department', 'Department')
+      key: 'code',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.request_number', 'Request Number')
     },
+    { key: 'title', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Title') },
     {
       key: 'startDate',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.start_date', 'Start Date')
     },
     { key: 'endDate', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.end_date', 'End Date') },
     {
-      key: 'requestDate',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.request_date', 'Request Date')
+      key: 'creationDate',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.creation_date', 'Creation Date')
     },
+    { key: 'status', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.status', 'Status') },
     {
       key: 'totalRemainingAmount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')
@@ -1336,10 +1334,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.total_amount', 'Total Amount')
     },
     { key: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.currency', 'Currency') },
-    { key: 'status', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.status', 'Status') },
     {
-      key: 'creationDate',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.creation_date', 'Creation Date')
+      key: 'department',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.department', 'Department')
+    },
+    {
+      key: 'requestDate',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.request_date', 'Request Date')
     }
   ]
 
