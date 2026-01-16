@@ -66,6 +66,12 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
   updateSorting: (field: SortField) => void
   pageSize: number
   setPageSize: (size: number) => void
+  // Additional filter props for comprehensive active filter detection
+  effectiveDateRange?: [Date | null, Date | null] | null
+  planDateRange?: [Date | null, Date | null] | null
+  startDateRange?: [Date | null, Date | null] | null
+  endDateRange?: [Date | null, Date | null] | null
+  planTypeFilter?: string[]
 }
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
@@ -112,8 +118,22 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (props.search || '').trim() !== ''
     const hasStatusFilters = Array.isArray(props.activeFilter) && props.activeFilter.length > 0
-    return hasSearch || hasStatusFilters
-  }, [props.search, props.activeFilter])
+    const hasPlanTypeFilters = Array.isArray(props.planTypeFilter) && props.planTypeFilter.length > 0
+    const hasDateRangeFilters =
+      (props.effectiveDateRange && (props.effectiveDateRange[0] || props.effectiveDateRange[1])) ||
+      (props.planDateRange && (props.planDateRange[0] || props.planDateRange[1])) ||
+      (props.startDateRange && (props.startDateRange[0] || props.startDateRange[1])) ||
+      (props.endDateRange && (props.endDateRange[0] || props.endDateRange[1]))
+    return hasSearch || hasStatusFilters || hasPlanTypeFilters || hasDateRangeFilters
+  }, [
+    props.search,
+    props.activeFilter,
+    props.planTypeFilter,
+    props.effectiveDateRange,
+    props.planDateRange,
+    props.startDateRange,
+    props.endDateRange
+  ])
 
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
   const prevFilterRef = useRef<ExpenseStatus[] | null>(null)

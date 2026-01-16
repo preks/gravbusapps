@@ -6,6 +6,18 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpensePlanCurrencies } from './useExpensePlanCurrencies'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import React from 'react'
+import { DatePicker, Tooltip } from 'antd'
+import { InfoCircleOutlined } from '@ant-design/icons'
+import dayjs, { Dayjs } from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
+
+// Extend dayjs with required plugins
+dayjs.extend(weekday)
+dayjs.extend(localeData)
+
+const { RangePicker } = DatePicker
 
 export interface UseExpensePlanFiltersProps {
   accessToken?: string
@@ -30,6 +42,18 @@ export interface UseExpensePlanFiltersReturn {
   filterLabelMap: Record<string, string>
   resetCurrencySelection: () => void
   getFilters: () => Record<string, any>
+  startDateRange: [Date | null, Date | null] | null
+  setStartDateRange: (range: [Date | null, Date | null] | null) => void
+  endDateRange: [Date | null, Date | null] | null
+  setEndDateRange: (range: [Date | null, Date | null] | null) => void
+  planDateRange: [Date | null, Date | null] | null
+  setPlanDateRange: (range: [Date | null, Date | null] | null) => void
+  effectiveDateRange: [Date | null, Date | null] | null
+  setEffectiveDateRange: (range: [Date | null, Date | null] | null) => void
+  planTypeFilter: string[]
+  setPlanTypeFilter: (types: string[]) => void
+  getAllSelectedFilters: string[]
+  removeFilter: (filterId: string) => void
 }
 
 // Move outside component to prevent re-creation on every render
@@ -57,6 +81,13 @@ export const useExpensePlanFilters = ({
   const [searchTerm, setSearchTerm] = useState<string>('')
   // No default status filter - show all expense plans by default
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([])
+  // Date range filters
+  const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null)
+  const [planDateRange, setPlanDateRange] = useState<[Date | null, Date | null] | null>(null)
+  const [startDateRange, setStartDateRange] = useState<[Date | null, Date | null] | null>(null)
+  const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null)
+  // Plan type filter (EXPENSES, TRIP)
+  const [planTypeFilter, setPlanTypeFilter] = useState<string[]>([])
 
   // LOCAL currency state for expense plans tab - independent from dashboard
   const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string>('EUR')
@@ -104,43 +135,263 @@ export const useExpensePlanFilters = ({
     return fetchedCurrencies && fetchedCurrencies.length > 0 ? fetchedCurrencies : []
   }, [fetchedCurrencies])
 
-  const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    // Check if this is a currency filter (starts with 'currency:')
-    if (filterId.startsWith('currency:')) {
-      const currencyCode = filterId.replaceAll('currency:', '')
-      if (isSelected) {
-        setLocalPrimaryCurrency(currencyCode) // Use local state instead of global store
-        setUserHasManuallySelectedCurrency(true) // Mark that user has made a manual selection
-      }
-      // We don't handle deselection for currency as it's a single-select
-      return
-    }
+  // Helper functions to reduce cognitive complexity
+  const handleCurrencyFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    if (!isSelected) return // Currency is single-select, no deselection
+    const currencyCode = filterId.replace(/^currency:/g, '')
+    setLocalPrimaryCurrency(currencyCode)
+    setUserHasManuallySelectedCurrency(true)
+  }, [])
 
-    // Handle status filters
-    setStatusFilter(prevFilter => {
+  const handlePlanTypeFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    setPlanTypeFilter(prevFilter => {
       if (isSelected) {
-        // Add the status if it's not already in the array
-        if (!prevFilter.includes(filterId as ExpenseStatus)) {
-          return [...prevFilter, filterId as ExpenseStatus]
-        }
-        return prevFilter
-      } else {
-        // Remove the status from the array
-        return prevFilter.filter(status => status !== filterId)
+        return prevFilter.includes(filterId) ? prevFilter : [...prevFilter, filterId]
       }
+      return prevFilter.filter(type => type !== filterId)
     })
   }, [])
 
+  const handleStatusFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    setStatusFilter(prevFilter => {
+      if (isSelected) {
+        return prevFilter.includes(filterId as ExpenseStatus) ? prevFilter : [...prevFilter, filterId as ExpenseStatus]
+      }
+      return prevFilter.filter(status => status !== filterId)
+    })
+  }, [])
+
+  const handleDataFilterChange = useCallback(
+    (filterId: string, isSelected: boolean) => {
+      if (filterId.startsWith('currency:')) {
+        handleCurrencyFilterChange(filterId, isSelected)
+        return
+      }
+      if (filterId.startsWith('planType:')) {
+        handlePlanTypeFilterChange(filterId, isSelected)
+        return
+      }
+      handleStatusFilterChange(filterId, isSelected)
+    },
+    [handleCurrencyFilterChange, handlePlanTypeFilterChange, handleStatusFilterChange]
+  )
+
+  // Helper function to format date range for display
+  const formatDateRangeLabel = useCallback((dateRange: [Date | null, Date | null] | null): string => {
+    if (!dateRange || (!dateRange[0] && !dateRange[1])) return ''
+
+    const startDate = dateRange[0]
+    const endDate = dateRange[1]
+
+    if (startDate && endDate) {
+      return `${dayjs(startDate).format('YYYY-MM-DD')} - ${dayjs(endDate).format('YYYY-MM-DD')}`
+    } else if (startDate) {
+      return `From ${dayjs(startDate).format('YYYY-MM-DD')}`
+    } else if (endDate) {
+      return `To ${dayjs(endDate).format('YYYY-MM-DD')}`
+    }
+
+    return ''
+  }, [])
+
+  // Helper function to add date range label to map - reduces cognitive complexity
+  const addDateRangeLabel = useCallback(
+    (
+      map: Record<string, string>,
+      range: [Date | null, Date | null] | null,
+      key: string,
+      labelKey: string,
+      defaultLabel: string
+    ) => {
+      const dateLabel = formatDateRangeLabel(range)
+      if (dateLabel) {
+        map[key] = `${getTranslationFromI18nKeyAndLabel(labelKey, defaultLabel)}: ${dateLabel}`
+      }
+    },
+    [formatDateRangeLabel]
+  )
+
+  // Helper function to build date range label map - reduces cognitive complexity
+  const buildDateRangeLabels = useCallback(
+    (map: Record<string, string>) => {
+      addDateRangeLabel(
+        map,
+        planDateRange,
+        'planDateRange',
+        'lowcoder:team_expenses_page.plan_details.plan_date',
+        'Plan Date'
+      )
+      addDateRangeLabel(map, startDateRange, 'startDateRange', 'lowcoder:personal_expenses.start_date', 'Start Date')
+      addDateRangeLabel(map, endDateRange, 'endDateRange', 'lowcoder:personal_expenses.end_date', 'End Date')
+      addDateRangeLabel(
+        map,
+        effectiveDateRange,
+        'effectiveDateRange',
+        'lowcoder:personal_expenses.effective_date',
+        'Effective Date'
+      )
+    },
+    [addDateRangeLabel, planDateRange, startDateRange, endDateRange, effectiveDateRange]
+  )
+
   // Memoize filterLabelMap with stable dependencies
-  const filterLabelMap: Record<string, string> = useMemo(() => {
+  const filterLabelMap = useMemo<Record<string, string>>(() => {
     const map: Record<string, string> = {}
+
+    // Add status filter labels
     for (const status of availableFilterStatuses) {
-      // Use the getExpensePlanStatusDisplay function for consistent translated labels
       const display = getExpensePlanStatusDisplay(status)
       map[status] = display.label
     }
+
+    // Add plan type filter labels
+    map['planType:EXPENSES'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+    map['planType:TRIP'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+
+    // Add date range labels if active
+    buildDateRangeLabels(map)
+
     return map
+  }, [buildDateRangeLabels])
+
+  // Helper to check if date range is active
+  const isDateRangeActive = useCallback((range: [Date | null, Date | null] | null): boolean => {
+    return !!(range && (range[0] || range[1]))
   }, [])
+
+  // Get all selected filters including active date ranges and plan types
+  const getAllSelectedFilters = useMemo(() => {
+    const filters = [...statusFilter, ...planTypeFilter]
+
+    // Add date ranges as filters if they're active
+    const dateRangeKeys = [
+      { range: planDateRange, key: 'planDateRange' },
+      { range: startDateRange, key: 'startDateRange' },
+      { range: endDateRange, key: 'endDateRange' },
+      { range: effectiveDateRange, key: 'effectiveDateRange' }
+    ]
+
+    dateRangeKeys.forEach(({ range, key }) => {
+      if (isDateRangeActive(range)) {
+        filters.push(key)
+      }
+    })
+
+    return filters
+  }, [statusFilter, planTypeFilter, planDateRange, startDateRange, endDateRange, effectiveDateRange, isDateRangeActive])
+
+  // Helper functions to reduce cognitive complexity
+  const removeDateRangeFilter = useCallback((filterId: string) => {
+    const dateRangeSetters: Record<string, () => void> = {
+      planDateRange: () => setPlanDateRange(null),
+      startDateRange: () => setStartDateRange(null),
+      endDateRange: () => setEndDateRange(null),
+      effectiveDateRange: () => setEffectiveDateRange(null)
+    }
+    const setter = dateRangeSetters[filterId]
+    if (setter) {
+      setter()
+      return true
+    }
+    return false
+  }, [])
+
+  // Remove filter function that handles all filter types including date ranges
+  const removeFilter = useCallback(
+    (filterId: string) => {
+      if (removeDateRangeFilter(filterId)) return
+
+      if (filterId.startsWith('planType:')) {
+        setPlanTypeFilter(prev => prev.filter(type => type !== filterId))
+        return
+      }
+
+      setStatusFilter(prev => prev.filter(status => status !== filterId))
+    },
+    [removeDateRangeFilter]
+  )
+
+  // Helper function to create date range filter components - reduces duplication
+  const createDateRangeFilterComponent = useCallback(
+    (
+      dateRange: [Date | null, Date | null] | null,
+      setter: (range: [Date | null, Date | null] | null) => void,
+      showTooltip = false
+    ) => {
+      const dayjsRange: [Dayjs | null, Dayjs | null] = [
+        dateRange?.[0] ? dayjs(dateRange[0]) : null,
+        dateRange?.[1] ? dayjs(dateRange[1]) : null
+      ]
+
+      const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
+        if (!dates) {
+          setter(null)
+        } else {
+          setter([dates[0]?.toDate() || null, dates[1]?.toDate() || null])
+        }
+      }
+
+      const picker = React.createElement(RangePicker, {
+        value: dayjsRange,
+        onChange: handleDateRangeChange,
+        placeholder: [
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
+        ],
+        format: 'YYYY-MM-DD',
+        allowClear: true,
+        allowEmpty: [true, true],
+        className: 'gba:w-full'
+      })
+
+      if (showTooltip) {
+        return React.createElement(
+          'div',
+          {},
+          picker,
+          React.createElement(
+            'div',
+            { className: 'gba:mt-2 gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1' },
+            React.createElement(
+              Tooltip,
+              {
+                title: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:personal_expenses.effective_date_info',
+                  'For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.'
+                ),
+                placement: 'right'
+              },
+              React.createElement(InfoCircleOutlined)
+            )
+          )
+        )
+      }
+
+      return picker
+    },
+    []
+  )
+
+  // Date range filter components
+  const EffectiveDateRangeFilterComponent = useMemo(
+    () => createDateRangeFilterComponent(effectiveDateRange, setEffectiveDateRange, true),
+    [effectiveDateRange, createDateRangeFilterComponent]
+  )
+
+  const StartDateRangeFilterComponent = useMemo(
+    () => createDateRangeFilterComponent(startDateRange, setStartDateRange),
+    [startDateRange, createDateRangeFilterComponent]
+  )
+
+  const EndDateRangeFilterComponent = useMemo(
+    () => createDateRangeFilterComponent(endDateRange, setEndDateRange),
+    [endDateRange, createDateRangeFilterComponent]
+  )
+
+  const PlanDateRangeFilterComponent = useMemo(
+    () => createDateRangeFilterComponent(planDateRange, setPlanDateRange),
+    [planDateRange, createDateRangeFilterComponent]
+  )
 
   // Create filter groups for the DataFilter component
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
@@ -148,25 +399,32 @@ export const useExpensePlanFilters = ({
     const statusItems: DataFilter[] = availableFilterStatuses.map(status => ({
       id: status,
       label: filterLabelMap[status],
-      selected: statusFilter.includes(status),
-      group: 'statusGroup'
+      selected: statusFilter.includes(status)
     }))
 
     // Currency filters - use local currency state
     const currencyItems: DataFilter[] = availableCurrencies.map(currency => ({
       id: `currency:${currency}`,
       label: currency,
-      selected: currency === localPrimaryCurrency, // Use local state
-      group: 'currencyGroup'
+      selected: currency === localPrimaryCurrency // Use local state
     }))
 
-    return [
+    // Plan type filters
+    const planTypeItems: DataFilter[] = [
       {
-        id: 'statusGroup',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-        filters: statusItems,
-        selectionMode: 'multiple'
+        id: 'planType:EXPENSES',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense'),
+        selected: planTypeFilter.includes('planType:EXPENSES')
       },
+      {
+        id: 'planType:TRIP',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'),
+        selected: planTypeFilter.includes('planType:TRIP')
+      }
+    ]
+
+    // Reorder filters: Currency first, then Effective Date, Plan Date, Start Date, End Date, Status, Plan Type
+    return [
       {
         id: 'currencyGroup',
         title: getTranslationFromI18nKeyAndLabel(
@@ -175,9 +433,60 @@ export const useExpensePlanFilters = ({
         ),
         filters: currencyItems,
         selectionMode: 'single'
+      },
+      {
+        id: 'effectiveDateRange',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+        type: 'custom',
+        customComponent: EffectiveDateRangeFilterComponent,
+        hideSearch: true
+      },
+      {
+        id: 'planDateRange',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
+        type: 'custom',
+        customComponent: PlanDateRangeFilterComponent,
+        hideSearch: true
+      },
+      {
+        id: 'startDateRange',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
+        type: 'custom',
+        customComponent: StartDateRangeFilterComponent,
+        hideSearch: true
+      },
+      {
+        id: 'endDateRange',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
+        type: 'custom',
+        customComponent: EndDateRangeFilterComponent,
+        hideSearch: true
+      },
+      {
+        id: 'statusGroup',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        filters: statusItems,
+        selectionMode: 'multiple'
+      },
+      {
+        id: 'planType',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+        filters: planTypeItems,
+        selectionMode: 'multiple'
       }
     ]
-  }, [availableFilterStatuses, filterLabelMap, statusFilter, availableCurrencies, localPrimaryCurrency])
+  }, [
+    availableFilterStatuses,
+    filterLabelMap,
+    statusFilter,
+    planTypeFilter,
+    availableCurrencies,
+    localPrimaryCurrency,
+    EffectiveDateRangeFilterComponent,
+    PlanDateRangeFilterComponent,
+    StartDateRangeFilterComponent,
+    EndDateRangeFilterComponent
+  ])
 
   // Function to reset manual currency selection (useful for clearing filters)
   const resetCurrencySelection = useCallback(() => {
@@ -217,6 +526,18 @@ export const useExpensePlanFilters = ({
       }
 
       return filters
-    }, [statusFilter, localPrimaryCurrency])
+    }, [statusFilter, localPrimaryCurrency]),
+    startDateRange,
+    setStartDateRange,
+    endDateRange,
+    setEndDateRange,
+    planDateRange,
+    setPlanDateRange,
+    effectiveDateRange,
+    setEffectiveDateRange,
+    planTypeFilter,
+    setPlanTypeFilter,
+    getAllSelectedFilters,
+    removeFilter
   }
 }

@@ -16,7 +16,8 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     $payCurrencyWhere: AdvancePaymentBoolExp = {},
     $reqStatusWhere: ExpenseRequestBoolExp = {},
     $planStatusWhere: ExpensePlanBoolExp = {},
-    $payStatusWhere: AdvancePaymentBoolExp = {}
+    $payStatusWhere: AdvancePaymentBoolExp = {},
+    $planDateWhere: ExpensePlanBoolExp = {}
   ) {
     # Distinct currencies fallback (collect from sources and dedupe client-side)
     DistinctCurrenciesFromItems: ExpenseItem(
@@ -328,7 +329,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
           { title: { _ilike: $searchTerm } },
           { employee: { fullName: { _ilike: $searchTerm } } }
         ],
-        _and: [ $planCurrencyWhere, $planStatusWhere ]
+        _and: [ $planCurrencyWhere, $planStatusWhere, $planDateWhere ]
       }
     ) { aggregate { count } }
 
@@ -344,7 +345,8 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         ],
         _and: [ 
           $planCurrencyWhere,
-          $planStatusWhere
+          $planStatusWhere,
+          $planDateWhere
         ]
       }
     ) {
