@@ -299,4 +299,5 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = Cererea este trimisă către manager pentru aprobare
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
+notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
 notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă
