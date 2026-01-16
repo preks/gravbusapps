@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAggregatedFunnelData, type AggregatedFunnelConfig } from './useAggregatedFunnelData'
 import { useLeadSourceData, type LeadSourceConfig } from './useLeadSourceData'
+import { useOpportunityStatusData, type OpportunityStatusConfig } from './useOpportunityStatusData'
 import { useRecentRecordsData, type RecentRecordsConfig } from './useRecentRecordsData'
 import { useActiveTasksData, type ActiveTasksConfig } from './useActiveTasksData'
 import { useTodaysActivitiesData, type TodaysActivitiesConfig } from './useTodaysActivitiesData'
@@ -14,11 +15,13 @@ import dayjs from 'dayjs'
  */
 export interface OverviewDashboardConfig {
   leadSource: LeadSourceConfig
+  opportunityStatus?: OpportunityStatusConfig
   recentRecords: RecentRecordsConfig
   todaysActivities: TodaysActivitiesConfig
   topDeals: TopDealsConfig
   aggregatedFunnel: AggregatedFunnelConfig
   activeTasks: ActiveTasksConfig
+  useOpportunityStatusInsteadOfLeadSource?: boolean
 }
 
 export interface GenericPipelineInfo {
@@ -101,8 +104,23 @@ export const useGenericOverviewData = (
     accessToken,
     startDate: dateRange.startDate.toISOString(),
     endDate: dateRange.endDate.toISOString(),
-    enabled: shouldFetch,
+    enabled: shouldFetch && !config.useOpportunityStatusInsteadOfLeadSource,
     config: config.leadSource
+  })
+
+  const {
+    opportunityStatuses: sharedOpportunityStatuses,
+    totalOpportunityCount: sharedTotalOpportunityCount,
+    openOpportunitiesComparison: sharedOpenOpportunitiesComparison
+  } = useOpportunityStatusData({
+    accessToken,
+    enabled: shouldFetch && !!config.useOpportunityStatusInsteadOfLeadSource,
+    config: config.opportunityStatus || {
+      opportunityTable: '',
+      opportunityAggregateTable: '',
+      opportunityStatusField: '',
+      opportunityStatusRefField: ''
+    }
   })
 
   const { recentRecords: sharedRecentRecords } = useRecentRecordsData({
@@ -146,6 +164,12 @@ export const useGenericOverviewData = (
     recentRecords: any[]
     revenueBySource: any[]
     totalLeadCount: number
+    opportunityStatuses?: any[]
+    totalOpportunityCount?: number
+    openOpportunitiesComparison?: {
+      beforeCurrentQuarter: number
+      currentQuarter: number
+    }
     availableCurrencies: string[]
   } | null>(null)
 
@@ -167,6 +191,9 @@ export const useGenericOverviewData = (
         recentRecords: sharedRecentRecords,
         revenueBySource: sharedLeadSources,
         totalLeadCount: sharedTotalLeadCount,
+        opportunityStatuses: sharedOpportunityStatuses,
+        totalOpportunityCount: sharedTotalOpportunityCount,
+        openOpportunitiesComparison: sharedOpenOpportunitiesComparison,
         availableCurrencies: sharedAvailableCurrencies
       })
     } catch (err) {
@@ -181,7 +208,10 @@ export const useGenericOverviewData = (
     sharedAvailableCurrencies,
     sharedRecentRecords,
     sharedLeadSources,
-    sharedTotalLeadCount
+    sharedTotalLeadCount,
+    sharedOpportunityStatuses,
+    sharedTotalOpportunityCount,
+    sharedOpenOpportunitiesComparison
   ])
 
   const processedActiveTasks = React.useMemo(() => {
@@ -321,6 +351,10 @@ export const useGenericOverviewData = (
         totalPipelineValue: sharedTotalPipelineValue,
         totalRevenue: staticData.revenueBySource.reduce((sum, source) => sum + source.value, 0),
         totalLeadCount: staticData.totalLeadCount,
+        opportunityStatuses: staticData.opportunityStatuses,
+        totalOpportunityCount: staticData.totalOpportunityCount,
+        openOpportunitiesComparison: staticData.openOpportunitiesComparison,
+        useOpportunityStatus: config.useOpportunityStatusInsteadOfLeadSource,
         recentRecords: staticData.recentRecords,
         keyDeals: processedTopDeals,
         todaysActivities: processedTodaysActivities,
