@@ -6,11 +6,11 @@
  */
 
 import React from 'react'
-import { Button, useTranslation } from '@newwork/nw-design-system'
+import { Button } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ActiveExpertsBarProps {
   experts: ActiveExpert[]
@@ -23,7 +23,7 @@ export const ActiveExpertsBar: React.FC<ActiveExpertsBarProps> = ({
   onRemoveExpert,
   'data-testid': testId = 'active-experts-bar'
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
 
   if (experts.length === 0) return null
 

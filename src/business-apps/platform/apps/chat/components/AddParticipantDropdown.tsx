@@ -6,13 +6,13 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Avatar, AvatarImage, AvatarFallback, Input, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback, Input, Spinner } from '@newwork/nw-design-system'
 import { UserPlus, Search, Users } from 'lucide-react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import type { CallParticipant } from '../services/webrtcClient'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface AvailableParticipant {
   id: string
@@ -71,7 +71,7 @@ export const AddParticipantDropdown: React.FC<AddParticipantDropdownProps> = ({
   prefixDataTestId = 'add-participant',
   size = 'default'
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<AvailableParticipant[]>([])
