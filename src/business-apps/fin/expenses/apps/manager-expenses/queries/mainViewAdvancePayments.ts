@@ -80,6 +80,8 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
           id
           code
           displayName
+          firstName
+          lastName
           fullName
           pictureThumbnail
           additionalProperties

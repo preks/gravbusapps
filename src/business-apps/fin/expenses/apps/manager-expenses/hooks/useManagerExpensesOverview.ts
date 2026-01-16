@@ -33,6 +33,13 @@ export interface UseManagerExpensesOverviewParams {
   plansPlanDateRange?: { from?: string | null; to?: string | null } | null
   // Plan type filter (EXPENSES, TRIP)
   plansTypeFilter?: string[]
+  // Date range filters for requests
+  requestsEffectiveDateRange?: { from?: string | null; to?: string | null } | null
+  requestsRequestDateRange?: { from?: string | null; to?: string | null } | null
+  requestsStartDateRange?: { from?: string | null; to?: string | null } | null
+  requestsEndDateRange?: { from?: string | null; to?: string | null } | null
+  // Request type filter (EXPENSES, TRIP)
+  requestsTypeFilter?: string[]
 }
 
 export interface ManagerExpensesOverviewState {
@@ -321,6 +328,76 @@ export const useManagerExpensesOverview = (
 
     const planDateWhereClause = planDateWhere.length > 0 ? { _and: planDateWhere } : {}
 
+    // Build date range filters for requests - extracted to helper functions to reduce complexity
+    const buildRequestEffectiveDateFilter = (): any | null => {
+      if (!params.requestsEffectiveDateRange?.from && !params.requestsEffectiveDateRange?.to) return null
+
+      const tripAnd: any[] = []
+      const expenseAnd: any[] = []
+
+      if (params.requestsEffectiveDateRange.from) {
+        tripAnd.push({ startDate: { _gte: params.requestsEffectiveDateRange.from } })
+        expenseAnd.push({ expenseItem: { expenseDate: { _gte: params.requestsEffectiveDateRange.from } } })
+      }
+      if (params.requestsEffectiveDateRange.to) {
+        tripAnd.push({ startDate: { _lte: params.requestsEffectiveDateRange.to } })
+        expenseAnd.push({ expenseItem: { expenseDate: { _lte: params.requestsEffectiveDateRange.to } } })
+      }
+
+      if (tripAnd.length === 0 && expenseAnd.length === 0) return null
+
+      return {
+        _or: [
+          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
+          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
+        ]
+      }
+    }
+
+    const reqDateWhere: any[] = []
+
+    const requestEffectiveDateFilter = buildRequestEffectiveDateFilter()
+    if (requestEffectiveDateFilter) reqDateWhere.push(requestEffectiveDateFilter)
+
+    const requestDateCondition = buildDateRangeCondition(
+      params.requestsRequestDateRange?.from,
+      params.requestsRequestDateRange?.to
+    )
+    if (requestDateCondition) reqDateWhere.push({ requestDate: requestDateCondition })
+
+    const requestStartDateCondition = buildDateRangeCondition(
+      params.requestsStartDateRange?.from,
+      params.requestsStartDateRange?.to
+    )
+    if (requestStartDateCondition) reqDateWhere.push({ startDate: requestStartDateCondition })
+
+    const requestEndDateCondition = buildDateRangeCondition(
+      params.requestsEndDateRange?.from,
+      params.requestsEndDateRange?.to
+    )
+    if (requestEndDateCondition) reqDateWhere.push({ endDate: requestEndDateCondition })
+
+    // Build request type filter
+    const buildRequestTypeFilter = (): any | null => {
+      if (!params.requestsTypeFilter || params.requestsTypeFilter.length === 0) return null
+
+      const requestTypeTokens = params.requestsTypeFilter.filter(f => f.startsWith('ExpenseRequestType:'))
+      if (requestTypeTokens.length === 0) return null
+
+      const allowedTypes = requestTypeTokens
+        .map(t => t.replace('ExpenseRequestType:v1:', ''))
+        .filter(t => t === 'EXPENSES' || t === 'TRIP')
+      if (allowedTypes.length === 0) return null
+
+      const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
+      return { _or: typeOr }
+    }
+
+    const requestTypeFilter = buildRequestTypeFilter()
+    if (requestTypeFilter) reqDateWhere.push(requestTypeFilter)
+
+    const reqDateWhereClause = reqDateWhere.length > 0 ? { _and: reqDateWhere } : {}
+
     const v: any = {
       managerId: params.managerId,
       currencyRef,
@@ -340,7 +417,8 @@ export const useManagerExpensesOverview = (
       reqCurrencyWhere,
       planCurrencyWhere,
       payCurrencyWhere,
-      planDateWhere: planDateWhereClause
+      planDateWhere: planDateWhereClause,
+      reqDateWhere: reqDateWhereClause
     }
 
     // Build status filter boolean expressions conditionally
@@ -395,7 +473,18 @@ export const useManagerExpensesOverview = (
     params.plansPlanDateRange?.from,
     params.plansPlanDateRange?.to,
     // Plan type filter
-    JSON.stringify(params.plansTypeFilter || [])
+    JSON.stringify(params.plansTypeFilter || []),
+    // Request date range filters
+    params.requestsEffectiveDateRange?.from,
+    params.requestsEffectiveDateRange?.to,
+    params.requestsRequestDateRange?.from,
+    params.requestsRequestDateRange?.to,
+    params.requestsStartDateRange?.from,
+    params.requestsStartDateRange?.to,
+    params.requestsEndDateRange?.from,
+    params.requestsEndDateRange?.to,
+    // Request type filter
+    JSON.stringify(params.requestsTypeFilter || [])
   ])
 
   const run = useCallback(async () => {

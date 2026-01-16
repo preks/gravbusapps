@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useCallback, useState, useRef } from 'react'
+import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters'
 import ExpenseRequestStatistics from './ExpenseRequestStatistics'
@@ -21,7 +22,13 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     filterLabelMap,
     addFilter,
     removeFilter,
-    setFilters
+    setFilters,
+    getAllSelectedFilters,
+    effectiveDateRange,
+    requestDateRange,
+    startDateRange,
+    endDateRange,
+    requestTypeFilter
   } = useExpenseRequestFilters({
     accessToken: props.accessToken,
     managerId,
@@ -63,14 +70,46 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     [primaryCurrency]
   )
 
+  // Helper function to convert date range to GraphQL format
+  const convertDateRangeToGraphQL = useCallback((dateRange: [Date | null, Date | null] | null) => {
+    if (!dateRange || (!dateRange[0] && !dateRange[1])) return null
+    return {
+      from: dateRange[0] ? dayjs(dateRange[0]).startOf('day').format('YYYY-MM-DD HH:mm:ss') : null,
+      to: dateRange[1] ? dayjs(dateRange[1]).endOf('day').format('YYYY-MM-DD HH:mm:ss') : null
+    }
+  }, [])
+
+  // Convert date ranges to GraphQL format
+  const requestsEffectiveDateRange = useMemo(
+    () => convertDateRangeToGraphQL(effectiveDateRange),
+    [effectiveDateRange, convertDateRangeToGraphQL]
+  )
+  const requestsRequestDateRange = useMemo(
+    () => convertDateRangeToGraphQL(requestDateRange),
+    [requestDateRange, convertDateRangeToGraphQL]
+  )
+  const requestsStartDateRange = useMemo(
+    () => convertDateRangeToGraphQL(startDateRange),
+    [startDateRange, convertDateRangeToGraphQL]
+  )
+  const requestsEndDateRange = useMemo(
+    () => convertDateRangeToGraphQL(endDateRange),
+    [endDateRange, convertDateRangeToGraphQL]
+  )
+
   const overview = useManagerExpensesOverview(props, {
     managerId,
     currencyRef,
     searchTerm,
     requests: { limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: reqOrderBy },
-    requestsStatus: selectedFilters,
+    requestsStatus: selectedFilters, // selectedFilters already contains only status filters
+    requestsTypeFilter: requestTypeFilter,
     plans: { limit: 0, offset: 0 },
-    payments: { limit: 0, offset: 0 }
+    payments: { limit: 0, offset: 0 },
+    requestsEffectiveDateRange,
+    requestsRequestDateRange,
+    requestsStartDateRange,
+    requestsEndDateRange
   })
 
   // Use ref to keep the last valid stats to prevent flickering/height changes
@@ -144,14 +183,19 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     const signature = JSON.stringify({
       searchTerm,
       selectedFilters,
-      primaryCurrency
+      primaryCurrency,
+      effectiveDateRange,
+      requestDateRange,
+      startDateRange,
+      endDateRange,
+      requestTypeFilter
     })
     const prev = prevFilterSignatureRef.current
     if (prev !== null && prev !== signature) {
       setCurrentPage(1)
     }
     prevFilterSignatureRef.current = signature
-  }, [searchTerm, selectedFilters, primaryCurrency])
+  }, [searchTerm, selectedFilters, primaryCurrency, effectiveDateRange, requestDateRange, startDateRange, endDateRange])
 
   const fetchRequests = useCallback(
     (newSearchTerm?: string, page?: number, newPageSize?: number, newSortBy?: string) => {
@@ -196,13 +240,17 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
             fetchRequests={fetchRequests}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
-            selectedFilters={selectedFilters}
+            selectedFilters={getAllSelectedFilters}
             filterGroups={filterGroups}
             filterLabelMap={filterLabelMap}
             addFilter={addFilter}
             removeFilter={removeFilter}
             handleDataFilterChange={handleDataFilterChange}
             primaryCurrency={primaryCurrency}
+            effectiveDateRange={effectiveDateRange}
+            requestDateRange={requestDateRange}
+            startDateRange={startDateRange}
+            endDateRange={endDateRange}
           />
         </div>
       </div>

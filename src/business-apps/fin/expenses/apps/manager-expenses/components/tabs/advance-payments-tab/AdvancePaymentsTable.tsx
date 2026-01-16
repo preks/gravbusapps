@@ -415,9 +415,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                                 ? `data:image/gif;base64,${record.expensePlan.employee.pictureThumbnail}`
                                 : undefined
                             }
-                            alt={record.expensePlan?.employee?.fullName}
+                            alt={record.expensePlan?.employee?.fullName || record.expensePlan?.employee?.displayName}
                           />
-                          <AvatarFallback>{record.expensePlan?.employee?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                          <AvatarFallback>
+                            {record.expensePlan?.employee?.displayName?.charAt(0) ||
+                              record.expensePlan?.employee?.fullName?.charAt(0) ||
+                              'U'}
+                          </AvatarFallback>
                         </Avatar>
                         <span className="gba:font-medium gba:text-sm">
                           {(() => {
