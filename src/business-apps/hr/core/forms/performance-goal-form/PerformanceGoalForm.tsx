@@ -9,13 +9,15 @@ import { useForm } from 'react-hook-form'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import FormScreenComponent from './components/FormScreenComponent'
 import flowSmall from '@/assets/icons/flowSmall.svg'
+import FormHeader from '../components/FormHeader'
+import { Employee } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData'
 
 interface PerformanceGoalFormProps {
   onClose: () => void
   onSuccess?: () => void
-  employeeId: string
   prefixDataTestId?: string
   additionalData: Record<string, unknown>
+  employee: Employee
 }
 
 interface PerformanceGoalFormData {
@@ -43,7 +45,8 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
   onClose,
   onSuccess,
   prefixDataTestId = 'performance-goal-form',
-  additionalData
+  additionalData,
+  employee
 }) => {
   const { t } = useTranslation()
   const isEditMode = additionalData?.goalId ? true : false
@@ -162,29 +165,25 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
 
   return (
     <div
-      className="gba:min-h-screen gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-white gba:pt-3"
+      className="gba:min-h-screen gba:w-full gba:flex gba:flex-col gba:bg-white gba:pt-3"
       data-testid="performance-goal-form-container"
     >
-      <div className="gba:w-full gba:px-6">
-        <div
-          className="gba:flex gba:items-center gba:justify-start gba:w-full gba:gap-2 gba:pb-4 gba:border-b gba:border-border"
-          data-testid="create-new-absence-header"
-        >
-          <img
-            src={flowSmall}
-            alt="Flow Small"
-            style={{
-              filter: 'brightness(0)',
-              fill: 'var(--nw-foreground)',
-              width: '24px',
-              height: '24px'
-            }}
-          />
-          <h1 className="gba:text-2xl gba:font-bold gba:text-center" data-testid="create-new-absence-title">
-            {getFormTitle()}
-          </h1>
-        </div>
-      </div>
+      <FormHeader
+        title={getFormTitle()}
+        flowIconUrl={flowSmall}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: Array.isArray(employee.employeePosition)
+                  ? employee.employeePosition?.[0]?.jobPosition?.name
+                  : (employee.employeePosition as any)?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div className="gba:flex-grow gba:w-full">
         <AppActionForm
@@ -216,17 +215,21 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
 // Wrapper component
 const PerformanceGoalForm: React.FC<
   BusinessAppContextProps & {
-    employeeId: string
     onClose?: () => void
     onSuccess?: () => void
   }
-> = ({ employeeId, onClose = () => {}, onSuccess, additionalData }) => {
+> = ({ onClose = () => {}, onSuccess, additionalData }) => {
+  // Extract initial parameters from the flow payload
+  const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters
+
+  const employee = initialParameters?.employee as Employee | undefined
+
   return (
     <PerformanceGoalFormContent
-      employeeId={employeeId}
+      employee={employee as Employee}
       onClose={onClose}
       onSuccess={onSuccess}
-      additionalData={additionalData?.psi_taskPayload?.psi_initialParameters}
+      additionalData={initialParameters}
     />
   )
 }
