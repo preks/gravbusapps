@@ -98,7 +98,6 @@ const SCALAR_FIELDS = [
   'preview',
   'content',
   'picture',
-  'pictureThumbnail',
   'contentGroupRef',
   'contentTypeRef',
   'languageRef',

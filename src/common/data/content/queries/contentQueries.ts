@@ -468,7 +468,6 @@ export const buildContentReactionsQuery = (params: ContentReactionQueryParams): 
             id
             displayName
             picture
-            pictureThumbnail
           }
         }
       }

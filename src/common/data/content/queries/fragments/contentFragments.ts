@@ -15,6 +15,7 @@ export { CONTENT_DOCUMENT_FRAGMENT } from '../../types/contentDocumentTypes'
 /**
  * Employee reference fragment
  * Extended to include job position, organizational unit, and work communications
+ * Note: picture field should be used with buildFileUrl utility for image loading
  */
 export const EMPLOYEE_REF_FRAGMENT = `
   id
@@ -23,7 +24,6 @@ export const EMPLOYEE_REF_FRAGMENT = `
   lastName
   displayName
   picture
-  pictureThumbnail
   employeePosition {
     jobPosition {
       name
@@ -62,7 +62,6 @@ export const CONTENT_ENTRY_CORE_FRAGMENT = `
   preview
   content
   picture
-  pictureThumbnail
   timeToRead
   creatorEmployeeId
   updaterEmployeeId
@@ -259,7 +258,6 @@ export const CHILD_CONTENT_ENTRY_FRAGMENT = `
   preview
   content
   picture
-  pictureThumbnail
   creatorEmployeeId
   displayCreator
   allowComment

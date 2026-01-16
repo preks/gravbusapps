@@ -5,6 +5,8 @@ import { CommentSection } from '@/business-apps/core/content/records/content-rec
 import ContentInfoSection from './ContentInfoSection'
 import { ContentHtmlRenderer } from './ContentHtmlRenderer'
 import { buildFileUrl } from '@/common/utils/fileUtils'
+import { ContentArticleAnalyzer } from '@/business-apps/core/content/components/ContentArticleAnalyzer'
+import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import type { TranslatedTexts } from '@/common/components/content'
 import translations from '../_i18n'
 
@@ -130,10 +132,19 @@ const ArticleView: React.FC<ArticleViewProps> = ({
           </div>
         )}
 
-        {/* Title */}
-        <h1 className="gba:text-5xl gba:mt-4 gba:leading-tight gba:font-bold gba:mb-9 gba:text-foreground">
-          {displayTitle}
-        </h1>
+        {/* Title with AI Analyzer */}
+        <div className="gba:flex gba:items-start gba:justify-between gba:gap-4 gba:mb-9">
+          <h1 className="gba:text-5xl gba:mt-4 gba:leading-tight gba:font-bold gba:flex-1 gba:text-foreground">
+            {displayTitle}
+          </h1>
+          {(item.contentGroupRef === ContentGroup.NEWS || item.contentGroupRef === ContentGroup.KNOWLEDGE) &&
+            accessToken &&
+            userId && (
+              <div className="gba:mt-4">
+                <ContentArticleAnalyzer contentEntry={item} accessToken={accessToken} userId={userId} />
+              </div>
+            )}
+        </div>
 
         {/* Featured Image */}
         {imageBlobUrl ? (
