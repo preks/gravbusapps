@@ -1,13 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Button, Alert, Tabs, TabsList, TabsTrigger, TabsContent, toast, Toaster } from '@newwork/nw-design-system'
-import {
-  ArrowClockwiseIcon,
-  GearIcon,
-  PlusIcon,
-  DatabaseIcon,
-  ChartBarIcon,
-  WarningCircleIcon
-} from '@phosphor-icons/react'
+import { ArrowClockwiseIcon, GearIcon, DatabaseIcon, ChartBarIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout } from '@/components/layout/pageLayout'
 import {
@@ -310,17 +303,6 @@ const QueryManager: React.FC<BusinessAppContextProps> = context => {
         headerLabel="Query Manager"
         pageHeaderRight={
           <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-3)' }}>
-            <Button
-              variant="default"
-              size="default"
-              onClick={handleCreateQuery}
-              data-testid="create-query-button"
-              className="gba:flex gba:items-center gba:whitespace-nowrap"
-              style={{ gap: 'var(--nw-spacing-2)' }}
-            >
-              <PlusIcon size={16} />
-              Create Query
-            </Button>
             <Button
               variant="outline"
               size="default"
