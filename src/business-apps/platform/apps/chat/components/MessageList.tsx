@@ -594,6 +594,28 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                 const prevMessage = index > 0 ? filteredMessages[index - 1] : null
                 const showSender = !prevMessage || prevMessage.senderId !== message.senderId
 
+                // Compute if AI message was initiated by current user (for backward compatibility)
+                let aiInitiatedByCurrentUser: boolean | undefined
+                if (message.metadata?.isAIResponse || message.metadata?.isEveryExpertResponse) {
+                  // Primary: use explicit initiatedBy field (new messages)
+                  if (message.metadata?.initiatedBy !== undefined) {
+                    aiInitiatedByCurrentUser = message.metadata.initiatedBy === currentUserId
+                  }
+                  // Fallback for old messages: CONSERVATIVE approach for privacy
+                  // Only use prevMessage fallback in 1:1 direct chats where it's safer
+                  // In group chats, default to undefined (MessageItem will hide sensitive data)
+                  else if (
+                    conversationType === 'direct' &&
+                    prevMessage &&
+                    !prevMessage.metadata?.isAIResponse &&
+                    !prevMessage.metadata?.isEveryExpertResponse
+                  ) {
+                    // In 1:1 chat, if prev message was from current user, they initiated it
+                    aiInitiatedByCurrentUser = prevMessage.senderId === currentUserId
+                  }
+                  // Default: undefined (MessageItem will hide forms/entities for safety)
+                }
+
                 return (
                   <MessageItem
                     key={message.id}
@@ -607,6 +629,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                     participants={participants}
                     previewLabel={previewLabel}
                     timestampRefreshKey={timestampRefreshKey}
+                    aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
                   />
                 )
               })

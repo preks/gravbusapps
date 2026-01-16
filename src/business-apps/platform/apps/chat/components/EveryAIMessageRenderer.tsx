@@ -218,19 +218,16 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
   )
 }
 
-// OPTIMIZATION: Memoize to prevent unnecessary re-renders (which trigger GraphQL queries in entity displays)
+// Memoize to prevent unnecessary re-renders (which trigger GraphQL queries in entity displays)
 export const EveryAIMessageRenderer = React.memo(EveryAIMessageRendererComponent, (prevProps, nextProps) => {
-  // Check message ID and content
-  if (prevProps.message.id !== nextProps.message.id) return false
-  if (prevProps.message.content !== nextProps.message.content) return false
-  if (prevProps.accessToken !== nextProps.accessToken) return false
-  if (prevProps.isInitiatedByCurrentUser !== nextProps.isInitiatedByCurrentUser) return false
-
-  // OPTIMIZATION: Use reference comparison instead of JSON.stringify (much faster!)
-  // These arrays/objects should be stable unless the message actually changed
-  if (prevProps.message.metadata?.outputs !== nextProps.message.metadata?.outputs) return false
-  if (prevProps.message.metadata?.scheduledMeeting !== nextProps.message.metadata?.scheduledMeeting) return false
-
-  // All data same? Skip re-render
-  return true
+  // Only re-render if message content, outputs, metadata, or initiator status changes
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.accessToken === nextProps.accessToken &&
+    prevProps.isInitiatedByCurrentUser === nextProps.isInitiatedByCurrentUser &&
+    JSON.stringify(prevProps.message.metadata?.outputs) === JSON.stringify(nextProps.message.metadata?.outputs) &&
+    JSON.stringify(prevProps.message.metadata?.scheduledMeeting) ===
+      JSON.stringify(nextProps.message.metadata?.scheduledMeeting)
+  )
 })

@@ -626,7 +626,8 @@ const ChatInner: React.FC<ChatProps> = memo(
               expertName: expertResult.expertResponse.expertName,
               expertColor: expertResult.expertResponse.expertColor,
               citations: expertResult.expertResponse.citations,
-              confidence: expertResult.expertResponse.confidence
+              confidence: expertResult.expertResponse.confidence,
+              initiatedBy: currentUser?.id // Track who initiated this expert interaction
             })
 
             // Check if this is a Document Reviewer response with annotations
@@ -782,7 +783,8 @@ const ChatInner: React.FC<ChatProps> = memo(
                     isAIResponse: true,
                     aiAssistant: 'Every',
                     originalQuestion: content,
-                    everyAiSessionId: aiResponse.sessionId
+                    everyAiSessionId: aiResponse.sessionId,
+                    initiatedBy: currentUser?.id // Track who initiated this AI interaction
                   }
 
                   // Include scheduled meeting data if present
@@ -878,7 +880,8 @@ const ChatInner: React.FC<ChatProps> = memo(
                   aiAssistant: 'Every',
                   originalQuestion: content,
                   everyAiSessionId: aiResponse.sessionId,
-                  isFormResult: true // Mark this as a result from form submission
+                  isFormResult: true, // Mark this as a result from form submission
+                  initiatedBy: currentUser?.id // Track who initiated this AI interaction
                 }
 
                 if (aiResponse.scheduledMeeting) {

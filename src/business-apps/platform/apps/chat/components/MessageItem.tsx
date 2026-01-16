@@ -31,6 +31,7 @@ interface MessageItemProps {
   participants?: ConversationParticipant[]
   previewLabel?: string // Pre-translated label for attachments
   timestampRefreshKey?: number // Triggers timestamp recalculation when changed
+  aiInitiatedByCurrentUser?: boolean // Explicitly computed by MessageList for backward compatibility
 }
 
 /**
@@ -84,7 +85,8 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     onSendMessage,
     participants,
     previewLabel = 'Open preview',
-    timestampRefreshKey = 0
+    timestampRefreshKey = 0,
+    aiInitiatedByCurrentUser
   }) => {
     const isAIResponse = message.metadata?.isAIResponse === true
     const isExpertResponse = message.metadata?.isEveryExpertResponse === true
@@ -146,10 +148,33 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     }
 
     // OPTIMIZATION: Memoize AI message checks
-    const isAIMessageInitiatedByCurrentUser = useMemo(
-      () => message.metadata?.initiatedBy === currentUserId,
-      [message.metadata?.initiatedBy, currentUserId]
-    )
+    // Check if current user initiated this AI interaction
+    const isAIMessageInitiatedByCurrentUser = useMemo(() => {
+      // If explicitly provided by MessageList (with backward compatibility fallback), use it
+      if (aiInitiatedByCurrentUser !== undefined) {
+        return aiInitiatedByCurrentUser
+      }
+
+      // Primary: explicit initiatedBy field (new messages)
+      if (message.metadata?.initiatedBy !== undefined) {
+        return message.metadata.initiatedBy === currentUserId
+      }
+
+      // Fallback for messages without context:
+      // For form results or outputs, default to hiding (safer for privacy)
+      if (message.metadata?.isFormResult || message.metadata?.outputs) {
+        return false
+      }
+
+      // Non-form AI responses (like text answers) are visible to all
+      return true
+    }, [
+      aiInitiatedByCurrentUser,
+      message.metadata?.initiatedBy,
+      message.metadata?.isFormResult,
+      message.metadata?.outputs,
+      currentUserId
+    ])
 
     // OPTIMIZATION: Memoize form outputs detection
     const hasFormOutputs = useMemo(() => {
