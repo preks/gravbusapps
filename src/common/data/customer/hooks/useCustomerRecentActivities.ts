@@ -1,69 +1,78 @@
-import { useState, useCallback, useEffect } from 'react'
+/**
+ * Hook for fetching recent activities for Personal Workspace Overview
+ * Uses centralized query builders instead of hardcoded queries
+ * Returns pure functions - state management handled by consumer
+ */
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_RECENT_ACTIVITIES } from '../queries/customerPersonalWorkspaceQueries'
-import type { MySalesActivity } from '../types/customerPersonalWorkspaceTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  buildCustomerActivityQuery,
+  buildCustomerActivityWhereCondition,
+  buildCustomerActivityOrderBy,
+  type CustomerActivityQueryVariables
+} from '../queries/customerActivityQueries'
+import type { CustomerActivity } from '../types/customerActivityTypes'
+import { toCustomerActivity } from '../mappers/customerRelatedEntityMappers'
 
-interface UseCustomerRecentActivitiesParams {
+export interface CustomerRecentActivitiesVariables {
   employeeId: string
-  accessToken: string
   limit?: number
 }
 
-interface UseCustomerRecentActivitiesReturn {
-  activities: MySalesActivity[]
-  loading: boolean
-  error: Error | null
-  refetch: () => void
+export interface CustomerRecentActivitiesResult {
+  activities: CustomerActivity[]
+  total: number
 }
 
 /**
- * Hook for fetching recent customer activities
- * Used for Overview tab calendar and dashboard displays
+ * Hook to fetch recent activities for a specific employee
+ * Used in Personal Workspace Overview tab
  */
-export const useCustomerRecentActivities = ({
-  employeeId,
-  accessToken,
-  limit = 5
-}: UseCustomerRecentActivitiesParams): UseCustomerRecentActivitiesReturn => {
-  const [activities, setActivities] = useState<MySalesActivity[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
+export const useCustomerRecentActivities = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const graphqlClient = useGraphQLClient(accessToken)
+  const fetchActivities = useCallback(
+    async (variables: CustomerRecentActivitiesVariables): Promise<CustomerRecentActivitiesResult> => {
+      const { employeeId, limit = 100 } = variables
 
-  const fetchActivities = useCallback(async () => {
-    if (!employeeId || !accessToken) return
+      // Build query variables
+      const queryVariables: CustomerActivityQueryVariables = {
+        ownerEmployeeIds: [employeeId],
+        limit,
+        offset: 0,
+        orderBy: [{ field: 'occurredAt', direction: 'DESC_NULLS_LAST' }]
+      }
 
-    setLoading(true)
-    setError(null)
+      // Build query using central builders
+      const query = buildCustomerActivityQuery()
+      const whereCondition = buildCustomerActivityWhereCondition(queryVariables)
+      const orderBy = buildCustomerActivityOrderBy(queryVariables.orderBy || [])
 
-    try {
-      const result = await graphqlClient.request<{
-        SalesActivity: MySalesActivity[]
-      }>(GET_RECENT_ACTIVITIES, {
-        employeeId,
-        limit
-      })
+      const graphQLVariables = {
+        limit: queryVariables.limit,
+        offset: queryVariables.offset,
+        where: whereCondition,
+        orderBy
+      }
 
-      setActivities(result.SalesActivity || [])
-    } catch (err) {
-      console.error('Error fetching recent customer activities:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch recent activities'))
-    } finally {
-      setLoading(false)
-    }
-  }, [employeeId, accessToken, limit, graphqlClient])
+      try {
+        const result = await graphqlClient.request<{
+          SalesActivity: any[]
+          SalesActivityAggregate: { aggregate: { count: number } }
+        }>(query, graphQLVariables)
 
-  useEffect(() => {
-    fetchActivities()
-  }, [fetchActivities])
+        const mappedActivities = result.SalesActivity.map(toCustomerActivity)
+        const total = result.SalesActivityAggregate?.aggregate?.count || 0
 
-  return {
-    activities,
-    loading,
-    error,
-    refetch: () => {
-      void fetchActivities()
-    }
-  }
+        return { activities: mappedActivities, total }
+      } catch (error) {
+        console.error('Error fetching recent activities:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchActivities }
 }
