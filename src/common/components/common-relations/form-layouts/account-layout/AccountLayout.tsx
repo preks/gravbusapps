@@ -52,6 +52,7 @@ interface AccountLayoutProps {
 
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
+  isStepActive?: boolean
 }
 
 const AccountLayout: React.FC<AccountLayoutProps> = ({
@@ -68,7 +69,8 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   communicationCustomFields,
   customSegments = [],
   avatarFileRef,
-  loading = false
+  loading = false,
+  isStepActive = true
 }) => {
   const { t } = useTranslation(translations)
 
@@ -119,7 +121,11 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_ACCOUNT_CHANNELS} />
       </FormSection>
       <FormSection title={t('address-title')} value="address-information">
-        <AddressSegment customFields={addressCustomFields} />
+        <AddressSegment
+          businessAppContext={businessAppContext}
+          customFields={addressCustomFields}
+          isActive={isStepActive}
+        />
       </FormSection>
       <FormSection title={t('financial-title')} value="financial-information">
         <AccountDetailsSegment

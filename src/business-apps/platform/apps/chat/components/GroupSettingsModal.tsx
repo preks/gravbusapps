@@ -15,14 +15,13 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem,
-  useTranslation
+  DropdownMenuItem
 } from '@newwork/nw-design-system'
 import { UserIcon, MoreVertical, Crown, Trash2, Shield, UserMinus } from 'lucide-react'
 import { UserSelector } from './UserSelector'
 import { ChatApiClient } from '../services/chatApiClient'
 import type { Conversation, User } from '../types'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface GroupSettingsModalProps {
   isOpen: boolean
@@ -45,7 +44,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
   prefixDataTestId = 'group-settings-modal',
   accessToken
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   const [isAddingMembers, setIsAddingMembers] = useState(false)
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)

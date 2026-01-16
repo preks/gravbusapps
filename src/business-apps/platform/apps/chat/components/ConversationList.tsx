@@ -1,19 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
-import {
-  Button,
-  Input,
-  Spinner,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import type { Conversation } from '../types'
-import type { UserPresence } from '../hooks/usePresence'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -29,9 +20,8 @@ interface ConversationListProps {
   currentUserId?: string | null
   accessToken: string
   compact?: boolean
-  getUserPresence?: (userId: string) => UserPresence
-  presenceVersion?: number // Version number that changes when any presence updates
-  // Map of conversation IDs to active expert counts
+  presenceMap: ReadonlyMap<string, { status: 'online' | 'offline'; lastSeen?: string }>
+  presenceVersion: number
   conversationExpertCounts?: Map<string, number>
 }
 
@@ -60,11 +50,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   currentUserId = null,
   accessToken,
   compact = false,
-  getUserPresence,
-  presenceVersion, // Triggers re-render when presence changes (without passing entire map)
+  presenceMap,
+  presenceVersion,
   conversationExpertCounts
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   // Force re-render when presenceVersion changes
   void presenceVersion
 
@@ -207,49 +197,60 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
       {/* Conversations */}
       <div ref={scrollContainerRef} className="gba:flex-1 gba:overflow-y-auto gba:min-h-0">
-        {isLoading ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:p-6">
-            <Spinner size="sm" />
-          </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="gba:p-6 gba:text-center">
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {searchQuery.trim() ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="gba:py-1">
-              {filteredConversations.map(conversation => {
-                const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
-                const otherUserPresence = otherUserId && getUserPresence ? getUserPresence(otherUserId) : undefined
-                const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
-
-                return (
-                  <ConversationItem
-                    key={conversation.id}
-                    conversation={conversation}
-                    onClick={() => onConversationSelect(conversation)}
-                    onRemove={onRemoveConversation}
-                    isActive={conversation.id === activeConversationId}
-                    currentUserId={currentUserId}
-                    compact={compact}
-                    otherUserPresence={otherUserPresence}
-                    activeExpertCount={activeExpertCount}
-                    t={t}
-                  />
-                )
-              })}
-            </div>
-
-            {/* Loading more indicator */}
-            {isLoadingMore && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
+        {(() => {
+          if (isLoading) {
+            return (
+              <div className="gba:flex gba:items-center gba:justify-center gba:p-6">
                 <Spinner size="sm" />
               </div>
-            )}
-          </>
-        )}
+            )
+          }
+
+          if (filteredConversations.length === 0) {
+            return (
+              <div className="gba:p-6 gba:text-center">
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  {searchQuery.trim() ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
+                </p>
+              </div>
+            )
+          }
+
+          return (
+            <>
+              <div className="gba:py-1">
+                {filteredConversations.map(conversation => {
+                  const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
+                  // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
+                  const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
+                  const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
+
+                  return (
+                    <ConversationItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      onClick={() => onConversationSelect(conversation)}
+                      onRemove={onRemoveConversation}
+                      isActive={conversation.id === activeConversationId}
+                      currentUserId={currentUserId}
+                      compact={compact}
+                      otherUserPresence={otherUserPresence}
+                      activeExpertCount={activeExpertCount}
+                      t={t}
+                    />
+                  )
+                })}
+              </div>
+
+              {/* Loading more indicator */}
+              {isLoadingMore && (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
+                  <Spinner size="sm" />
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </div>
   )

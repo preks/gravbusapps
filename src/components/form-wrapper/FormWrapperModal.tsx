@@ -132,10 +132,13 @@ const FormWrapperModal = ({
   }, [form.formState.isValid, form.formState.isDirty])
 
   useEffect(() => {
+    // Skip reset if using external form - it's already initialized with its own defaultValues
+    if (externalForm) return
+
     form.reset(defaultValues)
     form.clearErrors()
     setMessage(null)
-  }, [form, defaultValues])
+  }, [form, defaultValues, externalForm])
 
   useEffect(() => {
     if (errorMessage) {
@@ -250,7 +253,10 @@ const FormWrapperModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {childAddButton && <DialogTrigger asChild>{childAddButton}</DialogTrigger>}
-      <DialogContent data-testid={dataTestId} className={cn({ 'gba:!z-[1002]': isDrawerActive })}>
+      <DialogContent
+        data-testid={dataTestId}
+        className={cn('gba:max-h-screen gba:w-[553px] gba:overflow-y-auto', { 'gba:!z-[1002]': isDrawerActive })}
+      >
         <DialogTitle>{title}</DialogTitle>
         <div className={cn('gba:flex gba:flex-col gba:gap-4', contentClassName)}>
           <div className="gba:space-y-2">
@@ -267,7 +273,7 @@ const FormWrapperModal = ({
           <Form {...(form as UseFormReturn<FieldValues>)} schema={schema}>
             <form
               onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
-              className={cn('gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full', formClassName)}
+              className={cn('gba:flex gba:flex-col gba:w-full gba:h-full', formClassName)}
               data-testid={`${dataTestId}-form`}
             >
               <div className="gba:flex gba:flex-col gba:gap-4 gba:py-6" data-testid={`${dataTestId}-form-content`}>

@@ -35,7 +35,7 @@ export interface InvestmentActivity extends Activity {
 export const InvestmentActivityFields = {
   ...ActivityFields,
   investment: 'investment',
-  invesmtentId: 'investmentId'
+  investmentId: 'investmentId'
 }
 
 export const InvestmentActivityFormFields = {
@@ -46,8 +46,34 @@ export const InvestmentActivityFormFields = {
 /**
  * Investment Activity Descriptors
  * Uses createActivityDescriptors with InvestmentActivityFields mapping
+ * Note: InvestmentOpportunity doesn't have a 'description' field, so we override the opportunity descriptor
+ * Also adds investment-specific descriptor for IRM
  */
-export const INVESTMENT_ACTIVITY_DESCRIPTORS: Descriptor[] = [...createActivityDescriptors(InvestmentActivityFields)]
+export const INVESTMENT_ACTIVITY_DESCRIPTORS: Descriptor[] = [
+  ...createActivityDescriptors(InvestmentActivityFields).map(descriptor => {
+    // Override opportunity descriptor to remove description field (IRM doesn't have it)
+    if (descriptor.key === 'opportunity') {
+      return {
+        ...descriptor,
+        searchPaths: [`${InvestmentActivityFields.opportunity}.name`] // Only name, no description
+      }
+    }
+    return descriptor
+  }),
+  // Add investment descriptor (IRM-specific)
+  {
+    key: 'investment',
+    searchPaths: [`${InvestmentActivityFields.investment}.name`, `${InvestmentActivityFields.investment}.code`],
+    sortPath: `${InvestmentActivityFields.investment}.name`,
+    type: 'text'
+  },
+  // Add investment ID filter
+  {
+    key: 'investmentIds',
+    path: InvestmentActivityFields.investmentId,
+    kind: 'inIds'
+  }
+]
 
 /**
  * Build Investment Activity Payload

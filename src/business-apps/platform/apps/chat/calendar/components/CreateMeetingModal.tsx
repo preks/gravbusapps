@@ -16,14 +16,13 @@ import {
   Switch,
   Badge,
   Spinner,
-  IconAvatar,
-  useTranslation
+  IconAvatar
 } from '@newwork/nw-design-system'
 import { Calendar, Clock, MapPin, Video, Users, X, Repeat, Bell, Palette, User } from 'lucide-react'
 import type { CreateMeetingData, MeetingRecurrence } from '../types'
 import { MEETING_COLORS, REMINDER_OPTIONS, getDefaultCalendarColor } from '../types'
 import { createEmployeeSearchService, CalendarEmployee } from '../services/employeeSearchService'
-import translations from '../../_i18n'
+import { useChatTranslation } from '../../contexts/TranslationContext'
 
 interface CreateMeetingModalProps {
   isOpen: boolean
@@ -73,7 +72,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   initialHour,
   editMeeting
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   const isEditMode = !!editMeeting
 
   // Helper to get translated reminder label

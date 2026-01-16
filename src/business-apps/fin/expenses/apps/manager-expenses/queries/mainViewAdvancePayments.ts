@@ -78,9 +78,11 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
         }
         employee {
           id
+          code
           displayName
           fullName
           pictureThumbnail
+          additionalProperties
           employeePosition {
             organizationalUnit {
               id
@@ -110,7 +112,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
           },
           isDeleted: {_eq: false}
         },
-        status: {_neq: "REJECTED"},
+        status: {_nin: ["CREATED", "REJECTED"]},
         currencyRef: {_eq: $currencyRef}
       }
     ) {

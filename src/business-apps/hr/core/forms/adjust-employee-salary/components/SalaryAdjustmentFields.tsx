@@ -14,10 +14,12 @@ import {
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
+import { useWatch } from 'react-hook-form'
 import type { Control, Path } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
 import { getCatalogValue } from '@/common/utils/windowUtils'
 import translations from '../../_i18n'
+import { SALARY_FORM_VALIDATION } from '../constants/salaryFormValidation'
 
 interface SalaryAdjustReasonEntry {
   id: string
@@ -44,6 +46,9 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control
   const { t } = useTranslation(translations)
   const placeholderSelect = t('action-select-placeholder', { defaultValue: 'Please Select' })
   const placeholderEnter = t('action-enter-placeholder', { defaultValue: 'Please Enter' })
+
+  // Watch notes field for character count
+  const notes = useWatch({ control, name: 'notes' }) || ''
 
   // Build adjustment reasons from catalog entries
   const adjustmentReasons = useMemo(() => {
@@ -147,9 +152,13 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control
                 value={field.value ?? ''}
                 placeholder={placeholderEnter}
                 rows={4}
+                maxLength={SALARY_FORM_VALIDATION.NOTES_MAX_LENGTH}
                 data-testid="adjust-employee-salary-notes-input"
               />
             </FormControl>
+            <div className="gba:text-xs gba:text-muted-foreground gba:text-right">
+              {notes.length} / {SALARY_FORM_VALIDATION.NOTES_MAX_LENGTH} {t('common-characters')}
+            </div>
             <FormMessage />
           </FormItem>
         )}

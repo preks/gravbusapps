@@ -86,6 +86,10 @@ export interface CatalogSelectConfig {
   // Business logic filtering (applied at query level)
   codeFilter?: ListFilter<string>
   typeFilter?: ListFilter<string>
+  orderBy?: Array<{
+    field: string
+    direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | 'ASC_NULLS_FIRST' | 'DESC_NULLS_FIRST'
+  }>
 }
 
 export interface CatalogSelectOption {
@@ -352,7 +356,7 @@ export const useCatalogSelect = (
         const { identifier, version } = parseCatalogIdentifier(cfg.catalogIdentifier)
         try {
           const full = await fetchCatalog(
-            { identifier, version, entriesLimit: defaultThreshold, entriesOffset: 0 },
+            { identifier, version, entriesLimit: defaultThreshold, entriesOffset: 0, orderBy: cfg.orderBy },
             { includeCatalogEntries: true }
           )
           const total = full?.total ?? full?.entriesCount ?? 0
@@ -463,7 +467,8 @@ export const useCatalogSelect = (
           limit: 1,
           offset: 0,
           entryId: value,
-          ...buildListFilterParams(cfg.codeFilter, cfg.typeFilter)
+          ...buildListFilterParams(cfg.codeFilter, cfg.typeFilter),
+          orderBy: cfg.orderBy
         })
         if (res.entries.length === 0) return
 
@@ -558,7 +563,8 @@ export const useCatalogSelect = (
           search: trimmed,
           parentEntryId: activeFilters.parentEntryId,
           typeEquals: activeFilters.typeEquals,
-          ...buildListFilterParams(cfg.codeFilter, cfg.typeFilter)
+          ...buildListFilterParams(cfg.codeFilter, cfg.typeFilter),
+          orderBy: cfg.orderBy
         })
         const options = toOptions(res.entries, locale)
 
@@ -593,7 +599,8 @@ export const useCatalogSelect = (
         search: current.search,
         parentEntryId: activeFilters.parentEntryId,
         typeEquals: activeFilters.typeEquals,
-        ...buildListFilterParams(cfg.codeFilter, cfg.typeFilter)
+        ...buildListFilterParams(cfg.codeFilter, cfg.typeFilter),
+        orderBy: cfg.orderBy
       })
       const appended = toOptions(res.entries, locale)
       setFor(id, prev => ({

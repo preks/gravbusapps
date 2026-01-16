@@ -69,11 +69,12 @@ export const GET_CRM_DASHBOARD_STATS = (): string => {
       }
     }
     
-    # Sum of all estimated amounts for all opportunities (filtered by sourceApp and excluding deleted)
+    # Sum of estimated amounts for open opportunities only (filtered by sourceApp, excluding deleted, and excluding closed stages)
     pipelineValue: OpportunityAggregate(
       where: {
         sourceApp: { _eq: "CRM" }
         isDeleted: { _eq: false }
+        stage: { _nin: ["closed_won", "closed_lost"] }
       }
     ) {
       aggregate {

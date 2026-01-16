@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
@@ -389,21 +389,41 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
     }
   }, [cacheVersion, enrichConversationsWithAvatarsOnly])
 
-  return {
-    conversations,
-    isLoading,
-    isLoadingMore,
-    hasMore,
-    error,
-    loadConversations,
-    loadMoreConversations,
-    updateConversation,
-    addConversation,
-    updateConversationLastMessage,
-    markConversationAsRead,
-    incrementUnreadCount,
-    removeConversation,
-    enrichConversations, // Export for use in websocket handlers (full enrichment with user data fetch)
-    enrichConversationsWithAvatarsOnly // Export for fast enrichment (avatars only, no blocking)
-  }
+  // PERFORMANCE: Memoize return object to prevent cascade re-renders
+  return useMemo(
+    () => ({
+      conversations,
+      isLoading,
+      isLoadingMore,
+      hasMore,
+      error,
+      loadConversations,
+      loadMoreConversations,
+      updateConversation,
+      addConversation,
+      updateConversationLastMessage,
+      markConversationAsRead,
+      incrementUnreadCount,
+      removeConversation,
+      enrichConversations, // Export for use in websocket handlers (full enrichment with user data fetch)
+      enrichConversationsWithAvatarsOnly // Export for fast enrichment (avatars only, no blocking)
+    }),
+    [
+      conversations,
+      isLoading,
+      isLoadingMore,
+      hasMore,
+      error,
+      loadConversations,
+      loadMoreConversations,
+      updateConversation,
+      addConversation,
+      updateConversationLastMessage,
+      markConversationAsRead,
+      incrementUnreadCount,
+      removeConversation,
+      enrichConversations,
+      enrichConversationsWithAvatarsOnly
+    ]
+  )
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { TypingIndicator } from '../types'
 
 interface UseTypingIndicatorOptions {
@@ -111,10 +111,14 @@ export function useTypingIndicator(options: UseTypingIndicatorOptions = {}) {
     }
   }, [typingUsers])
 
-  return {
-    typingUsers,
-    handleUserTyping,
-    startTyping,
-    stopTyping
-  }
+  // PERFORMANCE: Memoize return object to prevent cascade re-renders
+  return useMemo(
+    () => ({
+      typingUsers,
+      handleUserTyping,
+      startTyping,
+      stopTyping
+    }),
+    [typingUsers, handleUserTyping, startTyping, stopTyping]
+  )
 }

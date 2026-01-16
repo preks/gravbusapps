@@ -10,7 +10,7 @@ import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics'
 import ExpensePlansTable from './ExpensePlansTable'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
-import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
+import { standardizeCurrencyRef, extractCurrencyCode } from '../../../utils/currencyUtils'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   employeeId?: string
@@ -120,11 +120,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const expensePlans: ExpensePlan[] = useMemo(() => {
     const rows = overview.data?.expensePlans || []
     return rows.map((p: any) => {
-      // Extract currency code from currencyRef (format: "Currency:v1:EUR" -> "EUR")
-      let currency: string | undefined
-      if (typeof p?.currencyRef === 'string') {
-        currency = p.currencyRef.includes(':') ? p.currencyRef.split(':').pop() : p.currencyRef
-      }
+      // Extract currency code from currencyRef
+      const currency = p?.currencyRef ? extractCurrencyCode(p.currencyRef) : undefined
 
       return {
         id: p.id,
@@ -137,8 +134,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         planDate: p.planDate,
         totalAmount: Number(p.totalAmount ?? 0),
         currency: currency || primaryCurrency || 'EUR',
+        currencyRef: p.currencyRef,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
+        requestType: p.requestType,
         expenseRequest: Array.isArray(p.expenseRequest) ? p.expenseRequest : [],
         employeeDocument: p.employeeDocument || null,
         employee: p.employee

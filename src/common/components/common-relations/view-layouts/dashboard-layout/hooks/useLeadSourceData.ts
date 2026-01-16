@@ -19,6 +19,7 @@ export interface LeadSourceDataItem {
 export interface LeadSourceConfig {
   leadTable: string
   leadAggregateTable: string
+  leadStatusPrefix: string // e.g., 'SalesLeadStatus' for CRM, 'InvestmentLeadStatus' for IRM
 }
 
 export interface UseLeadSourceDataProps {
@@ -88,6 +89,10 @@ export const useLeadSourceData = ({
       const currentMonthEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999)).toISOString()
 
       // Step 1: Get distinct lead sources (OPEN leads created in date range)
+      // Include leads with AND without sources
+      const openStatusRef = `${config.leadStatusPrefix}:v1:OPEN`
+      const convertedStatusRef = `${config.leadStatusPrefix}:v1:CONVERTED`
+
       const distinctSourcesQuery = `
         query GetDistinctLeadSources(
           $startDate: timestamptz!
@@ -97,8 +102,7 @@ export const useLeadSourceData = ({
             where: {
               createdAt: { _gte: $startDate, _lte: $endDate }
               isDeleted: { _eq: false }
-              leadSourceRef: { _isNull: false }
-              leadStatus: { code: { _eq: "OPEN" } }
+              leadStatusRef: { _eq: "${openStatusRef}" }
             }
             distinctOn: [leadSourceRef]
           ) {
@@ -124,21 +128,42 @@ export const useLeadSourceData = ({
         return
       }
 
+      // Map sources and add "Unknown" for null sources
+      const sourcesWithUnknown = sources.map((source: any) => {
+        if (!source.leadSourceRef || !source.leadSource) {
+          // Handle leads without a source
+          return {
+            leadSourceRef: null,
+            leadSource: {
+              code: 'UNKNOWN',
+              value: 'Unknown'
+            }
+          }
+        }
+        return source
+      })
+
       // Step 2: Build dynamic aggregate query for all sources
       // Each source gets THREE aggregates:
       // 1. OPEN leads count (created in date range) - for display
       // 2. TOTAL leads count (all statuses, created in date range) - for conversion rate denominator
       // 3. CONVERTED leads count (created in date range) - for conversion rate numerator
-      const aggregateSelections = sources
+      const aggregateSelections = sourcesWithUnknown
         .map((source: any) => {
           const alias = (source.leadSource.code || 'UNKNOWN').replace(/\W/g, '_')
+
+          // Build filter for source - handle null sources (Unknown)
+          const sourceFilter = source.leadSourceRef
+            ? `leadSourceRef: { _eq: "${source.leadSourceRef}" }`
+            : `leadSourceRef: { _isNull: true }`
+
           return `
           ${alias}_open: ${config.leadAggregateTable}(
             where: {
               createdAt: { _gte: $startDate, _lte: $endDate }
               isDeleted: { _eq: false }
-              leadSourceRef: { _eq: "${source.leadSourceRef}" }
-              leadStatus: { code: { _eq: "OPEN" } }
+              ${sourceFilter}
+              leadStatusRef: { _eq: "${openStatusRef}" }
             }
           ) {
             aggregate {
@@ -149,7 +174,7 @@ export const useLeadSourceData = ({
             where: {
               createdAt: { _gte: $startDate, _lte: $endDate }
               isDeleted: { _eq: false }
-              leadSourceRef: { _eq: "${source.leadSourceRef}" }
+              ${sourceFilter}
             }
           ) {
             aggregate {
@@ -160,8 +185,8 @@ export const useLeadSourceData = ({
             where: {
               createdAt: { _gte: $startDate, _lte: $endDate }
               isDeleted: { _eq: false }
-              leadSourceRef: { _eq: "${source.leadSourceRef}" }
-              leadStatus: { code: { _eq: "CONVERTED" } }
+              ${sourceFilter}
+              leadStatusRef: { _eq: "${convertedStatusRef}" }
             }
           ) {
             aggregate {
@@ -179,13 +204,12 @@ export const useLeadSourceData = ({
         ) {
           ${aggregateSelections}
           
-          # Total OPEN lead count created in date range (all sources combined, excluding leads without a source)
+          # Total OPEN lead count created in date range (all sources combined, including leads without a source)
           totalCount: ${config.leadAggregateTable}(
             where: {
               createdAt: { _gte: $startDate, _lte: $endDate }
               isDeleted: { _eq: false }
-              leadStatus: { code: { _eq: "OPEN" } }
-              leadSourceRef: { _isNull: false }
+              leadStatusRef: { _eq: "${openStatusRef}" }
             }
           ) {
             aggregate {
@@ -203,7 +227,7 @@ export const useLeadSourceData = ({
       const totalCount = aggregatesResult.totalCount?.aggregate?.count || 0
 
       // Step 3: Process results and calculate metrics
-      const processedSources: LeadSourceDataItem[] = sources
+      const processedSources: LeadSourceDataItem[] = sourcesWithUnknown
         .map((source: any) => {
           const alias = (source.leadSource.code || 'UNKNOWN').replace(/\W/g, '_')
           const openCount = aggregatesResult[`${alias}_open`]?.aggregate?.count || 0
