@@ -301,3 +301,49 @@ complete-notification = The request is sent to be approved by the manager
 notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
 notification-working-hours-updated-success = Working hours updates are sent for HR approval
 notification-feedback-request-sent-success = Your feedback request has been sent
+
+# ============================================
+# Create Employee Form
+# ============================================
+
+# Section Headers
+employee-form-personal-information = Personal Information
+employee-form-employment-information = Employment Information
+employee-form-additional-attributes = Additional Attributes
+
+# Field Labels
+employee-form-first-name = First Name
+employee-form-last-name = Last Name
+employee-form-email = Email
+employee-form-organizational-unit = Organizational Unit
+employee-form-job-position = Job Position
+employee-form-hire-date = Hire Date
+employee-form-preferred-name = Preferred Name
+employee-form-employment-type = Employment Type
+employee-form-contract-type = Contract Type
+
+# Validation Messages
+employee-form-email-invalid = Please enter a valid email address
+
+# Empty States
+employee-form-no-results = No results found
+employee-form-no-positions = No positions available
+employee-form-no-vacant-positions = No vacant positions available in the selected organizational unit
+
+# Tooltips
+employee-form-create-job-position-tooltip = Create new job position
+employee-form-select-org-unit-first = Select an organizational unit first
+
+# Buttons
+employee-form-create-employee = Create Employee
+employee-form-update-employee = Update Employee
+
+# ============================================
+# Create Job Position Modal
+# ============================================
+
+create-job-position-title = Create Job Position
+create-job-position-name = Name
+create-job-position-total-open = Total open
+create-job-position-organizational-unit = Organizational Unit
+create-job-position-error = Failed to create job position. Please try again.
