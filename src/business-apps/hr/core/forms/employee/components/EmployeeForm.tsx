@@ -3,6 +3,7 @@ import { useEmployeeContext } from '../context/EmployeeContext'
 import {
   Button,
   Input,
+  DateInput,
   Select,
   SelectTrigger,
   SelectValue,
@@ -145,7 +146,7 @@ const EmployeeForm: React.FC = () => {
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
       <form className="gba:h-full gba:flex gba:flex-col" onSubmit={e => e.preventDefault()}>
-        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6">
+        <div className="gba:flex-1 gba:overflow-y-auto gba:overflow-x-hidden gba:space-y-6">
           <div className="gba:space-y-4">
             <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:border-b gba:border-border gba:pb-2">
               Personal Information
@@ -286,16 +287,18 @@ const EmployeeForm: React.FC = () => {
               <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                 Hire Date
               </label>
-              <Input
+              <DateInput
                 type="date"
-                value={formValues.hireDate}
-                onChange={e => setFormValues({ hireDate: e.target.value })}
+                value={formValues.hireDate || ''}
+                onChange={v => setFormValues({ hireDate: typeof v === 'string' ? v : '' })}
+                className="gba:w-full"
+                captionLayout="dropdown"
               />
             </div>
           </div>
 
           <Collapsible open={showAdditionalAttributes} onOpenChange={setShowAdditionalAttributes}>
-            <div className="gba:border gba:border-border gba:rounded-lg">
+            <div className="gba:border gba:border-border gba:rounded-lg gba:overflow-hidden">
               <CollapsibleTrigger className="gba:w-full gba:px-3 gba:py-2 gba:text-left gba:flex gba:items-center gba:justify-between gba:bg-muted gba:hover:bg-muted gba:rounded-lg gba:transition-colors">
                 <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Additional Attributes</span>
                 <CaretDownIcon

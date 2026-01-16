@@ -100,7 +100,7 @@ const CreateJobPositionModal: React.FC<CreateJobPositionModalProps> = ({
             <Input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder=""
+              placeholder="Please Enter..."
               maxLength={MAX_NAME_LENGTH}
               data-testid="job-position-name-input"
             />
