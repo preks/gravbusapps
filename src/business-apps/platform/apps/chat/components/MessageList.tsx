@@ -424,7 +424,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         )}
 
         {/* Messages */}
-        {messages.length === 0 && !isLoading ? (
+        {messages.length === 0 && !isLoading && typingUsers.length === 0 ? (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-center gba:p-8">
             <div className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
               <svg
