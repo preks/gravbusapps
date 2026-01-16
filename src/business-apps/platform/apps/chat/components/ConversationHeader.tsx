@@ -105,13 +105,13 @@ const PresenceIndicator: React.FC<{
 
   const getStatusTitle = (status: 'online' | 'away' | 'offline'): string => {
     if (!t) {
-      return status === 'online' ? 'Online' : status === 'away' ? 'Away' : 'Offline'
+      if (status === 'online') return 'Online'
+      if (status === 'away') return 'Away'
+      return 'Offline'
     }
-    return status === 'online'
-      ? t('chat-statusOnline')
-      : status === 'away'
-        ? t('chat-statusAway')
-        : t('chat-statusOffline')
+    if (status === 'online') return t('chat-statusOnline')
+    if (status === 'away') return t('chat-statusAway')
+    return t('chat-statusOffline')
   }
 
   const sizeClasses = size === 'sm' ? 'gba:w-2.5 gba:h-2.5' : 'gba:w-3 gba:h-3'
@@ -262,19 +262,16 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             {name}
           </h2>
           {/* Show presence status for direct chats */}
-          {isDirectChat && !compact && presenceStatusText && (
-            <p
-              className={`gba:text-xs ${
-                presenceStatus === 'online'
-                  ? 'gba:text-success'
-                  : presenceStatus === 'away'
-                    ? 'gba:text-warning'
-                    : 'gba:text-muted-foreground'
-              }`}
-            >
-              {presenceStatusText}
-            </p>
-          )}
+          {isDirectChat &&
+            !compact &&
+            presenceStatusText &&
+            (() => {
+              let statusColorClass = 'gba:text-muted-foreground'
+              if (presenceStatus === 'online') statusColorClass = 'gba:text-success'
+              else if (presenceStatus === 'away') statusColorClass = 'gba:text-warning'
+
+              return <p className={`gba:text-xs ${statusColorClass}`}>{presenceStatusText}</p>
+            })()}
           {/* Show participant count for group chats */}
           {isGroupChat && conversation.participants && !compact && (
             <p className="gba:text-xs gba:text-muted-foreground">

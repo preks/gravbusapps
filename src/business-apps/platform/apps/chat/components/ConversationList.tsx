@@ -197,50 +197,60 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
       {/* Conversations */}
       <div ref={scrollContainerRef} className="gba:flex-1 gba:overflow-y-auto gba:min-h-0">
-        {isLoading ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:p-6">
-            <Spinner size="sm" />
-          </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="gba:p-6 gba:text-center">
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {searchQuery.trim() ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="gba:py-1">
-              {filteredConversations.map(conversation => {
-                const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
-                // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
-                const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
-                const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
-
-                return (
-                  <ConversationItem
-                    key={conversation.id}
-                    conversation={conversation}
-                    onClick={() => onConversationSelect(conversation)}
-                    onRemove={onRemoveConversation}
-                    isActive={conversation.id === activeConversationId}
-                    currentUserId={currentUserId}
-                    compact={compact}
-                    otherUserPresence={otherUserPresence}
-                    activeExpertCount={activeExpertCount}
-                    t={t}
-                  />
-                )
-              })}
-            </div>
-
-            {/* Loading more indicator */}
-            {isLoadingMore && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
+        {(() => {
+          if (isLoading) {
+            return (
+              <div className="gba:flex gba:items-center gba:justify-center gba:p-6">
                 <Spinner size="sm" />
               </div>
-            )}
-          </>
-        )}
+            )
+          }
+
+          if (filteredConversations.length === 0) {
+            return (
+              <div className="gba:p-6 gba:text-center">
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  {searchQuery.trim() ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
+                </p>
+              </div>
+            )
+          }
+
+          return (
+            <>
+              <div className="gba:py-1">
+                {filteredConversations.map(conversation => {
+                  const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
+                  // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
+                  const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
+                  const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
+
+                  return (
+                    <ConversationItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      onClick={() => onConversationSelect(conversation)}
+                      onRemove={onRemoveConversation}
+                      isActive={conversation.id === activeConversationId}
+                      currentUserId={currentUserId}
+                      compact={compact}
+                      otherUserPresence={otherUserPresence}
+                      activeExpertCount={activeExpertCount}
+                      t={t}
+                    />
+                  )
+                })}
+              </div>
+
+              {/* Loading more indicator */}
+              {isLoadingMore && (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
+                  <Spinner size="sm" />
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </div>
   )

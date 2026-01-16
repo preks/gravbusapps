@@ -267,89 +267,101 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
           {isAIResponse && !isExpertResponse ? (
             <>
               {/* Show special messages for form outputs or hidden cards */}
-              {hasFormOutputs && !isAIMessageInitiatedByCurrentUser ? (
-                <div className="gba:max-w-[80%] gba:px-3 gba:py-2 gba:shadow-sm gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-primary/20">
-                  <div className="gba:text-sm gba:italic gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-                    <span>✨</span>
-                    <span>
-                      {isGroupChat
-                        ? `${sender?.firstName || 'Someone'} is interacting with ${message.metadata?.aiAssistant || 'Every AI'}`
-                        : `${message.metadata?.aiAssistant || 'Every AI'} is preparing a form for the other user`}
-                    </span>
-                  </div>
-                </div>
-              ) : hasHiddenResultCards ? (
-                <div className="gba:max-w-[80%] gba:px-3 gba:py-2 gba:shadow-sm gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-primary/20">
-                  <div className="gba:space-y-2">
-                    <div className="gba:text-sm gba:italic gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-                      <span>✨</span>
-                      <span>
-                        {isGroupChat
-                          ? `${sender?.firstName || 'Someone'} submitted a request to ${message.metadata?.aiAssistant || 'Every AI'}`
-                          : `${message.metadata?.aiAssistant || 'Every AI'} processed a request`}
-                      </span>
-                    </div>
-                    <div className="gba:text-xs gba:italic gba:text-muted-foreground gba:px-2 gba:py-1 gba:bg-muted/30 gba:rounded">
-                      💼 Request details are only visible to the person who created them
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <EveryAIMessageRenderer
-                  message={message}
-                  accessToken={accessToken || ''}
-                  onSendMessage={onSendMessage}
-                  isInitiatedByCurrentUser={isAIMessageInitiatedByCurrentUser}
-                  onHasHiddenCards={setHasHiddenResultCards}
-                  headerContent={
-                    <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:text-primary gba:flex gba:items-center gba:justify-between">
-                      <div className="gba:flex gba:items-center gba:gap-1">
-                        <span className="gba:text-xs">✨</span>
-                        Every AI
+              {(() => {
+                if (hasFormOutputs && !isAIMessageInitiatedByCurrentUser) {
+                  return (
+                    <div className="gba:max-w-[80%] gba:px-3 gba:py-2 gba:shadow-sm gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-primary/20">
+                      <div className="gba:text-sm gba:italic gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+                        <span>✨</span>
+                        <span>
+                          {isGroupChat
+                            ? `${sender?.firstName || 'Someone'} is interacting with ${message.metadata?.aiAssistant || 'Every AI'}`
+                            : `${message.metadata?.aiAssistant || 'Every AI'} is preparing a form for the other user`}
+                        </span>
                       </div>
-                      {onReplyToAI && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={e => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  onReplyToAI()
-                                }}
-                                className="gba:h-5 gba:w-5 gba:text-primary/70 hover:gba:text-primary hover:gba:bg-primary/10"
-                                data-testid={`reply-to-ai-${message.id}`}
-                              >
-                                <ArrowBendUpLeft className="gba:w-3.5 gba:h-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="gba:text-xs">Reply to AI</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
                     </div>
-                  }
-                  footerContent={
-                    <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1 gba:text-muted-foreground">
-                      <span className="gba:text-[10px]">{formattedTime}</span>
+                  )
+                }
+
+                if (hasHiddenResultCards) {
+                  return (
+                    <div className="gba:max-w-[80%] gba:px-3 gba:py-2 gba:shadow-sm gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-primary/20">
+                      <div className="gba:space-y-2">
+                        <div className="gba:text-sm gba:italic gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+                          <span>✨</span>
+                          <span>
+                            {isGroupChat
+                              ? `${sender?.firstName || 'Someone'} submitted a request to ${message.metadata?.aiAssistant || 'Every AI'}`
+                              : `${message.metadata?.aiAssistant || 'Every AI'} processed a request`}
+                          </span>
+                        </div>
+                        <div className="gba:text-xs gba:italic gba:text-muted-foreground gba:px-2 gba:py-1 gba:bg-muted/30 gba:rounded">
+                          💼 Request details are only visible to the person who created them
+                        </div>
+                      </div>
                     </div>
-                  }
-                />
-              )}
+                  )
+                }
+
+                return (
+                  <EveryAIMessageRenderer
+                    message={message}
+                    accessToken={accessToken || ''}
+                    onSendMessage={onSendMessage}
+                    isInitiatedByCurrentUser={isAIMessageInitiatedByCurrentUser}
+                    onHasHiddenCards={setHasHiddenResultCards}
+                    headerContent={
+                      <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:text-primary gba:flex gba:items-center gba:justify-between">
+                        <div className="gba:flex gba:items-center gba:gap-1">
+                          <span className="gba:text-xs">✨</span>
+                          Every AI
+                        </div>
+                        {onReplyToAI && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={e => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    onReplyToAI()
+                                  }}
+                                  className="gba:h-5 gba:w-5 gba:text-primary/70 hover:gba:text-primary hover:gba:bg-primary/10"
+                                  data-testid={`reply-to-ai-${message.id}`}
+                                >
+                                  <ArrowBendUpLeft className="gba:w-3.5 gba:h-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="gba:text-xs">Reply to AI</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    }
+                    footerContent={
+                      <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1 gba:text-muted-foreground">
+                        <span className="gba:text-[10px]">{formattedTime}</span>
+                      </div>
+                    }
+                  />
+                )
+              })()}
             </>
           ) : (
             <div
-              className={`gba:rounded-lg gba:px-3 gba:py-2 gba:break-words ${
-                isExpertResponse
-                  ? 'gba:bg-gradient-to-br gba:from-muted/50 gba:to-accent/5 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border-2'
-                  : isOwnMessage
-                    ? 'gba:bg-primary gba:text-primary-foreground'
-                    : 'gba:bg-muted gba:text-foreground'
-              }`}
+              className={`gba:rounded-lg gba:px-3 gba:py-2 gba:break-words ${(() => {
+                if (isExpertResponse) {
+                  return 'gba:bg-gradient-to-br gba:from-muted/50 gba:to-accent/5 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border-2'
+                }
+                if (isOwnMessage) {
+                  return 'gba:bg-primary gba:text-primary-foreground'
+                }
+                return 'gba:bg-muted gba:text-foreground'
+              })()}`}
               style={
                 isExpertResponse && message.metadata?.expertColor
                   ? { borderColor: message.metadata.expertColor }

@@ -444,68 +444,78 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
             <p className="gba:text-sm gba:text-muted-foreground">No messages yet</p>
             <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">Start the conversation!</p>
           </div>
-        ) : messages.length === 0 && isLoading ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-            <Spinner size="md" />
-          </div>
         ) : (
-          <div className="gba:flex gba:flex-col gba:py-2">
-            {(() => {
-              // DEFENSIVE: Filter messages to only show those matching current conversation
-              // Prevents race conditions when switching conversations quickly
-              const filteredMessages = messages.filter(m => m.conversationId === conversationId)
+          (() => {
+            if (messages.length === 0 && isLoading) {
+              return (
+                <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+                  <Spinner size="md" />
+                </div>
+              )
+            }
 
-              return filteredMessages.map((message, index) => {
-                // Show sender name for first message or when sender changes
-                const prevMessage = index > 0 ? filteredMessages[index - 1] : null
-                const showSender = !prevMessage || prevMessage.senderId !== message.senderId
+            return (
+              <div className="gba:flex gba:flex-col gba:py-2">
+                {(() => {
+                  // DEFENSIVE: Filter messages to only show those matching current conversation
+                  // Prevents race conditions when switching conversations quickly
+                  const filteredMessages = messages.filter(m => m.conversationId === conversationId)
 
-                // Compute if AI message was initiated by current user (for backward compatibility)
-                let aiInitiatedByCurrentUser: boolean | undefined
-                if (message.metadata?.isAIResponse || message.metadata?.isEveryExpertResponse) {
-                  // Primary: use explicit initiatedBy field (new messages)
-                  if (message.metadata?.initiatedBy !== undefined) {
-                    aiInitiatedByCurrentUser = message.metadata.initiatedBy === currentUserId
-                  }
-                  // Fallback for old messages: CONSERVATIVE approach for privacy
-                  // Only use prevMessage fallback in 1:1 direct chats where it's safer
-                  // In group chats, default to undefined (MessageItem will hide sensitive data)
-                  else if (
-                    conversationType === 'direct' &&
-                    prevMessage &&
-                    !prevMessage.metadata?.isAIResponse &&
-                    !prevMessage.metadata?.isEveryExpertResponse
-                  ) {
-                    // In 1:1 chat, if prev message was from current user, they initiated it
-                    aiInitiatedByCurrentUser = prevMessage.senderId === currentUserId
-                  }
-                  // Default: undefined (MessageItem will hide forms/entities for safety)
-                }
+                  return filteredMessages.map((message, index) => {
+                    // Show sender name for first message or when sender changes
+                    const prevMessage = index > 0 ? filteredMessages[index - 1] : null
+                    const showSender = !prevMessage || prevMessage.senderId !== message.senderId
 
-                return (
-                  <MessageItem
-                    key={message.id}
-                    message={message}
-                    currentUserId={currentUserId}
-                    isGroupChat={isGroupChat}
-                    showSender={showSender}
-                    onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
-                    accessToken={accessToken}
-                    onSendMessage={onSendMessage}
-                    participants={participants}
-                    previewLabel={previewLabel}
-                    timestampRefreshKey={timestampRefreshKey}
-                    aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
-                  />
-                )
-              })
-            })()}
+                    // Compute if AI message was initiated by current user (for backward compatibility)
+                    let aiInitiatedByCurrentUser: boolean | undefined
+                    if (message.metadata?.isAIResponse || message.metadata?.isEveryExpertResponse) {
+                      // Primary: use explicit initiatedBy field (new messages)
+                      if (message.metadata?.initiatedBy !== undefined) {
+                        aiInitiatedByCurrentUser = message.metadata.initiatedBy === currentUserId
+                      }
+                      // Fallback for old messages: CONSERVATIVE approach for privacy
+                      // Only use prevMessage fallback in 1:1 direct chats where it's safer
+                      // In group chats, default to undefined (MessageItem will hide sensitive data)
+                      else if (
+                        conversationType === 'direct' &&
+                        prevMessage &&
+                        !prevMessage.metadata?.isAIResponse &&
+                        !prevMessage.metadata?.isEveryExpertResponse
+                      ) {
+                        // In 1:1 chat, if prev message was from current user, they initiated it
+                        aiInitiatedByCurrentUser = prevMessage.senderId === currentUserId
+                      }
+                      // Default: undefined (MessageItem will hide forms/entities for safety)
+                    }
 
-            {/* Typing Indicator */}
-            {typingUsers.length > 0 && <TypingIndicator typingUsers={typingUsers} conversationId={conversationId} />}
+                    return (
+                      <MessageItem
+                        key={message.id}
+                        message={message}
+                        currentUserId={currentUserId}
+                        isGroupChat={isGroupChat}
+                        showSender={showSender}
+                        onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
+                        accessToken={accessToken}
+                        onSendMessage={onSendMessage}
+                        participants={participants}
+                        previewLabel={previewLabel}
+                        timestampRefreshKey={timestampRefreshKey}
+                        aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
+                      />
+                    )
+                  })
+                })()}
 
-            <div ref={messagesEndRef} />
-          </div>
+                {/* Typing Indicator */}
+                {typingUsers.length > 0 && (
+                  <TypingIndicator typingUsers={typingUsers} conversationId={conversationId} />
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
+            )
+          })()
         )}
       </div>
     )
