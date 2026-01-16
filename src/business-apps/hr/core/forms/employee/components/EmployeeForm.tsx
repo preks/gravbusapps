@@ -140,7 +140,7 @@ const EmployeeForm: React.FC = () => {
         payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`
       }
 
-      dispatchProcessContinueEvent('employee_submit', payload)
+      dispatchProcessContinueEvent('pse_submit', payload)
     } catch (err) {
       console.error('Error submitting employee form:', err)
     }
