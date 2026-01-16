@@ -350,11 +350,9 @@ export class WebRTCClient {
   async startScreenShare(): Promise<MediaStream> {
     try {
       this.screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          cursor: 'always'
-        },
+        video: true,
         audio: false
-      })
+      } as DisplayMediaStreamOptions)
 
       // Replace video track with screen share
       if (this.peerConnection && this.localStream) {
