@@ -21,10 +21,13 @@ export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
           }
         })
 
+        // Process CSV to remove commas from cell values
+        const processedCsv = processCsvContent(response)
+
         const originalName = record.employeeDocument?.name || `accounting-note-${record.code}`
         const csvFileName = originalName.replace(/\.[^/.]+$/, '.csv')
 
-        const blob = new Blob([response], { type: 'text/csv;charset=utf-8' })
+        const blob = new Blob([processedCsv], { type: 'text/csv;charset=utf-8' })
         const url = window.URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
@@ -39,6 +42,40 @@ export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
     },
     [restClient, props.accessToken]
   )
+
+  /**
+   * Process CSV content to remove commas from all cell values
+   */
+  const processCsvContent = (csvText: string): string => {
+    const lines = csvText.split('\n')
+
+    const processedLines = lines.map(line => {
+      // Parse CSV line handling quoted values
+      const cells: string[] = []
+      let currentCell = ''
+      let insideQuotes = false
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+
+        if (char === '"') {
+          insideQuotes = !insideQuotes
+        } else if (char === ';' && !insideQuotes) {
+          // Semicolon delimiter - remove commas from cell value
+          cells.push(currentCell.replace(/,/g, ''))
+          currentCell = ''
+        } else {
+          currentCell += char
+        }
+      }
+      // Push the last cell
+      cells.push(currentCell.replace(/,/g, ''))
+
+      return cells.join(';')
+    })
+
+    return processedLines.join('\n')
+  }
 
   const handleTriggerCSV = useCallback(async (record: ExpenseData) => {
     try {
