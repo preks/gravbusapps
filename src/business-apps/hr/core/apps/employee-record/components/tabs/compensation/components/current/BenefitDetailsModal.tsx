@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { SheetPrimitive, SheetContent } from '@newwork/nw-design-system'
+import { Sheet, SheetContent } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { getTranslatedBenefitType } from '../../utils/benefitTranslationUtils'
@@ -77,7 +77,7 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
   const showFullDetails = benefit.isActive || benefit.isScheduled
 
   return (
-    <SheetPrimitive
+    <Sheet
       open={isOpen}
       onOpenChange={open => {
         if (!open) onClose()
@@ -121,7 +121,7 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
           onClose={onClose}
         />
       </SheetContent>
-    </SheetPrimitive>
+    </Sheet>
   )
 }
 

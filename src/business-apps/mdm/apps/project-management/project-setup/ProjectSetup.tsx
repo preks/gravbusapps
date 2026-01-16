@@ -31,7 +31,7 @@ import {
   Badge,
   Card,
   CardContent,
-  SheetPrimitive,
+  Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -970,7 +970,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         )}
 
         {selectedProject && (
-          <SheetPrimitive
+          <Sheet
             open={drawerVisible}
             onOpenChange={openStatus => {
               if (!openStatus) {
@@ -1106,7 +1106,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                 </div>
               </SheetFooter>
             </SheetContent>
-          </SheetPrimitive>
+          </Sheet>
         )}
       </CardContent>
       <Toaster />
