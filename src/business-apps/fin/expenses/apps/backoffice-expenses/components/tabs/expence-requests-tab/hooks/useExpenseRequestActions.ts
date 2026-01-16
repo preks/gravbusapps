@@ -85,12 +85,10 @@ export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
    * E.g., "57.50" becomes "57,50"
    */
   const formatCellValue = (value: string): string => {
-    // Check if value is a decimal number (e.g., 57.50, 123.45, -10.00)
-    const decimalNumberPattern = /^-?\d+\.\d+$/
-    if (decimalNumberPattern.test(value.trim())) {
-      return value.replace('.', ',')
-    }
-    return value
+    const trimmedValue = value.trim()
+    // Replace all decimal numbers: digits followed by period followed by digits
+    // This handles cases like 57.50, 123.45, -10.00, 307.5
+    return trimmedValue.replace(/(\d)\.(\d)/g, '$1,$2')
   }
 
   const handleTriggerCSV = useCallback(async (record: ExpenseData) => {
