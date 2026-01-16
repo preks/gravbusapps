@@ -1,22 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_PROBATION_RATE_DATA } from '../queries/getProbationRateData'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 
 /**
  * Response type for Probation Rate data query
  */
-interface ProbationRateDataResponse {
-  EmployeePositionAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
-  EmployeeWorkingConditionAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
-}
+type DatasetRow = { category?: string; value?: number }
 
 /**
  * Hook to fetch and calculate probation rate
@@ -32,8 +20,8 @@ export const useProbationRate = (accessToken: string) => {
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
 
-  // Get GraphQL client using the project's pattern
-  const graphQLClient = useGraphqlClient(accessToken)
+  // Dataset client
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   /**
    * Fetch probation rate data from GraphQL API
@@ -53,33 +41,21 @@ export const useProbationRate = (accessToken: string) => {
         setError(null)
       }
 
-      // Log request
-      console.log('[useProbationRate] Fetching probation rate data')
-
-      // Execute the GraphQL query
-      const response = await graphQLClient.request<ProbationRateDataResponse>(GET_PROBATION_RATE_DATA)
-
-      // Extract counts from aliased aggregates
-      const total = Number((response as any)?.totalActive?.aggregate?.count)
-      if (isNaN(total)) {
-        throw new Error('[useProbationRate] Total employee count is not a valid number')
-      }
-
-      const inProbation = Number((response as any)?.inProbationActive?.aggregate?.count)
-      if (isNaN(inProbation)) {
-        throw new Error('[useProbationRate] In-probation employee count is not a valid number')
-      }
+      // Fetch counts from dataset query 'probationRateData'
+      const resp = await datasetClient.executeQuery('probationRateData', QueryType.DATASET, {})
+      const rows: DatasetRow[] = Array.isArray(resp?.data) ? (resp!.data as DatasetRow[]) : []
+      const totalRow = rows.find(r => (r.category || '').toString().toLowerCase() === 'total active employees')
+      const probRow = rows.find(r => (r.category || '').toString().toLowerCase() === 'employees in probation')
+      const total = Number(totalRow?.value ?? NaN)
+      const inProbation = Number(probRow?.value ?? NaN)
+      if (isNaN(total)) throw new Error('[useProbationRate] Total employee count is not a valid number')
+      if (isNaN(inProbation)) throw new Error('[useProbationRate] In-probation employee count is not a valid number')
 
       // Calculate probation rate (percentage of employees currently in probation)
       const calculatedProbationRate = total > 0 ? (inProbation / total) * 100 : 0
 
       // Round to one decimal place
       const roundedProbationRate = Math.round(calculatedProbationRate * 10) / 10
-
-      // Log the results
-      console.info(
-        `[useProbationRate] Total employees: ${total}, Employees in probation: ${inProbation}, Rate: ${roundedProbationRate}%`
-      )
 
       // Update state if component is still mounted
       if (isMounted.current) {
@@ -99,7 +75,7 @@ export const useProbationRate = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, graphQLClient])
+  }, [accessToken, datasetClient])
 
   // Set up effect to fetch data and handle cleanup
   useEffect(() => {

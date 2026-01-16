@@ -1,25 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_JOB_POSITION_DATA } from '../queries/getJobPositionData'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-
-/**
- * Response type for Job Position data query
- */
-interface JobPositionDataResponse {
-  // Total job positions in the structure
-  TotalJobPositionAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
-  // Vacant job positions in the structure
-  VacantJobPositionAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
-}
 
 /**
  * Hook to calculate the Gap Rate - percentage of job positions without assigned employees
@@ -33,18 +14,18 @@ export function useGapRate(accessToken: string) {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
 
-  // Get GraphQL client
-  const graphqlClient = useGraphqlClient(accessToken)
+  // Dataset client
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   // Fetch job position data
   useEffect(() => {
-    if (!graphqlClient) return
+    if (!datasetClient) return
 
     setLoading(true)
     setError(null)
 
     // Get the current structure ID from windowUtils
-    const structureId = getCurrentActiveStructureId()
+    const structureId = getCurrentActiveStructureId() ?? '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
 
     if (!structureId) {
       console.warn('[useGapRate] No active structure ID found')
@@ -56,39 +37,31 @@ export function useGapRate(accessToken: string) {
     // Log request
     console.info('[useGapRate] Fetching job position data for structure:', structureId)
 
-    graphqlClient
-      .request<JobPositionDataResponse>(GET_JOB_POSITION_DATA, { structureId })
-      .then(response => {
-        // Log successful response
-        console.info('[useGapRate] Received job position data')
+    datasetClient
+      .executeQuery('jobPositionData', QueryType.DATASET, { structureId })
+      .then(result => {
+        const rows = Array.isArray(result?.data) ? result.data : []
 
-        // Get total job positions count
-        const total = response?.TotalJobPositionAggregate?.aggregate?.count || 0
+        const totalRow = rows.find((r: any) => String(r.category).trim().toLowerCase() === 'total job positions')
+        const vacantRow = rows.find((r: any) => String(r.category).trim().toLowerCase() === 'vacant job positions')
 
-        // Get vacant positions count from the VacantJobPositionAggregate
-        const vacant = response?.VacantJobPositionAggregate?.aggregate?.count || 0
+        const total = Number(totalRow?.value ?? 0)
+        const vacant = Number(vacantRow?.value ?? 0)
 
-        // Log the results
-        console.debug(`[useGapRate] Total positions: ${total}, Vacant positions: ${vacant}`)
-
-        // Calculate gap rate (avoid division by zero)
         const calculatedGapRate = total > 0 ? (vacant / total) * 100 : 0
-
-        // Round to one decimal place
         const roundedGapRate = Math.round(calculatedGapRate * 10) / 10
 
-        // Update state with results
         setTotalPositions(total)
         setVacantPositions(vacant)
         setGapRate(roundedGapRate)
         setLoading(false)
       })
       .catch(err => {
-        console.error('[useGapRate] Error fetching job position data:', err)
+        console.error('[useGapRate] Error fetching job position data (dataset):', err)
         setError(err instanceof Error ? err : new Error('Failed to fetch job position data'))
         setLoading(false)
       })
-  }, [graphqlClient])
+  }, [datasetClient])
 
   return {
     gapRate,
