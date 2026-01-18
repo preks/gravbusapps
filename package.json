@@ -38,6 +38,7 @@
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/selfie_segmentation": "^0.1.1675465747",
     "@monaco-editor/react": "^4.7.0",
+    "@newwork/cursor-rules": "^1.7.0",
     "@newwork/gravity-ui-catalog": "7.10.28",
     "@newwork/nw-design-system": "^0.65.0-502",
     "@newwork/remote-component-loader": "^0.1.1",
