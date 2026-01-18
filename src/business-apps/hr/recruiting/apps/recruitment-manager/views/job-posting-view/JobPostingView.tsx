@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobPostings } from '@/common/data/recruiting/hooks/useJobPostings'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
@@ -19,7 +20,7 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
     pageSize: 20
   })
 
-  const { jobPostings, total, loading, error } = useJobPostings(
+  const { jobPostings, total, loading, error, refetch } = useJobPostings(
     context.accessToken,
     {
       search,
@@ -32,6 +33,12 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
     },
     'list'
   )
+
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch()
+    }
+  })
 
   // Handle row click to navigate to job posting record
   const handleRowClick = useCallback((row: JobPosting) => {

@@ -154,7 +154,14 @@ export const JOB_REQUEST_DESCRIPTORS: Descriptor[] = [
   { key: 'plannedHireDate', searchPaths: ['plannedHireDate'], sortPath: 'plannedHireDate', type: 'date' },
   { key: 'plannedExitDate', searchPaths: ['plannedExitDate'], sortPath: 'plannedExitDate', type: 'date' },
   { key: 'jobRequestType', searchPaths: ['jobRequestType'], sortPath: 'jobRequestType', type: 'text' },
-  { key: 'jobRequestStatus', searchPaths: ['jobRequestStatus'], sortPath: 'jobRequestStatus', type: 'text' },
+  {
+    key: 'jobRequestStatus',
+    searchPaths: ['jobRequestStatus'],
+    sortPath: 'jobRequestStatus',
+    type: 'text',
+    path: 'jobRequestStatus',
+    kind: 'inStrings' as const
+  },
   {
     key: 'contractType',
     searchPaths: ['contractType.value'],

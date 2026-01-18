@@ -22,7 +22,12 @@ export const buildJobPostingPayload = (data: Partial<JobPosting>) => {
   return {
     jobPosting: {
       ...basePayload,
-      title: data.title || ''
+      title: data.title || '',
+      titleI18n: data.titleI18n || {},
+      content: data.content || '',
+      contentI18n: data.contentI18n || {},
+      fileInfo: data.fileInfo || null,
+      jobRequestId: data.jobRequestId
     }
   }
 }

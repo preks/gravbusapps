@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobRequests } from '@/common/data/recruiting/hooks/useJobRequests'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
@@ -19,7 +20,7 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
     pageSize: 20
   })
 
-  const { jobRequests, total, loading, error } = useJobRequests(
+  const { jobRequests, total, loading, error, refetch } = useJobRequests(
     context.accessToken,
     {
       search,
@@ -32,6 +33,12 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
     },
     'list'
   )
+
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch()
+    }
+  })
 
   // Primary action for creating new job request
   const primaryAction = useMemo(

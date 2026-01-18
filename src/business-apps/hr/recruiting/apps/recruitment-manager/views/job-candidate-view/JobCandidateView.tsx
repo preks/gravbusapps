@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobCandidates } from '@/common/data/recruiting/hooks/useJobCandidates'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
@@ -19,7 +20,7 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
     pageSize: 20
   })
 
-  const { jobCandidates, total, loading, error } = useJobCandidates(
+  const { jobCandidates, total, loading, error, refetch } = useJobCandidates(
     context.accessToken,
     {
       search,
@@ -32,6 +33,12 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
     },
     'list'
   )
+
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch()
+    }
+  })
 
   // Helper to get initials
   const getInitials = (firstName: string, lastName: string): string => {

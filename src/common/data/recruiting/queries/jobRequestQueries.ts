@@ -22,7 +22,7 @@ export interface JobRequestQueryVariables extends BaseQueryVariables {
   siteLocationId?: string
   requesterEmployeeId?: string
   jobRequestType?: string
-  jobRequestStatus?: string
+  jobRequestStatus?: string | string[]
 }
 
 /**
