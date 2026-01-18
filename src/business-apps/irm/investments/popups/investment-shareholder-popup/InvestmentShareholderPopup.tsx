@@ -15,7 +15,7 @@ import {
   Alert,
   AlertDescription
 } from '@newwork/nw-design-system'
-import { Plus } from 'lucide-react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentShareholdersByInvestmentId } from '@/common/data/investment/hooks/useInvestmentShareholders'
@@ -416,7 +416,7 @@ const InvestmentShareholderPopup: React.FC<InvestmentShareholderPopupProps> = ({
               data-testid={formatDataTestId(prefixDataTestId, 'AddShareholderButton')}
               className="gba:w-full"
             >
-              <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+              <PlusIcon className="gba:h-4 gba:w-4 gba:mr-2" />
               {getTranslationFromI18nKeyAndLabel('investment.shareholders.addShareholder', 'Add Shareholder')}
             </Button>
           </div>

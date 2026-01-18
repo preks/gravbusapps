@@ -90,6 +90,17 @@ const ManagerAbsences: React.FC<BusinessAppContextProps> = props => {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
+  // Deep link handling: if absenceId is provided in the URL, open AbsenceListPage
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const absenceId = urlParams.get('absenceId')
+
+    if (absenceId) {
+      setAbsenceListPreFilter({ absenceId })
+      setCurrentView('absence-list-page')
+    }
+  }, [])
+
   // Navigation handlers
   const handleNavigateToWorkLifeBalance = useCallback(() => {
     setCurrentView('work-life-balance')

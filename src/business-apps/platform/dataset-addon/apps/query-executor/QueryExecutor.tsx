@@ -11,7 +11,17 @@ import {
   TabsContent,
   Toaster
 } from '@newwork/nw-design-system'
-import { ArrowClockwiseIcon, PlayCircleIcon, DatabaseIcon, InfoIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import {
+  ArrowClockwiseIcon,
+  PlayCircleIcon,
+  DatabaseIcon,
+  InfoIcon,
+  WarningCircleIcon,
+  UserIcon,
+  MoneyIcon,
+  ClockIcon,
+  UsersThreeIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout } from '@/components/layout/pageLayout'
 import { QueryDefinition, Services, getAllServices, getServiceLabel } from '@/common/network/dataset'
@@ -36,6 +46,21 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = context => {
     clearResults,
     refetch
   } = useQueryExecutorData(context, activeService)
+
+  const getServiceIcon = (service: Services) => {
+    switch (service) {
+      case Services.EMPLOYEE:
+        return <UserIcon size={16} />
+      case Services.EMPLOYEE_EXPENSE:
+        return <MoneyIcon size={16} />
+      case Services.EMPLOYEE_TIME:
+        return <ClockIcon size={16} />
+      case Services.CUSTOMER_RELATIONS:
+        return <UsersThreeIcon size={16} />
+      default:
+        return <DatabaseIcon size={16} />
+    }
+  }
 
   const handleExecuteQuery = (query: QueryDefinition) => {
     setSelectedQuery(query)
@@ -290,19 +315,7 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = context => {
               }}
             >
               {getAllServices().map(service => (
-                <TabsTrigger
-                  key={service}
-                  value={service}
-                  className="gba:flex gba:items-center gba:justify-center"
-                  style={{
-                    gap: 'var(--nw-spacing-2)',
-                    textAlign: 'center',
-                    whiteSpace: 'nowrap',
-                    padding: 'var(--nw-spacing-2) var(--nw-spacing-4)',
-                    minWidth: 'auto'
-                  }}
-                >
-                  <DatabaseIcon size={16} />
+                <TabsTrigger key={service} value={service} startIcon={getServiceIcon(service)}>
                   {getServiceLabel(service)}
                 </TabsTrigger>
               ))}

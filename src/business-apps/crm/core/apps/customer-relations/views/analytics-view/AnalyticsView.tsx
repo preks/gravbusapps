@@ -375,7 +375,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       contactQualityLoading
     },
     {
-      title: 'Contacts Analytics'
+      title: 'Contacts Analytics',
+      module: 'crm'
     }
   )
 

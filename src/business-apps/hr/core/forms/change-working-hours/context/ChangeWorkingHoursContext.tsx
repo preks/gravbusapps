@@ -142,6 +142,9 @@ export function ChangeWorkingHoursProvider({
       const workingHours = existingWorkingMeta || {}
       if ((workingHours as any)?.id !== undefined && (workingHours as any)?.version !== undefined) {
         return {
+          employeeId: activeEmployeeId,
+          event: 'pse_submit',
+          pso_exitStrategy: 'complete',
           employeeWorkingHours: {
             id: (workingHours as any)?.id,
             version: (workingHours as any)?.version,
@@ -158,11 +161,13 @@ export function ChangeWorkingHoursProvider({
             saturdayHours: Number(values.saturdayHours || 0),
             sundayHours: Number(values.sundayHours || 0),
             remoteRef: (workingHours as any)?.remoteRef ? (workingHours as any)?.remoteRef : ''
-          },
-          event: 'pse_submit'
+          }
         }
       }
       return {
+        employeeId: activeEmployeeId,
+        event: 'pse_submit',
+        pso_exitStrategy: 'complete',
         employeeWorkingHours: {
           employeeId: activeEmployeeId,
           weeklyHours: weeklySum,
@@ -177,8 +182,7 @@ export function ChangeWorkingHoursProvider({
           saturdayHours: Number(values.saturdayHours || 0),
           sundayHours: Number(values.sundayHours || 0),
           remoteRef: (workingHours as any)?.remoteRef ? (workingHours as any)?.remoteRef : ''
-        },
-        event: 'pse_submit'
+        }
       }
     },
     [existingWorkingMeta, activeEmployeeId]

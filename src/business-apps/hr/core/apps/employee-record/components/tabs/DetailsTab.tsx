@@ -4,7 +4,7 @@ import React from 'react'
 import dayjs from 'dayjs'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
-import { formatPhoneNumber, formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
+import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -188,16 +188,16 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
   // Prepare emergency contact data
 
   const getEmergencyContact = () => {
-    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact)
+    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact) || []
 
     return emergencyContacts.map(contact => [
       {
         label: 'Contact Name',
-        value: emergencyContacts ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '' : ''
+        value: `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || ''
       },
       {
         label: 'Phone Number',
-        value: contact?.phoneNumber ? formatPhoneNumber(contact.phoneNumber) : ''
+        value: contact?.phoneNumber ? formatPhoneNumberWithCountryCode(contact.phoneNumber) : ''
       }
     ])
   }
@@ -372,15 +372,31 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-emergency"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Emergency Contact</h3>
+            <AppAction
+              variant="update-secondary"
+              data-testid="emergency-contact-action-button"
+              contexts={[
+                { context: FlowContextName.updateEmployeeRelationship, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="emergency-contact-action"
+              accessToken={accessToken}
+              autoExecute={true}
+            />
           </div>
           <div className="gba:flex gba:flex-col gba:gap-2">
-            {emergencyContactData.map((items, idx) => (
-              <div key={`emergency-contact-${idx}`}>
-                {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+            {emergencyContactData && emergencyContactData.length > 0 ? (
+              emergencyContactData.map((items, idx) => (
+                <div key={`emergency-contact-${idx}`}>
+                  {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+                </div>
+              ))
+            ) : (
+              <div className="gba:text-muted-foreground gba:text-sm gba:py-4">
+                No emergency contact information available
               </div>
-            ))}
+            )}
           </div>
         </Card>
 

@@ -4,12 +4,28 @@
  */
 
 import React, { memo, useEffect, useState } from 'react'
-import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { Clock, AlertTriangle, Zap } from 'lucide-react'
+import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { AlertTriangle, Zap } from 'lucide-react'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isYesterday from 'dayjs/plugin/isYesterday'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/es'
+import 'dayjs/locale/it'
 import { UnifiedTask } from '../types'
-import { formatRelativeTime, formatDateTime, isOverdue, isDueSoon } from '../utils/taskFormatters'
+import { isOverdue, isDueSoon } from '../utils/taskFormatters'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
 import { getModuleInfo } from '../utils/moduleIcons'
+
+dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isYesterday)
 
 interface TaskCardProps {
   task: UnifiedTask
@@ -22,13 +38,24 @@ interface TaskCardProps {
    * When true, we hide the fallback initials to avoid flicker before avatar URLs arrive.
    */
   areAvatarsLoading?: boolean
+  /** Translation function passed from parent to avoid useTranslation in each card */
+  t: (key: string, params?: Record<string, any>) => string
+  /** Locale string for date formatting (e.g., 'en-US', 'de-DE') */
+  locale: string
 }
 
 // Helper function to get due date text
-const getDueDateText = (overdue: boolean, dueSoon: boolean, dueDate?: string | null): string => {
-  if (overdue) return 'Overdue'
-  if (dueSoon) return 'Due soon'
-  return `Due ${formatRelativeTime(dueDate)}`
+const getDueDateText = (
+  overdue: boolean,
+  dueSoon: boolean,
+  dueDate: string | null | undefined,
+  locale: string,
+  t: (key: string, params?: Record<string, any>) => string
+): string => {
+  if (overdue) return t('task-card-overdue')
+  if (dueSoon) return t('task-card-due-soon')
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  return dueDate ? t('task-card-due', { date: dayjs(dueDate).locale(baseLocale).fromNow() }) : ''
 }
 
 // Helper function to get due date styling class
@@ -38,63 +65,159 @@ const getDueDateClass = (overdue: boolean, dueSoon: boolean): string => {
   return 'gba:text-muted-foreground'
 }
 
-export const TaskCard: React.FC<TaskCardProps> = memo(
-  ({ task, onView, employeeMap, isSelected = false, isDetailViewOpen = false, areAvatarsLoading = false }) => {
-    // Check if task is completed
-    const isCompleted = task.status === 'COMPLETED' || !!task.completedAt
+// Helper to get task title based on source
+const getTaskTitle = (task: UnifiedTask, t: (key: string) => string): string => {
+  if (task.source === 'kogito') {
+    return task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || t('task-card-untitled')
+  }
+  return task.title || task.name || t('task-card-untitled')
+}
 
-    // Only show overdue/due soon for non-completed tasks
+// Helper to get creator ID from task metadata
+const getCreatorId = (task: UnifiedTask): string | undefined => {
+  return (
+    task.sourceMetadata?.creatorUserId ||
+    task.sourceMetadata?.creatorEmployeeId ||
+    task.sourceMetadata?.createdBy ||
+    task.sourceMetadata?.initiatedBy
+  )
+}
+
+// Helper to check if task is completed
+const checkTaskCompleted = (task: UnifiedTask): boolean => {
+  return task.status === 'COMPLETED' || !!task.completedAt
+}
+
+// Helper to check if task is a Blink task
+const checkIsBlinkTask = (task: UnifiedTask): boolean => {
+  return task.source === 'cflow' && task.tags?.app === 'quick-task'
+}
+
+// Helper to determine avatar display state
+const getAvatarDisplayState = (
+  avatarStatus: 'idle' | 'loading' | 'loaded' | 'error',
+  employeeData: EmployeeAvatarData | null | undefined,
+  areAvatarsLoading: boolean
+): { showImage: boolean; showFallback: boolean } => {
+  const showImage = avatarStatus === 'loaded' && !!employeeData?.avatarUrl
+  const noAvatarAvailable = avatarStatus === 'idle' && !employeeData?.avatarUrl
+  const showFallback = !areAvatarsLoading && (avatarStatus === 'error' || noAvatarAvailable)
+
+  return { showImage, showFallback }
+}
+
+// Helper to get creator name with fallback logic
+const getCreatorDisplayName = (
+  task: UnifiedTask,
+  employeeData: EmployeeAvatarData | null | undefined,
+  areAvatarsLoading: boolean,
+  t: (key: string) => string
+): string => {
+  if (areAvatarsLoading) return ''
+
+  // Priority 1: displayName from employee data (most reliable and consistent)
+  if (employeeData?.displayName) return employeeData.displayName
+
+  // Priority 2: creatorName from task metadata (might be cached/older)
+  if (task.sourceMetadata?.creatorName) return task.sourceMetadata.creatorName
+  if (task.sourceMetadata?.ownerName) return task.sourceMetadata.ownerName
+  // Backwards-compatible fallbacks for CFlow initiator fields
+  if ((task.sourceMetadata as any)?.flowInitiatedByName) return (task.sourceMetadata as any).flowInitiatedByName
+  if (
+    (task.sourceMetadata as any)?.flowInitiatedBy &&
+    typeof (task.sourceMetadata as any).flowInitiatedBy === 'string'
+  ) {
+    return (task.sourceMetadata as any).flowInitiatedBy
+  }
+
+  // Priority 3: Construct from firstName + lastName (fallback)
+  if (employeeData) {
+    const firstName = employeeData.firstName || ''
+    const lastName = employeeData.lastName || ''
+    const fullName = `${firstName} ${lastName}`.trim()
+    if (fullName) return fullName
+  }
+
+  // Final fallback
+  return t('task-card-unknown-creator')
+}
+
+// Helper to format date/time with Today/Yesterday support
+const formatDateTimeWithRelative = (date: string | Date, locale: string, t: (key: string) => string): string => {
+  const d = dayjs(date)
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  const time = d.locale(baseLocale).format('LT')
+
+  if (d.isToday()) {
+    return `${t('formatter-today')}, ${time}`
+  }
+  if (d.isYesterday()) {
+    return `${t('formatter-yesterday')}, ${time}`
+  }
+
+  return d.locale(baseLocale).format('L LT')
+}
+
+// Helper to generate user initials
+const generateInitials = (name: string): string => {
+  const trimmed = name.trim()
+
+  // Return placeholder for empty or whitespace-only names
+  if (!trimmed) {
+    return '??'
+  }
+
+  const parts = trimmed.split(/\s+/).filter(part => part.length > 0)
+
+  // Handle multiple parts (first and last name)
+  if (parts.length >= 2) {
+    const firstInitial = parts[0][0] || ''
+    const lastInitial = parts[parts.length - 1][0] || ''
+    return `${firstInitial}${lastInitial}`.toUpperCase()
+  }
+
+  // Handle single part - take up to 2 characters, pad with second char if only 1
+  const singlePart = parts[0] || ''
+  if (singlePart.length === 1) {
+    return (singlePart + singlePart).toUpperCase()
+  }
+  return singlePart.substring(0, 2).toUpperCase()
+}
+
+export const TaskCard: React.FC<TaskCardProps> = memo(
+  ({
+    task,
+    onView,
+    employeeMap,
+    isSelected = false,
+    isDetailViewOpen = false,
+    areAvatarsLoading = false,
+    t,
+    locale
+  }) => {
+    // Task status checks
+    const isCompleted = checkTaskCompleted(task)
     const overdue = !isCompleted && isOverdue(task.dueDate)
     const dueSoon = !isCompleted && isDueSoon(task.dueDate)
+    const isBlinkTask = checkIsBlinkTask(task)
 
-    // Check if this is a Blink task (quick direct task from one person to another)
-    const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
-
-    // Format process/module name from processDefinitionId for Kogito tasks
-    const getModuleName = (processDefId?: string): string | null => {
-      if (!processDefId) return null
-      // Convert snake_case or kebab-case to Title Case
-      return processDefId
-        .split(/[_-]/)
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ')
-    }
-
-    const moduleName = task.source === 'kogito' ? getModuleName(task.type) : null
+    // Module and task metadata
     const moduleInfo = getModuleInfo(task.name, task.type)
     const ModuleIcon = moduleInfo.icon
+    const taskTitle = getTaskTitle(task, t)
 
-    // Get task name/title
-    // For Kogito tasks, prefer referenceName (most descriptive with context)
-    // Then fallback to nodeName, title, or name
-    // For CFlow tasks, use title or name
-    const taskTitle =
-      task.source === 'kogito'
-        ? task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || 'Untitled Task'
-        : task.title || task.name || 'Untitled Task'
-
-    // Extract creator ID - both sources now use user ID:
-    // - Kogito: creatorUserId (user ID)
-    // - CFlow: creatorUserId (user ID from flowInitiatedBy)
-    const creatorId =
-      task.sourceMetadata?.creatorUserId || // Both Kogito & CFlow (userId)
-      task.sourceMetadata?.creatorEmployeeId || // Legacy fallback (employeeId)
-      task.sourceMetadata?.createdBy ||
-      task.sourceMetadata?.initiatedBy
-
-    // Get employee data from the batch-fetched map (used for avatar only, name comes from metadata)
+    // Creator data
+    const creatorId = getCreatorId(task)
     const employeeData = creatorId ? employeeMap.get(creatorId) : null
 
-    // Avatar loading state to prevent initials flicker
+    // Avatar loading state
     const [avatarStatus, setAvatarStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
 
     useEffect(() => {
-      // SSR/Node safety
       if (typeof window === 'undefined') return
 
       const avatarUrl = employeeData?.avatarUrl
 
-      // No avatar URL – immediately fall back to initials
       if (!avatarUrl) {
         setAvatarStatus('error')
         return
@@ -105,13 +228,8 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
       const img = new Image()
       img.src = avatarUrl
 
-      const handleLoad = () => {
-        setAvatarStatus('loaded')
-      }
-
-      const handleError = () => {
-        setAvatarStatus('error')
-      }
+      const handleLoad = () => setAvatarStatus('loaded')
+      const handleError = () => setAvatarStatus('error')
 
       img.addEventListener('load', handleLoad)
       img.addEventListener('error', handleError)
@@ -122,122 +240,148 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
       }
     }, [employeeData?.avatarUrl])
 
-    // Get creator name - prefer metadata (instant, no loading), then employee data
-    // Kogito provides creatorName, CFlow does not (flowInitiatedByName not sent by backend)
-    // For CFlow: show empty while loading, then real name when employee data loads
-    const creatorName =
-      task.sourceMetadata?.creatorName ||
-      task.sourceMetadata?.ownerName ||
-      (areAvatarsLoading ? '' : employeeData ? `${employeeData.firstName} ${employeeData.lastName}`.trim() : 'Unknown')
-
+    // Display data
+    const creatorName = getCreatorDisplayName(task, employeeData, areAvatarsLoading, t)
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
+    const avatarDisplay = getAvatarDisplayState(avatarStatus, employeeData, areAvatarsLoading)
+    const showAvatarImage = avatarDisplay.showImage
+    const showAvatarFallback = avatarDisplay.showFallback
 
-    // Generate initials from creator name (use metadata name, consistent with creatorName)
-    const getInitials = (name: string): string => {
-      const parts = name.trim().split(/\s+/)
-      if (parts.length >= 2) {
-        return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-      }
-      return name.substring(0, 2).toUpperCase()
-    }
-
-    // Show avatar image only when fully loaded
-    const showAvatarImage = avatarStatus === 'loaded' && !!employeeData?.avatarUrl
-
-    // Show fallback (initials) only when:
-    // 1. Avatars batch fetch is complete (!areAvatarsLoading)
-    // 2. AND one of:
-    //    a) avatarStatus is 'error' (no avatar URL or image failed to load)
-    //    b) avatarStatus is 'idle' AND there's no avatarUrl (employee not found or has no picture)
-    //
-    // Do NOT show fallback when:
-    // - Still fetching employee data (areAvatarsLoading)
-    // - Image is being preloaded (avatarStatus === 'loading')
-    // - avatarStatus is 'idle' but avatarUrl exists (about to start preloading)
-    // - Image has loaded successfully (avatarStatus === 'loaded')
-    const noAvatarAvailable = avatarStatus === 'idle' && !employeeData?.avatarUrl
-    const showAvatarFallback = !areAvatarsLoading && (avatarStatus === 'error' || noAvatarAvailable)
-
-    // Full list view (no task selected) - single row layout with fixed columns
+    // Full list view (no task selected) - responsive layout
     if (!isDetailViewOpen) {
       return (
         <div
-          className="gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-4 gba:py-2.5 gba:hover:bg-muted/50"
+          className="gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-3 gba:lg:px-4 gba:hover:bg-muted/50 gba:border-b gba:border-border/30 gba:lg:border-transparent gba:active:bg-muted/70"
           onClick={() => onView(task)}
           data-testid={`task-card-${task.id}`}
         >
-          <div className="gba:flex gba:items-center gba:gap-4">
+          {/* Desktop: Single row layout */}
+          <div className="gba:hidden gba:lg:flex gba:items-center gba:gap-2.5">
             {/* 1. Date - fixed 140px */}
             <span
               className="gba:text-xs gba:text-muted-foreground gba:w-[140px] gba:flex-shrink-0"
               data-testid="task-created-at"
             >
               {task.status === 'COMPLETED' && task.completedAt ? (
-                <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
+                <span className="gba:text-success">✓ {formatDateTimeWithRelative(task.completedAt, locale, t)}</span>
               ) : (
-                createdAt && formatDateTime(createdAt)
+                createdAt && formatDateTimeWithRelative(createdAt, locale, t)
               )}
             </span>
 
             {/* 2. Avatar */}
-            <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
+            <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0" data-testid="task-creator-avatar">
               {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
               {showAvatarFallback && (
-                <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
-                  {getInitials(creatorName)}
+                <AvatarFallback className="gba:text-[10px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                  {generateInitials(creatorName)}
                 </AvatarFallback>
               )}
             </Avatar>
 
             {/* 3. Creator name */}
             <span
-              className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground gba:w-[160px] gba:flex-shrink-0"
+              className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground gba:w-[140px] gba:flex-shrink-0"
               data-testid="task-creator-name"
             >
               {creatorName}
             </span>
 
             {/* 4. Module Icon */}
-            <span title={moduleInfo.name} className="gba:w-5 gba:flex-shrink-0">
-              <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
+            <span title={moduleInfo.name} className="gba:flex-shrink-0">
+              <ModuleIcon className={`gba:h-4.5 gba:w-4.5 ${moduleInfo.color}`} />
             </span>
 
             {/* 5. Task title + Blink indicator */}
-            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-              <span className="gba:text-base gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-1 gba:min-w-0">
+              <span className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
                 {taskTitle}
               </span>
-              {isBlinkTask && (
-                <div
-                  className="gba:flex gba:items-center gba:gap-0.5 gba:flex-shrink-0"
-                  data-testid="task-blink-indicator"
-                >
-                  <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
-                  <span className="gba:text-sm gba:font-medium gba:text-blue-500">Blink</span>
-                </div>
-              )}
+              {isBlinkTask && <Zap className="gba:h-4 gba:w-4 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />}
             </div>
 
-            {/* 6. Right side: Module badge + Due date */}
+            {/* 6. Right side: Due date urgency indicator */}
             <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
-              {moduleName && (
-                <Badge variant="secondary" data-testid="task-module-badge">
-                  {moduleName}
-                </Badge>
-              )}
-              {!isCompleted && task.dueDate && (
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {overdue || dueSoon ? (
-                    <AlertTriangle className="gba:h-4 gba:w-4" />
-                  ) : (
-                    <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                  )}
-                  <span className={`gba:text-sm ${getDueDateClass(overdue, dueSoon)}`} data-testid="task-due-date">
-                    {getDueDateText(overdue, dueSoon, task.dueDate)}
+              {!isCompleted && task.dueDate && (overdue || dueSoon) && (
+                <div className="gba:flex gba:items-center gba:gap-1.5">
+                  <AlertTriangle
+                    className={`gba:h-4 gba:w-4 ${overdue ? 'gba:text-destructive' : 'gba:text-warning'}`}
+                  />
+                  <span
+                    className={`gba:text-sm gba:font-semibold ${getDueDateClass(overdue, dueSoon)}`}
+                    data-testid="task-due-date"
+                  >
+                    {getDueDateText(overdue, dueSoon, task.dueDate, locale, t)}
                   </span>
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Mobile/Tablet: Card-based layout - same order as desktop for consistency */}
+          <div className="gba:flex gba:lg:hidden gba:flex-col gba:gap-1.5">
+            {/* Line 1: Date + Avatar + Creator name (WHO and WHEN - quick scan) */}
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span
+                className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0"
+                data-testid="task-created-at-mobile"
+              >
+                {task.status === 'COMPLETED' && task.completedAt ? (
+                  <span className="gba:text-success gba:font-medium">
+                    ✓ {formatDateTimeWithRelative(task.completedAt, locale, t)}
+                  </span>
+                ) : (
+                  createdAt && formatDateTimeWithRelative(createdAt, locale, t)
+                )}
+              </span>
+              <Avatar className="gba:h-5 gba:w-5 gba:flex-shrink-0" data-testid="task-creator-avatar-mobile">
+                {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
+                {showAvatarFallback && (
+                  <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                    {generateInitials(creatorName)}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <span
+                className="gba:text-xs gba:text-muted-foreground gba:truncate gba:flex-1"
+                data-testid="task-creator-name-mobile"
+              >
+                {creatorName}
+              </span>
+            </div>
+
+            {/* Line 2: Module icon + Task title + Blink (WHAT - the main content) */}
+            <div className="gba:flex gba:items-start gba:gap-2">
+              <span title={moduleInfo.name} className="gba:flex-shrink-0 gba:mt-0.5">
+                <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
+              </span>
+              <span
+                className="gba:text-base gba:font-semibold gba:text-foreground gba:flex-1 gba:leading-snug"
+                data-testid="task-title-mobile"
+              >
+                {taskTitle}
+              </span>
+              {isBlinkTask && (
+                <Zap
+                  className="gba:h-5 gba:w-5 gba:text-blue-500 gba:flex-shrink-0 gba:mt-0.5"
+                  strokeWidth={2.5}
+                  data-testid="task-blink-mobile"
+                />
+              )}
+            </div>
+
+            {/* Line 3: Due date urgency indicator (only for overdue/due soon) */}
+            {!isCompleted && task.dueDate && (overdue || dueSoon) && (
+              <div className="gba:flex gba:items-center gba:gap-1.5">
+                <AlertTriangle className={`gba:h-4 gba:w-4 ${overdue ? 'gba:text-destructive' : 'gba:text-warning'}`} />
+                <span
+                  className={`gba:text-sm gba:font-semibold ${getDueDateClass(overdue, dueSoon)}`}
+                  data-testid="task-due-date-mobile"
+                >
+                  {getDueDateText(overdue, dueSoon, task.dueDate, locale, t)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )
@@ -246,7 +390,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Split view (task selected) - Date | Avatar | Name | Icon | Task
     return (
       <div
-        className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-2.5 ${
+        className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-3 ${
           isSelected
             ? 'gba:bg-primary/10 gba:border-l-2 gba:border-l-primary'
             : 'gba:hover:bg-muted/50 gba:border-l-2 gba:border-l-transparent'
@@ -254,32 +398,32 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
         onClick={() => onView(task)}
         data-testid={`task-card-${task.id}`}
       >
-        <div className="gba:flex gba:items-center gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2.5">
           {/* 1. Date (compact) */}
           <span
-            className="gba:text-[11px] gba:text-muted-foreground gba:w-[85px] gba:flex-shrink-0"
+            className="gba:text-xs gba:text-muted-foreground gba:w-[140px] gba:flex-shrink-0"
             data-testid="task-created-at"
           >
             {task.status === 'COMPLETED' && task.completedAt ? (
-              <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
+              <span className="gba:text-success">✓ {formatDateTimeWithRelative(task.completedAt, locale, t)}</span>
             ) : (
-              createdAt && formatDateTime(createdAt)
+              createdAt && formatDateTimeWithRelative(createdAt, locale, t)
             )}
           </span>
 
           {/* 2. Avatar */}
-          <Avatar className="gba:h-6 gba:w-6 gba:flex-shrink-0" data-testid="task-creator-avatar">
+          <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0" data-testid="task-creator-avatar">
             {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
             {showAvatarFallback && (
-              <AvatarFallback className="gba:text-[9px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
-                {getInitials(creatorName)}
+              <AvatarFallback className="gba:text-[10px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                {generateInitials(creatorName)}
               </AvatarFallback>
             )}
           </Avatar>
 
-          {/* 3. Creator name - 2 lines allowed */}
+          {/* 3. Creator name - single line truncated */}
           <span
-            className="gba:text-xs gba:font-medium gba:text-foreground gba:w-[140px] gba:flex-shrink-0 gba:line-clamp-2 gba:leading-tight"
+            className="gba:text-sm gba:font-medium gba:text-foreground gba:w-[140px] gba:flex-shrink-0 gba:truncate"
             data-testid="task-creator-name"
           >
             {creatorName}
@@ -287,17 +431,15 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
           {/* 4. Module Icon */}
           <span title={moduleInfo.name} className="gba:flex-shrink-0">
-            <ModuleIcon className={`gba:h-4 gba:w-4 ${moduleInfo.color}`} />
+            <ModuleIcon className={`gba:h-4.5 gba:w-4.5 ${moduleInfo.color}`} />
           </span>
 
           {/* 5. Task title + Blink */}
-          <div className="gba:flex gba:items-center gba:gap-1 gba:flex-1 gba:min-w-0">
+          <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-1 gba:min-w-0">
             <span className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
               {taskTitle}
             </span>
-            {isBlinkTask && (
-              <Zap className="gba:h-3.5 gba:w-3.5 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />
-            )}
+            {isBlinkTask && <Zap className="gba:h-4 gba:w-4 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />}
           </div>
         </div>
       </div>

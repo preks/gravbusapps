@@ -91,7 +91,6 @@ export const useExpensePlanCurrencies = (context: BusinessAppContextProps, manag
         setMostUsedCurrency('')
       }
     } catch (err) {
-      console.error('Error detecting most used currency:', err)
       setError(err instanceof Error ? err : new Error('Failed to detect currency'))
       setAvailableCurrencies([])
       setMostUsedCurrency('')

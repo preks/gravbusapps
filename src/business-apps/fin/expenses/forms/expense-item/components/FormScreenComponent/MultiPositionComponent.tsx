@@ -30,7 +30,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
   handleExpenseTypeChange,
   handleRemovePosition
 }) => {
-  const { isProcessingFiles, form } = useExpenseItem()
+  const { isProcessingFiles, form, hasLinkedExpenseRequest } = useExpenseItem()
 
   return (
     <div data-testid="multi-position-container">
@@ -78,6 +78,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             handleExpenseTypeChange={handleExpenseTypeChange}
             form={form}
             showCurrencyField={false}
+            hasLinkedExpenseRequest={hasLinkedExpenseRequest}
           />
         </Card>
       ))}

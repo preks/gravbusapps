@@ -1,7 +1,15 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
-import { cn } from '@newwork/nw-design-system'
+import { cn, useLocale } from '@newwork/nw-design-system'
+import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
 import type { CalendarEvent, DateRange } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
+import { useChatTranslation } from '../../contexts/TranslationContext'
+
+dayjs.extend(localizedFormat)
 
 interface WeekViewProps {
   dateRange: DateRange
@@ -13,10 +21,11 @@ interface WeekViewProps {
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const HOUR_HEIGHT = 48 // pixels per hour (reduced for better mobile fit)
 
-const formatHour = (hour: number): string => {
-  if (hour === 0) return '12 AM'
-  if (hour === 12) return '12 PM'
-  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`
+const formatHour = (hour: number, locale: string): string => {
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  // Create a date at the specified hour to format it
+  const date = dayjs().hour(hour).minute(0).second(0)
+  return date.locale(baseLocale).format('LT')
 }
 
 const getDaysInWeek = (startDate: Date): Date[] => {
@@ -81,6 +90,9 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
 }
 
 export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventClick, onTimeSlotClick }) => {
+  const { locale } = useLocale()
+  const t = useChatTranslation()
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
   const days = useMemo(() => getDaysInWeek(dateRange.start), [dateRange.start])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef(false)
@@ -169,7 +181,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
               )}
             >
               <div className="gba:text-[10px] gba:sm:text-xs gba:text-muted-foreground gba:uppercase">
-                {day.toLocaleDateString(undefined, { weekday: 'narrow' })}
+                {dayjs(day).locale(baseLocale).format('dd')}
               </div>
               <div
                 className={cn(
@@ -201,7 +213,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
               className="gba:text-center gba:text-[10px] gba:sm:text-xs gba:text-muted-foreground gba:flex gba:items-start gba:justify-center"
               style={{ height: HOUR_HEIGHT }}
             >
-              {hour > 0 && <span className="gba:pt-0.5">{formatHour(hour)}</span>}
+              {hour > 0 && <span className="gba:pt-0.5">{formatHour(hour, locale)}</span>}
             </div>
           ))}
         </div>
@@ -271,6 +283,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
                       compact={true}
                       height={position.height}
                       onClick={() => onEventClick(event)}
+                      t={t}
                     />
                   </div>
                 )

@@ -129,10 +129,37 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
 const transformFlow = (rawFlow: any): Flow => {
   const status = mapFlowStatus(rawFlow.status)
 
-  // Extract blinkGroupId and assignedUserId from tags
-  const tags = rawFlow.tags || {}
-  const blinkGroupId = tags.blinkGroupId || undefined
-  const assignedUserId = tags.assignedUserId || undefined
+  const isUuid = (value: unknown): value is string =>
+    typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+
+  // Normalize tags: can come back as object, JSON string, or different keys
+  const parseTags = (value: unknown): Record<string, any> => {
+    if (!value) return {}
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value)
+        return parsed && typeof parsed === 'object' ? (parsed as Record<string, any>) : {}
+      } catch {
+        return {}
+      }
+    }
+    if (typeof value === 'object') return value as Record<string, any>
+    return {}
+  }
+
+  const tags = parseTags(rawFlow.tags || rawFlow.workflowTags || rawFlow.workflow_meta?.tags)
+
+  // Extract blinkGroupId and assignedUserId from tags (support snake_case too)
+  const blinkGroupId = tags.blinkGroupId || tags.blink_group_id || undefined
+  const assignedUserId = tags.assignedUserId || tags.assigned_user_id || undefined
+
+  // Extract initiator userId (best-effort, varies by backend)
+  const initiatorUserId =
+    (isUuid(rawFlow.initiatedById) && rawFlow.initiatedById) ||
+    (isUuid(rawFlow.initiatorUserId) && rawFlow.initiatorUserId) ||
+    (isUuid(rawFlow.initiatorId) && rawFlow.initiatorId) ||
+    (isUuid(rawFlow.flowInitiatedById) && rawFlow.flowInitiatedById) ||
+    undefined
 
   return {
     id: rawFlow.flowId || rawFlow.workflowId,
@@ -140,13 +167,14 @@ const transformFlow = (rawFlow: any): Flow => {
     templateId: rawFlow.templateId,
     status,
     initiatedBy: rawFlow.initiatedBy || rawFlow.initiator || '',
+    initiatorUserId,
     startedAt: rawFlow.startTime || rawFlow.createdAt,
     completedAt: rawFlow.endTime || rawFlow.completedAt,
     currentStep: rawFlow.currentStep || 0,
     totalSteps: rawFlow.stepStatus?.total || 0,
     steps: [],
     progressPercentage: rawFlow.progressPercentage,
-    tags: rawFlow.tags, // Include tags for filtering and badge display
+    tags, // Normalized tags for filtering and badge display
     blinkGroupId, // Add blinkGroupId for grouping
     assignedUserId, // Add assignedUserId to identify who this workflow is for
     metadata: {

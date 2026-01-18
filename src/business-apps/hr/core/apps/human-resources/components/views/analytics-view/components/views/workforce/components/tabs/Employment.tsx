@@ -62,7 +62,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   const { distribution: contractTypeDistribution } = useContractTypeDistribution(context.accessToken)
 
   // Get FTE to Employee ratio data
-  const { totalFte, employeeCount, loading: fteLoading, error: fteError } = useFteRatio(context.accessToken)
+  const { totalFte, employeeCount, ratio, loading: fteLoading, error: fteError } = useFteRatio(context.accessToken)
 
   // Get Gap Rate data
   const {
@@ -215,6 +215,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   const statistics = {
     totalFte: totalFte || 0,
     employeeCount: employeeCount || 0,
+    fteRatio: ratio || 0,
     averageTenure: formattedTenure || 'N/A',
     gapRate: gapRate || 0,
     vacantPositions: vacantPositions || 0,
@@ -473,7 +474,9 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
                   </span>
                   <span className="gba:text-muted-foreground">
                     {t('hr-analytics-total-label')}{' '}
-                    {selectedConfig.testId.includes('rate') ? t('hr-analytics-total-average') : t('hr-analytics-total-count')}
+                    {selectedConfig.testId.includes('rate')
+                      ? t('hr-analytics-total-average')
+                      : t('hr-analytics-total-count')}
                     :{' '}
                     {selectedConfig.testId.includes('rate')
                       ? `${(

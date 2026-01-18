@@ -30,10 +30,11 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { X } from 'lucide-react'
+import { Button, Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
+import { X, MessageCircle } from 'lucide-react'
 import { getInitials } from '../utils/avatarUtils'
 import { useEmployeeData } from '../hooks/useEmployeeData'
+import translations from '../_i18n'
 
 // Helper function to get initials from employee data or creator name
 const getAvatarInitials = (
@@ -77,6 +78,14 @@ export interface TaskDetailHeaderProps {
   // Layout options
   showEmployeeInfo?: boolean // Whether to show employee section above title
 
+  // Chat with requester feature
+  chatWithRequester?: {
+    requesterId: string // User ID of the task requester
+    requesterName?: string // Name of the requester for display
+    prefilledMessage?: string // Optional pre-filled message
+    taskContext?: Record<string, any> // Optional task metadata
+  }
+
   // Callbacks
   onClose?: () => void // Optional - for close button if needed
 }
@@ -90,16 +99,40 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
   isLoadingEmployee: manualIsLoadingEmployee = false,
   creatorName,
   showEmployeeInfo = false,
+  chatWithRequester,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+
+  // Handle chat button click
+  const handleChatClick = () => {
+    if (!chatWithRequester) return
+
+    const payload = {
+      userId: chatWithRequester.requesterId,
+      userName: chatWithRequester.requesterName,
+      prefilledMessage: chatWithRequester.prefilledMessage,
+      metadata: chatWithRequester.taskContext
+    }
+
+    // Dispatch postMessage - the platform (gravity-platform) will handle opening
+    // the sidebar and dispatching the chat:open-with-user event after Chat is mounted
+    window.postMessage(
+      {
+        type: 'OPEN_CHAT_WITH_USER',
+        payload
+      },
+      '*'
+    )
+  }
+
+  // NOTE: We don't use TaskHeaderContext here because this component is bundled separately
+  // and deployed to CDN. Instead, we just add a data attribute that RemoteScreenLoader can detect.
+
   // Auto-fetch employee data if IDs are provided and no manual data exists
   const shouldAutoFetch = showEmployeeInfo && !manualEmployeeData && (employeeId || userId) && accessToken
 
-  const {
-    employeeData: fetchedEmployeeData,
-    isLoading: isFetchingEmployee,
-    error: fetchError
-  } = useEmployeeData({
+  const { employeeData: fetchedEmployeeData, isLoading: isFetchingEmployee } = useEmployeeData({
     employeeId,
     userId,
     accessToken: accessToken || '',
@@ -140,22 +173,6 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
     }
   }, [employeeData?.avatarUrl])
 
-  // Debug auto-fetch errors and data
-  React.useEffect(() => {
-    if (fetchError && shouldAutoFetch) {
-      console.warn('[TaskDetailHeader] Failed to auto-fetch employee data:', fetchError)
-    }
-    if (employeeData && shouldAutoFetch) {
-      console.log('[TaskDetailHeader] Auto-fetched employee data:', {
-        displayName: employeeData.displayName,
-        position: employeeData.position,
-        hasPosition: !!employeeData.position,
-        employeeId,
-        userId
-      })
-    }
-  }, [fetchError, shouldAutoFetch, employeeData, employeeId, userId])
-
   const shouldShowEmployee = showEmployeeInfo && (employeeData || isLoadingEmployee || creatorName)
 
   // Determine what to show in avatar
@@ -163,7 +180,10 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
   const showAvatarFallback = !isLoadingEmployee && (!employeeData?.avatarUrl || avatarStatus === 'error')
 
   return (
-    <div className="gba:z-40 gba:bg-card/95 gba:backdrop-blur-sm gba:border-b gba:shadow-sm gba:py-0 gba:mb-2 gba:sticky gba:top-0 gba:-mx-6 gba:w-[calc(100%+3rem)]">
+    <div
+      className="gba:z-40 gba:bg-card/95 gba:backdrop-blur-sm gba:border-b gba:shadow-sm gba:py-0 gba:mb-2 gba:sticky gba:top-0 gba:-mx-6 gba:w-[calc(100%+3rem)]"
+      data-task-detail-header="true"
+    >
       <div className="gba:px-6 gba:py-4 gba:flex gba:items-center gba:justify-between gba:gap-4">
         {/* Left: Employee Context (if exists) */}
         {shouldShowEmployee && (
@@ -182,7 +202,10 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
                   - On error or missing URL: show initials in AvatarFallback
                 */}
                 {showAvatarImage && (
-                  <AvatarImage src={employeeData?.avatarUrl} alt={employeeData?.displayName || 'Employee avatar'} />
+                  <AvatarImage
+                    src={employeeData?.avatarUrl}
+                    alt={employeeData?.displayName || t('task-detail-header-employee-avatar')}
+                  />
                 )}
                 {showAvatarFallback && (
                   <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:text-xs">
@@ -199,7 +222,7 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
                 {isLoadingEmployee ? (
                   <span className="gba:inline-block gba:h-4 gba:w-32 gba:bg-muted gba:rounded gba:animate-pulse" />
                 ) : (
-                  employeeData?.displayName || creatorName || 'Employee'
+                  employeeData?.displayName || creatorName || t('task-detail-header-employee')
                 )}
               </p>
               {employeeData?.position && !isLoadingEmployee && (
@@ -222,18 +245,35 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
           </h2>
         </div>
 
-        {/* Right: Close Button (optional) */}
-        {onClose && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="gba:rounded-full gba:hover:bg-muted gba:flex-shrink-0"
-            data-testid="task-detail-close-button"
-          >
-            <X className="gba:h-5 gba:w-5" />
-          </Button>
-        )}
+        {/* Right: Action Buttons */}
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+          {/* Chat with Requester Button (optional) */}
+          {chatWithRequester && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleChatClick}
+              className="gba:rounded-full gba:hover:bg-muted"
+              data-testid="task-detail-chat-button"
+              title={t('task-detail-header-chat-with-requester') || 'Chat with requester'}
+            >
+              <MessageCircle className="gba:h-5 gba:w-5" />
+            </Button>
+          )}
+
+          {/* Close Button (optional) */}
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="gba:rounded-full gba:hover:bg-muted"
+              data-testid="task-detail-close-button"
+            >
+              <X className="gba:h-5 gba:w-5" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

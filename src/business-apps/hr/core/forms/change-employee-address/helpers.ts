@@ -87,7 +87,7 @@ export const populateFormFromRecord = (form: any, record: any, options: Populate
 export const buildDeletePayloadFromRecord = (employeeId: string, record: any) => {
   return buildDeletePayload({
     employeeId,
-    employeeDocumentId: record?.employeeDocumentId || null,
+    employeeDocument: null,
     lines: ensureFourLines(record?.addressLine || []),
     postalCode: record?.postalCode || '',
     city: record?.locality || '',

@@ -5,9 +5,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Building2, Calendar } from 'lucide-react'
+import { BuildingsIcon, CalendarIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatDate } from '@/common/data/investment/utils/formatters'
+import { getInvestmentStatusBadgeVariant } from '../utils/statusBadgeHelpers'
 
 // Helper function to get owner display name
 const getOwnerName = (investment: Investment): string => {
@@ -68,7 +69,7 @@ const renderAmount = (amount: number | undefined, currencyCode?: string) => {
 // Cell renderer: Name cell
 const NameCell = ({ row }: CellContext<Investment, unknown>) => (
   <div className="gba:flex gba:items-center gba:gap-2">
-    <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+    <BuildingsIcon className="gba:w-4 gba:h-4 gba:text-gray-500" />
     <span className="gba:font-medium">{row.original.name}</span>
   </div>
 )
@@ -148,7 +149,7 @@ const AcquisitionDateCell = ({ row }: CellContext<Investment, unknown>) => {
   }
   return (
     <div className="gba:flex gba:items-center gba:gap-2 gba:truncate">
-      <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+      <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
       <span className="gba:text-sm gba:truncate">{formatDate(row.original.acquisitionDate)}</span>
     </div>
   )
@@ -161,7 +162,7 @@ const PlannedExitDateCell = ({ row }: CellContext<Investment, unknown>) => {
   }
   return (
     <div className="gba:flex gba:items-center gba:gap-2 gba:truncate">
-      <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+      <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
       <span className="gba:text-sm gba:truncate">{formatDate(row.original.plannedExitDate)}</span>
     </div>
   )
@@ -219,7 +220,7 @@ const OwnerEmployeeCell = ({ row }: CellContext<Investment, unknown>) => {
 
 // Cell renderer: Investment Status cell
 const InvestmentStatusCell = ({ row }: CellContext<Investment, unknown>) => (
-  <Badge variant={row.original.investmentStatus?.code === 'ACTIVE' ? 'default' : 'secondary'}>
+  <Badge variant={getInvestmentStatusBadgeVariant(row.original.investmentStatus?.type)}>
     {row.original.investmentStatus?.value || 'Unknown'}
   </Badge>
 )
@@ -227,7 +228,7 @@ const InvestmentStatusCell = ({ row }: CellContext<Investment, unknown>) => (
 // Cell renderer: Created At cell
 const CreatedAtCell = ({ row }: CellContext<Investment, unknown>) => (
   <div className="gba:flex gba:items-center gba:gap-2">
-    <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
+    <CalendarIcon className="gba:w-4 gba:h-4 gba:text-gray-500" />
     <span>{formatDate(row.original.createdAt)}</span>
   </div>
 )

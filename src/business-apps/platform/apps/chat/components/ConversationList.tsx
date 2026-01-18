@@ -4,8 +4,7 @@ import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import type { Conversation } from '../types'
-import type { UserPresence } from '../hooks/usePresence'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -21,9 +20,9 @@ interface ConversationListProps {
   currentUserId?: string | null
   accessToken: string
   compact?: boolean
-  getUserPresence?: (userId: string) => UserPresence
-  // Pass presenceMap to trigger re-renders when presence changes via WebSocket
-  presenceMap?: Map<string, UserPresence>
+  presenceMap: ReadonlyMap<string, { status: 'online' | 'offline'; lastSeen?: string }>
+  presenceVersion: number
+  conversationExpertCounts?: Map<string, number>
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -51,12 +50,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   currentUserId = null,
   accessToken,
   compact = false,
-  getUserPresence,
-  presenceMap // Used to trigger re-renders when presence changes - the actual lookup uses getUserPresence
+  presenceMap,
+  presenceVersion,
+  conversationExpertCounts
 }) => {
-  // Log presence map changes for debugging (can be removed after verification)
-  // The presenceMap prop ensures this component re-renders when any user's presence changes
-  void presenceMap // Explicitly reference to suppress unused variable warning
+  const t = useChatTranslation()
+  // Force re-render when presenceVersion changes
+  void presenceVersion
+
   const [searchQuery, setSearchQuery] = useState('')
   const [showUserSearch, setShowUserSearch] = useState(false)
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
@@ -138,7 +139,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         className={`gba:flex gba:items-center gba:justify-between gba:border-b gba:border-border/50 gba:bg-background/50 gba:backdrop-blur-sm gba:sticky gba:top-0 gba:z-10 ${compact ? 'gba:px-3 gba:py-2' : 'gba:p-4'}`}
       >
         <h1 className={`gba:font-semibold gba:text-foreground ${compact ? 'gba:text-base' : 'gba:text-lg'}`}>
-          {getTranslationFromI18nKeyAndLabel('chat.appHeader', 'Chat')}
+          {t('chat-appHeader')}
         </h1>
         <Popover open={showNewChatMenu} onOpenChange={setShowNewChatMenu}>
           <PopoverTrigger asChild>
@@ -158,9 +159,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               <div className="gba:p-1.5 gba:rounded-md gba:bg-primary/10">
                 <User className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
               </div>
-              <span className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')}
-              </span>
+              <span className="gba:text-sm gba:font-medium">{t('chat-directMessage')}</span>
             </button>
 
             {onCreateGroup && (
@@ -175,9 +174,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 <div className="gba:p-1.5 gba:rounded-md gba:bg-muted">
                   <UsersThree className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
                 </div>
-                <span className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('chat.groupChat', 'Group Chat')}
-                </span>
+                <span className="gba:text-sm gba:font-medium">{t('chat-groupChat')}</span>
               </button>
             )}
           </PopoverContent>
@@ -191,7 +188,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <Input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder={getTranslationFromI18nKeyAndLabel('chat.searchConversations', 'Search...')}
+            placeholder={t('chat-searchConversations')}
             className="gba:h-8 gba:text-sm gba:!pl-10 gba:bg-background/50"
             data-testid="conversation-search-input"
           />
@@ -200,48 +197,60 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
       {/* Conversations */}
       <div ref={scrollContainerRef} className="gba:flex-1 gba:overflow-y-auto gba:min-h-0">
-        {isLoading ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:p-6">
-            <Spinner size="sm" />
-          </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="gba:p-6 gba:text-center">
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {searchQuery.trim()
-                ? getTranslationFromI18nKeyAndLabel('chat.noConversationsFound', 'No conversations found')
-                : getTranslationFromI18nKeyAndLabel('chat.noConversationsYet', 'No conversations yet')}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="gba:py-1">
-              {filteredConversations.map(conversation => {
-                const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
-                const otherUserPresence = otherUserId && getUserPresence ? getUserPresence(otherUserId) : undefined
-
-                return (
-                  <ConversationItem
-                    key={conversation.id}
-                    conversation={conversation}
-                    onClick={() => onConversationSelect(conversation)}
-                    onRemove={onRemoveConversation}
-                    isActive={conversation.id === activeConversationId}
-                    currentUserId={currentUserId}
-                    compact={compact}
-                    otherUserPresence={otherUserPresence}
-                  />
-                )
-              })}
-            </div>
-
-            {/* Loading more indicator */}
-            {isLoadingMore && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
+        {(() => {
+          if (isLoading) {
+            return (
+              <div className="gba:flex gba:items-center gba:justify-center gba:p-6">
                 <Spinner size="sm" />
               </div>
-            )}
-          </>
-        )}
+            )
+          }
+
+          if (filteredConversations.length === 0) {
+            return (
+              <div className="gba:p-6 gba:text-center">
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  {searchQuery.trim() ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
+                </p>
+              </div>
+            )
+          }
+
+          return (
+            <>
+              <div className="gba:py-1">
+                {filteredConversations.map(conversation => {
+                  const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
+                  // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
+                  const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
+                  const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
+
+                  return (
+                    <ConversationItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      onClick={() => onConversationSelect(conversation)}
+                      onRemove={onRemoveConversation}
+                      isActive={conversation.id === activeConversationId}
+                      currentUserId={currentUserId}
+                      compact={compact}
+                      otherUserPresence={otherUserPresence}
+                      activeExpertCount={activeExpertCount}
+                      t={t}
+                    />
+                  )
+                })}
+              </div>
+
+              {/* Loading more indicator */}
+              {isLoadingMore && (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
+                  <Spinner size="sm" />
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </div>
   )

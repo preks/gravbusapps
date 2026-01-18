@@ -10,7 +10,6 @@ import { DeleteButton } from '../../../generic-components/delete-button/DeleteBu
 import EmploymentTypeForm from '@/business-apps/mdm/forms/employment-type-form/EmploymentTypeForm'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import {
-  ArrowsDownUpIcon,
   EyeIcon,
   IdentificationCardIcon,
   InfoIcon,
@@ -156,21 +155,12 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
     const columns: ColumnDef<EmploymentType & { description: string }>[] = [
       {
         accessorKey: 'code',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Code
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Code',
         enableSorting: true,
         cell: ({ getValue }) => {
           const code = getValue()
           return (
-            <div className="gba:flex gba:items-center">
+            <div className="gba:flex gba:items-center gba:w-[100px]">
               <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
           )
@@ -178,44 +168,28 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
       },
       {
         accessorKey: 'value',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Name
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Name',
         enableSorting: true,
         cell: ({ getValue }) => {
           const name = getValue()
           return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:font-semibold">{name as string}</div>
+            <div className="gba:flex gba:items-center gba:w-[200px] gba:md:w-[350px] gba:lg:w-[500px] gba:xl:w-[650px] gba:2xl:w-[800px]">
+              <div className="gba:w-full gba:truncate gba:font-semibold" title={name as string}>
+                {name as string}
+              </div>
             </div>
           )
         }
       },
       {
         accessorKey: 'description',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Description
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Description',
         enableSorting: true,
         cell: ({ getValue }) => {
           const description = getValue()
           return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:max-w-[300px] gba:truncate" title={description as string}>
+            <div className="gba:flex gba:items-center gba:w-[120px] gba:md:w-[200px] gba:lg:w-[280px] gba:xl:w-[340px] gba:2xl:w-[400px]">
+              <div className="gba:w-full gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>
             </div>

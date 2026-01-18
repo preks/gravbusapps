@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SalesTeamMember } from '../../sales-members-list/types'
-import { PiUsers, PiChartLine, PiTrendUp, PiCalendar } from 'react-icons/pi'
+import { UsersIcon, ChartLineIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react'
 
 const DATA_TEST_ID_PREFIX = 'TeamActivitiesStatistics'
 
@@ -100,7 +100,7 @@ export const TeamActivitiesStatistics: React.FC<TeamActivitiesStatisticsProps> =
       key: 'total-activities',
       title: 'Total Activities',
       value: teamStats.totalActivities,
-      prefix: <PiChartLine />,
+      prefix: <ChartLineIcon />,
       color: '#1677ff',
       description: 'All team activities recorded',
       precision: 0,
@@ -114,7 +114,7 @@ export const TeamActivitiesStatistics: React.FC<TeamActivitiesStatisticsProps> =
       key: 'this-week-activities',
       title: 'This Week',
       value: teamStats.thisWeekActivities,
-      prefix: <PiTrendUp />,
+      prefix: <TrendUpIcon />,
       color: '#52c41a',
       description: 'Activities created this week',
       precision: 0,
@@ -128,7 +128,7 @@ export const TeamActivitiesStatistics: React.FC<TeamActivitiesStatisticsProps> =
       key: 'avg-per-member',
       title: 'Avg per Member',
       value: teamStats.avgPerMember,
-      prefix: <PiUsers />,
+      prefix: <UsersIcon />,
       color: '#722ed1',
       description: 'Average activities per team member',
       precision: 1,
@@ -142,7 +142,7 @@ export const TeamActivitiesStatistics: React.FC<TeamActivitiesStatisticsProps> =
       key: 'most-active-type',
       title: 'Most Active Type',
       value: teamStats.mostActiveType,
-      prefix: <PiCalendar />,
+      prefix: <CalendarIcon />,
       color: '#fa8c16',
       description: 'Most frequently used activity type',
       valueIsString: true

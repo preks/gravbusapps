@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { DataDisplay, Spinner, AiButton } from '@newwork/nw-design-system'
-import { Upload } from 'lucide-react'
+import { UploadIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { RealEstateAnalyticsTable } from './components/RealEstateAnalyticsTable'
+import { InvestmentReportTable } from '../../components/shared/InvestmentReportTable'
+import { REAL_ESTATE_TABLE_CONFIG } from '../../components/shared/tableConfigs'
 import { useRealEstateInvestmentTypes } from './hooks/useRealEstateInvestmentTypes'
 import type { RealEstateReportFilters } from './types'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -10,6 +11,10 @@ import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../ho
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
+import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/utils/filterHelpers'
+import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/investmentReportTypes'
+import { generateFiltersFromCatalog } from '../../utils/catalogFilterGenerator'
 
 interface RealEstateReportProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -42,6 +47,14 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
 
   // Search state
   const [search, setSearch] = useState<string>('')
+
+  // Filter state for report-specific filters
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+
+  // Fetch filter groups using descriptors
+  const filterGroups = useFilterGroups({ accessToken, userInfo }, 'InvestmentReport', INVESTMENT_REPORT_DESCRIPTORS, {
+    limit: 100
+  })
 
   // Track total counts for each section
   const [totalCounts, setTotalCounts] = useState<Record<string, { count: number; isLoading: boolean }>>({})
@@ -154,8 +167,18 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
       const activeInvestmentType = catalogData.investmentTypes.find((type: any) => type.code === currentSection)
 
       if (activeInvestmentType?.objectValue?.formFields) {
-        activeInvestmentType.objectValue.formFields.forEach((group: any) => {
+        // Parse objectValue if it's a string
+        const parsedObjectValue =
+          typeof activeInvestmentType.objectValue === 'string'
+            ? JSON.parse(activeInvestmentType.objectValue)
+            : activeInvestmentType.objectValue
+
+        parsedObjectValue.formFields?.forEach((group: any) => {
           group.fields.forEach((field: any) => {
+            // Filter out fields with report: false (not for report tables)
+            if (field.report === false) {
+              return
+            }
             // Use the same ID generation as the table transformer (property with dots -> underscores)
             const columnId = field.property.replaceAll('.', '_')
             columns.push({
@@ -212,6 +235,42 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     return effectiveInvestmentTypes.find(type => type.code === currentSection)
   }, [currentSection, effectiveInvestmentTypes])
 
+  // Generate filter configuration dynamically from catalog
+  // Note: Real Estate uses TYPE-level catalog (different fields per type: Loans, Development, Property, etc.)
+  const dynamicFilterConfig = useMemo(() => {
+    if (!catalogData?.investmentTypes || !currentSection || currentSection === 'overview') {
+      // Return empty config if catalog not loaded or on overview
+      return { id: 'real-estate-report-filters-empty', name: 'Real Estate Report Filters', groups: [] }
+    }
+
+    // Find the active investment type in the catalog (TYPE-level config)
+    const activeInvestmentType = catalogData.investmentTypes.find((type: any) => type.code === currentSection)
+    if (!activeInvestmentType?.objectValue) {
+      return { id: 'real-estate-report-filters-empty', name: 'Real Estate Report Filters', groups: [] }
+    }
+
+    // Parse objectValue if it's a string
+    const parsedObjectValue =
+      typeof activeInvestmentType.objectValue === 'string'
+        ? JSON.parse(activeInvestmentType.objectValue)
+        : activeInvestmentType.objectValue
+
+    if (!parsedObjectValue?.formFields) {
+      return { id: 'real-estate-report-filters-empty', name: 'Real Estate Report Filters', groups: [] }
+    }
+
+    // Generate filters from catalog formFields
+    const catalogGeneratedConfig = generateFiltersFromCatalog(
+      parsedObjectValue.formFields,
+      'realEstate', // Entity prefix for realEstateInvestment fields
+      'real-estate-report-filters-dynamic',
+      'Real Estate Report Filters'
+    )
+
+    // Populate multi-select filter options from filterGroups (for catalog-based filters)
+    return buildDynamicFilterConfig(catalogGeneratedConfig, INVESTMENT_REPORT_DESCRIPTORS, filterGroups)
+  }, [catalogData, currentSection, filterGroups])
+
   // Create filters for real estate analytics (with investment type filtering)
   const realEstateAnalyticsFilters = useMemo((): RealEstateReportFilters => {
     return {
@@ -219,14 +278,17 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
       endDate: reportFilters.computedFilters.endDate,
       currencyIds: reportFilters.computedFilters.currencyIds,
       investmentType: selectedInvestmentType?.code || undefined,
-      search: search || undefined
+      search: search || undefined,
+      // Merge in report-specific filters from the filter UI
+      ...selectedFilters
     }
   }, [
     reportFilters.computedFilters.startDate,
     reportFilters.computedFilters.endDate,
     reportFilters.computedFilters.currencyIds,
     selectedInvestmentType,
-    search
+    search,
+    selectedFilters
   ])
 
   // Convert columnConfig to availableColumns/visibleColumns for DataDisplay
@@ -252,6 +314,11 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     [localReportFilters]
   )
 
+  // Filter change handler
+  const handleFilterChange = useCallback((newFilters: Record<string, any>) => {
+    setSelectedFilters(newFilters)
+  }, [])
+
   // Primary action for "Add Report" - memoized to prevent reload on tab change
   const primaryActions = useMemo(() => {
     return (
@@ -271,11 +338,11 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     )
   }, [accessToken])
 
-  // Secondary action for "Upload Report" - using AiButton like in record
+  // Secondary action for "UploadIcon Report" - using AiButton like in record
   const secondaryActions = useMemo(() => {
     return (
       <AppAction
-        contexts={[{ context: FlowContextName.investmentReportUpload, contextData: {} }]}
+        contexts={[{ context: FlowContextName.investmentReportUploadIcon, contextData: {} }]}
         accessToken={accessToken || ''}
         emptyState="hide"
         prefixDataTestId="report-view-upload-report"
@@ -284,11 +351,11 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
           variant="default"
           size="default"
           showIcon={true}
-          icon={<Upload style={{ height: '1rem', width: '1rem' }} />}
+          icon={<UploadIcon style={{ height: '1rem', width: '1rem' }} />}
           iconPosition="before"
           data-testid="report-view-upload-report-button"
         >
-          {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'Upload Report')}
+          {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'UploadIcon Report')}
         </AiButton>
       </AppAction>
     )
@@ -326,6 +393,9 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
         searchValue={search}
         searchPlaceholder="Search investments..."
         onSearchChange={setSearch}
+        filters={selectedFilters}
+        filterConfiguration={dynamicFilterConfig}
+        onFilterChange={handleFilterChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
@@ -335,7 +405,8 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
       >
         {typesForSections.map(type => (
           <div key={type.code} style={{ display: currentSection === type.code ? 'block' : 'none' }}>
-            <RealEstateAnalyticsTable
+            <InvestmentReportTable
+              config={REAL_ESTATE_TABLE_CONFIG}
               accessToken={accessToken}
               userInfo={userInfo}
               filters={realEstateAnalyticsFilters}

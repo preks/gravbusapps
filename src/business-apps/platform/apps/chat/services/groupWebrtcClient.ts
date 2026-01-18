@@ -328,21 +328,8 @@ export class GroupWebRTCClient {
     }
 
     // Always log the transport policy
-    console.log(`[GroupWebRTC] 🔌 Creating peer connection for ${participantId}:`, {
-      forceRelay,
-      iceTransportPolicy,
-      iceServerCount: this.iceServers.length,
-      turnServers: this.iceServers.filter(
-        s =>
-          (typeof s.urls === 'string' && s.urls.startsWith('turn:')) ||
-          (Array.isArray(s.urls) && s.urls.some(u => u.startsWith('turn:')))
-      ).length
-    })
 
     if (forceRelay) {
-      console.log(
-        `[GroupWebRTC] 🔄 FORCING TURN RELAY for ${participantId} - direct P2P DISABLED, only relay candidates allowed`
-      )
     }
 
     logWebRTCDebug('createPeerConnection', {
@@ -482,15 +469,12 @@ export class GroupWebRTCClient {
         diag.lastError = 'Peer connection failed'
         // Track this participant as failed - next reconnect will use TURN relay
         this.failedParticipants.add(participantId)
-        console.log(`[GroupWebRTC] 📝 Added ${participantId} to failed list - will use TURN relay on reconnect`)
       } else if (pc.connectionState === 'disconnected') {
         console.warn(`[GroupWebRTC] ⚠️ Connection to ${participantId} disconnected`)
       } else if (pc.connectionState === 'connected') {
-        console.log(`[GroupWebRTC] ✅ Connected to ${participantId}`)
         // Remove from failed list if previously failed but now connected
         if (this.failedParticipants.has(participantId)) {
           this.failedParticipants.delete(participantId)
-          console.log(`[GroupWebRTC] ✅ Removed ${participantId} from failed list - connection successful`)
         }
       }
     }
@@ -552,7 +536,6 @@ export class GroupWebRTCClient {
     // Check if this participant previously failed - use relay mode if so
     const forceRelay = this.failedParticipants.has(participant.id)
     if (forceRelay) {
-      console.log(`[GroupWebRTC] 🔄 ${participant.odName} previously failed - using TURN relay`)
     }
 
     // Create peer connection (with relay mode if previously failed)
@@ -593,7 +576,6 @@ export class GroupWebRTCClient {
     // Check if this participant previously failed - use relay mode if so
     const forceRelay = this.failedParticipants.has(participantId)
     if (forceRelay) {
-      console.log(`[GroupWebRTC] 🔄 ${participant.odName} previously failed - using TURN relay`)
     }
 
     // Create peer connection if it doesn't exist (with relay mode if previously failed)
@@ -992,8 +974,6 @@ export class GroupWebRTCClient {
       return null
     }
 
-    console.log(`[GroupWebRTC] 🔄 Attempting to reconnect to ${participant.odName} using TURN RELAY...`)
-
     // Close existing peer connection if it exists
     const existingPc = this.peerConnections.get(participantId)
     if (existingPc) {
@@ -1021,11 +1001,9 @@ export class GroupWebRTCClient {
     try {
       // Create new peer connection with FORCED RELAY MODE
       // Since the previous connection failed, we force TURN relay to bypass NAT/firewall issues
-      console.log(`[GroupWebRTC] 🔄 RECONNECT: Creating peer connection with forceRelay=TRUE for ${participant.odName}`)
       const pc = this.createPeerConnection(participantId, true) // forceRelay = true
 
       // Create and set local description (offer)
-      console.log(`[GroupWebRTC] 🔄 RECONNECT: Creating offer with ICE restart...`)
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: this.callType === 'video',
@@ -1033,9 +1011,6 @@ export class GroupWebRTCClient {
       })
       await pc.setLocalDescription(offer)
 
-      console.log(
-        `[GroupWebRTC] ✅ Reconnect offer created for ${participant.odName} (TURN RELAY FORCED - iceTransportPolicy: relay)`
-      )
       return offer
     } catch (error) {
       console.error(`[GroupWebRTC] ❌ Failed to create reconnect offer for ${participantId}:`, error)

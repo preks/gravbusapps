@@ -96,7 +96,7 @@ export const GET_ALL_PERFORMANCE_STATISTICS = (currencyCode?: string) => {
       limit: 1,
       where: {
         isDeleted: { _eq: false },
-        account: { ownerEmployeeId: { _eq: $employeeId } },
+        ownerEmployeeId: { _eq: $employeeId },
         currencyRef: { _isNull: false }${currencyFilter}
       }
     ) {

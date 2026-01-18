@@ -15,21 +15,34 @@ import {
   transformBonus,
   transformBenefit
 } from '../utils/compensationTransformers'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * Hook to fetch and manage current employee compensation data
  *
  * Fetches:
- * - Current salary from EmployeeSalary (active salary, or most recent as fallback)
+ * - Current salary from EmployeeSalary (APPROVED active salary based on startDate/endDate)
  * - Compensation band from CompensationBand via EmployeePosition
  * - Current year bonuses from EmployeeBonus
  * - Active benefits from EmployeeBenefit
  *
- * Salary selection logic:
- * 1. Filters out deleted records (isDeleted = false)
- * 2. Finds active salary where activeFrom <= now AND activeTo >= now (or null)
- * 3. Falls back to most recent salary if no active salary found
- * 4. Returns null if no salaries exist (UI will show "No active salary configured")
+ * Salary selection logic (HYBRID - Server + Client):
+ *
+ * SERVER-SIDE (GraphQL query):
+ * 1. Filters by requestStatus = "APPROVED_SALARY_ADJUSTMENT" (only approved salaries)
+ * 2. Filters out deleted records (isDeleted = false)
+ * 3. Filters by startDate <= today (salary has started)
+ * 4. Orders by startDate DESC (most recent first)
+ * 5. Returns up to 5 records for client-side filtering
+ *
+ * CLIENT-SIDE (this hook):
+ * 6. Finds first salary where: startDate <= today AND (endDate IS NULL OR endDate >= today)
+ * 7. Returns null if no active salary found (UI shows "No active salary configured")
+ *
+ * Why hybrid?
+ * - GraphQL doesn't handle null comparison properly with _not operator
+ * - Client-side filtering ensures 100% accuracy for null endDate values
+ * - Limit: 5 keeps it efficient while covering edge cases
  *
  * @param employeeId - The employee ID to fetch data for
  * @param accessToken - Access token for API authentication
@@ -42,16 +55,12 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
   const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchData = useCallback(async () => {
-    // Early validation
-    if (!employeeId) {
-      setError('No employee ID provided')
+    // Early validation - skip silently if no employeeId or accessToken
+    // This prevents showing error messages during initial load when parent hasn't provided data yet
+    if (!employeeId || !accessToken) {
       setLoading(false)
-      return
-    }
-
-    if (!accessToken) {
-      setError('No access token provided')
-      setLoading(false)
+      setError(null) // Clear any previous errors
+      setData(null)
       return
     }
 
@@ -59,9 +68,14 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       setLoading(true)
       setError(null)
 
+      // Get today's date in ISO format (YYYY-MM-DD) for server-side filtering
+      const today = formatDate(new Date(), 'date.ISO') || new Date().toISOString().split('T')[0]
+
       // Fetch current compensation data from GraphQL
+      // Server-side filtering: APPROVED + started salaries (up to 5 records)
       const result = await graphqlClient.request<EmployeeSalaryResponse>(GET_EMPLOYEE_COMPENSATION_DATA, {
-        employeeId
+        employeeId,
+        today
       })
 
       // Validate response
@@ -69,41 +83,23 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
         throw new Error('No data received from server')
       }
 
-      // Get all employee salaries from EmployeeSalary table
+      // Get employee salaries from EmployeeSalary table
+      // Query returned up to 5 most recent approved salaries (server-filtered by startDate <= today)
       const allEmployeeSalaries: EmployeeSalary[] = result?.AllEmployeeSalaries || []
 
-      // Filter out deleted records client-side
-      const nonDeletedSalaries = allEmployeeSalaries.filter(salary => !salary.isDeleted)
+      // CLIENT-SIDE FILTERING: Find truly active salary
+      // Server already filtered startDate <= today, now just check endDate
+      // Logic: endDate IS NULL OR endDate >= today (using string comparison for dates)
+      const activeSalary = allEmployeeSalaries.find(salary => {
+        // Server guarantees startDate <= today, so we only need to check endDate
+        // Use string comparison to avoid timezone issues (YYYY-MM-DD format)
+        const isNotExpired = !salary.endDate || salary.endDate >= today
 
-      // Current timestamp for active salary filtering
-      const nowDate = new Date()
-
-      // Find active salary: activeFrom <= now AND activeTo >= now (or null)
-      const activeSalary = nonDeletedSalaries.find(salary => {
-        const activeFrom = salary.activeFrom ? new Date(salary.activeFrom) : null
-        const activeTo = salary.activeTo ? new Date(salary.activeTo) : null
-
-        // Null activeFrom means always valid from beginning
-        // Null activeTo means never expires
-        const isActiveFrom = !activeFrom || activeFrom <= nowDate
-        const isActiveTo = !activeTo || activeTo >= nowDate
-
-        return isActiveFrom && isActiveTo
+        return isNotExpired
       })
 
-      // Sort by activeFrom descending (most recent first), handling null dates
-      // Creating a copy with spread operator before sorting to avoid mutating nonDeletedSalaries
-      const sortedSalaries = [...nonDeletedSalaries].sort((a, b) => {
-        const dateA = a.activeFrom ? new Date(a.activeFrom).getTime() : 0
-        const dateB = b.activeFrom ? new Date(b.activeFrom).getTime() : 0
-        return dateB - dateA
-      })
-
-      // Fallback: Most recent salary (even if expired)
-      const recentSalary = sortedSalaries[0] || null
-
-      // Prefer active salary, fallback to most recent
-      const employeeSalary: EmployeeSalary | null = activeSalary || recentSalary || null
+      // Use active salary, or null if no active salary found
+      const employeeSalary: EmployeeSalary | null = activeSalary || null
 
       // Extract and transform compensation band
       const employeePosition = result?.EmployeePosition?.[0]
@@ -129,9 +125,38 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       const totalBonusesYTD = activeBonuses.reduce((sum: number, bonus: EmployeeBonus) => sum + bonus.amount, 0)
       const activeBonusesCount = activeBonuses.length
 
-      // Count active benefits
-      const activeBenefitsCount = benefits.filter((benefit: EmployeeBenefit) =>
-        isBenefitActive(benefit.benefitStatus)
+      // Count active benefits - deduplicate by benefitTypeRef to match catalog display
+      // Group benefits by type and keep only the most recent active one per type
+      const benefitsByType = benefits.reduce(
+        (acc, benefit) => {
+          const typeRef = benefit.benefitTypeRef
+          if (!acc[typeRef]) {
+            acc[typeRef] = []
+          }
+          acc[typeRef].push(benefit)
+          return acc
+        },
+        {} as Record<string, EmployeeBenefit[]>
+      )
+
+      const uniqueActiveBenefits = Object.values(benefitsByType).map(typeBenefits => {
+        // Sort by: active first, then by creation date (newest first)
+        // Creating a copy with spread operator before sorting to avoid mutating typeBenefits
+        const sorted = [...typeBenefits].sort((a, b) => {
+          const aActive = isBenefitActive(a)
+          const bActive = isBenefitActive(b)
+          if (aActive && !bActive) return -1
+          if (!aActive && bActive) return 1
+
+          const aDate = new Date(a.createdAt || 0).getTime()
+          const bDate = new Date(b.createdAt || 0).getTime()
+          return bDate - aDate
+        })
+        return sorted[0]
+      })
+
+      const activeBenefitsCount = uniqueActiveBenefits.filter((benefit: EmployeeBenefit) =>
+        isBenefitActive(benefit)
       ).length
 
       // Set the data

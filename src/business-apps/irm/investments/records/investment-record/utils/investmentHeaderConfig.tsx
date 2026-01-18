@@ -8,7 +8,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Calendar, Flag } from 'lucide-react'
+import { CalendarIcon, FlagIcon } from '@phosphor-icons/react'
 
 /**
  * Format date helper
@@ -411,7 +411,7 @@ export const createHeaderMeta = (
         badgeContent = getTranslationFromI18nKeyAndLabel('investment.exit.planExit', 'Plan Exit')
         badgeVariant = 'secondary'
         badgeClass = 'gba:flex gba:items-center gba:gap-1 gba:cursor-pointer gba:hover:opacity-80'
-        icon = <Calendar className="gba:w-3 gba:h-3" />
+        icon = <CalendarIcon className="gba:w-3 gba:h-3" />
         break
 
       case 'planned-no-date':
@@ -419,7 +419,7 @@ export const createHeaderMeta = (
         badgeContent = getTranslationFromI18nKeyAndLabel('investment.exit.setExitDate', 'Set Exit Date')
         badgeVariant = 'warning'
         badgeClass = 'gba:flex gba:items-center gba:gap-1 gba:cursor-pointer gba:hover:opacity-80'
-        icon = <Calendar className="gba:w-3 gba:h-3" />
+        icon = <CalendarIcon className="gba:w-3 gba:h-3" />
         break
 
       case 'planned-with-date':
@@ -432,7 +432,7 @@ export const createHeaderMeta = (
         badgeContent = formatDate(plannedExitDate)
         badgeVariant = isPast && isEmptyExitDate ? 'destructive' : 'info'
         badgeClass = 'gba:flex gba:items-center gba:gap-1 gba:cursor-pointer gba:hover:opacity-80'
-        icon = <Flag className="gba:w-3 gba:h-3" />
+        icon = <FlagIcon className="gba:w-3 gba:h-3" />
         break
 
       case 'invalid':
@@ -497,6 +497,31 @@ export const createHeaderMeta = (
             getTranslationFromI18nKeyAndLabel('investment.status.unknown', 'Unknown')}
         </Badge>
       </AppAction>
+
+      {/* Company Badge - Only show if company association exists */}
+      {investment?.company?.id && (
+        <button
+          type="button"
+          onClick={() => {
+            const companyId = investment.company?.id
+            if (companyId) {
+              navigateTo(
+                buildPlatformUrl('/platform/mdm/company-record', {
+                  companyId
+                })
+              )
+            }
+          }}
+          className="gba:bg-transparent gba:border-0 gba:p-0"
+          data-testid="investment-company-link"
+          aria-label={`${getTranslationFromI18nKeyAndLabel('investment.legalEntity.ariaLabel', 'Navigate to legal entity')}: ${investment.company.name}`}
+        >
+          <Badge variant="outline" className="gba:cursor-pointer gba:hover:opacity-80">
+            {getTranslationFromI18nKeyAndLabel('investment.legalEntity.label', 'Legal Entity')}:{' '}
+            {investment.company.name}
+          </Badge>
+        </button>
+      )}
 
       {/* Planned Exit Badge with AppAction - Always show */}
       {getPlannedExitBadge()}

@@ -1,7 +1,7 @@
 import React from 'react'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Spin, Tooltip } from 'antd'
 import { LeftOutlined, RightOutlined } from '@ant-design/icons'
 import { CalendarProps } from '../../../queries/types'
@@ -13,6 +13,7 @@ import {
   getAbsenceStatusBackgroundClass,
   getBadgeVariantBackgroundClass
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import translations from './_i18n'
 
 // Import dayjs locale
 import 'dayjs/locale/ro'
@@ -106,8 +107,11 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   showFooter = true,
   showStatusInTooltip = true,
   showDurationInTooltip = true,
-  customLegend
+  customLegend,
+  holidayDates
 }) => {
+  const { t } = useTranslation(translations)
+
   if (loading) {
     return (
       <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
@@ -221,12 +225,21 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   enableSelection && selectedStartDate && selectedEndDate
                     ? currentDay.isAfter(selectedStartDate, 'day') && currentDay.isBefore(selectedEndDate, 'day')
                     : false
+                const isHoliday = (() => {
+                  try {
+                    if (!Array.isArray(holidayDates) || holidayDates.length === 0) return false
+                    const key = currentDay.format('YYYY-MM-DD')
+                    return holidayDates.includes(key)
+                  } catch {
+                    return false
+                  }
+                })()
 
                 return (
                   <div
                     key={idx}
-                    className={`gba:calendar-day gba:p-2 gba:h-16 gba:border gba:border-border gba:rounded 
-                      ${isSelectedStart || isSelectedEnd ? 'gba:bg-info-secondary gba:border-info' : isInSelectedRange ? 'gba:bg-info-secondary/20' : isToday ? 'gba:bg-info-secondary gba:border-info' : 'gba:bg-card'} 
+                    className={`gba:calendar-day gba:p-2 gba:min-h-16 gba:border gba:border-border gba:rounded 
+                      ${isSelectedStart || isSelectedEnd ? 'gba:bg-info-secondary gba:border-info' : isInSelectedRange ? 'gba:bg-info-secondary/20' : isToday ? 'gba:bg-info-secondary/20 gba:border-info' : isHoliday ? 'gba:bg-card gba:border-warning' : 'gba:bg-card'} 
                       ${!isCurrentMonth ? 'gba:opacity-40' : enableSelection ? 'gba:cursor-pointer' : ''}`}
                     data-testid={`calendar-day-${currentDay.date()}`}
                     onClick={() => {
@@ -249,11 +262,29 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   >
                     <div
                       className={`gba:day-number gba:text-right 
-                      ${isSelectedStart || isSelectedEnd ? 'gba:font-bold gba:text-decorative' : isToday ? 'gba:font-bold gba:text-info' : ''} 
+                      ${isSelectedStart || isSelectedEnd ? 'gba:font-bold gba:text-decorative' : ''} 
                       ${!isCurrentMonth ? 'gba:text-muted-foreground' : ''}`}
                     >
                       {currentDay.date()}
                     </div>
+                    {isCurrentMonth && isHoliday && (
+                      <div className="gba:flex gba:gap-1 gba:mt-1">
+                        <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-warning-secondary/80">
+                          <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                            {t('holiday')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {isCurrentMonth && isToday && (
+                      <div className="gba:flex gba:gap-1 gba:mt-1">
+                        <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-info-secondary/80">
+                          <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                            {t('today')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     {isCurrentMonth &&
                       (() => {
                         const overlappingAbsences = absenceList.filter((absence: any) => {
@@ -331,6 +362,14 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                     <span className="gba:text-xs">{statusConfig.label}</span>
                   </div>
                 ))}
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning-secondary" />
+                <span className="gba:text-xs">{t('holiday')}</span>
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-info-secondary" />
+                <span className="gba:text-xs">{t('today')}</span>
+              </div>
             </div>
           )}
         </div>

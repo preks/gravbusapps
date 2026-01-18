@@ -17,13 +17,10 @@ import {
   TableCell,
   Alert,
   Spinner,
-  Button,
   Card,
   CardContent,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Badge
 } from '@newwork/nw-design-system'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
@@ -32,8 +29,10 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils'
 import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { TablePagination } from '../../../../../components'
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
@@ -261,6 +260,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     setCurrentPage(pagination.current)
     setPageSize(pagination.pageSize)
   }
+
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback((pagination: { current: number; pageSize: number }) => {
+    handleEnhancedTableChange(pagination)
+  }, [])
 
   const renderDataBody = useCallback(() => {
     if (isLoading && !payments?.length) {
@@ -514,120 +518,18 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           </div>
 
           {/* Pagination */}
-          {totalCount > pageSize ? (
-            <div
-              className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-              data-testid="advance-payments-pagination"
-            >
-              <div className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-                {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:personal_expenses.advance_payments',
-                  getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:backoffice_expense_landing_page.advance_title',
-                    'Advance Payments'
-                  )
-                )}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                  </p>
-                  <select
-                    value={pageSize}
-                    onChange={e => {
-                      const newPageSize = Number(e.target.value)
-                      handleEnhancedTableChange({ current: 1, pageSize: newPageSize })
-                    }}
-                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                    data-testid="advance-payments-page-size-select"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-                <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                  {Math.ceil(totalCount / pageSize)}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <Button
-                    variant="outline"
-                    className="gba:h-8 gba:w-8 gba:p-0"
-                    onClick={() => handleEnhancedTableChange({ current: 1, pageSize })}
-                    disabled={currentPage === 1}
-                    data-testid="advance-payments-first-page-button"
-                  >
-                    <span className="gba:sr-only">Go to first page</span>⟪
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="gba:h-8 gba:w-8 gba:p-0"
-                    onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize })}
-                    disabled={currentPage === 1}
-                    data-testid="advance-payments-previous-page-button"
-                  >
-                    <span className="gba:sr-only">Go to previous page</span>⟨
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="gba:h-8 gba:w-8 gba:p-0"
-                    onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize })}
-                    disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                    data-testid="advance-payments-next-page-button"
-                  >
-                    <span className="gba:sr-only">Go to next page</span>⟩
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="gba:h-8 gba:w-8 gba:p-0"
-                    onClick={() => handleEnhancedTableChange({ current: Math.ceil(totalCount / pageSize), pageSize })}
-                    disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                    data-testid="advance-payments-last-page-button"
-                  >
-                    <span className="gba:sr-only">Go to last page</span>⟫
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : totalCount > 0 ? (
-            <div
-              className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-              data-testid="advance-payments-pagination-info-single-page"
-            >
-              <div className="gba:text-sm gba:text-muted-foreground">
-                {`${totalCount} ${getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:backoffice_expense_landing_page.advance_title',
-                  'Advance Payments'
-                )}`}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                </p>
-                <select
-                  value={pageSize}
-                  onChange={e => {
-                    const newPageSize = Number(e.target.value)
-                    handleEnhancedTableChange({ current: 1, pageSize: newPageSize })
-                  }}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid="advance-payments-page-size-select-single"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-            </div>
-          ) : null}
+          <TablePagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={totalCount}
+            onPageChange={handleTablePaginationChange}
+            entityNamePlural={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:backoffice_expense_landing_page.advance_title',
+              'Advance Payments'
+            )}
+            dataTestIdPrefix="advance-payments"
+            showBorder={false}
+          />
         </CardContent>
       </Card>
     )
@@ -854,25 +756,24 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         }
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {selectedItem?.title ||
-                selectedItem?.description ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:advance_payment_table.advance_payment_details',
-                  'Advance Payment Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedItem && (
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              selectedItem?.description ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:advance_payment_table.advance_payment_details',
+                'Advance Payment Details'
+              )
+            }
+          >
+            {selectedItem ? (
               <AdvancePaymentDetailsBackoffice
                 payment={selectedItem}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </div>

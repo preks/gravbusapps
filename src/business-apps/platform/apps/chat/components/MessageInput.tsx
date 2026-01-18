@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
 import { PaperPlaneTilt, Paperclip, At, X, File } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useEntityMentions } from '../hooks/useEntityMentions'
 import { EntityMentionPopover } from './EntityMentionPopover'
 import type { EntityReference, MessageEntityReference } from '../types'
+import type { ActiveExpert } from '../hooks/useConversationExperts'
 
 // Persist focus state across unmounts caused by parent re-renders
 let lastHadFocus = false
@@ -32,6 +32,9 @@ interface MessageInputProps {
     registerFn: (entity: EntityReference, text: string, startIndex: number) => MessageEntityReference
   ) => void
   onFocusReady?: (focusFn: () => void) => void
+  // Every Experts active in conversation
+  activeExperts?: ActiveExpert[]
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 export const MessageInput: React.FC<MessageInputProps> = memo(
@@ -40,14 +43,17 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     onTypingStart,
     onTypingStop,
     disabled = false,
-    placeholder = getTranslationFromI18nKeyAndLabel('chat.input.placeholder', 'Type a message...'),
+    placeholder,
     compact = false,
     accessToken = '',
     value: controlledValue,
     onChange,
     onRegisterMentionReady,
-    onFocusReady
+    onFocusReady,
+    activeExperts = [],
+    t
   }) => {
+    const placeholderText = placeholder || t('chat-input-placeholder')
     const [uncontrolledValue, setUncontrolledValue] = useState('')
     const value = controlledValue !== undefined ? controlledValue : uncontrolledValue
     const [isTyping, setIsTyping] = useState(false)
@@ -75,7 +81,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       removeMention: removeMentionFromHook,
       closeMention,
       registerMentionEntity
-    } = useEntityMentions(accessToken)
+    } = useEntityMentions(accessToken, activeExperts)
 
     // Helper to update value (works for both controlled and uncontrolled)
     const setValue = useCallback(
@@ -1027,7 +1033,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
               className={`gba:flex-shrink-0 gba:text-muted-foreground gba:hover:text-foreground ${
                 compact ? 'gba:h-7 gba:w-7' : 'gba:h-8 gba:w-8'
               }`}
-              title={getTranslationFromI18nKeyAndLabel('chat.attach', 'Attach file')}
+              title={t('chat-attach')}
               data-testid="message-attach-button"
             >
               <Paperclip className={compact ? 'gba:w-4 gba:h-4' : 'gba:w-4.5 gba:h-4.5'} />
@@ -1044,7 +1050,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
               className={`gba:flex-shrink-0 gba:text-muted-foreground gba:hover:text-foreground ${
                 compact ? 'gba:h-7 gba:w-7' : 'gba:h-8 gba:w-8'
               }`}
-              title={getTranslationFromI18nKeyAndLabel('chat.mention', 'Mention entity')}
+              title={t('chat-mention')}
               data-testid="message-mention-button"
             >
               <At className={compact ? 'gba:w-4 gba:h-4' : 'gba:w-4.5 gba:h-4.5'} />
@@ -1073,11 +1079,11 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
                 onKeyDown={handleKeyDown}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
-                data-placeholder={placeholder}
+                data-placeholder={placeholderText}
                 className={`gba:w-full gba:bg-muted/50 gba:border-0 focus-visible:gba:ring-1 focus-visible:gba:ring-primary/50 gba:rounded-md gba:px-3 gba:py-2 gba:outline-none gba:min-h-[36px] ${
                   compact ? 'gba:h-8 gba:text-sm' : 'gba:h-9'
                 } ${
-                  !value && placeholder
+                  !value && placeholderText
                     ? 'before:content-[attr(data-placeholder)] before:text-muted-foreground before:pointer-events-none'
                     : ''
                 }`}
@@ -1095,7 +1101,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
                 onKeyDown={handleKeyDown}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
-                placeholder={placeholder}
+                placeholder={placeholderText}
                 disabled={disabled}
                 className={`gba:w-full gba:bg-muted/50 gba:border-0 focus-visible:gba:ring-1 focus-visible:gba:ring-primary/50 ${
                   compact ? 'gba:h-8 gba:text-sm' : 'gba:h-9'

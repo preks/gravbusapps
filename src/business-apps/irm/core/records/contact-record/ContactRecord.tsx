@@ -1,15 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import {
-  Button,
-  Spinner,
-  RecordLayout,
-  Badge,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@newwork/nw-design-system'
-import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
+import { Button, Spinner, RecordLayout, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
+import { FileTextIcon, UserIcon, UsersIcon, CurrencyDollarIcon, RobotIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -17,9 +8,8 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { getContactTypeDisplayValue, getContactFullName } from './utils'
+import { getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
-import { Bot } from 'lucide-react'
 import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
 import {
   useGetInvestmentActivitiesByContactId,
@@ -202,33 +192,33 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
             value:
               getEmailChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
             value:
               getPhoneChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.birthday', 'Birthday'),
             value: contactData?.birthDate
               ? new Date(contactData.birthDate).toLocaleDateString('en-GB')
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
             value: contactData?.language?.value || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
             value: contactData?.ownerEmployee
               ? `${contactData.ownerEmployee.firstName} ${contactData.ownerEmployee.lastName}`.trim()
               : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
-            icon: User
+            icon: UserIcon
           }
         ]
       }
@@ -241,7 +231,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
       {
         key: 'ai-summary',
         label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <Bot size={16} />,
+        icon: <RobotIcon size={16} />,
         hook: aiSummaryHook,
         config: {
           entityType: 'contact',
@@ -339,30 +329,13 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-          icon: <User className="gba:mr-2" />,
-          content: (
-            <HomeView
-              contactId={contactId}
-              contactData={contactData!}
-              activities={activities}
-              notes={notes}
-              tasks={tasks}
-              approvals={approvals}
-              sectionsLoading={sectionsLoading}
-              sectionsError={sectionsError}
-              loadSectionData={loadSectionData}
-              activityActionProps={activityActionProps}
-              noteActionProps={noteActionProps}
-              taskActionProps={taskActionProps}
-              approvalActionProps={approvalActionProps}
-              {...props}
-            />
-          )
+          icon: <UserIcon className="gba:mr-2" />,
+          content: <HomeView contactId={contactId} contactData={contactData!} {...props} />
         },
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <CurrencyDollar className="gba:mr-2" />,
+          icon: <CurrencyDollarIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView contactId={contactId} {...props} />
@@ -372,7 +345,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView contactId={contactId} {...props} />
@@ -430,42 +403,23 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }
 
-  // Create header title with contact type badge
-  const contactType = contactData?.type
-  const contactTypeLabel = getContactTypeDisplayValue(contactData, null)
-
-  const headerTitle = (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <span>{fullName}</span>
-      {contactType && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge data-testid="contact-type-badge" variant="outline" className="gba:text-sm">
-                {contactTypeLabel}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent data-testid="contact-type-tooltip">
-              {getTranslationFromI18nKeyAndLabel('crm.common.contactType', 'Contact Type')}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-    </div>
-  )
+  // Header title without contact type badge (contact type shown in Account Section)
+  const headerTitle = fullName
 
   return (
     <div data-testid="investment-contact-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={User}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
+        headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
         onBack={onBack}
         headerTitle={headerTitle}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        subViews={subViewsConfig}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

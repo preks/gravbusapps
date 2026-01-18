@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 
 interface UseVacationApprovalDataProps {
   accessToken: string
@@ -15,6 +16,7 @@ interface UseVacationApprovalDataProps {
 
 interface EmployeeData {
   id: string
+  userId?: string // User ID for chat integration
   displayName: string
   firstName?: string
   lastName?: string
@@ -49,6 +51,7 @@ export const useVacationApprovalData = ({
           query GetEmployee($employeeId: uuid!) {
             Employee(where: {id: {_eq: $employeeId}}, limit: 1) {
               id
+              userId
               firstName
               lastName
               displayName
@@ -98,6 +101,7 @@ export const useVacationApprovalData = ({
 
           setEmployeeData({
             id: employee.id,
+            userId: employee.userId,
             displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
             firstName: employee.firstName,
             lastName: employee.lastName,
@@ -153,7 +157,7 @@ export const useVacationApprovalData = ({
     fetchSubstituteEmployee()
   }, [accessToken, substituteEmployeeId, graphqlClient])
 
-  // Fetch absence type name from catalog
+  // Fetch absence type name from catalog (with translations)
   useEffect(() => {
     const fetchAbsenceTypeName = async () => {
       if (!accessToken || !absenceTypeRef) return
@@ -176,6 +180,10 @@ export const useVacationApprovalData = ({
               id
               value
               code
+              translations {
+                localeCode
+                value
+              }
             }
           }
         `
@@ -185,7 +193,9 @@ export const useVacationApprovalData = ({
         })
 
         if (result.CatalogEntry && result.CatalogEntry.length > 0) {
-          setAbsenceTypeName(result.CatalogEntry[0].value || 'Vacation')
+          // Use getCatalogValue to get the translated value based on current locale
+          const translatedValue = getCatalogValue(result.CatalogEntry[0])
+          setAbsenceTypeName(translatedValue ?? 'Vacation')
         }
       } catch (err) {
         console.error('Error fetching absence type:', err)

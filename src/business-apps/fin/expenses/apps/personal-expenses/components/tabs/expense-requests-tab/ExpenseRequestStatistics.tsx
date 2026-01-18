@@ -18,6 +18,20 @@ interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   currencyInitialized?: boolean
 }
 
+const getEffectiveCurrencyCode = (currencyCode?: string, selectedCurrencyRef?: string): string => {
+  const trimmedCurrency = currencyCode?.trim()
+  if (trimmedCurrency) {
+    return trimmedCurrency
+  }
+
+  const refCode = selectedCurrencyRef?.split(':').pop()?.trim()
+  if (refCode) {
+    return refCode
+  }
+
+  return 'EUR'
+}
+
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   statsLoading = false,
   statsError = null,
@@ -29,6 +43,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   currencyInitialized,
   ...contextProps
 }) => {
+  const effectiveCurrencyCode = getEffectiveCurrencyCode(currencyCode, selectedCurrencyRef)
+
   // Memoize context props to ensure stable reference
   const stableContextProps = useMemo(
     () => ({
@@ -164,7 +180,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         'Submitted expense requests'
       ),
       trend: totalRequestsTrend,
-      active: activeWidgetKey === 'total-requests'
+      active: activeWidgetKey === 'total-requests',
+      onClick: () => handleWidgetClick('total-requests')
     },
     {
       key: 'total-amount',
@@ -175,10 +192,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ) +
         ' ' +
         currentMonthName,
-      value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), (contextProps as any).currencyCode || 'EUR')}`,
-      // currencyCode provided by parent (derived from selectedCurrencyRef)
-      // fallback to 'EUR' when not available
-
+      value: formatCurrencyDisplay(statistics.currentMonthAmount || 0, effectiveCurrencyCode),
       prefix: <DollarOutlined />,
       color: '#3f8600',
       precision: 2,
@@ -188,7 +202,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         'Across all requests'
       ),
       trend: totalAmountTrend,
-      active: activeWidgetKey === 'total-amount'
+      active: activeWidgetKey === 'total-amount',
+      onClick: () => handleWidgetClick('total-amount')
     },
     {
       key: 'pending-approval',
@@ -204,18 +219,20 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         'lowcoder:team_expenses_page.expense_plans_tab.requires_action',
         'Requires action'
       ),
-      active: activeWidgetKey === 'pending-approval'
+      active: activeWidgetKey === 'pending-approval',
+      onClick: () => handleWidgetClick('pending-approval')
     },
     {
       key: 'reimbursable',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable', 'Reimbursable'),
-      value: formatCurrencyDisplay(statistics.reimbursableAmount, currencyCode || 'EUR'),
+      value: formatCurrencyDisplay(statistics.reimbursableAmount, effectiveCurrencyCode),
       prefix: <DollarOutlined />,
       color: '#722ed1',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_be_reimbursed', 'To be reimbursed'),
-      active: activeWidgetKey === 'reimbursable'
+      active: activeWidgetKey === 'reimbursable',
+      onClick: () => handleWidgetClick('reimbursable')
     }
   ]
 

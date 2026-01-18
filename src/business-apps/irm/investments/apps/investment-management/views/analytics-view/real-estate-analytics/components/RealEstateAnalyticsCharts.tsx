@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
-import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import { formatCurrencyCompact, extractCurrencyCode, formatAmount } from '@/common/utils/numberFormatter'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import { useRealEstateOccupancyDistribution, useRealEstatePropertyValueVsRent } from '../hooks'
@@ -228,8 +228,20 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
               <ChartContainer config={occupancyConfig} className="gba:h-[400px] gba:w-full">
                 <ComposedChart data={occupancyData}>
                   <XAxis dataKey="range" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
+                  <YAxis yAxisId="left" tickFormatter={value => formatAmount(value, 1)} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(occupancyCurrencyFilter),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
+                    }
+                  />
                   <ChartTooltip content={renderOccupancyTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" />
@@ -292,11 +304,38 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
             if (propertyValueVsRentData && propertyValueVsRentData.length > 0) {
               return (
                 <ChartContainer config={expensesValueConfig} className="gba:h-[400px] gba:w-full">
-                  <ScatterChart data={propertyValueVsRentData}>
-                    <XAxis dataKey="propertyValue" name="Property Value" type="number" />
-                    <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
+                  <ScatterChart data={propertyValueVsRentData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                    <XAxis
+                      dataKey="propertyValue"
+                      name="Property Value"
+                      type="number"
+                      label={{ value: 'Property Value', position: 'insideBottom', offset: -5 }}
+                      tickFormatter={value =>
+                        formatCurrencyCompact(
+                          value,
+                          extractCurrencyCode(expensesCurrencyFilter),
+                          undefined,
+                          1,
+                          true
+                        ).replace(/[€$£¥]/g, '')
+                      }
+                    />
+                    <YAxis
+                      dataKey="annualExpenses"
+                      name="Annual Net Cold Rent"
+                      type="number"
+                      label={{ value: 'Annual Net Cold Rent', angle: -90, position: 'insideLeft' }}
+                      tickFormatter={value =>
+                        formatCurrencyCompact(
+                          value,
+                          extractCurrencyCode(expensesCurrencyFilter),
+                          undefined,
+                          1,
+                          true
+                        ).replace(/[€$£¥]/g, '')
+                      }
+                    />
                     <ChartTooltip content={renderPropertyValueTooltip} />
-                    <ChartLegend content={<ChartLegendContent />} />
                     <Scatter dataKey="annualExpenses" fill="var(--color-annualExpenses)" />
                   </ScatterChart>
                 </ChartContainer>

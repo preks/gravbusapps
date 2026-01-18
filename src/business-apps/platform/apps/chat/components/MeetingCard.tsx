@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent, Badge } from '@newwork/nw-design-system'
+import { Card, CardContent, Badge, Button } from '@newwork/nw-design-system'
 import { Calendar, Clock, Users, Video, ExternalLink } from 'lucide-react'
 import type { ScheduledMeeting } from '../hooks/useEveryAIChat'
 
@@ -55,6 +55,15 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
     )
   }
 
+  const handleJoinMeeting = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click from firing
+    if (meeting.meetingLink && meeting.meetingLink !== 'auto-generate') {
+      window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const canJoinMeeting = meeting.meetingLink && meeting.meetingLink !== 'auto-generate'
+
   return (
     <Card
       className={`gba:cursor-pointer gba:transition-all gba:hover:shadow-lg gba:hover:border-primary gba:hover:scale-[1.02] gba:max-w-md gba:bg-gradient-to-br gba:from-primary/5 gba:to-accent/5 ${className}`}
@@ -104,12 +113,28 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
             </div>
           )}
 
-          {/* Meeting link indicator */}
+          {/* Meeting link - clickable button if available, otherwise indicator */}
           {meeting.meetingLink && (
-            <div className="gba:flex gba:items-center gba:gap-2.5 gba:bg-success/10 gba:rounded-md gba:px-2.5 gba:py-1.5">
-              <Video className="gba:w-3.5 gba:h-3.5 gba:text-success gba:flex-shrink-0" />
-              <span className="gba:text-success gba:font-medium">Video call included</span>
-            </div>
+            <>
+              {canJoinMeeting ? (
+                <Button
+                  onClick={handleJoinMeeting}
+                  variant="default"
+                  size="sm"
+                  className="gba:w-full gba:justify-start gba:bg-success gba:hover:bg-success/90 gba:text-success-foreground"
+                  data-testid={`meeting-card-join-${meeting.id}`}
+                >
+                  <Video className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+                  <span className="gba:font-medium">Join Meeting</span>
+                  <ExternalLink className="gba:w-3 gba:h-3 gba:ml-auto" />
+                </Button>
+              ) : (
+                <div className="gba:flex gba:items-center gba:gap-2.5 gba:bg-success/10 gba:rounded-md gba:px-2.5 gba:py-1.5">
+                  <Video className="gba:w-3.5 gba:h-3.5 gba:text-success gba:flex-shrink-0" />
+                  <span className="gba:text-success gba:font-medium">Video call included</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 

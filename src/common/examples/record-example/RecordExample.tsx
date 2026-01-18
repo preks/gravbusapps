@@ -1,6 +1,15 @@
 import React, { useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { RecordLayout, Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
+import {
+  RecordLayout,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  IconAvatar,
+  HeaderSlot
+} from '@newwork/nw-design-system'
 import { DocumentSection, type DocumentItem } from '@/components/document-section'
 import { SummarySection } from '@/common/components/common-relations/record-sections/summary-section'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
@@ -1097,11 +1106,13 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
     <div data-testid="record-example">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={BuildingIcon}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.example', 'EXAMPLE')}
+        headerAvatar={<IconAvatar icon={BuildingIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.example', 'EXAMPLE')}
         headerTitle="Record Example"
-        headerDetailGroups={headerDetailGroups}
-        subViews={subViewsConfig}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

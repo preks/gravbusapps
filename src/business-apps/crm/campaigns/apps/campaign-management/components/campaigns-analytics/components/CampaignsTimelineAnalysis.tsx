@@ -10,7 +10,7 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
+import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import {
   CampaignsAnalyticsComponentProps,
   TimelinePeriod,
@@ -368,7 +368,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
                   onClick={() => toggleLine(key as keyof typeof visibleLines)}
                   className="gba:flex gba:items-center gba:gap-1"
                 >
-                  {isVisible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                  {isVisible ? <EyeIcon /> : <EyeSlashIcon />}
                   {key
                     .replace(/cumulative/g, '') // NOSONAR: replaceAll not available in current TypeScript lib
                     .replace(/([A-Z])/g, ' $1') // NOSONAR: replaceAll not available in current TypeScript lib

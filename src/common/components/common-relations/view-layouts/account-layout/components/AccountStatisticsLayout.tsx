@@ -76,7 +76,7 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
       prefix: <RiseOutlined />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'With opportunities',
+      description: 'With active opportunities',
       trend: createTrend(activeAccounts, 'vs last month')
     },
     {
@@ -120,7 +120,7 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
       prefix: <BankOutlined />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Currently active',
+      description: 'With active opportunities',
       trend: createTrend(activeAccounts, 'vs last month')
     },
     {

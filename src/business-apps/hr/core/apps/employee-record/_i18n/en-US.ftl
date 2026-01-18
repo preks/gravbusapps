@@ -60,9 +60,7 @@ rewards-package-description = Your total rewards package includes base salary, b
 
 # Benefits & Perks
 benefits-catalog-title = Benefits Catalog
-benefits-active-count = { $count } active
-benefits-available-count = { $count } available
-benefits-total-count = { $count } total
+benefits-catalog-no-results = No benefits found
 benefits-search-placeholder = Search benefits...
 benefits-loading = Loading benefits catalog...
 benefits-error-title = Error Loading Benefits
@@ -74,23 +72,33 @@ benefits-catalog-no-results-title = No Benefits Found
 benefits-catalog-no-results-description = No benefits match your search criteria.
 benefits-catalog-clear-search = Clear Search
 benefits-active-section-title = Active Benefits ({ $count })
+benefits-scheduled-section-title = Scheduled Benefits ({ $count })
 benefits-available-section-title = Available Benefits ({ $count })
 
 # Benefit Card
 benefit-status-active = Active
+benefit-status-scheduled = Scheduled
 benefit-status-pending = Pending
 benefit-status-available = Available
 benefit-request-button = Request
+benefit-request-employee-id-missing = Employee ID not available. Cannot initiate benefit request.
+benefit-already-scheduled = Scheduled
 benefit-deactivate-button = Deactivate
 benefit-view-details = View Details
 benefit-provider = Provider
 benefit-value-yearly = Yearly Value
 benefit-no-provider = No provider specified
 benefit-since = Since
+benefit-starts-in = Starts in
+benefit-starts-on = Starts on
+benefit-scheduled-badge = Scheduled
+benefit-ends = Ends
 
 # Benefit Details Modal
 benefit-details-type-info = Benefit Type Information
+benefit-details-benefit-information = Benefit Information
 benefit-details-code = Code
+benefit-details-type = Type
 benefit-details-category = Category
 benefit-details-provider-info = Provider Information
 benefit-details-provider = Provider
@@ -102,6 +110,9 @@ benefit-details-start-date = Start Date
 benefit-details-end-date = End Date
 benefit-details-notes = Notes
 benefit-details-available-providers = Available Providers
+benefit-details-additional-info = Additional Information
+benefit-details-value = Value
+benefit-details-no-value-info = Detailed value information will be determined after requesting this benefit.
 benefit-details-description = Benefit details
 common-close = Close
 
@@ -126,6 +137,7 @@ payslip-download-failed = Failed to download payslip. Please try again.
 
 # Request Benefit Modal
 modal-request-title = Request Benefit
+modal-request-loading = Loading benefit information...
 modal-request-description = Complete the form below to request this benefit
 modal-request-provider-label = Benefit Provider
 modal-request-provider-placeholder = Select a provider
@@ -237,11 +249,7 @@ action-enter-placeholder = Please Enter
 
 # Benefits Catalog Section
 benefit-per-year = /yr
-benefits-catalog-summary = {$active} active · {$available} available · {$total} total
-benefits-catalog-search-placeholder = Search benefits...
-benefits-catalog-loading = Loading benefits catalog...
-benefits-catalog-error-title = Error Loading Benefits
-benefits-catalog-retry = Retry
+benefit-per-month = /mo
 
 # Payslip Section
 payslip-no-data = No payslips available
@@ -259,8 +267,32 @@ modal-request-benefit-type-label = Benefit Type
 modal-character-count = {$current} / {$max} characters
 modal-character-minimum = (minimum {$min} characters)
 
-# Deactivation Reasons
-modal-deactivate-reason-no_longer_needed = No longer needed
-modal-deactivate-reason-found_alternative = Found alternative
-modal-deactivate-reason-cost_reduction = Cost reduction
-modal-deactivate-reason-other = Other (please specify)
+# Period translations
+period-monthly = Monthly
+period-yearly = Yearly
+period-daily = Daily
+
+# Form Validation Errors
+error-end-date-required = End date is required
+error-end-date-today-or-later = End date must be today or later
+error-end-date-after-start-date = End date must be on or after the benefit start date
+
+# Employee Record - Notifications
+notification-address-updated-success = Address updates are sent for HR approval
+notification-bank-account-updated-success = Bank account updates are sent for HR approval
+notification-personal-data-updated-success = Personal data updates are sent for HR approval
+notification-communication-updated-success = Communication details updates are sent for HR approval
+notification-profile-picture-updated-success = Profile picture updates are sent for HR approval
+notification-relationship-updated-success = Relationship status updates are sent for HR approval
+notification-expense-created-success = Expense created successfully
+notification-sick-leave-reported-success = Sick leave reported successfully
+notification-special-leave-requested-success = Special leave requested successfully
+notification-vacation-requested-success = Vacation requested successfully
+notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
+notification-working-hours-updated-success = Working hours updates are sent for HR approval
+
+# HR approval phrasing (profile updates)
+notification-address-updated-success = Address updates sent to be approved by the HR department.
+notification-bank-account-updated-success = Bank account updates sent to be approved by the HR department.
+notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
+notification-communication-updated-success = Communication details updates sent to be approved by the HR department.

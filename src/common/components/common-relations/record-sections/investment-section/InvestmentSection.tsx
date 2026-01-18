@@ -7,8 +7,10 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  EmptyState
 } from '@newwork/nw-design-system'
+import { TrendingUp } from 'lucide-react'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -102,11 +104,30 @@ const InvestmentStateHandler: React.FC<InvestmentStateProps> = ({ isLoading, err
   if (isEmpty) {
     return (
       <div className={`gba:w-full ${className}`} data-testid="investment-section-empty">
-        <div className="gba:flex gba:items-center gba:justify-center gba:py-6">
-          <span className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('crm.common.noData', 'No investment data available')}
-          </span>
-        </div>
+        <EmptyState
+          type="no-data"
+          title={getTranslationFromI18nKeyAndLabel('crm.investments.noInvestmentTitle', 'No Investment Data')}
+          description={getTranslationFromI18nKeyAndLabel(
+            'crm.investments.noInvestmentDescription',
+            'There are no investments linked to this record yet.'
+          )}
+          config={{
+            configs: {
+              'no-data': {
+                type: 'no-data',
+                title: getTranslationFromI18nKeyAndLabel('crm.investments.noInvestmentTitle', 'No Investment Data'),
+                description: getTranslationFromI18nKeyAndLabel(
+                  'crm.investments.noInvestmentDescription',
+                  'There are no investments linked to this record yet.'
+                ),
+                icon: TrendingUp,
+                size: 'sm'
+              }
+            }
+          }}
+          compact
+          data-testid="investment-section-empty-state"
+        />
       </div>
     )
   }

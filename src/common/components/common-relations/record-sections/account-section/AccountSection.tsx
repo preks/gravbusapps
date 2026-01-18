@@ -8,7 +8,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  EmptyState
 } from '@newwork/nw-design-system'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PiGlobe, PiUsers, PiMapPin } from 'react-icons/pi'
@@ -18,7 +19,6 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
 import { ContactTypeBadge } from '../shared/ContactTypeBadge'
-import EmptyState from '@/components/empty-state/EmptyState'
 
 interface AddressObject {
   addressLine?: {
@@ -190,8 +190,10 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
     return (
       <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
         <EmptyState
+          type="no-data"
           title="No Account Data"
           description="No account data is available for this object. Update its details to see the information here."
+          data-testid="account-section-empty-state"
         />
       </div>
     )
@@ -276,7 +278,9 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
 
                         // Extract account type (from junction tables for Opportunity/Investment Records)
                         const accountTypeValue =
-                          typeof accountType === 'object' ? accountType.value || accountType.code : accountType
+                          accountType && typeof accountType === 'object'
+                            ? accountType.value || accountType.code
+                            : accountType
 
                         const items = [legalForm, accountTypeValue].filter(Boolean)
 
@@ -294,7 +298,9 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                       {(() => {
                         const legalForm = account?.legalForm?.value || account?.legalForm
                         const accountTypeValue =
-                          typeof accountType === 'object' ? accountType.value || accountType.code : accountType
+                          accountType && typeof accountType === 'object'
+                            ? accountType.value || accountType.code
+                            : accountType
                         const items = [legalForm, accountTypeValue].filter(Boolean)
 
                         if (items.length > 0) {

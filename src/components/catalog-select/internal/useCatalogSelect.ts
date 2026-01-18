@@ -12,6 +12,62 @@ import {
 } from './catalogSelectUtils'
 import useCatalogDependencies from './useCatalogDependencies'
 import { useLocalizationContext } from '@newwork/nw-design-system'
+import type { ListFilter } from '../CatalogSelect'
+
+/**
+ * Converts ListFilter format to query parameters
+ */
+function buildListFilterParams(
+  codeFilter?: ListFilter<string>,
+  typeFilter?: ListFilter<string>
+): {
+  excludeCodes?: string[]
+  includeCodes?: string[]
+  excludeTypes?: string[]
+  includeTypes?: string[]
+} {
+  const params: any = {}
+
+  // Handle code filter
+  if (codeFilter) {
+    switch (codeFilter.mode) {
+      case 'omit':
+        params.excludeCodes = codeFilter.values
+        break
+      case 'only':
+        params.includeCodes = codeFilter.values
+        break
+      case 'none':
+        // Show nothing - use impossible condition
+        params.excludeCodes = ['*'] // Matches everything
+        break
+      case 'all':
+      default:
+        // No filter
+        break
+    }
+  }
+
+  // Handle type filter
+  if (typeFilter) {
+    switch (typeFilter.mode) {
+      case 'omit':
+        params.excludeTypes = typeFilter.values
+        break
+      case 'only':
+        params.includeTypes = typeFilter.values
+        break
+      case 'none':
+        params.excludeTypes = ['*']
+        break
+      case 'all':
+      default:
+        break
+    }
+  }
+
+  return params
+}
 
 const parseCatalogIdentifier = (catalogIdentifier: string): { identifier: string; version: string } => {
   const [identifier, version = 'v1'] = catalogIdentifier.split(':')
@@ -27,6 +83,13 @@ export interface CatalogSelectConfig {
   childField?: string
   requireSourceForEnable?: boolean
   filterField?: Array<{ from: string; on: string }>
+  // Business logic filtering (applied at query level)
+  codeFilter?: ListFilter<string>
+  typeFilter?: ListFilter<string>
+  orderBy?: Array<{
+    field: string
+    direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | 'ASC_NULLS_FIRST' | 'DESC_NULLS_FIRST'
+  }>
 }
 
 export interface CatalogSelectOption {
@@ -279,7 +342,13 @@ export const useCatalogSelect = (
 
   const { fetchCatalog } = useCatalog(context)
   const primeNonPrefetch = useCallback(async () => {
-    const nonPrefetch = configs.filter(c => c.prefetch === false)
+    // Filter non-prefetch configs, but skip ones with business logic filters
+    // (filtered catalogs load on-demand with query-based filtering)
+    const nonPrefetch = configs.filter(c => {
+      if (c.prefetch !== false) return false
+      const hasFilters = (c.codeFilter && c.codeFilter.mode !== 'all') || (c.typeFilter && c.typeFilter.mode !== 'all')
+      return !hasFilters
+    })
     if (nonPrefetch.length === 0) return
 
     await Promise.all(
@@ -287,7 +356,7 @@ export const useCatalogSelect = (
         const { identifier, version } = parseCatalogIdentifier(cfg.catalogIdentifier)
         try {
           const full = await fetchCatalog(
-            { identifier, version, entriesLimit: defaultThreshold, entriesOffset: 0 },
+            { identifier, version, entriesLimit: defaultThreshold, entriesOffset: 0, orderBy: cfg.orderBy },
             { includeCatalogEntries: true }
           )
           const total = full?.total ?? full?.entriesCount ?? 0
@@ -394,7 +463,13 @@ export const useCatalogSelect = (
   const fetchSingleMissingOption = useCallback(
     async (cfg: CatalogSelectConfig, value: string): Promise<void> => {
       try {
-        const res = await fetchCatalogEntriesByIdentifier(cfg.id, { limit: 1, offset: 0, entryId: value })
+        const res = await fetchCatalogEntriesByIdentifier(cfg.id, {
+          limit: 1,
+          offset: 0,
+          entryId: value,
+          ...buildListFilterParams(cfg.codeFilter, cfg.typeFilter),
+          orderBy: cfg.orderBy
+        })
         if (res.entries.length === 0) return
 
         const entry = res.entries[0]
@@ -456,7 +531,17 @@ export const useCatalogSelect = (
       const activeFilters: ActiveFilters = getActiveFilters(id)
       const filtersSig = buildFiltersSignature(activeFilters)
 
-      if (trimmed === '' && !activeFilters.parentEntryId && !activeFilters.typeEquals) {
+      // Check if catalog has business logic filters - these need query-based filtering
+      const hasFilters = !!(
+        (cfg.codeFilter && cfg.codeFilter.mode !== 'all') ||
+        (cfg.typeFilter && cfg.typeFilter.mode !== 'all')
+      )
+
+      // Return prefetched options only if:
+      // 1. No search term
+      // 2. No active filters (parent/type)
+      // 3. No business logic filters (exclude/include codes/types)
+      if (trimmed === '' && !activeFilters.parentEntryId && !activeFilters.typeEquals && !hasFilters) {
         setFor(id, prev => ({
           ...prev,
           loading: false,
@@ -477,7 +562,9 @@ export const useCatalogSelect = (
           offset: 0,
           search: trimmed,
           parentEntryId: activeFilters.parentEntryId,
-          typeEquals: activeFilters.typeEquals
+          typeEquals: activeFilters.typeEquals,
+          ...buildListFilterParams(cfg.codeFilter, cfg.typeFilter),
+          orderBy: cfg.orderBy
         })
         const options = toOptions(res.entries, locale)
 
@@ -511,7 +598,9 @@ export const useCatalogSelect = (
         offset: startOffset,
         search: current.search,
         parentEntryId: activeFilters.parentEntryId,
-        typeEquals: activeFilters.typeEquals
+        typeEquals: activeFilters.typeEquals,
+        ...buildListFilterParams(cfg.codeFilter, cfg.typeFilter),
+        orderBy: cfg.orderBy
       })
       const appended = toOptions(res.entries, locale)
       setFor(id, prev => ({

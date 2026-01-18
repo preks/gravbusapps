@@ -63,6 +63,10 @@ export interface InvestmentReport extends BaseEntity {
   fundManagerName?: string
   identification?: any // Jsonb
 
+  // Financial metrics
+  irr?: number // Internal Rate of Return
+  moic?: number // Multiple on Invested Capital
+
   // Additional metadata fields
   businessKey?: string // Business identifier for external integrations
   processInstanceId?: string // Kogito process tracking
@@ -216,6 +220,10 @@ export const InvestmentReportFields = {
   fundManagerName: 'fundManagerName',
   identification: 'identification',
 
+  // Financial metrics
+  irr: 'irr',
+  moic: 'moic',
+
   // Additional metadata fields
   businessKey: 'businessKey',
   processInstanceId: 'processInstanceId',
@@ -275,7 +283,11 @@ export const InvestmentReportFormFields = {
   totalCommitmentAmount: 'totalCommitmentAmount',
   totalDistributionAmount: 'totalDistributionAmount',
   fundManagerName: 'fundManagerName',
-  identification: 'identification'
+  identification: 'identification',
+
+  // Financial metrics
+  irr: 'irr',
+  moic: 'moic'
 } as const
 
 /**
@@ -285,6 +297,9 @@ export const EquityInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
   additionalProperties: 'additionalProperties',
+  // Report Core Fields
+  date: 'date',
+  scope: 'scope',
   // Equity Investment Report Fields
   marketValue: 'marketValue',
   turnoverAmount: 'turnoverAmount',
@@ -299,6 +314,9 @@ export const LiquidFundInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
   additionalProperties: 'additionalProperties',
+  // Report Core Fields
+  date: 'date',
+  scope: 'scope',
   // Liquid Fund Investment Report Fields
   proprietorName: 'proprietorName',
   bankName: 'bankName',
@@ -318,6 +336,9 @@ export const RealEstateInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
   additionalProperties: 'additionalProperties',
+  // Report Core Fields
+  date: 'date',
+  scope: 'scope',
   // Real Estate Investment Report Fields
   size: 'size',
   numberOfUnits: 'numberOfUnits',
@@ -346,42 +367,49 @@ export const createInvestmentReportDescriptors = (
   // Report Amount Fields
   {
     key: 'totalInvestmentAmount',
+    path: fields.totalInvestmentAmount,
     searchPaths: [fields.totalInvestmentAmount],
     sortPath: fields.totalInvestmentAmount,
     type: 'number'
   },
   {
     key: 'investmentMarketValue',
+    path: fields.investmentMarketValue,
     searchPaths: [fields.investmentMarketValue],
     sortPath: fields.investmentMarketValue,
     type: 'number'
   },
   {
     key: 'debtFinancingAmount',
+    path: fields.debtFinancingAmount,
     searchPaths: [fields.debtFinancingAmount],
     sortPath: fields.debtFinancingAmount,
     type: 'number'
   },
   {
     key: 'requiredCapitalAmount',
+    path: fields.requiredCapitalAmount,
     searchPaths: [fields.requiredCapitalAmount],
     sortPath: fields.requiredCapitalAmount,
     type: 'number'
   },
   {
     key: 'forecastedRevenueAmount',
+    path: fields.forecastedRevenueAmount,
     searchPaths: [fields.forecastedRevenueAmount],
     sortPath: fields.forecastedRevenueAmount,
     type: 'number'
   },
   {
     key: 'forecastedProfitAmount',
+    path: fields.forecastedProfitAmount,
     searchPaths: [fields.forecastedProfitAmount],
     sortPath: fields.forecastedProfitAmount,
     type: 'number'
   },
   {
     key: 'stakePercentage',
+    path: fields.stakePercentage,
     searchPaths: [fields.stakePercentage],
     sortPath: fields.stakePercentage,
     type: 'number'
@@ -394,15 +422,23 @@ export const createInvestmentReportDescriptors = (
     sortPath: fields.loanRecipientName,
     type: 'text'
   },
-  { key: 'loanAmount', searchPaths: [fields.loanAmount], sortPath: fields.loanAmount, type: 'number' },
+  {
+    key: 'loanAmount',
+    path: fields.loanAmount,
+    searchPaths: [fields.loanAmount],
+    sortPath: fields.loanAmount,
+    type: 'number'
+  },
   {
     key: 'loanOpenCommitmentAmount',
+    path: fields.loanOpenCommitmentAmount,
     searchPaths: [fields.loanOpenCommitmentAmount],
     sortPath: fields.loanOpenCommitmentAmount,
     type: 'number'
   },
   {
     key: 'loanInterestRate',
+    path: fields.loanInterestRate,
     searchPaths: [fields.loanInterestRate],
     sortPath: fields.loanInterestRate,
     type: 'number'
@@ -411,6 +447,7 @@ export const createInvestmentReportDescriptors = (
   { key: 'loanEndDate', searchPaths: [fields.loanEndDate], sortPath: fields.loanEndDate, type: 'date' },
   {
     key: 'loanInterestClaim',
+    path: fields.loanInterestClaim,
     searchPaths: [fields.loanInterestClaim],
     sortPath: fields.loanInterestClaim,
     type: 'number'
@@ -419,12 +456,14 @@ export const createInvestmentReportDescriptors = (
   // Fund Fields
   {
     key: 'totalCommitmentAmount',
+    path: fields.totalCommitmentAmount,
     searchPaths: [fields.totalCommitmentAmount],
     sortPath: fields.totalCommitmentAmount,
     type: 'number'
   },
   {
     key: 'totalDistributionAmount',
+    path: fields.totalDistributionAmount,
     searchPaths: [fields.totalDistributionAmount],
     sortPath: fields.totalDistributionAmount,
     type: 'number'
@@ -434,6 +473,154 @@ export const createInvestmentReportDescriptors = (
     searchPaths: [fields.fundManagerName],
     sortPath: fields.fundManagerName,
     type: 'text'
+  },
+
+  // Financial Metrics
+  {
+    key: 'irr',
+    path: fields.irr,
+    searchPaths: [fields.irr],
+    sortPath: fields.irr,
+    type: 'number'
+  },
+  {
+    key: 'moic',
+    path: fields.moic,
+    searchPaths: [fields.moic],
+    sortPath: fields.moic,
+    type: 'number'
+  },
+
+  // Real Estate Report Fields (nested in realEstateInvestmentReport)
+  {
+    key: 'realEstateSize',
+    path: 'realEstateInvestmentReport.size',
+    searchPaths: ['realEstateInvestmentReport.size'],
+    sortPath: 'realEstateInvestmentReport.size',
+    type: 'number'
+  },
+  {
+    key: 'realEstateNumberOfUnits',
+    path: 'realEstateInvestmentReport.numberOfUnits',
+    searchPaths: ['realEstateInvestmentReport.numberOfUnits'],
+    sortPath: 'realEstateInvestmentReport.numberOfUnits',
+    type: 'number'
+  },
+  {
+    key: 'realEstateOccupancyPercent',
+    path: 'realEstateInvestmentReport.occupancyPercent',
+    searchPaths: ['realEstateInvestmentReport.occupancyPercent'],
+    sortPath: 'realEstateInvestmentReport.occupancyPercent',
+    type: 'number'
+  },
+  {
+    key: 'realEstateAnnualNetColdRent',
+    path: 'realEstateInvestmentReport.annualNetColdRent',
+    searchPaths: ['realEstateInvestmentReport.annualNetColdRent'],
+    sortPath: 'realEstateInvestmentReport.annualNetColdRent',
+    type: 'number'
+  },
+  {
+    key: 'realEstateFunding',
+    path: 'realEstateInvestmentReport.funding',
+    searchPaths: ['realEstateInvestmentReport.funding'],
+    sortPath: 'realEstateInvestmentReport.funding',
+    type: 'number'
+  },
+  {
+    key: 'realEstateActualAnnualExpenses',
+    path: 'realEstateInvestmentReport.actualAnnualExpenses',
+    searchPaths: ['realEstateInvestmentReport.actualAnnualExpenses'],
+    sortPath: 'realEstateInvestmentReport.actualAnnualExpenses',
+    type: 'number'
+  },
+  {
+    key: 'realEstateTargetAnnualExpenses',
+    path: 'realEstateInvestmentReport.targetAnnualExpenses',
+    searchPaths: ['realEstateInvestmentReport.targetAnnualExpenses'],
+    sortPath: 'realEstateInvestmentReport.targetAnnualExpenses',
+    type: 'number'
+  },
+  {
+    key: 'realEstateLocality',
+    path: 'realEstateInvestmentReport.locality',
+    searchPaths: ['realEstateInvestmentReport.locality'],
+    sortPath: 'realEstateInvestmentReport.locality',
+    type: 'text'
+  },
+  {
+    key: 'realEstatePostalCode',
+    path: 'realEstateInvestmentReport.postalCode',
+    searchPaths: ['realEstateInvestmentReport.postalCode'],
+    sortPath: 'realEstateInvestmentReport.postalCode',
+    type: 'text'
+  },
+
+  // Equity Report Fields (nested in equityInvestmentReport)
+  {
+    key: 'equityMarketValue',
+    path: 'equityInvestmentReport.marketValue',
+    searchPaths: ['equityInvestmentReport.marketValue'],
+    sortPath: 'equityInvestmentReport.marketValue',
+    type: 'number'
+  },
+  {
+    key: 'equityTurnoverAmount',
+    path: 'equityInvestmentReport.turnoverAmount',
+    searchPaths: ['equityInvestmentReport.turnoverAmount'],
+    sortPath: 'equityInvestmentReport.turnoverAmount',
+    type: 'number'
+  },
+  {
+    key: 'equityEbitdaAmount',
+    path: 'equityInvestmentReport.ebitdaAmount',
+    searchPaths: ['equityInvestmentReport.ebitdaAmount'],
+    sortPath: 'equityInvestmentReport.ebitdaAmount',
+    type: 'number'
+  },
+
+  // Liquid Fund Report Fields (nested in liquidFundInvestmentReport)
+  {
+    key: 'liquidFundInterestRate',
+    path: 'liquidFundInvestmentReport.interestRate',
+    searchPaths: ['liquidFundInvestmentReport.interestRate'],
+    sortPath: 'liquidFundInvestmentReport.interestRate',
+    type: 'number'
+  },
+  {
+    key: 'liquidFundMaturityDate',
+    path: 'liquidFundInvestmentReport.maturityDate',
+    searchPaths: ['liquidFundInvestmentReport.maturityDate'],
+    sortPath: 'liquidFundInvestmentReport.maturityDate',
+    type: 'date'
+  },
+  {
+    key: 'liquidFundProprietorName',
+    path: 'liquidFundInvestmentReport.proprietorName',
+    searchPaths: ['liquidFundInvestmentReport.proprietorName'],
+    sortPath: 'liquidFundInvestmentReport.proprietorName',
+    type: 'text'
+  },
+  {
+    key: 'liquidFundBankName',
+    path: 'liquidFundInvestmentReport.bankName',
+    searchPaths: ['liquidFundInvestmentReport.bankName'],
+    sortPath: 'liquidFundInvestmentReport.bankName',
+    type: 'text'
+  },
+  {
+    key: 'liquidFundBankAccountNumber',
+    path: 'liquidFundInvestmentReport.bankAccountNumber',
+    searchPaths: ['liquidFundInvestmentReport.bankAccountNumber'],
+    sortPath: 'liquidFundInvestmentReport.bankAccountNumber',
+    type: 'text'
+  },
+  {
+    key: 'liquidFundEarlyTerminationAllowed',
+    path: 'liquidFundInvestmentReport.earlyTerminationAllowed',
+    searchPaths: ['liquidFundInvestmentReport.earlyTerminationAllowed'],
+    sortPath: 'liquidFundInvestmentReport.earlyTerminationAllowed',
+    type: 'boolean'
   },
 
   // Catalog References
@@ -549,6 +736,36 @@ export const createInvestmentReportDescriptors = (
     optionDistinctOn: [fields.loanRecipientInvestmentAccountId],
     kind: 'inIds'
   },
+  {
+    key: 'investmentLiquidFundTypeIds',
+    path: 'liquidFundInvestmentReport.investmentLiquidFundTypeRef',
+    filterLabel: 'Liquid Fund Type',
+    optionSelectPaths: [
+      'liquidFundInvestmentReport.investmentLiquidFundType.id',
+      'liquidFundInvestmentReport.investmentLiquidFundType.value'
+    ],
+    optionSearchPaths: [
+      'liquidFundInvestmentReport.investmentLiquidFundType.value',
+      'liquidFundInvestmentReport.investmentLiquidFundType.code'
+    ],
+    optionDistinctOn: ['liquidFundInvestmentReport.investmentLiquidFundTypeRef'],
+    kind: 'inIds'
+  },
+  {
+    key: 'interestPaymentFrequencyIds',
+    path: 'liquidFundInvestmentReport.interestPaymentFrequencyRef',
+    filterLabel: 'Interest Payment Frequency',
+    optionSelectPaths: [
+      'liquidFundInvestmentReport.interestPaymentFrequency.id',
+      'liquidFundInvestmentReport.interestPaymentFrequency.value'
+    ],
+    optionSearchPaths: [
+      'liquidFundInvestmentReport.interestPaymentFrequency.value',
+      'liquidFundInvestmentReport.interestPaymentFrequency.code'
+    ],
+    optionDistinctOn: ['liquidFundInvestmentReport.interestPaymentFrequencyRef'],
+    kind: 'inIds'
+  },
 
   // Date Range Filters
   { key: 'dateFrom', path: fields.date, kind: 'dateFrom' },
@@ -558,7 +775,9 @@ export const createInvestmentReportDescriptors = (
   { key: 'loanStartDateFrom', path: fields.loanStartDate, kind: 'dateFrom' },
   { key: 'loanStartDateTo', path: fields.loanStartDate, kind: 'dateTo' },
   { key: 'loanEndDateFrom', path: fields.loanEndDate, kind: 'dateFrom' },
-  { key: 'loanEndDateTo', path: fields.loanEndDate, kind: 'dateTo' }
+  { key: 'loanEndDateTo', path: fields.loanEndDate, kind: 'dateTo' },
+  { key: 'liquidFundMaturityDateFrom', path: 'liquidFundInvestmentReport.maturityDate', kind: 'dateFrom' },
+  { key: 'liquidFundMaturityDateTo', path: 'liquidFundInvestmentReport.maturityDate', kind: 'dateTo' }
 ]
 
 /**

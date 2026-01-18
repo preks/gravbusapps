@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { Mic, MicOff, Video, VideoOff, PhoneOff, MonitorUp, MonitorOff } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface CallControlsProps {
   isMuted: boolean
@@ -61,79 +61,80 @@ const ControlButton: React.FC<ControlButtonProps> = ({
   )
 }
 
-export const CallControls: React.FC<CallControlsProps> = ({
-  isMuted,
-  isVideoOff,
-  isScreenSharing,
-  isVideoCall,
-  onToggleMute,
-  onToggleVideo,
-  onToggleScreenShare,
-  onEndCall,
-  prefixDataTestId = 'call-controls'
-}) => {
-  return (
-    <div
-      className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:py-4 gba:px-6 gba:bg-gradient-to-t gba:from-black/80 gba:to-transparent"
-      data-testid={prefixDataTestId}
-    >
-      <div className="gba:flex gba:items-center gba:justify-center gba:gap-4">
-        {/* Mute Button */}
-        <ControlButton
-          icon={<Mic className="gba:w-5 gba:h-5" />}
-          activeIcon={<MicOff className="gba:w-5 gba:h-5" />}
-          label={
-            isMuted
-              ? getTranslationFromI18nKeyAndLabel('call.unmute', 'Unmute')
-              : getTranslationFromI18nKeyAndLabel('call.mute', 'Mute')
-          }
-          isActive={isMuted}
-          onClick={onToggleMute}
-          testId={`${prefixDataTestId}-mute`}
-        />
-
-        {/* Video Toggle Button (only for video calls) */}
-        {isVideoCall && (
+export const CallControls: React.FC<CallControlsProps> = memo(
+  ({
+    isMuted,
+    isVideoOff,
+    isScreenSharing,
+    isVideoCall,
+    onToggleMute,
+    onToggleVideo,
+    onToggleScreenShare,
+    onEndCall,
+    prefixDataTestId = 'call-controls'
+  }) => {
+    const t = useChatTranslation()
+    return (
+      <div
+        className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:py-4 gba:px-6 gba:bg-gradient-to-t gba:from-black/80 gba:to-transparent"
+        data-testid={prefixDataTestId}
+      >
+        <div className="gba:flex gba:items-center gba:justify-center gba:gap-4">
+          {/* Mute Button */}
           <ControlButton
-            icon={<Video className="gba:w-5 gba:h-5" />}
-            activeIcon={<VideoOff className="gba:w-5 gba:h-5" />}
-            label={
-              isVideoOff
-                ? getTranslationFromI18nKeyAndLabel('call.turnOnCamera', 'Turn on camera')
-                : getTranslationFromI18nKeyAndLabel('call.turnOffCamera', 'Turn off camera')
-            }
-            isActive={isVideoOff}
-            onClick={onToggleVideo}
-            testId={`${prefixDataTestId}-video`}
+            icon={<Mic className="gba:w-5 gba:h-5" />}
+            activeIcon={<MicOff className="gba:w-5 gba:h-5" />}
+            label={isMuted ? t('call-unmute') : t('call-mute')}
+            isActive={isMuted}
+            onClick={onToggleMute}
+            testId={`${prefixDataTestId}-mute`}
           />
-        )}
 
-        {/* Screen Share Button (only for video calls) */}
-        {isVideoCall && (
+          {/* Video Toggle Button (only for video calls) */}
+          {isVideoCall && (
+            <ControlButton
+              icon={<Video className="gba:w-5 gba:h-5" />}
+              activeIcon={<VideoOff className="gba:w-5 gba:h-5" />}
+              label={isVideoOff ? t('call-turnOnCamera') : t('call-turnOffCamera')}
+              isActive={isVideoOff}
+              onClick={onToggleVideo}
+              testId={`${prefixDataTestId}-video`}
+            />
+          )}
+
+          {/* Screen Share Button (only for video calls) */}
+          {isVideoCall && (
+            <ControlButton
+              icon={<MonitorUp className="gba:w-5 gba:h-5" />}
+              activeIcon={<MonitorOff className="gba:w-5 gba:h-5" />}
+              label={isScreenSharing ? t('call-stopSharing') : t('call-shareScreen')}
+              isActive={isScreenSharing}
+              onClick={onToggleScreenShare}
+              testId={`${prefixDataTestId}-screen-share`}
+            />
+          )}
+
+          {/* End Call Button */}
           <ControlButton
-            icon={<MonitorUp className="gba:w-5 gba:h-5" />}
-            activeIcon={<MonitorOff className="gba:w-5 gba:h-5" />}
-            label={
-              isScreenSharing
-                ? getTranslationFromI18nKeyAndLabel('call.stopSharing', 'Stop sharing')
-                : getTranslationFromI18nKeyAndLabel('call.shareScreen', 'Share screen')
-            }
-            isActive={isScreenSharing}
-            onClick={onToggleScreenShare}
-            testId={`${prefixDataTestId}-screen-share`}
+            icon={<PhoneOff className="gba:w-5 gba:h-5" />}
+            label={t('call-endCall')}
+            isActive={false}
+            onClick={onEndCall}
+            variant="destructive"
+            testId={`${prefixDataTestId}-end`}
           />
-        )}
-
-        {/* End Call Button */}
-        <ControlButton
-          icon={<PhoneOff className="gba:w-5 gba:h-5" />}
-          label={getTranslationFromI18nKeyAndLabel('call.endCall', 'End call')}
-          isActive={false}
-          onClick={onEndCall}
-          variant="destructive"
-          testId={`${prefixDataTestId}-end`}
-        />
+        </div>
       </div>
-    </div>
-  )
-}
+    )
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if state props change (callbacks are stable)
+    return (
+      prevProps.isMuted === nextProps.isMuted &&
+      prevProps.isVideoOff === nextProps.isVideoOff &&
+      prevProps.isScreenSharing === nextProps.isScreenSharing &&
+      prevProps.isVideoCall === nextProps.isVideoCall &&
+      prevProps.prefixDataTestId === nextProps.prefixDataTestId
+    )
+  }
+)

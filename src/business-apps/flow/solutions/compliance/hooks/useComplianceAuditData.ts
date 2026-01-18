@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { AuditFilters, AuditData, FilterOptions, AuditLogEntry } from '../../apps/success/hooks/useAuditData'
 
 // Extended filters for compliance-specific needs
@@ -13,8 +13,7 @@ export const useComplianceAuditLogs = (filters: ComplianceAuditFilters, accessTo
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   const fetchComplianceAuditLogs = useCallback(async () => {
     if (!accessToken) return
@@ -102,8 +101,7 @@ export const exportComplianceAuditLogs = async (
   format: 'csv' | 'json',
   accessToken: string
 ): Promise<void> => {
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   try {
     // Build query string with compliance filters

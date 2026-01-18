@@ -1,16 +1,18 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { env } from '@/common/env/EnvUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import { fileClient } from '@/common/network/files/FileClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads'
+import { type InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 import { useUpdateInvestmentTaskEnvelope } from './hooks/useUpdateInvestmentTaskEnvelope'
 import { useEnvelopeStatusCache } from './hooks/useEnvelopeStatusCache'
 import useDocuSign from '@/common/integrations/docusign/useDocuSign'
+import { useDigitalReferral } from '@/common/integrations/docusign/useDigitalReferral'
+import { generateCorrelationId } from '@/common/utils/correlationId'
 import {
   Dialog,
   DialogContent,
@@ -22,6 +24,7 @@ import {
   Label,
   RadioGroup,
   RadioGroupItem,
+  Checkbox,
   Alert,
   AlertDescription,
   Spinner
@@ -49,8 +52,9 @@ interface DocuSignSignatureModalProps {
   businessAppContext?: BusinessAppContextProps
   taskContext?: {
     taskId: string
-    taskFormData: InvestmentTaskFormData
+    taskFormData: Partial<InvestmentTask>
   }
+  focusReferral?: boolean
 }
 
 export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
@@ -62,11 +66,18 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
   emailOnly,
   onEnvelopeCreated,
   businessAppContext,
-  taskContext
+  taskContext,
+  focusReferral = false
 }) => {
   const { saveEnvelopeId } = useUpdateInvestmentTaskEnvelope(businessAppContext)
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
-  const { startLoginFlow, logout } = useDocuSign(accessToken)
+  const { startLoginFlow, logout, checkAuth } = useDocuSign(accessToken)
+  const {
+    submitReferral,
+    viewPlans,
+    isSubmitting: isReferralSubmitting,
+    scriptError: referralSdkError
+  } = useDigitalReferral()
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [signerEmail, setSignerEmail] = useState<string>('')
   const [signerName, setSignerName] = useState<string>('')
@@ -75,6 +86,10 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  const [correlationId, setCorrelationId] = useState<string>(() => generateCorrelationId())
+  const [referralMessage, setReferralMessage] = useState<string | null>(null)
+  const [referralError, setReferralError] = useState<string | null>(null)
+  const referralSectionRef = useRef<HTMLDivElement | null>(null)
 
   const userManagementClient = useRestClient(env('NEXT_PUBLIC_USER_MANAGEMENT_API') || '')
   const envelopeIdsKey = useMemo(() => {
@@ -105,23 +120,38 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     }
   }, [documents, selectedDocId, isOpen])
 
+  useEffect(() => {
+    if (!isOpen) {
+      setReferralMessage(null)
+      setReferralError(null)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (isOpen) {
+      setCorrelationId(generateCorrelationId())
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !focusReferral) return
+    if (referralSectionRef.current) {
+      referralSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [focusReferral, isOpen])
+
   // Auth status
   useEffect(() => {
     if (!isOpen) return
     ;(async () => {
       try {
-        const headers: HeadersInit = {}
-        if (accessToken) {
-          headers['Authorization'] = `Bearer ${accessToken}`
-        }
-        const res = await fetch('/api/docusign/auth/status', { headers })
-        const data = await res.json()
+        const data = await checkAuth({ correlationId })
         setIsAuthenticated(Boolean(data.authenticated))
       } catch {
         setIsAuthenticated(false)
       }
     })()
-  }, [isOpen, accessToken])
+  }, [isOpen, checkAuth, correlationId])
 
   // Autofill signer from assigned user
   useEffect(() => {
@@ -143,19 +173,19 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
 
   const handleAuthRedirect = useCallback(async () => {
     try {
-      await startLoginFlow()
+      await startLoginFlow(undefined, { correlationId })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start DocuSign authentication')
     }
-  }, [startLoginFlow])
+  }, [startLoginFlow, correlationId])
 
   const handleLogout = useCallback(async () => {
     try {
-      await logout()
+      await logout({ correlationId })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to logout from DocuSign')
     }
-  }, [logout])
+  }, [logout, correlationId])
 
   const SUPPORTED_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg']
 
@@ -306,7 +336,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     documentExtension: string
   }) => {
     const returnUrl = window.location.origin + window.location.pathname + window.location.search + window.location.hash
-    const headers: HeadersInit = { 'Content-Type': 'application/json' }
+    const headers: HeadersInit = { 'Content-Type': 'application/json', 'X-Correlation-ID': correlationId }
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`
     }
@@ -325,7 +355,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
 
   const createRecipientView = async (envelopeId: string, signerEmailValue: string, signerNameValue: string) => {
     const returnUrl = window.location.origin + window.location.pathname + window.location.search + window.location.hash
-    const headers: HeadersInit = { 'Content-Type': 'application/json' }
+    const headers: HeadersInit = { 'Content-Type': 'application/json', 'X-Correlation-ID': correlationId }
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`
     }
@@ -360,6 +390,38 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     },
     [canPersistEnvelope, saveEnvelopeId, selectedDocId, taskContext]
   )
+
+  const handleReferralSubmit = useCallback(
+    async (event?: React.FormEvent) => {
+      event?.preventDefault()
+      setReferralError(null)
+      setReferralMessage(null)
+      try {
+        await submitReferral(
+          {},
+          {
+            onActivation: ({ returnTo }) => {
+              startLoginFlow(returnTo, { correlationId })
+            }
+          }
+        )
+        setReferralMessage('DocuSign opened a popup so you can finish activating your trial.')
+      } catch (err: any) {
+        setReferralError(err?.message || 'Failed to start DocuSign trial')
+      }
+    },
+    [submitReferral, startLoginFlow, correlationId]
+  )
+
+  const handleViewPlans = useCallback(async () => {
+    setReferralError(null)
+    setReferralMessage(null)
+    try {
+      await viewPlans()
+    } catch (err: any) {
+      setReferralError(err?.message || 'Failed to open DocuSign plans')
+    }
+  }, [viewPlans])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -411,7 +473,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
       }
 
       if (emailOnly) {
-        const headers: HeadersInit = { 'Content-Type': 'application/json' }
+        const headers: HeadersInit = { 'Content-Type': 'application/json', 'X-Correlation-ID': correlationId }
         if (accessToken) {
           headers['Authorization'] = `Bearer ${accessToken}`
         }
@@ -466,6 +528,59 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
           <DialogTitle>Request Electronic Signature</DialogTitle>
         </DialogHeader>
 
+        <div ref={referralSectionRef} className="nw:mt-6">
+          <div className="nw:border nw:border-input nw:rounded-lg nw:p-4 nw:space-y-4">
+            <div>
+              <p className="nw:text-xs nw:uppercase nw:tracking-wide nw:text-muted-foreground">Digital Referral</p>
+              <h3 className="nw:text-base nw:font-semibold nw:mt-1">Invite DocuSign to your workspace</h3>
+              <p className="nw:text-sm nw:text-muted-foreground">
+                If you do not have DocuSign yet, start a free trial without leaving this task. DocuSign will provision
+                an account, then send you back here to finish the envelope setup.
+              </p>
+            </div>
+
+            {referralSdkError && (
+              <Alert variant="destructive">
+                <AlertDescription>{referralSdkError}</AlertDescription>
+              </Alert>
+            )}
+            {referralError && (
+              <Alert variant="destructive">
+                <AlertDescription>{referralError}</AlertDescription>
+              </Alert>
+            )}
+            {referralMessage && (
+              <Alert variant="success">
+                <AlertDescription>{referralMessage}</AlertDescription>
+              </Alert>
+            )}
+
+            <form className="nw:space-y-4" onSubmit={handleReferralSubmit}>
+              <p className="nw:text-sm nw:text-muted-foreground">
+                The DocuSign-hosted window collects contact details for the trial.
+              </p>
+
+              <div className="nw:flex nw:flex-wrap nw:items-center nw:gap-3">
+                <Button type="submit" disabled={isReferralSubmitting}>
+                  {isReferralSubmitting ? (
+                    <>
+                      <Spinner size="sm" className="nw:mr-2" />
+                      Starting trial...
+                    </>
+                  ) : (
+                    'Start DocuSign trial'
+                  )}
+                </Button>
+                {isAuthenticated && (
+                  <Button type="button" variant="ghost" onClick={handleViewPlans}>
+                    View DocuSign plans
+                  </Button>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+
         {/* Auth status */}
         {isAuthenticated ? (
           <Alert className="nw:mb-3">
@@ -489,7 +604,10 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
 
         {error && (
           <Alert variant="destructive" className="nw:mb-3">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              {error}
+              <div className="nw:text-xs nw:text-muted-foreground nw:mt-1">Tracking ID: {correlationId}</div>
+            </AlertDescription>
           </Alert>
         )}
 

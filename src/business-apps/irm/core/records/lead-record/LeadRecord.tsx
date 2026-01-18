@@ -7,9 +7,11 @@ import {
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
-  TooltipContent
+  TooltipContent,
+  IconAvatar,
+  HeaderSlot
 } from '@newwork/nw-design-system'
-import { Users, FileText, AddressBook } from '@phosphor-icons/react'
+import { UsersIcon, FileTextIcon, AddressBookIcon, RobotIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -41,7 +43,6 @@ import SectionWrapper from '@/common/components/common-relations/record-sections
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AppAction } from '@/components/app-action'
-import { Bot, Flag } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
 import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
@@ -328,7 +329,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                 variant="warning"
                 className="gba:rounded-full gba:p-1 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center"
               >
-                <Flag className="gba:h-3 gba:w-3" data-testid="lead-sensitive-badge-icon" />
+                <FlagIcon className="gba:h-3 gba:w-3" data-testid="lead-sensitive-badge-icon" />
               </Badge>
             </TooltipTrigger>
             <TooltipContent data-testid="lead-sensitive-tooltip">
@@ -348,19 +349,19 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
           {
             label: getTranslationFromI18nKeyAndLabel('crm.lead.source', 'Source'),
             value: lead?.leadSource?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-            icon: Users
+            icon: UsersIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.lead.rating', 'Rating'),
             value: lead?.leadRating?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-            icon: AddressBook
+            icon: AddressBookIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
             value: lead?.ownerEmployee
               ? `${lead.ownerEmployee.firstName} ${lead.ownerEmployee.lastName}`
               : getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-            icon: Users
+            icon: UsersIcon
           }
         ]
       }
@@ -375,7 +376,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       {
         key: 'ai-summary',
         label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <Bot size={16} />,
+        icon: <RobotIcon size={16} />,
         hook: aiSummary,
         config: {
           entityType: 'lead',
@@ -498,7 +499,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       {
         value: 'overview',
         label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-        icon: <Users />,
+        icon: <UsersIcon />,
         content: (
           <>
             {/* Account Information - 1/4 width */}
@@ -670,7 +671,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileText />,
+        icon: <FileTextIcon />,
         content: (
           <div className="gba:col-span-12">
             <LeadDocuments leadId={leadId} context={props} />
@@ -684,16 +685,18 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     <div data-testid="investment-lead-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={AddressBook}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
+        headerAvatar={<IconAvatar icon={AddressBookIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
         onBack={onBack}
         headerTitle={headerTitle}
         headerMeta={headerMeta}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
+        headerSlotAfter={headerContent}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

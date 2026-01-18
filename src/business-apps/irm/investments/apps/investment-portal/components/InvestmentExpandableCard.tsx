@@ -17,9 +17,9 @@ import {
   CaretDownIcon,
   CaretUpIcon,
   CheckSquareIcon,
-  FolderIcon
+  FolderIcon,
+  GridFourIcon
 } from '@phosphor-icons/react'
-import { LayoutGrid } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -251,7 +251,7 @@ export const InvestmentExpandableCard: React.FC<InvestmentExpandableCardProps> =
                 <TabsTrigger value="tasks" startIcon={<CheckSquareIcon size={16} />}>
                   {getTranslationFromI18nKeyAndLabel('tasks.title', 'Tasks')}
                 </TabsTrigger>
-                <TabsTrigger value="tiles" startIcon={<LayoutGrid size={16} />}>
+                <TabsTrigger value="tiles" startIcon={<GridFourIcon size={16} />}>
                   {getTranslationFromI18nKeyAndLabel('tiles.title', 'Tiles')}
                 </TabsTrigger>
               </TabsList>

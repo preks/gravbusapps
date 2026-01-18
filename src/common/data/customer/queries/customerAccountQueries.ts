@@ -24,8 +24,7 @@ import {
   buildContactFragment,
   buildDocumentFragment,
   buildNoteFragment,
-  buildTaskFragment,
-  buildOpportunityFragment
+  buildTaskFragment
 } from '@/common/data/relations/queries/relationFragments'
 
 // Import Customer Fields
@@ -33,7 +32,6 @@ import { CustomerContactFields } from '../types/customerContactTypes'
 import { CustomerDocumentFields } from '../types/customerDocumentTypes'
 import { CustomerNoteFields } from '../types/customerNoteTypes'
 import { CustomerTaskFields } from '../types/customerTaskTypes'
-import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 
 /**
  * Customer Account Query Variables Interface
@@ -82,18 +80,18 @@ export const buildCustomerAccountByIdQuery = (fields: typeof CustomerAccountFiel
     buildContactFragment,
     buildDocumentFragment,
     buildNoteFragment,
-    buildTaskFragment,
-    buildOpportunityFragment
+    buildTaskFragment
     // Note: CRM doesn't have "activities" or "leads" on Account level
+    // Note: opportunities are fetched separately via useCustomerOpportunitiesList (not from Account query)
   }
 
   const relationFields: AccountRelationFields = {
     contactFields: CustomerContactFields,
     documentFields: CustomerDocumentFields,
     noteFields: CustomerNoteFields,
-    taskFields: CustomerTaskFields,
-    opportunityFields: CustomerOpportunityFields
+    taskFields: CustomerTaskFields
     // Note: CRM doesn't have "activities" or "leads" on Account level
+    // Note: opportunities are fetched separately via useCustomerOpportunitiesList (not from Account query)
   }
 
   // Domain-specific entity fields (addresses, crmDocument, crmNote, salesCampaign)

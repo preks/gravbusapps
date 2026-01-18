@@ -61,6 +61,7 @@ export interface CalendarProps {
   showStatusInTooltip?: boolean
   showDurationInTooltip?: boolean
   customLegend?: React.ReactNode
+  holidayDates?: string[]
 }
 
 export interface AbsenceListProps {

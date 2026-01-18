@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
-import { ChartLineUp } from '@phosphor-icons/react'
+import { ChartLineUpIcon } from '@phosphor-icons/react'
 import { SalesActivity360Props, ActivityViewFilter } from './types'
 import { ViewSelector } from './components/view-selector/ViewSelector'
 import { EntitySelector } from './components/view-selector/EntitySelector'
@@ -211,7 +211,7 @@ export const SalesActivity360: React.FC<SalesActivity360Props> = ({ accessToken,
       return (
         <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <PageLayout
-            headerIcon={ChartLineUp}
+            headerIcon={ChartLineUpIcon}
             headerTitle="Sales Activity 360°"
             headerDescription="Real-time visibility into your entire sales operation"
             variant={moduleColor}

@@ -20,6 +20,15 @@ export interface Employee {
   employmentType?: string
   contractType?: string
   matrixTeams?: string[]
+  // Availability/status fields
+  status?: 'Available' | 'On Leave'
+  currentAbsence?: {
+    type: string
+    parentEntryId?: string // e.g., 'AbsenceGroup:v1:HEALTH' for sick leave
+    startDate: string
+    endDate: string
+    status: string
+  }
 }
 
 /**
@@ -173,8 +182,8 @@ const buildSortCondition = (sortField: string, sortOrder: 'ASC' | 'DESC', orderB
 
   switch (sortField) {
     case 'name':
-      // For name sorting, prioritize firstName then lastName
-      orderBy.firstName = sortDirection
+      // For name sorting, prioritize lastName then firstName
+      orderBy.lastName = sortDirection
       break
     case 'firstName':
       orderBy.firstName = sortDirection
@@ -300,7 +309,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         limit: EMPLOYEES_PER_PAGE,
         offset,
         where,
-        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ firstName: 'ASC_NULLS_LAST' }]
+        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ lastName: 'ASC_NULLS_LAST' }]
       })
       .then((res: any) => {
         if (!res) {
@@ -417,7 +426,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
           limit: pageSize,
           offset: pageOffset,
           where,
-          orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ firstName: 'ASC_NULLS_LAST' }]
+          orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ lastName: 'ASC_NULLS_LAST' }]
         })
         .then((res: any) => {
           if (!res) {
