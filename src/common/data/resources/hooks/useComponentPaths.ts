@@ -37,19 +37,21 @@ export const useComponentPaths = (
     try {
       // Get Azure Storage credentials from environment using env() function (same pattern as other clients)
       // Support both DEV and PROD variants
-      const accountName = environment === 'prod' ? env('AZURE_STORAGE_ACCOUNT_PROD') : env('AZURE_STORAGE_ACCOUNT')
-
-      const sasToken = environment === 'prod' ? env('AZURE_STORAGE_SAS_TOKEN_PROD') : env('AZURE_STORAGE_SAS_TOKEN')
-
-      // Note: PROD uses AZUREBLOB_CONTAINER_NAME_PROD (without underscore)
-      const containerName =
+      const accountName =
         environment === 'prod'
-          ? env('AZUREBLOB_CONTAINER_NAME_PROD') || env('AZURE_BLOB_CONTAINER_NAME_PROD') || 'screens'
-          : env('AZURE_BLOB_CONTAINER_NAME') || 'screens'
+          ? env('NEXT_PUBLIC_AZURE_STORAGE_ACCOUNT_PROD')
+          : env('NEXT_PUBLIC_AZURE_STORAGE_ACCOUNT_DEV')
+
+      const sasToken =
+        environment === 'prod'
+          ? env('NEXT_PUBLIC_AZURE_STORAGE_SAS_TOKEN_PROD')
+          : env('NEXT_PUBLIC_AZURE_STORAGE_SAS_TOKEN_DEV')
+
+      const containerName = env('NEXT_PUBLIC_AZURE_BLOB_CONTAINER_NAME') || 'screens'
 
       if (!accountName || !sasToken) {
         throw new Error(
-          `Azure Storage credentials not configured for ${environment.toUpperCase()}. Please set AZURE_STORAGE_ACCOUNT${environment === 'prod' ? '_PROD' : ''} and AZURE_STORAGE_SAS_TOKEN${environment === 'prod' ? '_PROD' : ''} in environment variables or window.nw-envs`
+          `Azure Storage credentials not configured for ${environment.toUpperCase()}. Please set NEXT_PUBLIC_AZURE_STORAGE_ACCOUNT_${environment.toUpperCase()} and NEXT_PUBLIC_AZURE_STORAGE_SAS_TOKEN_${environment.toUpperCase()} in environment variables or window.nw-envs`
         )
       }
 
