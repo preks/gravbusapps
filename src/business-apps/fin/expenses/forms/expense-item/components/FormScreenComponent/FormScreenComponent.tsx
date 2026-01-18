@@ -70,6 +70,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     isFormDisabled,
     expenseRuleError,
     receiptCurrencyError,
+    hasLinkedExpenseRequest,
     handleCurrencyChange,
     isEditMode,
     additionalData
@@ -389,6 +390,18 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             </Form.Item>
           </Col>
           <Col span={12} data-testid="total-currency-col">
+            {hasLinkedExpenseRequest && (
+              <Alert
+                message={t(
+                  'lowcoder:create_expense_item.linked_request_currency_warning',
+                  'Currency cannot be changed while the expense item is linked to an expense request. Please change or remove the expense request first.'
+                )}
+                type="warning"
+                showIcon
+                className="gba:mb-2"
+                data-testid="linked-request-currency-warning"
+              />
+            )}
             <Form.Item
               name="currency"
               rules={[
@@ -409,7 +422,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
                   'Currency'
                 )}
-                disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency')}
+                disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency') || hasLinkedExpenseRequest}
                 name="currency"
                 data-testid="total-currency-select"
                 isDataSorted={false}

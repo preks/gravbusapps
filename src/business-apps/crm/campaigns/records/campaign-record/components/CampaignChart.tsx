@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, Button, Alert, Spinner, Checkbox } from '@newwork/nw-design-system'
-import { PiChartLine, PiEye } from 'react-icons/pi'
+import { ChartLineIcon, EyeIcon } from '@phosphor-icons/react'
 import { useCampaignChart } from '../hooks'
 import { CampaignChartProps, ChartTimeFilter } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -25,7 +25,7 @@ const ChartCardHeader: React.FC<ChartCardHeaderProps> = ({ children }) => (
   <CardHeader>
     <div className="gba:flex gba:items-center gba:justify-between">
       <CardTitle className="gba:flex gba:items-center gba:gap-2">
-        <PiChartLine size={20} />
+        <ChartLineIcon size={20} />
         {getTranslationFromI18nKeyAndLabel('campaign.chart.title', 'Campaign Performance Trends')}
       </CardTitle>
       {children}
@@ -135,7 +135,7 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
         <div className="gba:border-t gba:border-border gba:pt-4">
           <div className="gba:flex gba:items-center gba:gap-6">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <PiEye size={16} className="gba:text-muted-foreground" />
+              <EyeIcon size={16} className="gba:text-muted-foreground" />
               <span className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel('campaign.chart.showLines', 'Show Lines:')}
               </span>
@@ -159,7 +159,7 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
       <CardContent>
         {!chartData?.data || chartData.data.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}>
-            <PiChartLine className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
+            <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
             <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel('campaign.chart.noData.title', 'No data available')}
             </h3>

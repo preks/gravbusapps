@@ -219,6 +219,7 @@ export const buildBenefitSubmitPayload = ({
   const periodValue = resolvedPeriodDisplay || null
 
   const payload: any = {
+    event: 'pse_submit',
     employeeBenefit: {
       employee: employeeId,
       benefitTypeRef: selectedBenefit?.catalogId || '',

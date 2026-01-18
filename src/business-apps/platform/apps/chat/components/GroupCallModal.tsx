@@ -5,7 +5,7 @@
  * Supports up to 4-5 participants comfortably.
  */
 
-import React, { useEffect, useRef, useMemo, useState } from 'react'
+import React, { useEffect, useRef, useMemo, useState, memo } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Dialog,
@@ -48,6 +48,7 @@ import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
 import { AddParticipantDropdown } from './AddParticipantDropdown'
 import { Phone } from 'lucide-react'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface AvailableParticipant {
   id: string
@@ -147,6 +148,7 @@ const VideoTile: React.FC<{
   isScreenShare?: boolean
   onReconnect?: () => void
   isReconnecting?: boolean
+  t: (key: string, params?: Record<string, any>) => string
 }> = ({
   participant,
   stream,
@@ -157,7 +159,8 @@ const VideoTile: React.FC<{
   onExpand,
   isScreenShare = false,
   onReconnect,
-  isReconnecting = false
+  isReconnecting = false,
+  t
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -229,7 +232,7 @@ const VideoTile: React.FC<{
           {isScreenShare && (
             <div className="gba:absolute gba:top-2 gba:left-2 gba:bg-primary gba:text-white gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:flex gba:items-center gba:gap-1">
               <Monitor className="gba:h-3 gba:w-3" />
-              <span>Screen</span>
+              <span>{t('call-screen')}</span>
             </div>
           )}
         </div>
@@ -247,10 +250,10 @@ const VideoTile: React.FC<{
       {/* Participant name overlay */}
       <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-2">
         <div className="gba:flex gba:items-center gba:gap-2">
-          {isHost && <Crown className="gba:h-3 gba:w-3 gba:text-yellow-400" title="Host" />}
+          {isHost && <Crown className="gba:h-3 gba:w-3 gba:text-yellow-400" />}
           <span className="gba:text-white gba:text-sm gba:font-medium gba:truncate">
             {participant.odName}
-            {isLocal && ' (You)'}
+            {isLocal && ` (${t('chat-you')})`}
           </span>
           {isMuted && <MicOff className="gba:h-3 gba:w-3 gba:text-red-400" />}
         </div>
@@ -263,7 +266,7 @@ const VideoTile: React.FC<{
             <>
               <span className="gba:px-2 gba:py-1 gba:text-xs gba:bg-red-500/90 gba:text-white gba:rounded-full gba:flex gba:items-center gba:gap-1">
                 <AlertTriangle className="gba:h-3 gba:w-3" />
-                {participant.connectionState === 'failed' ? 'Failed' : 'Disconnected'}
+                {participant.connectionState === 'failed' ? t('call-failed') : t('call-disconnected')}
               </span>
               {onReconnect && (
                 <button
@@ -273,16 +276,16 @@ const VideoTile: React.FC<{
                   }}
                   disabled={isReconnecting}
                   className="gba:px-2 gba:py-1 gba:text-xs gba:bg-primary gba:text-white gba:rounded-full gba:flex gba:items-center gba:gap-1 hover:gba:bg-primary/80 gba:transition-colors disabled:gba:opacity-50"
-                  title="Retry connection"
+                  title={t('call-retryConnection')}
                 >
                   <RefreshCw className={`gba:h-3 gba:w-3 ${isReconnecting ? 'gba:animate-spin' : ''}`} />
-                  {isReconnecting ? 'Retrying...' : 'Reconnect'}
+                  {isReconnecting ? t('call-retrying') : t('call-reconnect')}
                 </button>
               )}
             </>
           ) : (
             <span className="gba:px-2 gba:py-1 gba:text-xs gba:bg-yellow-500/80 gba:text-white gba:rounded-full">
-              {participant.connectionState === 'connecting' ? 'Connecting...' : participant.connectionState}
+              {participant.connectionState === 'connecting' ? t('call-connecting') : participant.connectionState}
             </span>
           )}
         </div>
@@ -305,701 +308,731 @@ const QualityIcon: React.FC<{ quality: VideoQuality; className?: string }> = ({ 
   }
 }
 
-const qualityLabels: Record<VideoQuality, { label: string; description: string }> = {
-  high: { label: 'High Quality', description: '720p, 30fps - Best for fast connections' },
-  medium: { label: 'Medium Quality', description: '480p, 24fps - Balanced' },
-  low: { label: 'Low Quality', description: '240p, 15fps - For slow connections' }
-}
+export const GroupCallModal: React.FC<GroupCallModalProps> = memo(
+  ({
+    callState,
+    localStream,
+    remoteStreams,
+    participants,
+    pendingInvites = new Map(),
+    onEndCall,
+    onToggleMute,
+    onToggleVideo,
+    onToggleScreenShare,
+    onSetVideoQuality,
+    onToggleMinimize,
+    onToggleBackground,
+    backgroundEnabled = false,
+    prefixDataTestId = 'group-call',
+    availableParticipants = [],
+    onInviteParticipant,
+    onReconnectParticipant,
+    getConnectionDiagnostics,
+    accessToken,
+    currentUserId
+  }) => {
+    const t = useChatTranslation()
+    const [isFullscreen, setIsFullscreen] = useState(false)
+    const [expandedStream, setExpandedStream] = useState<{ stream: MediaStream; participantName: string } | null>(null)
+    const [showDebugPanel, setShowDebugPanel] = useState(false)
 
-export const GroupCallModal: React.FC<GroupCallModalProps> = ({
-  callState,
-  localStream,
-  remoteStreams,
-  participants,
-  pendingInvites = new Map(),
-  onEndCall,
-  onToggleMute,
-  onToggleVideo,
-  onToggleScreenShare,
-  onSetVideoQuality,
-  onToggleMinimize,
-  onToggleBackground,
-  backgroundEnabled = false,
-  prefixDataTestId = 'group-call',
-  availableParticipants = [],
-  onInviteParticipant,
-  onReconnectParticipant,
-  getConnectionDiagnostics,
-  accessToken,
-  currentUserId
-}) => {
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [expandedStream, setExpandedStream] = useState<{ stream: MediaStream; participantName: string } | null>(null)
-  const [showDebugPanel, setShowDebugPanel] = useState(false)
-  const [diagnostics, setDiagnostics] = useState<Map<string, any>>(new Map())
-  const [reconnectingIds, setReconnectingIds] = useState<Set<string>>(new Set())
-  const containerRef = useRef<HTMLDivElement>(null)
-  const expandedVideoRef = useRef<HTMLVideoElement>(null)
-  const pipVideoRef = useRef<HTMLVideoElement>(null)
-  const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+    // Quality settings with translations (memoized to prevent unnecessary re-renders)
+    const qualityLabels = useMemo<Record<VideoQuality, { label: string; description: string }>>(
+      () => ({
+        high: { label: t('call-highQuality'), description: t('call-highQualityDesc') },
+        medium: { label: t('call-mediumQuality'), description: t('call-mediumQualityDesc') },
+        low: { label: t('call-lowQuality'), description: t('call-lowQualityDesc') }
+      }),
+      [t]
+    )
+    const [diagnostics, setDiagnostics] = useState<Map<string, any>>(new Map())
+    const [reconnectingIds, setReconnectingIds] = useState<Set<string>>(new Set())
+    const containerRef = useRef<HTMLDivElement>(null)
+    const expandedVideoRef = useRef<HTMLVideoElement>(null)
+    const pipVideoRef = useRef<HTMLVideoElement>(null)
+    const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
 
-  // Update diagnostics periodically when debug panel is open
-  useEffect(() => {
-    if (!showDebugPanel || !getConnectionDiagnostics) return
+    // Update diagnostics periodically when debug panel is open
+    useEffect(() => {
+      if (!showDebugPanel || !getConnectionDiagnostics) return
 
-    const updateDiagnostics = () => {
-      setDiagnostics(getConnectionDiagnostics())
-    }
+      const updateDiagnostics = () => {
+        setDiagnostics(getConnectionDiagnostics())
+      }
 
-    updateDiagnostics()
-    const interval = setInterval(updateDiagnostics, 2000)
+      updateDiagnostics()
+      const interval = setInterval(updateDiagnostics, 2000)
 
-    return () => clearInterval(interval)
-  }, [showDebugPanel, getConnectionDiagnostics])
+      return () => clearInterval(interval)
+    }, [showDebugPanel, getConnectionDiagnostics])
 
-  // Get current user from participants (the one with local stream)
-  const currentUserParticipant = useMemo(() => {
-    return participants.find(p => p.connectionState === 'connected' && !remoteStreams.has(p.id))
-  }, [participants, remoteStreams])
+    // Get current user from participants (the one with local stream)
+    const currentUserParticipant = useMemo(() => {
+      return participants.find(p => p.connectionState === 'connected' && !remoteStreams.has(p.id))
+    }, [participants, remoteStreams])
 
-  // All participants including local user
-  const allParticipants = useMemo(() => {
-    const result: Array<{
-      participant: GroupCallParticipant
-      stream: MediaStream | null
-      isLocal: boolean
-    }> = []
+    // All participants including local user
+    const allParticipants = useMemo(() => {
+      const result: Array<{
+        participant: GroupCallParticipant
+        stream: MediaStream | null
+        isLocal: boolean
+      }> = []
 
-    // Add local user first
-    if (currentUserParticipant) {
-      result.push({
-        participant: currentUserParticipant,
-        stream: localStream,
-        isLocal: true
-      })
-    }
-
-    // Add remote participants
-    participants.forEach(p => {
-      if (p.id !== currentUserParticipant?.id) {
+      // Add local user first
+      if (currentUserParticipant) {
         result.push({
-          participant: p,
-          stream: remoteStreams.get(p.id) || null,
-          isLocal: false
+          participant: currentUserParticipant,
+          stream: localStream,
+          isLocal: true
         })
       }
-    })
 
-    return result
-  }, [participants, currentUserParticipant, localStream, remoteStreams])
-
-  const gridLayout = getGridLayout(allParticipants.length + pendingInvites.size)
-
-  // Participants from conversation who are not in the call yet
-  const participantsNotInCall = useMemo(() => {
-    const inCallIds = new Set(participants.map(p => p.id))
-    return availableParticipants.filter(p => !inCallIds.has(p.id))
-  }, [participants, availableParticipants])
-
-  // Get first remote participant for minimized view
-  const firstRemoteParticipant = useMemo(() => {
-    const remote = allParticipants.find(p => !p.isLocal && p.stream)
-    return remote || allParticipants.find(p => !p.isLocal) || null
-  }, [allParticipants])
-
-  // Toggle fullscreen - use internal state for reliable behavior
-  const toggleFullscreen = () => {
-    setIsFullscreen(prev => !prev)
-  }
-
-  // Set remote stream on PiP video when minimized (show person speaking, not self)
-  useEffect(() => {
-    if (callState.isMinimized && pipVideoRef.current && firstRemoteParticipant?.stream) {
-      pipVideoRef.current.srcObject = firstRemoteParticipant.stream
-      pipVideoRef.current.play().catch(err => console.debug('PiP video play error:', err))
-    }
-  }, [callState.isMinimized, firstRemoteParticipant])
-
-  // Set expanded video stream
-  useEffect(() => {
-    if (expandedStream && expandedVideoRef.current) {
-      expandedVideoRef.current.srcObject = expandedStream.stream
-      expandedVideoRef.current.play().catch(err => console.debug('Expanded video play error:', err))
-    }
-  }, [expandedStream])
-
-  // Play all remote audio streams when minimized (so user can hear others)
-  useEffect(() => {
-    if (!callState.isMinimized) {
-      // Clean up audio elements when not minimized
-      pipAudioRefs.current.forEach(audio => {
-        audio.pause()
-        audio.srcObject = null
+      // Add remote participants
+      participants.forEach(p => {
+        if (p.id !== currentUserParticipant?.id) {
+          result.push({
+            participant: p,
+            stream: remoteStreams.get(p.id) || null,
+            isLocal: false
+          })
+        }
       })
-      pipAudioRefs.current.clear()
-      return
+
+      return result
+    }, [participants, currentUserParticipant, localStream, remoteStreams])
+
+    const gridLayout = getGridLayout(allParticipants.length + pendingInvites.size)
+
+    // Participants from conversation who are not in the call yet
+    const participantsNotInCall = useMemo(() => {
+      const inCallIds = new Set(participants.map(p => p.id))
+      return availableParticipants.filter(p => !inCallIds.has(p.id))
+    }, [participants, availableParticipants])
+
+    // Get first remote participant for minimized view
+    const firstRemoteParticipant = useMemo(() => {
+      const remote = allParticipants.find(p => !p.isLocal && p.stream)
+      return remote || allParticipants.find(p => !p.isLocal) || null
+    }, [allParticipants])
+
+    // Toggle fullscreen - use internal state for reliable behavior
+    const toggleFullscreen = () => {
+      setIsFullscreen(prev => !prev)
     }
 
-    // Create audio elements for each remote stream
-    remoteStreams.forEach((stream, participantId) => {
-      if (!pipAudioRefs.current.has(participantId)) {
-        const audio = document.createElement('audio')
-        audio.autoplay = true
-        audio.srcObject = stream
-        audio.play().catch(err => console.debug('Audio play error:', err))
-        pipAudioRefs.current.set(participantId, audio)
+    // Set remote stream on PiP video when minimized (show person speaking, not self)
+    useEffect(() => {
+      if (callState.isMinimized && pipVideoRef.current && firstRemoteParticipant?.stream) {
+        pipVideoRef.current.srcObject = firstRemoteParticipant.stream
+        pipVideoRef.current.play().catch(err => console.debug('PiP video play error:', err))
       }
-    })
+    }, [callState.isMinimized, firstRemoteParticipant])
 
-    // Clean up removed streams
-    pipAudioRefs.current.forEach((audio, participantId) => {
-      if (!remoteStreams.has(participantId)) {
-        audio.pause()
-        audio.srcObject = null
-        pipAudioRefs.current.delete(participantId)
+    // Set expanded video stream
+    useEffect(() => {
+      if (expandedStream && expandedVideoRef.current) {
+        expandedVideoRef.current.srcObject = expandedStream.stream
+        expandedVideoRef.current.play().catch(err => console.debug('Expanded video play error:', err))
       }
-    })
-  }, [callState.isMinimized, remoteStreams])
+    }, [expandedStream])
 
-  if (callState.status === 'idle') return null
+    // Play all remote audio streams when minimized (so user can hear others)
+    useEffect(() => {
+      if (!callState.isMinimized) {
+        // Clean up audio elements when not minimized
+        pipAudioRefs.current.forEach(audio => {
+          audio.pause()
+          audio.srcObject = null
+        })
+        pipAudioRefs.current.clear()
+        return
+      }
 
-  // Minimized view - floating PiP-style window
-  // Rendered as a portal to document.body so it persists even when chat component unmounts
-  if (callState.isMinimized) {
-    const hasRemoteVideo = firstRemoteParticipant?.stream?.getVideoTracks().some(t => t.enabled)
+      // Create audio elements for each remote stream
+      remoteStreams.forEach((stream, participantId) => {
+        if (!pipAudioRefs.current.has(participantId)) {
+          const audio = document.createElement('audio')
+          audio.autoplay = true
+          audio.srcObject = stream
+          audio.play().catch(err => console.debug('Audio play error:', err))
+          pipAudioRefs.current.set(participantId, audio)
+        }
+      })
 
-    const minimizedContent = (
-      <div
-        className="gba:fixed gba:bottom-12 gba:right-4 gba:z-50 gba:w-72 gba:bg-gray-900 gba:rounded-lg gba:shadow-2xl gba:overflow-hidden gba:border gba:border-gray-700"
-        data-testid={`${prefixDataTestId}-minimized`}
-      >
-        {/* Mini video preview - shows remote participant */}
-        <div className="gba:relative gba:aspect-video gba:bg-gray-800">
-          {hasRemoteVideo ? (
-            <video ref={pipVideoRef} autoPlay playsInline muted className="gba:w-full gba:h-full gba:object-cover" />
-          ) : (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-2">
-              {firstRemoteParticipant ? (
-                <>
-                  <Avatar className="gba:h-12 gba:w-12">
-                    {firstRemoteParticipant.participant.avatarUrl && (
-                      <AvatarImage src={firstRemoteParticipant.participant.avatarUrl} />
-                    )}
-                    <AvatarFallback className="gba:bg-primary/20">
-                      {getInitials(firstRemoteParticipant.participant.odName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="gba:text-white gba:text-xs">{firstRemoteParticipant.participant.odName}</span>
-                </>
-              ) : (
-                <span className="gba:text-gray-400 gba:text-xs">Waiting for participants...</span>
-              )}
-            </div>
-          )}
-          {/* Participant name overlay */}
-          {firstRemoteParticipant && hasRemoteVideo && (
-            <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-2">
-              <span className="gba:text-white gba:text-xs gba:truncate">
-                {firstRemoteParticipant.participant.odName}
-              </span>
-            </div>
-          )}
-          {/* Participant count overlay */}
-          <div className="gba:absolute gba:top-2 gba:left-2 gba:flex gba:items-center gba:gap-1 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
-            <Users className="gba:h-3 gba:w-3 gba:text-white" />
-            <span className="gba:text-white gba:text-xs">{participants.length}</span>
-          </div>
-          {/* Duration */}
-          <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
-            <span className="gba:text-white gba:text-xs gba:font-mono">{formatDuration(callState.duration)}</span>
-          </div>
-        </div>
+      // Clean up removed streams
+      pipAudioRefs.current.forEach((audio, participantId) => {
+        if (!remoteStreams.has(participantId)) {
+          audio.pause()
+          audio.srcObject = null
+          pipAudioRefs.current.delete(participantId)
+        }
+      })
+    }, [callState.isMinimized, remoteStreams])
 
-        {/* Mini controls */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:bg-gray-800">
-          <div className="gba:flex gba:items-center gba:gap-1">
-            <button
-              onClick={onToggleMute}
-              className={`gba:p-2 gba:rounded-full gba:transition-all ${
-                callState.isMuted
-                  ? 'gba:bg-red-500 gba:text-white'
-                  : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
-              }`}
-              title={callState.isMuted ? 'Unmute' : 'Mute'}
-            >
-              {callState.isMuted ? <MicOff className="gba:h-4 gba:w-4" /> : <Mic className="gba:h-4 gba:w-4" />}
-            </button>
-            <button
-              onClick={onToggleVideo}
-              className={`gba:p-2 gba:rounded-full gba:transition-all ${
-                !callState.isVideoEnabled
-                  ? 'gba:bg-red-500 gba:text-white'
-                  : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
-              }`}
-              title={callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
-            >
-              {callState.isVideoEnabled ? (
-                <Video className="gba:h-4 gba:w-4" />
-              ) : (
-                <VideoOff className="gba:h-4 gba:w-4" />
-              )}
-            </button>
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-1">
-            <button
-              onClick={onToggleMinimize}
-              className="gba:p-2 gba:rounded-full gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600 gba:transition-all"
-              title="Expand call"
-            >
-              <Maximize2 className="gba:h-4 gba:w-4" />
-            </button>
-            <button
-              onClick={onEndCall}
-              className="gba:p-2 gba:rounded-full gba:bg-red-500 gba:text-white hover:gba:bg-red-600 gba:transition-all"
-              title="Leave call"
-            >
-              <PhoneOff className="gba:h-4 gba:w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-    )
+    if (callState.status === 'idle') return null
 
-    // Render minimized view as portal to a dedicated container
-    // This prevents conflicts with other portals and the vanilla DOM renderer
-    let portalContainer = document.getElementById('group-call-minimized-portal')
-    if (!portalContainer) {
-      portalContainer = document.createElement('div')
-      portalContainer.id = 'group-call-minimized-portal'
-      portalContainer.style.cssText = 'position: fixed; z-index: 9999;'
-      document.body.appendChild(portalContainer)
-    }
-    return createPortal(minimizedContent, portalContainer)
-  }
+    // Minimized view - floating PiP-style window
+    // Rendered as a portal to document.body so it persists even when chat component unmounts
+    if (callState.isMinimized) {
+      const hasRemoteVideo = firstRemoteParticipant?.stream?.getVideoTracks().some(t => t.enabled)
 
-  return (
-    <Dialog open={true} onOpenChange={() => {}}>
-      <DialogContent
-        ref={containerRef}
-        className={`gba:p-0 gba:bg-gray-900 gba:border-none gba:overflow-hidden gba:flex gba:flex-col ${
-          isFullscreen
-            ? 'gba:fixed gba:inset-0 gba:max-w-none gba:w-screen gba:h-screen gba:rounded-none gba:translate-x-0 gba:translate-y-0'
-            : 'gba:max-w-5xl gba:w-[95vw] gba:h-[85vh]'
-        }`}
-        data-testid={prefixDataTestId}
-        showCloseButton={false}
-        onPointerDownOutside={e => e.preventDefault()}
-        onEscapeKeyDown={e => e.preventDefault()}
-        onOpenAutoFocus={e => e.preventDefault()}
-      >
-        {/* Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-gray-800/50">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <Users className="gba:h-5 gba:w-5 gba:text-white" />
-            <span className="gba:text-white gba:font-medium">Group Call</span>
-            <span className="gba:text-gray-400 gba:text-sm">
-              {participants.length} participant{participants.length !== 1 ? 's' : ''}
-            </span>
-            {/* Quality indicator */}
-            <div className="gba:flex gba:items-center gba:gap-1 gba:text-gray-400 gba:text-xs">
-              <QualityIcon quality={callState.videoQuality} className="gba:h-3 gba:w-3" />
-              <span className="gba:capitalize">{callState.videoQuality}</span>
-            </div>
-          </div>
-
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {callState.status === 'connected' && (
-              <span className="gba:text-white gba:font-mono gba:text-sm">{formatDuration(callState.duration)}</span>
-            )}
-            {callState.status === 'joining' && (
-              <span className="gba:text-yellow-400 gba:text-sm gba:animate-pulse">Connecting...</span>
-            )}
-
-            {/* Settings dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
-                  title="Settings"
-                >
-                  <Settings className="gba:h-4 gba:w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="gba:w-64">
-                <DropdownMenuLabel>Video Quality</DropdownMenuLabel>
-                {(['high', 'medium', 'low'] as VideoQuality[]).map(quality => (
-                  <DropdownMenuItem
-                    key={quality}
-                    onClick={() => onSetVideoQuality?.(quality)}
-                    className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
-                  >
-                    <div className="gba:flex gba:flex-col">
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <QualityIcon quality={quality} className="gba:h-4 gba:w-4" />
-                        <span>{qualityLabels[quality].label}</span>
-                      </div>
-                      <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">
-                        {qualityLabels[quality].description}
-                      </span>
-                    </div>
-                    {callState.videoQuality === quality && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
-                  </DropdownMenuItem>
-                ))}
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuLabel>Background</DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => onToggleBackground?.()}
-                  className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
-                >
-                  <div className="gba:flex gba:flex-col">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <ImageIcon className="gba:h-4 gba:w-4" />
-                      <span>Branded Background</span>
-                    </div>
-                    <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">Shows NEWWORK branding</span>
-                  </div>
-                  {backgroundEnabled && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
-                </DropdownMenuItem>
-
-                {getConnectionDiagnostics && (
+      const minimizedContent = (
+        <div
+          className="gba:fixed gba:bottom-12 gba:right-4 gba:z-50 gba:w-72 gba:bg-gray-900 gba:rounded-lg gba:shadow-2xl gba:overflow-hidden gba:border gba:border-gray-700"
+          data-testid={`${prefixDataTestId}-minimized`}
+        >
+          {/* Mini video preview - shows remote participant */}
+          <div className="gba:relative gba:aspect-video gba:bg-gray-800">
+            {hasRemoteVideo ? (
+              <video ref={pipVideoRef} autoPlay playsInline muted className="gba:w-full gba:h-full gba:object-cover" />
+            ) : (
+              <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-2">
+                {firstRemoteParticipant ? (
                   <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Diagnostics</DropdownMenuLabel>
+                    <Avatar className="gba:h-12 gba:w-12">
+                      {firstRemoteParticipant.participant.avatarUrl && (
+                        <AvatarImage src={firstRemoteParticipant.participant.avatarUrl} />
+                      )}
+                      <AvatarFallback className="gba:bg-primary/20">
+                        {getInitials(firstRemoteParticipant.participant.odName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="gba:text-white gba:text-xs">{firstRemoteParticipant.participant.odName}</span>
+                  </>
+                ) : (
+                  <span className="gba:text-gray-400 gba:text-xs">Waiting for participants...</span>
+                )}
+              </div>
+            )}
+            {/* Participant name overlay */}
+            {firstRemoteParticipant && hasRemoteVideo && (
+              <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-2">
+                <span className="gba:text-white gba:text-xs gba:truncate">
+                  {firstRemoteParticipant.participant.odName}
+                </span>
+              </div>
+            )}
+            {/* Participant count overlay */}
+            <div className="gba:absolute gba:top-2 gba:left-2 gba:flex gba:items-center gba:gap-1 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
+              <Users className="gba:h-3 gba:w-3 gba:text-white" />
+              <span className="gba:text-white gba:text-xs">{participants.length}</span>
+            </div>
+            {/* Duration */}
+            <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
+              <span className="gba:text-white gba:text-xs gba:font-mono">{formatDuration(callState.duration)}</span>
+            </div>
+          </div>
+
+          {/* Mini controls */}
+          <div className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:bg-gray-800">
+            <div className="gba:flex gba:items-center gba:gap-1">
+              <button
+                onClick={onToggleMute}
+                className={`gba:p-2 gba:rounded-full gba:transition-all ${
+                  callState.isMuted
+                    ? 'gba:bg-red-500 gba:text-white'
+                    : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
+                }`}
+                title={callState.isMuted ? t('chat-unmute') : t('chat-mute')}
+              >
+                {callState.isMuted ? <MicOff className="gba:h-4 gba:w-4" /> : <Mic className="gba:h-4 gba:w-4" />}
+              </button>
+              <button
+                onClick={onToggleVideo}
+                className={`gba:p-2 gba:rounded-full gba:transition-all ${
+                  !callState.isVideoEnabled
+                    ? 'gba:bg-red-500 gba:text-white'
+                    : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
+                }`}
+                title={callState.isVideoEnabled ? t('chat-turnOffCamera') : t('chat-turnOnCamera')}
+              >
+                {callState.isVideoEnabled ? (
+                  <Video className="gba:h-4 gba:w-4" />
+                ) : (
+                  <VideoOff className="gba:h-4 gba:w-4" />
+                )}
+              </button>
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-1">
+              <button
+                onClick={onToggleMinimize}
+                className="gba:p-2 gba:rounded-full gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600 gba:transition-all"
+                title={t('chat-fullscreen')}
+              >
+                <Maximize2 className="gba:h-4 gba:w-4" />
+              </button>
+              <button
+                onClick={onEndCall}
+                className="gba:p-2 gba:rounded-full gba:bg-red-500 gba:text-white hover:gba:bg-red-600 gba:transition-all"
+                title={t('chat-leaveCall')}
+              >
+                <PhoneOff className="gba:h-4 gba:w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+
+      // Render minimized view as portal to a dedicated container
+      // This prevents conflicts with other portals and the vanilla DOM renderer
+      let portalContainer = document.getElementById('group-call-minimized-portal')
+      if (!portalContainer) {
+        portalContainer = document.createElement('div')
+        portalContainer.id = 'group-call-minimized-portal'
+        portalContainer.style.cssText = 'position: fixed; z-index: 9999;'
+        document.body.appendChild(portalContainer)
+      }
+      return createPortal(minimizedContent, portalContainer)
+    }
+
+    return (
+      <Dialog open={true} onOpenChange={() => {}}>
+        <DialogContent
+          ref={containerRef}
+          className={`gba:p-0 gba:bg-gray-900 gba:border-none gba:overflow-hidden gba:flex gba:flex-col ${
+            isFullscreen
+              ? 'gba:fixed gba:inset-0 gba:max-w-none gba:w-screen gba:h-screen gba:rounded-none gba:translate-x-0 gba:translate-y-0'
+              : 'gba:max-w-5xl gba:w-[95vw] gba:h-[85vh]'
+          }`}
+          data-testid={prefixDataTestId}
+          showCloseButton={false}
+          onPointerDownOutside={e => e.preventDefault()}
+          onEscapeKeyDown={e => e.preventDefault()}
+          onOpenAutoFocus={e => e.preventDefault()}
+        >
+          {/* Header */}
+          <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-gray-800/50">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Users className="gba:h-5 gba:w-5 gba:text-white" />
+              <span className="gba:text-white gba:font-medium">{t('chat-groupCall')}</span>
+              <span className="gba:text-gray-400 gba:text-sm">
+                {participants.length} {participants.length === 1 ? t('chat-participant') : t('chat-participants')}
+              </span>
+              {/* Quality indicator */}
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-gray-400 gba:text-xs">
+                <QualityIcon quality={callState.videoQuality} className="gba:h-3 gba:w-3" />
+                <span className="gba:capitalize">{qualityLabels[callState.videoQuality].label}</span>
+              </div>
+            </div>
+
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {callState.status === 'connected' && (
+                <span className="gba:text-white gba:font-mono gba:text-sm">{formatDuration(callState.duration)}</span>
+              )}
+              {callState.status === 'joining' && (
+                <span className="gba:text-yellow-400 gba:text-sm gba:animate-pulse">{t('call-connecting')}</span>
+              )}
+
+              {/* Settings dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
+                    title={t('chat-settings')}
+                  >
+                    <Settings className="gba:h-4 gba:w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="gba:w-64">
+                  <DropdownMenuLabel>{t('call-videoQuality')}</DropdownMenuLabel>
+                  {(['high', 'medium', 'low'] as VideoQuality[]).map(quality => (
                     <DropdownMenuItem
-                      onClick={() => setShowDebugPanel(!showDebugPanel)}
+                      key={quality}
+                      onClick={() => onSetVideoQuality?.(quality)}
                       className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
                     >
                       <div className="gba:flex gba:flex-col">
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <Signal className="gba:h-4 gba:w-4" />
-                          <span>Connection Debug</span>
+                          <QualityIcon quality={quality} className="gba:h-4 gba:w-4" />
+                          <span>{qualityLabels[quality].label}</span>
                         </div>
                         <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">
-                          Show connection diagnostics
+                          {qualityLabels[quality].description}
                         </span>
                       </div>
-                      {showDebugPanel && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
+                      {callState.videoQuality === quality && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
                     </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  ))}
 
-            {/* Minimize button */}
-            {onToggleMinimize && (
-              <button
-                onClick={onToggleMinimize}
-                className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
-                title="Minimize call"
-              >
-                <Minimize2 className="gba:h-4 gba:w-4" />
-              </button>
-            )}
+                  <DropdownMenuSeparator />
 
-            {/* Fullscreen button */}
-            <button
-              onClick={toggleFullscreen}
-              className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
-              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-            >
-              {isFullscreen ? <Shrink className="gba:h-4 gba:w-4" /> : <Expand className="gba:h-4 gba:w-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Video Grid */}
-        <div className="gba:flex-1 gba:p-3 gba:overflow-hidden">
-          <div
-            className="gba:h-full gba:grid gba:gap-2"
-            style={{
-              gridTemplateColumns: `repeat(${gridLayout.cols}, 1fr)`,
-              gridTemplateRows: `repeat(${gridLayout.rows}, 1fr)`
-            }}
-          >
-            {allParticipants.map(({ participant, stream, isLocal }) => {
-              const isScreenShare = isScreenShareStream(stream)
-              const isReconnecting = reconnectingIds.has(participant.id)
-              const needsReconnect =
-                !isLocal && (participant.connectionState === 'failed' || participant.connectionState === 'disconnected')
-
-              return (
-                <VideoTile
-                  key={participant.id}
-                  participant={participant}
-                  stream={stream}
-                  isLocal={isLocal}
-                  isMuted={isLocal ? callState.isMuted : false}
-                  isVideoOff={isLocal ? !callState.isVideoEnabled : false}
-                  isHost={participant.id === callState.hostId}
-                  isScreenShare={isScreenShare}
-                  isReconnecting={isReconnecting}
-                  onExpand={
-                    stream ? () => setExpandedStream({ stream, participantName: participant.odName }) : undefined
-                  }
-                  onReconnect={
-                    needsReconnect && onReconnectParticipant
-                      ? async () => {
-                          setReconnectingIds(prev => new Set(prev).add(participant.id))
-                          try {
-                            await onReconnectParticipant(participant.id)
-                          } finally {
-                            // Clear reconnecting state after 10 seconds max
-                            setTimeout(() => {
-                              setReconnectingIds(prev => {
-                                const next = new Set(prev)
-                                next.delete(participant.id)
-                                return next
-                              })
-                            }, 10000)
-                          }
-                        }
-                      : undefined
-                  }
-                />
-              )
-            })}
-
-            {/* Pending invites - show "Calling..." tiles */}
-            {Array.from(pendingInvites.values()).map(invite => (
-              <div
-                key={`pending-${invite.id}`}
-                className="gba:relative gba:w-full gba:h-full gba:bg-gray-800 gba:rounded-lg gba:overflow-hidden gba:flex gba:items-center gba:justify-center gba:min-h-[120px]"
-              >
-                {/* Animated ring effect */}
-                <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
-                  <div
-                    className="gba:absolute gba:w-24 gba:h-24 gba:rounded-full gba:border-2 gba:border-primary/40 gba:animate-ping"
-                    style={{ animationDuration: '1.5s' }}
-                  />
-                  <div
-                    className="gba:absolute gba:w-20 gba:h-20 gba:rounded-full gba:border-2 gba:border-primary/60 gba:animate-ping"
-                    style={{ animationDuration: '1.5s', animationDelay: '0.3s' }}
-                  />
-                </div>
-
-                {/* Avatar */}
-                <div className="gba:relative gba:z-10 gba:flex gba:flex-col gba:items-center gba:gap-2">
-                  <Avatar className="gba:h-16 gba:w-16 gba:ring-2 gba:ring-primary/50">
-                    {invite.avatarUrl ? <AvatarImage src={invite.avatarUrl} alt={invite.odName} /> : null}
-                    <AvatarFallback className="gba:bg-gray-700 gba:text-white gba:text-lg">
-                      {getInitials(invite.odName)}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  {/* Name and status */}
-                  <div className="gba:text-center">
-                    <span className="gba:text-white gba:text-sm gba:font-medium gba:block gba:truncate gba:max-w-[120px]">
-                      {invite.odName}
-                    </span>
-                    <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mt-1">
-                      <Phone className="gba:h-3 gba:w-3 gba:text-primary gba:animate-pulse" />
-                      <span className="gba:text-primary gba:text-xs gba:animate-pulse">Calling...</span>
+                  <DropdownMenuLabel>{t('call-background')}</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => onToggleBackground?.()}
+                    className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
+                  >
+                    <div className="gba:flex gba:flex-col">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <ImageIcon className="gba:h-4 gba:w-4" />
+                        <span>{t('call-brandedBackground')}</span>
+                      </div>
+                      <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">
+                        {t('call-brandedBackgroundDesc')}
+                      </span>
                     </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+                    {backgroundEnabled && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
+                  </DropdownMenuItem>
 
-            {/* Empty slots placeholder */}
-            {allParticipants.length === 0 && pendingInvites.size === 0 && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:text-gray-500">
-                <span>Waiting for participants...</span>
-              </div>
-            )}
-          </div>
-        </div>
+                  {getConnectionDiagnostics && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>{t('call-diagnostics')}</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => setShowDebugPanel(!showDebugPanel)}
+                        className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
+                      >
+                        <div className="gba:flex gba:flex-col">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Signal className="gba:h-4 gba:w-4" />
+                            <span>{t('call-connectionDebug')}</span>
+                          </div>
+                          <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">
+                            {t('call-showDiagnostics')}
+                          </span>
+                        </div>
+                        {showDebugPanel && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-        {/* Controls */}
-        <div className="gba:flex gba:items-center gba:justify-center gba:gap-4 gba:p-4 gba:bg-gray-800/50">
-          {/* Mute button */}
-          <button
-            onClick={onToggleMute}
-            className={`gba:p-4 gba:rounded-full gba:transition-all ${
-              callState.isMuted
-                ? 'gba:bg-red-500 hover:gba:bg-red-600 gba:text-white'
-                : 'gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white'
-            }`}
-            title={callState.isMuted ? 'Unmute' : 'Mute'}
-            data-testid={`${prefixDataTestId}-mute-btn`}
-          >
-            {callState.isMuted ? <MicOff className="gba:h-6 gba:w-6" /> : <Mic className="gba:h-6 gba:w-6" />}
-          </button>
+              {/* Minimize button */}
+              {onToggleMinimize && (
+                <button
+                  onClick={onToggleMinimize}
+                  className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
+                  title={t('chat-minimizeCall')}
+                >
+                  <Minimize2 className="gba:h-4 gba:w-4" />
+                </button>
+              )}
 
-          {/* Video button */}
-          <button
-            onClick={onToggleVideo}
-            className={`gba:p-4 gba:rounded-full gba:transition-all ${
-              !callState.isVideoEnabled
-                ? 'gba:bg-red-500 hover:gba:bg-red-600 gba:text-white'
-                : 'gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white'
-            }`}
-            title={callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
-            data-testid={`${prefixDataTestId}-video-btn`}
-          >
-            {callState.isVideoEnabled ? (
-              <Video className="gba:h-6 gba:w-6" />
-            ) : (
-              <VideoOff className="gba:h-6 gba:w-6" />
-            )}
-          </button>
-
-          {/* Screen share button */}
-          <button
-            onClick={onToggleScreenShare}
-            className={`gba:p-4 gba:rounded-full gba:transition-all ${
-              callState.isScreenSharing
-                ? 'gba:bg-primary hover:gba:bg-primary/90 gba:text-white'
-                : 'gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white'
-            }`}
-            title={callState.isScreenSharing ? 'Stop sharing' : 'Share screen'}
-            data-testid={`${prefixDataTestId}-screen-share-btn`}
-          >
-            <Monitor className="gba:h-6 gba:w-6" />
-          </button>
-
-          {/* Add participant button */}
-          {onInviteParticipant && accessToken && (
-            <AddParticipantDropdown
-              accessToken={accessToken}
-              currentUserId={currentUserId || null}
-              participantsInCall={participants}
-              conversationParticipants={participantsNotInCall}
-              onAddParticipant={onInviteParticipant}
-              prefixDataTestId={`${prefixDataTestId}-add-participant`}
-            />
-          )}
-
-          {/* End call button */}
-          <button
-            onClick={onEndCall}
-            className="gba:p-4 gba:rounded-full gba:bg-red-500 hover:gba:bg-red-600 gba:text-white gba:transition-all gba:ml-4"
-            title="Leave call"
-            data-testid={`${prefixDataTestId}-end-btn`}
-          >
-            <PhoneOff className="gba:h-6 gba:w-6" />
-          </button>
-        </div>
-
-        {/* Expanded stream overlay */}
-        {expandedStream && (
-          <div
-            className="gba:fixed gba:inset-0 gba:z-50 gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
-            onClick={() => setExpandedStream(null)}
-          >
-            {/* Close button */}
-            <button
-              className="gba:absolute gba:top-4 gba:right-4 gba:p-3 gba:rounded-full gba:bg-white/10 hover:gba:bg-white/20 gba:text-white gba:transition-colors gba:z-10"
-              onClick={e => {
-                e.stopPropagation()
-                setExpandedStream(null)
-              }}
-              title="Close"
-            >
-              <Shrink className="gba:h-6 gba:w-6" />
-            </button>
-
-            {/* Participant name */}
-            <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2">
-              <Monitor className="gba:h-4 gba:w-4" />
-              <span>{expandedStream.participantName}'s screen</span>
-            </div>
-
-            {/* Video element - object-contain to preserve aspect ratio */}
-            <video
-              ref={expandedVideoRef}
-              autoPlay
-              playsInline
-              className="gba:max-w-full gba:max-h-full gba:object-contain"
-            />
-
-            {/* Click hint */}
-            <div className="gba:absolute gba:bottom-4 gba:left-1/2 gba:-translate-x-1/2 gba:text-white/60 gba:text-sm">
-              Click anywhere to close
-            </div>
-          </div>
-        )}
-
-        {/* Connection Debug Panel */}
-        {showDebugPanel && (
-          <div className="gba:absolute gba:top-12 gba:left-4 gba:bg-black/90 gba:text-white gba:p-4 gba:rounded-lg gba:text-xs gba:font-mono gba:max-w-md gba:max-h-[60vh] gba:overflow-auto gba:z-40">
-            <div className="gba:flex gba:justify-between gba:items-center gba:mb-3">
-              <span className="gba:font-bold gba:text-sm">🔧 Connection Diagnostics</span>
-              <button onClick={() => setShowDebugPanel(false)} className="gba:text-gray-400 hover:gba:text-white">
-                ✕
+              {/* Fullscreen button */}
+              <button
+                onClick={toggleFullscreen}
+                className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
+                title={isFullscreen ? t('chat-exitFullscreen') : t('chat-fullscreen')}
+              >
+                {isFullscreen ? <Shrink className="gba:h-4 gba:w-4" /> : <Expand className="gba:h-4 gba:w-4" />}
               </button>
             </div>
+          </div>
 
-            <div className="gba:mb-3">
-              <div className="gba:text-gray-400 gba:mb-1">Room: {callState.roomId}</div>
-              <div className="gba:text-gray-400">Participants: {participants.length}</div>
-            </div>
-
-            {diagnostics.size === 0 ? (
-              <div className="gba:text-gray-400">No peer connections yet</div>
-            ) : (
-              Array.from(diagnostics.entries()).map(([participantId, data]) => {
-                const participant = participants.find(p => p.id === participantId)
-                const isConnected = data.connectionState === 'connected'
-                const isFailed = data.connectionState === 'failed' || data.iceConnectionState === 'failed'
+          {/* Video Grid */}
+          <div className="gba:flex-1 gba:p-3 gba:overflow-hidden">
+            <div
+              className="gba:h-full gba:grid gba:gap-2"
+              style={{
+                gridTemplateColumns: `repeat(${gridLayout.cols}, 1fr)`,
+                gridTemplateRows: `repeat(${gridLayout.rows}, 1fr)`
+              }}
+            >
+              {allParticipants.map(({ participant, stream, isLocal }) => {
+                const isScreenShare = isScreenShareStream(stream)
+                const isReconnecting = reconnectingIds.has(participant.id)
+                const needsReconnect =
+                  !isLocal &&
+                  (participant.connectionState === 'failed' || participant.connectionState === 'disconnected')
 
                 return (
-                  <div key={participantId} className="gba:mb-4 gba:border gba:border-gray-700 gba:rounded gba:p-2">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                      <span
-                        className={`gba:w-2 gba:h-2 gba:rounded-full ${
-                          isConnected ? 'gba:bg-green-500' : isFailed ? 'gba:bg-red-500' : 'gba:bg-yellow-500'
-                        }`}
-                      />
-                      <span className="gba:font-bold">{participant?.odName || participantId.substring(0, 8)}</span>
-                    </div>
-
-                    <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-1">
-                      <span className="gba:text-gray-400">Connection:</span>
-                      <span
-                        className={
-                          isFailed ? 'gba:text-red-400' : isConnected ? 'gba:text-green-400' : 'gba:text-yellow-400'
-                        }
-                      >
-                        {data.connectionState}
-                      </span>
-
-                      <span className="gba:text-gray-400">ICE:</span>
-                      <span className={data.iceConnectionState === 'failed' ? 'gba:text-red-400' : ''}>
-                        {data.iceConnectionState}
-                      </span>
-
-                      <span className="gba:text-gray-400">ICE Gathering:</span>
-                      <span>{data.iceGatheringState}</span>
-
-                      <span className="gba:text-gray-400">Candidates Sent:</span>
-                      <span>{data.iceCandidatesSent || 0}</span>
-
-                      <span className="gba:text-gray-400">Candidates Recv:</span>
-                      <span>{data.iceCandidatesReceived || 0}</span>
-
-                      <span className="gba:text-gray-400">Candidate Types:</span>
-                      <span className="gba:text-[10px]">{(data.iceCandidateTypes || []).join(', ') || 'none'}</span>
-                    </div>
-
-                    {data.lastError && (
-                      <div className="gba:mt-2 gba:text-red-400 gba:text-[10px]">⚠️ {data.lastError}</div>
-                    )}
-                  </div>
+                  <VideoTile
+                    key={participant.id}
+                    participant={participant}
+                    stream={stream}
+                    isLocal={isLocal}
+                    isMuted={isLocal ? callState.isMuted : false}
+                    isVideoOff={isLocal ? !callState.isVideoEnabled : false}
+                    isHost={participant.id === callState.hostId}
+                    isScreenShare={isScreenShare}
+                    isReconnecting={isReconnecting}
+                    onExpand={
+                      stream ? () => setExpandedStream({ stream, participantName: participant.odName }) : undefined
+                    }
+                    onReconnect={
+                      needsReconnect && onReconnectParticipant
+                        ? async () => {
+                            setReconnectingIds(prev => new Set(prev).add(participant.id))
+                            try {
+                              await onReconnectParticipant(participant.id)
+                            } finally {
+                              // Clear reconnecting state after 10 seconds max
+                              setTimeout(() => {
+                                setReconnectingIds(prev => {
+                                  const next = new Set(prev)
+                                  next.delete(participant.id)
+                                  return next
+                                })
+                              }, 10000)
+                            }
+                          }
+                        : undefined
+                    }
+                    t={t}
+                  />
                 )
-              })
-            )}
+              })}
 
-            <div className="gba:mt-3 gba:pt-3 gba:border-t gba:border-gray-700 gba:text-gray-400 gba:text-[10px]">
-              <div>💡 If connection fails:</div>
-              <div>• Check if TURN server is configured</div>
-              <div>• User may be behind strict firewall/NAT</div>
-              <div>• Check console for detailed logs</div>
+              {/* Pending invites - show "Calling..." tiles */}
+              {Array.from(pendingInvites.values()).map(invite => (
+                <div
+                  key={`pending-${invite.id}`}
+                  className="gba:relative gba:w-full gba:h-full gba:bg-gray-800 gba:rounded-lg gba:overflow-hidden gba:flex gba:items-center gba:justify-center gba:min-h-[120px]"
+                >
+                  {/* Animated ring effect */}
+                  <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
+                    <div
+                      className="gba:absolute gba:w-24 gba:h-24 gba:rounded-full gba:border-2 gba:border-primary/40 gba:animate-ping"
+                      style={{ animationDuration: '1.5s' }}
+                    />
+                    <div
+                      className="gba:absolute gba:w-20 gba:h-20 gba:rounded-full gba:border-2 gba:border-primary/60 gba:animate-ping"
+                      style={{ animationDuration: '1.5s', animationDelay: '0.3s' }}
+                    />
+                  </div>
+
+                  {/* Avatar */}
+                  <div className="gba:relative gba:z-10 gba:flex gba:flex-col gba:items-center gba:gap-2">
+                    <Avatar className="gba:h-16 gba:w-16 gba:ring-2 gba:ring-primary/50">
+                      {invite.avatarUrl ? <AvatarImage src={invite.avatarUrl} alt={invite.odName} /> : null}
+                      <AvatarFallback className="gba:bg-gray-700 gba:text-white gba:text-lg">
+                        {getInitials(invite.odName)}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* Name and status */}
+                    <div className="gba:text-center">
+                      <span className="gba:text-white gba:text-sm gba:font-medium gba:block gba:truncate gba:max-w-[120px]">
+                        {invite.odName}
+                      </span>
+                      <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mt-1">
+                        <Phone className="gba:h-3 gba:w-3 gba:text-primary gba:animate-pulse" />
+                        <span className="gba:text-primary gba:text-xs gba:animate-pulse">Calling...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Empty slots placeholder */}
+              {allParticipants.length === 0 && pendingInvites.size === 0 && (
+                <div className="gba:flex gba:items-center gba:justify-center gba:text-gray-500">
+                  <span>Waiting for participants...</span>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-}
+
+          {/* Controls */}
+          <div className="gba:flex gba:items-center gba:justify-center gba:gap-4 gba:p-4 gba:bg-gray-800/50">
+            {/* Mute button */}
+            <button
+              onClick={onToggleMute}
+              className={`gba:p-4 gba:rounded-full gba:transition-all ${
+                callState.isMuted
+                  ? 'gba:bg-red-500 hover:gba:bg-red-600 gba:text-white'
+                  : 'gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white'
+              }`}
+              title={callState.isMuted ? t('chat-unmute') : t('chat-mute')}
+              data-testid={`${prefixDataTestId}-mute-btn`}
+            >
+              {callState.isMuted ? <MicOff className="gba:h-6 gba:w-6" /> : <Mic className="gba:h-6 gba:w-6" />}
+            </button>
+
+            {/* Video button */}
+            <button
+              onClick={onToggleVideo}
+              className={`gba:p-4 gba:rounded-full gba:transition-all ${
+                !callState.isVideoEnabled
+                  ? 'gba:bg-red-500 hover:gba:bg-red-600 gba:text-white'
+                  : 'gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white'
+              }`}
+              title={callState.isVideoEnabled ? t('chat-turnOffCamera') : t('chat-turnOnCamera')}
+              data-testid={`${prefixDataTestId}-video-btn`}
+            >
+              {callState.isVideoEnabled ? (
+                <Video className="gba:h-6 gba:w-6" />
+              ) : (
+                <VideoOff className="gba:h-6 gba:w-6" />
+              )}
+            </button>
+
+            {/* Screen share button */}
+            <button
+              onClick={onToggleScreenShare}
+              className={`gba:p-4 gba:rounded-full gba:transition-all ${
+                callState.isScreenSharing
+                  ? 'gba:bg-primary hover:gba:bg-primary/90 gba:text-white'
+                  : 'gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white'
+              }`}
+              title={callState.isScreenSharing ? t('chat-stopSharing') : t('chat-shareScreen')}
+              data-testid={`${prefixDataTestId}-screen-share-btn`}
+            >
+              <Monitor className="gba:h-6 gba:w-6" />
+            </button>
+
+            {/* Add participant button */}
+            {onInviteParticipant && accessToken && (
+              <AddParticipantDropdown
+                accessToken={accessToken}
+                currentUserId={currentUserId || null}
+                participantsInCall={participants}
+                conversationParticipants={participantsNotInCall}
+                onAddParticipant={onInviteParticipant}
+                prefixDataTestId={`${prefixDataTestId}-add-participant`}
+              />
+            )}
+
+            {/* End call button */}
+            <button
+              onClick={onEndCall}
+              className="gba:p-4 gba:rounded-full gba:bg-red-500 hover:gba:bg-red-600 gba:text-white gba:transition-all gba:ml-4"
+              title={t('chat-leaveCall')}
+              data-testid={`${prefixDataTestId}-end-btn`}
+            >
+              <PhoneOff className="gba:h-6 gba:w-6" />
+            </button>
+          </div>
+
+          {/* Expanded stream overlay */}
+          {expandedStream && (
+            <div
+              className="gba:fixed gba:inset-0 gba:z-50 gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
+              onClick={() => setExpandedStream(null)}
+            >
+              {/* Close button */}
+              <button
+                className="gba:absolute gba:top-4 gba:right-4 gba:p-3 gba:rounded-full gba:bg-white/10 hover:gba:bg-white/20 gba:text-white gba:transition-colors gba:z-10"
+                onClick={e => {
+                  e.stopPropagation()
+                  setExpandedStream(null)
+                }}
+                title="Close"
+              >
+                <Shrink className="gba:h-6 gba:w-6" />
+              </button>
+
+              {/* Participant name */}
+              <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2">
+                <Monitor className="gba:h-4 gba:w-4" />
+                <span>{t('chat-screenShare', { name: expandedStream.participantName })}</span>
+              </div>
+
+              {/* Video element - object-contain to preserve aspect ratio */}
+              <video
+                ref={expandedVideoRef}
+                autoPlay
+                playsInline
+                className="gba:max-w-full gba:max-h-full gba:object-contain"
+              />
+
+              {/* Click hint */}
+              <div className="gba:absolute gba:bottom-4 gba:left-1/2 gba:-translate-x-1/2 gba:text-white/60 gba:text-sm">
+                {t('call-clickToClose')}
+              </div>
+            </div>
+          )}
+
+          {/* Connection Debug Panel */}
+          {showDebugPanel && (
+            <div className="gba:absolute gba:top-12 gba:left-4 gba:bg-black/90 gba:text-white gba:p-4 gba:rounded-lg gba:text-xs gba:font-mono gba:max-w-md gba:max-h-[60vh] gba:overflow-auto gba:z-40">
+              <div className="gba:flex gba:justify-between gba:items-center gba:mb-3">
+                <span className="gba:font-bold gba:text-sm">🔧 Connection Diagnostics</span>
+                <button onClick={() => setShowDebugPanel(false)} className="gba:text-gray-400 hover:gba:text-white">
+                  ✕
+                </button>
+              </div>
+
+              <div className="gba:mb-3">
+                <div className="gba:text-gray-400 gba:mb-1">Room: {callState.roomId}</div>
+                <div className="gba:text-gray-400">Participants: {participants.length}</div>
+              </div>
+
+              {diagnostics.size === 0 ? (
+                <div className="gba:text-gray-400">No peer connections yet</div>
+              ) : (
+                Array.from(diagnostics.entries()).map(([participantId, data]) => {
+                  const participant = participants.find(p => p.id === participantId)
+                  const isConnected = data.connectionState === 'connected'
+                  const isFailed = data.connectionState === 'failed' || data.iceConnectionState === 'failed'
+
+                  return (
+                    <div key={participantId} className="gba:mb-4 gba:border gba:border-gray-700 gba:rounded gba:p-2">
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                        <span
+                          className={`gba:w-2 gba:h-2 gba:rounded-full ${
+                            isConnected ? 'gba:bg-green-500' : isFailed ? 'gba:bg-red-500' : 'gba:bg-yellow-500'
+                          }`}
+                        />
+                        <span className="gba:font-bold">{participant?.odName || participantId.substring(0, 8)}</span>
+                      </div>
+
+                      <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-1">
+                        <span className="gba:text-gray-400">Connection:</span>
+                        <span
+                          className={
+                            isFailed ? 'gba:text-red-400' : isConnected ? 'gba:text-green-400' : 'gba:text-yellow-400'
+                          }
+                        >
+                          {data.connectionState}
+                        </span>
+
+                        <span className="gba:text-gray-400">ICE:</span>
+                        <span className={data.iceConnectionState === 'failed' ? 'gba:text-red-400' : ''}>
+                          {data.iceConnectionState}
+                        </span>
+
+                        <span className="gba:text-gray-400">ICE Gathering:</span>
+                        <span>{data.iceGatheringState}</span>
+
+                        <span className="gba:text-gray-400">Candidates Sent:</span>
+                        <span>{data.iceCandidatesSent || 0}</span>
+
+                        <span className="gba:text-gray-400">Candidates Recv:</span>
+                        <span>{data.iceCandidatesReceived || 0}</span>
+
+                        <span className="gba:text-gray-400">Candidate Types:</span>
+                        <span className="gba:text-[10px]">{(data.iceCandidateTypes || []).join(', ') || 'none'}</span>
+                      </div>
+
+                      {data.lastError && (
+                        <div className="gba:mt-2 gba:text-red-400 gba:text-[10px]">⚠️ {data.lastError}</div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+
+              <div className="gba:mt-3 gba:pt-3 gba:border-t gba:border-gray-700 gba:text-gray-400 gba:text-[10px]">
+                <div>💡 If connection fails:</div>
+                <div>• Check if TURN server is configured</div>
+                <div>• User may be behind strict firewall/NAT</div>
+                <div>• Check console for detailed logs</div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    )
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if call state, streams, participants, or relevant props change
+    return (
+      prevProps.callState.status === nextProps.callState.status &&
+      prevProps.callState.isMuted === nextProps.callState.isMuted &&
+      prevProps.callState.isVideoEnabled === nextProps.callState.isVideoEnabled &&
+      prevProps.callState.isScreenSharing === nextProps.callState.isScreenSharing &&
+      prevProps.callState.isMinimized === nextProps.callState.isMinimized &&
+      prevProps.callState.videoQuality === nextProps.callState.videoQuality &&
+      prevProps.callState.duration === nextProps.callState.duration &&
+      prevProps.localStream === nextProps.localStream &&
+      prevProps.remoteStreams === nextProps.remoteStreams &&
+      prevProps.participants.length === nextProps.participants.length &&
+      prevProps.pendingInvites?.size === nextProps.pendingInvites?.size &&
+      prevProps.backgroundEnabled === nextProps.backgroundEnabled &&
+      prevProps.prefixDataTestId === nextProps.prefixDataTestId &&
+      prevProps.currentUserId === nextProps.currentUserId
+    )
+  }
+)

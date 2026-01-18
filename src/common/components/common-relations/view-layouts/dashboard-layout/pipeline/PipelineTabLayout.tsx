@@ -34,6 +34,9 @@ export interface PipelineTabLayoutProps {
   selectedCurrency?: string
   onCurrencyChange?: (currency: string) => void
 
+  // Loading state
+  isLoading?: boolean
+
   // Data props for widgets
   pipelineId: string
   metrics: PipelineStatisticsMetrics
@@ -55,6 +58,7 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
   availableCurrencies,
   selectedCurrency,
   onCurrencyChange,
+  isLoading = false,
   pipelineId,
   metrics,
   funnelData,
@@ -64,6 +68,7 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
 }) => {
   // _moduleColor is available for future use in styling
   void _moduleColor
+
   return (
     <div className="gba:space-y-6">
       {/* Pipeline Header */}
@@ -122,20 +127,30 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
       </Card>
 
       {/* KPI Overview Grid */}
-      <PipelineStatistics pipelineId={pipelineId} metrics={metrics} currency={selectedCurrency} />
+      <PipelineStatistics pipelineId={pipelineId} metrics={metrics} currency={selectedCurrency} isLoading={isLoading} />
 
       {/* Main Components Grid */}
       <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6">
         {/* Left Column */}
         <div className="gba:space-y-6">
-          <OpportunityFunnel funnelData={funnelData} pipelineId={pipelineId} currency={selectedCurrency} />
-          <ConversionPerformance winRateMetrics={winRateMetrics} pipelineId={pipelineId} />
+          <OpportunityFunnel
+            funnelData={funnelData}
+            pipelineId={pipelineId}
+            currency={selectedCurrency}
+            isLoading={isLoading}
+          />
+          <ConversionPerformance winRateMetrics={winRateMetrics} pipelineId={pipelineId} isLoading={isLoading} />
         </div>
 
         {/* Right Column */}
         <div className="gba:space-y-6">
-          <ActivityVolume activityVolume={activityVolume} pipelineId={pipelineId} />
-          <PerformanceLeaderboard leaderboard={leaderboard} pipelineId={pipelineId} currency={selectedCurrency} />
+          <ActivityVolume activityVolume={activityVolume} pipelineId={pipelineId} isLoading={isLoading} />
+          <PerformanceLeaderboard
+            leaderboard={leaderboard}
+            pipelineId={pipelineId}
+            currency={selectedCurrency}
+            isLoading={isLoading}
+          />
         </div>
       </div>
     </div>

@@ -45,82 +45,12 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
     const analytics = data?.analytics || {}
     const slaKillers = analytics.flowManagement?.slaKillers || []
 
-    // Create enhanced violations with mock data for better visualization
-    const mockViolations: SLAViolation[] = [
-      {
-        id: 'violation-001',
-        flowName: 'Employee Onboarding',
-        stepName: 'Manager Approval',
-        department: 'Human Resources',
-        violationRate: 65,
-        avgOverdueHours: 48,
-        totalTasks: 124,
-        severity: 'critical',
-        trend: 'worsening'
-      },
-      {
-        id: 'violation-002',
-        flowName: 'Budget Approval',
-        stepName: 'CFO Review',
-        department: 'Finance',
-        violationRate: 45,
-        avgOverdueHours: 72,
-        totalTasks: 89,
-        severity: 'high',
-        trend: 'stable'
-      },
-      {
-        id: 'violation-003',
-        flowName: 'IT Setup Request',
-        stepName: 'Equipment Procurement',
-        department: 'IT Department',
-        violationRate: 35,
-        avgOverdueHours: 24,
-        totalTasks: 156,
-        severity: 'high',
-        trend: 'improving'
-      },
-      {
-        id: 'violation-004',
-        flowName: 'Client Onboarding',
-        stepName: 'Document Verification',
-        department: 'Operations',
-        violationRate: 25,
-        avgOverdueHours: 18,
-        totalTasks: 67,
-        severity: 'medium',
-        trend: 'stable'
-      },
-      {
-        id: 'violation-005',
-        flowName: 'Code Review',
-        stepName: 'Security Scan',
-        department: 'Engineering',
-        violationRate: 18,
-        avgOverdueHours: 12,
-        totalTasks: 234,
-        severity: 'medium',
-        trend: 'improving'
-      },
-      {
-        id: 'violation-006',
-        flowName: 'Purchase Order',
-        stepName: 'Vendor Approval',
-        department: 'Procurement',
-        violationRate: 12,
-        avgOverdueHours: 8,
-        totalTasks: 98,
-        severity: 'low',
-        trend: 'stable'
-      }
-    ]
-
-    // Combine with real data if available
     const realViolations = slaKillers.map((killer: any, index: number) => ({
       id: `real-violation-${index}`,
       flowName: killer.flow_name || 'Unknown Flow',
       stepName: killer.step_name || 'Unknown Step',
-      department: ['HR', 'Finance', 'IT', 'Operations', 'Engineering'][index % 5],
+      // Do not invent departments; use real fields when present.
+      department: killer.department || killer.orgUnit || '—',
       violationRate: killer.violation_rate || 0,
       avgOverdueHours: killer.avg_overdue_hours || 0,
       totalTasks: killer.total_tasks || 0,
@@ -132,10 +62,11 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
             : killer.violation_rate > 15
               ? 'medium'
               : 'low',
-      trend: Math.random() > 0.5 ? 'improving' : 'worsening'
+      trend:
+        killer.violation_rate > 50 ? 'worsening' : killer.violation_rate < 15 ? 'improving' : ('stable' as const)
     }))
 
-    return [...mockViolations, ...realViolations].slice(0, 8)
+    return realViolations.slice(0, 8)
   }, [])
 
   // Get severity color and styling

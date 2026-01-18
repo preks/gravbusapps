@@ -4,7 +4,7 @@ import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilter
 import ExpenseRequestStatistics from './ExpenseRequestStatistics'
 import ExpenseRequestsTable from './ExpenseRequestsTable'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
-import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
+import { standardizeCurrencyRef, extractCurrencyCode } from '../../../utils/currencyUtils'
 
 export type ExpenseRequestsTabProps = BusinessAppContextProps
 
@@ -20,7 +20,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     handleDataFilterChange,
     filterLabelMap,
     addFilter,
-    removeFilter
+    removeFilter,
+    setFilters
   } = useExpenseRequestFilters({
     accessToken: props.accessToken,
     managerId,
@@ -106,11 +107,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const expenseRequests = useMemo(() => {
     const rows = overview.data?.expenseRequests || []
     return rows.map((r: any) => {
-      // Extract currency code from currencyRef (format: "Currency:v1:EUR" -> "EUR")
-      let currency: string | undefined
-      if (typeof r?.currencyRef === 'string') {
-        currency = r.currencyRef.includes(':') ? r.currencyRef.split(':').pop() : r.currencyRef
-      }
+      // Extract currency code from currencyRef
+      const currency = r?.currencyRef ? extractCurrencyCode(r.currencyRef) : undefined
 
       return {
         id: r.id,
@@ -121,10 +119,13 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
         endDate: r.endDate,
         description: r.description,
         amount: Number(r.totalAmount ?? 0),
+        totalAmount: Number(r.totalAmount ?? 0),
         currency: currency || primaryCurrency || 'EUR',
+        currencyRef: r.currencyRef,
         status: r.status,
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
+        requestType: r.requestType,
         employeeDocument: r.employeeDocument || null,
         expensePlan: r.expensePlan || null,
         employee: r.employee || null
@@ -178,8 +179,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
           requestStatsError={requestStatsError}
           fetchRequestStatistics={fetchRequestStatistics}
           currencyFilter={primaryCurrency}
-          addFilter={addFilter}
-          removeFilter={removeFilter}
+          setFilters={setFilters}
           selectedFilters={selectedFilters}
         />
       </div>

@@ -180,7 +180,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         'Submitted expense requests'
       ),
       trend: totalRequestsTrend,
-      active: activeWidgetKey === 'total-requests'
+      active: activeWidgetKey === 'total-requests',
+      onClick: () => handleWidgetClick('total-requests')
     },
     {
       key: 'total-amount',
@@ -201,7 +202,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         'Across all requests'
       ),
       trend: totalAmountTrend,
-      active: activeWidgetKey === 'total-amount'
+      active: activeWidgetKey === 'total-amount',
+      onClick: () => handleWidgetClick('total-amount')
     },
     {
       key: 'pending-approval',
@@ -217,7 +219,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         'lowcoder:team_expenses_page.expense_plans_tab.requires_action',
         'Requires action'
       ),
-      active: activeWidgetKey === 'pending-approval'
+      active: activeWidgetKey === 'pending-approval',
+      onClick: () => handleWidgetClick('pending-approval')
     },
     {
       key: 'reimbursable',
@@ -228,7 +231,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_be_reimbursed', 'To be reimbursed'),
-      active: activeWidgetKey === 'reimbursable'
+      active: activeWidgetKey === 'reimbursable',
+      onClick: () => handleWidgetClick('reimbursable')
     }
   ]
 

@@ -9,9 +9,11 @@ import { useEmployeeData } from '../employee-record/hooks/useEmployeeData'
 import timeTrackingTranslations from './_i18n'
 import DailyLog from './components/DailyLog'
 import TimeHistory from './components/TimeHistory'
+import SmartBooking from '../employee-record/components/tabs/components/SmartBooking'
 
 enum MyTimeTabEnum {
   TimeTracking = 'time-tracking',
+  SmartBooking = 'smart-booking',
   DailyLog = 'daily-log',
   History = 'history'
 }
@@ -44,12 +46,16 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
               label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Time Tracking')
             },
             {
+              value: MyTimeTabEnum.SmartBooking,
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.title', 'Smart Booking')
+            },
+            {
               value: MyTimeTabEnum.DailyLog,
               label: t('daily_log')
             },
             {
               value: MyTimeTabEnum.History,
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.history.title', 'History')
+              label: t('history')
             }
           ]
         }}
@@ -59,6 +65,12 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
         {activeTab === MyTimeTabEnum.TimeTracking && (
           <div data-testid="my-time-timesheet-content" className="gba:mt-4">
             <TimeTracking employee={employee} employeeId={employeeId} accessToken={accessToken} isSelfView={true} />
+          </div>
+        )}
+
+        {activeTab === MyTimeTabEnum.SmartBooking && (
+          <div data-testid="my-time-smart-booking-content" className="gba:mt-4">
+            <SmartBooking employeeId={employeeId} accessToken={accessToken} />
           </div>
         )}
 
@@ -74,8 +86,10 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
               employeeId={employeeId}
               accessToken={accessToken}
               userId={userInfo?.id || ''}
+              employeeCode={employee?.code}
               employeeFirstName={employee?.firstName}
               employeeLastName={employee?.lastName}
+              workingHours={employee?.workingHours?.[0]}
             />
           </div>
         )}

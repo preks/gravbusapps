@@ -50,9 +50,9 @@ interface StatusSelectProps {
 }
 
 const StatusSelect: React.FC<StatusSelectProps> = ({ field, dataTestId, t, onStatusChangeRequest }) => {
-  const { setValue } = useFormContext()
+  const { setValue, trigger } = useFormContext()
 
-  const handleStatusChange = (value: string) => {
+  const handleStatusChange = async (value: string) => {
     const newStatus = value as ProjectStatusBE
 
     // Check if user is trying to set CANCELLED or COMPLETED
@@ -62,6 +62,8 @@ const StatusSelect: React.FC<StatusSelectProps> = ({ field, dataTestId, t, onSta
     } else {
       // For other statuses, update directly
       setValue('status', newStatus, { shouldValidate: true, shouldDirty: true })
+      // Re-trigger validation for validFrom since cross-field validation depends on status
+      await trigger('validFrom')
     }
   }
 
@@ -125,29 +127,35 @@ const ConfirmStatusDialog: React.FC<ConfirmStatusDialogProps> = ({
   dataTestId,
   t
 }) => {
-  const { setValue } = useFormContext()
+  const { setValue, trigger } = useFormContext()
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     // Restore previous status if user cancels
     if (previousStatusValue) {
       setValue('status', previousStatusValue, { shouldValidate: true, shouldDirty: true })
+      // Re-trigger validation for validFrom since cross-field validation depends on status
+      await trigger('validFrom')
     }
     onClose()
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (pendingStatus) {
       // Update the form field with the confirmed status
       setValue('status', pendingStatus, { shouldValidate: true, shouldDirty: true })
+      // Re-trigger validation for validFrom since cross-field validation depends on status
+      await trigger('validFrom')
     }
     onClose()
   }
 
-  const handleOpenChange = (open: boolean) => {
+  const handleOpenChange = async (open: boolean) => {
     if (!open) {
       // Restore previous status if dialog is closed without confirmation
       if (previousStatusValue) {
         setValue('status', previousStatusValue, { shouldValidate: true, shouldDirty: true })
+        // Re-trigger validation for validFrom since cross-field validation depends on status
+        await trigger('validFrom')
       }
       onClose()
     }
@@ -391,6 +399,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         const account = accounts.find(acc => acc.id === project.customerId)
         setSelectedAccountId(account?.id || null)
       }
+      // Set the project manager ID when editing
+      if (project.projectManagerId) {
+        setSelectedUserId(project.projectManagerId)
+      }
     }
   }, [project, accounts])
 
@@ -543,15 +555,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         name="projectManagerId"
         render={() => (
           <FormItem>
-            <FormLabel>
-              {t('forms.project.fields.projectManager.label', { defaultValue: 'Select Project Manager' })}
-            </FormLabel>
+            <FormLabel>{t('forms.project.fields.projectManager.label', { defaultValue: 'Project Manager' })}</FormLabel>
             <FormControl>
               <EmployeeSelect
                 value={selectedUserId}
                 employees={employees}
                 onValueChange={setSelectedUserId}
                 onSearch={search}
+                initialEmployee={project?.manager}
                 loading={searchLoading}
                 hasMore={hasMore}
                 onLoadMore={loadMore}
@@ -568,7 +579,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         name="hoursBudget"
         render={({ field }) => (
           <FormItem className="gba:w-1/2">
-            <FormLabel>{t('forms.project.fields.effort.label', { defaultValue: 'Effort (Hours)' })}</FormLabel>
+            <FormLabel>
+              {t('forms.project.fields.effort.label', { defaultValue: 'Estimated Effort (Hours)' })}
+            </FormLabel>
             <FormControl>
               <Input
                 type="text"

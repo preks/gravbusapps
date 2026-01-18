@@ -100,6 +100,8 @@ task-completion-outcome-acknowledged = Acknowledged
 task-footer-reject = Reject
 task-footer-reassign = Reassign
 task-footer-unclaim = Unclaim
+task-details-task-claimed = Task claimed successfully!
+task-details-task-unclaimed = Task unclaimed successfully!
 
 # FlowDetailDialog Component
 flow-detail-loading = Loading...

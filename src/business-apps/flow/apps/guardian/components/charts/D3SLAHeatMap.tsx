@@ -58,61 +58,13 @@ export const D3SLAHeatMap: React.FC<D3SLAHeatMapProps> = ({
         violationRate: killer.violation_rate || 0,
         avgOverdueHours: killer.avg_overdue_hours || 0,
         totalTasks: killer.total_tasks || 0,
-        department: ['HR', 'IT', 'Finance', 'Engineering', 'Operations'][index % 5],
+        // Do not invent departments; use real fields when present.
+        department: killer.department || killer.orgUnit || '—',
         severity
       })
     })
 
-    // Add some mock violations for visualization
-    const mockViolations = [
-      {
-        flowName: 'Employee Onboarding',
-        stepName: 'Manager Approval',
-        violationRate: 45,
-        avgOverdueHours: 18,
-        totalTasks: 156,
-        department: 'HR',
-        severity: 'high' as const
-      },
-      {
-        flowName: 'IT Setup Request',
-        stepName: 'Equipment Procurement',
-        violationRate: 25,
-        avgOverdueHours: 72,
-        totalTasks: 89,
-        department: 'IT',
-        severity: 'medium' as const
-      },
-      {
-        flowName: 'Budget Approval',
-        stepName: 'CFO Review',
-        violationRate: 60,
-        avgOverdueHours: 96,
-        totalTasks: 45,
-        department: 'Finance',
-        severity: 'critical' as const
-      },
-      {
-        flowName: 'Code Review',
-        stepName: 'Security Scan',
-        violationRate: 15,
-        avgOverdueHours: 6,
-        totalTasks: 234,
-        department: 'Engineering',
-        severity: 'low' as const
-      },
-      {
-        flowName: 'Client Onboarding',
-        stepName: 'Document Verification',
-        violationRate: 35,
-        avgOverdueHours: 24,
-        totalTasks: 67,
-        department: 'Operations',
-        severity: 'high' as const
-      }
-    ]
-
-    return [...violations, ...mockViolations].slice(0, 12) // Limit for visualization
+    return violations.slice(0, 12) // Limit for visualization
   }, [])
 
   // Create pulsing animation for critical violations

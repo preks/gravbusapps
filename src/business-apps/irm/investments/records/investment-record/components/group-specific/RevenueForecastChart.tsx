@@ -11,7 +11,7 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell } from 'recharts'
-import { Edit } from 'lucide-react'
+import { PencilIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -452,7 +452,7 @@ export const RevenueForecastChart: React.FC<RevenueForecastChartProps> = ({
                 data-testid="revenue-forecast-update-button"
                 style={{ gap: 'var(--nw-spacing-xs)' }}
               >
-                <Edit size={16} />
+                <PencilIcon size={16} />
                 {getTranslationFromI18nKeyAndLabel(
                   'crm.investments.revenueForecast.updateForecasts',
                   'Update Forecasts'

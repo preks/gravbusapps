@@ -65,13 +65,20 @@ const GET_INVESTMENT_CONVERSION_RATE_WITH_TREND = `
   }
 `
 
-const GET_INVESTMENT_MOST_COMMON_LEAD_SOURCE = `
-  query GetInvestmentMostCommonLeadSource($twoWeeksAgo: timestamptz!) {
-    InvestmentLead(
-      where: { createdAt: {_gte: $twoWeeksAgo}, isDeleted: {_eq: false}, leadSourceRef: {_isNull: false} }
-    ) {
-      leadSource { value code }
-      leadSourceRef
+const GET_INVESTMENT_CONVERTED_LEADS_WITH_TREND = `
+  query GetInvestmentConvertedLeadsWithTrend($lastQuarter: timestamptz!) {
+    current: InvestmentLeadAggregate(where: {
+      isDeleted: {_eq: false},
+      leadStatus: {type: {_eq: "CONVERTED"}}
+    }) {
+      aggregate { count }
+    }
+    previous: InvestmentLeadAggregate(where: {
+      isDeleted: {_eq: false},
+      leadStatus: {type: {_eq: "CONVERTED"}},
+      createdAt: {_lt: $lastQuarter}
+    }) {
+      aggregate { count }
     }
   }
 `
@@ -91,7 +98,7 @@ export interface UseInvestmentLeadStatisticsReturn {
   recentLeads: TrendData
   hotLeads: TrendData
   conversionRate: ConversionTrendData
-  topSource: string
+  convertedLeads: TrendData
   isLoading: boolean
   error: Error | null
   refetch: () => Promise<void>
@@ -109,7 +116,7 @@ export const useInvestmentLeadStatistics = (context: BusinessAppContextProps): U
     changePercent: 0,
     isPositive: true
   })
-  const [topSource, setTopSource] = useState<string>('N/A')
+  const [convertedLeads, setConvertedLeads] = useState<TrendData>({ current: 0, changePercent: 0, isPositive: true })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -220,31 +227,29 @@ export const useInvestmentLeadStatistics = (context: BusinessAppContextProps): U
         isPositive: convChange >= 0
       })
 
-      // Top Source
-      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
-      const sourceResult = await graphqlClient.request<{
-        InvestmentLead: Array<{
-          leadSource: { value: string | null; code: string | null } | null
-          leadSourceRef: string | null
-        }>
-      }>(GET_INVESTMENT_MOST_COMMON_LEAD_SOURCE, { twoWeeksAgo })
+      // Converted Leads (quarterly trend)
+      const lastQuarter = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+      const convertedResult = await graphqlClient.request<{
+        current: { aggregate: { count: number } }
+        previous: { aggregate: { count: number } }
+      }>(GET_INVESTMENT_CONVERTED_LEADS_WITH_TREND, { lastQuarter: lastQuarter.toISOString() })
 
-      const counts: Record<string, number> = {}
-      sourceResult.InvestmentLead.forEach(item => {
-        const label = item.leadSource?.value
-        if (label) counts[label] = (counts[label] || 0) + 1
+      const cCurrent = convertedResult.current.aggregate.count
+      const cPrevious = convertedResult.previous.aggregate.count
+      let cChange: number
+      if (cPrevious > 0) {
+        cChange = ((cCurrent - cPrevious) / cPrevious) * 100
+      } else if (cCurrent > 0) {
+        cChange = 100
+      } else {
+        cChange = 0
+      }
+
+      setConvertedLeads({
+        current: cCurrent,
+        changePercent: cChange,
+        isPositive: cCurrent >= cPrevious
       })
-
-      let most = 'N/A'
-      let max = 0
-      Object.entries(counts).forEach(([k, v]) => {
-        if (v > max) {
-          max = v
-          most = k
-        }
-      })
-
-      setTopSource(most)
     } catch (err) {
       console.error('Error fetching investment lead statistics:', err)
       setError(new Error(err instanceof Error ? err.message : 'Unknown error'))
@@ -263,7 +268,7 @@ export const useInvestmentLeadStatistics = (context: BusinessAppContextProps): U
     recentLeads,
     hotLeads,
     conversionRate,
-    topSource,
+    convertedLeads,
     isLoading,
     error,
     refetch

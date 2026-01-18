@@ -29,11 +29,13 @@ import {
   buildAccountFragment,
   buildContactFragment,
   buildLeadFragment,
-  buildTaskFragment,
   buildActivityFragment,
   buildNoteFragment,
   buildDocumentFragment
 } from '@/common/data/relations/queries/relationFragments'
+
+// Import IRM-specific task fragment (uses taskAssignees instead of assignedEmployee)
+import { buildInvestmentTaskFragmentForRelations } from './investmentTaskQueries'
 
 // Import Investment Fields
 import { InvestmentActivityFields } from '../types/investmentActivityTypes'
@@ -139,7 +141,7 @@ export const buildInvestmentOpportunityByIdQuery = (
     buildDocumentFragment,
     buildLeadFragment,
     buildNoteFragment,
-    buildTaskFragment
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations // Use IRM-specific version (taskAssignees)
   }
 
   const relationFields: OpportunityRelationFields = {
@@ -186,6 +188,11 @@ export const buildInvestmentOpportunityByIdQuery = (
       ${INVESTMENT_REF}
     }
     divestmentId
+    
+    # Investment relation (1-to-many opportunity -> investments)
+    ${fields.investments}(where: { isDeleted: { _eq: false } }) {
+      ${INVESTMENT_REF}
+    }
     
     # IRM-specific Investment fields
     dealType

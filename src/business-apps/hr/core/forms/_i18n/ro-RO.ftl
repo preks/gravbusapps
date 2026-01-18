@@ -179,6 +179,9 @@ label-country = Țară
 label-city = Oraș
 label-currency = Monedă
 
+# Common Text
+common-characters = caractere
+
 # Benefit Summary Card Translations
 benefit-provider = Furnizor
 benefit-value-yearly = Valoare anuală
@@ -244,3 +247,103 @@ modal-deactivate-submit-button = Dezactivează beneficiu
 error-end-date-required = Data de încheiere este obligatorie. Vă rugăm să selectați o dată de încheiere.
 error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau ulterior.
 error-end-date-after-start-date = Data de încheiere nu poate fi înaintea datei de început a beneficiului.
+
+# ============================================
+# Pending Submission Status Messages
+# ============================================
+
+# Change Bank Account Form
+change-bank-account-process-title = Modificare cont bancar
+change-bank-account-pending-status = În așteptare
+
+# Change Address Form
+change-address-process-title = Modificare adresă
+change-address-pending-status = În așteptare
+
+# Change Personal Data Form
+change-personal-data-process-title = Modificare date personale
+change-personal-data-pending-status = În așteptare
+
+# Change Communication Form
+change-communication-process-title = Modificare comunicare
+change-communication-pending-status = În așteptare
+
+# Grant Bonus Form
+grant-bonus-process-title = Acordare bonus
+grant-bonus-pending-status = În așteptare
+
+# Adjust Salary Form
+adjust-salary-process-title = Ajustare salariu
+adjust-salary-pending-status = În așteptare
+
+# Update Working Conditions Form
+working-conditions-probation-period = Perioadă de probă
+working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
+working-conditions-unit-day = { $count ->
+    [one] Zi
+   *[other] Zile
+}
+working-conditions-unit-week = { $count ->
+    [one] Săptămână
+   *[other] Săptămâni
+}
+working-conditions-unit-month = { $count ->
+    [one] Lună
+   *[other] Luni
+}
+working-conditions-unit-year = { $count ->
+    [one] An
+   *[other] Ani
+}
+
+# Create Request Correction Form
+complete-notification = Cererea este trimisă către manager pentru aprobare
+notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
+notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
+notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă
+
+# ============================================
+# Create Employee Form
+# ============================================
+
+# Section Headers
+employee-form-personal-information = Informații personale
+employee-form-employment-information = Informații despre angajare
+employee-form-additional-attributes = Atribute suplimentare
+
+# Field Labels
+employee-form-first-name = Prenume
+employee-form-last-name = Nume
+employee-form-email = Email
+employee-form-organizational-unit = Unitate organizațională
+employee-form-job-position = Poziție
+employee-form-hire-date = Data angajării
+employee-form-preferred-name = Nume preferat
+employee-form-employment-type = Tip angajare
+employee-form-contract-type = Tip contract
+
+# Validation Messages
+employee-form-email-invalid = Vă rugăm să introduceți o adresă de email validă
+
+# Empty States
+employee-form-no-results = Nu s-au găsit rezultate
+employee-form-no-positions = Nu sunt poziții disponibile
+employee-form-no-vacant-positions = Nu sunt poziții vacante disponibile în unitatea organizațională selectată
+
+# Tooltips
+employee-form-create-job-position-tooltip = Creează poziție nouă
+employee-form-select-org-unit-first = Selectați mai întâi o unitate organizațională
+
+# Buttons
+employee-form-create-employee = Creează angajat
+employee-form-update-employee = Actualizează angajat
+
+# ============================================
+# Create Job Position Modal
+# ============================================
+
+create-job-position-title = Creează poziție
+create-job-position-name = Nume
+create-job-position-total-open = Total poziții deschise
+create-job-position-organizational-unit = Unitate organizațională
+create-job-position-error = Nu s-a putut crea poziția. Vă rugăm să încercați din nou.

@@ -4,8 +4,8 @@
  */
 
 import React, { memo, useEffect, useState } from 'react'
-import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { Clock, AlertTriangle, Zap } from 'lucide-react'
+import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { AlertTriangle, Zap } from 'lucide-react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -65,15 +65,6 @@ const getDueDateClass = (overdue: boolean, dueSoon: boolean): string => {
   return 'gba:text-muted-foreground'
 }
 
-// Helper to get module name from process definition ID
-const getModuleName = (processDefId?: string): string | null => {
-  if (!processDefId) return null
-  return processDefId
-    .split(/[_-]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ')
-}
-
 // Helper to get task title based on source
 const getTaskTitle = (task: UnifiedTask, t: (key: string) => string): string => {
   if (task.source === 'kogito') {
@@ -122,15 +113,32 @@ const getCreatorDisplayName = (
   areAvatarsLoading: boolean,
   t: (key: string) => string
 ): string => {
+  if (areAvatarsLoading) return ''
+
+  // Priority 1: displayName from employee data (most reliable and consistent)
+  if (employeeData?.displayName) return employeeData.displayName
+
+  // Priority 2: creatorName from task metadata (might be cached/older)
   if (task.sourceMetadata?.creatorName) return task.sourceMetadata.creatorName
   if (task.sourceMetadata?.ownerName) return task.sourceMetadata.ownerName
-  if (areAvatarsLoading) return ''
+  // Backwards-compatible fallbacks for CFlow initiator fields
+  if ((task.sourceMetadata as any)?.flowInitiatedByName) return (task.sourceMetadata as any).flowInitiatedByName
+  if (
+    (task.sourceMetadata as any)?.flowInitiatedBy &&
+    typeof (task.sourceMetadata as any).flowInitiatedBy === 'string'
+  ) {
+    return (task.sourceMetadata as any).flowInitiatedBy
+  }
+
+  // Priority 3: Construct from firstName + lastName (fallback)
   if (employeeData) {
     const firstName = employeeData.firstName || ''
     const lastName = employeeData.lastName || ''
     const fullName = `${firstName} ${lastName}`.trim()
-    return fullName || t('task-card-unknown-creator')
+    if (fullName) return fullName
   }
+
+  // Final fallback
   return t('task-card-unknown-creator')
 }
 
@@ -194,7 +202,6 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     const isBlinkTask = checkIsBlinkTask(task)
 
     // Module and task metadata
-    const moduleName = task.source === 'kogito' ? getModuleName(task.type) : null
     const moduleInfo = getModuleInfo(task.name, task.type)
     const ModuleIcon = moduleInfo.icon
     const taskTitle = getTaskTitle(task, t)
@@ -240,15 +247,16 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     const showAvatarImage = avatarDisplay.showImage
     const showAvatarFallback = avatarDisplay.showFallback
 
-    // Full list view (no task selected) - single row layout with fixed columns
+    // Full list view (no task selected) - responsive layout
     if (!isDetailViewOpen) {
       return (
         <div
-          className="gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-4 gba:py-2.5 gba:hover:bg-muted/50"
+          className="gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-3 gba:lg:px-4 gba:hover:bg-muted/50 gba:border-b gba:border-border/30 gba:lg:border-transparent gba:active:bg-muted/70"
           onClick={() => onView(task)}
           data-testid={`task-card-${task.id}`}
         >
-          <div className="gba:flex gba:items-center gba:gap-4">
+          {/* Desktop: Single row layout */}
+          <div className="gba:hidden gba:lg:flex gba:items-center gba:gap-2.5">
             {/* 1. Date - fixed 140px */}
             <span
               className="gba:text-xs gba:text-muted-foreground gba:w-[140px] gba:flex-shrink-0"
@@ -262,10 +270,10 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             </span>
 
             {/* 2. Avatar */}
-            <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
+            <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0" data-testid="task-creator-avatar">
               {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
               {showAvatarFallback && (
-                <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                <AvatarFallback className="gba:text-[10px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
                   {generateInitials(creatorName)}
                 </AvatarFallback>
               )}
@@ -273,53 +281,107 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
             {/* 3. Creator name */}
             <span
-              className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground gba:w-[160px] gba:flex-shrink-0"
+              className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground gba:w-[140px] gba:flex-shrink-0"
               data-testid="task-creator-name"
             >
               {creatorName}
             </span>
 
             {/* 4. Module Icon */}
-            <span title={moduleInfo.name} className="gba:w-5 gba:flex-shrink-0">
-              <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
+            <span title={moduleInfo.name} className="gba:flex-shrink-0">
+              <ModuleIcon className={`gba:h-4.5 gba:w-4.5 ${moduleInfo.color}`} />
             </span>
 
             {/* 5. Task title + Blink indicator */}
-            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-              <span className="gba:text-base gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-1 gba:min-w-0">
+              <span className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
                 {taskTitle}
               </span>
-              {isBlinkTask && (
-                <div
-                  className="gba:flex gba:items-center gba:gap-0.5 gba:flex-shrink-0"
-                  data-testid="task-blink-indicator"
-                >
-                  <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
-                  <span className="gba:text-sm gba:font-medium gba:text-blue-500">{t('task-card-blink')}</span>
-                </div>
-              )}
+              {isBlinkTask && <Zap className="gba:h-4 gba:w-4 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />}
             </div>
 
-            {/* 6. Right side: Module badge + Due date */}
+            {/* 6. Right side: Due date urgency indicator */}
             <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
-              {moduleName && (
-                <Badge variant="secondary" data-testid="task-module-badge">
-                  {moduleName}
-                </Badge>
-              )}
-              {!isCompleted && task.dueDate && (
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {overdue || dueSoon ? (
-                    <AlertTriangle className="gba:h-4 gba:w-4" />
-                  ) : (
-                    <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                  )}
-                  <span className={`gba:text-sm ${getDueDateClass(overdue, dueSoon)}`} data-testid="task-due-date">
+              {!isCompleted && task.dueDate && (overdue || dueSoon) && (
+                <div className="gba:flex gba:items-center gba:gap-1.5">
+                  <AlertTriangle
+                    className={`gba:h-4 gba:w-4 ${overdue ? 'gba:text-destructive' : 'gba:text-warning'}`}
+                  />
+                  <span
+                    className={`gba:text-sm gba:font-semibold ${getDueDateClass(overdue, dueSoon)}`}
+                    data-testid="task-due-date"
+                  >
                     {getDueDateText(overdue, dueSoon, task.dueDate, locale, t)}
                   </span>
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Mobile/Tablet: Card-based layout - same order as desktop for consistency */}
+          <div className="gba:flex gba:lg:hidden gba:flex-col gba:gap-1.5">
+            {/* Line 1: Date + Avatar + Creator name (WHO and WHEN - quick scan) */}
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span
+                className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0"
+                data-testid="task-created-at-mobile"
+              >
+                {task.status === 'COMPLETED' && task.completedAt ? (
+                  <span className="gba:text-success gba:font-medium">
+                    ✓ {formatDateTimeWithRelative(task.completedAt, locale, t)}
+                  </span>
+                ) : (
+                  createdAt && formatDateTimeWithRelative(createdAt, locale, t)
+                )}
+              </span>
+              <Avatar className="gba:h-5 gba:w-5 gba:flex-shrink-0" data-testid="task-creator-avatar-mobile">
+                {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
+                {showAvatarFallback && (
+                  <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                    {generateInitials(creatorName)}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <span
+                className="gba:text-xs gba:text-muted-foreground gba:truncate gba:flex-1"
+                data-testid="task-creator-name-mobile"
+              >
+                {creatorName}
+              </span>
+            </div>
+
+            {/* Line 2: Module icon + Task title + Blink (WHAT - the main content) */}
+            <div className="gba:flex gba:items-start gba:gap-2">
+              <span title={moduleInfo.name} className="gba:flex-shrink-0 gba:mt-0.5">
+                <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
+              </span>
+              <span
+                className="gba:text-base gba:font-semibold gba:text-foreground gba:flex-1 gba:leading-snug"
+                data-testid="task-title-mobile"
+              >
+                {taskTitle}
+              </span>
+              {isBlinkTask && (
+                <Zap
+                  className="gba:h-5 gba:w-5 gba:text-blue-500 gba:flex-shrink-0 gba:mt-0.5"
+                  strokeWidth={2.5}
+                  data-testid="task-blink-mobile"
+                />
+              )}
+            </div>
+
+            {/* Line 3: Due date urgency indicator (only for overdue/due soon) */}
+            {!isCompleted && task.dueDate && (overdue || dueSoon) && (
+              <div className="gba:flex gba:items-center gba:gap-1.5">
+                <AlertTriangle className={`gba:h-4 gba:w-4 ${overdue ? 'gba:text-destructive' : 'gba:text-warning'}`} />
+                <span
+                  className={`gba:text-sm gba:font-semibold ${getDueDateClass(overdue, dueSoon)}`}
+                  data-testid="task-due-date-mobile"
+                >
+                  {getDueDateText(overdue, dueSoon, task.dueDate, locale, t)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )
@@ -328,7 +390,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Split view (task selected) - Date | Avatar | Name | Icon | Task
     return (
       <div
-        className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-2.5 ${
+        className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-3 ${
           isSelected
             ? 'gba:bg-primary/10 gba:border-l-2 gba:border-l-primary'
             : 'gba:hover:bg-muted/50 gba:border-l-2 gba:border-l-transparent'
@@ -336,10 +398,10 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
         onClick={() => onView(task)}
         data-testid={`task-card-${task.id}`}
       >
-        <div className="gba:flex gba:items-center gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2.5">
           {/* 1. Date (compact) */}
           <span
-            className="gba:text-[11px] gba:text-muted-foreground gba:w-[85px] gba:flex-shrink-0"
+            className="gba:text-xs gba:text-muted-foreground gba:w-[140px] gba:flex-shrink-0"
             data-testid="task-created-at"
           >
             {task.status === 'COMPLETED' && task.completedAt ? (
@@ -350,18 +412,18 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
           </span>
 
           {/* 2. Avatar */}
-          <Avatar className="gba:h-6 gba:w-6 gba:flex-shrink-0" data-testid="task-creator-avatar">
+          <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0" data-testid="task-creator-avatar">
             {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
             {showAvatarFallback && (
-              <AvatarFallback className="gba:text-[9px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+              <AvatarFallback className="gba:text-[10px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
                 {generateInitials(creatorName)}
               </AvatarFallback>
             )}
           </Avatar>
 
-          {/* 3. Creator name - 2 lines allowed */}
+          {/* 3. Creator name - single line truncated */}
           <span
-            className="gba:text-xs gba:font-medium gba:text-foreground gba:w-[140px] gba:flex-shrink-0 gba:line-clamp-2 gba:leading-tight"
+            className="gba:text-sm gba:font-medium gba:text-foreground gba:w-[140px] gba:flex-shrink-0 gba:truncate"
             data-testid="task-creator-name"
           >
             {creatorName}
@@ -369,17 +431,15 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
           {/* 4. Module Icon */}
           <span title={moduleInfo.name} className="gba:flex-shrink-0">
-            <ModuleIcon className={`gba:h-4 gba:w-4 ${moduleInfo.color}`} />
+            <ModuleIcon className={`gba:h-4.5 gba:w-4.5 ${moduleInfo.color}`} />
           </span>
 
           {/* 5. Task title + Blink */}
-          <div className="gba:flex gba:items-center gba:gap-1 gba:flex-1 gba:min-w-0">
+          <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-1 gba:min-w-0">
             <span className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
               {taskTitle}
             </span>
-            {isBlinkTask && (
-              <Zap className="gba:h-3.5 gba:w-3.5 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />
-            )}
+            {isBlinkTask && <Zap className="gba:h-4 gba:w-4 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />}
           </div>
         </div>
       </div>

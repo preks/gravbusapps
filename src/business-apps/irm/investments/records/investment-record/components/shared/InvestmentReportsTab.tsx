@@ -13,7 +13,7 @@ import {
   AlertTitle,
   AlertDescription
 } from '@newwork/nw-design-system'
-import { FlipHorizontalIcon } from 'lucide-react'
+import { FlipHorizontalIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentReports } from '@/common/data/investment-report/hooks/useInvestmentReports'

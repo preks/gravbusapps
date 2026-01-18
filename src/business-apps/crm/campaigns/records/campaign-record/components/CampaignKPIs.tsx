@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, ContactsOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons'
+import { UserIcon, AddressBookIcon, UsersThreeIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { CampaignKPIsProps } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatPercentage } from '@/common/utils/numberFormatter'
@@ -12,7 +12,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, 
       key: 'total-leads',
       title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalLeads', 'Total Leads'),
       value: kpisWithTrends?.totalLeads.current || 0,
-      prefix: <UserOutlined />,
+      prefix: <UserIcon />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: kpisWithTrends?.totalLeads.percentage
@@ -24,7 +24,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, 
       key: 'total-accounts',
       title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalAccounts', 'Total Accounts'),
       value: kpisWithTrends?.totalAccounts.current || 0,
-      prefix: <ContactsOutlined />,
+      prefix: <AddressBookIcon />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('campaign.kpis.accounts.description', 'Campaign accounts'),
@@ -34,7 +34,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, 
       key: 'total-contacts',
       title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalContacts', 'Total Contacts'),
       value: kpisWithTrends?.totalContacts.current || 0,
-      prefix: <TeamOutlined />,
+      prefix: <UsersThreeIcon />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('campaign.kpis.contacts.description', 'Campaign contacts'),
@@ -44,7 +44,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, 
       key: 'total-opportunities',
       title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalOpportunities', 'Total Opportunities'),
       value: kpisWithTrends?.totalOpportunities.current || 0,
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
       description: kpisWithTrends?.totalOpportunities.percentage

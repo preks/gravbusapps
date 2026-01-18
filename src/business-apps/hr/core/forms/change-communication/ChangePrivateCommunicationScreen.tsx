@@ -12,11 +12,14 @@ import { PurposeField } from './components/PurposeField'
 import { ValueField } from './components/ValueField'
 import { useCommunicationFormState } from './hooks/useCommunicationFormState'
 import { useCommunicationValidation } from './hooks/useCommunicationValidation'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../apps/employee-record/_i18n'
 
 const prefixDataTestId = 'ChangePrivateCommunicationScreen'
 
 const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = context => {
   const { channels, types, communications, employee, loading } = useCommunicationLookups(context)
+  const { t } = useTranslation(translations)
 
   const formState = useCommunicationFormState({
     channels,
@@ -102,6 +105,8 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       context.userInfo?.employeeDetails?.employeeId
 
     return {
+      employeeId,
+      event: 'pse_submit',
       employeeCommunication: {
         channelRef: formState.channelType,
         typeRef: formState.valueType,
@@ -110,6 +115,10 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
         employeeId,
         ...(typeof formState.baseline?.version === 'number' ? { version: formState.baseline?.version } : {}),
         ...(formState.baseline?.id ? { id: formState.baseline.id } : {})
+      },
+      completeNotification: {
+        type: 'success',
+        message: t('notification-communication-updated-success')
       }
     }
   }
@@ -122,11 +131,12 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={!validation.isValid || !hasChanges}
+      submitEventType="pse_submit"
+      cancelEventType="pse_abort"
       submitButtonTestId="flw_changeRelationship_btnSubmit"
       cancelButtonTestId="flw_changeRelationship_btnCancel"
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
-      cancelEventType="pse_abort"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
       <div className="gba:bg-white gba:max-w-xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">

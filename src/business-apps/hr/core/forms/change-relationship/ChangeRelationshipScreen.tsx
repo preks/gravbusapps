@@ -9,7 +9,8 @@ import {
   SelectContent,
   SelectItem,
   DateInput,
-  FileUpload
+  FileUpload,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
@@ -19,10 +20,12 @@ import FormHeader from '../components/FormHeader'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import dayjs from 'dayjs'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import translations from '../../apps/employee-record/_i18n'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
 import { env } from '@/common/env/EnvUtils'
 import { CongratulationsModal } from './CongratulationsModal'
+import { PhoneInput } from './components/PhoneInput'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
 
@@ -40,6 +43,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const [lastNameTouched, setLastNameTouched] = useState(false)
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [relationshipTypeTouched, setRelationshipTypeTouched] = useState(false)
+  const { t } = useTranslation(translations)
 
   const {
     options: relationshipTypeOptions,
@@ -115,7 +119,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   // Field validations
   const validatePhoneForEmergency = (receivedValue: string): string => {
     if (!isEmergencyContact) return ''
-    const regexTest = /^\+?\d+$/
     const trimmed = (receivedValue || '').trim()
     if (trimmed.length === 0) {
       return getTranslationFromI18nKeyAndLabel(
@@ -123,10 +126,12 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
         'The Phone Number field is required. Please enter a phone number.'
       )
     }
+    // Allow international format: +countrycode followed by digits
+    const regexTest = /^\+?\d{6,}$/
     if (!regexTest.test(trimmed)) {
       return getTranslationFromI18nKeyAndLabel(
         'lowcoder:change_relationship.container_relationship.phone_only_numbers_error',
-        'The Phone Number field is invalid. Please use only numbers.'
+        'The Phone Number field is invalid. Please enter a valid phone number.'
       )
     }
     return ''
@@ -313,6 +318,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     } as any
 
     const relationshipChange = {
+      event: 'pse_submit',
       employeeRelationship,
       oldEmployeeRelationship: selectedExisting
         ? {
@@ -329,7 +335,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
             emergencyContact: Boolean(selectedExisting.isEmergencyContact),
             relationshipDocument: selectedExisting.relationshipDocumentId || ''
           }
-        : {}
+        : {},
+      completeNotification: {
+        type: 'success',
+        message: t('notification-relationship-updated-success')
+      }
     }
 
     // Only show modal for specific relationship types (Child or Marriage)
@@ -355,14 +365,12 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       processType={initialPayload?.relationship?.id ? 'update' : 'create'}
       formData={{}}
       onSubmit={data => data}
-      // Prevent platform hooks here; let outer flow listen to pse events
-      submitEventType={undefined as any}
+      submitEventType="pse_submit"
       cancelEventType="pse_abort"
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={isSubmitDisabled}
-      // Pre-submit modal controls the flow; no need for post success modal
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
@@ -530,22 +538,15 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               {isEmergencyContact ? '*' : ''}
             </Label>
             <div className="gba:mt-2">
-              <Input
+              <PhoneInput
                 value={phoneNumber}
-                onChange={e => setPhoneNumber(e.target.value)}
+                onChange={setPhoneNumber}
                 onBlur={() => setPhoneTouched(true)}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:relationship_form.phone_number_placeholder',
-                  'Enter Phone Number'
-                )}
+                error={isEmergencyContact ? phoneError : undefined}
+                touched={phoneTouched}
                 data-testid="flw_changeRelationship_currentPhoneNumber"
               />
             </div>
-            {isEmergencyContact && phoneTouched && phoneError && (
-              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_phoneNumberError">
-                {phoneError}
-              </div>
-            )}
           </div>
 
           {/* Emergency Contact */}

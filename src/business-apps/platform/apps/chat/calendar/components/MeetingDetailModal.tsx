@@ -11,8 +11,15 @@ import {
   AvatarImage,
   AvatarFallback,
   Spinner,
-  Separator
+  Separator,
+  useLocale
 } from '@newwork/nw-design-system'
+import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import { useChatTranslation } from '../../contexts/TranslationContext'
 import {
   Calendar,
   Clock,
@@ -29,6 +36,8 @@ import {
 } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import type { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
+
+dayjs.extend(localizedFormat)
 
 interface MeetingDetailModalProps {
   event: CalendarEvent | null
@@ -51,14 +60,9 @@ const formatDate = (date: Date): string => {
   })
 }
 
-const formatTime = (date: Date): string => {
-  // Use getHours()/getMinutes() to ensure consistency with calendar position calculations
-  const hours = date.getHours()
-  const minutes = date.getMinutes()
-  const period = hours >= 12 ? 'PM' : 'AM'
-  const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
-  const minuteStr = minutes.toString().padStart(2, '0')
-  return `${hour12}:${minuteStr} ${period}`
+const formatTime = (date: Date, locale: string): string => {
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  return dayjs(date).locale(baseLocale).format('LT')
 }
 
 const getStatusBadge = (status: MeetingStatus) => {
@@ -116,6 +120,8 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
   onStartCall,
   onOpenChat
 }) => {
+  const t = useChatTranslation()
+  const { locale } = useLocale()
   const [responseComment, setResponseComment] = useState('')
   const [isResponding, setIsResponding] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -199,12 +205,12 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
           <div className="gba:flex gba:items-start gba:gap-3">
             <Calendar className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
             <div>
-              <div className="gba:font-medium">{formatDate(event.start)}</div>
+              <div className="gba:font-medium">{formatDate(event.start, locale)}</div>
               {event.allDay ? (
-                <div className="gba:text-sm gba:text-muted-foreground">All day</div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('calendar-allDayEvent')}</div>
               ) : (
                 <div className="gba:text-sm gba:text-muted-foreground">
-                  {formatTime(event.start)} - {formatTime(event.end)}
+                  {formatTime(event.start, locale)} - {formatTime(event.end, locale)}
                 </div>
               )}
             </div>
@@ -217,8 +223,8 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 <>
                   <Video className="gba:h-5 gba:w-5 gba:text-primary gba:mt-0.5" />
                   <div>
-                    <div className="gba:font-medium gba:text-primary">Video Call</div>
-                    <div className="gba:text-sm gba:text-muted-foreground">Join link available</div>
+                    <div className="gba:font-medium gba:text-primary">{t('calendar-videoCallAvailable')}</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{t('calendar-joinLinkAvailable')}</div>
                   </div>
                 </>
               ) : (
@@ -257,12 +263,12 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 {organizerName}
               </div>
               <div className="gba:text-xs gba:text-muted-foreground">
-                {event.isOrganizer ? 'You (Organizer)' : 'Organizer'}
+                {event.isOrganizer ? t('calendar-youOrganizer') : t('calendar-organizer')}
               </div>
             </div>
             {event.isOrganizer && (
               <Badge variant="outline" className="gba:text-[10px]">
-                Organizer
+                {t('calendar-organizer')}
               </Badge>
             )}
           </div>
@@ -272,7 +278,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
               <Users className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
               <span className="gba:text-sm gba:font-medium">
-                Participants ({event.acceptedCount} of {event.participantCount} attending)
+                {t('calendar-participantsAttending', { accepted: event.acceptedCount, total: event.participantCount })}
               </span>
             </div>
             {event.participants && event.participants.length > 0 ? (
@@ -312,7 +318,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-1.5">
                         {participant.isOrganizer && (
                           <Badge variant="outline" className="gba:text-[10px] gba:px-1">
-                            Host
+                            {t('calendar-host')}
                           </Badge>
                         )}
                         {getParticipantStatusIcon(participant.status)}
@@ -322,7 +328,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 })}
               </div>
             ) : (
-              <div className="gba:text-sm gba:text-muted-foreground gba:py-2">No participant details available</div>
+              <div className="gba:text-sm gba:text-muted-foreground gba:py-2">{t('calendar-noParticipantDetails')}</div>
             )}
           </div>
 
@@ -331,7 +337,8 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-muted/30 gba:rounded-lg">
               {getParticipantStatusIcon(event.participantStatus)}
               <span className="gba:text-sm">
-                Your response: <span className="gba:font-medium gba:capitalize">{event.participantStatus}</span>
+                {t('calendar-yourResponse')}{' '}
+                <span className="gba:font-medium gba:capitalize">{event.participantStatus}</span>
               </span>
             </div>
           )}
@@ -340,17 +347,17 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
           {showResponseInput && (
             <div className="gba:space-y-3 gba:p-3 gba:border gba:border-border gba:rounded-lg">
               <div className="gba:text-sm gba:font-medium">
-                {pendingResponse === 'declined' ? 'Decline meeting' : 'Mark as tentative'}
+                {pendingResponse === 'declined' ? t('calendar-declineMeeting') : t('calendar-markTentative')}
               </div>
               <Textarea
                 value={responseComment}
                 onChange={e => setResponseComment(e.target.value)}
-                placeholder="Add a comment (optional)..."
+                placeholder={t('calendar-addComment')}
                 rows={2}
               />
               <div className="gba:flex gba:justify-end gba:gap-2">
                 <Button variant="outline" size="sm" onClick={cancelResponseInput}>
-                  Cancel
+                  {t('calendar-cancel')}
                 </Button>
                 <Button
                   size="sm"
@@ -358,7 +365,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                   onClick={() => submitResponse(pendingResponse!, responseComment)}
                   disabled={isResponding}
                 >
-                  {isResponding ? <Spinner className="gba:h-4 gba:w-4" /> : 'Confirm'}
+                  {isResponding ? <Spinner className="gba:h-4 gba:w-4" /> : t('calendar-confirm')}
                 </Button>
               </div>
             </div>
@@ -377,7 +384,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 disabled={isResponding}
               >
                 <Check className="gba:h-4 gba:w-4 gba:mr-1" />
-                Accept
+                {t('calendar-accept')}
               </Button>
               <Button
                 variant={event.participantStatus === 'tentative' ? 'default' : 'outline'}
@@ -386,7 +393,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 disabled={isResponding}
               >
                 <HelpCircle className="gba:h-4 gba:w-4 gba:mr-1" />
-                Maybe
+                {t('calendar-maybe')}
               </Button>
               <Button
                 variant={event.participantStatus === 'declined' ? 'destructive' : 'outline'}
@@ -395,7 +402,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 disabled={isResponding}
               >
                 <X className="gba:h-4 gba:w-4 gba:mr-1" />
-                Decline
+                {t('calendar-decline')}
               </Button>
             </div>
           )}
@@ -406,7 +413,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             {canStartCall && onStartCall && (
               <Button onClick={onStartCall} className="gba:flex-1">
                 <Phone className="gba:h-4 gba:w-4 gba:mr-1" />
-                Join Call
+                {t('calendar-joinCall')}
               </Button>
             )}
 
@@ -414,7 +421,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             {event.conversationId && onOpenChat && (
               <Button variant="outline" onClick={onOpenChat}>
                 <MessageSquare className="gba:h-4 gba:w-4 gba:mr-1" />
-                Chat
+                {t('calendar-chat')}
               </Button>
             )}
 
@@ -422,7 +429,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             {canEdit && onEdit && (
               <Button variant="outline" onClick={onEdit}>
                 <Pencil className="gba:h-4 gba:w-4 gba:mr-1" />
-                Edit
+                {t('calendar-edit')}
               </Button>
             )}
 

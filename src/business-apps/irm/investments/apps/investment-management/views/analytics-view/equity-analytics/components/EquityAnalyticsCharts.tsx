@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ComposedChart, ScatterChart, Scatter, Bar, Line, XAxis, YAxis } from 'recharts'
 import { ChartScatterIcon, ChartBarIcon } from '@phosphor-icons/react'
-import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
+import { formatCurrencyCompact, extractCurrencyCode, formatAmount } from '@/common/utils/numberFormatter'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import { useEquityStakeVsAmount, useEquityRoleVsAmount, useEquityConcentrationByRole } from '../hooks'
@@ -146,15 +146,15 @@ const ConcentrationTooltipContent: React.FC<ConcentrationTooltipContentProps> = 
           if (entry.dataKey === 'count') {
             formattedValue = `${entry.value}`
             properLabel = 'Investment Count'
-            dotColor = 'var(--color-investmentcount)'
+            dotColor = 'var(--color-count)'
           } else if (entry.dataKey === 'totalValuation') {
             formattedValue = formatCurrency(entry.value as number, currency)
             properLabel = 'Total Valuation'
-            dotColor = 'var(--color-totalvaluation)'
+            dotColor = 'var(--color-totalValuation)'
           } else if (entry.dataKey === 'averageValuation') {
             formattedValue = formatCurrency(entry.value as number, currency)
             properLabel = 'Average Valuation'
-            dotColor = 'var(--color-averagevaluation)'
+            dotColor = 'var(--color-averageValuation)'
           }
 
           return (
@@ -220,9 +220,9 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
 
   const concentrationChartConfig = useMemo(
     () => ({
-      investmentcount: { label: 'Investment Count' },
-      totalvaluation: { label: 'Total Valuation' },
-      averagevaluation: { label: 'Average Valuation' }
+      count: { label: 'Investment Count' },
+      totalValuation: { label: 'Total Valuation' },
+      averageValuation: { label: 'Average Valuation' }
     }),
     []
   )
@@ -310,6 +310,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     name="Stake %"
                     tick={{ fontSize: 12 }}
                     tickFormatter={value => `${value}%`}
+                    label={{ value: 'Stake %', position: 'insideBottom', offset: -5 }}
                   />
                   <YAxis
                     type="number"
@@ -317,8 +318,15 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     name="Investment Amount"
                     tick={{ fontSize: 12 }}
                     tickFormatter={value =>
-                      formatCurrencyCompact(value, extractCurrencyCode(stakeAmountCurrency), undefined, 1, true)
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(stakeAmountCurrency),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
                     }
+                    label={{ value: 'Investment Amount', angle: -90, position: 'insideLeft' }}
                   />
                   <ChartTooltip content={renderStakeTooltip} />
                   <Scatter
@@ -394,6 +402,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                       if (value === 2) return 'Co-Investor'
                       return 'Lead'
                     }}
+                    label={{ value: 'Investment Role', position: 'insideBottom', offset: -5 }}
                   />
                   <YAxis
                     type="number"
@@ -401,8 +410,12 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     name="Investment Amount"
                     tick={{ fontSize: 12 }}
                     tickFormatter={value =>
-                      formatCurrencyCompact(value, extractCurrencyCode(roleAmountCurrency), undefined, 1, true)
+                      formatCurrencyCompact(value, extractCurrencyCode(roleAmountCurrency), undefined, 1, true).replace(
+                        /[€$£¥]/g,
+                        ''
+                      )
                     }
+                    label={{ value: 'Investment Amount', angle: -90, position: 'insideLeft' }}
                   />
                   <ChartTooltip content={renderRoleTooltip} />
                   <Scatter
@@ -469,23 +482,28 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
               <ChartContainer config={concentrationChartConfig} className="gba:h-[300px] gba:w-full">
                 <ComposedChart data={concentrationByRoleData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <XAxis dataKey="role" tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} tickFormatter={value => formatAmount(value, 1)} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(concentrationCurrency),
+                        undefined,
+                        1,
+                        true
+                      ).replace(/[€$£¥]/g, '')
+                    }
+                  />
                   <ChartTooltip content={renderConcentrationTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="count"
-                    name="investmentcount"
-                    fill="var(--color-investmentcount)"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={60}
-                  />
+                  <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} maxBarSize={60} />
                   <Bar
                     yAxisId="right"
                     dataKey="totalValuation"
-                    name="totalvaluation"
-                    fill="var(--color-totalvaluation)"
+                    fill="var(--color-totalValuation)"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={60}
                   />
@@ -493,8 +511,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     yAxisId="right"
                     type="monotone"
                     dataKey="averageValuation"
-                    name="averagevaluation"
-                    stroke="var(--color-averagevaluation)"
+                    stroke="var(--color-averageValuation)"
                     strokeWidth={3}
                     dot={{ r: 6 }}
                   />

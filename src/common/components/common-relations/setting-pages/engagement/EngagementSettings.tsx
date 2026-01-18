@@ -31,7 +31,7 @@ import {
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useForm } from 'react-hook-form'
-import { ClipboardList, Wrench, AlertTriangle, ListChecks, ArrowLeft } from 'lucide-react'
+import { ClipboardList, Wrench, AlertTriangle, ListChecks } from 'lucide-react'
 
 export interface CatalogItem {
   id: string
@@ -362,19 +362,12 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
 
   return (
     <div className={className} data-testid={`${prefixDataTestId || ''}-EngagementSettings-Container`}>
-      {onBack && (
-        <div>
-          <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId || ''}-EngagementSettings-Back`}>
-            <ArrowLeft />
-            Back
-          </Button>
-        </div>
-      )}
       <PageHeader
         title={headerTitle}
-        description={headerDescription}
-        icon={<ClipboardList />}
+        subtitle={headerDescription}
+        avatar={<ClipboardList />}
         data-testid={`${prefixDataTestId || ''}-EngagementSettings-Header`}
+        onBack={onBack}
       />
 
       <div>

@@ -1,17 +1,47 @@
 import { useCallback, useRef, useState, useMemo } from 'react'
-import { env } from '@/common/env/EnvUtils'
 import type { MessageEntityReference } from '../types'
 import type { OutputItem } from '../../every-ai/types/models'
 import { getCurrentPageContext } from '../../every-ai/utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
-const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
 const LLM_MODEL = 'gpt-4.1'
 const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
 
-function resolveFlowbotBaseUrl(): string {
-  return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
+/**
+ * Upload files to FlowBot using the async /add_files endpoint.
+ * Returns the (possibly new) sessionId that should be used for subsequent chat calls.
+ * This is shared between EveryAI app and employee chat to enable "upload now, ask later" behaviour.
+ */
+async function uploadFilesToFlowbotSession(
+  files: File[] | undefined,
+  sessionId: string | undefined,
+  accessToken: string
+): Promise<string> {
+  if (!files || files.length === 0) return sessionId ?? ''
+
+  const baseUrl = resolveFlowbotBaseUrl()
+  const url = `${baseUrl}/flowbot/api/agent/add_files`
+
+  const form = new FormData()
+  files.forEach(file => form.append('files', file))
+  form.append('session_id', sessionId ?? '')
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: form
+  })
+
+  if (!res.ok) {
+    throw new Error(`add_files failed: ${res.status} ${res.statusText}`)
+  }
+
+  const data = await res.json()
+  return (data?.sessionId as string | undefined) ?? sessionId ?? ''
 }
 
 // Type for analytics entity
@@ -84,8 +114,6 @@ export interface ScheduledMeeting {
  * Also handles: "A meeting will be scheduled for you and Denis on today's date at 10:00 PM"
  */
 function parseMeetingFromText(text: string, context?: ConversationContext): ScheduledMeeting | undefined {
-  console.log('🔍 [EveryAI] Attempting to parse meeting from text')
-
   try {
     // Normalize escaped quotes in the text first
     const normalizedText = text.replace(/\\"/g, '"')
@@ -108,7 +136,6 @@ function parseMeetingFromText(text: string, context?: ConversationContext): Sche
       normalizedText.match(pattern4)
 
     if (!match) {
-      console.log('📝 [EveryAI] No meeting pattern found in text:', normalizedText.substring(0, 200))
       return undefined
     }
 
@@ -134,21 +161,11 @@ function parseMeetingFromText(text: string, context?: ConversationContext): Sche
       // Fallback
       title = 'Meeting'
       dateTimeText = match[1] || ''
-    }
-
-    console.log('📝 [EveryAI] Parsing meeting from text:', {
-      title,
-      dateTimeText,
-      originalText: text.substring(0, 200),
-      normalizedText: normalizedText.substring(0, 200)
-    })
-
-    // Extract time from text (e.g., "2:00 PM", "14:00")
+    } // Extract time from text (e.g., "2:00 PM", "14:00")
     const timePattern = /(\d{1,2}):(\d{2})\s*(AM|PM)?/i
     const timeMatch = dateTimeText.match(timePattern)
 
     if (!timeMatch) {
-      console.log('⚠️ [EveryAI] Could not extract time from text')
       return undefined
     }
 
@@ -518,15 +535,27 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
 
         if (isLocalhost) {
-          console.log('🤖 [EveryAI] Local development - connecting to DEV FlowBot:', url)
         }
 
         // Use existing session ID from previous AI messages in this conversation
         // This allows all users to share the same AI context
         const sharedSessionId = conversationContext?.existingSessionId ?? ''
 
+        // Try to pre-upload files via /add_files for this session.
+        // This enables async parsing so the first answer can be faster.
+        let effectiveSessionId = sharedSessionId
+        let usedAddFiles = false
+        if (files && files.length > 0) {
+          try {
+            effectiveSessionId = await uploadFilesToFlowbotSession(files, sharedSessionId || undefined, accessToken)
+            usedAddFiles = true
+          } catch (error) {
+            console.error('⚠️ [EveryAI] add_files failed, falling back to direct file upload:', error)
+          }
+        }
+
         const form = new FormData()
-        form.append('session_id', sharedSessionId)
+        form.append('session_id', effectiveSessionId)
         form.append('llm_model', LLM_MODEL)
         form.append('use_web_search_tool', 'false')
 
@@ -588,8 +617,10 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         }
 
         // FIX 3: Send file attachments to FlowBot (like standalone EveryAI does)
-        // This allows the AI to read and analyze uploaded documents/files
-        if (files && files.length > 0) {
+        // This allows the AI to read and analyze uploaded documents/files.
+        // If /add_files succeeded we don't need to send files again; if it failed we fall back
+        // to inline file upload with the chat request.
+        if (files && files.length > 0 && !usedAddFiles) {
           files.forEach(file => form.append('files', file))
         }
 
@@ -613,7 +644,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         // Parse SSE response to extract the answer and meeting data
         const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
         let responseText = ''
-        let responseSessionId = sharedSessionId // Start with existing, will be updated if new one received
+        let responseSessionId = effectiveSessionId // Start with current, will be updated if new one received
         let scheduledMeeting: ScheduledMeeting | undefined
         const collectedOutputs: OutputItem[] = [] // Collect all output items for rich rendering
         let buf = ''
@@ -635,11 +666,6 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
               else if (line.startsWith('data:')) data += line.slice(5).trimStart()
             }
 
-            // Log all events for debugging
-            if (event !== 'message' && data) {
-              console.log(`📨 [EveryAI] SSE Event: ${event}`, data.substring(0, 200))
-            }
-
             if (event === 'session-id') {
               try {
                 const newSessionId = JSON.parse(data.trim())
@@ -651,18 +677,13 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
               }
             } else if (event === 'output-item') {
               try {
-                const output = JSON.parse(data)
-                console.log('📦 [EveryAI] Received output-item:', output.type, output)
-
-                // Collect the output item for rich rendering (except loading which we handle separately)
+                const output = JSON.parse(data) // Collect the output item for rich rendering (except loading which we handle separately)
                 if (output.type !== 'loading') {
                   collectedOutputs.push(output)
                 }
 
                 // Check for scheduled meeting output (NEW: proper backend support)
                 if (output.type === 'scheduled_meeting' && output.meeting) {
-                  console.log('📅 [EveryAI] Received scheduled_meeting output:', output.meeting)
-
                   try {
                     const meetingData = output.meeting
                     scheduledMeeting = {
@@ -674,7 +695,6 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
                       meetingLink: meetingData.meetingLink,
                       description: meetingData.description
                     }
-                    console.log('✅ [EveryAI] Scheduled meeting from backend:', scheduledMeeting)
                   } catch (e) {
                     console.error('❌ [EveryAI] Error parsing scheduled_meeting output:', e)
                     // Don't throw - continue processing
@@ -683,15 +703,10 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
                 // Check for tool calls (meeting scheduling intent)
                 else if (output.type === 'tool') {
-                  console.log('🔧 [EveryAI] Tool call:', output.name, output)
-
                   // Check if tool has parameters with meeting details
                   if ((output.name === 'schedule_meeting' || output.name === 'create_meeting') && output.parameters) {
                     try {
-                      const params = output.parameters
-                      console.log('📅 [EveryAI] Tool parameters:', params)
-
-                      // Extract meeting details from tool parameters
+                      const params = output.parameters // Extract meeting details from tool parameters
                       if (params.title || params.subject) {
                         scheduledMeeting = {
                           id: params.id || params.meeting_id || `meeting-${Date.now()}`,
@@ -702,7 +717,6 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
                           meetingLink: params.meeting_link || params.meetingLink || params.link,
                           description: params.description || params.agenda || params.notes
                         }
-                        console.log('✅ [EveryAI] Meeting extracted from tool params:', scheduledMeeting)
                       }
                     } catch (e) {
                       console.error('❌ [EveryAI] Error parsing tool parameters:', e)
@@ -744,16 +758,11 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
                 }
                 // Check for tool call results (meeting scheduling)
                 else if (output.type === 'tool-call-result' || output.type === 'tool_result') {
-                  console.log('🔧 [EveryAI] Tool call result:', output)
-
                   try {
                     // FlowBot returns meeting data in tool-call-result events
                     const toolName = output.tool || output.tool_name || output.name
                     if ((toolName === 'schedule_meeting' || toolName === 'create_meeting') && output.result) {
-                      const resultData = typeof output.result === 'string' ? JSON.parse(output.result) : output.result
-                      console.log('📅 [EveryAI] Raw tool result:', resultData)
-
-                      // FlowBot returns: { success: true, meeting: {...}, message: "..." }
+                      const resultData = typeof output.result === 'string' ? JSON.parse(output.result) : output.result // FlowBot returns: { success: true, meeting: {...}, message: "..." }
                       // Extract the nested meeting object
                       const meetingData = resultData.meeting || resultData
 
@@ -782,7 +791,6 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
                             meetingData.meeting_link,
                           description: meetingData.description || meetingData.agenda || meetingData.notes
                         }
-                        console.log('✅ [EveryAI] Scheduled meeting extracted from tool result:', scheduledMeeting)
                       }
                     }
                   } catch (e) {
@@ -808,9 +816,6 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           console.warn('⚠️ [EveryAI] No scheduled_meeting output received from backend, falling back to text parsing')
           try {
             scheduledMeeting = parseMeetingFromText(responseText, conversationContext)
-            if (scheduledMeeting) {
-              console.log('✅ [EveryAI] Meeting extracted from text response (fallback):', scheduledMeeting)
-            }
           } catch (parseError) {
             console.error('❌ [EveryAI] Text parsing failed, continuing without meeting card:', parseError)
             // Don't throw - just continue without meeting data

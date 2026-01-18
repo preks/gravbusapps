@@ -4,18 +4,11 @@ import type { ConversationTurn, OutputItem, FileMeta, CurrentPageContext } from 
 import { getCurrentPageContext } from '../utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
-import { env } from '@/common/env/EnvUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 const STORAGE_KEY = 'newwork_every_ai'
 const LLM_MODEL = 'gpt-4.1'
 const SUBMITTING_FORM_MESSAGE = 'Submitting form data...'
-const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
-
-function resolveFlowbotBaseUrl(): string {
-  return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
-}
-
-const FLOWBOT_BASE_URL = resolveFlowbotBaseUrl()
 
 type ConversationState = {
   conversation: ConversationTurn[]
@@ -85,7 +78,8 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
   if (!sessionId) return { conversation: [], sessionId: null }
 
   try {
-    const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/session/${sessionId}/history`, {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -198,6 +192,41 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
   }
 }
 
+/**
+ * Upload files to FlowBot using the async /add_files endpoint.
+ * Returns the (possibly new) sessionId that should be used for subsequent chat calls.
+ * This is used both for "upload early" flows and as a fallback inside sendMessage.
+ */
+async function uploadFilesToFlowbotSession(
+  files: File[],
+  sessionId: string | null,
+  accessToken: string
+): Promise<string> {
+  if (!files.length) return sessionId ?? ''
+
+  const baseUrl = resolveFlowbotBaseUrl()
+  const url = `${baseUrl}/flowbot/api/agent/add_files`
+
+  const form = new FormData()
+  files.forEach(file => form.append('files', file))
+  form.append('session_id', sessionId ?? '')
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: form
+  })
+
+  if (!res.ok) {
+    throw new Error(`add_files failed: ${res.status} ${res.statusText}`)
+  }
+
+  const data = await res.json()
+  return (data?.sessionId as string | undefined) ?? sessionId ?? ''
+}
+
 type AnalyticsEntityInput = {
   type: string
   id: string
@@ -242,11 +271,14 @@ export function useFlowBot(accessToken: string) {
 
   const [state, setState] = useState<ConversationState>(loadState)
   const [isLoading, setIsLoading] = useState(false)
+  const sessionIdRef = useRef<string | null>(null)
   const lastFetchedSessionIdRef = useRef<string | null>(null)
   const [prechatSuggestions, setPrechatSuggestions] = useState<string[]>([])
   const [isPrechatLoading, setIsPrechatLoading] = useState(false)
   const isPrechatLoadingRef = useRef(false)
   const inFlightRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const [cancelledMessageText, setCancelledMessageText] = useState<string | null>(null)
 
   const analyticsEntity = useMemo(() => resolveAnalyticsEntity(currentPageContext), [currentPageContext])
   const analyticsHookEntity = useMemo<AnalyticsEntityInput>(
@@ -261,6 +293,10 @@ export function useFlowBot(accessToken: string) {
   })
 
   useEffect(() => saveState(state), [state])
+
+  useEffect(() => {
+    sessionIdRef.current = state.sessionId
+  }, [state.sessionId])
 
   useEffect(() => {
     if (!accessToken) return
@@ -294,6 +330,7 @@ export function useFlowBot(accessToken: string) {
 
   const updateSessionId = useCallback(
     (newSessionId: string) => {
+      sessionIdRef.current = newSessionId
       setState(prev => ({ ...prev, sessionId: newSessionId }))
       resetAnalytics(newSessionId)
     },
@@ -462,8 +499,20 @@ export function useFlowBot(accessToken: string) {
 
         pushTurn({ side: 'agent', outputs: [{ type: 'loading' }] })
 
+        // Prefer using /add_files when there is no active session yet.
+        // This enables async parsing for the very first message in a new chat.
+        let effectiveSessionId = sessionIdRef.current ?? state.sessionId ?? ''
+        if (!effectiveSessionId && files.length > 0) {
+          try {
+            effectiveSessionId = await uploadFilesToFlowbotSession(files, effectiveSessionId, accessToken)
+          } catch (error) {
+            console.error('⚠️ [FlowBot] add_files failed, falling back to direct file upload:', error)
+            // If add_files fails we keep effectiveSessionId empty and will send files directly with the chat request.
+          }
+        }
+
         const form = new FormData()
-        form.append('session_id', state.sessionId ?? '')
+        form.append('session_id', effectiveSessionId)
         form.append('user_input_text', userInputText)
         form.append('llm_model', isThinking ? 'o4-mini' : LLM_MODEL)
         form.append('use_web_search_tool', (isSearching ?? false).toString())
@@ -485,15 +534,11 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
-        // Use local FlowBot in development
-        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        const baseUrl = isLocalDev ? 'http://localhost:8000' : FLOWBOT_BASE_URL
+        const baseUrl = resolveFlowbotBaseUrl()
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
 
-        // Debug log only in development
-        if (isLocalDev) {
-          console.log('📤 [FlowBot] Sending to local:', userInputText.substring(0, 50))
-        }
+        // Create abort controller for this request
+        abortControllerRef.current = new AbortController()
 
         const res = await fetch(url, {
           method: 'POST',
@@ -501,7 +546,8 @@ export function useFlowBot(accessToken: string) {
             Authorization: `Bearer ${accessToken}`,
             Accept: 'text/event-stream'
           },
-          body: form
+          body: form,
+          signal: abortControllerRef.current.signal
         })
 
         if (!res.ok) throw new Error(res.statusText)
@@ -555,6 +601,11 @@ export function useFlowBot(accessToken: string) {
         }
         pruneEphemeralOutputsFromLastAgentTurn()
       } catch (error) {
+        // Don't show error if request was aborted (user cancelled)
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('Request was cancelled by user')
+          return
+        }
         console.error('Error sending message:', error)
 
         appendOutputItemToLastAgentTurn({ type: 'error' })
@@ -562,18 +613,125 @@ export function useFlowBot(accessToken: string) {
         pruneEphemeralOutputsFromLastAgentTurn()
         inFlightRef.current = false
         setIsLoading(false)
+        abortControllerRef.current = null
       }
     },
     [
       accessToken,
       pushTurn,
       state.sessionId,
+      sessionIdRef,
       appendOutputItemToLastAgentTurn,
       pruneEphemeralOutputsFromLastAgentTurn,
       updateSessionId,
       buildCurrentPageContextPayload
     ]
   )
+
+  const cancelGeneration = useCallback(async () => {
+    // Abort the ongoing fetch request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+
+    let cancelApiMessageText: string | null = null // Fallback for when cancel API fails
+    let cancelOutput: OutputItem | null = null // Cancel API response
+
+    // Call the cancel API endpoint if we have a session
+    if (state.sessionId && accessToken) {
+      try {
+        const baseUrl = resolveFlowbotBaseUrl()
+
+        const form = new FormData()
+        form.append('session_id', state.sessionId)
+
+        const res = await fetch(`${baseUrl}/flowbot/api/agent/chat/cancel`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: form
+        })
+
+        if (res.ok) {
+          const payload: any = await res.json().catch(() => null)
+          // Backend contract: if message is non-null, it's always an OutputItem.
+          cancelOutput = (payload?.message ?? null) as OutputItem | null
+        } else if (res.status !== 404) {
+          const text = await res.text().catch(() => '')
+          cancelApiMessageText = text ? `Cancel failed (${res.status}): ${text}` : `Cancel failed (${res.status})`
+        }
+      } catch (error) {
+        console.error('Failed to call cancel API:', error)
+        cancelApiMessageText = 'Cancel request failed (network error)'
+      }
+    }
+
+    // Read the user message text BEFORE updating state (since setState is async)
+    const currentConversation = state.conversation
+    let userMessageText: string | null = null
+
+    // Find the last user turn (typically second to last if last is agent loading)
+    for (let i = currentConversation.length - 1; i >= 0; i--) {
+      const turn = currentConversation[i]
+      if (turn.side === 'user') {
+        userMessageText = turn.text || null
+        break
+      }
+    }
+
+    // Restore last user message to input so it can be edited
+    if (userMessageText && userMessageText !== SUBMITTING_FORM_MESSAGE) {
+      setCancelledMessageText(userMessageText)
+    }
+
+    // Update lastFetchedSessionIdRef to prevent history reload after cancel
+    // This ensures that if conversation becomes empty, we don't reload the cancelled message
+    if (state.sessionId) {
+      lastFetchedSessionIdRef.current = state.sessionId
+    }
+
+    // Now update the conversation state to remove the turns
+    setState(prevState => {
+      const newConversation = [...prevState.conversation]
+
+      // Remove the last agent turn (with loading/streaming response)
+      if (newConversation.length > 0 && newConversation[newConversation.length - 1]?.side === 'agent') {
+        newConversation.pop()
+      }
+
+      // Remove the last user turn
+      if (newConversation.length > 0 && newConversation[newConversation.length - 1]?.side === 'user') {
+        newConversation.pop()
+      }
+
+      // Show cancel response returned by the API as a new agent turn
+      if (cancelOutput) {
+        newConversation.push({ side: 'agent', outputs: [cancelOutput] })
+      } else if (cancelApiMessageText) {
+        // Fallback for when cancel API fails, show it as a tool output
+        newConversation.push({
+          side: 'agent',
+          outputs: [{ type: 'tool', name: 'cancel', reason: cancelApiMessageText }]
+        })
+      }
+
+      const newState = { ...prevState, conversation: newConversation }
+      saveState(newState)
+      return newState
+    })
+
+    // Reset loading state
+    inFlightRef.current = false
+    setIsLoading(false)
+
+    return userMessageText
+  }, [accessToken, state.sessionId, state.conversation])
+
+  const clearCancelledMessage = useCallback(() => {
+    setCancelledMessageText(null)
+  }, [])
 
   const fetchPrechatSuggestions = useCallback(async () => {
     if (state.conversation.length > 0 || isPrechatLoadingRef.current) return
@@ -605,9 +763,10 @@ export function useFlowBot(accessToken: string) {
 
       // Add timeout to prevent long waits
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
-      const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/prechat-suggestions`, {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -655,12 +814,63 @@ export function useFlowBot(accessToken: string) {
     }
   }, [state.conversation.length, accessToken, currentPageContext, fetchPrechatSuggestions])
 
+  const editMessage = useCallback(
+    async (turnIndex: number, newText: string) => {
+      if (turnIndex < 0 || turnIndex >= state.conversation.length) return
+      if (!newText.trim()) return
+
+      // Delete old message and all messages after it
+      setState(prev => {
+        const newState = {
+          ...prev,
+          conversation: prev.conversation.slice(0, turnIndex)
+        }
+        saveState(newState)
+        return newState
+      })
+
+      // Wait for state update to complete before sending new message
+      await new Promise(resolve => setTimeout(resolve, 0))
+
+      // Add new message (resend)
+      await sendMessage(newText, [], false, false, undefined)
+    },
+    [state.conversation.length, sendMessage]
+  )
+
+  /**
+   * Pre-upload files for the current EveryAI session using /add_files.
+   * This is called as soon as the user attaches files in the UI (before pressing Send).
+   * If a new sessionId is created by the backend, we persist it via updateSessionId.
+   */
+  const attachFiles = useCallback(
+    async (files: File[]) => {
+      if (!files.length) return
+      try {
+        const newSessionId = await uploadFilesToFlowbotSession(files, sessionIdRef.current, accessToken)
+        if (newSessionId && newSessionId !== state.sessionId) {
+          updateSessionId(newSessionId)
+        }
+      } catch (error) {
+        // Do not block the UI if pre-upload fails; sendMessage will still work via fallback.
+        console.error('⚠️ [FlowBot] Failed to pre-upload files via add_files:', error)
+      }
+    },
+    [accessToken, state.sessionId, updateSessionId, sessionIdRef]
+  )
+
   return {
     conversation: state.conversation,
     isLoading,
     sendMessage,
+    editMessage,
+    attachFiles,
     clearConversation,
     nextStepProposals,
-    isPrechatLoading
+    isPrechatLoading,
+    sessionId: state.sessionId,
+    cancelGeneration,
+    cancelledMessageText,
+    clearCancelledMessage
   }
 }

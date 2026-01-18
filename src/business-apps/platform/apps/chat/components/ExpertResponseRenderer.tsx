@@ -38,6 +38,7 @@ interface ExpertResponseRendererProps {
   expertColor?: string
   citations?: Citation[]
   confidence?: number
+  accessToken?: string
   'data-testid'?: string
 }
 
@@ -80,7 +81,11 @@ function parseStructuredResponse(content: string): { isStructured: boolean; data
 /**
  * Render a structured response nicely
  */
-const StructuredResponseRenderer: React.FC<{ data: any; expertColor?: string }> = ({ data, expertColor }) => {
+const StructuredResponseRenderer: React.FC<{ data: any; expertColor?: string; accessToken?: string }> = ({
+  data,
+  expertColor,
+  accessToken = ''
+}) => {
   const colorStyles = getExpertColorStyles(expertColor)
 
   // Render array items as badges or list items
@@ -210,32 +215,33 @@ const StructuredResponseRenderer: React.FC<{ data: any; expertColor?: string }> 
       {/* Answer (generic field) */}
       {data.answer && !data.summary && (
         <div className="gba:text-sm gba:leading-relaxed">
-          <AIResponseRenderer content={data.answer} />
+          <AIResponseRenderer content={data.answer} accessToken={accessToken} />
         </div>
       )}
 
       {/* Analysis (generic field) */}
       {data.analysis && typeof data.analysis === 'string' && (
         <div className="gba:text-sm gba:leading-relaxed">
-          <AIResponseRenderer content={data.analysis} />
+          <AIResponseRenderer content={data.analysis} accessToken={accessToken} />
         </div>
       )}
 
       {/* Result (generic field) */}
       {data.result && typeof data.result === 'string' && (
         <div className="gba:text-sm gba:leading-relaxed">
-          <AIResponseRenderer content={data.result} />
+          <AIResponseRenderer content={data.result} accessToken={accessToken} />
         </div>
       )}
     </div>
   )
 }
 
-export const ExpertResponseRenderer: React.FC<ExpertResponseRendererProps> = ({
+const ExpertResponseRendererComponent: React.FC<ExpertResponseRendererProps> = ({
   content,
   expertColor,
   citations,
   confidence,
+  accessToken = '',
   'data-testid': testId = 'expert-response'
 }) => {
   const [showCitations, setShowCitations] = useState(false)
@@ -250,9 +256,9 @@ export const ExpertResponseRenderer: React.FC<ExpertResponseRendererProps> = ({
     <div className="gba:space-y-3" data-testid={testId}>
       {/* Main response - either structured or plain text */}
       {isStructured && structuredData ? (
-        <StructuredResponseRenderer data={structuredData} expertColor={expertColor} />
+        <StructuredResponseRenderer data={structuredData} expertColor={expertColor} accessToken={accessToken} />
       ) : (
-        <AIResponseRenderer content={content} />
+        <AIResponseRenderer content={content} accessToken={accessToken} />
       )}
 
       {/* Confidence indicator (only if < 90%) */}
@@ -345,3 +351,18 @@ export const ExpertResponseRenderer: React.FC<ExpertResponseRendererProps> = ({
     </div>
   )
 }
+
+// OPTIMIZATION: Memoize to prevent unnecessary re-renders
+export const ExpertResponseRenderer = React.memo(ExpertResponseRendererComponent, (prevProps, nextProps) => {
+  // Only re-render if content or citations change
+  // Parse is already memoized inside the component
+  if (prevProps.content !== nextProps.content) return false
+  if (prevProps.expertColor !== nextProps.expertColor) return false
+  if (prevProps.confidence !== nextProps.confidence) return false
+  if (prevProps.accessToken !== nextProps.accessToken) return false
+
+  // Check citations array reference (should be stable)
+  if (prevProps.citations !== nextProps.citations) return false
+
+  return true
+})

@@ -70,19 +70,22 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
 
+  // Get dueDate from additionalData or initialParameters (for calendar quick actions)
+  const dueDate = additionalData?.dueDate || initialParameters?.dueDate || null
+
   // Extract typeRef from additionalData or initialParameters
   const typeRef = additionalData?.typeRef || initialParameters?.typeRef || null
 
-  // Determine if this is an Approval task (type selection should be hidden)
-  const isApprovalTask = typeRef?.toUpperCase().includes('APPROVAL')
-
-  // Determine if entity selection should be shown
-  const hasEntityFromContext = accountId || contactId || opportunityId || leadId
-  const shouldShowEntitySelection = !hasEntityFromContext
+  // Determine if this is an Approval task (for assignee mode control only)
+  const isApprovalTask = typeRef?.toUpperCase()?.includes('APPROVAL') ?? false
 
   const form = useForm<z.infer<typeof taskSchema>>({
     resolver: zodResolver(taskSchema) as any,
-    defaultValues: mapToFormValues(task || {}, taskSchema) as any,
+    defaultValues: {
+      ...mapToFormValues(task || {}, taskSchema),
+      // Include dueDate from context if provided (e.g., from calendar quick action)
+      ...(dueDate && !taskId ? { dueDate } : {})
+    } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -97,35 +100,70 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     [accountId, contactId, opportunityId, leadId, task]
   )
 
+  // Calculate if entity selection should be shown (no entity context exists)
+  const shouldShowEntitySelection = useMemo(
+    () =>
+      !(
+        relatedEntityIds.accountId ||
+        relatedEntityIds.contactId ||
+        relatedEntityIds.opportunityId ||
+        relatedEntityIds.leadId
+      ),
+    [relatedEntityIds]
+  )
+
   const taskRef = useRef(task)
 
-  const handleSubmit = useCallback(
-    async (data: z.infer<typeof taskSchema>) => {
-      try {
-        delete data.files
-        delete data._pendingFiles
-        delete data.relatedEntityId
+  // Watch assignedEmployeeIds and sync taskAssignees array
+  const assignedEmployeeIds = form.watch('assignedEmployeeIds')
+  useEffect(() => {
+    if (!assignedEmployeeIds) return
 
-        // Build payload (buildPayload will include creator fields from taskData)
-        const { salesTask } = buildCustomerTaskPayload(data as Partial<CustomerTask>)
+    const currentTaskAssignees = form.getValues('taskAssignees') || []
+    const existingAssigneesMap = new Map(currentTaskAssignees.map((ta: any) => [ta.assignedEmployeeId, ta]))
 
-        // assignedUserId from assignedEmployee
-        if (data.assignedEmployee?.userId) {
-          salesTask.assignedUserId = data.assignedEmployee.userId
-        } else if (data.assignedEmployeeId && data.assignedEmployeeId === userInfo?.employeeDetails?.employeeId) {
-          salesTask.assignedUserId = userInfo.id
-        }
+    // Get employee objects from form state (set by MultiEmployeeSelect)
+    const assignedEmployees = form.getValues('assignedEmployees') || []
 
-        return {
-          salesTask
-        }
-      } catch (error) {
-        console.error('Error submitting task:', error)
-        throw error
+    // Build new taskAssignees array, preserving existing IDs and versions
+    const newTaskAssignees = assignedEmployeeIds.map((employeeId: string) => {
+      const existing = existingAssigneesMap.get(employeeId)
+
+      // Get employee data (for userId) - try multiple sources
+      // 1. From task object (for existing assignees loaded from backend)
+      let employee = task?.taskAssignees?.find((ta: any) => ta.assignedEmployee?.id === employeeId)?.assignedEmployee
+      // 2. From form state (for newly added assignees from MultiEmployeeSelect)
+      employee ??= assignedEmployees.find((emp: any) => emp.id === employeeId)
+
+      return {
+        ...(existing?.id && { id: existing.id }),
+        ...(existing?.version !== undefined && { version: existing.version }),
+        assignedEmployeeId: employeeId,
+        assignedUserId: employee?.userId || null,
+        ...(existing?.taskStatus && { taskStatus: existing.taskStatus }), // Preserve existing status (backend sets default)
+        ...(existing?.completedAt && { completedAt: existing.completedAt })
       }
-    },
-    [userInfo]
-  )
+    })
+
+    form.setValue('taskAssignees', newTaskAssignees)
+  }, [assignedEmployeeIds, task?.taskAssignees, form])
+
+  const handleSubmit = useCallback(async (data: z.infer<typeof taskSchema>) => {
+    try {
+      delete data.files
+      delete data._pendingFiles
+      delete data.relatedEntityId
+      // Delete helper fields (not sent to backend)
+      delete data.assignedEmployeeIds
+      delete data.assignedEmployees
+
+      // Build payload (returns { employeeDetails, salesTask })
+      return buildCustomerTaskPayload(data as Partial<CustomerTask>)
+    } catch (error) {
+      console.error('Error submitting task:', error)
+      throw error
+    }
+  }, [])
 
   const handlePreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -179,13 +217,28 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       form.reset(mapToFormValues(task || {}, taskSchema) as any)
       taskRef.current = task
 
-      // Sync assignedUserId from assignedEmployee after reset
-      const assignedEmployee = form.getValues('assignedEmployee')
-      if (assignedEmployee?.userId) {
-        form.setValue('assignedUserId', assignedEmployee.userId)
+      // Manually set assignee fields when task loads (prevents infinite loop in MultiEmployeeSelect)
+      if (task?.taskAssignees && task.taskAssignees.length > 0) {
+        const employeeIds = task.taskAssignees.map((ta: any) => ta.assignedEmployee?.id).filter(Boolean)
+
+        const employees = task.taskAssignees.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp?.id)
+
+        // Store full taskAssignees array (with junction table IDs for updates)
+        const taskAssigneesArray = task.taskAssignees.map((ta: any) => ({
+          id: ta.id,
+          version: ta.version,
+          assignedEmployeeId: ta.assignedEmployee?.id,
+          assignedUserId: ta.assignedUserId,
+          taskStatus: ta.taskStatus,
+          completedAt: ta.completedAt
+        }))
+
+        form.setValue('taskAssignees', taskAssigneesArray)
+        form.setValue('assignedEmployeeIds', employeeIds)
+        form.setValue('assignedEmployees', employees)
       }
 
-      // Hydrate first found entity
+      // Set relatedEntityId and hydrate entity (relatedEntityId is required for form validation)
       const entity = [
         { type: 'account' as const, id: task?.accountId },
         { type: 'contact' as const, id: task?.contactId },
@@ -194,6 +247,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       ].find(e => e.id)
 
       if (entity?.id) {
+        form.setValue('relatedEntityId', entity.id)
         hydrateEntityById(entity.type, entity.id)
       }
     }
@@ -213,6 +267,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       form.setValue('taskTypeRef', typeRef)
     }
   }, [typeRef, task, form])
+
+  // Set default task status to IN_PROGRESS for new tasks
+  useEffect(() => {
+    if (!task && !form.getValues('taskStatusRef')) {
+      // Only set for new tasks, not when editing existing ones
+      form.setValue('taskStatusRef', 'SalesTaskStatus:v1:IN_PROGRESS')
+    }
+  }, [task, form])
 
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
@@ -278,7 +340,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           // Required props
           accessToken={accessToken}
           businessAppContext={{ accessToken, userInfo, additionalData }}
-          assignedEmployee={task?.assignedEmployee}
+          assignedEmployees={
+            task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp?.id) || []
+          }
           entityId={task?.id}
           // Catalogs
           typeCatalog={TASK_TYPE_CATALOG}
@@ -286,9 +350,13 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           statusCatalog={TASK_STATUS_CATALOG}
           // Type selection control
           initialTypeRef={typeRef}
-          hideTypeSelection={isApprovalTask}
-          // Entity search - hide if entity provided from context OR updating existing task
-          showEntitySelection={shouldShowEntitySelection && !taskId}
+          catalogSelectConfig={{
+            code: { mode: 'omit', values: ['APPROVAL'] }
+          }}
+          // Assignee mode - multi-select for approvals, single-select for regular tasks
+          multiAssigneeMode={isApprovalTask}
+          // Entity search - hide if any entity is set
+          showEntitySelection={shouldShowEntitySelection}
           entities={entities}
           entitiesLoading={entitiesLoading}
           entitiesHasMore={entitiesHasMore}

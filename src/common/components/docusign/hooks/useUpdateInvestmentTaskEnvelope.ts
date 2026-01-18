@@ -2,15 +2,12 @@ import { useCallback } from 'react'
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  buildInvestmentTaskPayload,
-  InvestmentTaskFormData
-} from '@/common/data/investment/payloads/investmentRelationPayloads'
+import { buildInvestmentTaskPayload, type InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 import { getPlatformContext } from '@/common/utils/windowUtils'
 
 export interface UpdateInvestmentTaskEnvelopeArgs {
   taskId: string
-  task: InvestmentTaskFormData
+  task: Partial<InvestmentTask>
   documentId: string
   envelopeId: string
   envelopeMode?: 'embedded' | 'email'
@@ -52,7 +49,7 @@ export const useUpdateInvestmentTaskEnvelope = (context?: BusinessAppContextProp
         throw new Error('Missing access token')
       }
 
-      const payload = buildInvestmentTaskPayload(task, context, { isUpdate: true })
+      const payload = buildInvestmentTaskPayload(task)
       payload.investmentTask.id = taskId
 
       const processContext = getProcessContext()

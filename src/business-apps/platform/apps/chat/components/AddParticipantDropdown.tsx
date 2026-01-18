@@ -10,8 +10,9 @@ import { Avatar, AvatarImage, AvatarFallback, Input, Spinner } from '@newwork/nw
 import { UserPlus, Search, Users } from 'lucide-react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import type { CallParticipant } from '../services/webrtcClient'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface AvailableParticipant {
   id: string
@@ -70,6 +71,7 @@ export const AddParticipantDropdown: React.FC<AddParticipantDropdownProps> = ({
   prefixDataTestId = 'add-participant',
   size = 'default'
 }) => {
+  const t = useChatTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<AvailableParticipant[]>([])
@@ -107,7 +109,7 @@ export const AddParticipantDropdown: React.FC<AddParticipantDropdownProps> = ({
     async (search: string): Promise<AvailableParticipant[]> => {
       const structureId = getCurrentActiveStructureId()
       if (!structureId) {
-        console.warn('No active structure ID for employee search')
+        console.error('[AddParticipantDropdown] No active structure ID available from platform context')
         return []
       }
 
@@ -278,7 +280,7 @@ export const AddParticipantDropdown: React.FC<AddParticipantDropdownProps> = ({
         className={`gba:rounded-full gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white gba:transition-all gba:relative ${
           size === 'small' ? 'gba:p-3' : 'gba:p-4'
         }`}
-        title={getTranslationFromI18nKeyAndLabel('chat.addParticipant', 'Add participant')}
+        title={t('chat-addParticipant')}
         data-testid={`${prefixDataTestId}-btn`}
       >
         <UserPlus className={size === 'small' ? 'gba:w-5 gba:h-5' : 'gba:w-6 gba:h-6'} />
@@ -300,7 +302,7 @@ export const AddParticipantDropdown: React.FC<AddParticipantDropdownProps> = ({
                 ref={inputRef}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder={getTranslationFromI18nKeyAndLabel('chat.searchPeople', 'Search people...')}
+                placeholder={t('chat-searchPeople')}
                 className="gba:pl-9 gba:h-9"
                 data-testid={`${prefixDataTestId}-search-input`}
               />
@@ -318,14 +320,12 @@ export const AddParticipantDropdown: React.FC<AddParticipantDropdownProps> = ({
                 {showSearchResults ? (
                   <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
                     <Search className="gba:w-8 gba:h-8 gba:opacity-50" />
-                    <span>{getTranslationFromI18nKeyAndLabel('chat.noUsersFound', 'No users found')}</span>
+                    <span>{t('chat-noUsersFound')}</span>
                   </div>
                 ) : (
                   <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:px-4">
                     <Users className="gba:w-8 gba:h-8 gba:opacity-50" />
-                    <span>
-                      {getTranslationFromI18nKeyAndLabel('chat.searchToAddPeople', 'Search to add people to the call')}
-                    </span>
+                    <span>{t('chat-searchToAddPeople')}</span>
                   </div>
                 )}
               </div>
@@ -334,12 +334,12 @@ export const AddParticipantDropdown: React.FC<AddParticipantDropdownProps> = ({
                 {/* Section header */}
                 {!showSearchResults && availableConversationParticipants.length > 0 && (
                   <div className="gba:px-3 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider">
-                    {getTranslationFromI18nKeyAndLabel('chat.fromConversation', 'From this conversation')}
+                    {t('chat-fromConversation')}
                   </div>
                 )}
                 {showSearchResults && searchResults.length > 0 && (
                   <div className="gba:px-3 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider">
-                    {getTranslationFromI18nKeyAndLabel('chat.searchResults', 'Search results')}
+                    {t('chat-searchResults')}
                   </div>
                 )}
 
@@ -369,8 +369,7 @@ export const AddParticipantDropdown: React.FC<AddParticipantDropdownProps> = ({
 
           {/* Footer hint */}
           <div className="gba:px-3 gba:py-2 gba:border-t gba:border-border gba:text-xs gba:text-muted-foreground gba:bg-muted/30">
-            💡{' '}
-            {getTranslationFromI18nKeyAndLabel('chat.searchHint', 'Type at least 2 characters to search all employees')}
+            💡 {t('chat-searchHint')}
           </div>
         </div>
       )}

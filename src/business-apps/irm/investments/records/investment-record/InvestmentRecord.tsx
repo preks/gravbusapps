@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { RecordLayout, Spinner } from '@newwork/nw-design-system'
+import { RecordLayout, Spinner, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Bot } from 'lucide-react'
+import { RobotIcon, TrendUpIcon, HouseIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInvestmentTileFields } from './hooks/useInvestmentTileFields'
 import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary'
-import { TrendingUp, Home, BarChart3 } from 'lucide-react'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
 
@@ -80,12 +79,12 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
 
   // Get icon based on investment group (hardcoded for now)
   const getInvestmentIcon = useCallback((investmentData: any) => {
-    if (!investmentData) return BarChart3
+    if (!investmentData) return ChartBarIcon
 
     const group = investmentData.investmentGroup?.code || ''
-    if (group.includes('EQUITY')) return TrendingUp
-    if (group.includes('REAL_ESTATE')) return Home
-    return BarChart3
+    if (group.includes('EQUITY')) return TrendUpIcon
+    if (group.includes('REAL_ESTATE')) return HouseIcon
+    return ChartBarIcon
   }, [])
 
   // Get display category based on investment group
@@ -332,7 +331,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     {
       key: 'ai-summary',
       label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-      icon: <Bot size={16} />,
+      icon: <RobotIcon size={16} />,
       hook: aiSummaryHook,
       config: {
         entityType: 'investment',
@@ -377,8 +376,8 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     <div className="gba:investment-details-container" data-testid={`${investmentType}-investment-detail`}>
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={getInvestmentIcon(investment)}
-        headerCategory={getInvestmentCategory(investment)}
+        headerAvatar={<IconAvatar icon={getInvestmentIcon(investment)} variant="decorative" size="xl" />}
+        headerOverline={getInvestmentCategory(investment)}
         onBack={handleBack}
         headerTitle={
           investment?.name || getTranslationFromI18nKeyAndLabel('crm.investments.record.title', 'Investment Record')
@@ -386,8 +385,10 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        headerDetailGroups={headerDetailGroups}
-        subViews={subViewsConfig}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

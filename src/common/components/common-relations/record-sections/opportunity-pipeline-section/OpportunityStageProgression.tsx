@@ -1,8 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { StageProgression } from '@/components/stage-progression/StageProgression'
+import { StageProgression, StageItem } from '@newwork/nw-design-system'
 import { OpportunityStageTooltipContent } from './OpportunityStageTooltipContent'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
-import { convertToStageFormat } from './utils'
+import { AppAction } from '@/components/app-action/AppAction'
 import type { OpportunityStageProgressionProps } from './types'
 
 /**
@@ -58,7 +57,25 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
     () => [contextConfig.transitionFlowContext],
     [contextConfig.transitionFlowContext]
   )
-  const stageStyle = useMemo(() => ({ flex: 1, display: 'flex' as const }), [])
+
+  // Calculate activeStageProgress for the current stage based on completed conditions
+  const activeStageProgress = useMemo(() => {
+    // Find the current stage
+    const currentStageData = stages.find(
+      s => s.value.toLowerCase() === currentStage.toLowerCase() || s.code.toLowerCase() === currentStage.toLowerCase()
+    )
+
+    if (!currentStageData) return undefined
+
+    // Extract conditions for the current stage
+    const conditions = contextConfig.extractStageConditions(stageConditionStatuses, currentStageData)
+
+    if (conditions.length === 0) return undefined
+
+    // Calculate progress: (completed / total) * 100
+    const completedCount = conditions.filter(c => c.isCompleted).length
+    return Math.round((completedCount / conditions.length) * 100)
+  }, [stages, currentStage, stageConditionStatuses, contextConfig])
 
   // Create stable props for all stages
   const stageProps = useMemo(() => {
@@ -74,8 +91,11 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
       }
     > = {}
 
-    for (const stage of convertToStageFormat(stages)) {
-      const isCurrentStage = stage.code === currentStage
+    for (const stage of stages || []) {
+      // Use case-insensitive comparison for both value and code
+      const isCurrentStage =
+        stage.value.toLowerCase() === currentStage.toLowerCase() ||
+        stage.code.toLowerCase() === currentStage.toLowerCase()
       const isDisabled = readonly && !isCurrentStage
 
       props[stage.id] = {
@@ -112,56 +132,67 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
   return (
     <>
       <StageProgression
-        stages={convertToStageFormat(stages)}
         currentStage={currentStage}
-        dataTestIdPrefix={dataTestIdPrefix}
-        onStageClick={() => {}} // Dummy function to enable pointer cursor for non-current stages
-        renderStageWrapper={(stage, isCurrentStage, _isCompleted, stageElement) => {
+        orientation="horizontal"
+        variant="card"
+        activeStageProgress={activeStageProgress}
+      >
+        {stages.map(stage => {
+          const isCurrentStage =
+            stage.value.toLowerCase() === currentStage.toLowerCase() ||
+            stage.code.toLowerCase() === currentStage.toLowerCase()
+          const isDisabled = readonly && !isCurrentStage
+
           const stagePropsData = stageProps[stage.id]
 
-          // For the current stage, render a plain container (no action menu)
+          // For the current stage, render directly with mouse handlers
           if (isCurrentStage) {
             return (
-              <div
-                key={`stage-${stage.id}-current`}
-                style={stageStyle}
+              <StageItem
+                key={stage.id}
+                value={stage.value}
+                title={stage.value}
+                disabled={isDisabled}
                 onMouseEnter={stagePropsData?.mouseHandlers.onMouseEnter}
                 onMouseLeave={stagePropsData?.mouseHandlers.onMouseLeave}
                 data-testid={`${dataTestIdPrefix}-action-menu-${stage.code}`}
-              >
-                {stageElement}
-              </div>
+              />
             )
           }
 
-          // For non-current stages, use action menu to allow transitions
+          // For non-current stages, wrap with AppAction and pass mouse handlers to StageItem
           return (
-            <AppActionMenu
+            <AppAction
               key={`stage-${stage.id}-not-current`}
+              mode="trigger"
               contextsArray={stagePropsData?.contextsArray}
               externalContextData={stagePropsData?.externalContextData}
               accessToken={accessToken}
               prefixDataTestId={`${dataTestIdPrefix}-action-${stage.code}`}
-              deferMainContextRequestsUntilClick={true}
-              emptyStateBehavior="enable"
-              autoExecuteSingleAction={true}
-              style={stageStyle}
-              onMouseEnter={stagePropsData?.mouseHandlers.onMouseEnter}
-              onMouseLeave={stagePropsData?.mouseHandlers.onMouseLeave}
-              data-testid={`${dataTestIdPrefix}-action-menu-${stage.code}`}
+              lazyLoad={true}
+              emptyState="enable"
+              autoExecute={true}
+              className="gba:contents"
             >
-              {stageElement}
-            </AppActionMenu>
+              <StageItem
+                value={stage.value}
+                title={stage.value}
+                disabled={isDisabled}
+                onMouseEnter={stagePropsData?.mouseHandlers.onMouseEnter}
+                onMouseLeave={stagePropsData?.mouseHandlers.onMouseLeave}
+                data-testid={`${dataTestIdPrefix}-action-menu-${stage.code}`}
+              />
+            </AppAction>
           )
-        }}
-      />
+        })}
+      </StageProgression>
 
       {/* Custom Tooltip Overlay - only show if tooltips are enabled */}
       {tooltipsEnabled &&
         hoveredStageId &&
         tooltipPosition &&
         (() => {
-          const hoveredStage = convertToStageFormat(stages).find(s => s.id === hoveredStageId)
+          const hoveredStage = stages.find(s => s.id === hoveredStageId)
           if (!hoveredStage) return null
 
           // Use context-specific extractor to get stage conditions

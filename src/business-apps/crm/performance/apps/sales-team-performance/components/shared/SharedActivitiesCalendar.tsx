@@ -17,7 +17,15 @@ import {
   TooltipTrigger,
   Badge
 } from '@newwork/nw-design-system'
-import { PiCalendar, PiCaretLeft, PiCaretRight, PiPhone, PiEnvelope, PiUsers, PiListChecks } from 'react-icons/pi'
+import {
+  CalendarIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon
+} from '@phosphor-icons/react'
 import { ACTIVITY_TYPE_COLORS } from '../sales-member-performance/components/activities/types'
 import { calculateActivityScore, getScoreBadgeVariant } from '../../utils/activityScoreCalculator'
 import { ActivityDetailSheet } from '@/common/components/common-relations/detail-sheets/activity-detail-sheet'
@@ -159,15 +167,15 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
   const getActivityTypeIcon = (type: string, size = 12) => {
     switch (type) {
       case 'Call':
-        return <PiPhone size={size} />
+        return <PhoneIcon size={size} />
       case 'Email':
-        return <PiEnvelope size={size} />
+        return <EnvelopeIcon size={size} />
       case 'Meeting':
-        return <PiUsers size={size} />
+        return <UsersIcon size={size} />
       case 'Task':
-        return <PiListChecks size={size} />
+        return <ListChecksIcon size={size} />
       default:
-        return <PiListChecks size={size} />
+        return <ListChecksIcon size={size} />
     }
   }
 
@@ -247,7 +255,7 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiCalendar size={20} />
+              <CalendarIcon size={20} />
               Activities Calendar
             </CardTitle>
             <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
@@ -269,13 +277,13 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
               )}
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Button variant="outline" size="icon" onClick={handlePreviousMonth} disabled={isLoading}>
-                  <PiCaretLeft size={20} />
+                  <CaretLeftIcon size={20} />
                 </Button>
                 <span className="gba:min-w-[140px] gba:text-center gba:font-medium">
                   {currentDate.format('MMMM YYYY')}
                 </span>
                 <Button variant="outline" size="icon" onClick={handleNextMonth} disabled={isLoading}>
-                  <PiCaretRight size={20} />
+                  <CaretRightIcon size={20} />
                 </Button>
               </div>
             </div>
@@ -325,7 +333,7 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="gba:flex gba:items-center gba:gap-0.5 gba:px-1 gba:py-0.5 gba:rounded gba:bg-info/20 gba:text-info gba:text-[9px] gba:font-medium">
-                              <PiCalendar size={10} />
+                              <CalendarIcon size={10} />
                               <span>{compact ? 'Out' : dayInfo.absence.type || 'Absence'}</span>
                             </div>
                           </TooltipTrigger>

@@ -20,12 +20,13 @@ import {
   AlertDescription
 } from '@newwork/nw-design-system'
 import { Network, Type, CheckCircle, AlertCircle, Copy, X, Loader2, TestTube2 } from 'lucide-react'
-import { FlowTemplate } from '../../types/flowTemplate'
+import { FlowTemplate, InputType } from '../../types/flowTemplate'
 import { TreeNode as TreeNodeType } from '../../types/expressionTree'
 import { CatalogMetadata } from '../../types/catalogTypes'
 import { BaseEntity, isBaseEntity, getEntityDisplayLabel, getEntityDescription } from '../../types/baseEntity'
 import { TreeNavigator } from './TreeNavigator'
 import { QuickActions } from './QuickActions'
+import { HumanReadablePreview } from './HumanReadablePreview'
 import { buildExpressionTree, pathToExpression } from '../../utils/expressionTreeBuilder'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
 import { useExpressionTesting } from '../../hooks/useExpressionTesting'
@@ -120,6 +121,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const [recentExpressions, setRecentExpressions] = useState<string[]>([])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [cursorPosition, setCursorPosition] = useState<number>(0)
+  const [readableMap, setReadableMap] = useState<Record<string, string>>({})
 
   // Catalog state - NEW
   const [catalogs, setCatalogs] = useState<CatalogMetadata[]>([])
@@ -306,6 +308,14 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const handleInputKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const target = e.target as HTMLTextAreaElement
     setCursorPosition(target.selectionStart || 0)
+  }
+
+  /**
+   * Build human-readable label for a node selection
+   * Returns just the label - the HumanReadablePreview component handles visual display
+   */
+  const buildReadableLabel = (node: TreeNodeType): string => {
+    return node.label || node.description || 'Field'
   }
 
   /**
@@ -564,52 +574,142 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
     }, 0)
   }
 
-  const handleNodeSelect = (node: TreeNodeType) => {
-    // Handle catalog browser click - load entries
-    if (node.type === 'catalog-browser') {
-      if (node.metadata?.offset) {
-        // This is a "Load More" button
-        handleLoadMore(node)
-      } else if (node.metadata?.loadingState === 'idle') {
-        // Initial browse click
-        handleBrowseEntries(node)
-      }
-      return
-    }
+  // --- Node Selection Handlers (extracted to reduce complexity) ---
 
-    // Handle entity browser click - now handled by inline search UI in TreeNode
-    // The search input will appear, and user will trigger search via handleEntitySearch
-    if (node.type === 'entity-browser') {
-      // Don't auto-browse anymore - let the inline search UI handle it
-      return
+  const handleCatalogBrowserSelect = (node: TreeNodeType) => {
+    if (node.metadata?.offset) {
+      handleLoadMore(node)
+    } else if (node.metadata?.loadingState === 'idle') {
+      handleBrowseEntries(node)
     }
+  }
 
-    // Handle entity instance or entity field with expression template
-    if ((node.type === 'entity-instance' || node.type === 'entity-field') && node.expressionTemplate) {
-      insertAtCursor(node.expressionTemplate)
-      return
-    }
+  const handleEntityInstanceSelect = (node: TreeNodeType) => {
+    if (!node.expressionTemplate) return
 
-    // Handle catalog entry click - insert entry reference
-    if (node.type === 'catalog-entry' && node.expressionTemplate) {
-      insertAtCursor(node.expressionTemplate)
-      return
-    }
+    const entityType = (node.metadata?.entityType || 'employee').toLowerCase()
+    const idExpr = node.expressionTemplate
+    const formatted = `${entityType}://${idExpr}`
 
-    // Handle regular field selection
-    if (node.type === 'field' && node.path) {
-      // Build expression from path for workflow/steps fields
+    setReadableMap(prev => ({ ...prev, [idExpr]: node.label || 'Entity' }))
+    insertAtCursor(formatted)
+  }
+
+  const handleEntityFieldSelect = (node: TreeNodeType) => {
+    if (!node.expressionTemplate) return
+
+    const exprKey = node.expressionTemplate
+    setReadableMap(prev => ({ ...prev, [exprKey]: node.label || 'Field' }))
+    insertAtCursor(node.expressionTemplate)
+  }
+
+  const handleCatalogEntrySelect = (node: TreeNodeType) => {
+    if (!node.expressionTemplate) return
+
+    const readable = buildReadableLabel(node)
+    const exprKey = node.expressionTemplate
+    setReadableMap(prev => ({ ...prev, [exprKey]: readable }))
+    insertAtCursor(node.expressionTemplate)
+  }
+
+  const handleFieldSelect = (node: TreeNodeType) => {
+    if (!node.path) return
+
+    // Entity fields from static entity schema
+    if (node.path[0] === '$entity') {
       const expression = pathToExpression(node.path)
+      setReadableMap(prev => ({ ...prev, [expression]: node.label || 'Entity Field' }))
       insertAtCursor(expression)
-    } else if (node.type === 'catalog-field' || node.type === 'catalog-container') {
-      // Use pre-built expression template for catalog fields
-      if (node.expressionTemplate) {
-        insertAtCursor(node.expressionTemplate)
-      } else if (node.expressionPath) {
-        // Fallback to expressionPath (wrap in braces if needed)
-        const expression = node.expressionPath.startsWith('{{') ? node.expressionPath : `{{${node.expressionPath}}}`
-        insertAtCursor(expression)
-      }
+      return
+    }
+
+    // File inputs: insert file URL with fileId, name, and download path
+    if (node.metadata?.inputType === InputType.FILE) {
+      handleFileFieldSelect(node)
+      return
+    }
+
+    // Entity data source fields (SELECT/MULTISELECT with entity data)
+    if (node.metadata?.dataSourceType === 'ENTITY' && node.metadata?.dataSourceEntity) {
+      handleEntityDataSourceFieldSelect(node)
+      return
+    }
+
+    // Default: workflow/steps fields
+    const expression = pathToExpression(node.path)
+    const readable = buildReadableLabel(node)
+    setReadableMap(prev => ({ ...prev, [expression]: readable }))
+    insertAtCursor(expression)
+  }
+
+  const handleFileFieldSelect = (node: TreeNodeType) => {
+    if (!node.path) return
+
+    const idExpr = pathToExpression([...node.path, '[0]', 'fileId'])
+    const fileNameExpr = pathToExpression([...node.path, '[0]', 'fileName'])
+    const downloadExpr = pathToExpression([...node.path, '[0]', 'downloadPath'])
+    const fileLink = `file://${idExpr}/name/${fileNameExpr}/url/${downloadExpr}`
+
+    setReadableMap(prev => ({
+      ...prev,
+      [idExpr]: node.label || 'File ID',
+      [fileNameExpr]: node.label || 'File Name',
+      [downloadExpr]: node.label ? `${node.label} Download` : 'File Download'
+    }))
+    insertAtCursor(fileLink)
+  }
+
+  const handleEntityDataSourceFieldSelect = (node: TreeNodeType) => {
+    if (!node.path) return
+
+    const entityType = (node.metadata?.dataSourceEntity as string).toLowerCase()
+    const idExpr = pathToExpression(node.path)
+    const entityRef = `${entityType}://${idExpr}`
+
+    setReadableMap(prev => ({ ...prev, [idExpr]: node.label || 'Entity' }))
+    insertAtCursor(entityRef)
+  }
+
+  const handleCatalogFieldSelect = (node: TreeNodeType) => {
+    if (node.expressionTemplate) {
+      const readable = buildReadableLabel(node)
+      const exprKey = node.expressionTemplate
+      setReadableMap(prev => ({ ...prev, [exprKey]: readable }))
+      insertAtCursor(node.expressionTemplate)
+    } else if (node.expressionPath) {
+      const expression = node.expressionPath.startsWith('{{') ? node.expressionPath : `{{${node.expressionPath}}}`
+      const readable = buildReadableLabel(node)
+      setReadableMap(prev => ({ ...prev, [expression]: readable }))
+      insertAtCursor(expression)
+    }
+  }
+
+  // --- Main Node Selection Handler ---
+
+  const handleNodeSelect = (node: TreeNodeType) => {
+    switch (node.type) {
+      case 'catalog-browser':
+        handleCatalogBrowserSelect(node)
+        break
+      case 'entity-browser':
+        // Handled by inline search UI in TreeNode
+        break
+      case 'entity-instance':
+        handleEntityInstanceSelect(node)
+        break
+      case 'entity-field':
+        handleEntityFieldSelect(node)
+        break
+      case 'catalog-entry':
+        handleCatalogEntrySelect(node)
+        break
+      case 'field':
+        handleFieldSelect(node)
+        break
+      case 'catalog-field':
+      case 'catalog-container':
+        handleCatalogFieldSelect(node)
+        break
     }
   }
 
@@ -832,6 +932,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
 
   const handleClear = () => {
     setLocalValue('')
+    setReadableMap({})
   }
 
   const handleCopy = () => {
@@ -958,6 +1059,23 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
                 {validationResult && validationResult.isValid && localValue.trim() && (
                   <div className="gba:text-xs gba:text-gray-500">
                     Note: Field names are validated at runtime when the workflow executes
+                  </div>
+                )}
+                {/* Human-readable preview with rich pill components */}
+                {localValue.trim() && (
+                  <div className="gba:space-y-2 gba:rounded-lg gba:border gba:border-muted gba:bg-muted/30 gba:p-3">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Badge variant="secondary" className="gba:text-xs">
+                        Human-readable
+                      </Badge>
+                      <span className="gba:text-xs gba:text-muted-foreground">Contextual view of expressions</span>
+                    </div>
+                    <HumanReadablePreview
+                      value={localValue}
+                      template={template}
+                      readableOverrides={readableMap}
+                      data-testid={`${testId}-preview`}
+                    />
                   </div>
                 )}
               </div>

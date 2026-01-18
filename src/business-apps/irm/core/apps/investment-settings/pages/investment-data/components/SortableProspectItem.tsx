@@ -2,7 +2,7 @@ import React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Button, Badge } from '@newwork/nw-design-system'
-import { PiDotsSixVertical, PiPencil, PiTrash } from 'react-icons/pi'
+import { DotsSixVerticalIcon, PencilIcon, TrashIcon } from '@phosphor-icons/react'
 import { ProspectField } from '../types'
 
 interface SortableProspectItemProps {
@@ -46,7 +46,7 @@ export const SortableProspectItem: React.FC<SortableProspectItemProps> = ({
           style={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'var(--nw-color-text-secondary)' }}
           data-testid={`${prefixDataTestId}-drag-handle`}
         >
-          <PiDotsSixVertical size={20} />
+          <DotsSixVerticalIcon size={20} />
         </div>
       )}
 
@@ -70,10 +70,10 @@ export const SortableProspectItem: React.FC<SortableProspectItemProps> = ({
       {!isReadOnly && (
         <div className="gba:flex gba:items-center gba:gap-1">
           <Button size="icon" variant="ghost" onClick={onEdit} data-testid={`${prefixDataTestId}-edit`}>
-            <PiPencil />
+            <PencilIcon />
           </Button>
           <Button size="icon" variant="ghost" onClick={onDelete} data-testid={`${prefixDataTestId}-delete`}>
-            <PiTrash />
+            <TrashIcon />
           </Button>
         </div>
       )}
