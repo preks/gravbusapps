@@ -39,10 +39,15 @@ export function useFteRatio(accessToken: string) {
       .executeQuery('fteDataCurrentEmployees', QueryType.DATASET, {})
       .then(response => {
         const data = (response as unknown as DatasetResponse)?.data || []
-        const averageRow = data.find(r => String(r.category).toLowerCase() === 'average_fte')
-        const averageFte = typeof averageRow?.value === 'number' ? averageRow.value : 0
+        const sumRow = data.find(r => String(r.category).toLowerCase() === 'sum_fte')
+        const countRow = data.find(r => String(r.category).toLowerCase() === 'employee_count')
+        const sumFte = typeof sumRow?.value === 'number' ? sumRow.value : 0
+        const datasetCount = typeof countRow?.value === 'number' ? countRow.value : undefined
+        const effectiveCount = typeof datasetCount === 'number' ? datasetCount : (employeeCount ?? 0)
+        const averageFte = effectiveCount > 0 ? sumFte / effectiveCount : 0
 
-        setTotalFte(averageFte)
+        // totalFte represents the numerator shown in the card (sum of FTEs)
+        setTotalFte(sumFte)
         setRatio(averageFte)
         setLoading(false)
       })

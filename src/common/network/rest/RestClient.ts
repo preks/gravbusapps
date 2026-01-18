@@ -43,7 +43,9 @@ export class RestClient {
   }
 
   private async request<T = any>(method: HttpMethod, path: string, options: RequestOptionsWithBody = {}): Promise<T> {
-    const url = new URL(this.baseUrl + path)
+    // Handle both absolute and relative URLs
+    const fullPath = this.baseUrl + path
+    const url = fullPath.startsWith('http') ? new URL(fullPath) : new URL(fullPath, window.location.origin)
 
     // Add query parameters if provided
     if (options.params) {
@@ -95,15 +97,28 @@ export class RestClient {
 
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`
+      let errorData: any = null
 
       try {
-        const errorData = await response.json()
-        errorMessage = errorData.message || errorMessage
+        errorData = await response.json()
+        errorMessage = errorData.message || errorData.error || errorMessage
+        // Log full error data for debugging
+        if (errorData && errorData.errors && Array.isArray(errorData.errors)) {
+          const details = errorData.errors.map((e: any) => e.detail || e.title).join('; ')
+          if (details) {
+            errorMessage = details
+          }
+        }
       } catch {
         errorMessage = response.statusText || errorMessage
       }
 
-      throw new Error(`REST request failed: ${response.status} - ${errorMessage}`)
+      const error = new Error(`REST request failed: ${response.status} - ${errorMessage}`)
+      // Attach error data for debugging
+      if (errorData) {
+        ;(error as any).responseData = errorData
+      }
+      throw error
     }
 
     if (response.status === 204) {
@@ -147,7 +162,6 @@ export class RestClient {
         }
       }
     } catch (e: unknown) {
-      console.error('Failed to parse response:', e)
       const errorMessage = e instanceof Error ? e.message : String(e)
       throw new Error(`Failed to parse response: ${errorMessage}`)
     }

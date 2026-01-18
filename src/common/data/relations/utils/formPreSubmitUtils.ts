@@ -55,6 +55,15 @@ export const createFormPreSubmitHandler = (options: PreSubmitOptions) => {
     const userId = userInfo?.id
 
     if (useCreatorFields) {
+      // Set _creatorEmployee object for payload builders that expect it
+      if (userId && !data._creatorEmployee) {
+        data._creatorEmployee = {
+          userId: userId,
+          ...(employeeId && { id: employeeId })
+        }
+      }
+
+      // Also set individual fields for backward compatibility
       if (!data.creatorEmployeeId && employeeId) {
         data.creatorEmployeeId = employeeId
       }

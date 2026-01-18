@@ -302,7 +302,9 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
 
   // Function to show expense item component with the necessary parameters
   const showCreateItem = () => {
-    if (!employeeRuleId) return
+    if (!employeeRuleId) {
+      return
+    }
     ;(async () => {
       try {
         const expenseRuleId = employeeRuleId
@@ -317,7 +319,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
         const currencyToSet = currentCurrency || expenseRequestData.ExpenseItem?.[0]?.currencyRef || ''
         setExpenseItemParams({
           expenseRequestId: expenseRequestData.ExpenseRequestByPk.id,
-          itemCurrency: useSingleCurrencyValue ? currencyToSet || ruleCurrencyId : currencyToSet,
+          itemCurrency: useSingleCurrencyValue ? currencyToSet || ruleCurrencyId || '' : currencyToSet,
           useSingleCurrency: !!useSingleCurrencyValue
         })
       } catch {

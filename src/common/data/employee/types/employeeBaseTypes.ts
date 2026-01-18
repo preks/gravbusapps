@@ -17,6 +17,7 @@ export interface Employee {
   fullName?: string
   picture?: string
   pictureThumbnail?: string
+  hrReferenceCode?: string
   employeePosition?: {
     jobPosition?: {
       name?: string

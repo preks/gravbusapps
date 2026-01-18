@@ -1,39 +1,148 @@
+import React, { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import {
-  PiUser,
-  PiPhone,
-  PiEnvelope,
-  PiUsers,
-  PiListChecks,
-  PiTarget,
-  PiHandshake,
-  PiBuilding,
-  PiCalendarBlank as PiCalendar
-} from 'react-icons/pi'
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Badge,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@newwork/nw-design-system'
+import {
+  UserIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  UsersIcon,
+  ListChecksIcon,
+  TargetIcon,
+  HandshakeIcon,
+  BuildingIcon,
+  CalendarBlankIcon as CalendarIcon
+} from '@phosphor-icons/react'
 import type { TeamSalesActivity } from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useTeamActivitiesData'
 import {
   getEntityName,
   getEntityType,
-  getActivityTypeVariant,
-  safeString
+  getActivityTypeVariant
 } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityHelpers'
+import {
+  calculateActivityScore,
+  getScoreBadgeVariant
+} from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { formatDate } from '@/common/utils/windowUtils'
+
+// Format date with time
+const formatDateTime = (date: string | Date) => {
+  const d = new Date(date)
+  return {
+    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  }
+}
+
+// Date cell component with activity score, hover/touch support for created date and score legend
+const DateCell: React.FC<{ occurredAt?: string; createdAt?: string }> = ({ occurredAt, createdAt }) => {
+  const [showTooltip, setShowTooltip] = useState(false)
+
+  if (!occurredAt) {
+    return <span className="gba:text-sm gba:text-muted-foreground gba:italic">Not specified</span>
+  }
+
+  const occurred = formatDateTime(occurredAt)
+  const created = createdAt ? formatDateTime(createdAt) : null
+  const activityScore = calculateActivityScore(createdAt, occurredAt)
+  const scoreVariant = getScoreBadgeVariant(activityScore)
+
+  const tooltipContent = (
+    <div className="gba:text-xs gba:space-y-3 gba:min-w-[200px]">
+      {/* Created date info */}
+      {created && (
+        <div>
+          <div className="gba:font-medium gba:mb-1">Created</div>
+          <div>
+            {created.date} at {created.time}
+          </div>
+        </div>
+      )}
+
+      {/* Activity Score Legend */}
+      <div>
+        <div className="gba:font-medium gba:mb-1.5">Activity Score Legend</div>
+        <div className="gba:text-[10px] gba:space-y-0.5 gba:text-muted-foreground">
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>Logged within 1 day</span>
+            <span className="gba:text-success gba:font-medium">100</span>
+          </div>
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>2-4 days delay</span>
+            <span className="gba:text-success gba:font-medium">85-95</span>
+          </div>
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>5-7 days delay</span>
+            <span className="gba:text-warning gba:font-medium">70-80</span>
+          </div>
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>8-9 days delay</span>
+            <span className="gba:font-medium">60-65</span>
+          </div>
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>10+ days delay</span>
+            <span className="gba:text-destructive gba:font-medium">0-55</span>
+          </div>
+        </div>
+        <div className="gba:text-[9px] gba:text-muted-foreground gba:mt-2 gba:italic">
+          Score = 100 - 5pts per day after first day
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <TooltipProvider>
+      <Tooltip open={showTooltip} onOpenChange={setShowTooltip}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="gba:flex gba:items-start gba:gap-2 gba:text-left gba:bg-transparent gba:border-0 gba:p-0 gba:cursor-default"
+            onClick={() => setShowTooltip(!showTooltip)}
+            onTouchStart={() => setShowTooltip(true)}
+            onTouchEnd={() => setTimeout(() => setShowTooltip(false), 3000)}
+          >
+            <CalendarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:mt-0.5 gba:flex-shrink-0" />
+            <div className="gba:flex gba:flex-col">
+              <div className="gba:flex gba:items-center gba:gap-1.5">
+                <span className="gba:text-sm gba:font-medium">{occurred.date}</span>
+                <Badge variant={scoreVariant} className="gba:text-[10px] gba:px-1 gba:py-0 gba:h-4">
+                  {activityScore}
+                </Badge>
+              </div>
+              <span className="gba:text-xs gba:text-muted-foreground">{occurred.time}</span>
+            </div>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="gba:bg-popover gba:text-popover-foreground gba:p-3">
+          {tooltipContent}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
 
 // Get activity type icon
 const getActivityTypeIcon = (type: string) => {
   switch (type) {
     case 'Call':
-      return <PiPhone className="gba:h-4 gba:w-4 gba:text-success" />
+      return <PhoneIcon className="gba:h-4 gba:w-4 gba:text-success" />
     case 'Email':
-      return <PiEnvelope className="gba:h-4 gba:w-4 gba:text-primary" />
+      return <EnvelopeIcon className="gba:h-4 gba:w-4 gba:text-primary" />
     case 'Meeting':
-      return <PiUsers className="gba:h-4 gba:w-4 gba:text-warning" />
+      return <UsersIcon className="gba:h-4 gba:w-4 gba:text-warning" />
     case 'Task':
-      return <PiListChecks className="gba:h-4 gba:w-4 gba:text-accent" />
+      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-accent" />
     default:
-      return <PiListChecks className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
   }
 }
 
@@ -41,15 +150,15 @@ const getActivityTypeIcon = (type: string) => {
 const getEntityTypeIcon = (entityType: string) => {
   switch (entityType) {
     case 'Contact':
-      return <PiUser className="gba:h-4 gba:w-4" />
+      return <UserIcon className="gba:h-4 gba:w-4" />
     case 'Lead':
-      return <PiTarget className="gba:h-4 gba:w-4" />
+      return <TargetIcon className="gba:h-4 gba:w-4" />
     case 'Opportunity':
-      return <PiHandshake className="gba:h-4 gba:w-4" />
+      return <HandshakeIcon className="gba:h-4 gba:w-4" />
     case 'Account':
-      return <PiBuilding className="gba:h-4 gba:w-4" />
+      return <BuildingIcon className="gba:h-4 gba:w-4" />
     default:
-      return <PiUser className="gba:h-4 gba:w-4" />
+      return <UserIcon className="gba:h-4 gba:w-4" />
   }
 }
 
@@ -73,9 +182,26 @@ const handleEntityReferenceClick = (activity: TeamSalesActivity) => {
 /**
  * Creates columns for Activity 360 that use GraphQL data directly
  * (no teamMembers lookup needed - uses ownerEmployee from GraphQL)
+ *
+ * Column order:
+ * 1. Date - Shows occurred date/time, hover shows created date/time
+ * 2. Owner - Employee who owns the activity
+ * 3. Reference - Related entity (Lead, Contact, Account, Opportunity)
+ * 4. Type - Activity type (Call, Email, Meeting, Task)
+ * 5. Title - Activity title/subject
  */
 export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
-  // Owner Column - uses GraphQL ownerEmployee directly
+  // 1. Date Column - Shows occurred date with time, hover/tap shows created date
+  {
+    id: 'occurredAt',
+    accessorKey: 'occurredAt',
+    header: 'Date',
+    size: 160,
+    cell: ({ row }) => {
+      return <DateCell occurredAt={row.original.occurredAt} createdAt={row.original.createdAt} />
+    }
+  },
+  // 2. Owner Column - uses GraphQL ownerEmployee directly
   {
     id: 'ownerEmployee.fullName',
     accessorKey: 'ownerEmployee.fullName',
@@ -83,7 +209,15 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
     size: 200,
     cell: ({ row }) => {
       const activity = row.original
-      const fullName = activity.ownerEmployee?.fullName || 'Unknown'
+      const ownerEmployee = activity.ownerEmployee
+
+      // Fallback to firstName + lastName if fullName is not available
+      const fullName =
+        ownerEmployee?.fullName ||
+        (ownerEmployee?.firstName && ownerEmployee?.lastName
+          ? `${ownerEmployee.firstName} ${ownerEmployee.lastName}`.trim()
+          : ownerEmployee?.firstName || ownerEmployee?.lastName || 'Unknown')
+
       const employeeId = activity.ownerEmployeeId
       const avatar = activity.ownerEmployee?.pictureThumbnail
 
@@ -108,7 +242,7 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
             >
               {avatar && <AvatarImage src={`data:image/jpeg;base64,${avatar}`} alt={fullName} />}
               <AvatarFallback>
-                <PiUser className="gba:h-4 gba:w-4" />
+                <UserIcon className="gba:h-4 gba:w-4" />
               </AvatarFallback>
             </Avatar>
             <span className="gba:text-[color:var(--nw-color-text-primary)] group-hover:gba:text-[color:var(--nw-color-primary-500)]">
@@ -123,7 +257,7 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
           <Avatar size="sm" className="gba:opacity-50">
             {avatar && <AvatarImage src={`data:image/jpeg;base64,${avatar}`} alt={fullName} />}
             <AvatarFallback>
-              <User className="gba:h-4 gba:w-4" />
+              <UserIcon className="gba:h-4 gba:w-4" />
             </AvatarFallback>
           </Avatar>
           <span className="gba:text-[color:var(--nw-color-text-disabled)]">{fullName}</span>
@@ -131,60 +265,28 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
       )
     }
   },
-  // Title Column
-  {
-    id: 'title',
-    accessorKey: 'title',
-    header: 'Title',
-    size: 250,
-    cell: ({ row }) => {
-      const title = safeString(row.original.title)
-      return (
-        <div className="gba:flex gba:flex-col gba:gap-1">
-          <span className="gba:text-sm gba:font-medium" title={title}>
-            {title || '-'}
-          </span>
-          {row.original.description && (
-            <span className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1" title={row.original.description}>
-              {row.original.description}
-            </span>
-          )}
-        </div>
-      )
-    }
-  },
-  // Type Column
-  {
-    id: 'activityType.value',
-    accessorKey: 'activityType.value',
-    header: 'Type',
-    size: 150,
-    cell: ({ row }) => {
-      const type = row.original.activityType?.value || 'Other'
-      return (
-        <Badge variant={getActivityTypeVariant(type)} className="gba:gap-1.5">
-          {getActivityTypeIcon(type)}
-          <span>{type}</span>
-        </Badge>
-      )
-    }
-  },
-  // Reference Column
+  // 3. Reference/Entity Column with Badge for unlinked activities
   {
     id: 'reference',
-    header: 'Reference',
+    header: 'Entity',
     size: 200,
     enableSorting: false,
     cell: ({ row }) => {
       const activity = row.original
+
+      // Check if unlinked
+      const isUnlinked = !activity.accountId && !activity.contactId && !activity.leadId && !activity.opportunityId
+
+      if (isUnlinked) {
+        return (
+          <Badge variant="secondary" data-testid={`activity360-badge-${activity.id}`}>
+            Unlinked
+          </Badge>
+        )
+      }
+
       const entityName = getEntityName(activity)
       const entityType = getEntityType(activity)
-
-      const hasReference = entityName !== 'No reference' && entityType !== 'No reference'
-
-      if (!hasReference) {
-        return <span className="gba:text-sm gba:text-muted-foreground gba:italic">No reference</span>
-      }
 
       const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation()
@@ -208,39 +310,45 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
       )
     }
   },
-  // Created At Column
+  // 4. Type Column
   {
-    id: 'createdAt',
-    accessorKey: 'createdAt',
-    header: 'Created',
+    id: 'activityType.value',
+    accessorKey: 'activityType.value',
+    header: 'Type',
     size: 150,
     cell: ({ row }) => {
-      const date = row.original.createdAt
-      if (!date) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
-
+      const type = row.original.activityType?.value || 'Other'
       return (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PiCalendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-          <span className="gba:text-sm">{formatDate(date)}</span>
-        </div>
+        <Badge variant={getActivityTypeVariant(type)} className="gba:gap-1.5">
+          {getActivityTypeIcon(type)}
+          <span>{type}</span>
+        </Badge>
       )
     }
   },
-  // Occurred At Column
+  // 5. Title Column
   {
-    id: 'occurredAt',
-    accessorKey: 'occurredAt',
-    header: 'Occurred',
-    size: 150,
+    id: 'title',
+    accessorKey: 'title',
+    header: 'Title',
+    size: 250,
     cell: ({ row }) => {
-      const date = row.original.occurredAt
-      if (!date) return <span className="gba:text-sm gba:text-muted-foreground gba:italic">Not specified</span>
-
+      const title = row.original.title
+      const activityId = row.original.id
+      if (!title) {
+        return (
+          <span
+            className="gba:text-sm gba:text-muted-foreground gba:italic"
+            data-testid={`activity360-title-empty-${activityId}`}
+          >
+            No title
+          </span>
+        )
+      }
       return (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PiCalendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-          <span className="gba:text-sm">{formatDate(date)}</span>
-        </div>
+        <span className="gba:text-sm" data-testid={`activity360-title-${activityId}`}>
+          {title}
+        </span>
       )
     }
   }

@@ -14,3 +14,12 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
   }
 }
 `
+
+export const FETCH_BENEFIT_VERSION_QUERY = `
+  query FetchBenefitVersion($benefitId: uuid!) {
+    EmployeeBenefit(where: { id: { _eq: $benefitId } }) {
+      id
+      version
+    }
+  }
+`

@@ -21,7 +21,6 @@ import { PiX } from 'react-icons/pi'
 import { Building2 } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { INVESTMENT_ACCOUNT_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
 import { ContactTypeLabels } from '@/common/data/relations/constants/contactConstants'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -53,6 +52,10 @@ interface AccountSegmentProps {
   // Type selector mode: 'accountType' (catalog) or 'contactType' (enum)
   typeMode?: 'accountType' | 'contactType'
 
+  // Catalog identifier for account type (required when typeMode is 'accountType')
+  // e.g., 'CustomerAccountType:v1' for CRM, 'InvestmentAccountType:v1' for IRM
+  accountTypeCatalogIdentifier?: string
+
   // Account search results
   accounts: AccountSegmentOption[]
   accountsLoading: boolean
@@ -78,6 +81,7 @@ const AccountItem: React.FC<{
   accountIdFieldName: string
   accountTypeFieldName: string
   typeMode: 'accountType' | 'contactType'
+  accountTypeCatalogIdentifier?: string
   accountIndex: number
   accountContacts: any[]
   accounts: AccountSegmentOption[]
@@ -89,6 +93,7 @@ const AccountItem: React.FC<{
   accountIdFieldName,
   accountTypeFieldName,
   typeMode,
+  accountTypeCatalogIdentifier,
   accountIndex,
   accountContacts,
   accounts,
@@ -182,16 +187,16 @@ const AccountItem: React.FC<{
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
+                ) : accountTypeCatalogIdentifier ? (
                   <CatalogSelect
-                    catalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
+                    catalogIdentifier={accountTypeCatalogIdentifier}
                     value={field.value || ''}
                     onValueChange={v => field.onChange(v || '')}
                     data-testid={formatDataTestId(dataTestId || 'account-segment', `account-type-${accountIndex}`)}
                     placeholder="Select type..."
                     disabled={disabled}
                   />
-                )}
+                ) : null}
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -221,6 +226,7 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
   accountIdFieldName,
   accountTypeFieldName,
   typeMode = 'accountType',
+  accountTypeCatalogIdentifier,
   accounts,
   accountsLoading,
   accountsError,
@@ -231,6 +237,14 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
   error
 }) => {
   const form = useFormContext<any>()
+
+  // Validation: accountTypeCatalogIdentifier is required when typeMode is 'accountType'
+  if (typeMode === 'accountType' && !accountTypeCatalogIdentifier) {
+    console.error(
+      '[AccountSegment] accountTypeCatalogIdentifier is required when typeMode is "accountType". ' +
+        'Please provide the module-specific catalog identifier (e.g., CustomerAccountType:v1 or InvestmentAccountType:v1)'
+    )
+  }
 
   // Use field array for multiple accounts
   const { fields, append, remove } = useFieldArray({
@@ -289,6 +303,7 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
               accountIdFieldName={accountIdFieldName}
               accountTypeFieldName={accountTypeFieldName}
               typeMode={typeMode}
+              accountTypeCatalogIdentifier={accountTypeCatalogIdentifier}
               accountIndex={index}
               accountContacts={accountContacts}
               accounts={accounts}

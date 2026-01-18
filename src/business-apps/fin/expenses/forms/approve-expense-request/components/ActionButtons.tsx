@@ -1,19 +1,20 @@
 import React from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ActionButtonsProps {
   submitting: boolean
   onApprove: () => void
   onReturn: () => void
   prefixDataTestId?: string
+  t: (key: string) => string
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
   submitting,
   onApprove,
   onReturn,
-  prefixDataTestId = 'approve-expense-request-v2'
+  prefixDataTestId = 'approve-expense-request-v2',
+  t
 }) => {
   return (
     <div className="gba:flex gba:justify-end gba:gap-3 gba:mb-4" data-testid={`${prefixDataTestId}-actions`}>
@@ -23,7 +24,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         disabled={submitting}
         data-testid={`${prefixDataTestId}-return-button`}
       >
-        {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reject_button', 'Return')}
+        {t('action-return')}
       </Button>
       <Button
         variant="default"
@@ -31,7 +32,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         disabled={submitting}
         data-testid={`${prefixDataTestId}-approve-button`}
       >
-        {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.approve_button', 'Approve')}
+        {t('action-approve')}
       </Button>
     </div>
   )

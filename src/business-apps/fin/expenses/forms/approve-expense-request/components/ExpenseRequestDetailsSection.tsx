@@ -1,8 +1,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Label, Spinner } from '@newwork/nw-design-system'
 import { PiReceipt } from 'react-icons/pi'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 
 interface ExpenseRequestDetailsSectionProps {
   expenseRequest: {
@@ -17,23 +16,25 @@ interface ExpenseRequestDetailsSectionProps {
   requestCreatedAt?: string | null
   isLoadingRequestDate?: boolean
   prefixDataTestId?: string
+  t: (key: string) => string
 }
 
 const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> = ({
   expenseRequest,
   requestCreatedAt,
   isLoadingRequestDate = false,
-  prefixDataTestId = 'approve-expense-request-v2'
+  prefixDataTestId = 'approve-expense-request-v2',
+  t
 }) => {
   // Format request type for display
   const formatRequestType = (requestTypeCode?: string) => {
     if (!requestTypeCode) return '-'
     const typeLower = requestTypeCode.toLowerCase()
     if (typeLower.includes('trip')) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_type.trip', 'Trip')
+      return t('request-type-trip')
     }
     if (typeLower.includes('expense')) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_type.expenses', 'Expenses')
+      return t('request-type-expenses')
     }
     return requestTypeCode
   }
@@ -43,10 +44,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <PiReceipt className="gba:h-5 gba:w-5" />
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_overview.expense_request_details',
-            'Expense Request Details'
-          )}
+          {t('section-expense-request-details')}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:space-y-3">
@@ -55,17 +53,13 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             {/* Request ID */}
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.request_id', 'Request ID')}
-              </Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-request-id')}</Label>
               <p className="gba:text-sm gba:font-medium">{expenseRequest.code || '-'}</p>
             </div>
 
             {/* Request Type */}
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.type', 'Type')}
-              </Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-type')}</Label>
               <div className="gba:mt-1">
                 <Badge variant="info">{formatRequestType(expenseRequest.requestType.code)}</Badge>
               </div>
@@ -73,9 +67,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
           </div>
         ) : (
           <div className="gba:flex gba:justify-between gba:items-center">
-            <Label className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.request_id', 'Request ID')}
-            </Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-request-id')}</Label>
             <p className="gba:text-sm gba:font-medium">{expenseRequest.code || '-'}</p>
           </div>
         )}
@@ -85,9 +77,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
         {/* Title */}
         {expenseRequest.title && (
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.title', 'Title')}
-            </Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-title')}</Label>
             <p className="gba:text-sm gba:font-medium">{expenseRequest.title}</p>
           </div>
         )}
@@ -97,12 +87,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
           <>
             {expenseRequest.title && <Separator />}
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
-                  'Comment'
-                )}
-              </Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-comment')}</Label>
               <p className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-wrap">
                 {expenseRequest.description}
               </p>
@@ -117,9 +102,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
           {/* Cost Center */}
           {expenseRequest.costCenter?.name && (
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.cost_center', 'Cost Center')}
-              </Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-cost-center')}</Label>
               <p className="gba:text-sm gba:font-medium">{expenseRequest.costCenter.name}</p>
             </div>
           )}
@@ -127,9 +110,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
           {/* Project */}
           {expenseRequest.project?.name && (
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.project', 'Project')}
-              </Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-project')}</Label>
               <p className="gba:text-sm gba:font-medium">{expenseRequest.project.name}</p>
             </div>
           )}
@@ -140,9 +121,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
         {/* Currency */}
         {expenseRequest.currency?.code && (
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.currency', 'Currency')}
-            </Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-currency')}</Label>
             <p className="gba:text-sm gba:font-medium">{expenseRequest.currency.code}</p>
           </div>
         )}
@@ -152,12 +131,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
         {/* Request Created - Show when available */}
         {requestCreatedAt && (
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_overview.request_created',
-                'Request Created'
-              )}
-            </Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-request-created')}</Label>
             <p className="gba:text-sm gba:font-medium">
               {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
             </p>

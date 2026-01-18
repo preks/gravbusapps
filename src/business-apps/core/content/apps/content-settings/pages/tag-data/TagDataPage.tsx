@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { PageHeader, Button, Spinner } from '@newwork/nw-design-system'
-import { ArrowLeft } from 'lucide-react'
+import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TagTable } from './components/TagTable'
 import {
@@ -92,30 +91,25 @@ const TagDataPage: React.FC<TagDataPageProps> = ({ prefixDataTestId, onBack, ...
   }
 
   return (
-    <div data-testid={prefixDataTestId} className="gba:p-6">
+    <div data-testid={prefixDataTestId}>
       <PageHeader
         title="Content Tags"
-        description="Manage tags for content filtering and organization"
+        subtitle="Manage tags for content filtering and organization"
         className="gba:mb-6"
-      >
-        {onBack && (
-          <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-back-button`}>
-            <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-            Back
-          </Button>
-        )}
-      </PageHeader>
-
-      <TagTable
-        tags={tags}
-        isLoading={isLoading}
-        error={error}
-        onCreate={handleCreate}
-        onUpdate={handleUpdate}
-        onDelete={handleDelete}
-        onRetry={loadTags}
-        prefixDataTestId={`${prefixDataTestId}-table`}
+        onBack={onBack}
       />
+      <div className="gba:p-6">
+        <TagTable
+          tags={tags}
+          isLoading={isLoading}
+          error={error}
+          onCreate={handleCreate}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          onRetry={loadTags}
+          prefixDataTestId={`${prefixDataTestId}-table`}
+        />
+      </div>
     </div>
   )
 }

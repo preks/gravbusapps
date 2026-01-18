@@ -22,4 +22,4 @@ export { CatalogSelectContext } from './CatalogSelectProvider'
 export { useCatalogValidation } from './CatalogSelectProvider'
 
 // Export types
-export type { CatalogSelectProps, CatalogSelectOption } from './CatalogSelect'
+export type { CatalogSelectProps, CatalogSelectOption, CatalogSelectConfig, ListFilter } from './CatalogSelect'

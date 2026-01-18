@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 
 import { Form, message } from 'antd'
 import { ExpensePosition, ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
+import { useTranslation } from '@newwork/nw-design-system'
+import expenseItemTranslations from '../_i18n'
 
 import {
   getCurrentActiveUserLocale,
@@ -57,6 +59,7 @@ interface ExpenseItemContextProps {
   setMultiPosition: (isMulti: boolean) => void
   isEditMode: boolean
   setCurrentSelectedDate: (date: Date | null) => void
+  isCreating: boolean
 
   positions: ExpensePosition[]
   setPositions: (positions: ExpensePosition[]) => void
@@ -69,6 +72,8 @@ interface ExpenseItemContextProps {
 
   employeeRuleId: string | null | object
   expenseRuleError: string | null
+  receiptCurrencyError: string | null
+  hasLinkedExpenseRequest: boolean
   additionalData?: any
 
   calculateTotal: () => number
@@ -101,13 +106,17 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
+  const { t: tNew } = useTranslation(expenseItemTranslations)
+  // Wrapper function for backward compatibility with old translation pattern
+  const t = (key: string, fallback?: string) => {
+    return getTranslationFromI18nKeyAndLabel(key, fallback || key)
+  }
 
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)
   const [loading, setLoading] = useState<boolean>(false)
   const [isInitialized, setIsInitialized] = useState<boolean>(false)
-  const [fileList, setFileList] = useState<any[]>([])
+  const [fileList, setFileListState] = useState<any[]>([])
   const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false)
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false)
   const [multiPosition, setMultiPosition] = useState<boolean>(false)
@@ -136,6 +145,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [userCostCenter, setUserCostCenter] = useState<string>('')
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null)
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
+  const [receiptCurrencyError, setReceiptCurrencyError] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState<boolean>(false)
+  const [hasLinkedExpenseRequest, setHasLinkedExpenseRequest] = useState<boolean>(false)
 
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
   const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
@@ -452,6 +464,11 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       t,
       setInitialItemValues
     )
+
+    // Check if the expense item is linked to any expense request
+    const linkedRequest = editData?.ExpenseItemByPk?.expenseRequest
+    setHasLinkedExpenseRequest(!!linkedRequest?.id)
+
     try {
       const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency')
       if (itemCurrencyId) {
@@ -587,30 +604,39 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     return calculateTotal(positions)
   }
 
-  /**
-   * Validates currency match between receipt and request
-   */
   const validateReceiptCurrency = (data: any): boolean => {
-    if (!additionalData?.itemCurrency) return true
+    setReceiptCurrencyError(null)
+
+    if (!additionalData?.itemCurrency) {
+      return true
+    }
 
     const requestCurrency = currencies.find(c => c.id === additionalData.itemCurrency)
-    if (requestCurrency && requestCurrency.code !== data.currencyCode) {
-      showToast(
-        t(
-          'lowcoder:expense_item.currency_mismatchlowcoder:create_expense_type_item.process_error_currency_mismatch_detail',
-          'The Receipt could not be added as it does not match the request currency.'
-        ),
-        'error',
-        t('lowcoder:create_expense_type_item.process_error_currency_mismatch_title', 'Currency Mismatch')
-      )
+
+    if (additionalData?.useSingleCurrency && !requestCurrency) {
+      const errorMsg = tNew('currency-validation-unavailable')
+      setReceiptCurrencyError(errorMsg)
       return false
     }
-    return true
+
+    if (!requestCurrency || !data?.currencyCode) {
+      return true
+    }
+
+    if (requestCurrency.code === data.currencyCode) {
+      return true
+    }
+
+    const detailedMessage = tNew('currency-mismatch-detail', {
+      receiptCurrency: data.currencyCode,
+      requestCurrency: requestCurrency.code
+    } as Record<string, any>)
+
+    setReceiptCurrencyError(detailedMessage)
+
+    return false
   }
 
-  /**
-   * Parses invoice date from various formats
-   */
   const parseInvoiceDate = (invoiceDate: any): Date | null => {
     try {
       let dateValue: Date
@@ -633,9 +659,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }
 
-  /**
-   * Populates basic form fields from receipt data
-   */
   const populateBasicFields = (data: any): void => {
     if (data.vendor?.name) {
       form.setFieldsValue({ title: data.vendor.name })
@@ -769,6 +792,19 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       const data = receiptData.data
 
+      // Ensure we can validate against the configured request currency when provided
+      if (
+        additionalData?.itemCurrency &&
+        (currencies.length === 0 || !currencies.some(currency => currency.id === additionalData.itemCurrency))
+      ) {
+        const errorMsg = t(
+          'lowcoder:expense_item.currency_validation_unavailable',
+          'Unable to validate the receipt currency against your expense rule. Please try again or contact your administrator.'
+        )
+        setReceiptCurrencyError(errorMsg)
+        return
+      }
+
       // Validate currency match
       if (!validateReceiptCurrency(data)) return
 
@@ -830,27 +866,50 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   }
 
   const handleSubmitWrapper = async (): Promise<void> => {
-    return await handleSubmit(
-      form,
-      positions,
-      customFields,
-      employeeRuleId,
-      catalogueDataResponse,
-      multiPosition,
-      setPositions,
-      setFileList,
-      setCurrentStep,
-      setLoading,
-      t,
-      fileList,
-      accessToken,
-      userInfo?.employeeDetails?.employeeId,
-      additionalData,
-      userInfo,
-      itemValues || undefined,
-      getIsProcessEventDispatched,
-      dispatchProcessContinueEventIfEnabled
-    )
+    // Block submission if receipt currency doesn't match request currency
+    if (receiptCurrencyError) {
+      showToast(receiptCurrencyError, 'error')
+      throw new Error(receiptCurrencyError)
+    }
+
+    // Show overlay spinner for 1 second
+    setIsCreating(true)
+    const startTime = Date.now()
+    const spinnerTimeout = setTimeout(() => {
+      setIsCreating(false)
+    }, 1000)
+
+    try {
+      return await handleSubmit(
+        form,
+        positions,
+        customFields,
+        employeeRuleId,
+        catalogueDataResponse,
+        multiPosition,
+        setPositions,
+        setFileListState,
+        setCurrentStep,
+        setLoading,
+        t,
+        fileList,
+        accessToken,
+        userInfo?.employeeDetails?.employeeId,
+        additionalData,
+        userInfo,
+        itemValues || undefined,
+        getIsProcessEventDispatched,
+        dispatchProcessContinueEventIfEnabled
+      )
+    } finally {
+      // Ensure spinner is hidden after exactly 1 second total
+      clearTimeout(spinnerTimeout)
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, 1000 - elapsedTime)
+      setTimeout(() => {
+        setIsCreating(false)
+      }, remainingTime)
+    }
   }
 
   const handleCancelWrapper = (noDispatchEvent: boolean = false) => {
@@ -877,7 +936,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
       form.resetFields()
       setPositions([DEFAULT_POSITION])
-      setFileList([])
+      setFileListState([])
       setCurrentStep('start')
     }
   }
@@ -1018,6 +1077,17 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     setItemValues({ id, version })
   }
 
+  const setFileList = (files: any[]) => {
+    setFileListState(files)
+
+    // Clear currency error when all files are removed
+    // When multiple files are uploaded together, they're treated as a batch
+    // User must remove all and re-upload only valid receipts
+    if (!files || files.length === 0) {
+      setReceiptCurrencyError(null)
+    }
+  }
+
   const contextValue: ExpenseItemContextProps = useMemo(
     () => ({
       form,
@@ -1036,6 +1106,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setMultiPosition,
       isEditMode,
       setCurrentSelectedDate,
+      isCreating,
       positions,
       setPositions,
       expenseGroups,
@@ -1046,6 +1117,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       expenseRequests,
       employeeRuleId,
       expenseRuleError,
+      receiptCurrencyError,
+      hasLinkedExpenseRequest,
       additionalData,
       calculateTotal: calculateTotalWrapper,
       handleFileUpload: handleFileUploadWrapper,
@@ -1071,6 +1144,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       isFormDisabled,
       multiPosition,
       isEditMode,
+      isCreating,
       positions,
       expenseGroups,
       expenseTypes,
@@ -1080,6 +1154,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       expenseRequests,
       employeeRuleId,
       expenseRuleError,
+      receiptCurrencyError,
+      hasLinkedExpenseRequest,
       additionalData,
       calculateTotalWrapper,
       handleFileUploadWrapper,

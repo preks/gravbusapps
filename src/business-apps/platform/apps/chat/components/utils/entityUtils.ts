@@ -29,6 +29,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 export const ENTITY_ICONS: Record<EntityType, React.ElementType> = {
   // AI Assistant
   ai_assistant: Sparkles,
+  every_expert: Sparkles, // Experts use same icon as AI Assistant
   // CRM
   account: Building2,
   contact: User,

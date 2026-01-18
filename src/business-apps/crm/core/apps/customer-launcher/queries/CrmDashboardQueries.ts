@@ -8,21 +8,6 @@ export interface CrmDashboardQueryVariables {
 
 export const GET_CRM_DASHBOARD_STATS = (): string => {
   return `query GetCrmDashboardStats {
-    # Count accounts that have at least 1 opportunity in closed_won stage
-    totalCustomers: AccountAggregate(
-      where: {
-        sourceApp: { _eq: "CRM" }
-        isDeleted: { _eq: false }
-        opportunity: {
-          stage: { _eq: "closed_won" }
-        }
-      }
-    ) {
-      aggregate {
-        count
-      }
-    }
-    
     # Count opportunities that are NOT in closed_won or closed_lost stages
     activeOpportunities: OpportunityAggregate(
       where: {
@@ -84,11 +69,12 @@ export const GET_CRM_DASHBOARD_STATS = (): string => {
       }
     }
     
-    # Sum of all estimated amounts for all opportunities (filtered by sourceApp and excluding deleted)
+    # Sum of estimated amounts for open opportunities only (filtered by sourceApp, excluding deleted, and excluding closed stages)
     pipelineValue: OpportunityAggregate(
       where: {
         sourceApp: { _eq: "CRM" }
         isDeleted: { _eq: false }
+        stage: { _nin: ["closed_won", "closed_lost"] }
       }
     ) {
       aggregate {
@@ -101,11 +87,6 @@ export const GET_CRM_DASHBOARD_STATS = (): string => {
 }
 
 export type CrmDashboardStatsData = {
-  totalCustomers: {
-    aggregate: {
-      count: number
-    }
-  }
   activeOpportunities: {
     aggregate: {
       count: number

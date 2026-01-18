@@ -106,11 +106,12 @@ function extractMonthlyContribution(ov: BenefitObjectValue): number | undefined 
 
 export const composeValueWithCurrency = (base: string, currencyCode: string): string => {
   if (!base || base === '-') return '-'
-  if (currencyCode) {
+  if (currencyCode && currencyCode.trim() !== '') {
     const upper = base.toUpperCase()
     const hasAlready = upper.endsWith(` ${currencyCode}`) || upper.includes(` ${currencyCode} `)
     return hasAlready ? base : `${base} ${currencyCode}`
   }
+  // If no currency code, just return the base value without currency
   return base
 }
 
@@ -160,7 +161,6 @@ export const buildBenefitSubmitPayload = ({
   selectedBenefit,
   provider,
   derivedAmountNumber,
-  period,
   resolvedPeriodDisplay,
   countryCurrencyRef,
   startDate,
@@ -173,7 +173,6 @@ export const buildBenefitSubmitPayload = ({
   selectedBenefit: BenefitCatalogItem | null
   provider: string
   derivedAmountNumber?: number
-  period: string
   resolvedPeriodDisplay: string
   countryCurrencyRef: string | null
   startDate: string
@@ -183,12 +182,44 @@ export const buildBenefitSubmitPayload = ({
   markAsSubmitted: () => void
 }) => {
   markAsSubmitted()
-  const yearlyAmountValue = derivedAmountNumber || 0
-  const monthlyAmountValue = yearlyAmountValue > 0 ? Math.round((yearlyAmountValue / 12) * 100) / 100 : 0
-  const periodValue = period || resolvedPeriodDisplay || null
-  const currencyRef = countryCurrencyRef || BENEFIT_FORM_VALIDATION.DEFAULT_CURRENCY_REF
+
+  // Calculate yearly and monthly amounts based on the period
+  let yearlyAmountValue: number
+  let monthlyAmountValue: number
+
+  // Use country currency or null if not available
+  const currencyRef = countryCurrencyRef || null
+  const periodLower = resolvedPeriodDisplay?.toLowerCase() || ''
+
+  if (periodLower === 'monthly' || periodLower === 'month') {
+    // Value is monthly, calculate yearly
+    monthlyAmountValue = derivedAmountNumber || 0
+    yearlyAmountValue = monthlyAmountValue * 12
+  } else if (
+    periodLower === 'yearly' ||
+    periodLower === 'year' ||
+    periodLower === 'annual' ||
+    periodLower === 'annually'
+  ) {
+    // Value is yearly, calculate monthly
+    yearlyAmountValue = derivedAmountNumber || 0
+    monthlyAmountValue = yearlyAmountValue > 0 ? Math.round((yearlyAmountValue / 12) * 100) / 100 : 0
+  } else if (periodLower === 'daily' || periodLower === 'day') {
+    // Value is daily, calculate yearly (assuming 260 working days)
+    const dailyValue = derivedAmountNumber || 0
+    yearlyAmountValue = dailyValue * 260
+    monthlyAmountValue = Math.round((yearlyAmountValue / 12) * 100) / 100
+  } else {
+    // Unknown period - store as yearly by default
+    yearlyAmountValue = derivedAmountNumber || 0
+    monthlyAmountValue = 0
+  }
+
+  // Use raw period from catalog, never the translated version
+  const periodValue = resolvedPeriodDisplay || null
 
   const payload: any = {
+    event: 'pse_submit',
     employeeBenefit: {
       employee: employeeId,
       benefitTypeRef: selectedBenefit?.catalogId || '',

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { useFlowBot } from './hooks/useFlowBot'
 import { useVoiceInput } from './hooks/useVoiceInput'
 import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
@@ -7,12 +8,8 @@ import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
-import { RemindersPanel } from './components/RemindersPanel'
-import { ErrorBoundary } from './components/ErrorBoundary'
 import { VoiceOverlay } from './components/voice/VoiceOverlay'
-import { Button } from '@newwork/nw-design-system'
-import { Bell, Sparkle, ArrowsOut } from '@phosphor-icons/react'
-import { navigateTo } from '@/common/utils/navigationUtils'
+import { Sparkle } from '@phosphor-icons/react'
 import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 
@@ -39,7 +36,6 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
 const EveryAIInner: React.FC<EveryAIProps> = props => {
   const { accessToken, className, userInfo } = props
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [showRemindersPanel, setShowRemindersPanel] = useState(false)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
@@ -48,26 +44,20 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
 
-  // Detect if we're in sidepanel mode (not the fullscreen every-ai view)
-  const isInSidepanel = useMemo(() => {
-    if (typeof window === 'undefined') return false
-    // In dev mode, check if app param is exactly every-ai
-    const urlParams = new URLSearchParams(window.location.search)
-    const appParam = urlParams.get('app')
-    if (appParam === 'platform/apps/every-ai') return false
-    // In prod mode, check if we're on /platform/every-ai
-    if (window.location.pathname === '/platform/every-ai') return false
-    // Otherwise we're likely in a sidepanel or embedded
-    return true
-  }, [])
-
-  // Navigate to fullscreen mode
-  const openFullscreen = useCallback(() => {
-    navigateTo('/platform/every-ai')
-  }, [])
-
-  const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading } =
-    useFlowBot(accessToken)
+  const {
+    conversation,
+    isLoading,
+    sendMessage,
+    editMessage,
+    clearConversation,
+    nextStepProposals,
+    isPrechatLoading,
+    sessionId,
+    attachFiles,
+    cancelGeneration,
+    cancelledMessageText,
+    clearCancelledMessage
+  } = useFlowBot(accessToken)
 
   // Fetch current user's picture
   const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)
@@ -449,6 +439,69 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [extendedConversation.length])
 
+  // Track if we've already processed a prompt from sessionStorage to avoid duplicates
+  const promptProcessedRef = useRef<string | null>(null)
+  const lastCheckTimeRef = useRef<number>(0)
+
+  // Check for initial prompt when Every AI component is ready
+  // This handles: component mount, conversation becomes empty, or sidebar opens
+  const checkAndSendInitialPrompt = useCallback(() => {
+    // Throttle checks to avoid excessive sessionStorage reads
+    const now = Date.now()
+    if (now - lastCheckTimeRef.current < 200) {
+      return
+    }
+    lastCheckTimeRef.current = now
+
+    if (isLoading) {
+      return // Don't check while loading
+    }
+
+    try {
+      const initialPrompt = sessionStorage.getItem('everyAIInitialPrompt')
+      if (initialPrompt && initialPrompt !== promptProcessedRef.current) {
+        console.log('[EveryAI] Found initial prompt in sessionStorage:', initialPrompt)
+        // Mark this prompt as processed
+        promptProcessedRef.current = initialPrompt
+        // Clear the prompt from storage immediately to prevent duplicate sends
+        sessionStorage.removeItem('everyAIInitialPrompt')
+        // Send the prompt after a short delay to ensure component is fully ready
+        setTimeout(() => {
+          console.log('[EveryAI] Sending initial prompt:', initialPrompt)
+          sendMessage(initialPrompt, [], false, false, undefined)
+        }, 300)
+      }
+    } catch (error) {
+      console.warn('Failed to read Every AI initial prompt:', error)
+    }
+  }, [isLoading, sendMessage])
+
+  // Check for prompt when component is ready and conversation is empty
+  useEffect(() => {
+    if (!isLoading && conversation.length === 0) {
+      checkAndSendInitialPrompt()
+    }
+  }, [isLoading, conversation.length, checkAndSendInitialPrompt])
+
+  // Listen for custom event when sidebar opens (handles case when component is already mounted)
+  useEffect(() => {
+    const handleSidebarOpen = () => {
+      console.log('[EveryAI] Sidebar opened event received')
+      // Reset processed prompt when sidebar opens fresh
+      promptProcessedRef.current = null
+      // Check for prompt after a short delay to ensure component is ready
+      setTimeout(() => {
+        checkAndSendInitialPrompt()
+      }, 500)
+    }
+
+    // Listen for when Every AI sidebar becomes active
+    window.addEventListener('everyAISidebarOpened', handleSidebarOpen)
+    return () => {
+      window.removeEventListener('everyAISidebarOpened', handleSidebarOpen)
+    }
+  }, [checkAndSendInitialPrompt])
+
   const handleSend = (
     text: string,
     files: File[],
@@ -456,6 +509,8 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     isSearching: boolean,
     mentions?: Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
   ) => {
+    // Keep passing files for backwards compatibility.
+    // useFlowBot.sendMessage will decide whether to use /add_files or direct upload.
     sendMessage(text, files, isThinking, isSearching, mentions)
   }
 
@@ -510,81 +565,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         onStopSpeaking={voiceSynthesis.stop}
         onSendTranscript={handleVoiceSend}
       />
-
-      {/* Top Left - Fullscreen button (only in sidepanel mode, hidden in speech mode and reminders) */}
-      {!isSpeechMode && isInSidepanel && !showRemindersPanel && (
-        <div className="gba:absolute gba:top-4 gba:left-4 gba:z-50">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={openFullscreen}
-            className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
-            data-testid="every-ai-fullscreen-button"
-            title="Open in Fullscreen"
-          >
-            <ArrowsOut
-              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
-              weight="regular"
-              aria-hidden="true"
-            />
-          </Button>
-        </div>
-      )}
-
-      {/* Top Right - Reminders button (hidden in speech mode) */}
-      {!isSpeechMode && (
-        <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowRemindersPanel(!showRemindersPanel)}
-            className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
-            data-testid="reminders-bell-button"
-            title={showRemindersPanel ? 'Back to Chat' : 'My Reminders'}
-          >
-            {showRemindersPanel ? (
-              <Sparkle
-                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
-                weight="regular"
-                aria-hidden="true"
-              />
-            ) : (
-              <Bell
-                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
-                weight="regular"
-                aria-hidden="true"
-              />
-            )}
-          </Button>
-        </div>
-      )}
-
-      {/* Reminders Panel - Always mounted to check for due reminders */}
-      <div
-        className={`gba:absolute gba:inset-0 gba:z-40 gba:bg-background gba:flex gba:flex-col ${showRemindersPanel ? '' : 'gba:hidden'}`}
-        data-testid="reminders-panel-overlay"
-      >
-        <ErrorBoundary
-          fallback={
-            <div className="gba:bg-card gba:p-4 gba:rounded-lg gba:shadow-lg gba:border gba:border-border gba:m-4">
-              <p className="gba:text-destructive gba:font-semibold">Failed to load reminders</p>
-              <button
-                onClick={() => setShowRemindersPanel(false)}
-                className="gba:mt-2 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
-              >
-                Close
-              </button>
-            </div>
-          }
-        >
-          <RemindersPanel
-            accessToken={accessToken}
-            userInfo={userInfo}
-            onClose={() => setShowRemindersPanel(false)}
-            onReminderDue={() => setShowRemindersPanel(true)}
-          />
-        </ErrorBoundary>
-      </div>
 
       <FormSubmissionProvider>
         {/* Conversation Area with subtle gradient */}
@@ -692,9 +672,13 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               turns={extendedConversation}
               accessToken={accessToken}
               sendMessage={sendMessage}
+              editMessage={editMessage}
               userInfo={userInfo}
               pictureThumbnail={pictureThumbnail}
               isVoiceMode={isSpeechMode}
+              sessionId={sessionId ?? undefined}
+              onCancelGeneration={cancelGeneration}
+              isAgentGenerating={isLoading}
             />
           )}
         </div>
@@ -716,6 +700,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             voiceVolume={voiceInput.volume}
             onToggleVoiceMode={toggleSpeechMode}
             onStopSpeaking={voiceSynthesis.stop}
+            // Pre-upload files as soon as they are attached for faster first answers.
+            onFilesAttached={files => attachFiles(files)}
+            // Cancel restoration props
+            cancelledMessageText={cancelledMessageText}
+            onClearCancelledMessage={clearCancelledMessage}
           />
         </div>
       </FormSubmissionProvider>

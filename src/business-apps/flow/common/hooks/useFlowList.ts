@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
-const API_BASE =
-  (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+const API_BASE = getFlowEngineApiBaseUrl()
 
 export interface FlowFilters {
   status?: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'PAUSED' | 'TERMINATED'

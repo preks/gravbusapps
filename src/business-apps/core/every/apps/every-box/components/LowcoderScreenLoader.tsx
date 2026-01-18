@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Button, useTranslation } from '@newwork/nw-design-system'
+import { X } from 'lucide-react'
+import translations from '../_i18n'
 
 interface LowcoderScreenLoaderProps extends BusinessAppContextProps {
   appId: string
@@ -21,9 +24,9 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
   onTaskCompleted,
   onTaskUpdated
 }) => {
+  const { t } = useTranslation(translations)
   const [loading, setLoading] = useState(true)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_error, setError] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
@@ -66,10 +69,16 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
       // Handle different message types
       if (event.data.type === 'LOWCODER_LOADED') {
         setLoading(false)
-        setError(null)
+        setErrorMessage(null)
       } else if (event.data.type === 'LOWCODER_ERROR') {
         setLoading(false)
-        setError(event.data.message || 'Failed to load Lowcoder screen')
+        setErrorMessage(event.data.message || t('lowcoder-screen-failed'))
+        console.error(
+          '[LowcoderScreenLoader] Error:',
+          event.data.message || t('lowcoder-screen-failed'),
+          'Raw error:',
+          event.data
+        )
       } else if (event.data.type === 'TASK_COMPLETED') {
         if (onTaskCompleted && event.data.taskId) {
           onTaskCompleted(event.data.taskId)
@@ -100,7 +109,7 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
       globalThis.removeEventListener('message', handleMessage)
       clearTimeout(loadingTimeout)
     }
-  }, [loading, onClose, onTaskCompleted, onTaskUpdated])
+  }, [loading, onClose, onTaskCompleted, onTaskUpdated, t])
 
   const handleIframeLoad = () => {
     setLoading(false)
@@ -108,19 +117,49 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
 
   const handleIframeError = () => {
     setLoading(false)
-    setError('Failed to load Lowcoder screen')
+    setErrorMessage(t('lowcoder-screen-failed'))
+    console.error('[LowcoderScreenLoader] Iframe failed to load:', iframeRef.current?.src)
   }
 
   return (
     <div className="gba:relative gba:w-full gba:h-full gba:min-h-[600px]">
-      <iframe
-        ref={iframeRef}
-        title={appName}
-        className="gba:w-full gba:h-full gba:min-h-[600px] gba:border-0"
-        onLoad={handleIframeLoad}
-        onError={handleIframeError}
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-      />
+      {/* Floating close button - Always visible for Lowcoder screens */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onClose}
+        className="gba:absolute gba:top-2 gba:right-2 gba:z-50 gba:rounded-full gba:hover:bg-muted gba:bg-card/80 gba:backdrop-blur-sm gba:shadow-md"
+        data-testid="lowcoder-screen-close-button"
+        title={t('task-dialog-close', { defaultValue: 'Close' })}
+      >
+        <X className="gba:h-5 gba:w-5" />
+      </Button>
+
+      {errorMessage ? (
+        <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full gba:min-h-[600px] gba:p-6">
+          <div className="gba:text-center gba:max-w-md">
+            <div className="gba:text-destructive gba:text-lg gba:font-semibold gba:mb-2">
+              {t('lowcoder-screen-error-title')}
+            </div>
+            <div className="gba:text-muted-foreground gba:mb-4">{errorMessage}</div>
+            <button
+              onClick={onClose}
+              className="gba:px-4 gba:py-2 gba:bg-primary gba:text-primary-foreground gba:rounded gba:hover:bg-primary/90"
+            >
+              {t('close')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <iframe
+          ref={iframeRef}
+          title={appName}
+          className="gba:w-full gba:h-full gba:min-h-[600px] gba:border-0"
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+        />
+      )}
     </div>
   )
 }

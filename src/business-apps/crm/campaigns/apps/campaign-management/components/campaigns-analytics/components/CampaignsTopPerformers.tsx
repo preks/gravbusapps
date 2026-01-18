@@ -1,13 +1,13 @@
 import React, { useState } from 'react'
 import { Alert, AlertDescription, Button } from '@newwork/nw-design-system'
 import {
-  UserOutlined,
-  DollarOutlined,
-  ContactsOutlined,
-  BankOutlined,
-  TrophyOutlined,
-  BarChartOutlined
-} from '@ant-design/icons'
+  UserIcon,
+  CurrencyDollarIcon,
+  AddressBookIcon,
+  BankIcon,
+  TrophyIcon,
+  ChartBarIcon
+} from '@phosphor-icons/react'
 import { Tabs } from 'antd'
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -96,7 +96,7 @@ const PerformanceCard: React.FC<PerformanceCardProps> = ({
   >
     <div className="gba:flex gba:items-center gba:justify-between">
       <div className="gba:flex gba:items-center gba:gap-3">
-        {index === 0 && <TrophyOutlined className="gba:text-lg" style={{ color: 'var(--color-warning-500)' }} />}
+        {index === 0 && <TrophyIcon className="gba:text-lg" style={{ color: 'var(--color-warning-500)' }} />}
         <div>
           <h4 className="gba:text-sm gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>
             {name}
@@ -181,27 +181,27 @@ const buildCampaignStats = (c: {
   accountsCount?: number
 }) => [
   {
-    icon: <UserOutlined className="gba:text-xs" />,
+    icon: <UserIcon className="gba:text-xs" />,
     iconColor: 'var(--color-primary-500)',
     label: 'Leads',
     value: c.leadsCount || 0,
     subtitle: `Conv: ${formatPct(c.conversionRate || 0)}`
   },
   {
-    icon: <DollarOutlined className="gba:text-xs" />,
+    icon: <CurrencyDollarIcon className="gba:text-xs" />,
     iconColor: 'var(--color-success-500)',
     label: 'Opps',
     value: c.opportunitiesCount || 0,
     subtitle: `${c.wonOpportunitiesCount || 0}/${c.opportunitiesCount || 0} (${getPercentage(c.wonOpportunitiesCount || 0, c.opportunitiesCount || 0)}%)`
   },
   {
-    icon: <ContactsOutlined className="gba:text-xs" />,
+    icon: <AddressBookIcon className="gba:text-xs" />,
     iconColor: 'var(--color-warning-500)',
     label: 'Contacts',
     value: c.contactsCount || 0
   },
   {
-    icon: <BankOutlined className="gba:text-xs" />,
+    icon: <BankIcon className="gba:text-xs" />,
     iconColor: 'var(--color-info-500)',
     label: 'Accounts',
     value: c.accountsCount || 0
@@ -211,27 +211,27 @@ const buildCampaignStats = (c: {
 // Helper to build performer stats configuration - eliminates duplication
 const buildPerformerStats = (performer: PerformerData) => [
   {
-    icon: <UserOutlined className="gba:text-xs" />,
+    icon: <UserIcon className="gba:text-xs" />,
     iconColor: 'var(--color-primary-500)',
     label: 'Leads',
     value: performer.leads.total,
     subtitle: `${performer.leads.converted}/${performer.leads.total} (${getPercentage(performer.leads.converted, performer.leads.total)}%)`
   },
   {
-    icon: <DollarOutlined className="gba:text-xs" />,
+    icon: <CurrencyDollarIcon className="gba:text-xs" />,
     iconColor: 'var(--color-success-500)',
     label: 'Opps',
     value: performer.opportunities.total,
     subtitle: `${performer.opportunities.won}/${performer.opportunities.total} (${getPercentage(performer.opportunities.won, performer.opportunities.total)}%)`
   },
   {
-    icon: <ContactsOutlined className="gba:text-xs" />,
+    icon: <AddressBookIcon className="gba:text-xs" />,
     iconColor: 'var(--color-warning-500)',
     label: 'Contacts',
     value: performer.contacts.total
   },
   {
-    icon: <BankOutlined className="gba:text-xs" />,
+    icon: <BankIcon className="gba:text-xs" />,
     iconColor: 'var(--color-info-500)',
     label: 'Accounts',
     value: performer.accounts.total
@@ -305,7 +305,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
           {
             label: (
               <span>
-                <BarChartOutlined />
+                <ChartBarIcon />
                 {getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.campaigns', 'Top Campaigns')}
               </span>
             ),
@@ -334,7 +334,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
                     ))
                 ) : (
                   <EmptyState
-                    icon={<BarChartOutlined />}
+                    icon={<ChartBarIcon />}
                     message={getTranslationFromI18nKeyAndLabel(
                       'campaigns.analytics.topPerformers.noCampaigns',
                       'No campaign performance data available'
@@ -347,7 +347,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
           {
             label: (
               <span>
-                <UserOutlined />
+                <UserIcon />
                 {getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.employees', 'Top Employees')}
               </span>
             ),
@@ -373,7 +373,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
                   ))
                 ) : (
                   <EmptyState
-                    icon={<UserOutlined />}
+                    icon={<UserIcon />}
                     message={getTranslationFromI18nKeyAndLabel(
                       'campaigns.analytics.topPerformers.noEmployees',
                       'No employee performance data available'

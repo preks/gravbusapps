@@ -19,7 +19,39 @@ import {
   SelectValue,
   Checkbox
 } from '@newwork/nw-design-system'
-import Editor from '@monaco-editor/react'
+import CodeMirror from '@uiw/react-codemirror'
+import { javascript } from '@codemirror/lang-javascript'
+import { json as jsonLang } from '@codemirror/lang-json'
+import { oneDark } from '@codemirror/theme-one-dark'
+
+const CodeEditor: React.FC<{
+  value: string
+  onChange: (v: string) => void
+  language: 'javascript' | 'json'
+  height?: string
+  readOnly?: boolean
+}> = ({ value, onChange, language, height = '400px', readOnly }) => {
+  const extensions = useMemo(() => {
+    if (language === 'javascript') return [javascript({ jsx: true })]
+    return [jsonLang()]
+  }, [language])
+  return (
+    <CodeMirror
+      value={value}
+      height={height}
+      extensions={extensions}
+      theme={oneDark}
+      basicSetup={{
+        lineNumbers: true,
+        highlightActiveLine: true,
+        autocompletion: true,
+        foldGutter: true
+      }}
+      readOnly={!!readOnly}
+      onChange={onChange}
+    />
+  )
+}
 import { Bot, GitBranch } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FunctionsServiceClient, LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
@@ -437,78 +469,21 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             <TabsContent value="source" className="gba:space-y-2 gba:pt-4">
               <Label htmlFor="source">JavaScript Source Code *</Label>
               <div className="gba:border gba:rounded-md gba:overflow-hidden" style={{ minHeight: '400px' }}>
-                <Editor
-                  height="400px"
-                  defaultLanguage="javascript"
-                  language="javascript"
-                  value={source}
-                  onChange={value => setSource(value || '')}
-                  theme="vs"
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    wordWrap: 'on',
-                    automaticLayout: true,
-                    tabSize: 2,
-                    formatOnPaste: true,
-                    formatOnType: true
-                  }}
-                  data-testid="function-editor-source"
-                />
+                <CodeEditor language="javascript" value={source} onChange={v => setSource(v)} height="400px" />
               </div>
             </TabsContent>
 
             <TabsContent value="inputSchema" className="gba:space-y-2 gba:pt-4">
               <Label htmlFor="inputSchema">Input Schema (JSON)</Label>
               <div className="gba:border gba:rounded-md gba:overflow-hidden" style={{ minHeight: '400px' }}>
-                <Editor
-                  height="400px"
-                  defaultLanguage="json"
-                  language="json"
-                  value={inputSchema}
-                  onChange={value => setInputSchema(value || '')}
-                  theme="vs"
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    wordWrap: 'on',
-                    automaticLayout: true,
-                    tabSize: 2,
-                    formatOnPaste: true,
-                    formatOnType: true
-                  }}
-                  data-testid="function-editor-input-schema"
-                />
+                <CodeEditor language="json" value={inputSchema} onChange={v => setInputSchema(v)} height="400px" />
               </div>
             </TabsContent>
 
             <TabsContent value="outputSchema" className="gba:space-y-2 gba:pt-4">
               <Label htmlFor="outputSchema">Output Schema (JSON)</Label>
               <div className="gba:border gba:rounded-md gba:overflow-hidden" style={{ minHeight: '400px' }}>
-                <Editor
-                  height="400px"
-                  defaultLanguage="json"
-                  language="json"
-                  value={outputSchema}
-                  onChange={value => setOutputSchema(value || '')}
-                  theme="vs"
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    wordWrap: 'on',
-                    automaticLayout: true,
-                    tabSize: 2,
-                    formatOnPaste: true,
-                    formatOnType: true
-                  }}
-                  data-testid="function-editor-output-schema"
-                />
+                <CodeEditor language="json" value={outputSchema} onChange={v => setOutputSchema(v)} height="400px" />
               </div>
             </TabsContent>
 
@@ -656,22 +631,12 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
               <div className="gba:space-y-2">
                 <Label>Payload Preview</Label>
                 <div className="gba:border gba:rounded-md gba:overflow-hidden" style={{ minHeight: '300px' }}>
-                  <Editor
-                    height="300px"
-                    defaultLanguage="json"
+                  <CodeEditor
                     language="json"
                     value={JSON.stringify(testPayloadObj, null, 2)}
-                    theme="vs"
-                    options={{
-                      minimap: { enabled: false },
-                      fontSize: 14,
-                      lineNumbers: 'on',
-                      scrollBeyondLastLine: false,
-                      wordWrap: 'on',
-                      automaticLayout: true,
-                      readOnly: true
-                    }}
-                    data-testid="function-editor-test-payload-preview"
+                    onChange={() => {}}
+                    height="300px"
+                    readOnly
                   />
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getDefaultStartDate } from '@/business-apps/hr/core/apps/employee-record/utils/utils'
 import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
+import { translatePeriod } from '@/business-apps/hr/core/utils/benefitExtractionUtils'
 import {
   buildBenefitSubmitPayload,
   composeValueWithCurrency,
@@ -86,11 +87,14 @@ export const useRequestEmployeeBenefitForm = ({
     [includedValueDisplay, countryCurrency.currencyCode]
   )
 
+  // Translate the period when it changes
+  const translatedPeriod = useMemo(() => translatePeriod(resolvedPeriodDisplay, t), [resolvedPeriodDisplay, t])
+
   useEffect(() => {
-    if (resolvedPeriodDisplay) {
-      setPeriod(resolvedPeriodDisplay)
+    if (translatedPeriod) {
+      setPeriod(translatedPeriod)
     }
-  }, [resolvedPeriodDisplay])
+  }, [translatedPeriod])
 
   const validateForm = useCallback(
     () =>
@@ -118,7 +122,6 @@ export const useRequestEmployeeBenefitForm = ({
         selectedBenefit,
         provider,
         derivedAmountNumber,
-        period,
         resolvedPeriodDisplay,
         countryCurrencyRef: countryCurrency.currencyRef,
         startDate,
@@ -132,7 +135,6 @@ export const useRequestEmployeeBenefitForm = ({
       selectedBenefit,
       provider,
       derivedAmountNumber,
-      period,
       resolvedPeriodDisplay,
       countryCurrency.currencyRef,
       startDate,

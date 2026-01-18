@@ -10,9 +10,10 @@
  */
 
 import React, { useMemo } from 'react'
-import { Button, cn } from '@newwork/nw-design-system'
-import { LucideIcon, Send, XCircle, UserCog, UserPlus, UserMinus } from 'lucide-react'
+import { Button, cn, useTranslation } from '@newwork/nw-design-system'
+import { LucideIcon, Send, XCircle, CheckCircle, ThumbsUp, Hand, Undo2 } from 'lucide-react'
 import { UnifiedTask } from '../types'
+import translations from '../_i18n'
 
 export interface TaskAction {
   label: string
@@ -43,6 +44,62 @@ export interface TaskDetailFooterProps extends React.HTMLAttributes<HTMLDivEleme
   isLoading?: boolean
 }
 
+/**
+ * Helper function to detect if a task is an approval task
+ * Uses multiple fields for robust detection instead of relying only on canReject
+ */
+const isApprovalTask = (task: UnifiedTask): boolean => {
+  // Strong indicator: presence of reject action
+  if (task.availableActions?.canReject) {
+    return true
+  }
+
+  // Check explicit task category (most reliable)
+  if (task.taskCategory?.toLowerCase().includes('approval')) {
+    return true
+  }
+
+  // Check tags for explicit approval categorization
+  if (task.tags?.category === 'approval' || task.tags?.type === 'approval') {
+    return true
+  }
+
+  // Check type field (second most reliable)
+  if (task.type?.toLowerCase().includes('approval')) {
+    return true
+  }
+
+  // Fall back to name-based detection with word boundaries
+  const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
+  return /\bapproval\b|\bapprove\b/.test(taskName)
+}
+
+/**
+ * Helper function to detect if a task is an acknowledgement task
+ * Uses multiple fields for robust detection instead of fragile string matching
+ */
+const isAcknowledgementTask = (task: UnifiedTask): boolean => {
+  // Check explicit task category first (most reliable)
+  if (task.taskCategory?.toLowerCase().includes('acknowledge')) {
+    return true
+  }
+
+  // Check tags for explicit acknowledgement categorization
+  if (task.tags?.category === 'acknowledgement' || task.tags?.type === 'acknowledgement') {
+    return true
+  }
+
+  // Check type field (second most reliable)
+  if (task.type?.toLowerCase().includes('acknowledge')) {
+    return true
+  }
+
+  // Fall back to name-based detection as last resort with more specific patterns
+  const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
+  // Use word boundaries to avoid false positives like "unacknowledged_error"
+  return /\backnowledge\b/.test(taskName)
+}
+
 export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
   task,
   onTaskAction,
@@ -52,48 +109,52 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
   isLoading = false,
   ...props
 }) => {
+  const { t } = useTranslation(translations)
+
   // Auto-generate actions from task.availableActions if task is provided
-  const generatedActions = useMemo(() => {
-    // If manual actions provided, use those
+  // Returns { left: TaskAction[], right: TaskAction[] } for proper positioning
+  const { leftActions, rightActions } = useMemo(() => {
+    // If manual actions provided, put them all on the right
     if (actions) {
-      return actions
+      return { leftActions: [], rightActions: actions }
     }
 
     // If no task or availableActions, return empty
     if (!task?.availableActions || !onTaskAction) {
-      return []
+      return { leftActions: [], rightActions: [] }
     }
 
-    const taskActions: TaskAction[] = []
+    const left: TaskAction[] = []
+    const right: TaskAction[] = []
 
-    // canClaim - Claim claimable task
+    // canUnclaim - Unclaim task (when user currently owns a claimed task)
+    if (task.availableActions.canUnclaim) {
+      left.push({
+        label: t('task-footer-unclaim'),
+        onClick: () => onTaskAction('unclaim'),
+        variant: 'outline',
+        icon: Undo2,
+        loading: isLoading,
+        testId: 'unclaim-task-button'
+      })
+    }
+
+    // canClaim - Claim task (claimable tasks)
     if (task.availableActions.canClaim) {
-      taskActions.push({
-        label: 'Claim Task',
+      right.push({
+        label: t('task-footer-claim'),
         onClick: () => onTaskAction('claim'),
         variant: 'default',
-        icon: UserPlus,
+        icon: Hand,
         loading: isLoading,
         testId: 'claim-task-button'
       })
     }
 
-    // canComplete - Complete task
-    if (task.availableActions.canComplete) {
-      taskActions.push({
-        label: 'Complete Task',
-        onClick: () => onTaskAction('complete'),
-        variant: 'default',
-        icon: Send,
-        loading: isLoading,
-        testId: 'complete-task-button'
-      })
-    }
-
-    // canReject - Reject task (approval tasks only)
+    // canReject - Reject task (approval tasks only) - goes on LEFT
     if (task.availableActions.canReject) {
-      taskActions.push({
-        label: 'Reject',
+      left.push({
+        label: t('task-footer-reject'),
         onClick: () => onTaskAction('reject'),
         variant: 'destructive',
         icon: XCircle,
@@ -102,36 +163,73 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
       })
     }
 
-    // canReassign - Reassign task to another user
-    if (task.availableActions.canReassign) {
-      taskActions.push({
-        label: 'Reassign',
-        onClick: () => onTaskAction('reassign'),
-        variant: 'outline',
-        icon: UserCog,
+    // canComplete - Complete task (or Approve/Acknowledge based on task type) - goes on RIGHT
+    // Priority: 1. Approval (detected via multiple fields) 2. Acknowledge (detected via multiple fields) 3. Complete Task
+    if (task.availableActions.canComplete) {
+      const isApproval = isApprovalTask(task)
+      const isAcknowledge = !isApproval && isAcknowledgementTask(task)
+
+      // Determine label, icon, and styling based on task type
+      let label: string
+      let icon: LucideIcon
+      let testId: string
+      let buttonClassName: string | undefined
+
+      if (isApproval) {
+        label = t('task-footer-approve')
+        icon = ThumbsUp
+        testId = 'approve-task-button'
+        buttonClassName = 'gba:bg-success gba:text-success-foreground gba:hover:bg-success/90'
+      } else if (isAcknowledge) {
+        label = t('task-footer-acknowledge')
+        icon = CheckCircle
+        testId = 'acknowledge-task-button'
+        buttonClassName = 'gba:bg-success gba:text-success-foreground gba:hover:bg-success/90'
+      } else {
+        label = t('task-footer-complete')
+        icon = Send
+        testId = 'complete-task-button'
+        buttonClassName = undefined // Default blue styling
+      }
+
+      right.push({
+        label,
+        onClick: () => onTaskAction('complete'),
+        variant: 'default',
+        icon,
         loading: isLoading,
-        testId: 'reassign-task-button'
+        testId,
+        className: buttonClassName
       })
     }
 
-    // canUnclaim - Return task to pool
-    if (task.availableActions.canUnclaim) {
-      taskActions.push({
-        label: 'Unclaim',
-        onClick: () => onTaskAction('unclaim'),
-        variant: 'outline',
-        icon: UserMinus,
-        loading: isLoading,
-        testId: 'unclaim-task-button'
-      })
-    }
+    return { leftActions: left, rightActions: right }
+  }, [task, actions, onTaskAction, isLoading, t])
 
-    return taskActions
-  }, [task, actions, onTaskAction, isLoading])
+  // Combined actions for empty check
+  const hasActions = leftActions.length > 0 || rightActions.length > 0
 
   // If no actions or children, don't render footer
-  if ((!generatedActions || generatedActions.length === 0) && !children) {
+  if (!hasActions && !children) {
     return null
+  }
+
+  // Helper to render action buttons
+  const renderAction = (action: TaskAction) => {
+    const Icon = action.icon
+    return (
+      <Button
+        key={action.testId || action.label}
+        variant={action.variant || 'default'}
+        onClick={action.onClick}
+        disabled={action.disabled || action.loading}
+        className={cn('gba:flex gba:items-center gba:gap-2', action.className)}
+        data-testid={action.testId}
+      >
+        {Icon && <Icon className="gba:h-4 gba:w-4" />}
+        {action.loading ? `${action.label}...` : action.label}
+      </Button>
+    )
   }
 
   return (
@@ -143,26 +241,17 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
       {...props}
     >
       <div className="gba:px-6 gba:py-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
-        {generatedActions && generatedActions.length > 0
-          ? // Render generated or manual actions
-            generatedActions.map(action => {
-              const Icon = action.icon
-              return (
-                <Button
-                  key={action.testId || action.label}
-                  variant={action.variant || 'default'}
-                  onClick={action.onClick}
-                  disabled={action.disabled || action.loading}
-                  className={cn('gba:flex gba:items-center gba:gap-2', action.className)}
-                  data-testid={action.testId}
-                >
-                  {Icon && <Icon className="gba:h-4 gba:w-4" />}
-                  {action.loading ? `${action.label}...` : action.label}
-                </Button>
-              )
-            })
-          : // Render custom children
-            children}
+        {hasActions ? (
+          <>
+            {/* Reject button first (left of Approve) */}
+            {leftActions.map(renderAction)}
+            {/* Approve/Acknowledge/Complete button last (rightmost) */}
+            {rightActions.map(renderAction)}
+          </>
+        ) : (
+          // Render custom children
+          children
+        )}
       </div>
     </div>
   )

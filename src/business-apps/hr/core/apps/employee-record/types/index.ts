@@ -5,6 +5,7 @@ export interface TeamAllocation {
   percentage: number
   projectId?: string
   projectName?: string
+  assignedAt?: string // ISO date string - when employee was assigned to this team/project
 }
 
 export interface DayHours {
@@ -18,6 +19,7 @@ export interface WeekBooking {
   percentage: number
   projectId?: string
   projectName?: string
+  assignedAt?: string // ISO date string - when employee was assigned to this team/project
   days: DayHours[] // 7 days of the week
 }
 

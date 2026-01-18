@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
@@ -13,6 +13,7 @@ interface EmployeeData {
   id: string
   firstName: string
   lastName: string
+  displayName?: string
   pictureThumbnail?: string
   employeePosition?: {
     jobPosition?: {
@@ -50,6 +51,7 @@ const GET_EMPLOYEE_NAME = `
       id
       firstName
       lastName
+      displayName
       pictureThumbnail
       employeePosition {
         jobPosition {
@@ -138,64 +140,82 @@ export const useBankAccountReviewData = ({
 
   const graphqlClient = useGraphQLClient(accessToken)
 
-  const fetchEmployeeData = useCallback(async () => {
-    if (!employeeId) return
-    try {
-      const result = await graphqlClient.request<{ employee: EmployeeData }>(GET_EMPLOYEE_NAME, { employeeId })
-      setEmployeeData(result.employee)
-    } catch (err) {
-      console.error('Error fetching employee:', err)
-    }
-  }, [employeeId, graphqlClient])
+  // Memoize bank account data to prevent unnecessary re-renders
+  const stableNewBankAccount = useMemo(
+    () => newBankAccount,
+    [
+      newBankAccount?.countryRef,
+      newBankAccount?.currencyRef,
+      newBankAccount?.routingNumberType,
+      newBankAccount?.employeeAddress
+    ]
+  )
 
-  const fetchAuxData = useCallback(async () => {
-    const catalogIds = collectBankCatalogIds(newBankAccount, oldBankAccount)
-    const oldAddressId = String(oldBankAccount?.employeeAddress || '').trim() || null
-    const newAddressId = String(newBankAccount?.employeeAddress || '').trim() || null
-
-    if (catalogIds.length === 0 && !oldAddressId && !newAddressId) return
-
-    try {
-      const result = await graphqlClient.request<{
-        entries: CatalogEntry[]
-        oldAddress: unknown
-        newAddress: unknown
-      }>(GET_BANK_REVIEW_AUX, {
-        ids: catalogIds,
-        activeUserLocale: getCurrentActiveUserLocale(),
-        oldAddressId,
-        newAddressId
-      })
-
-      setCatalogMap(buildCatalogMap(result?.entries))
-
-      const addressTypes = buildAddressTypeMap(result?.oldAddress, result?.newAddress)
-      if (Object.keys(addressTypes).length > 0) {
-        setAddressTypeMap(addressTypes)
-      }
-    } catch (err) {
-      console.error('Error fetching catalog/address data:', err)
-    }
-  }, [graphqlClient, newBankAccount, oldBankAccount])
+  const stableOldBankAccount = useMemo(
+    () => oldBankAccount,
+    [
+      oldBankAccount?.countryRef,
+      oldBankAccount?.currencyRef,
+      oldBankAccount?.routingNumberType,
+      oldBankAccount?.employeeAddress
+    ]
+  )
 
   const fetchData = useCallback(async () => {
+    if (!employeeId) return
+
     setLoading(true)
     setError(null)
+
     try {
-      await Promise.all([fetchEmployeeData(), fetchAuxData()])
+      // Fetch employee data
+      const employeePromise = graphqlClient
+        .request<{ employee: EmployeeData }>(GET_EMPLOYEE_NAME, { employeeId })
+        .then(result => setEmployeeData(result.employee))
+        .catch(err => console.error('Error fetching employee:', err))
+
+      // Fetch catalog and address data
+      const catalogIds = collectBankCatalogIds(stableNewBankAccount, stableOldBankAccount)
+      const oldAddressId = String(stableOldBankAccount?.employeeAddress || '').trim() || null
+      const newAddressId = String(stableNewBankAccount?.employeeAddress || '').trim() || null
+
+      let auxPromise = Promise.resolve()
+      if (catalogIds.length > 0 || oldAddressId || newAddressId) {
+        auxPromise = graphqlClient
+          .request<{
+            entries: CatalogEntry[]
+            oldAddress: unknown
+            newAddress: unknown
+          }>(GET_BANK_REVIEW_AUX, {
+            ids: catalogIds,
+            activeUserLocale: getCurrentActiveUserLocale(),
+            oldAddressId,
+            newAddressId
+          })
+          .then(result => {
+            setCatalogMap(buildCatalogMap(result?.entries))
+            const addressTypes = buildAddressTypeMap(result?.oldAddress, result?.newAddress)
+            if (Object.keys(addressTypes).length > 0) {
+              setAddressTypeMap(addressTypes)
+            }
+          })
+          .catch(err => console.error('Error fetching catalog/address data:', err))
+      }
+
+      await Promise.all([employeePromise, auxPromise])
     } catch (err) {
       console.error('Error in useBankAccountReviewData:', err)
       setError(err instanceof Error ? err.message : 'Failed to load bank account review data')
     } finally {
       setLoading(false)
     }
-  }, [fetchEmployeeData, fetchAuxData])
+  }, [employeeId, graphqlClient, stableNewBankAccount, stableOldBankAccount])
 
   useEffect(() => {
-    if (accessToken) {
+    if (accessToken && employeeId) {
       fetchData()
     }
-  }, [accessToken, fetchData])
+  }, [accessToken, employeeId, fetchData])
 
   return {
     employeeData,

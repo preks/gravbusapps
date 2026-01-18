@@ -1,14 +1,13 @@
 import React from 'react'
 import { PipelineFunnel, AggregatedFunnelStage } from './widgets/PipelineFunnel'
 import { LeadSourceChart, LeadSourceItem } from './widgets/LeadSourceChart'
-import { RecordSummary, RecentRecordItem } from './widgets/RecordSummary'
-import { TaskSummary, TaskItem } from './widgets/TaskSummary'
-import { ActivitySummary, ActivityItem } from './widgets/ActivitySummary'
+import { OpportunityStatusPieChart } from './widgets/OpportunityStatusPieChart'
+import { RecordSummary, RecentRecordItem, RecordNavigationConfig } from './widgets/RecordSummary'
 import { DealSummary, DealItem } from './widgets/DealSummary'
 
 export interface OverviewTabLayoutProps {
   moduleColor?: string
-  source?: 'investments' | 'customer-relations'
+  recordNavigationConfig: RecordNavigationConfig
 
   // Data props for widgets
   aggregatedFunnel: AggregatedFunnelStage[]
@@ -19,15 +18,29 @@ export interface OverviewTabLayoutProps {
   totalRevenue: number
   totalLeadCount: number
   recentRecords: RecentRecordItem[]
-  activeTasks: TaskItem[]
-  todaysActivities: ActivityItem[]
   keyDeals: DealItem[]
   onDealClick?: (dealId: string) => void
+  selectedDealCurrency?: string
+  onDealCurrencyChange?: (currency: string) => void
+
+  // Optional: Opportunity status data for pie chart (used instead of lead sources for IRM)
+  opportunityStatuses?: Array<{
+    status: string
+    statusRef: string | null
+    count: number
+    totalAmount: number
+  }>
+  totalOpportunityCount?: number
+  openOpportunitiesComparison?: {
+    beforeCurrentQuarter: number
+    currentQuarter: number
+  }
+  useOpportunityStatus?: boolean
 }
 
 export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   moduleColor = 'default',
-  source = 'investments',
+  recordNavigationConfig,
   aggregatedFunnel,
   availableCurrencies,
   selectedCurrency,
@@ -35,10 +48,14 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   revenueBySource,
   totalLeadCount,
   recentRecords,
-  activeTasks,
-  todaysActivities,
   keyDeals,
-  onDealClick
+  onDealClick,
+  selectedDealCurrency,
+  onDealCurrencyChange,
+  opportunityStatuses = [],
+  totalOpportunityCount = 0,
+  openOpportunitiesComparison = { beforeCurrentQuarter: 0, currentQuarter: 0 },
+  useOpportunityStatus = false
 }) => {
   return (
     <div className="gba:space-y-6">
@@ -54,26 +71,31 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
           />
         </div>
         <div className="gba:lg:col-span-4 gba:xl:col-span-1">
-          <LeadSourceChart items={revenueBySource} totalLeads={totalLeadCount} moduleColor={moduleColor} />
+          {useOpportunityStatus ? (
+            <OpportunityStatusPieChart
+              data={opportunityStatuses}
+              totalCount={totalOpportunityCount}
+              openComparison={openOpportunitiesComparison}
+            />
+          ) : (
+            <LeadSourceChart items={revenueBySource} totalLeads={totalLeadCount} moduleColor={moduleColor} />
+          )}
         </div>
         <div className="gba:lg:col-span-4 gba:xl:col-span-1">
-          <RecordSummary records={recentRecords} moduleColor={moduleColor} source={source} />
-        </div>
-      </div>
-
-      {/* Bottom Row - Tasks and Activities */}
-      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
-        <div>
-          <TaskSummary tasks={activeTasks} moduleColor={moduleColor} source={source} />
-        </div>
-        <div>
-          <ActivitySummary activities={todaysActivities} moduleColor={moduleColor} source={source} />
+          <RecordSummary records={recentRecords} moduleColor={moduleColor} navigationConfig={recordNavigationConfig} />
         </div>
       </div>
 
       {/* Key Deals Section */}
       <div>
-        <DealSummary deals={keyDeals} moduleColor={moduleColor} onDealClick={onDealClick} />
+        <DealSummary
+          deals={keyDeals}
+          moduleColor={moduleColor}
+          onDealClick={onDealClick}
+          availableCurrencies={availableCurrencies}
+          selectedDealCurrency={selectedDealCurrency}
+          onDealCurrencyChange={onDealCurrencyChange}
+        />
       </div>
     </div>
   )

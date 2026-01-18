@@ -2,10 +2,10 @@
  * useInboxTasks Hook
  * Fetches tasks from both CFlow and Kogito using the unified API
  *
- * OPTIMIZATION:
- * - Fetch 4 batches upfront (400 tasks) for accurate count
+ * STRATEGY:
+ * - Fetch from both sources until we have at least MIN_INITIAL_TASKS (20)
+ * - After initial load, user can "Load more" for additional batches
  * - Smart polling: updates in background without disrupting UI
- * - Client-side pagination from merged results
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -28,11 +28,9 @@ interface UseInboxTasksResult {
 
 export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksResult => {
   const [allFetchedTasks, setAllFetchedTasks] = useState<UnifiedTask[]>([])
-  const [displayedTasks, setDisplayedTasks] = useState<UnifiedTask[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
   const [hasMoreToFetch, setHasMoreToFetch] = useState(true)
   const [hasNewTasks, setHasNewTasks] = useState(false)
 
@@ -41,33 +39,34 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
   const lastTaskIdsRef = useRef<Set<string>>(new Set())
   const previousUserIdRef = useRef<string>('')
 
-  const ITEMS_PER_PAGE = 50
-  const FETCH_SIZE = 50 // Fetch 50 from each source (100 total per fetch)
-  const INITIAL_BATCH_COUNT = 4 // Fetch 4 batches initially (400 tasks)
+  const FETCH_SIZE = 20 // Fetch 20 from each source per batch (40 total per batch)
+  const MIN_INITIAL_TASKS = 20 // Keep fetching until we have at least this many tasks
+  const MAX_INITIAL_BATCHES = 3 // Safety limit to prevent infinite fetching
 
   /**
    * Fetch a batch of tasks
+   * Returns tasks, hasMore flag, and totalCount from API (cflow + kogito combined)
    */
   const fetchBatch = useCallback(
-    async (offset: number): Promise<{ tasks: UnifiedTask[]; hasMore: boolean }> => {
+    async (offset: number): Promise<{ tasks: UnifiedTask[]; hasMore: boolean; totalCount: number }> => {
       if (!userId) {
-        return { tasks: [], hasMore: false }
+        return { tasks: [], hasMore: false, totalCount: 0 }
       }
 
       const response = await fetchAllUserTasks(userId, context.accessToken || '', {
-        assignedOnly: true,
         limit: FETCH_SIZE,
         offset
       })
 
       const hasMore = response.tasks.length >= FETCH_SIZE
-      return { tasks: response.tasks, hasMore }
+      return { tasks: response.tasks, hasMore, totalCount: response.totalCount }
     },
     [userId, context.accessToken]
   )
 
   /**
-   * Load initial batches (4 batches = ~400 tasks for accurate count)
+   * Load initial tasks - fetch until we have at least MIN_INITIAL_TASKS (20)
+   * Uses totalCount from API (cflow + kogito) for accurate badge
    */
   const loadInitial = useCallback(async () => {
     if (!userId) {
@@ -79,19 +78,28 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     setError(null)
 
     try {
-      // Fetch multiple batches in parallel for accurate count
-      const batchPromises = []
-      for (let i = 0; i < INITIAL_BATCH_COUNT; i++) {
-        batchPromises.push(fetchBatch(i * FETCH_SIZE))
+      let collectedTasks: UnifiedTask[] = []
+      let currentOffset = 0
+      let batchCount = 0
+      let hasMore = true
+      let apiTotalCount = 0 // Total from API (cflow + kogito combined)
+
+      // Keep fetching until we have enough tasks or no more data
+      while (collectedTasks.length < MIN_INITIAL_TASKS && hasMore && batchCount < MAX_INITIAL_BATCHES) {
+        const batch = await fetchBatch(currentOffset)
+        collectedTasks = [...collectedTasks, ...batch.tasks]
+        hasMore = batch.hasMore
+        apiTotalCount = batch.totalCount // Use the accurate totalCount from API
+        currentOffset += FETCH_SIZE
+        batchCount++
+
+        console.log(
+          `[useInboxTasks] Batch ${batchCount}: fetched ${batch.tasks.length}, total: ${collectedTasks.length}, apiTotalCount: ${apiTotalCount}`
+        )
       }
 
-      const batches = await Promise.all(batchPromises)
-
-      // Merge all tasks
-      const allTasks = batches.flatMap(b => b.tasks)
-
       // Sort globally by timestamp (newest first)
-      const sortedTasks = [...allTasks].sort((a, b) => {
+      const sortedTasks = [...collectedTasks].sort((a, b) => {
         const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime()
         const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime()
         return bTime - aTime
@@ -101,10 +109,13 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
       lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
 
       setAllFetchedTasks(sortedTasks)
-      setDisplayedTasks(sortedTasks.slice(0, ITEMS_PER_PAGE))
-      setCurrentPage(1)
-      setTotalCount(sortedTasks.length)
-      setHasMoreToFetch(batches[batches.length - 1].hasMore)
+      // Use the accurate totalCount from API (cflow + kogito combined)
+      setTotalCount(apiTotalCount)
+      setHasMoreToFetch(hasMore)
+
+      console.log(
+        `[useInboxTasks] Initial load complete: ${sortedTasks.length} tasks displayed, totalCount: ${apiTotalCount}, hasMore: ${hasMore}`
+      )
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load tasks'
       setError(errorMessage)
@@ -147,8 +158,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
   const refetch = useCallback(async () => {
     setHasNewTasks(false)
     setAllFetchedTasks([])
-    setDisplayedTasks([])
-    setCurrentPage(1)
     setHasMoreToFetch(true)
     lastTaskIdsRef.current.clear()
     await loadInitial()
@@ -163,20 +172,9 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
   }, [refetch])
 
   /**
-   * Load more tasks
+   * Load more tasks - fetches additional batch from backend
    */
   const loadMore = useCallback(async () => {
-    const nextPage = currentPage + 1
-    const startIdx = (nextPage - 1) * ITEMS_PER_PAGE
-    const endIdx = startIdx + ITEMS_PER_PAGE
-
-    // Serve from cache if available
-    if (endIdx <= allFetchedTasks.length) {
-      setDisplayedTasks(allFetchedTasks.slice(0, endIdx))
-      setCurrentPage(nextPage)
-      return
-    }
-
     // Need to fetch more
     if (!hasMoreToFetch) {
       return
@@ -198,8 +196,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
       lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
 
       setAllFetchedTasks(sortedTasks)
-      setDisplayedTasks(sortedTasks.slice(0, endIdx))
-      setCurrentPage(nextPage)
       setTotalCount(sortedTasks.length)
       setHasMoreToFetch(batch.hasMore)
     } catch (err) {
@@ -207,7 +203,7 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     } finally {
       setIsLoading(false)
     }
-  }, [currentPage, allFetchedTasks, hasMoreToFetch, fetchBatch])
+  }, [allFetchedTasks, hasMoreToFetch, fetchBatch])
 
   /**
    * Initial fetch on mount and when userId changes
@@ -217,8 +213,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     if (previousUserIdRef.current && previousUserIdRef.current !== userId) {
       hasInitialFetchRef.current = false
       setAllFetchedTasks([])
-      setDisplayedTasks([])
-      setCurrentPage(1)
       setHasMoreToFetch(true)
       lastTaskIdsRef.current.clear()
     }
@@ -230,16 +224,15 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     }
   }, [userId, loadInitial])
 
-  const hasMore = displayedTasks.length < allFetchedTasks.length || hasMoreToFetch
-
+  // Return all fetched tasks - InboxView handles filtering and display
   return {
-    tasks: displayedTasks,
+    tasks: allFetchedTasks,
     totalCount,
     isLoading,
     error,
     refetch,
     loadMore,
-    hasMore,
+    hasMore: hasMoreToFetch,
     hasNewTasks,
     backgroundRefresh,
     clearNewTasksFlag

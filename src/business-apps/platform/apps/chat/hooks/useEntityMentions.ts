@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { EntityReference, MessageEntityReference } from '../types'
+import type { ActiveExpert } from './useConversationExperts'
 
 // GraphQL query for searching all entities
 const SEARCH_ENTITIES_QUERY = `
@@ -366,7 +367,7 @@ interface MentionState {
   caretPosition: number
 }
 
-export function useEntityMentions(accessToken: string) {
+export function useEntityMentions(accessToken: string, activeExperts: ActiveExpert[] = []) {
   const graphqlClient = useGraphQLClient(accessToken)
   const [entities, setEntities] = useState<EntityReference[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -650,7 +651,17 @@ export function useEntityMentions(accessToken: string) {
         type: entityType,
         name: entry.title || 'Untitled Content',
         subtitle,
-        pictureThumbnail: entry.pictureThumbnail || undefined
+        pictureThumbnail: entry.pictureThumbnail || undefined,
+        // Include document content for AI processing
+        contentPreview: entry.preview || undefined,
+        contentData: {
+          title: entry.title,
+          preview: entry.preview,
+          contentGroupRef: entry.contentGroupRef,
+          contentGroup: entry.contentGroup?.value,
+          contentType: entry.contentType?.value,
+          createdAt: entry.createdAt
+        }
       })
     })
 
@@ -669,12 +680,40 @@ export function useEntityMentions(accessToken: string) {
       setIsLoading(true)
       try {
         const searchPattern = query ? `%${query}%` : '%%'
-        const result = await graphqlClient.request<SearchResponse>(SEARCH_ENTITIES_QUERY, {
-          searchPattern,
-          limit: 5 // Limit per entity type
-        })
 
-        const allEntities = transformResponse(result, query)
+        // Search GraphQL entities in parallel with expert filtering
+        const [graphqlResult, expertResults] = await Promise.all([
+          graphqlClient.request<SearchResponse>(SEARCH_ENTITIES_QUERY, {
+            searchPattern,
+            limit: 5 // Limit per entity type
+          }),
+          Promise.resolve(
+            // Filter active experts by query
+            activeExperts
+              .filter(expert => {
+                if (!query) return true
+                const lowerQuery = query.toLowerCase()
+                return (
+                  expert.expertName.toLowerCase().includes(lowerQuery) ||
+                  expert.specialty.toLowerCase().includes(lowerQuery)
+                )
+              })
+              .map(
+                (expert): EntityReference => ({
+                  id: expert.expertId,
+                  type: 'every_expert',
+                  name: expert.expertName,
+                  subtitle: `Expert • ${expert.specialty}`
+                })
+              )
+          )
+        ])
+
+        const graphqlEntities = transformResponse(graphqlResult, query)
+
+        // Combine experts (at the top) with other entities
+        const allEntities = [...expertResults, ...graphqlEntities]
+
         // Limit total results to 15 for better UX
         setEntities(allEntities.slice(0, 15))
       } catch (err) {
@@ -685,7 +724,7 @@ export function useEntityMentions(accessToken: string) {
         setIsLoading(false)
       }
     },
-    [graphqlClient]
+    [graphqlClient, activeExperts]
   )
 
   // Handle text change and detect mentions

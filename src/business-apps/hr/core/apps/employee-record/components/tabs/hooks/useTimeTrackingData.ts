@@ -14,6 +14,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
+import { parseDurationToMinutes } from '@/business-apps/hr/core/apps/my-time/utils/duration'
 
 export type TimeEntry = {
   id: string
@@ -66,7 +67,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [error, setError] = useState<string | null>(null)
 
   // Search removed per requirements
-  const [sortKey, setSortKey] = useState<keyof TimeEntry>('startTimeISO')
+  const [sortKey, setSortKey] = useState<keyof TimeEntry>('attendanceDateISO')
   const [sortDir, setSortDir] = useState<SortDirection>('desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -103,21 +104,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))
   }, [])
 
-  // very small helper to parse duration text like "7h 30m" or "0h" into minutes (no backtracking)
-  const parseDurationToMinutes = (text?: string): number => {
-    if (!text) return 0
-    let hours = 0
-    let minutes = 0
-    const tokens = String(text).trim().split(/\s+/)
-    for (const token of tokens) {
-      if (/^\d+h$/i.test(token)) {
-        hours = Number.parseInt(token.slice(0, -1), 10) || 0
-      } else if (/^\d+m$/i.test(token)) {
-        minutes = Number.parseInt(token.slice(0, -1), 10) || 0
-      }
-    }
-    return hours * 60 + minutes
-  }
+  // parseDurationToMinutes moved to shared My Time utils
 
   const formatMinutes = (minutes: number): string => {
     const sign = minutes < 0 ? '-' : ''
@@ -189,6 +176,36 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const result = await graphqlClient.request<any>(employeeAttendanceMonthlyQuery, variables)
     const rows = result?.EmployeeAttendance ?? []
     const list: TimeEntry[] = rows.map(mapAttendanceToEntry)
+
+    // Fetch active correction requests for the same date range and employee
+    try {
+      const { employeeAttendanceCorrectionsForRangeQuery } = await import(
+        '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
+      )
+      const corRes = await graphqlClient.request<any>(employeeAttendanceCorrectionsForRangeQuery, {
+        employeeId,
+        dateFrom: variables.dateFrom,
+        dateTo: variables.dateTo
+      })
+      const correctionDates: Set<string> = new Set(
+        (corRes?.EmployeeAttendanceCorrectionRequest ?? [])
+          // Ignore approved requests; treat all other active requests as pending overlays
+          .filter((r: any) => String(r?.status) !== 'APPROVED_CORRECTION_REQUEST')
+          .map((r: any) => String(r.attendanceDate))
+      )
+      // Mark entries as pending if there's an active correction for the same date
+      if (correctionDates.size > 0) {
+        for (const entry of list) {
+          const entryDay = toLocalDateKey(new Date(entry.attendanceDateISO))
+          if (correctionDates.has(entryDay)) {
+            entry.status = 'pending'
+          }
+        }
+      }
+    } catch {
+      // If the correction query fails, keep default statuses
+    }
+
     setAllEntries(list)
     const count = result?.EmployeeAttendance_aggregate?.aggregate?.count ?? list.length
     setTotalCount(count)
@@ -258,8 +275,15 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         employeeId,
         activeUserLocale: activeLocale
       })
-      const regionCode: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
-      if (regionCode) {
+      const regionCodeRaw: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
+      if (regionCodeRaw) {
+        let regionCode = regionCodeRaw
+        try {
+          const seg = String(regionCodeRaw).split(':').pop() || ''
+          if (seg.startsWith('RO') && seg !== 'ROU') {
+            regionCode = 'EmploymentRegion:v1:ROU'
+          }
+        } catch {}
         const holidaysRes = await graphqlClient.request<any>(employmentRegionHolidaysQuery, {
           activeUserLocale: activeLocale,
           regionId: regionCode
@@ -625,6 +649,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     nextMonth,
     clockIn,
     clockOut,
-    updateLocationSelection
+    updateLocationSelection,
+    // expose refresh for external triggers (e.g., after AppAction completes)
+    refresh: loadFromGraphql
   }
 }

@@ -108,10 +108,7 @@ export const useHierarchyDataIntegration = (context: BusinessAppContextProps): H
     setError(null)
 
     try {
-      const structureId = getCurrentActiveStructureId()
-      if (!structureId) {
-        throw new Error('No active structure ID found')
-      }
+      const structureId = getCurrentActiveStructureId() ?? ''
 
       const data = await fetchHierarchyData({ structureId })
       setRawData(data)

@@ -26,7 +26,7 @@ export interface OldEmployeeCompensation {
   decisionDate: string | null
   requestedPercent: number | null
   requestedAmount: number | null
-  salaryAdjustReason: string | null
+  salaryAdjustReasonRef: string | null
   decisionEmployee: string | null
 }
 
@@ -36,7 +36,7 @@ export interface EmployeeSalaryData {
   monthlyGrossSalary: number | null
   hourlyGrossSalary: number | null
   currencyRef: string
-  salaryAdjustReason: string | null
+  salaryAdjustReasonRef: string | null
   startDate: string | null
   notes: string | null
   stockOptions: boolean

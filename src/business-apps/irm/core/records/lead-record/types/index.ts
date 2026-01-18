@@ -58,7 +58,9 @@ export interface SalesTaskData {
   statusRef?: string
   priority?: any
   dueDate?: string
-  assignedEmployee?: any
+  taskAssignees?: Array<{
+    assignedEmployee?: any
+  }>
   creatorEmployee?: any
   createdAt: string
   createdBy: string

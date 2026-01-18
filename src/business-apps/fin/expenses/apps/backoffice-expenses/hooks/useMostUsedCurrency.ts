@@ -127,7 +127,6 @@ export const useMostUsedCurrency = (accessToken: string | null | undefined, sele
       const formattedCurrency = formatCurrency(mostUsed)
       setMostUsedCurrency(formattedCurrency)
     } catch (err) {
-      console.error('Error fetching most used currency:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch most used currency')
       // Fallback to EUR on error
       setMostUsedCurrency('Currency:v1:EUR')

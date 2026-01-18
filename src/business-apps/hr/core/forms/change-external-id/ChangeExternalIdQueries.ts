@@ -4,6 +4,7 @@ export const EMPLOYEE_DATA_QUERY = `
     id
     version
     externalId
+    hrReferenceCode
     additionalProperties
     firstName
     lastName

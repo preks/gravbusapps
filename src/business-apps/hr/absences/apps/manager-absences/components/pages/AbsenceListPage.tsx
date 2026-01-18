@@ -21,6 +21,8 @@ export interface AbsenceListPageProps extends BusinessAppContextProps {
       startDate?: string
       endDate?: string
     }
+    // Optional direct absence identifier for deep links (e.g., from Rovo)
+    absenceId?: string
   }
 }
 
@@ -150,6 +152,22 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = props => {
     orgUnitId: supervisorId,
     isTeamAwayFilter: preFilter?.type === 'team-away'
   })
+
+  // When a specific absenceId is provided via preFilter, prefer that absence
+  const displayAbsences =
+    preFilter?.absenceId && absences.length > 0
+      ? absences.filter(absence => absence.id === preFilter.absenceId)
+      : absences
+
+  // Auto-select the deep-linked absence when data is loaded
+  useEffect(() => {
+    if (preFilter?.absenceId && !selectedAbsence && absences.length > 0) {
+      const match = absences.find(absence => absence.id === preFilter.absenceId)
+      if (match) {
+        setSelectedAbsence(match)
+      }
+    }
+  }, [preFilter, absences, selectedAbsence])
 
   useEffect(() => {
     if (accessToken && supervisorId) {
@@ -389,7 +407,7 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = props => {
           dataBody={
             <AbsenceTable
               {...props}
-              absences={absences}
+              absences={displayAbsences}
               loading={loading}
               error={error}
               hasMore={hasMore}

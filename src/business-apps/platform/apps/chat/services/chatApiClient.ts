@@ -182,7 +182,7 @@ export class ChatApiClient {
   }
 
   // Message endpoints
-  async getMessages(conversationId: string, page: number = 1, limit: number = 50) {
+  async getMessages(conversationId: string, page: number = 1, limit: number = 100) {
     const response = await this.client.get<
       | PaginatedResponse<Message>
       | { messages: Message[]; total: number; page: number; limit: number; totalPages: number }
@@ -282,6 +282,24 @@ export class ChatApiClient {
         'Content-Type': 'multipart/form-data'
       }
     })
+    return response.data
+  }
+
+  // Every Experts Management
+  async addExpert(conversationId: string, expertId: string) {
+    const response = await this.client.post<Conversation>(`/conversations/${conversationId}/experts`, {
+      expertId
+    })
+    return response.data
+  }
+
+  async removeExpert(conversationId: string, expertId: string) {
+    const response = await this.client.delete<Conversation>(`/conversations/${conversationId}/experts/${expertId}`)
+    return response.data
+  }
+
+  async getActiveExperts(conversationId: string) {
+    const response = await this.client.get<string[]>(`/conversations/${conversationId}/experts`)
     return response.data
   }
 }

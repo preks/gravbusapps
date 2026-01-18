@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react'
+import React, { useMemo, useCallback, useState, useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { InvestmentLayout, InvestmentFormValues } from '@/common/components/investment/form-layouts/investment-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -20,7 +20,7 @@ import { sanitizeInvestment } from './utils/sanitizeInvestment'
 import { buildInvestmentPayload } from '@/common/data/investment/types/investmentTypes.new'
 import GroupSelectSegment from './segments/InvestmentGroupSegment'
 import { Badge } from '@newwork/nw-design-system'
-import { PiSwap } from 'react-icons/pi'
+import { SwapIcon } from '@phosphor-icons/react'
 
 type InvestmentFormProps = BusinessAppContextProps
 
@@ -96,6 +96,51 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
     return undefined
   }, [fetchedOpportunity, opportunityLoading, getInvestmentFieldsByType, getPathByType])
 
+  // Get investment type ID from fetched investment for early dynamic field extraction
+  const fetchedInvestmentTypeId = useMemo(() => {
+    if (!fetchedInvestment) return null
+    const groupId = fetchedInvestment.investmentGroupRef
+    const typeId = fetchedInvestment.investmentTypeRef
+
+    // For liquid funds, also check liquidFundType
+    let liquidFundTypeId: string | null = null
+    if (fetchedInvestment.liquidFundInvestment) {
+      const liquidFund = Array.isArray(fetchedInvestment.liquidFundInvestment)
+        ? fetchedInvestment.liquidFundInvestment[0]
+        : fetchedInvestment.liquidFundInvestment
+      // Check both ref field and nested object id
+      liquidFundTypeId = liquidFund?.investmentLiquidFundTypeRef || liquidFund?.investmentLiquidFundType?.id || null
+    }
+
+    // Find the most specific type (liquid fund type > investment type > group)
+    return liquidFundTypeId || typeId || groupId
+  }, [fetchedInvestment])
+
+  // Extract dynamic fields EARLY - before initial form reset
+  const extractedDynamicFields = useMemo(() => {
+    if (!fetchedInvestment || investmentLoading) return null
+    if (!fetchedInvestmentTypeId) return null
+
+    const fieldsDef = getInvestmentFieldsByType(fetchedInvestmentTypeId)
+    if (!fieldsDef) return null
+
+    // Normalize arrays to single objects
+    const normalized = {
+      ...fetchedInvestment,
+      liquidFundInvestment: Array.isArray(fetchedInvestment.liquidFundInvestment)
+        ? fetchedInvestment.liquidFundInvestment[0]
+        : fetchedInvestment.liquidFundInvestment,
+      equityInvestment: Array.isArray(fetchedInvestment.equityInvestment)
+        ? fetchedInvestment.equityInvestment[0]
+        : fetchedInvestment.equityInvestment,
+      realEstateInvestment: Array.isArray(fetchedInvestment.realEstateInvestment)
+        ? fetchedInvestment.realEstateInvestment[0]
+        : fetchedInvestment.realEstateInvestment
+    }
+
+    return mapInvestmentDataToFormFields(normalized, fieldsDef)
+  }, [fetchedInvestment, investmentLoading, fetchedInvestmentTypeId, getInvestmentFieldsByType])
+
   // Enhanced initial values with investmentId for updates
   const enhancedInitialValues = useMemo(() => {
     // If we have fetched investment data, map it to form values
@@ -110,7 +155,45 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
       ) as Partial<InvestmentFormValues>
 
       // Apply custom transformations (normalize arrays, extract IDs, set defaults)
-      return transformInvestment(mappedValues, fetchedInvestment, getPathByType)
+      const transformed = transformInvestment(mappedValues, fetchedInvestment, getPathByType)
+
+      // MERGE extracted dynamic fields into initial values
+      if (extractedDynamicFields) {
+        const merged: any = {
+          ...transformed,
+          investment: {
+            ...transformed.investment,
+            ...extractedDynamicFields.investment
+          }
+        }
+
+        // Only add subtypes that have data (avoid creating empty objects that break backend validation)
+        // Backend requires exactly one subtype, so we must not send empty objects for unused subtypes
+        if (transformed.equityInvestment || extractedDynamicFields.equityInvestment) {
+          merged.equityInvestment = {
+            ...transformed.equityInvestment,
+            ...extractedDynamicFields.equityInvestment
+          }
+        }
+
+        if (transformed.realEstateInvestment || extractedDynamicFields.realEstateInvestment) {
+          merged.realEstateInvestment = {
+            ...transformed.realEstateInvestment,
+            ...extractedDynamicFields.realEstateInvestment
+          }
+        }
+
+        if (transformed.liquidFundInvestment || extractedDynamicFields.liquidFundInvestment) {
+          merged.liquidFundInvestment = {
+            ...transformed.liquidFundInvestment,
+            ...extractedDynamicFields.liquidFundInvestment
+          }
+        }
+
+        return merged
+      }
+
+      return transformed
     }
 
     // Otherwise use provided initial values (may be mapped from opportunity)
@@ -133,7 +216,15 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
     }
 
     return result
-  }, [fetchedInvestment, investmentLoading, investmentId, mappedInitialValues, opportunityId])
+  }, [
+    fetchedInvestment,
+    investmentLoading,
+    investmentId,
+    mappedInitialValues,
+    opportunityId,
+    extractedDynamicFields,
+    getPathByType
+  ])
 
   // Reset form when initial values change
   useEffect(() => {
@@ -203,89 +294,11 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
 
   // Get form fields definition using getInvestmentFieldsByType
   const formFieldsDefinition = useMemo(() => {
-    return getInvestmentFieldsByType(investmentTypeId)
-  }, [getInvestmentFieldsByType, investmentTypeId])
-
-  // Track if we've already mapped dynamic fields for this investment
-  const lastMappedInvestmentIdRef = useRef<string | null>(null)
-
-  // Helper: Normalize sub-investment arrays to single objects
-  const normalizeInvestmentArrays = useCallback((investment: typeof fetchedInvestment) => {
-    if (!investment) return investment
-    const normalized = { ...investment }
-    if (investment.liquidFundInvestment) {
-      normalized.liquidFundInvestment = Array.isArray(investment.liquidFundInvestment)
-        ? investment.liquidFundInvestment[0]
-        : investment.liquidFundInvestment
-    }
-    if (investment.equityInvestment) {
-      normalized.equityInvestment = Array.isArray(investment.equityInvestment)
-        ? investment.equityInvestment[0]
-        : investment.equityInvestment
-    }
-    if (investment.realEstateInvestment) {
-      normalized.realEstateInvestment = Array.isArray(investment.realEstateInvestment)
-        ? investment.realEstateInvestment[0]
-        : investment.realEstateInvestment
-    }
-    return normalized
-  }, [])
-
-  // Helper: Apply dynamic fields to form
-  const applyDynamicFieldsToForm = useCallback(
-    (dynamicFields: ReturnType<typeof mapInvestmentDataToFormFields>) => {
-      if (!Object.keys(dynamicFields).length) return
-
-      if (dynamicFields.investment) {
-        Object.keys(dynamicFields.investment).forEach(key => {
-          form.setValue(`investment.${key}` as any, (dynamicFields.investment as any)[key])
-        })
-      }
-      if (dynamicFields.equityInvestment) {
-        form.setValue('equityInvestment', { ...formValues.equityInvestment, ...dynamicFields.equityInvestment } as any)
-      }
-      if (dynamicFields.realEstateInvestment) {
-        form.setValue('realEstateInvestment', {
-          ...formValues.realEstateInvestment,
-          ...dynamicFields.realEstateInvestment
-        } as any)
-      }
-      if (dynamicFields.liquidFundInvestment) {
-        form.setValue('liquidFundInvestment', {
-          ...formValues.liquidFundInvestment,
-          ...dynamicFields.liquidFundInvestment
-        } as any)
-      }
-    },
-    [form, formValues]
-  )
-
-  // Map dynamic fields after catalog data is loaded (only in update mode)
-  useEffect(() => {
-    if (!investmentId || !fetchedInvestment) return
-    if (typePath.length === 0 && investmentTypesLoading) return
-    if (lastMappedInvestmentIdRef.current === investmentId) return
-
-    const fieldsDef = getInvestmentFieldsByType(investmentTypeId)
-    if (!fieldsDef) return
-
-    const normalizedInvestment = normalizeInvestmentArrays(fetchedInvestment)
-    const dynamicFields = mapInvestmentDataToFormFields(normalizedInvestment, fieldsDef)
-    applyDynamicFieldsToForm(dynamicFields)
-
-    lastMappedInvestmentIdRef.current = investmentId
-  }, [
-    investmentId,
-    fetchedInvestment,
-    investmentTypeId,
-    getInvestmentFieldsByType,
-    investmentTypesLoading,
-    form,
-    formValues,
-    typePath,
-    normalizeInvestmentArrays,
-    applyDynamicFieldsToForm
-  ])
+    // In update mode, use the type from fetched data to ensure correct fields are displayed
+    // In create mode, use the type from form state (as user selects types)
+    const typeToUse = isUpdate ? fetchedInvestmentTypeId : investmentTypeId
+    return getInvestmentFieldsByType(typeToUse)
+  }, [getInvestmentFieldsByType, investmentTypeId, fetchedInvestmentTypeId, isUpdate])
 
   // Create dynamic schema based on formFieldsDefinition
   const dynamicSchema = useMemo(() => {
@@ -389,7 +402,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
               data-testid={formatDataTestId(prefixDataTestId, 'back-badge')}
             >
               Back
-              <PiSwap className="gba:w-3.5 gba:h-3.5 gba:opacity-70" />
+              <SwapIcon className="gba:w-3.5 gba:h-3.5 gba:opacity-70" />
             </Badge>
           </div>
         )}

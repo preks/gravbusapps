@@ -333,7 +333,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                     monthlyGrossSalary: isHourly ? null : values.monthlySalary,
                     hourlyGrossSalary: isHourly ? values.hourlySalary : null,
                     currencyRef: values.currency || '',
-                    salaryAdjustReason: null, // No reason for assign mode
+                    salaryAdjustReasonRef: null, // No reason for assign mode (fixed field name)
                     startDate: formattedStartDate,
                     notes: values.notes || '',
                     stockOptions: false,
@@ -369,31 +369,40 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                 event: 'pse_submit',
                 employeeId: employeeId,
                 initiatorEmployeeId: userInfo?.employeeDetails?.employeeId || '',
-                oldEmployeeSalary: {
-                  employee: employeeId,
-                  annualGrossSalary: currentSalaryAnnual,
-                  monthlyGrossSalary: currentSalaryMonthly,
-                  hourlyGrossSalary: currentSalaryHourly,
-                  currencyRef: currentCurrencyRef,
-                  startDate: null,
-                  endDate: null,
-                  stockOptions: false,
-                  notes: null,
-                  requestStatus: null,
-                  requestDate: null,
-                  decisionDate: null,
-                  requestedPercent: null,
-                  requestedAmount: null,
-                  salaryAdjustReason: null,
-                  decisionEmployee: null
-                },
+                oldEmployeeSalary: currentCompensation
+                  ? {
+                      // Include ALL fields from current salary record so backend can update it
+                      id: currentCompensation.id, // ✅ Critical: Backend needs this to update endDate
+                      employee: employeeId,
+                      annualGrossSalary: currentCompensation.annualGrossSalary,
+                      monthlyGrossSalary: currentCompensation.monthlyGrossSalary,
+                      hourlyGrossSalary: currentCompensation.hourlyGrossSalary,
+                      currencyRef: currentCompensation.currencyRef,
+                      activeFrom: currentCompensation.activeFrom,
+                      activeTo: currentCompensation.activeTo,
+                      startDate: currentCompensation.startDate,
+                      endDate: null, // Backend will compute this based on new salary startDate
+                      requestStatus: currentCompensation.requestStatus,
+                      requestDate: currentCompensation.requestDate,
+                      decisionDate: currentCompensation.decisionDate,
+                      requestedPercent: currentCompensation.requestedPercent,
+                      requestedAmount: currentCompensation.requestedAmount,
+                      stockOptions: currentCompensation.stockOptions ?? false,
+                      notes: currentCompensation.notes,
+                      salaryAdjustReasonRef: currentCompensation.salaryAdjustReasonRef,
+                      decisionEmployee: currentCompensation.decisionEmployeeId,
+                      createdAt: currentCompensation.createdAt,
+                      isDeleted: currentCompensation.isDeleted
+                    }
+                  : null, // If no current salary (assign mode), send null
+
                 employeeSalary: {
                   employee: employeeId,
                   annualGrossSalary: finalAnnualGrossSalary,
                   monthlyGrossSalary: finalMonthlyGrossSalary,
                   hourlyGrossSalary: newHourlySalary,
                   currencyRef: currentCurrencyRef,
-                  salaryAdjustReason: values.reason || '',
+                  salaryAdjustReasonRef: values.reason || null, // ✅ Fixed: Use salaryAdjustReasonRef (catalog reference)
                   startDate: formattedStartDate,
                   notes: values.notes || '',
                   stockOptions: false,

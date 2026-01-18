@@ -4,7 +4,7 @@ import { Users, Eye, Loader2, AlertTriangle } from 'lucide-react'
 import { FlowTemplate, ExecutionAssignment } from '../types'
 import { TaskAssignment, AssignmentTarget } from '@/common/network/flows/FlowTemplateClient'
 import { mockUsers } from '../../../data/mockUsers'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 interface AssignmentTargetInfo {
   targetCount: number
@@ -29,8 +29,7 @@ interface AssignmentTargetCounterProps {
 }
 
 // API base URL
-const API_BASE =
-  (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+const API_BASE = getFlowEngineApiBaseUrl()
 
 // Convert AssignmentTarget to API format
 const convertTargetToApiFormat = (target: AssignmentTarget) => {
