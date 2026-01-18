@@ -21,6 +21,12 @@ interface CflowTask {
   title?: string
   message?: string
   stepIndex?: number
+  // Initiator fields (varies by endpoint/version)
+  // Newer payloads: flowInitiatedById (userId) + flowInitiatedBy (display name)
+  // Older payloads: flowInitiatedBy (userId) + flowInitiatedByName (display name)
+  flowInitiatedById?: string
+  flowInitiatedBy?: string
+  flowInitiatedByName?: string
   form?: any[]
   inputs?: any[]
   links?: any[]
@@ -142,11 +148,34 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
   const createdDate = cflowTask.scheduledAt || (cflowTask as any).createdAt || (cflowTask as any).created_at
 
   // Extract creator information from CFlow task
-  // CFlow uses 'flowInitiatedBy' which is the USER ID (not employee ID!)
-  const flowInitiatedBy = (cflowTask as any).flowInitiatedBy
+  // We support both payload shapes:
+  // - flowInitiatedById (userId) + flowInitiatedBy (display name)
+  // - flowInitiatedBy (userId) + flowInitiatedByName (display name)
+  const isUuid = (value: unknown): boolean =>
+    typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 
-  const creatorUserId = flowInitiatedBy // This is userId - need to fetch employee by userId
-  const creatorName = (cflowTask as any).flowInitiatedByName
+  const rawInitiatedBy: unknown = (cflowTask as any).flowInitiatedBy
+  const rawInitiatedById: unknown = (cflowTask as any).flowInitiatedById
+  const rawInitiatedByName: unknown = (cflowTask as any).flowInitiatedByName
+
+  const creatorUserId: string | undefined =
+    typeof rawInitiatedById === 'string' && isUuid(rawInitiatedById)
+      ? rawInitiatedById
+      : typeof rawInitiatedBy === 'string' && isUuid(rawInitiatedBy)
+        ? rawInitiatedBy
+        : undefined
+
+  const creatorName: string | undefined = (() => {
+    if (typeof rawInitiatedByName === 'string') {
+      const v = rawInitiatedByName.trim()
+      if (v) return v
+    }
+    if (typeof rawInitiatedBy === 'string' && !isUuid(rawInitiatedBy)) {
+      const v = rawInitiatedBy.trim()
+      if (v) return v
+    }
+    return undefined
+  })()
 
   // Task completion handling is done in the unified task mapping below
 
@@ -176,8 +205,13 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
     source: 'cflow',
     sourceMetadata: {
       originalStatus: cflowTask.status,
-      creatorUserId, // CFlow provides userId - need to fetch employee by userId
-      creatorName, // Explicitly include creator name for display fallback
+      creatorUserId, // userId (used to resolve employee/avatar)
+      creatorName, // fallback if employee lookup fails
+      // Keep original initiator fields for downstream UI fallbacks (some screens still read these)
+      flowInitiatedById: creatorUserId,
+      flowInitiatedByName: creatorName,
+      // Best-effort original value (could be either name or id depending on payload)
+      flowInitiatedBy: (cflowTask as any).flowInitiatedBy,
       ...Object.keys(cflowTask)
         .filter(
           key =>
@@ -202,6 +236,8 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
               'availableActions',
               'assignment',
               'workflowMeta',
+              // already mapped explicitly above
+              'flowInitiatedById',
               'flowInitiatedBy',
               'flowInitiatedByName',
               'creatorUserId',

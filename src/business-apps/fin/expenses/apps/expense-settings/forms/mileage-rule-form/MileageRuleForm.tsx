@@ -605,7 +605,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
           console.error('❌ Failed to extract rule ID from response!')
         }
       } else {
-        console.log('🐛 Skipping mileage rule save (no changes)')
       }
 
       // Step 4: Save changed details (pass the new rule ID if available)

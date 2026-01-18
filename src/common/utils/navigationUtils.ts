@@ -81,6 +81,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // Platform
   '/platform/every-box': 'core/every/apps/every-box',
+  '/platform/task-manager': 'core/every/apps/every-box',
 
   // Core
   '/platform/content/intranet': 'core/content/apps/content-portal',
@@ -88,6 +89,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // Platform
   '/platform/every-ai': 'platform/apps/every-ai',
+  '/platform/debugger': 'platform/apps/debugger',
 
   // Obsolete
   // TODO: Clean Up
@@ -121,17 +123,76 @@ const convertToDevQueryParams = (url: string): string => {
 }
 
 /**
+ * Navigation options
+ */
+export interface NavigateOptions {
+  /**
+   * Force a window refresh via SPA navigation (not full page reload)
+   * Adds a cache-busting parameter to ensure content refreshes when it has changed
+   */
+  forceReload?: boolean
+}
+
+/**
  * Handles navigation based on the environment
  * In production: uses the original URL
  * In development: converts platform URLs to app query parameters, keeps others unchanged
  */
-export const navigateTo = (url: string): void => {
+export const navigateTo = (url: string, options?: NavigateOptions): void => {
   if (typeof window === 'undefined') {
     console.warn('Navigation called in non-browser environment')
     return
   }
 
+  const { forceReload = false } = options || {}
   const isProduction = process.env.NODE_ENV === 'production'
+
+  // Helper to get the target URL (converted in dev mode if needed)
+  const getTargetUrl = (): string => {
+    if (isProduction) {
+      return url
+    }
+    // Development: convert platform URLs to query parameters
+    if (isPlatformUrl(url)) {
+      const queryParams = convertToDevQueryParams(url)
+      return `${window.location.origin}${queryParams}`
+    }
+    return url
+  }
+
+  // If force reload is requested, add cache-busting parameter to ensure content refresh
+  if (forceReload) {
+    const baseTargetUrl = getTargetUrl()
+
+    // Parse URL and add cache-busting parameter
+    try {
+      const urlObj = new URL(baseTargetUrl, window.location.origin)
+      // Add cache-busting parameter to force content refresh via SPA navigation
+      urlObj.searchParams.set('_refresh', Date.now().toString())
+      const urlToNavigate = urlObj.pathname + urlObj.search + (urlObj.hash || '')
+
+      if (isProduction) {
+        const nwNavigate = (window as any).nwNavigate as
+          | undefined
+          | ((path: string, options?: { replace?: boolean; scroll?: boolean }) => void)
+        if (typeof nwNavigate === 'function') {
+          // Use SPA navigation to refresh window content without full page reload
+          nwNavigate(urlToNavigate)
+        } else {
+          window.location.href = urlToNavigate
+        }
+      } else {
+        // Development: navigate to URL with refresh param
+        window.location.href = urlObj.toString()
+      }
+    } catch {
+      // Fallback if URL parsing fails
+      const separator = baseTargetUrl.includes('?') ? '&' : '?'
+      const urlWithRefresh = `${baseTargetUrl}${separator}_refresh=${Date.now()}`
+      window.location.href = urlWithRefresh
+    }
+    return
+  }
 
   if (isProduction) {
     // Production: use host-provided SPA navigation if available, otherwise fallback
@@ -139,7 +200,14 @@ export const navigateTo = (url: string): void => {
       | undefined
       | ((path: string, options?: { replace?: boolean; scroll?: boolean }) => void)
     if (typeof nwNavigate === 'function') {
-      nwNavigate(url)
+      // Check if we're already on the same URL - if so, force reload
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      if (currentUrl === url) {
+        // Same URL - force reload to refresh content
+        window.location.reload()
+      } else {
+        nwNavigate(url)
+      }
     } else {
       window.location.href = url
     }
@@ -149,10 +217,23 @@ export const navigateTo = (url: string): void => {
       // Convert to app query parameter and stay on localhost:3000
       const queryParams = convertToDevQueryParams(url)
       const currentOrigin = window.location.origin
-      window.location.href = `${currentOrigin}${queryParams}`
+      const targetUrl = `${currentOrigin}${queryParams}`
+
+      // Check if we're already on the same URL - if so, force reload
+      const currentUrl = window.location.href
+      if (currentUrl === targetUrl) {
+        window.location.reload()
+      } else {
+        window.location.href = targetUrl
+      }
     } else {
       // Non-platform URLs (like orgchart) use original behavior
-      window.location.href = url
+      const currentUrl = window.location.href
+      if (currentUrl === url) {
+        window.location.reload()
+      } else {
+        window.location.href = url
+      }
     }
   }
 }

@@ -57,14 +57,22 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
   const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
+  // Get dueDate from additionalData or initialParameters (for calendar quick actions)
+  const dueDate = additionalData?.dueDate || initialParameters?.dueDate || null
+
   // Extract typeRef from additionalData or initialParameters
   const typeRef = additionalData?.typeRef || initialParameters?.typeRef || null
 
-  // Determine if this is an Approval task (type selection should be hidden)
+  // Determine if this is an Approval task (for assignee mode control only)
   const isApprovalTask = typeRef?.toUpperCase()?.includes('APPROVAL') ?? false
+
   const form = useForm<z.infer<typeof investmentTaskSchema>>({
     resolver: zodResolver(investmentTaskSchema) as any,
-    defaultValues: mapToFormValues(task || {}, investmentTaskSchema) as any,
+    defaultValues: {
+      ...mapToFormValues(task || {}, investmentTaskSchema),
+      // Include dueDate from context if provided (e.g., from calendar quick action)
+      ...(dueDate && !taskId ? { dueDate } : {})
+    } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -78,6 +86,19 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
       investmentId: task?.investmentId || investmentId
     }),
     [accountId, contactId, opportunityId, leadId, investmentId, task]
+  )
+
+  // Calculate if entity selection should be shown (no entity context exists)
+  const shouldShowEntitySelection = useMemo(
+    () =>
+      !(
+        relatedEntityIds.accountId ||
+        relatedEntityIds.contactId ||
+        relatedEntityIds.opportunityId ||
+        relatedEntityIds.leadId ||
+        relatedEntityIds.investmentId
+      ),
+    [relatedEntityIds]
   )
 
   // Watch assignedEmployeeIds and sync taskAssignees array
@@ -106,8 +127,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
         ...(existing?.version !== undefined && { version: existing.version }),
         assignedEmployeeId: employeeId,
         assignedUserId: employee?.userId || null,
-        taskStatus: existing?.taskStatus || 'SCHEDULED_TASK_STATUS', // Set default to SCHEDULED for new instances
-        completedAt: existing?.completedAt || null
+        ...(existing?.taskStatus && { taskStatus: existing.taskStatus }), // Preserve existing status (backend sets default)
+        ...(existing?.completedAt && { completedAt: existing.completedAt })
       }
     })
 
@@ -240,6 +261,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
     }
   }, [typeRef, task, form])
 
+  // Set default task status to IN_PROGRESS for new tasks
+  useEffect(() => {
+    if (!task && !form.getValues('taskStatusRef')) {
+      // Only set for new tasks, not when editing existing ones
+      form.setValue('taskStatusRef', 'InvestmentTaskStatus:v1:IN_PROGRESS')
+    }
+  }, [task, form])
+
   const handleAdditionalEntityChange = useCallback(
     (type: string, entityId: string | null) => {
       if (type === 'investment') {
@@ -299,8 +328,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           // Required props
           accessToken={accessToken}
           businessAppContext={{ accessToken, userInfo, additionalData }}
-          // Multi-assignee mode for IRM
-          multiAssigneeMode={true}
+          // Assignee mode - multi-select for approvals, single-select for regular tasks
+          multiAssigneeMode={isApprovalTask}
           assignedEmployees={
             task?.taskAssignees?.map((ta: any) => ta.assignedEmployee).filter((emp: any) => emp?.id) || []
           }
@@ -311,17 +340,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           statusCatalog={'InvestmentTaskStatus:v1'}
           // Type selection control
           initialTypeRef={typeRef}
-          hideTypeSelection={isApprovalTask}
+          catalogSelectConfig={{
+            code: { mode: 'omit', values: ['APPROVAL'] }
+          }}
           // Entity search - hide if any entity is set
-          showEntitySelection={
-            !(
-              relatedEntityIds.accountId ||
-              relatedEntityIds.contactId ||
-              relatedEntityIds.opportunityId ||
-              relatedEntityIds.leadId ||
-              relatedEntityIds.investmentId
-            )
-          }
+          showEntitySelection={shouldShowEntitySelection}
           entities={entities}
           entitiesLoading={entitiesLoading}
           entitiesHasMore={entitiesHasMore}

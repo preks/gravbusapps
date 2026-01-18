@@ -69,9 +69,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   const hasPerformancePermission =
     permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading
       ? false
-      : isSelfView ||
-        hasManagerEmployeeGrowthPermission ||
-        (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
 
   const updateUrl = useCallback(
     (subView: HrGrowthSubView) => {

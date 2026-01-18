@@ -25,6 +25,7 @@ export interface LeadConvertAccountStepProps {
   communicationCustomFields?: React.ReactNode
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
+  isActive?: boolean
 }
 
 export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
@@ -40,7 +41,8 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
   addressCustomFields,
   communicationCustomFields,
   customSegments,
-  avatarFileRef
+  avatarFileRef,
+  isActive = true
 }) => {
   const { t } = useTranslation(translations)
 
@@ -67,6 +69,7 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
             communicationCustomFields={communicationCustomFields}
             customSegments={customSegments}
             avatarFileRef={avatarFileRef}
+            isStepActive={isActive}
           />
         )}
       </div>
@@ -86,7 +89,6 @@ export interface LeadConvertContactStepProps {
   loading?: boolean
   contactInformationCustomFields?: React.ReactNode
   contactDetailsCustomFields?: React.ReactNode
-  addressCustomFields?: React.ReactNode
   communicationCustomFields?: React.ReactNode
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
@@ -99,7 +101,6 @@ export const LeadConvertContactStep: React.FC<LeadConvertContactStepProps> = ({
   loading = false,
   contactInformationCustomFields,
   contactDetailsCustomFields,
-  addressCustomFields,
   communicationCustomFields,
   customSegments,
   avatarFileRef
@@ -122,7 +123,6 @@ export const LeadConvertContactStep: React.FC<LeadConvertContactStepProps> = ({
             useAccounts={useAccounts}
             contactInformationCustomFields={contactInformationCustomFields}
             contactDetailsCustomFields={contactDetailsCustomFields}
-            addressCustomFields={addressCustomFields}
             communicationCustomFields={communicationCustomFields}
             customSegments={customSegments}
             avatarFileRef={avatarFileRef}

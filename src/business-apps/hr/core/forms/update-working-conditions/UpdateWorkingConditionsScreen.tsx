@@ -204,7 +204,12 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   }
 
   const handlePreSubmit = async () => {
+    const employeeId =
+      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      context.userInfo?.employeeDetails?.employeeId
+
     return {
+      employeeId,
       event: 'pse_submit',
       employeeWorkingCondition: {
         id: current?.id,
@@ -216,10 +221,12 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         hireDate: startDate || undefined,
         probationEnd: probationEndDate || undefined,
         exitDate: endDate || undefined,
-        employeeId:
-          (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-          context.userInfo?.employeeDetails?.employeeId,
+        employeeId,
         contractStatus: 'ACTIVE'
+      },
+      completeNotification: {
+        type: 'success',
+        message: t('notification-working-conditions-updated-success')
       }
     }
   }

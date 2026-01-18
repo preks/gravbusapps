@@ -6,11 +6,8 @@ import {
   CardContent,
   Button,
   Input,
-  Table,
-  TableBody,
   TableCell,
   TableHead,
-  TableHeader,
   TableRow,
   Spinner,
   Alert,
@@ -20,23 +17,27 @@ import {
   PopoverContent,
   PopoverTrigger,
   Calendar,
-  Form,
   FormField,
   FormItem,
   FormControl,
   FormMessage,
   Toaster
 } from '@newwork/nw-design-system'
+import { TableForm, EditableCell } from '@/components/table-form'
 import { CalendarIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
-import { getWeekStart, getWeekEnd, getWeekdays } from '../../../utils/weekUtils'
+import { getWeekStart, getWeekDays } from '../../../utils/weekUtils'
 import { WeekBooking, DayHours } from '../../../types'
 import CardTabHeaderComponent from '@/business-apps/mdm/apps/generic-components/card'
 import dayjs from 'dayjs'
 import 'dayjs/locale/de'
 import 'dayjs/locale/ro'
+import isoWeek from 'dayjs/plugin/isoWeek'
+
+dayjs.extend(isoWeek)
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useEmployeeTeamAllocations } from '../../../hooks/useEmployeeTeamAllocations'
 import SubmitConfirmationDialog, { HoursDiscrepancy, DiscrepancyType } from './SubmitConfirmationDialog'
+import { cn } from '@/common/utils/cn'
 
 const DATA_TEST_ID_PREFIX = 'SmartBooking'
 
@@ -86,6 +87,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     historicalProjects,
     recordedHoursByDate,
     bookedHours,
+    workingHoursPerDay,
     isLoading: isLoadingAllocations,
     isLoadingWeekData,
     isSubmitting,
@@ -119,10 +121,10 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     defaultValues: {}
   })
 
-  // Calculate week start and end
+  // Calculate week start and days (full week Mon-Sun)
   const weekStart = useMemo(() => getWeekStart(selectedDate), [selectedDate])
-  const weekEnd = useMemo(() => getWeekEnd(selectedDate), [selectedDate])
-  const weekDays = useMemo(() => getWeekdays(weekStart), [weekStart])
+  // Generate all 7 days of the week (Monday to Sunday)
+  const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart])
   const weekKey = useMemo(() => dayjs(weekStart).format('YYYY-MM-DD'), [weekStart])
 
   // Reset form state when week changes to prevent flicker with old values
@@ -298,6 +300,25 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       return { isSubmitted, isBeforeAssignment, isNotCurrentMonth, isEditable, dateKey, bookedKey }
     },
     [bookedHours]
+  )
+
+  // Helper function to check if a day is a non-working day (0 scheduled hours)
+  const isNonWorkingDay = useCallback(
+    (date: Date): boolean => {
+      if (!workingHoursPerDay) return false
+      const dayOfWeek = dayjs(date).day() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const dayMap: Record<number, keyof typeof workingHoursPerDay> = {
+        0: 'sunday',
+        1: 'monday',
+        2: 'tuesday',
+        3: 'wednesday',
+        4: 'thursday',
+        5: 'friday',
+        6: 'saturday'
+      }
+      return workingHoursPerDay[dayMap[dayOfWeek]] === 0
+    },
+    [workingHoursPerDay]
   )
 
   // Check if there are any unsubmitted hours (to enable/disable submit button)
@@ -626,13 +647,13 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="gba:justify-start gba:text-left gba:font-normal gba:w-[280px]"
+                className="gba:justify-start gba:text-left gba:font-normal gba:w-[300px]"
                 data-testid={`${dataTestId}-week-selector`}
               >
                 <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                 <span>
-                  {dayjs(weekStart).date()} -{' '}
-                  {formatDate(weekEnd, 'date.medium') || dayjs(weekEnd).format('D MMM YYYY')}
+                  {dayjs(weekStart).date()} - {dayjs(weekStart).add(6, 'day').format('D MMM YYYY')} (CW
+                  {dayjs(weekStart).isoWeek().toString().padStart(2, '0')})
                 </span>
               </Button>
             </PopoverTrigger>
@@ -670,164 +691,201 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
           </div>
         </div>
       ) : (
-        <Form {...form}>
-          <form>
-            <div className="gba:overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="gba:min-w-[200px]"></TableHead>
-                    <TableHead className="gba:text-center">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:time_tracking.smart_booking.allocation',
-                        'Allocation'
-                      )}
-                    </TableHead>
-                    {weekDays.map(day => (
-                      <TableHead key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:min-w-[100px]">
-                        <span className="gba:text-sm gba:font-normal">{getLocalizedDayjs(day).format('ddd')}</span>
-                      </TableHead>
-                    ))}
-                    <TableHead className="gba:text-center">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.total', 'Total')}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {/* Total Recorded Hours row */}
-                  <TableRow className="gba:bg-background">
-                    <TableCell className="gba:font-semibold">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:time_tracking.smart_booking.total_recorded_hours',
-                        'Total Recorded Hours'
-                      )}
-                    </TableCell>
-                    <TableCell></TableCell>
-                    {weekDays.map(day => {
-                      const recordedHours = getRecordedHoursForDay(day)
-                      return (
-                        <TableCell key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:font-semibold">
-                          {hoursToTimeString(recordedHours)}
-                        </TableCell>
-                      )
-                    })}
-                    <TableCell className="gba:text-center gba:font-semibold">
-                      {hoursToTimeString(weekDays.reduce((sum, day) => sum + getRecordedHoursForDay(day), 0))}
-                    </TableCell>
-                  </TableRow>
-                  {/* Team/Project rows */}
-                  {currentBookings.map(booking => {
-                    // Check if this is a historical booking (from booked hours, not current allocation)
-                    const isHistoricalBooking = booking.teamId.startsWith('historical-')
+        <TableForm
+          form={form}
+          dataTestId={`${dataTestId}-table-form`}
+          columns={
+            <>
+              <TableHead className="gba:min-w-[200px]"></TableHead>
+              <TableHead className="gba:text-center">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.allocation', 'Allocation')}
+              </TableHead>
+              {weekDays.map(day => {
+                const nonWorking = isNonWorkingDay(day)
+                return (
+                  <TableHead key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:min-w-[100px]">
+                    <span className={cn('gba:text-sm gba:font-normal', { 'gba:text-muted-foreground/70': nonWorking })}>
+                      {getLocalizedDayjs(day).format('ddd')}
+                    </span>
+                  </TableHead>
+                )
+              })}
+              <TableHead className="gba:text-center">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.total', 'Total')}
+              </TableHead>
+            </>
+          }
+        >
+          {/* Total Recorded Hours row */}
+          <TableRow className="gba:bg-background">
+            <TableCell className="gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.smart_booking.total_recorded_hours',
+                'Total Recorded Hours'
+              )}
+            </TableCell>
+            <TableCell></TableCell>
+            {weekDays.map(day => {
+              const recordedHours = getRecordedHoursForDay(day)
+              const nonWorking = isNonWorkingDay(day)
+              return (
+                <TableCell
+                  key={dayjs(day).format('YYYY-MM-DD')}
+                  className={cn('gba:text-center gba:font-semibold', { 'gba:text-muted-foreground/70': nonWorking })}
+                >
+                  {hoursToTimeString(recordedHours)}
+                </TableCell>
+              )
+            })}
+            <TableCell className="gba:text-center gba:font-semibold">
+              {hoursToTimeString(weekDays.reduce((sum, day) => sum + getRecordedHoursForDay(day), 0))}
+            </TableCell>
+          </TableRow>
 
-                    return (
-                      <TableRow key={booking.teamId} className={isHistoricalBooking ? 'gba:bg-muted/30' : ''}>
-                        <TableCell className="gba:font-medium">
-                          <div>
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              {booking.teamName}
-                              {isHistoricalBooking && (
-                                <span className="gba:text-xs gba:bg-muted gba:text-muted-foreground gba:px-1.5 gba:py-0.5 gba:rounded">
-                                  Removed
-                                </span>
-                              )}
-                            </div>
-                            {booking.projectName && !isHistoricalBooking && (
-                              <div className="gba:text-xs gba:text-muted-foreground">{booking.projectName}</div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="gba:text-center">
-                          {isHistoricalBooking ? '—' : `${booking.percentage}%`}
-                        </TableCell>
-                        {booking.days.map((day, dayIndex) => {
-                          const fieldKey = `${booking.teamId}-${dayIndex}`
-                          const { isSubmitted, isBeforeAssignment, isNotCurrentMonth } = getDayEditStatus(day, booking)
+          {/* Team/Project rows */}
+          {currentBookings.map(booking => {
+            const isHistoricalBooking = booking.teamId.startsWith('historical-')
 
+            return (
+              <TableRow key={booking.teamId} className={isHistoricalBooking ? 'gba:bg-muted/30' : ''}>
+                <TableCell className="gba:font-medium">
+                  <div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      {booking.teamName}
+                      {isHistoricalBooking && (
+                        <span className="gba:text-xs gba:bg-muted gba:text-muted-foreground gba:px-1.5 gba:py-0.5 gba:rounded">
+                          Removed
+                        </span>
+                      )}
+                    </div>
+                    {booking.projectName && !isHistoricalBooking && (
+                      <div className="gba:text-xs gba:text-muted-foreground">{booking.projectName}</div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="gba:text-center">
+                  {isHistoricalBooking ? '—' : `${booking.percentage}%`}
+                </TableCell>
+                {booking.days.map((day, dayIndex) => {
+                  const fieldKey = `${booking.teamId}-${dayIndex}`
+                  const { isSubmitted, isBeforeAssignment, isNotCurrentMonth, isEditable } = getDayEditStatus(
+                    day,
+                    booking
+                  )
+
+                  return (
+                    <EditableCell
+                      key={day.date}
+                      isEditing={isEditable}
+                      className="gba:text-center"
+                      dataTestId={`${dataTestId}-cell-${booking.teamId}-${dayIndex}`}
+                    >
+                      {editing => {
+                        if (isBeforeAssignment) {
+                          // Show dash for days before assignment
                           return (
-                            <TableCell key={day.date} className="gba:text-center">
-                              {isBeforeAssignment ? (
-                                // Show dash for days before assignment
-                                <div className="gba:flex gba:justify-center">
-                                  <span className="gba:text-muted-foreground gba:w-20 gba:text-center">—</span>
-                                </div>
-                              ) : isHistoricalBooking || isSubmitted ? (
-                                // Historical or submitted: show value as HH:MM text
-                                <div className="gba:flex gba:justify-center">
-                                  <span className="gba:text-muted-foreground gba:w-20 gba:text-center">
-                                    {day.hours > 0 ? hoursToTimeString(day.hours) : '—'}
-                                  </span>
-                                </div>
-                              ) : isNotCurrentMonth ? (
-                                // Not current month: show disabled input with HH:MM value
-                                <div className="gba:flex gba:justify-center">
-                                  <Input
-                                    type="time"
-                                    disabled
-                                    className="gba:w-24 gba:text-center"
-                                    value={hoursToTimeString(day.hours)}
-                                  />
-                                </div>
-                              ) : (
-                                <FormField
-                                  control={form.control}
-                                  name={fieldKey}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <div className="gba:flex gba:justify-center">
-                                          <Input
-                                            type="time"
-                                            className="gba:w-24 gba:text-center"
-                                            data-testid={`${dataTestId}-hours-${booking.teamId}-${dayIndex}`}
-                                            value={field.value || '00:00'}
-                                            onChange={e => {
-                                              field.onChange(e.target.value)
-                                            }}
-                                          />
-                                        </div>
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              )}
-                            </TableCell>
+                            <div className="gba:flex gba:justify-center">
+                              <span className="gba:text-muted-foreground gba:w-20 gba:text-center">—</span>
+                            </div>
                           )
-                        })}
-                        <TableCell className="gba:text-center gba:font-semibold">
-                          {hoursToTimeString(getTotalHoursForTeam(booking))}
-                        </TableCell>
-                      </TableRow>
-                    )
+                        }
+
+                        if (isHistoricalBooking || isSubmitted) {
+                          // Historical or submitted: show value as HH:MM text
+                          return (
+                            <div className="gba:flex gba:justify-center">
+                              <span className="gba:text-muted-foreground gba:w-20 gba:text-center">
+                                {day.hours > 0 ? hoursToTimeString(day.hours) : '—'}
+                              </span>
+                            </div>
+                          )
+                        }
+
+                        if (isNotCurrentMonth) {
+                          // Not current month: show disabled input with HH:MM value
+                          return (
+                            <div className="gba:flex gba:justify-center">
+                              <Input
+                                type="time"
+                                disabled
+                                className="gba:w-24 gba:text-center"
+                                value={hoursToTimeString(day.hours)}
+                              />
+                            </div>
+                          )
+                        }
+
+                        if (editing) {
+                          // Editable: show form field with time input
+                          return (
+                            <FormField
+                              control={form.control}
+                              name={fieldKey}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <div className="gba:flex gba:justify-center">
+                                      <Input
+                                        type="time"
+                                        className="gba:w-24 gba:text-center"
+                                        data-testid={`${dataTestId}-hours-${booking.teamId}-${dayIndex}`}
+                                        value={field.value || '00:00'}
+                                        onChange={e => {
+                                          field.onChange(e.target.value)
+                                        }}
+                                      />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )
+                        }
+
+                        // Fallback: show value as text
+                        return (
+                          <div className="gba:flex gba:justify-center">
+                            <span className="gba:text-muted-foreground gba:w-20 gba:text-center">
+                              {day.hours > 0 ? hoursToTimeString(day.hours) : '—'}
+                            </span>
+                          </div>
+                        )
+                      }}
+                    </EditableCell>
+                  )
+                })}
+                <TableCell className="gba:text-center gba:font-semibold">
+                  {hoursToTimeString(getTotalHoursForTeam(booking))}
+                </TableCell>
+              </TableRow>
+            )
+          })}
+
+          {/* Daily Total row */}
+          <TableRow className="gba:bg-muted">
+            <TableCell colSpan={2} className="gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.daily_total', 'Daily Total')}
+            </TableCell>
+            {weekDays.map((day, dayIndex) => {
+              const total = getTotalHoursForDay(dayIndex)
+              const nonWorking = isNonWorkingDay(day)
+              return (
+                <TableCell
+                  key={dayjs(day).format('YYYY-MM-DD')}
+                  className={cn('gba:text-center gba:font-semibold', {
+                    'gba:bg-muted gba:text-muted-foreground/70': nonWorking
                   })}
-                  {/* Total row */}
-                  <TableRow className="gba:bg-muted">
-                    <TableCell colSpan={2} className="gba:font-semibold">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:time_tracking.smart_booking.daily_total',
-                        'Daily Total'
-                      )}
-                    </TableCell>
-                    {weekDays.map((day, dayIndex) => {
-                      const total = getTotalHoursForDay(dayIndex)
-                      return (
-                        <TableCell key={dayjs(day).format('YYYY-MM-DD')} className="gba:text-center gba:font-semibold">
-                          {hoursToTimeString(total)}
-                        </TableCell>
-                      )
-                    })}
-                    <TableCell className="gba:text-center gba:font-semibold">
-                      {hoursToTimeString(
-                        currentBookings.reduce((sum, booking) => sum + getTotalHoursForTeam(booking), 0)
-                      )}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </form>
-        </Form>
+                >
+                  {hoursToTimeString(total)}
+                </TableCell>
+              )
+            })}
+            <TableCell className="gba:text-center gba:font-semibold">
+              {hoursToTimeString(currentBookings.reduce((sum, booking) => sum + getTotalHoursForTeam(booking), 0))}
+            </TableCell>
+          </TableRow>
+        </TableForm>
       )}
       <Toaster />
 

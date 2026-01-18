@@ -112,7 +112,15 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
   })
 
   const graphqlClient = useGraphqlClient(accessToken)
-  const currentYear = dayjs().year()
+
+  // Calculate the year based on when the vacation is actually happening
+  // This ensures the calendar displays the correct year for the vacation dates, not the entitlement year
+  const currentYear = useMemo(() => {
+    if (currentRequestStartDate) {
+      return dayjs(currentRequestStartDate).year()
+    }
+    return dayjs().year()
+  }, [currentRequestStartDate])
 
   // Navigation handlers
   const goToPreviousMonth = () => {
@@ -143,9 +151,29 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
       setError(null)
 
       try {
-        // Use entitlement period if provided, otherwise default to calendar year
-        const yearStart = entitlementValidFrom || dayjs().startOf('year').format('YYYY-MM-DD')
-        const yearEnd = entitlementValidTo || dayjs().endOf('year').format('YYYY-MM-DD')
+        // Determine the query date range:
+        // If entitlement period is provided and spans a different year than what we're displaying,
+        // we need to fetch a broader range to include both the displayed year context
+        // and the entitlement period absences
+        let yearStart: string
+        let yearEnd: string
+
+        if (entitlementValidFrom && entitlementValidTo) {
+          const displayedYearStart = dayjs().year(currentYear).startOf('year')
+          const displayedYearEnd = dayjs().year(currentYear).endOf('year')
+          const entitlementStart = dayjs(entitlementValidFrom)
+          const entitlementEnd = dayjs(entitlementValidTo)
+
+          // Use the earlier start date and later end date to capture both ranges
+          yearStart = (displayedYearStart.isBefore(entitlementStart) ? displayedYearStart : entitlementStart).format(
+            'YYYY-MM-DD'
+          )
+          yearEnd = (displayedYearEnd.isAfter(entitlementEnd) ? displayedYearEnd : entitlementEnd).format('YYYY-MM-DD')
+        } else {
+          // No entitlement period, just use the displayed calendar year
+          yearStart = dayjs().year(currentYear).startOf('year').format('YYYY-MM-DD')
+          yearEnd = dayjs().year(currentYear).endOf('year').format('YYYY-MM-DD')
+        }
 
         const query = `
           query GetEmployeeYearlyAbsences($employeeId: uuid!, $yearStart: timestamp!, $yearEnd: timestamp!) {
@@ -209,7 +237,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     return () => {
       isMounted = false
     }
-  }, [accessToken, employeeId, entitlementValidFrom, entitlementValidTo, graphqlClient])
+  }, [accessToken, employeeId, entitlementValidFrom, entitlementValidTo, graphqlClient, currentYear])
 
   /**
    * Helper function to determine if an absence is half-day and which period (morning vs afternoon)
@@ -368,15 +396,13 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
   }
 
   // Helper: Parse holiday code to date components
-  const parseHolidayCode = (code: string, currentYear: number) => {
+  const parseHolidayCode = (code: string) => {
     const match = /^(\d{4})(\d{2})(\d{2})$/.exec(code)
     if (!match) return null
 
     const year = Number.parseInt(match[1], 10)
     const month = Number.parseInt(match[2], 10)
     const day = Number.parseInt(match[3], 10)
-
-    if (year !== currentYear) return null
 
     const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     return { dateKey, year, month, day }
@@ -513,7 +539,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
         const code = holiday.alternativeCode || holiday.code || ''
         if (!code) return
 
-        const parsedDate = parseHolidayCode(code, currentYear)
+        const parsedDate = parseHolidayCode(code)
         if (!parsedDate) return
 
         const { dateKey } = parsedDate

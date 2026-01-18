@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Alert, Button } from '@newwork/nw-design-system'
 import { Spinner } from '@newwork/nw-design-system'
-import { Shield, Download, Search, RefreshCw, FileText, Database, Users, Layers, Activity } from 'lucide-react'
+import { Shield, Download, Search, RefreshCw, FileText, Database, Users, Activity } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useAuditLogs, useAuditFilterOptions, exportAuditLogs, AuditFilters } from '../../hooks/useAuditData'
+import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
 
 interface AuditTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -55,9 +56,19 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
     return new Date(timestamp).toLocaleString()
   }
 
+  const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+
+  const formatEnumLabel = (value: string) =>
+    String(value || '')
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+  const normalizeEnumKey = (value: string) => formatEnumLabel(value).toUpperCase().replace(/\s+/g, '_')
+
   // Format action with color
   const getActionColor = (action: string) => {
-    switch (action.toUpperCase()) {
+    switch (normalizeEnumKey(action)) {
       case 'APPROVE':
       case 'APPROVAL':
         return 'gba:text-green-600 gba:bg-green-100'
@@ -85,7 +96,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
 
   // Format status with color
   const getStatusColor = (status: string) => {
-    switch (status.toUpperCase()) {
+    switch (normalizeEnumKey(status)) {
       case 'COMPLETED':
       case 'APPROVED':
         return 'gba:text-green-600 gba:bg-green-100'
@@ -115,7 +126,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
   // Format task type with color
   const getTaskTypeColor = (taskType: string | null | undefined) => {
     if (!taskType) return 'gba:text-gray-600 gba:bg-gray-100'
-    switch (taskType.toUpperCase()) {
+    switch (normalizeEnumKey(taskType)) {
       case 'TASK':
         return 'gba:text-indigo-600 gba:bg-indigo-100'
       case 'INFORMATION':
@@ -141,7 +152,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
   // Format task type display name
   const formatTaskType = (taskType: string | null | undefined) => {
     if (!taskType) return 'Unknown'
-    switch (taskType.toUpperCase()) {
+    switch (normalizeEnumKey(taskType)) {
       case 'TASK':
         return 'Task'
       case 'INFORMATION':
@@ -161,8 +172,101 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
       case 'HUMAN':
         return 'Human Task'
       default:
-        return taskType
+        return formatEnumLabel(taskType)
     }
+  }
+
+  const formatStatusLabel = (status: string) => formatEnumLabel(status).toUpperCase()
+  const formatActionLabel = (action: string) => formatEnumLabel(action).toUpperCase()
+
+  const filterUserNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const u of filterOptions?.users || []) {
+      const id = String(u?.id || '')
+      const name = String(u?.name || '')
+      if (id) map.set(id, name || id)
+    }
+    return map
+  }, [filterOptions?.users])
+
+  // Extra name resolution: if the backend can't resolve a UUID, try the org directory with the current user's token.
+  const [resolvedUserNameById, setResolvedUserNameById] = useState<Record<string, string>>({})
+  const attemptedUserIdsRef = useRef<Set<string>>(new Set())
+
+  const auditUserIdsKey = useMemo(() => {
+    const ids = (auditData?.entries || [])
+      .map(e => String(e.userId || '').trim())
+      .filter(Boolean)
+      .filter(id => isUuid(id))
+    ids.sort()
+    return ids.join(',')
+  }, [auditData?.entries])
+
+  useEffect(() => {
+    if (!accessToken) return
+    if (!auditData?.entries?.length) return
+
+    const unresolvedIds = Array.from(new Set(auditUserIdsKey.split(',').filter(Boolean)))
+      // Only resolve if filter-options doesn't already give us a meaningful name
+      .filter(id => {
+        const fromFilterOptions = filterUserNameById.get(id)
+        return !fromFilterOptions || fromFilterOptions === id
+      })
+      // Prevent retry loops: attempt each id at most once per session (including failures).
+      .filter(id => !attemptedUserIdsRef.current.has(id))
+      // Be conservative: avoid blasting the org directory.
+      .slice(0, 25)
+
+    if (!unresolvedIds.length) return
+    unresolvedIds.forEach(id => attemptedUserIdsRef.current.add(id))
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const org = new OrgDirectoryClient(accessToken)
+        const results = await Promise.allSettled(
+          unresolvedIds.map(async id => {
+            const u = await org.getUserById(id)
+            const name = String(u?.name || '').trim()
+            return { id, name }
+          })
+        )
+
+        if (cancelled) return
+
+        setResolvedUserNameById(prev => {
+          const next = { ...prev }
+          let changed = false
+          for (const r of results) {
+            if (r.status !== 'fulfilled') continue
+            const { id, name } = r.value
+            if (id && name && name !== id && next[id] !== name) {
+              next[id] = name
+              changed = true
+            }
+          }
+          return changed ? next : prev
+        })
+      } catch {
+        // best-effort only; fall back to IDs
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, auditData?.entries?.length, auditUserIdsKey, filterUserNameById])
+
+  const resolveUserName = (userId: string, userName?: string) => {
+    const id = String(userId || '').trim()
+    if (!id) return 'Unknown'
+    const resolved = resolvedUserNameById[id]
+    if (resolved) return resolved
+    const fromFilters = filterUserNameById.get(id)
+    if (fromFilters) return fromFilters
+    const fromEntry = String(userName || '').trim()
+    if (fromEntry) return fromEntry
+    return id
   }
 
   // Calculate current page
@@ -326,7 +430,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
           <option value="">All Statuses</option>
           {filterOptions?.statuses.map(status => (
             <option key={status} value={status}>
-              {status}
+              {formatStatusLabel(status)}
             </option>
           ))}
         </select>
@@ -399,7 +503,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
                         <td className="gba:py-3 gba:px-4 gba:text-sm">
                           <div>
                             <div className="gba:font-medium gba:text-gray-900">
-                              {filterOptions?.users.find(u => u.id === entry.userId)?.name || entry.userId}
+                              {resolveUserName(entry.userId, entry.userName)}
                             </div>
                             <div className="gba:text-xs gba:text-gray-500">{entry.userId}</div>
                           </div>
@@ -418,15 +522,13 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
                             <span
                               className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getActionColor(entry.action)}`}
                             >
-                              {entry.action}
+                              {formatActionLabel(entry.action)}
                             </span>
                             {entry.assignmentChange && (
                               <div className="gba:mt-1 gba:text-xs gba:text-gray-500">
-                                {filterOptions?.users.find(u => u.id === entry.assignmentChange?.from)?.name ||
-                                  entry.assignmentChange.from}
+                                {resolveUserName(entry.assignmentChange.from)}
                                 {' → '}
-                                {filterOptions?.users.find(u => u.id === entry.assignmentChange?.to)?.name ||
-                                  entry.assignmentChange.to}
+                                {resolveUserName(entry.assignmentChange.to)}
                                 {entry.assignmentChange.reason && (
                                   <div className="gba:text-xs gba:text-gray-400">{entry.assignmentChange.reason}</div>
                                 )}
@@ -471,20 +573,20 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
                                 <span
                                   className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getStatusColor(entry.previousStatus)}`}
                                 >
-                                  {entry.previousStatus}
+                                  {formatStatusLabel(entry.previousStatus)}
                                 </span>
                                 <span className="gba:text-gray-400">→</span>
                                 <span
                                   className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getStatusColor(entry.newStatus)}`}
                                 >
-                                  {entry.newStatus}
+                                  {formatStatusLabel(entry.newStatus)}
                                 </span>
                               </div>
                             ) : (
                               <span
                                 className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getStatusColor(entry.status)}`}
                               >
-                                {entry.status}
+                                {formatStatusLabel(entry.status)}
                               </span>
                             )}
                             {entry.details?.reason && (
@@ -492,9 +594,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
                             )}
                             {entry.details?.executedBy && entry.details.executedBy !== entry.userId && (
                               <div className="gba:text-xs gba:text-gray-400">
-                                Executed by:{' '}
-                                {filterOptions?.users.find(u => u.id === entry.details?.executedBy)?.name ||
-                                  entry.details.executedBy}
+                                Executed by: {resolveUserName(entry.details.executedBy)}
                               </div>
                             )}
                           </div>

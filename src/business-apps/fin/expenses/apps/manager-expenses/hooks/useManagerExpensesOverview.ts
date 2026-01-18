@@ -271,14 +271,22 @@ export const useManagerExpensesOverview = (
     // Only add status filter if we have a non-empty array
     if (Array.isArray(params.requestsStatus) && params.requestsStatus.length > 0) {
       v.reqStatusWhere = { status: { _in: params.requestsStatus } }
+    } else {
+      // Exclude CREATED status by default when no specific filter is provided
+      v.reqStatusWhere = { status: { _neq: 'CREATED' } }
     }
     if (Array.isArray(params.plansStatus) && params.plansStatus.length > 0) {
       v.planStatusWhere = { status: { _in: params.plansStatus } }
+    } else {
+      // Exclude CREATED status by default when no specific filter is provided
+      v.planStatusWhere = { status: { _neq: 'CREATED' } }
     }
     if (Array.isArray(params.paymentsStatus) && params.paymentsStatus.length > 0) {
       v.payStatusWhere = { status: { _in: params.paymentsStatus } }
+    } else {
+      // Exclude CREATED status by default when no specific filter is provided
+      v.payStatusWhere = { status: { _neq: 'CREATED' } }
     }
-    // If not provided, GraphQL will use defaults (empty objects that match everything)
 
     return v
   }, [

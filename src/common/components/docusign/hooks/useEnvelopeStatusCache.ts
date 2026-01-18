@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { useDocuSign } from '@/common/integrations/docusign/useDocuSign'
+import { generateCorrelationId } from '@/common/utils/correlationId'
 
 export interface EnvelopeStatusRecord {
   envelopeId: string
@@ -30,7 +31,7 @@ export const useEnvelopeStatusCache = (accessToken?: string) => {
         return pendingRef.current.get(envelopeId)
       }
 
-      const promise = getStatus(envelopeId)
+      const promise = getStatus(envelopeId, { correlationId: `status-${envelopeId}-${generateCorrelationId()}` })
         .then(result => {
           statusRef.current = { ...statusRef.current, [envelopeId]: result }
           pendingRef.current.delete(envelopeId)
@@ -54,5 +55,3 @@ export const useEnvelopeStatusCache = (accessToken?: string) => {
     statusVersion: version
   }
 }
-
-

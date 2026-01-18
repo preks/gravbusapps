@@ -47,13 +47,12 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import { DocuSignSignatureModal } from '@/common/components/docusign/DocuSignSignatureModal'
+import { DigitalReferralBanner } from '@/common/components/docusign/DigitalReferralBanner'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
 import { computeTaskStatus, formatTaskProgress, getTaskStatusLabel } from '../../utils/taskStatusUtils'
-import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface TaskDetailSheetProps {
   task: Task | null
@@ -161,20 +160,9 @@ interface TaskInstanceCardProps {
   index: number
   currentUserId?: string
   dataTestId?: string
-  accessToken?: string
-  taskId: string
-  entityType: 'investment' | 'customer'
 }
 
-const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
-  taskAssignee,
-  index,
-  currentUserId,
-  dataTestId,
-  accessToken,
-  taskId,
-  entityType
-}) => {
+const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({ taskAssignee, index, currentUserId, dataTestId }) => {
   const employee = taskAssignee.assignedEmployee
   const isCurrentUser = currentUserId && taskAssignee.assignedUserId === currentUserId
   const statusLabel = getTaskStatusLabel(taskAssignee.taskStatus) || 'No Status'
@@ -187,7 +175,7 @@ const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
       }`}
       data-testid={`${dataTestId}-instance-${index}`}
     >
-      <div className={`gba:flex gba:items-center gba:gap-3 ${isCurrentUser && accessToken ? 'gba:mb-3' : ''}`}>
+      <div className="gba:flex gba:items-center gba:gap-3">
         <Avatar
           size="default"
           className="gba:cursor-pointer"
@@ -235,30 +223,6 @@ const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({
           )}
         </div>
       </div>
-
-      {isCurrentUser && accessToken && (
-        <div className="gba:pt-3 gba:border-t">
-          <AppAction
-            mode="action-button"
-            size="sm"
-            variant="outline"
-            contexts={[
-              {
-                context:
-                  entityType === 'investment'
-                    ? FlowContextName.investmentTaskEntity
-                    : FlowContextName.customerTaskEntity,
-                contextData: { taskId }
-              }
-            ]}
-            accessToken={accessToken}
-            emptyState="enable"
-            data-testid={`${dataTestId}-update-button-${index}`}
-          >
-            Update My Status
-          </AppAction>
-        </div>
-      )}
     </div>
   )
 }
@@ -361,6 +325,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   }
 
   const [isDocuSignOpen, setIsDocuSignOpen] = React.useState(false)
+  const [focusReferral, setFocusReferral] = React.useState(false)
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
   const investmentTaskFormData = React.useMemo(() => buildInvestmentTaskFormDataFromTask(task), [task])
   const docuSignTaskContext = React.useMemo(
@@ -402,6 +367,11 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     () => getDocuSignButtonState(documentsWithStatus, isAssignee),
     [documentsWithStatus, isAssignee]
   )
+
+  const openDocuSignModal = React.useCallback((options?: { focusReferral?: boolean }) => {
+    setFocusReferral(Boolean(options?.focusReferral))
+    setIsDocuSignOpen(true)
+  }, [])
 
   const checkEnvelopeStatus = async (envelopeId: string) => {
     try {
@@ -455,7 +425,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between">
               <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">Details</CardTitle>
               {hasSignableDocs && (
-                <Button size="sm" onClick={() => setIsDocuSignOpen(true)}>
+                <Button size="sm" onClick={() => openDocuSignModal()}>
                   {docuSignButtonLabel}
                 </Button>
               )}
@@ -613,6 +583,11 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           </CardContent>
         </Card>
 
+        <DigitalReferralBanner
+          onStartReferral={() => openDocuSignModal({ focusReferral: true })}
+          className="gba:bg-background"
+        />
+
         {documentsWithStatus.length > 0 && (
           <Card data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-documents-card`}>
             <CardHeader className="gba:pb-3">
@@ -710,9 +685,6 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                       index={index}
                       currentUserId={currentUserId}
                       dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
-                      accessToken={accessToken}
-                      taskId={task.id}
-                      entityType={task.investmentId ? 'investment' : 'customer'}
                     />
                   ))
                 ) : (
@@ -756,7 +728,10 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       {/* DocuSign Modal */}
       <DocuSignSignatureModal
         isOpen={isDocuSignOpen}
-        onClose={() => setIsDocuSignOpen(false)}
+        onClose={() => {
+          setIsDocuSignOpen(false)
+          setFocusReferral(false)
+        }}
         accessToken={accessToken}
         assignedUserId={assignedUserId}
         emailOnly={!isAssignee}
@@ -770,6 +745,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           envelopeStatus: d.envelopeStatus,
           fileInfo: d.fileInfo
         }))}
+        focusReferral={focusReferral}
       />
     </ScrollArea>
   )

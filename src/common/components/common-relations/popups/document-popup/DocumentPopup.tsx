@@ -4,6 +4,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useDocumentCatalogs } from '@/common/hooks/useDocumentCatalogs'
+import { useDocumentClassification } from '@/common/hooks/useDocumentClassification'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import {
   FormField,
@@ -26,8 +27,6 @@ import {
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { fileClient } from '@/common/network/files/FileClient'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 
 export interface DocumentPopupProps extends BusinessAppContextProps {
   isOpen?: boolean
@@ -180,16 +179,11 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
   } | null>(null)
   const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([])
   const [parentLoading, setParentLoading] = useState(false)
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiError, setAiError] = useState<string | null>(null)
-  const [aiSuggestion, setAiSuggestion] = useState<{ type?: string; group?: string } | null>(null)
   const [aiApplied, setAiApplied] = useState(false)
   const [applyTypeAfterGroup, setApplyTypeAfterGroup] = useState<string | null>(null)
   const [initialDataLoaded, setInitialDataLoaded] = useState(false)
 
   const graphqlClient = useGraphQLClient(accessToken || '')
-  const flowbotBaseUrl = env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL')
-  const restClient = useRestClient(flowbotBaseUrl)
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -404,63 +398,28 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
     form.setValue('documentTypeRef', '', { shouldDirty: true, shouldValidate: true, shouldTouch: true })
   }, [watchedDocumentGroupRef, isRenameMode, watchedFolder, initialDataLoaded, isUpdateMode])
 
-  // AI classification
-  useEffect(() => {
-    if (!enableAIClassification || isRenameMode || watchedFolder) return
+  const firstWatchedFile = watchedFiles?.[0] as File | undefined
+  const classificationEnabled = enableAIClassification && !isRenameMode && !watchedFolder && !!firstWatchedFile
 
-    let isCancelled = false
-    const firstFile = watchedFiles?.[0]
-    const controller = new AbortController()
-
-    const run = async () => {
-      if (!firstFile) return
-
-      setAiLoading(true)
-      setAiError(null)
-      setAiApplied(false)
-      setAiSuggestion(null)
-
-      try {
-        const fd = new FormData()
-        fd.append('file', firstFile as unknown as Blob)
-        fd.append('llm_model', 'gpt-4.1')
-
-        const endpoint = aiClassificationEndpoint || '/flowbot/document-autoclassify/classify'
-        const resp = await restClient.post(endpoint, fd, {
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-          signal: controller.signal
-        })
-
-        const dataObj = (resp ?? {}) as Record<string, unknown>
-        const type = typeof dataObj.type === 'string' ? dataObj.type : undefined
-        const group = typeof dataObj.group === 'string' ? dataObj.group : undefined
-
-        if (isCancelled || form.getValues('files')?.[0] !== firstFile) return
-        setAiSuggestion({ type, group })
-      } catch (err) {
-        if (isCancelled) return
-        console.error('AI classification failed', err)
-        setAiError(getTranslationFromI18nKeyAndLabel('document.ai.failed', 'Failed to auto-classify'))
-      } finally {
-        if (!isCancelled) setAiLoading(false)
-      }
-    }
-
-    run()
-
-    return () => {
-      isCancelled = true
-      controller.abort()
-    }
-  }, [
-    watchedFiles,
-    isRenameMode,
-    watchedFolder,
+  const {
+    suggestion: aiSuggestion,
+    loading: aiLoading,
+    error: aiError
+  } = useDocumentClassification({
     accessToken,
-    enableAIClassification,
-    restClient,
-    aiClassificationEndpoint
-  ])
+    entity: appName,
+    groupCatalogIdentifier,
+    typeCatalogIdentifier,
+    file: classificationEnabled ? firstWatchedFile : undefined,
+    endpoint: aiClassificationEndpoint,
+    enabled: classificationEnabled
+  })
+
+  useEffect(() => {
+    // Reset local application flags whenever we get a new file or classification is disabled
+    setAiApplied(false)
+    setApplyTypeAfterGroup(null)
+  }, [firstWatchedFile, classificationEnabled])
 
   // Auto-apply AI suggestion for group
   useEffect(() => {
@@ -692,36 +651,28 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
   const handleSubmit = async () => {
     const formData = form.getValues()
 
-    console.log('[DocumentPopup] handleSubmit formData:', formData)
-
     if ((isUpdateMode || isRenameMode) && formData.files && formData.files.length > 1) {
       throw new Error('Update mode only supports single file upload')
     }
 
     const fileInfoList = await uploadFiles(formData)
 
-    console.log('[DocumentPopup] fileInfoList:', fileInfoList)
-
     if (isUpdateMode || isRenameMode) {
       const payload = buildUpdatePayload(formData, fileInfoList)
-      console.log('[DocumentPopup] buildUpdatePayload result:', payload)
       return payload
     }
 
     if (fileInfoList.length === 1) {
       const payload = buildSingleDocumentPayload(formData, fileInfoList)
-      console.log('[DocumentPopup] buildSingleDocumentPayload result:', payload)
       return payload
     }
 
     if (fileInfoList.length > 1) {
       const payload = buildBulkDocumentsPayload(formData, fileInfoList)
-      console.log('[DocumentPopup] buildBulkDocumentsPayload result:', payload)
       return payload
     }
 
     const payload = buildFolderPayload(formData)
-    console.log('[DocumentPopup] buildFolderPayload result:', payload)
     return payload
   }
 
@@ -803,7 +754,7 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
     if (!aiSuggestion) return ''
     const g = aiSuggestion.group || '—'
     const t = aiSuggestion.type || '—'
-    return `AI suggestion: Group = ${g}, Type = ${t}`
+    return getTranslationFromI18nKeyAndLabel('document.ai.suggestion', `AI suggestion: Group = ${g}, Type = ${t}`)
   }
 
   const title = getDialogTitle()

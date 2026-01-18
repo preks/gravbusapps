@@ -217,7 +217,7 @@ export function buildAdjustmentDetails(params: {
     adjustmentValue: adjustmentValueDisplay,
     adjustmentFrequency: '-',
     effectiveDate: formatEffectiveDate(newSalaryData.startDate),
-    reason: extractReasonDisplay(newSalaryData.salaryAdjustReason, salaryAdjustReasonEntries),
+    reason: extractReasonDisplay(newSalaryData.salaryAdjustReasonRef, salaryAdjustReasonEntries),
     notes: String(newSalaryData.notes ?? '').trim() || undefined,
     increaseSummary
   }

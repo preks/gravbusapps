@@ -190,11 +190,7 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
         timestamp: Date.now()
       })
     } catch (err) {
-      // Log error without sensitive details (per hook guidelines)
-      console.error(
-        '[useFilterData] Failed to fetch filter data:',
-        err instanceof Error ? err.message : 'Unknown error'
-      )
+      // Error handling without logging sensitive details (per hook guidelines)
 
       // Reset state to empty arrays on failure (standard fallback behavior)
       setOrganizationalUnits([])

@@ -114,8 +114,40 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         } catch {
           // Error handling is done in onError callback
         }
+      } else if (task?.source === 'cflow' && task?.id && userId) {
+        // For cFlow tasks, complete via flow-engine API
+        try {
+          const flowEngineApi =
+            env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+
+          const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({
+              userId: userId,
+              formData: payload || {}
+            })
+          })
+
+          if (response.ok) {
+            message.success(t('task-dialog-completed-success'))
+            onClose()
+            onTaskUpdated()
+            if (onTaskCompleted && task.id) {
+              onTaskCompleted(task.id)
+            }
+          } else {
+            throw new Error('Failed to complete task')
+          }
+        } catch (error) {
+          console.error('Failed to complete cFlow task:', error)
+          message.error(t('task-dialog-action-failed'))
+        }
       } else {
-        // For non-Kogito tasks or if no endpoint, just close and refresh
+        // For other tasks or if no task ID, just close and refresh
         onClose()
         onTaskUpdated()
         if (onTaskCompleted && task?.id) {
@@ -129,7 +161,18 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     return () => {
       globalThis.removeEventListener('com.newwork.process.continue', handleProcessContinue)
     }
-  }, [task?.id, task?.source, task?.sourceMetadata?.endpoint, continueProcess, onClose, onTaskUpdated, onTaskCompleted])
+  }, [
+    task?.id,
+    task?.source,
+    task?.sourceMetadata?.endpoint,
+    continueProcess,
+    onClose,
+    onTaskUpdated,
+    onTaskCompleted,
+    userId,
+    accessToken,
+    t
+  ])
 
   // Note: processInfo and taskDetails removed - Screen Management API handles all rendering
 
@@ -138,8 +181,8 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
   // Memoize additionalData to prevent unnecessary re-renders of RemoteScreenLoader
   // This prevents infinite GraphQL query loops in child components
-  const nativeScreenAdditionalData = React.useMemo(
-    () => ({
+  const nativeScreenAdditionalData = React.useMemo(() => {
+    const data = {
       // Task-level data for forms like ScheduledTaskResult
       message: task?.message,
       title: task?.title || task?.name,
@@ -154,23 +197,24 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
       psi_flowStepData: currentStepData,
       psi_flowOverview: flowOverview,
       psi_currentStep: currentStep
-    }),
-    [
-      task?.message,
-      task?.title,
-      task?.name,
-      task?.tags,
-      task?.scheduledAt,
-      task?.dueDate,
-      taskInputs,
-      task?.sourceMetadata,
-      task?.status,
-      task?.availableActions,
-      currentStepData,
-      flowOverview,
-      currentStep
-    ]
-  )
+    }
+
+    return data
+  }, [
+    task?.message,
+    task?.title,
+    task?.name,
+    task?.tags,
+    task?.scheduledAt,
+    task?.dueDate,
+    taskInputs,
+    task?.sourceMetadata,
+    task?.status,
+    task?.availableActions,
+    currentStepData,
+    flowOverview,
+    currentStep
+  ])
 
   const lowcoderScreenAdditionalData = React.useMemo(
     () => ({
@@ -463,13 +507,15 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
       <CardContent
         className={cn(
           'gba:flex-1 gba:min-h-0',
-          // Remove padding for native screens and universal cFLOW tasks - they handle their own scrolling and padding
-          // Allow overflow so child components can scroll properly
+          // Native screens often don't implement their own scroll container, so we enable scrolling here
+          // while still removing the CardContent default padding.
+          // Universal cFLOW tasks handle their own scrolling and padding.
           // Override default nw:px-6 and nw:py-6 from CardContent component
-          screenMetadata?.builderType === 'NATIVE_SCREEN' ||
-            (task.source === 'cflow' && !screenMetadata && !loadingScreen)
-            ? 'nw:px-0 nw:py-0 gba:px-0 gba:py-0 gba:overflow-y-auto gba:flex gba:flex-col'
-            : 'gba:pt-4 gba:px-4 gba:overflow-y-auto'
+          screenMetadata?.builderType === 'NATIVE_SCREEN'
+            ? 'nw:px-0 nw:py-0 gba:px-0 gba:py-0 gba:overflow-y-auto'
+            : task.source === 'cflow' && !screenMetadata && !loadingScreen
+              ? 'nw:px-0 nw:py-0 gba:px-0 gba:py-0 gba:overflow-hidden gba:flex gba:flex-col'
+              : 'gba:pt-4 gba:px-4 gba:overflow-y-auto'
         )}
       >
         {renderTaskContent()}

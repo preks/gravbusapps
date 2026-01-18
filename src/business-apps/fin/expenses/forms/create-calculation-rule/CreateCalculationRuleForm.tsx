@@ -202,13 +202,15 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
 
   // Check if form values changed from initial snapshot
   const noInitialValuesChanged = useMemo(() => {
-    if (!isUpdate || !initialSnapshot) return true
+    if (!isUpdate || !initialSnapshot) return false
     try {
-      return JSON.stringify(formValues) === JSON.stringify(initialSnapshot)
+      // Use form.getValues() to get fresh values instead of watched values
+      const currentValues = form.getValues()
+      return JSON.stringify(currentValues) === JSON.stringify(initialSnapshot)
     } catch {
-      return true
+      return false
     }
-  }, [formValues, isUpdate, initialSnapshot])
+  }, [formValues, isUpdate, initialSnapshot, form])
 
   // Check if form has validation errors
   const hasErrors = useMemo(() => {

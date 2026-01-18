@@ -126,7 +126,7 @@ export const InvestmentTaskFormFields = {
 /**
  * Investment Task Descriptors
  * Uses createTaskDescriptors with InvestmentTaskFields mapping
- * Adds IRM-specific reference field
+ * Adds IRM-specific reference field and investment descriptor
  * NOTE: assignedEmployeeIds filtering handled separately via taskAssignees relationship
  */
 export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
@@ -146,6 +146,19 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
     ],
     sortPaths: [`${InvestmentTaskFields.source}`],
     type: 'text'
+  },
+  // Add investment descriptor (IRM-specific)
+  {
+    key: 'investment',
+    searchPaths: [`${InvestmentTaskFields.investment}.name`, `${InvestmentTaskFields.investment}.code`],
+    sortPath: `${InvestmentTaskFields.investment}.name`,
+    type: 'text'
+  },
+  // Add investment ID filter
+  {
+    key: 'investmentIds',
+    path: InvestmentTaskFields.investmentId,
+    kind: 'inIds'
   }
 ]
 
@@ -166,8 +179,8 @@ export const buildInvestmentTaskPayload = (task: Partial<InvestmentTask> & Recor
       ...(ta.version !== undefined && { version: ta.version }),
       assignedEmployee: ta.assignedEmployeeId, // Transform assignedEmployeeId → assignedEmployee
       assignedUserId: ta.assignedUserId, // Preserve assignedUserId field name (don't transform!)
-      taskStatus: ta.taskStatus || 'SCHEDULED_TASK_STATUS', // Default to SCHEDULED for new instances
-      completedAt: ta.completedAt || null
+      ...(ta.taskStatus && { taskStatus: ta.taskStatus }), // Preserve existing status (backend sets default)
+      ...(ta.completedAt && { completedAt: ta.completedAt })
     }))
   }
 

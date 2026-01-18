@@ -92,3 +92,7 @@ team-absences-link-description = Access comprehensive team absences, statistics,
 team-absences-link-button = Open Team Absences Hub
 team-absences-need-details = Need more details about team absences?
 team-absences-full-dashboard = Full Dashboard
+
+# Chat Integration
+chat-prefilled-message = Hi { $requesterName }, I have a question about your vacation request from { $startDate } to { $endDate }.
+chat-fallback-name = there

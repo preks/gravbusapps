@@ -47,7 +47,24 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       id
       code
       title
-      expenseRequest { id code }
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
+      expenseRequest { 
+        id 
+        code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       startDate
       endDate
       status
@@ -68,9 +85,11 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       }
       employee {
         id
+        code
         displayName
         fullName
         pictureThumbnail
+        additionalProperties
         employeePosition {
           organizationalUnit {
             id

@@ -24,6 +24,15 @@ export interface TranslationResponse {
   confidences: number[]
 }
 
+export interface TextGenerationRequest {
+  texts: string[]
+  action: 'summarize' | 'generate'
+}
+
+export interface TextGenerationResponse {
+  generated_texts: string[]
+}
+
 export class FlowbotClient extends RestClient {
   constructor() {
     // Using the flowbot service URL from the provided endpoint
@@ -61,6 +70,19 @@ export class FlowbotClient extends RestClient {
     }
 
     return this.post<TranslationResponse>('/translation/translate', requestBody, options)
+  }
+
+  public async generateText(
+    texts: string[],
+    action: 'summarize' | 'generate' = 'summarize',
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<TextGenerationResponse> {
+    const requestBody: TextGenerationRequest = {
+      texts,
+      action
+    }
+
+    return this.post<TextGenerationResponse>('/api/text-generation/generate', requestBody, options)
   }
 }
 

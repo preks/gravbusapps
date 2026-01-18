@@ -8,7 +8,8 @@ import {
   BuildingsIcon,
   UsersIcon,
   CurrencyDollarIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ChartLineIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
@@ -17,53 +18,37 @@ import { AccountView } from './views/account-view'
 import { ContactView } from './views/contact-view'
 import { OpportunityView } from './views/opportunity-view'
 import { AnalyticsView } from './views/analytics-view'
-import { DashboardView } from './views/dashboard-view'
+import { DashboardView } from './views/dashboard-view/DashboardView'
 import { TaskView } from './views/task-view'
+import { WorkspaceView } from './views/workspace-view'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { useDashboardQueries } from './views/dashboard-view/queries/DashboardQueries'
-import { PipelineInfo } from './views/dashboard-view/types/dashboardTypes'
+import { useSalesDashboard } from './views/dashboard-view/hooks/useSalesDashboard'
 
 export type InvestmentRelationsProps = BusinessAppContextProps
 
 const moduleColor = MODULE_COLORS.IRM
 
 export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context => {
-  const { fetchPipelines } = useDashboardQueries(context)
-  const [pipelines, setPipelines] = useState<PipelineInfo[]>([])
+  // ✅ Use shared hook - same as CRM
+  const { pipelines } = useSalesDashboard(context)
+
   const [dateRange] = useState<{ startDate: Date; endDate: Date }>(() => {
     const now = new Date()
     const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0)
     const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
     return { startDate: start, endDate: end }
   })
-
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const entries = await fetchPipelines()
-        if (!mounted) return
-        const mapped: PipelineInfo[] = (entries || []).map((e: any) => ({
-          id: e.id,
-          name: e.value,
-          ref: e.id, // prefer id; queries also accept code
-          description: e.description
-        }))
-        setPipelines(mapped)
-      } catch {
-        // ignore; UI handles empty gracefully
-      }
-    })()
-    return () => {
-      mounted = false
-    }
-  }, [fetchPipelines])
   const viewOptions = useMemo(
     () => [
       {
         key: 'dashboard',
         icon: <HouseIcon />,
         label: 'Dashboard'
+      },
+      {
+        key: 'personal',
+        icon: <ChartLineIcon />,
+        label: 'My Workspace'
       },
       {
         key: 'tasks',
@@ -208,13 +193,18 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
             <DashboardView pipelines={pipelines} dateRange={dateRange} moduleColor={moduleColor} {...context} />
           </div>
         )
+      case 'personal':
+        return (
+          <div data-testid="personal-workspace-tab-content">
+            <WorkspaceView {...context} />
+          </div>
+        )
       case 'tasks':
         return (
           <div data-testid="tasks-tab-content">
             <TaskView {...context} />
           </div>
         )
-
       case 'leads':
         return (
           <div data-testid="leads-tab-content">

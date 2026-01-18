@@ -121,6 +121,14 @@ const getCreatorDisplayName = (
   // Priority 2: creatorName from task metadata (might be cached/older)
   if (task.sourceMetadata?.creatorName) return task.sourceMetadata.creatorName
   if (task.sourceMetadata?.ownerName) return task.sourceMetadata.ownerName
+  // Backwards-compatible fallbacks for CFlow initiator fields
+  if ((task.sourceMetadata as any)?.flowInitiatedByName) return (task.sourceMetadata as any).flowInitiatedByName
+  if (
+    (task.sourceMetadata as any)?.flowInitiatedBy &&
+    typeof (task.sourceMetadata as any).flowInitiatedBy === 'string'
+  ) {
+    return (task.sourceMetadata as any).flowInitiatedBy
+  }
 
   // Priority 3: Construct from firstName + lastName (fallback)
   if (employeeData) {
@@ -243,12 +251,12 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     if (!isDetailViewOpen) {
       return (
         <div
-          className="gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-2 gba:lg:px-4 gba:lg:py-2.5 gba:hover:bg-muted/50 gba:border-b gba:border-border/30 gba:lg:border-transparent gba:active:bg-muted/70"
+          className="gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-3 gba:lg:px-4 gba:hover:bg-muted/50 gba:border-b gba:border-border/30 gba:lg:border-transparent gba:active:bg-muted/70"
           onClick={() => onView(task)}
           data-testid={`task-card-${task.id}`}
         >
           {/* Desktop: Single row layout */}
-          <div className="gba:hidden gba:lg:flex gba:items-center gba:gap-4">
+          <div className="gba:hidden gba:lg:flex gba:items-center gba:gap-2.5">
             {/* 1. Date - fixed 140px */}
             <span
               className="gba:text-xs gba:text-muted-foreground gba:w-[140px] gba:flex-shrink-0"
@@ -262,10 +270,10 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             </span>
 
             {/* 2. Avatar */}
-            <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
+            <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0" data-testid="task-creator-avatar">
               {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
               {showAvatarFallback && (
-                <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                <AvatarFallback className="gba:text-[10px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
                   {generateInitials(creatorName)}
                 </AvatarFallback>
               )}
@@ -273,31 +281,23 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
             {/* 3. Creator name */}
             <span
-              className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground gba:w-[160px] gba:flex-shrink-0"
+              className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground gba:w-[140px] gba:flex-shrink-0"
               data-testid="task-creator-name"
             >
               {creatorName}
             </span>
 
             {/* 4. Module Icon */}
-            <span title={moduleInfo.name} className="gba:w-5 gba:flex-shrink-0">
-              <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
+            <span title={moduleInfo.name} className="gba:flex-shrink-0">
+              <ModuleIcon className={`gba:h-4.5 gba:w-4.5 ${moduleInfo.color}`} />
             </span>
 
             {/* 5. Task title + Blink indicator */}
-            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-              <span className="gba:text-base gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-1 gba:min-w-0">
+              <span className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
                 {taskTitle}
               </span>
-              {isBlinkTask && (
-                <div
-                  className="gba:flex gba:items-center gba:gap-0.5 gba:flex-shrink-0"
-                  data-testid="task-blink-indicator"
-                >
-                  <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
-                  <span className="gba:text-sm gba:font-medium gba:text-blue-500">{t('task-card-blink')}</span>
-                </div>
-              )}
+              {isBlinkTask && <Zap className="gba:h-4 gba:w-4 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />}
             </div>
 
             {/* 6. Right side: Due date urgency indicator */}
@@ -390,7 +390,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Split view (task selected) - Date | Avatar | Name | Icon | Task
     return (
       <div
-        className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-2.5 ${
+        className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-3 ${
           isSelected
             ? 'gba:bg-primary/10 gba:border-l-2 gba:border-l-primary'
             : 'gba:hover:bg-muted/50 gba:border-l-2 gba:border-l-transparent'
@@ -398,10 +398,10 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
         onClick={() => onView(task)}
         data-testid={`task-card-${task.id}`}
       >
-        <div className="gba:flex gba:items-center gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2.5">
           {/* 1. Date (compact) */}
           <span
-            className="gba:text-[11px] gba:text-muted-foreground gba:w-[85px] gba:flex-shrink-0"
+            className="gba:text-xs gba:text-muted-foreground gba:w-[140px] gba:flex-shrink-0"
             data-testid="task-created-at"
           >
             {task.status === 'COMPLETED' && task.completedAt ? (
@@ -412,10 +412,10 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
           </span>
 
           {/* 2. Avatar */}
-          <Avatar className="gba:h-6 gba:w-6 gba:flex-shrink-0" data-testid="task-creator-avatar">
+          <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0" data-testid="task-creator-avatar">
             {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
             {showAvatarFallback && (
-              <AvatarFallback className="gba:text-[9px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+              <AvatarFallback className="gba:text-[10px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
                 {generateInitials(creatorName)}
               </AvatarFallback>
             )}
@@ -423,7 +423,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
           {/* 3. Creator name - single line truncated */}
           <span
-            className="gba:text-xs gba:font-medium gba:text-foreground gba:w-[140px] gba:flex-shrink-0 gba:truncate"
+            className="gba:text-sm gba:font-medium gba:text-foreground gba:w-[140px] gba:flex-shrink-0 gba:truncate"
             data-testid="task-creator-name"
           >
             {creatorName}
@@ -431,17 +431,15 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
           {/* 4. Module Icon */}
           <span title={moduleInfo.name} className="gba:flex-shrink-0">
-            <ModuleIcon className={`gba:h-4 gba:w-4 ${moduleInfo.color}`} />
+            <ModuleIcon className={`gba:h-4.5 gba:w-4.5 ${moduleInfo.color}`} />
           </span>
 
           {/* 5. Task title + Blink */}
-          <div className="gba:flex gba:items-center gba:gap-1 gba:flex-1 gba:min-w-0">
+          <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-1 gba:min-w-0">
             <span className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
               {taskTitle}
             </span>
-            {isBlinkTask && (
-              <Zap className="gba:h-3.5 gba:w-3.5 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />
-            )}
+            {isBlinkTask && <Zap className="gba:h-4 gba:w-4 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />}
           </div>
         </div>
       </div>

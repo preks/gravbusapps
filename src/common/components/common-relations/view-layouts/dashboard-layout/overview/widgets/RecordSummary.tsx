@@ -11,17 +11,25 @@ export interface RecentRecordItem {
   createdAt: string | number | Date
 }
 
+/**
+ * Navigation configuration for record-related entities
+ * Each module (CRM, IRM, etc.) provides its specific URL patterns
+ */
+export interface RecordNavigationConfig {
+  opportunityUrl: string
+  leadUrl: string
+  contactUrl: string
+  accountUrl: string
+  sourceParam: string
+}
+
 export interface RecordSummaryProps {
   records: RecentRecordItem[]
   moduleColor?: string
-  source?: 'investments' | 'customer-relations'
+  navigationConfig: RecordNavigationConfig
 }
 
-export const RecordSummary: React.FC<RecordSummaryProps> = ({
-  records,
-  moduleColor = 'default',
-  source = 'investments'
-}) => {
+export const RecordSummary: React.FC<RecordSummaryProps> = ({ records, moduleColor = 'default', navigationConfig }) => {
   // Helper function to get entity icon and color
   const getEntityInfo = (type: string) => {
     switch (type.toLowerCase()) {
@@ -67,38 +75,34 @@ export const RecordSummary: React.FC<RecordSummaryProps> = ({
   const handleRecordClick = useCallback(
     (record: RecentRecordItem) => {
       const { type, id } = record
-      const isInvestmentSource = source === 'investments'
 
       let url: string
       switch (type.toLowerCase()) {
         case 'opportunity':
-          url = buildPlatformUrl(
-            isInvestmentSource ? '/platform/irm/opportunity-record' : '/platform/crm/opportunity-record',
-            {
-              opportunityId: id,
-              source: source,
-              fromView: 'dashboard'
-            }
-          )
+          url = buildPlatformUrl(navigationConfig.opportunityUrl, {
+            opportunityId: id,
+            source: navigationConfig.sourceParam,
+            fromView: 'dashboard'
+          })
           break
         case 'lead':
-          url = buildPlatformUrl(isInvestmentSource ? '/platform/irm/lead-record' : '/platform/crm/lead-record', {
+          url = buildPlatformUrl(navigationConfig.leadUrl, {
             leadId: id,
-            source: source,
+            source: navigationConfig.sourceParam,
             fromView: 'dashboard'
           })
           break
         case 'contact':
-          url = buildPlatformUrl(isInvestmentSource ? '/platform/irm/contact-record' : '/platform/crm/contact-record', {
+          url = buildPlatformUrl(navigationConfig.contactUrl, {
             contactId: id,
-            source: source,
+            source: navigationConfig.sourceParam,
             fromView: 'dashboard'
           })
           break
         case 'account':
-          url = buildPlatformUrl(isInvestmentSource ? '/platform/irm/account-record' : '/platform/crm/account-record', {
+          url = buildPlatformUrl(navigationConfig.accountUrl, {
             accountId: id,
-            source: source,
+            source: navigationConfig.sourceParam,
             fromView: 'dashboard'
           })
           break
@@ -115,7 +119,7 @@ export const RecordSummary: React.FC<RecordSummaryProps> = ({
 
       navigateTo(url)
     },
-    [source]
+    [navigationConfig]
   )
 
   return (
@@ -131,7 +135,7 @@ export const RecordSummary: React.FC<RecordSummaryProps> = ({
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">
-          {records.slice(0, 4).map(record => {
+          {records.slice(0, 5).map(record => {
             const entityInfo = getEntityInfo(record.type)
             const EntityIcon = entityInfo.icon
 
@@ -158,7 +162,7 @@ export const RecordSummary: React.FC<RecordSummaryProps> = ({
                 <CardHeader className="gba:p-3">
                   <div className="gba:flex gba:items-start gba:gap-2.5">
                     <div
-                      className="gba:w-8 gba:h-8 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:mt-0.5"
+                      className="gba:w-8 gba:h-8 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:shrink-0 gba:mt-0.5"
                       style={{
                         backgroundColor: entityInfo.bgColor,
                         color: entityInfo.color

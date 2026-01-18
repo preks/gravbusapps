@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Calendar, Spin, message, Alert, ConfigProvider } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
@@ -7,6 +7,7 @@ import { useGetExpenseItems, ExpenseItem } from '../../../hooks/useGetExpenseIte
 import { useGetExpensePlans, ExpensePlan } from '../../../hooks/useGetExpensePlans'
 import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useDebounce } from '@/common/hooks/useDebounce'
 //
 import CalendarHeader from './components/CalendarHeader'
 import DetailsSheet from './components/DetailsSheet'
@@ -44,6 +45,41 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
 
   // Track calendar value to trigger updates when month changes
   const [calendarValue, setCalendarValue] = useState<Dayjs>(dayjs().locale(dayjsLocale))
+
+  // Debounce calendar value to reduce API calls when rapidly changing months
+  const debouncedCalendarValue = useDebounce(calendarValue, 300)
+
+  // Helper to get month range for filtering
+  const getMonthRange = useCallback((value: Dayjs) => {
+    const start = value.startOf('month')
+    const end = value.endOf('month')
+    return {
+      start: start.format('YYYY-MM-DD'),
+      end: end.format('YYYY-MM-DD')
+    }
+  }, [])
+
+  // Month-level cache to store calendar items per month
+  const monthCacheRef = useRef<
+    Map<
+      string,
+      {
+        items: CalendarExpenseItem[]
+        plans: CalendarExpenseItem[]
+        requests: CalendarExpenseItem[]
+      }
+    >
+  >(new Map())
+
+  // Helper to get cache key for a month
+  const getMonthCacheKey = useCallback((value: Dayjs) => {
+    return value.format('YYYY-MM')
+  }, [])
+
+  // Check if current month data is cached (computed on each render)
+  const monthKey = getMonthCacheKey(debouncedCalendarValue)
+  const cachedMonthData = monthCacheRef.current.get(monthKey)
+  const isAllCached = !!(cachedMonthData?.items && cachedMonthData?.plans && cachedMonthData?.requests)
   const {
     items: rawExpenseItems,
     isLoading: isLoadingExpenses,
@@ -128,11 +164,28 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
   }
 
   useEffect(() => {
-    fetchExpenseHookItems().catch(err => {
+    // Check cache first - if cached, use it and skip fetch
+    if (cachedMonthData?.items) {
+      setCalendarItems(cachedMonthData.items)
+      return
+    }
+
+    const { start, end } = getMonthRange(debouncedCalendarValue)
+    fetchExpenseHookItems(
+      '', // search
+      1, // page
+      10000, // pageSize - fetch all items for the month (calendar needs complete data)
+      {
+        expenseDateStart: start,
+        expenseDateEnd: end
+      },
+      null, // sortField
+      null // sortOrder
+    ).catch(err => {
       console.error('Failed to fetch expense items:', err)
       setExpensesError(err.message || 'Failed to fetch expense items')
     })
-  }, [fetchExpenseHookItems])
+  }, [fetchExpenseHookItems, debouncedCalendarValue, getMonthRange, cachedMonthData])
 
   useEffect(() => {
     if (fetchExpensesErrorHook) {
@@ -144,11 +197,38 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
   }, [fetchExpensesErrorHook])
 
   useEffect(() => {
-    fetchPlansHookItems({}, 1, 20).catch(err => {
+    // Check cache first - if cached, use it and skip fetch
+    if (cachedMonthData?.plans) {
+      setCalendarPlanItems(cachedMonthData.plans)
+      return
+    }
+
+    const { start, end } = getMonthRange(debouncedCalendarValue)
+    const filters = {
+      _and: [
+        {
+          _or: [
+            {
+              _and: [
+                { requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } },
+                { expensePlanItem: { expenseDate: { _gte: start, _lte: end } } }
+              ]
+            },
+            {
+              _and: [
+                { requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } },
+                { startDate: { _gte: start, _lte: end } }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    fetchPlansHookItems(filters, 1, 10000).catch(err => {
       console.error('Failed to fetch expense plans:', err)
       setPlansError(err.message || 'Failed to fetch expense plans')
     })
-  }, [fetchPlansHookItems])
+  }, [fetchPlansHookItems, debouncedCalendarValue, getMonthRange, cachedMonthData])
 
   useEffect(() => {
     if (fetchPlansErrorHook) {
@@ -160,26 +240,64 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
   }, [fetchPlansErrorHook])
 
   useEffect(() => {
-    if (rawExpenseItems) {
-      setCalendarItems(rawExpenseItems.map(toCalendarItemFromExpense))
+    if (rawExpenseItems && Array.isArray(rawExpenseItems)) {
+      const items = rawExpenseItems.map(toCalendarItemFromExpense)
+      setCalendarItems(items)
+
+      // Update cache
+      const cached = monthCacheRef.current.get(monthKey) || { items: [], plans: [], requests: [] }
+      monthCacheRef.current.set(monthKey, { ...cached, items })
     }
-  }, [rawExpenseItems])
+  }, [rawExpenseItems, monthKey])
 
   useEffect(() => {
-    if (rawExpensePlans) {
+    if (rawExpensePlans && Array.isArray(rawExpensePlans)) {
       const transformedPlans = rawExpensePlans
         .map(toCalendarItemFromPlan)
         .filter((i): i is CalendarExpenseItem => i !== null)
       setCalendarPlanItems(transformedPlans)
+
+      // Update cache
+      const cached = monthCacheRef.current.get(monthKey) || { items: [], plans: [], requests: [] }
+      monthCacheRef.current.set(monthKey, { ...cached, plans: transformedPlans })
     }
-  }, [rawExpensePlans])
+  }, [rawExpensePlans, monthKey])
 
   useEffect(() => {
-    fetchRequestsHookItems({}, 1, 20).catch(err => {
+    // Check cache first - if cached, use it and skip fetch
+    if (cachedMonthData?.requests) {
+      setCalendarRequestItems(cachedMonthData.requests)
+      return
+    }
+
+    const { start, end } = getMonthRange(debouncedCalendarValue)
+    const filters = {
+      _and: [
+        {
+          _or: [
+            {
+              _and: [
+                { requestDate: { _gte: start, _lte: end } },
+                { requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }
+              ]
+            },
+            {
+              _and: [
+                { requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } },
+                {
+                  _or: [{ startDate: { _gte: start, _lte: end } }, { endDate: { _gte: start, _lte: end } }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    fetchRequestsHookItems(filters, 1, 10000).catch(err => {
       console.error('Failed to fetch expense requests:', err)
       setRequestsError(err.message || 'Failed to fetch expense requests')
     })
-  }, [fetchRequestsHookItems])
+  }, [fetchRequestsHookItems, debouncedCalendarValue, getMonthRange, cachedMonthData])
 
   useEffect(() => {
     if (fetchRequestsErrorHook) {
@@ -191,13 +309,17 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
   }, [fetchRequestsErrorHook])
 
   useEffect(() => {
-    if (rawExpenseRequests) {
+    if (rawExpenseRequests && Array.isArray(rawExpenseRequests)) {
       const transformedRequests = rawExpenseRequests
         .map(toCalendarItemFromRequest)
         .filter((i): i is CalendarExpenseItem => i !== null)
       setCalendarRequestItems(transformedRequests)
+
+      // Update cache
+      const cached = monthCacheRef.current.get(monthKey) || { items: [], plans: [], requests: [] }
+      monthCacheRef.current.set(monthKey, { ...cached, requests: transformedRequests })
     }
-  }, [rawExpenseRequests])
+  }, [rawExpenseRequests, monthKey])
 
   const dateCellRender = (value: Dayjs) => (
     <DayCellEvents
@@ -219,7 +341,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
       className="gba-expense-calendar-tab"
     >
       <FiltersBar active={activeFilters} toggle={toggleFilter} />
-      {(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && (
+      {(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && !isAllCached && (
         <div style={{ textAlign: 'center', padding: '20px' }}>
           <Spin
             tip={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.loading_data', 'Loading data...')}
@@ -235,31 +357,30 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
           />
         </div>
       )}
-      {!(isLoadingExpenses || isLoadingPlans || isLoadingRequests) &&
-        !(expensesError || plansError || requestsError) && (
-          <ConfigProvider locale={antdLocale}>
-            <Calendar
-              data-testid="expense-calendar"
-              value={calendarValue}
-              onPanelChange={value => {
-                setCalendarValue(value)
-              }}
-              onChange={value => {
-                setCalendarValue(value)
-              }}
-              cellRender={cellRender}
-              headerRender={({ value, onChange }) => (
-                <CalendarHeader
-                  value={value}
-                  onChange={onChange}
-                  currentCalendarValue={calendarValue}
-                  setCalendarValue={setCalendarValue}
-                  {...props}
-                />
-              )}
-            />
-          </ConfigProvider>
-        )}
+      {!(expensesError || plansError || requestsError) && (
+        <ConfigProvider locale={antdLocale}>
+          <Calendar
+            data-testid="expense-calendar"
+            value={calendarValue}
+            onPanelChange={value => {
+              setCalendarValue(value)
+            }}
+            onChange={value => {
+              setCalendarValue(value)
+            }}
+            cellRender={cellRender}
+            headerRender={({ value, onChange }) => (
+              <CalendarHeader
+                value={value}
+                onChange={onChange}
+                currentCalendarValue={calendarValue}
+                setCalendarValue={setCalendarValue}
+                {...props}
+              />
+            )}
+          />
+        </ConfigProvider>
+      )}
       <DetailsSheet
         open={isDetailsDrawerVisible}
         onOpenChange={setIsDetailsDrawerVisible}

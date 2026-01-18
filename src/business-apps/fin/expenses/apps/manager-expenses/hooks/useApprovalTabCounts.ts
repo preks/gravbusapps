@@ -72,7 +72,6 @@ export const useApprovalTabCounts = (context: BusinessAppContextProps): UseAppro
           const count = response.totalCount || response.totalElements || 0
           return { tabKey: tab.key, count } as const
         } catch {
-          if (import.meta.env?.DEV) console.error(`Error counting tasks for ${tab.key}:`, error)
           return { tabKey: tab.key, count: 0 } as const
         }
       })
@@ -88,7 +87,7 @@ export const useApprovalTabCounts = (context: BusinessAppContextProps): UseAppro
 
       setTabCounts(prev => ({ ...prev, ...newCounts }))
     } catch {
-      if (import.meta.env?.DEV) console.error('Error refreshing tab counts:', error)
+      // Error handled silently - counts remain at previous values
     } finally {
       setIsLoadingCounts(false)
     }
