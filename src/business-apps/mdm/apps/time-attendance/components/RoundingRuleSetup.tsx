@@ -104,7 +104,7 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
   const tableColumns = useMemo(
     () => (
       <>
-        <TableHead className="gba:w-[6%]">#</TableHead>
+        <TableHead className="gba:w-[6%]">Priority</TableHead>
         <TableHead className="gba:w-[14%]">Clocking Type</TableHead>
         <TableHead className="gba:w-[14%]">Rounding Type</TableHead>
         <TableHead className="gba:w-[12%]">Start Time</TableHead>
