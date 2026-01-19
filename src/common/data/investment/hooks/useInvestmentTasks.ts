@@ -1,5 +1,5 @@
 // Investment Task hooks - list and search operations for investment tasks
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -103,7 +103,7 @@ export const useInvestmentTasks = (context: BusinessAppContextProps) => {
         throw error
       }
     },
-    [graphqlClient]
+    [context.accessToken]
   )
 
   const fetchInvestmentTaskById = useCallback(
@@ -119,8 +119,11 @@ export const useInvestmentTasks = (context: BusinessAppContextProps) => {
         throw error
       }
     },
-    [graphqlClient]
+    [context.accessToken]
   )
 
-  return { fetchInvestmentTasks, fetchInvestmentTaskById }
+  return useMemo(
+    () => ({ fetchInvestmentTasks, fetchInvestmentTaskById }),
+    [fetchInvestmentTasks, fetchInvestmentTaskById]
+  )
 }
