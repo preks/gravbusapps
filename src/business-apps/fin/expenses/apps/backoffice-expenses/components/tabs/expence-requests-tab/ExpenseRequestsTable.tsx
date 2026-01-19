@@ -1419,12 +1419,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
         const formattedData = allExpenses.map(formatExpenseForExport)
         const columns = getExportColumns()
-        const filename = buildFilename('expense-requests', format === 'csv' ? 'csv' : 'xls')
+        const filename = buildFilename('expense-requests', format === 'csv' ? 'csv' : 'xlsx')
 
         if (format === 'csv') {
           downloadCsv(formattedData, columns, filename)
         } else {
-          downloadExcel(formattedData, columns, filename)
+          await downloadExcel(formattedData, columns, filename)
         }
 
         toast.success('Export Successful', {
