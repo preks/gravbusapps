@@ -8,6 +8,7 @@ import { env } from '@/common/env/EnvUtils'
 import { FieldTypeOption, TransformedDayTypeVersionDetail } from '../types/day-type-version-details'
 import { APPLIED_DAYS_OPTIONS, dayTypeDetailRowSchema, DayTypeDetailRowFormData } from '../constants/day-type-constants'
 import { FieldErrorTooltip } from '../components/FieldErrorTooltip'
+import { RequiredIndicator } from '../components'
 
 // Special key for new row
 const NEW_ROW_KEY = '__new__'
@@ -292,17 +293,20 @@ export const useDayTypeDetailRows = ({
           <TableCell>
             {isEditing ? (
               <div className="gba:flex gba:items-center gba:gap-1">
-                <Combobox
-                  options={fieldTypeOptions.map(ft => ({ value: ft.code, label: ft.displayValue }))}
-                  value={values?.fieldType || ''}
-                  onValueChange={value => handleFieldChange(rowId, 'fieldType', value)}
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'master-data:hr.time_attendance.day_type_versions.actions.select_field_type',
-                    'Select field type'
-                  )}
-                  className="gba:w-full"
-                  disabled={isSaving}
-                />
+                <div className="gba:relative">
+                  <Combobox
+                    options={fieldTypeOptions.map(ft => ({ value: ft.code, label: ft.displayValue }))}
+                    value={values?.fieldType || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'fieldType', value)}
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.day_type_versions.actions.select_field_type',
+                      'Select field type'
+                    )}
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  <RequiredIndicator />
+                </div>
                 <FieldErrorTooltip error={errors.fieldType} />
               </div>
             ) : (
@@ -403,17 +407,20 @@ export const useDayTypeDetailRows = ({
         {/* Field Type */}
         <TableCell>
           <div className="gba:flex gba:items-center gba:gap-1">
-            <Combobox
-              options={fieldTypeOptions.map(ft => ({ value: ft.code, label: ft.displayValue }))}
-              value={values?.fieldType || ''}
-              onValueChange={value => handleFieldChange(rowId, 'fieldType', value)}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.time_attendance.day_type_versions.actions.select_field_type',
-                'Select field type'
-              )}
-              className="gba:w-full"
-              disabled={isSaving}
-            />
+            <div className="gba:relative">
+              <Combobox
+                options={fieldTypeOptions.map(ft => ({ value: ft.code, label: ft.displayValue }))}
+                value={values?.fieldType || ''}
+                onValueChange={value => handleFieldChange(rowId, 'fieldType', value)}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.day_type_versions.actions.select_field_type',
+                  'Select field type'
+                )}
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              <RequiredIndicator />
+            </div>
             <FieldErrorTooltip error={errors.fieldType} />
           </div>
         </TableCell>
@@ -421,17 +428,20 @@ export const useDayTypeDetailRows = ({
         {/* Applied Day */}
         <TableCell>
           <div className="gba:flex gba:items-center gba:gap-1">
-            <Combobox
-              options={APPLIED_DAYS_OPTIONS.map(ad => ({ value: ad.code, label: ad.displayValue }))}
-              value={values?.appliedDay || ''}
-              onValueChange={value => handleFieldChange(rowId, 'appliedDay', value)}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.time_attendance.day_type_versions.actions.select_applied_day',
-                'Select applied day'
-              )}
-              className="gba:w-full"
-              disabled={isSaving}
-            />
+            <div className="gba:relative">
+              <Combobox
+                options={APPLIED_DAYS_OPTIONS.map(ad => ({ value: ad.code, label: ad.displayValue }))}
+                value={values?.appliedDay || ''}
+                onValueChange={value => handleFieldChange(rowId, 'appliedDay', value)}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.day_type_versions.actions.select_applied_day',
+                  'Select applied day'
+                )}
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              <RequiredIndicator />
+            </div>
             <FieldErrorTooltip error={errors.appliedDay} />
           </div>
         </TableCell>
@@ -439,14 +449,17 @@ export const useDayTypeDetailRows = ({
         {/* Time Value */}
         <TableCell>
           <div className="gba:flex gba:items-center gba:gap-1">
-            <Input
-              type="time"
-              value={values?.timeValue || ''}
-              onChange={e => handleFieldChange(rowId, 'timeValue', e.target.value)}
-              className="gba:w-[120px]"
-              disabled={isSaving}
-              data-testid={formatDataTestId(dataTestId, 'time-value-input-new')}
-            />
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.timeValue || ''}
+                onChange={e => handleFieldChange(rowId, 'timeValue', e.target.value)}
+                className="gba:w-[120px]"
+                disabled={isSaving}
+                data-testid={formatDataTestId(dataTestId, 'time-value-input-new')}
+              />
+              <RequiredIndicator />
+            </div>
             <FieldErrorTooltip error={errors.timeValue} />
           </div>
         </TableCell>
