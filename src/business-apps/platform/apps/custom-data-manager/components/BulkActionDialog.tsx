@@ -13,7 +13,7 @@ import {
   Spinner,
   ScrollArea
 } from '@newwork/nw-design-system'
-import { Rocket, Trash2, Download, Check, AlertTriangle, Database, FileSpreadsheet } from 'lucide-react'
+import { Rocket, Trash2, Download, Check, AlertTriangle, Database } from 'lucide-react'
 import { BulkAction } from './DefinitionsTable'
 
 interface BulkActionDialogProps {
@@ -173,14 +173,10 @@ export const BulkActionDialog: React.FC<BulkActionDialogProps> = ({
                     className="gba:flex gba:items-center gba:justify-between gba:bg-background gba:rounded gba:px-3 gba:py-2"
                   >
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      {def.kind === 'SPREADSHEET' ? (
-                        <FileSpreadsheet className="gba:h-4 gba:w-4 gba:text-info" />
-                      ) : (
-                        <Database className="gba:h-4 gba:w-4 gba:text-secondary" />
-                      )}
+                      <Database className="gba:h-4 gba:w-4 gba:text-secondary" />
                       <span className="gba:text-sm">{def.display_name || def.key}</span>
                     </div>
-                    <Badge variant={def.kind === 'SPREADSHEET' ? 'info' : 'secondary'} className="gba:text-xs">
+                    <Badge variant="secondary" className="gba:text-xs">
                       {def.kind}
                     </Badge>
                   </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -24,28 +24,20 @@ import {
   Spinner,
   Badge
 } from '@newwork/nw-design-system'
-import { Save, FileSpreadsheet, Database, Eye, Settings, Upload, FileText, Check, X, Table2 } from 'lucide-react'
-import {
-  CustomDataDefinition,
-  CreateDefinitionDto,
-  UpdateDefinitionDto,
-  DefinitionKind,
-  ColumnDefinition,
-  InputType
-} from '../types'
+import { Save, Database, Eye, Settings } from 'lucide-react'
+import { CustomDataDefinition, CreateDefinitionDto, UpdateDefinitionDto } from '../types'
 import { ColumnEditor } from './ColumnEditor'
 import { SchemaPreview } from './SchemaPreview'
-import { parseFile, generateKeyFromFilename, ParsedFileResult } from '../utils/fileParser'
+import { sanitizeDefinitionKey, validateDefinitionForm } from '../utils/definitionFormUtils'
+import { createInitialColumns, ensureColumnUiIds, stripColumnUiIds, UiColumnDefinition } from '../utils/columnUiIds'
 
 interface DefinitionFormProps {
   open: boolean
   onClose: () => void
   definition?: CustomDataDefinition | null
-  onSave: (
-    dto: CreateDefinitionDto | UpdateDefinitionDto,
-    id?: string,
-    initialRows?: Record<string, any>[]
-  ) => Promise<void>
+  onSave: (dto: CreateDefinitionDto | UpdateDefinitionDto, id?: string) => Promise<void>
+  availableNamespaces?: string[]
+  onOpenCreateNamespace?: () => void
   'data-testid'?: string
 }
 
@@ -58,6 +50,8 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
   onClose,
   definition,
   onSave,
+  availableNamespaces,
+  onOpenCreateNamespace,
   'data-testid': testId = 'definition-form'
 }) => {
   const isEdit = !!definition
@@ -65,129 +59,58 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('general')
 
+  const keyInputRef = useRef<HTMLInputElement | null>(null)
+
   // Form state
   const [namespace, setNamespace] = useState('default')
   const [key, setKey] = useState('')
-  const [kind, setKind] = useState<DefinitionKind>('SPREADSHEET')
   const [displayName, setDisplayName] = useState('')
   const [description, setDescription] = useState('')
-  const [columns, setColumns] = useState<ColumnDefinition[]>([])
-
-  // File import state
-  const [parsedFile, setParsedFile] = useState<ParsedFileResult | null>(null)
-  const [isParsingFile, setIsParsingFile] = useState(false)
-  const [fileError, setFileError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [columns, setColumns] = useState<UiColumnDefinition[]>([])
 
   // Initialize form when definition changes
   useEffect(() => {
     if (definition) {
       setNamespace(definition.namespace || 'default')
       setKey(definition.key)
-      setKind(definition.kind)
       setDisplayName(definition.display_name || '')
       setDescription(definition.description || '')
-      setColumns(definition.columns_json || [])
+      setColumns(ensureColumnUiIds(definition.columns_json || []))
     } else {
       // Reset form for new definition
       setNamespace('default')
       setKey('')
-      setKind('SPREADSHEET')
       setDisplayName('')
       setDescription('')
-      setColumns([{ type: InputType.TEXT, name: 'name', label: 'Name', required: true }])
+      setColumns(createInitialColumns())
     }
     setActiveTab('general')
     setError(null)
-    setParsedFile(null)
-    setFileError(null)
   }, [definition, open])
 
-  // Handle file upload
-  const handleFileUpload = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (!file) return
-
-      setIsParsingFile(true)
-      setFileError(null)
-
-      try {
-        const result = await parseFile(file)
-        setParsedFile(result)
-
-        // Auto-fill form fields from file
-        const suggestedKey = generateKeyFromFilename(file.name)
-        if (!key) setKey(suggestedKey)
-        if (!displayName) setDisplayName(file.name.replace(/\.(csv|xlsx|xls)$/i, ''))
-
-        // Set columns from parsed file
-        setColumns(result.columns)
-
-        // Switch to columns tab to show the extracted schema
-        setActiveTab('columns')
-      } catch (err) {
-        setFileError(err instanceof Error ? err.message : 'Failed to parse file')
-        setParsedFile(null)
-      } finally {
-        setIsParsingFile(false)
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ''
-        }
-      }
-    },
-    [key, displayName]
-  )
-
-  // Clear uploaded file
-  const handleClearFile = useCallback(() => {
-    setParsedFile(null)
-    setFileError(null)
-    setColumns([{ type: InputType.TEXT, name: 'name', label: 'Name', required: true }])
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }, [])
-
   const handleKeyChange = (value: string) => {
-    // Convert to valid key format: lowercase, underscores instead of spaces
-    const sanitized = value
-      .toLowerCase()
-      .replaceAll(/\s+/g, '_')
-      .replaceAll(/[^a-z0-9_]/g, '')
-    setKey(sanitized)
+    // Keep raw input while typing to avoid focus/cursor issues; normalize on blur/submit.
+    setKey(value)
+    // Workaround: some dialog/input combinations can drop focus on controlled updates.
+    // Re-focus on next frame if needed.
+    requestAnimationFrame(() => {
+      if (keyInputRef.current && document.activeElement !== keyInputRef.current) {
+        keyInputRef.current.focus()
+      }
+    })
   }
 
-  const validateForm = (): string | null => {
-    if (!key.trim()) return 'Key is required'
-    if (key.length < 3) return 'Key must be at least 3 characters'
-    if (!/^[a-z][a-z0-9_]*$/.test(key))
-      return 'Key must start with a letter and contain only lowercase letters, numbers, and underscores'
-    if (columns.length === 0) return 'At least one column is required'
-
-    // Validate each column
-    for (let i = 0; i < columns.length; i++) {
-      const col = columns[i]
-      if (!col.name.trim()) return `Column ${i + 1}: Name is required`
-      if (!col.label.trim()) return `Column ${i + 1}: Label is required`
-      if (!/^[a-z][a-z0-9_]*$/.test(col.name)) {
-        return `Column ${i + 1}: Name must start with a letter and contain only lowercase letters, numbers, and underscores`
-      }
-    }
-
-    // Check for duplicate column names
-    const names = columns.map(c => c.name)
-    const duplicates = names.filter((name, index) => names.indexOf(name) !== index)
-    if (duplicates.length > 0) {
-      return `Duplicate column name: ${duplicates[0]}`
-    }
-
-    return null
+  const handleKeyBlur = () => {
+    setKey(prev => sanitizeDefinitionKey(prev))
   }
 
   const handleSubmit = async () => {
-    const validationError = validateForm()
+    const normalizedKey = sanitizeDefinitionKey(key)
+    if (normalizedKey !== key) {
+      setKey(normalizedKey)
+    }
+
+    const validationError = validateDefinitionForm({ key: normalizedKey, columns })
     if (validationError) {
       setError(validationError)
       return
@@ -207,15 +130,13 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
       } else {
         const dto: CreateDefinitionDto = {
           namespace,
-          key,
-          kind,
+          key: normalizedKey,
+          kind: 'ENTITY',
           display_name: displayName || undefined,
           description: description || undefined,
-          columns_json: columns
+          columns_json: stripColumnUiIds(columns)
         }
-        // Pass initial rows from parsed file for import after creation
-        const initialRows = parsedFile?.rows || undefined
-        await onSave(dto, undefined, initialRows)
+        await onSave(dto)
       }
       onClose()
     } catch (err) {
@@ -233,11 +154,7 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
       >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            {kind === 'SPREADSHEET' ? (
-              <FileSpreadsheet className="gba:h-5 gba:w-5 gba:text-info" />
-            ) : (
-              <Database className="gba:h-5 gba:w-5 gba:text-secondary" />
-            )}
+            <Database className="gba:h-5 gba:w-5 gba:text-secondary" />
             {isEdit ? 'Edit Definition' : 'Create New Definition'}
           </DialogTitle>
           <DialogDescription>
@@ -275,17 +192,32 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
                 <Label htmlFor={`${testId}-namespace`}>
                   Namespace <span className="gba:text-destructive">*</span>
                 </Label>
-                <Select value={namespace} onValueChange={setNamespace} disabled={isEdit}>
-                  <SelectTrigger data-testid={`${testId}-namespace`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">default</SelectItem>
-                    <SelectItem value="com.mycompany.hr">com.mycompany.hr</SelectItem>
-                    <SelectItem value="com.mycompany.finance">com.mycompany.finance</SelectItem>
-                    <SelectItem value="com.mycompany.platform">com.mycompany.platform</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Select value={namespace} onValueChange={setNamespace} disabled={isEdit}>
+                    <SelectTrigger className="gba:flex-1" data-testid={`${testId}-namespace`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(availableNamespaces && availableNamespaces.length > 0 ? availableNamespaces : ['default']).map(
+                        ns => (
+                          <SelectItem key={ns} value={ns}>
+                            {ns}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {!isEdit && onOpenCreateNamespace && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onOpenCreateNamespace}
+                      data-testid={`${testId}-namespace-create`}
+                    >
+                      Create
+                    </Button>
+                  )}
+                </div>
                 <p className="gba:text-xs gba:text-muted-foreground">
                   Namespace isolates your data sources. Keys must be unique within a namespace.
                 </p>
@@ -298,9 +230,11 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
                     Key <span className="gba:text-destructive">*</span>
                   </Label>
                   <Input
+                    ref={keyInputRef}
                     id={`${testId}-key`}
                     value={key}
                     onChange={e => handleKeyChange(e.target.value)}
+                    onBlur={handleKeyBlur}
                     placeholder="my_data_table"
                     disabled={isEdit}
                     className="gba:font-mono"
@@ -313,33 +247,12 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
 
                 {/* Type */}
                 <div className="gba:space-y-2">
-                  <Label htmlFor={`${testId}-kind`}>
-                    Type <span className="gba:text-destructive">*</span>
-                  </Label>
-                  <Select value={kind} onValueChange={value => setKind(value as DefinitionKind)} disabled={isEdit}>
-                    <SelectTrigger data-testid={`${testId}-kind`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SPREADSHEET">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <FileSpreadsheet className="gba:h-4 gba:w-4" />
-                          Spreadsheet
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="ENTITY">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Database className="gba:h-4 gba:w-4" />
-                          Entity
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    {kind === 'SPREADSHEET'
-                      ? 'Flexible storage in generic schema'
-                      : 'Native PostgreSQL table (requires promotion)'}
-                  </p>
+                  <Label>Type</Label>
+                  <Badge variant="secondary" className="gba:gap-2 gba:w-fit">
+                    <Database className="gba:h-4 gba:w-4" />
+                    Entity
+                  </Badge>
+                  <p className="gba:text-xs gba:text-muted-foreground">Native PostgreSQL table (requires promotion)</p>
                 </div>
               </div>
 
@@ -368,102 +281,7 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
                 />
               </div>
 
-              {/* File Upload - Only for new SPREADSHEET definitions */}
-              {!isEdit && kind === 'SPREADSHEET' && (
-                <div className="gba:space-y-3 gba:pt-4 gba:border-t gba:border-border">
-                  <div className="gba:flex gba:items-center gba:justify-between">
-                    <div>
-                      <Label className="gba:text-base gba:font-medium">Import from File</Label>
-                      <p className="gba:text-sm gba:text-muted-foreground">
-                        Upload a CSV or Excel file to automatically extract columns and data
-                      </p>
-                    </div>
-                    <Badge variant="secondary">Optional</Badge>
-                  </div>
-
-                  {parsedFile ? (
-                    <div className="gba:bg-success-secondary gba:border gba:border-success gba:rounded-lg gba:p-4">
-                      <div className="gba:flex gba:items-start gba:justify-between">
-                        <div className="gba:flex gba:items-start gba:gap-3">
-                          <div className="gba:bg-success gba:rounded-full gba:p-1.5">
-                            <Check className="gba:h-4 gba:w-4 gba:text-success-foreground" />
-                          </div>
-                          <div>
-                            <p className="gba:font-medium gba:text-success-secondary-foreground">
-                              File parsed successfully
-                            </p>
-                            <div className="gba:flex gba:items-center gba:gap-4 gba:mt-1 gba:text-sm gba:text-success-secondary-foreground/80">
-                              <span className="gba:flex gba:items-center gba:gap-1">
-                                <FileText className="gba:h-3.5 gba:w-3.5" />
-                                {parsedFile.fileName}
-                              </span>
-                              <span className="gba:flex gba:items-center gba:gap-1">
-                                <Table2 className="gba:h-3.5 gba:w-3.5" />
-                                {parsedFile.columns.length} columns
-                              </span>
-                              <span className="gba:flex gba:items-center gba:gap-1">
-                                <Database className="gba:h-3.5 gba:w-3.5" />
-                                {parsedFile.rowCount} rows to import
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleClearFile}
-                          className="gba:text-success-secondary-foreground gba:hover:bg-success/20"
-                          data-testid={`${testId}-clear-file`}
-                        >
-                          <X className="gba:h-4 gba:w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className={`gba:w-full gba:border-2 gba:border-dashed gba:rounded-lg gba:p-6 gba:text-center gba:transition-colors gba:cursor-pointer gba:bg-transparent ${
-                        isParsingFile
-                          ? 'gba:border-primary gba:bg-primary/5'
-                          : 'gba:border-border gba:hover:border-primary gba:hover:bg-muted/50'
-                      }`}
-                      onClick={() => !isParsingFile && fileInputRef.current?.click()}
-                      disabled={isParsingFile}
-                      data-testid={`${testId}-file-upload-area`}
-                    >
-                      {isParsingFile ? (
-                        <>
-                          <Spinner size="md" className="gba:mx-auto gba:mb-2" />
-                          <p className="gba:text-sm gba:font-medium">Parsing file...</p>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:text-muted-foreground" />
-                          <p className="gba:text-sm gba:font-medium">Click to upload CSV or Excel file</p>
-                          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                            Supports .csv, .xlsx, .xls files
-                          </p>
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  {fileError && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{fileError}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv,.xlsx,.xls"
-                    onChange={handleFileUpload}
-                    className="gba:hidden"
-                    data-testid={`${testId}-file-input`}
-                  />
-                </div>
-              )}
+              {/* Spreadsheet import removed: spreadsheets are managed by a dedicated service */}
             </TabsContent>
 
             {/* Columns Tab */}

@@ -15,12 +15,14 @@ import {
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import { Plus, Trash2, GripVertical, Info, Database, ChevronDown, ChevronUp } from 'lucide-react'
-import { ColumnDefinition, InputType, InputOption } from '../types'
+import { InputType, InputOption } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { UiColumnDefinition } from '../utils/columnUiIds'
+import { createNewColumn } from '../utils/columnUiIds'
 
 interface ColumnEditorProps {
-  columns: ColumnDefinition[]
-  onChange: (columns: ColumnDefinition[]) => void
+  columns: UiColumnDefinition[]
+  onChange: (columns: UiColumnDefinition[]) => void
   'data-testid'?: string
 }
 
@@ -49,16 +51,10 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
   const [expandedOptions, setExpandedOptions] = useState<Record<number, boolean>>({})
 
   const handleAddColumn = () => {
-    const newColumn: ColumnDefinition = {
-      type: InputType.TEXT,
-      name: `field_${columns.length + 1}`,
-      label: `Field ${columns.length + 1}`,
-      required: false
-    }
-    onChange([...columns, newColumn])
+    onChange([...columns, createNewColumn(columns.length)])
   }
 
-  const handleUpdateColumn = (index: number, field: keyof ColumnDefinition, value: any) => {
+  const handleUpdateColumn = (index: number, field: keyof UiColumnDefinition, value: any) => {
     const newColumns = [...columns]
     newColumns[index] = { ...newColumns[index], [field]: value }
 
@@ -182,7 +178,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
 
           return (
             <article
-              key={column.name}
+              key={column.uiId}
               draggable
               onDragStart={() => handleDragStart(index)}
               onDragOver={handleDragOver}

@@ -293,8 +293,8 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
                       )
                     }
 
-                    return columns.map(col => (
-                      <SelectItem key={col.name} value={col.name}>
+                    return columns.map((col, idx) => (
+                      <SelectItem key={`${col.name}-${idx}`} value={col.name}>
                         {col.label} ({col.name})
                       </SelectItem>
                     ))
@@ -331,8 +331,8 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
                         <details className="gba:mt-1">
                           <summary className="gba:cursor-pointer">View all FK columns</summary>
                           <ul className="gba:ml-4 gba:mt-1">
-                            {currentEntityForeignKeyColumns.map(col => (
-                              <li key={col.name}>
+                            {currentEntityForeignKeyColumns.map((col, idx) => (
+                              <li key={`${col.name}-${idx}`}>
                                 {col.name} → {col.dataSource?.entity || 'no target'}
                               </li>
                             ))}
@@ -360,8 +360,8 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
                         <details className="gba:mt-1">
                           <summary className="gba:cursor-pointer">View all FK columns</summary>
                           <ul className="gba:ml-4 gba:mt-1">
-                            {selectedEntityForeignKeyColumns.map(col => (
-                              <li key={col.name}>
+                            {selectedEntityForeignKeyColumns.map((col, idx) => (
+                              <li key={`${col.name}-${idx}`}>
                                 {col.name} → {col.dataSource?.entity || 'no target'}
                               </li>
                             ))}

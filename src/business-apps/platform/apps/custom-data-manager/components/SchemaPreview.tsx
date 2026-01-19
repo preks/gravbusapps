@@ -17,9 +17,10 @@ import {
 } from '@newwork/nw-design-system'
 import { Eye, Calendar, Upload, Hash, FileText, CheckSquare, List, Database } from 'lucide-react'
 import { ColumnDefinition, InputType } from '../types'
+import type { UiColumnDefinition } from '../utils/columnUiIds'
 
 interface SchemaPreviewProps {
-  columns: ColumnDefinition[]
+  columns: UiColumnDefinition[]
   'data-testid'?: string
 }
 
@@ -172,14 +173,14 @@ export const SchemaPreview: React.FC<SchemaPreviewProps> = ({ columns, 'data-tes
           <CardTitle className="gba:text-lg">Data Entry Form</CardTitle>
         </CardHeader>
         <CardContent className="gba:space-y-6">
-          {columns.map(column => (
-            <div key={column.name} className="gba:space-y-2">
+          {columns.map((column, index) => (
+            <div key={column.uiId} className="gba:space-y-2">
               <Label className="gba:flex gba:items-center gba:gap-2">
                 {getFieldIcon(column.type)}
                 {column.label || column.name}
                 {column.required && <span className="gba:text-destructive">*</span>}
               </Label>
-              {renderField(column, columns.indexOf(column))}
+              {renderField(column, index)}
               <p className="gba:text-xs gba:text-muted-foreground gba:font-mono">Field key: {column.name}</p>
             </div>
           ))}
@@ -192,7 +193,7 @@ export const SchemaPreview: React.FC<SchemaPreviewProps> = ({ columns, 'data-tes
         <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3">
           {columns.map(col => (
             <div
-              key={col.name}
+              key={col.uiId}
               className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:bg-background gba:rounded gba:px-2 gba:py-1.5"
             >
               {getFieldIcon(col.type)}

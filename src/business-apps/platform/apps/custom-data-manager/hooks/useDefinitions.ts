@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useCustomDataClient } from './useCustomDataClient'
-import { CustomDataDefinition, CreateDefinitionDto, UpdateDefinitionDto, DefinitionKind } from '../types'
+import { CustomDataDefinition, CreateDefinitionDto, UpdateDefinitionDto } from '../types'
 
 interface UseDefinitionsResult {
   definitions: CustomDataDefinition[]
@@ -14,10 +14,6 @@ interface UseDefinitionsResult {
   updateDefinition: (id: string, dto: UpdateDefinitionDto) => Promise<CustomDataDefinition>
   selectDefinition: (definition: CustomDataDefinition | null) => void
   loadDefinition: (id: string) => Promise<CustomDataDefinition | null>
-
-  // Filtering
-  filterKind: DefinitionKind | undefined
-  setFilterKind: (kind: DefinitionKind | undefined) => void
 }
 
 /**
@@ -30,7 +26,6 @@ export const useDefinitions = (accessToken: string, namespace?: string): UseDefi
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedDefinition, setSelectedDefinition] = useState<CustomDataDefinition | null>(null)
-  const [filterKind, setFilterKind] = useState<DefinitionKind | undefined>(undefined)
 
   const fetchDefinitions = useCallback(async () => {
     if (!accessToken) return
@@ -39,7 +34,7 @@ export const useDefinitions = (accessToken: string, namespace?: string): UseDefi
     setError(null)
 
     try {
-      const data = await client.listDefinitions(filterKind, namespace)
+      const data = await client.listDefinitions(namespace)
       setDefinitions(data)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load definitions'
@@ -48,7 +43,7 @@ export const useDefinitions = (accessToken: string, namespace?: string): UseDefi
     } finally {
       setIsLoading(false)
     }
-  }, [client, accessToken, filterKind, namespace])
+  }, [client, accessToken, namespace])
 
   useEffect(() => {
     fetchDefinitions()
@@ -102,8 +97,6 @@ export const useDefinitions = (accessToken: string, namespace?: string): UseDefi
     createDefinition,
     updateDefinition,
     selectDefinition,
-    loadDefinition,
-    filterKind,
-    setFilterKind
+    loadDefinition
   }
 }

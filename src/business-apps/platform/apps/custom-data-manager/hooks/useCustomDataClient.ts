@@ -2,33 +2,26 @@ import { useCallback, useMemo } from 'react'
 import { env } from '@/common/env/EnvUtils'
 import {
   CustomDataDefinition,
+  CustomDataNamespace,
+  CreateNamespaceDto,
   CreateDefinitionDto,
   UpdateDefinitionDto,
-  SpreadsheetRow,
-  CreateRowDto,
-  UpdateRowDto,
-  DefinitionKind,
   EntitySchemaProposal,
   BatchCreationResult,
   EntityRelationship
 } from '../types'
 
 interface CustomDataClient {
+  // Namespaces
+  listNamespaces: () => Promise<CustomDataNamespace[]>
+  createNamespace: (dto: CreateNamespaceDto) => Promise<CustomDataNamespace>
+
   // Definitions
-  listDefinitions: (kind?: DefinitionKind, namespace?: string) => Promise<CustomDataDefinition[]>
+  listDefinitions: (namespace?: string) => Promise<CustomDataDefinition[]>
   getDefinition: (id: string) => Promise<CustomDataDefinition>
   createDefinition: (dto: CreateDefinitionDto) => Promise<CustomDataDefinition>
   updateDefinition: (id: string, dto: UpdateDefinitionDto) => Promise<CustomDataDefinition>
   deleteDefinition: (id: string) => Promise<{ success: boolean }>
-
-  // Spreadsheet rows
-  listRows: (
-    definitionKey: string,
-    params?: { limit?: number; offset?: number }
-  ) => Promise<{ rows: SpreadsheetRow[]; total: number }>
-  createRow: (definitionKey: string, dto: CreateRowDto) => Promise<SpreadsheetRow>
-  updateRow: (definitionKey: string, rowId: string, dto: UpdateRowDto) => Promise<SpreadsheetRow>
-  deleteRow: (definitionKey: string, rowId: string) => Promise<{ success: boolean }>
 
   // Entity promotion
   promoteEntity: (definitionId: string) => Promise<CustomDataDefinition>
@@ -70,12 +63,25 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   )
 
   const listDefinitions = useCallback(
-    async (kind?: DefinitionKind, namespace?: string): Promise<CustomDataDefinition[]> => {
+    async (namespace?: string): Promise<CustomDataDefinition[]> => {
       const params = new URLSearchParams()
-      if (kind) params.set('kind', kind)
       if (namespace) params.set('namespace', namespace)
       const queryString = params.toString() ? `?${params.toString()}` : ''
       return fetchWithAuth<CustomDataDefinition[]>(`/api/custom-data/definitions${queryString}`)
+    },
+    [fetchWithAuth]
+  )
+
+  const listNamespaces = useCallback(async (): Promise<CustomDataNamespace[]> => {
+    return fetchWithAuth<CustomDataNamespace[]>('/api/custom-data/namespaces')
+  }, [fetchWithAuth])
+
+  const createNamespace = useCallback(
+    async (dto: CreateNamespaceDto): Promise<CustomDataNamespace> => {
+      return fetchWithAuth<CustomDataNamespace>('/api/custom-data/namespaces', {
+        method: 'POST',
+        body: JSON.stringify(dto)
+      })
     },
     [fetchWithAuth]
   )
@@ -110,52 +116,6 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   const deleteDefinition = useCallback(
     async (id: string): Promise<{ success: boolean }> => {
       return fetchWithAuth<{ success: boolean }>(`/api/custom-data/definitions/${id}`, {
-        method: 'DELETE'
-      })
-    },
-    [fetchWithAuth]
-  )
-
-  const listRows = useCallback(
-    async (
-      definitionKey: string,
-      params?: { limit?: number; offset?: number }
-    ): Promise<{ rows: SpreadsheetRow[]; total: number }> => {
-      const queryParams = new URLSearchParams()
-      if (params?.limit) queryParams.set('limit', String(params.limit))
-      if (params?.offset) queryParams.set('offset', String(params.offset))
-      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : ''
-
-      return fetchWithAuth<{ rows: SpreadsheetRow[]; total: number }>(
-        `/api/custom-data/spreadsheets/${definitionKey}/rows${queryString}`
-      )
-    },
-    [fetchWithAuth]
-  )
-
-  const createRow = useCallback(
-    async (definitionKey: string, dto: CreateRowDto): Promise<SpreadsheetRow> => {
-      return fetchWithAuth<SpreadsheetRow>(`/api/custom-data/spreadsheets/${definitionKey}/rows`, {
-        method: 'POST',
-        body: JSON.stringify(dto)
-      })
-    },
-    [fetchWithAuth]
-  )
-
-  const updateRow = useCallback(
-    async (definitionKey: string, rowId: string, dto: UpdateRowDto): Promise<SpreadsheetRow> => {
-      return fetchWithAuth<SpreadsheetRow>(`/api/custom-data/spreadsheets/${definitionKey}/rows/${rowId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(dto)
-      })
-    },
-    [fetchWithAuth]
-  )
-
-  const deleteRow = useCallback(
-    async (definitionKey: string, rowId: string): Promise<{ success: boolean }> => {
-      return fetchWithAuth<{ success: boolean }>(`/api/custom-data/spreadsheets/${definitionKey}/rows/${rowId}`, {
         method: 'DELETE'
       })
     },
@@ -204,30 +164,26 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
 
   return useMemo(
     () => ({
+      listNamespaces,
+      createNamespace,
       listDefinitions,
       getDefinition,
       createDefinition,
       updateDefinition,
       deleteDefinition,
-      listRows,
-      createRow,
-      updateRow,
-      deleteRow,
       promoteEntity,
       generateSchemaFromNaturalLanguage,
       createEntitiesFromProposal,
       createRelationship
     }),
     [
+      listNamespaces,
+      createNamespace,
       listDefinitions,
       getDefinition,
       createDefinition,
       updateDefinition,
       deleteDefinition,
-      listRows,
-      createRow,
-      updateRow,
-      deleteRow,
       promoteEntity,
       generateSchemaFromNaturalLanguage,
       createEntitiesFromProposal,

@@ -8,18 +8,12 @@ import {
   TableRow,
   Badge,
   Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Spinner,
-  Checkbox,
-  Alert,
-  AlertDescription
+  Checkbox
 } from '@newwork/nw-design-system'
-import { Edit2, Eye, Trash2, Database, FileSpreadsheet, Rocket, Download, X } from 'lucide-react'
-import { CustomDataDefinition, DefinitionKind } from '../types'
+import { Edit2, Eye, Database, Rocket } from 'lucide-react'
+import { CustomDataDefinition } from '../types'
+import { DefinitionsBulkToolbar } from './DefinitionsBulkToolbar'
 
 export interface BulkAction {
   type: 'promote' | 'delete' | 'export'
@@ -29,8 +23,6 @@ export interface BulkAction {
 interface DefinitionsTableProps {
   definitions: CustomDataDefinition[]
   isLoading: boolean
-  filterKind: DefinitionKind | undefined
-  onFilterChange: (kind: DefinitionKind | undefined) => void
   onSelect: (definition: CustomDataDefinition) => void
   onEdit: (definition: CustomDataDefinition) => void
   onPromote: (definition: CustomDataDefinition) => void
@@ -41,8 +33,6 @@ interface DefinitionsTableProps {
 export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
   definitions,
   isLoading,
-  filterKind,
-  onFilterChange,
   onSelect,
   onEdit,
   onPromote,
@@ -109,22 +99,12 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
     }
   }, [selectedDefinitions, onBulkAction])
 
-  const getKindBadge = (kind: DefinitionKind) => {
-    if (kind === 'SPREADSHEET') {
-      return (
-        <Badge variant="info" className="gba:gap-1">
-          <FileSpreadsheet className="gba:h-3 gba:w-3" />
-          Spreadsheet
-        </Badge>
-      )
-    }
-    return (
-      <Badge variant="secondary" className="gba:gap-1">
-        <Database className="gba:h-3 gba:w-3" />
-        Entity
-      </Badge>
-    )
-  }
+  const getKindBadge = () => (
+    <Badge variant="secondary" className="gba:gap-1">
+      <Database className="gba:h-3 gba:w-3" />
+      Entity
+    </Badge>
+  )
 
   const getNamespaceBadge = (namespace: string) => {
     // Color code namespaces
@@ -155,9 +135,6 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
     if (publish_state === 'DRAFT') {
       return <Badge variant="warning">Draft</Badge>
     }
-    if (publish_state === 'GENERIC_TRACKED') {
-      return <Badge variant="success">Active</Badge>
-    }
 
     return <Badge variant="offline">Unknown</Badge>
   }
@@ -183,81 +160,18 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
     <div className="gba:space-y-4" data-testid={testId}>
       {/* Bulk Actions Toolbar - shown when items are selected */}
       {selectedIds.size > 0 && (
-        <Alert className="gba:bg-primary/5 gba:border-primary/20" data-testid={`${testId}-bulk-toolbar`}>
-          <AlertDescription>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <span className="gba:font-medium">
-                  {selectedIds.size} {selectedIds.size === 1 ? 'item' : 'items'} selected
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearSelection}
-                  className="gba:h-7 gba:text-xs"
-                  data-testid={`${testId}-clear-selection`}
-                >
-                  <X className="gba:h-3 gba:w-3 gba:mr-1" />
-                  Clear
-                </Button>
-              </div>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                {promotableCount > 0 && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={handleBulkPromote}
-                    className="gba:h-8"
-                    data-testid={`${testId}-bulk-promote`}
-                  >
-                    <Rocket className="gba:h-4 gba:w-4 gba:mr-1" />
-                    Promote ({promotableCount})
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBulkExport}
-                  className="gba:h-8"
-                  data-testid={`${testId}-bulk-export`}
-                >
-                  <Download className="gba:h-4 gba:w-4 gba:mr-1" />
-                  Export
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  className="gba:h-8"
-                  data-testid={`${testId}-bulk-delete`}
-                >
-                  <Trash2 className="gba:h-4 gba:w-4 gba:mr-1" />
-                  Delete
-                </Button>
-              </div>
-            </div>
-          </AlertDescription>
-        </Alert>
+        <DefinitionsBulkToolbar
+          selectedCount={selectedIds.size}
+          promotableCount={promotableCount}
+          onClearSelection={clearSelection}
+          onPromote={promotableCount > 0 ? handleBulkPromote : undefined}
+          onExport={handleBulkExport}
+          onDelete={handleBulkDelete}
+          data-testid={`${testId}-bulk-toolbar`}
+        />
       )}
 
-      {/* Filter Bar */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:text-muted-foreground">Filter by type:</span>
-          <Select
-            value={filterKind || 'all'}
-            onValueChange={value => onFilterChange(value === 'all' ? undefined : (value as DefinitionKind))}
-          >
-            <SelectTrigger className="gba:w-40" data-testid={`${testId}-filter`}>
-              <SelectValue placeholder="All types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="SPREADSHEET">Spreadsheets</SelectItem>
-              <SelectItem value="ENTITY">Entities</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="gba:flex gba:items-center gba:justify-end">
         <span className="gba:text-sm gba:text-muted-foreground">
           {definitions.length} {definitions.length === 1 ? 'definition' : 'definitions'}
         </span>
@@ -329,7 +243,7 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{getKindBadge(definition.kind)}</TableCell>
+                  <TableCell>{getKindBadge()}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{definition.columns_json?.length || 0} fields</Badge>
                   </TableCell>

@@ -38,9 +38,9 @@ export interface ColumnDefinition {
   readOnly?: boolean
 }
 
-export type DefinitionKind = 'SPREADSHEET' | 'ENTITY'
+export type DefinitionKind = 'ENTITY'
 
-export type PublishState = 'GENERIC_TRACKED' | 'DRAFT' | 'PROMOTED_TRACKED' | 'ERROR'
+export type PublishState = 'DRAFT' | 'PROMOTED_TRACKED' | 'ERROR'
 
 export interface DeployState {
   tableName?: string
@@ -65,6 +65,20 @@ export interface CustomDataDefinition {
   updated_by?: string
 }
 
+export interface CustomDataNamespace {
+  namespace: string
+  display_name?: string | null
+  description?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateNamespaceDto {
+  namespace: string
+  display_name?: string
+  description?: string
+}
+
 export interface CreateDefinitionDto {
   namespace: string
   key: string
@@ -80,24 +94,6 @@ export interface UpdateDefinitionDto {
   columns_json?: ColumnDefinition[]
   publish_state?: PublishState
   deploy_state?: DeployState
-}
-
-export interface SpreadsheetRow {
-  id: string
-  spreadsheet_id: string
-  values: Record<string, any>
-  created_at: string
-  updated_at: string
-  created_by?: string
-  updated_by?: string
-}
-
-export interface CreateRowDto {
-  values: Record<string, any>
-}
-
-export interface UpdateRowDto {
-  values: Record<string, any>
 }
 
 /**
